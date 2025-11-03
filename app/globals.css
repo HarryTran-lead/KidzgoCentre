@@ -1,9 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+:root{
+  /* Palette lấy theo logo KidzGo (có thể tinh chỉnh nếu bạn có mã chính xác) */
+  --brand-pink:  #FF2B7A;   /* hồng */
+  --brand-blue:  #0B3B91;   /* xanh navy */
+  --brand-green: #2FBF4B;   /* xanh lá */
+  --brand-orange:#FFA21A;   /* cam */
+  --brand-yellow:#FFD23B;   /* vàng */
+
+  /* Gradient chủ đạo: hồng → xanh navy */
+  --grad-from: var(--brand-pink);
+  --grad-to:   var(--brand-blue);
+
+  /* Màu nền/border/ink trung tính */
+  --surface-50:  #FFF7FA;    /* nền sáng ám hồng */
+  --surface-75:  #F9FBFF;    /* nền section nhạt ám xanh */
+  --surface-200: #E7EAF7;    /* border nhẹ */
+  --surface-300: #D7DBEA;
+
+  --ink-900: #0F1324;
+  --ink-700: #2C3147;
+  --ink-600: #4B516A;
+  --ink-500: #707796;
+
+  /* tiện cho tints */
+  --brand-blue-10:  color-mix(in oklab, var(--brand-blue) 10%, white);
+  --brand-green-15: color-mix(in oklab, var(--brand-green) 15%, white);
+  --brand-pink-10:  color-mix(in oklab, var(--brand-pink) 10%, white);
+  --brand-pink-25:  color-mix(in oklab, var(--brand-pink) 25%, white);
+  --brand-yellow-15: color-mix(in oklab, var(--brand-yellow) 15%, white);
 }
+/* Nếu trình duyệt chưa hỗ trợ color-mix, bạn có thể thay các biến *-10/*-15/*-25 bằng mã hex cố định. */
+
 
 @theme inline {
   --color-background: var(--background);
@@ -23,4 +51,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+@layer base {
+  body { @apply text-gray-900 antialiased; }
+  h1,h2,h3,h4 { @apply text-gray-900; }
 }
