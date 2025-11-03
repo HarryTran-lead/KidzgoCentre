@@ -24,7 +24,7 @@ export default function Sidebar() {
   return (
     <aside className="w-72 shrink-0 border-r bg-white/70 backdrop-blur">
       <div className="px-5 py-4 border-b">
-        <div className="font-extrabold text-xl">EduCenter</div>
+        <div className="font-extrabold text-gray-900 text-xl">EduCenter</div>
         <div className="text-xs text-slate-500">Giảng viên</div>
       </div>
 

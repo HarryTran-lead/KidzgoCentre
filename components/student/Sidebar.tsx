@@ -35,7 +35,7 @@ export default function Sidebar() {
     { href: "/student", label: "Trang chủ", icon: <House className="w-5 h-5" /> },
     { href: "/student/schedule", label: "Lịch học", icon: <CalendarCheck className="w-5 h-5" /> },
     { href: "/student/profile", label: "Hồ sơ", icon: <User className="w-5 h-5" /> },
-    { href: "/student/fees", label: "Học phí", icon: <CreditCard className="w-5 h-5" /> },
+    { href: "/student/tuition", label: "Học phí", icon: <CreditCard className="w-5 h-5" /> },
     { href: "/student/materials", label: "Tài liệu", icon: <BookOpen className="w-5 h-5" /> },
     { href: "/student/notifications", label: "Thông báo", icon: <Bell className="w-5 h-5" /> },
   ];

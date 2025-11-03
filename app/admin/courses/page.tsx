@@ -277,7 +277,7 @@ export default function Page() {
               </td>
 
               <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center text-gray-700 gap-2">
                   <button className="p-2 rounded-lg border hover:bg-slate-100" title="Xem">
                     <Eye size={16} />
                   </button>
