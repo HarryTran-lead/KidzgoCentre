@@ -18,6 +18,7 @@ import {
   type Locale,
 } from "@/lib/i18n/i18n";
 import { useMsg } from "@/lib/dict";
+import dynamic from "next/dynamic";
 
 /* ===== Helpers ===== */
 const FbFrame = dynamic(() => import("../homepage/fbFrame/index"), { ssr: false });
