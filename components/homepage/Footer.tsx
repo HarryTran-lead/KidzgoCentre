@@ -21,7 +21,7 @@ import {
 import { useMsg } from "@/lib/dict";
 
 /* ===== Helpers ===== */
-const FbFrame = dynamic(() => import("./fbframe"), { ssr: false });
+const FbFrame = dynamic(() => import("../homepage/fbFrame/index"), { ssr: false });
 
 const fbSrc = (pageUrl: string, w: number, h: number) =>
   `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(
