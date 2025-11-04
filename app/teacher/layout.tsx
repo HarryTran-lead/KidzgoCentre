@@ -13,7 +13,7 @@ export default function TeacherLayout({
         <Sidebar />
         <div className="flex-1 min-w-0">
           <Header />
-          <main className="p-6 max-w-[1400px] mx-auto">{children}</main>
+          <main className="p-6 max-w-[1400px] text-gray-900 dark:text-white mx-auto">{children}</main>
         </div>
       </div>
     </div>

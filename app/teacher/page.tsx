@@ -67,7 +67,7 @@ export default function Page() {
             ].map((r, i) => (
               <div key={i} className="py-3 flex items-center justify-between">
                 <div>
-                  <div className="font-medium">{r.name}</div>
+                  <div className="font-medium text-gray-900">{r.name}</div>
                   <div className="text-xs text-slate-500">{r.time}</div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -85,22 +85,14 @@ export default function Page() {
           <h3 className="font-semibold mb-2">Thông báo mới</h3>
           <div className="space-y-3">
             <div className="p-3 rounded-xl border bg-white">
-              <div className="font-medium">Lịch dạy được cập nhật</div>
-              <div className="text-xs text-slate-500">
-                Lớp IELTS Foundation - A1 chuyển sang phòng 301 từ ngày 12/10
-              </div>
-              <div className="mt-2">
-                <Badge color="blue">Thông tin</Badge>
-              </div>
+              <div className="font-medium text-gray-900">Lịch dạy được cập nhật</div>
+              <div className="text-xs text-slate-500">Lớp IELTS Foundation - A1 chuyển sang phòng 301 từ ngày 12/10</div>
+              <div className="mt-2"><Badge color="blue">Thông tin</Badge></div>
             </div>
             <div className="p-3 rounded-xl border bg-white">
-              <div className="font-medium">Nhắc nhở điểm danh</div>
-              <div className="text-xs text-slate-500">
-                Chưa điểm danh buổi 08/10 cho lớp TOEIC Intermediate
-              </div>
-              <div className="mt-2">
-                <Badge color="red">Quan trọng</Badge>
-              </div>
+              <div className="font-medium text-gray-900">Nhắc nhở điểm danh</div>
+              <div className="text-xs text-slate-500">Chưa điểm danh buổi 08/10 cho lớp TOEIC Intermediate</div>
+              <div className="mt-2"><Badge color="red">Quan trọng</Badge></div>
             </div>
           </div>
         </div>

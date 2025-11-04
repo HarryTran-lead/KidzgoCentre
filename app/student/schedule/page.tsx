@@ -23,13 +23,13 @@ export default function Page() {
     <div className="space-y-6">
       {/* Header */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between">
-        <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50">
+        <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50 text-gray-900">
           <ChevronLeft size={16} /> Tuần trước
         </button>
 
         <div className="text-xl font-bold text-gray-900">Tuần này</div>
 
-        <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50">
+        <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50 text-gray-900">
           Tuần sau <ChevronRight size={16} />
         </button>
       </div>
@@ -89,9 +89,9 @@ export default function Page() {
 
         {/* Legend */}
         <div className="mt-6 rounded-2xl border border-slate-200 p-4">
-          <div className="flex flex-wrap items-center gap-6 text-sm">
+          <div className="flex flex-wrap items-center gap-6 text-sm text-gray-900">
             <label className="inline-flex items-center gap-2">
-              <span className="h-4 w-4 rounded text-gray-black border border-slate-400 inline-block" />
+              <span className="h-4 w-4 rounded  border border-slate-400 inline-block" />
               Lớp học thường
             </label>
             <label className="inline-flex items-center gap-2">
