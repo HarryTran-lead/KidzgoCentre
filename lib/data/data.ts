@@ -139,7 +139,18 @@ export const BLOGS = [
   },
 ];
 
-export const GALLERY = Array.from(
-  { length: 12 },
-  (_, i) => `/image/Club${i + 1}.jpg`
-);
+// lib/data/data.ts
+export const GALLERY = [
+  "/image/Club1.JPG",
+  "/image/Club2.jpg",
+  "/image/Club3.jpg",   // convert từ HEIC
+  "/image/Club4.JPG",
+  "/image/Club5.JPG",
+  "/image/Club6.JPG",
+  "/image/Club7.JPG",
+  "/image/Club8.JPG",
+  "/image/Club9.JPG",
+  "/image/Club10.JPG",
+  "/image/Club11.jpg",  // convert từ HEIC
+  "/image/Club12.JPG",
+];
