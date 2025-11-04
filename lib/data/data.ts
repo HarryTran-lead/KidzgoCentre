@@ -151,6 +151,6 @@ export const GALLERY = [
   "/image/Club8.JPG",
   "/image/Club9.JPG",
   "/image/Club10.JPG",
-  "/image/Club11.JPG",  // convert từ HEIC
+  "/image/Club16.JPG",  // convert từ HEIC
   "/image/Club12.JPG",
 ];
