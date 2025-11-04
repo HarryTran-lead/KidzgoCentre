@@ -19,11 +19,11 @@ import { useMsg } from "@lib/dict";
 /** ICON & IMAGE giữ ở component (từ ngữ tách ở dict) */
 const ICONS = [Book, Sparkles, Users, Trophy, Heart];
 const IMAGES = [
-  "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1920&h=1080&fit=crop",
-  "https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=1920&h=1080&fit=crop",
-  "https://images.unsplash.com/photo-1544776193-352d25ca82cd?w=1920&h=1080&fit=crop",
-  "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1920&h=1080&fit=crop",
-  "https://images.unsplash.com/photo-1588075592446-265fd1e6e76f?w=1920&h=1080&fit=crop",
+  "/image/Banner1.JPG", // ảnh đầu từ public/image/Banner1.JPG
+  "/image/Banner2.JPG",
+  "/image/Banner3.JPG",
+  "/image/Banner4.JPG",
+  "/image/Banner5.JPG",
 ];
 
 /** Bộ hiệu ứng cho 3 dòng tiêu đề */
