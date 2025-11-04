@@ -1,6 +1,6 @@
 import { BookOpen, CalendarClock, Users, TrendingUp } from "lucide-react";
-import StatCard from "@components/teacher/StatCard";
-import Badge from "@components/teacher/Badge";
+import StatCard from "@/components/teacher/StatCard";
+import Badge from "@/components/teacher/Badge";
 
 export default function Page() {
   return (

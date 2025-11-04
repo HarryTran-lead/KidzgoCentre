@@ -13,14 +13,14 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Menu, X, LogIn, UserPlus } from "lucide-react";
 import { motion, useMotionValue, animate } from "framer-motion";
-import { LOGO, CTA_GRAD } from "@lib/theme/theme";
-import LanguageToggle from "@components/button/LanguageToggle";
+import { LOGO, CTA_GRAD } from "@/lib/theme/theme";
+import LanguageToggle from "@/components/button/LanguageToggle";
 import {
   pickLocaleFromPath,
   type Locale,
   DEFAULT_LOCALE,
-} from "@lib/i18n/i18n";
-import { useMsg } from "@lib/dict";
+} from "@/lib/i18n/i18n";
+import { useMsg } from "@/lib/dict";
 
 type NavItem = { id: string; label: string; icon: string };
 

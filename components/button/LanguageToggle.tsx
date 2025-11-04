@@ -6,7 +6,7 @@ import { Tooltip } from "@mui/material";
 import { toast } from "react-hot-toast";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { type Locale, pickLocaleFromPath, localizePath } from "@lib/i18n/i18n";
+import { type Locale, pickLocaleFromPath, localizePath } from "@/lib/i18n/i18n";
 
 export default function LanguageToggle() {
   const pathname = usePathname();

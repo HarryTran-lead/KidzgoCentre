@@ -1,5 +1,5 @@
 // components/sections/Roadmap.tsx  (SERVER)
-import { ACCENT_TEXT } from "@lib/theme/theme";
+import { ACCENT_TEXT } from "@/lib/theme/theme";
 import { CheckCircle } from "lucide-react";
 
 export default function Roadmap() {
