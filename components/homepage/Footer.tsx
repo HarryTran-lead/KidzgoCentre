@@ -3,7 +3,6 @@
 import React, { useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import {
   motion,
@@ -12,7 +11,7 @@ import {
   cubicBezier,
 } from "framer-motion";
 import { Mail, Phone, MapPin, Facebook, Sparkles } from "lucide-react";
-import { PRIMARY_GRAD,LOGO_FOOTER } from "@/lib/theme/theme";
+import { LOGO_FOOTER } from "@/lib/theme/theme";
 import {
   pickLocaleFromPath,
   DEFAULT_LOCALE,
@@ -26,7 +25,7 @@ const FbFrame = dynamic(() => import("../homepage/fbFrame/index"), { ssr: false 
 const fbSrc = (pageUrl: string, w: number, h: number) =>
   `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(
     pageUrl
-  )}&tabs=timeline&width=${w}&height=${h}&small_header=false&adapt_container_width=false&hide_cover=false&show_facepile=false&hide_cta=false`;
+  )}&tabs=timeline&width=${w}&height=${h}&adapt_container_width=true&hide_cover=false&show_facepile=false`;
 
 /* ===== Motion ===== */
 const easeOut = cubicBezier(0.22, 1, 0.36, 1);
@@ -89,7 +88,6 @@ const TEXT_COLOR = {
 
 type Palette = keyof typeof BADGE_STYLES;
 
-/* ===== Footer ===== */
 export default function Footer() {
   const pathname = usePathname();
   const locale = useMemo(
@@ -100,7 +98,7 @@ export default function Footer() {
   const rights =
     locale === "vi" ? "Bảo lưu mọi quyền." : "All rights reserved.";
 
-  // Fallbacks nếu dict chưa có đủ khóa
+  // Fallbacks nếu dict chưa đủ khóa
   const ft: any = msg.footer ?? {};
   const facebookUrl: string =
     ft.facebookUrl ?? "https://www.facebook.com/kidzgoEnglish";
@@ -120,14 +118,9 @@ export default function Footer() {
   const facebookText: string =
     ft.facebookText ?? "https://www.facebook.com/kidzgoEnglish";
 
-  /* Màu icon cho ĐỊA CHỈ (đổi tự do) & Liên hệ */
   const ADDRESS_PALETTES: Palette[] = ["violet", "emerald", "amber"];
   const PHONE_PALETTE: Palette = "blue";
   const MAIL_PALETTE: Palette = "rose";
-
-  /* Facebook Page plugin — bật TIMELINE để kéo xem bài viết */
-  const fbWidth = 460;
-  const fbHeight = 640; // cao để thấy feed + có thể kéo
 
   return (
     <footer className="relative overflow-hidden">
@@ -135,7 +128,6 @@ export default function Footer() {
       <div className="absolute inset-0 pointer-events-none mask-[radial-gradient(900px_400px_at_10%_0%,#000_45%,transparent)] bg-[radial-gradient(1200px_200px_at_80%_0%,rgba(255,255,255,0.55),transparent)]" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-4 md:px-4 lg:px-4 xl:px-0 pt-8 pb-4">
-        {/* ===== 3 CỘT: 1) Logo + FB, 2) Về chúng tôi + Chương trình, 3) Địa chỉ + Liên hệ ===== */}
         <motion.div
           variants={container}
           initial="hidden"
@@ -152,7 +144,7 @@ export default function Footer() {
                 width={900}
                 height={900}
                 priority
-                className="h-12 md:h-13 lg:h-13 xl:h-18 mb-0.5 w-auto"
+                className="h-12 lg:h-16 xl:h-20 mb-0.5 w-auto"
               />
             </Link>
             <p className="text-sm leading-6 text-slate-700">
@@ -163,37 +155,52 @@ export default function Footer() {
 
             <div className="pt-2 flex flex-col">
               <div className="rounded-md ring-1 ring-slate-200 bg-white shadow-sm overflow-hidden w-fit">
-                {/* 2xl: 500 x 320 */}
+                {/* 2xl */}
                 <div className="hidden 2xl:block" style={{ width: 500 }}>
                   <iframe
                     title="KidzGo Facebook Page (2xl)"
-                    src={fbSrc(facebookUrl, 500, 320)}
-                    scrolling="yes"
+                    src={fbSrc(facebookUrl, 500, 260)}
+                    loading="lazy"
                     allow="encrypted-media; clipboard-write; picture-in-picture; web-share"
-                    style={{ border: "none", width: 500, height: 260 }}
+                    style={{
+                      border: "none",
+                      overflow: "hidden",
+                      width: 500,
+                      height: 260,
+                    }}
                   />
                 </div>
-                {/* lg–xl: 420 x 320 */}
+                {/* lg–xl */}
                 <div
                   className="hidden lg:block 2xl:hidden"
                   style={{ width: 420 }}
                 >
                   <iframe
                     title="KidzGo Facebook Page (lg-xl)"
-                    src={fbSrc(facebookUrl, 420, 240)}
-                    scrolling="yes"
+                    src={fbSrc(facebookUrl, 420, 260)}
+                    loading="lazy"
                     allow="encrypted-media; clipboard-write; picture-in-picture; web-share"
-                    style={{ border: "none", width: 420, height: 260 }}
+                    style={{
+                      border: "none",
+                      overflow: "hidden",
+                      width: 420,
+                      height: 260,
+                    }}
                   />
                 </div>
-                {/* sm & xs: 360 x 320 */}
+                {/* sm & xs */}
                 <div className="block lg:hidden" style={{ width: 360 }}>
                   <iframe
                     title="KidzGo Facebook Page (sm)"
-                    src={fbSrc(facebookUrl, 360, 320)}
-                    scrolling="yes"
+                    src={fbSrc(facebookUrl, 360, 260)}
+                    loading="lazy"
                     allow="encrypted-media; clipboard-write; picture-in-picture; web-share"
-                    style={{ border: "none", width: 360, height: 260 }}
+                    style={{
+                      border: "none",
+                      overflow: "hidden",
+                      width: 360,
+                      height: 260,
+                    }}
                   />
                 </div>
               </div>
@@ -264,7 +271,6 @@ export default function Footer() {
             variants={stagger}
             className="space-y-3 mt-0 sm:mt-8 self-stretch flex flex-col justify-around"
           >
-            {/* Địa chỉ */}
             <div className="space-y-3">
               <motion.h4
                 variants={item}
@@ -282,15 +288,14 @@ export default function Footer() {
                       href="#"
                       palette={ADDRESS_PALETTES[i] as Palette}
                     >
-                      <MapPin className=" w-5 h-5 shrink-0 mr-1" />
-                      <span className="">{txt}</span>
+                      <MapPin className="w-5 h-5 shrink-0 mr-1" />
+                      <span>{txt}</span>
                     </ContactLink>
                   </motion.li>
                 ))}
               </motion.ul>
             </div>
 
-            {/* Liên hệ */}
             <div className="space-y-3">
               <motion.h4
                 variants={item}
@@ -346,28 +351,16 @@ export default function Footer() {
             variants={item}
             className="flex items-center justify-center gap-2 text-center text-slate-700 text-sm"
           >
-            {/* Sparkles trái */}
             <motion.span
-              animate={{
-                opacity: [0.4, 1, 0.4],
-                scale: [1, 1.1, 1],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
+              animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               className="text-yellow-500"
             >
               <Sparkles className="w-4 h-4" />
             </motion.span>
             © {new Date().getFullYear()} {msg.brand.name}. {rights}
-            {/* Sparkles phải */}
             <motion.span
-              animate={{
-                opacity: [0.4, 1, 0.4],
-                scale: [1, 1.1, 1],
-              }}
+              animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.1, 1] }}
               transition={{
                 duration: 2,
                 delay: 1,

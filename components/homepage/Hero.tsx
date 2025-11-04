@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Sparkles,
@@ -35,6 +35,33 @@ const TITLE_ANIMS: [string, string, string][] = [
   ["anim-fadeDown", "anim-pop", "anim-fadeUp"],
 ];
 
+/* ===== PRNG deterministic để tránh hydration mismatch ===== */
+function mulberry32(seed: number) {
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function makeParticles(n: number, rand: () => number) {
+  return Array.from({ length: n }, () => ({
+    left: rand() * 100,
+    top: rand() * 100,
+    delay: rand() * 5,
+    dur: 6 + rand() * 6,
+  }));
+}
+function makeStars(n: number, rand: () => number) {
+  return Array.from({ length: n }, () => ({
+    left: rand() * 100,
+    top: rand() * 100,
+    delay: rand() * 3,
+    dur: 2 + rand() * 3,
+    size: 12 + rand() * 20,
+  }));
+}
+
 type Props = { locale?: Locale | string };
 
 export default function Hero({ locale }: Props) {
@@ -48,31 +75,20 @@ export default function Hero({ locale }: Props) {
   /** Bật animation đồng loạt sau khi mount để tránh “khựng” */
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    // 2 rAF để chắc chắn CSS đã attach & layout ổn định
     const id = requestAnimationFrame(() =>
       requestAnimationFrame(() => setReady(true))
     );
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // random particles/stars (once)
-  const particles = useRef(
-    Array.from({ length: 16 }, () => ({
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      delay: Math.random() * 5,
-      dur: 6 + Math.random() * 6,
-    }))
+  /** Tạo mảng particles/stars bằng PRNG có seed cố định (SSR == CSR) */
+  const rngParticles = useMemo(() => mulberry32(20241104), []);
+  const rngStars = useMemo(() => mulberry32(20241104 ^ 0x9e3779b9), []);
+  const particles = useMemo(
+    () => makeParticles(16, rngParticles),
+    [rngParticles]
   );
-  const stars = useRef(
-    Array.from({ length: 12 }, () => ({
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      delay: Math.random() * 3,
-      dur: 2 + Math.random() * 3,
-      size: 12 + Math.random() * 20,
-    }))
-  );
+  const stars = useMemo(() => makeStars(12, rngStars), [rngStars]);
 
   // Build slides từ dict + icon + image
   const slides = msg.hero.slides.map((s, i) => ({
@@ -107,7 +123,6 @@ export default function Hero({ locale }: Props) {
     <section
       data-ready={ready ? "true" : "false"}
       className={`relative min-h-screen flex items-center overflow-hidden ${
-        // tránh FOUC nhẹ khi CSS chưa ready
         ready ? "opacity-100" : "opacity-0"
       } transition-opacity duration-200`}
     >
@@ -137,7 +152,7 @@ export default function Hero({ locale }: Props) {
 
       {/* Floating particles */}
       <div className="absolute inset-0 pointer-events-none">
-        {particles.current.map((p, i) => (
+        {particles.map((p, i) => (
           <div
             key={i}
             className="absolute w-1.5 h-1.5 bg-white/30 rounded-full animate-float a-paused"
@@ -153,7 +168,7 @@ export default function Hero({ locale }: Props) {
 
       {/* Stars twinkle */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {stars.current.map((s, i) => (
+        {stars.map((s, i) => (
           <Star
             key={i}
             className="absolute text-amber-300/40 animate-twinkle a-paused"
@@ -198,7 +213,7 @@ export default function Hero({ locale }: Props) {
                     ? "bg-linear-to-r from-pink-300 via-rose-300 to-amber-300 bg-clip-text text-transparent"
                     : "text-white"
                 } text-3xl sm:text-4xl md:text-5xl lg:text-6xl ${
-                  TITLE_ANIMS[idx][i]
+                  TITLE_ANIMS[idx % TITLE_ANIMS.length][i]
                 } a-paused`}
                 style={{
                   animation:
