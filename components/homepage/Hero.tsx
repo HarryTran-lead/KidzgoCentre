@@ -20,7 +20,7 @@ import { useMsg } from "@/lib/dict";
 const ICONS = [Book, Sparkles, Users, Trophy, Heart];
 const IMAGES = [
   "/image/Banner1.JPG", // ảnh đầu từ public/image/Banner1.JPG
-  "/image/Banner2.JPG",
+  "/image/Banner6.JPG",
   "/image/Banner3.JPG",
   "/image/Banner4.JPG",
   "/image/Banner5.JPG",
