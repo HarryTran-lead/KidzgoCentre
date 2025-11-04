@@ -1,8 +1,12 @@
 import "../globals.css";
-import Sidebar from "@/components/teacher/Sidebar";
-import Header from "@/components/teacher/Header";
+import Sidebar from "@components/teacher/Sidebar";
+import Header from "@components/teacher/Header";
 
-export default function TeacherLayout({ children }: { children: React.ReactNode }) {
+export default function TeacherLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FFF7FA] via-[#FFFDF6] to-[#F5FAFF]">
       <div className="flex">

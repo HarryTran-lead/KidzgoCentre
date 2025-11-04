@@ -1,11 +1,35 @@
-import Badge from "@/components/teacher/Badge";
+import Badge from "@components/teacher/Badge";
 import { Eye, Pencil } from "lucide-react";
 
 export default function Page() {
   const rows = [
-    { code: "LH001", name: "English B1-01", teacher: "Ms. Sarah Johnson", room: "P101", size: "25/30", schedule: "T2,4,6 • 08:00-10:00", status: "Đang học" },
-    { code: "LH002", name: "IELTS Prep-02", teacher: "Mr. John Smith", room: "P102", size: "20/25", schedule: "T3,5,7 • 14:00-16:00", status: "Đang học" },
-    { code: "LH004", name: "TOEIC Advanced", teacher: "Mr. David Wilson", room: "P103", size: "22/25", schedule: "T7,CN • 08:00-10:00", status: "Đang học" },
+    {
+      code: "LH001",
+      name: "English B1-01",
+      teacher: "Ms. Sarah Johnson",
+      room: "P101",
+      size: "25/30",
+      schedule: "T2,4,6 • 08:00-10:00",
+      status: "Đang học",
+    },
+    {
+      code: "LH002",
+      name: "IELTS Prep-02",
+      teacher: "Mr. John Smith",
+      room: "P102",
+      size: "20/25",
+      schedule: "T3,5,7 • 14:00-16:00",
+      status: "Đang học",
+    },
+    {
+      code: "LH004",
+      name: "TOEIC Advanced",
+      teacher: "Mr. David Wilson",
+      room: "P103",
+      size: "22/25",
+      schedule: "T7,CN • 08:00-10:00",
+      status: "Đang học",
+    },
   ];
   return (
     <div className="space-y-4">
@@ -26,7 +50,7 @@ export default function Page() {
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => (
+            {rows.map((r) => (
               <tr key={r.code} className="border-t">
                 <td className="p-3">{r.code}</td>
                 <td className="p-3 font-medium">{r.name}</td>
@@ -34,11 +58,17 @@ export default function Page() {
                 <td className="p-3">{r.room}</td>
                 <td className="p-3">{r.size}</td>
                 <td className="p-3">{r.schedule}</td>
-                <td className="p-3"><Badge color="green">{r.status}</Badge></td>
+                <td className="p-3">
+                  <Badge color="green">{r.status}</Badge>
+                </td>
                 <td className="p-3">
                   <div className="flex justify-end gap-2">
-                    <button className="p-2 rounded-lg border hover:bg-slate-50"><Eye size={16} /></button>
-                    <button className="p-2 rounded-lg border hover:bg-slate-50"><Pencil size={16} /></button>
+                    <button className="p-2 rounded-lg border hover:bg-slate-50">
+                      <Eye size={16} />
+                    </button>
+                    <button className="p-2 rounded-lg border hover:bg-slate-50">
+                      <Pencil size={16} />
+                    </button>
                   </div>
                 </td>
               </tr>

@@ -1,6 +1,6 @@
-import StatCard from "@/components/admin/StatCard";
+import StatCard from "@components/admin/StatCard";
 import { Users, UserCog, BookOpen, DollarSign } from "lucide-react";
-import Badge from "@/components/admin/Badge";
+import Badge from "@components/admin/Badge";
 
 export const metadata = { title: "Dashboard • KidzGo" };
 

@@ -1,58 +1,26 @@
+/* ==== VERY TOP OF FILE ==== */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
+/* (phần còn lại) */
 :root{
-  /* Palette lấy theo logo KidzGo (có thể tinh chỉnh nếu bạn có mã chính xác) */
-  --brand-pink:  #FF2B7A;   /* hồng */
-  --brand-blue:  #0B3B91;   /* xanh navy */
-  --brand-green: #2FBF4B;   /* xanh lá */
-  --brand-orange:#FFA21A;   /* cam */
-  --brand-yellow:#FFD23B;   /* vàng */
-
-  /* Gradient chủ đạo: hồng → xanh navy */
-  --grad-from: var(--brand-pink);
-  --grad-to:   var(--brand-blue);
-
-  /* Màu nền/border/ink trung tính */
-  --surface-50:  #FFF7FA;    /* nền sáng ám hồng */
-  --surface-75:  #F9FBFF;    /* nền section nhạt ám xanh */
-  --surface-200: #E7EAF7;    /* border nhẹ */
-  --surface-300: #D7DBEA;
-
-  --ink-900: #0F1324;
-  --ink-700: #2C3147;
-  --ink-600: #4B516A;
-  --ink-500: #707796;
-
-  /* tiện cho tints */
-  --brand-blue-10:  color-mix(in oklab, var(--brand-blue) 10%, white);
-  --brand-green-15: color-mix(in oklab, var(--brand-green) 15%, white);
-  --brand-pink-10:  color-mix(in oklab, var(--brand-pink) 10%, white);
-  --brand-pink-25:  color-mix(in oklab, var(--brand-pink) 25%, white);
-  --brand-yellow-15: color-mix(in oklab, var(--brand-yellow) 15%, white);
+  --background:#ffffff;
+  --foreground:#0f172a;
+  --font-sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
 }
-/* Nếu trình duyệt chưa hỗ trợ color-mix, bạn có thể thay các biến *-10/*-15/*-25 bằng mã hex cố định. */
-
-
-@theme inline {
+@theme inline{
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
 }
+html,body{ font-family: var(--font-sans); }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ==== Custom scrollbar ==== */
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: #888 transparent; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(128, 128, 128, 0.4);
+  border-radius: 4px; transition: background-color .3s ease;
 }
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-@layer base {
-  body { @apply text-gray-900 antialiased; }
-  h1,h2,h3,h4 { @apply text-gray-900; }
-}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(128, 128, 128, 0.6); }
