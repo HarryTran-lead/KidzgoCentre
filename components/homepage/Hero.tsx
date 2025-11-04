@@ -13,8 +13,8 @@ import {
   Star,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import type { Locale } from "@lib/i18n/i18n";
-import { useMsg } from "@lib/dict";
+import type { Locale } from "@/lib/i18n/i18n";
+import { useMsg } from "@/lib/dict";
 
 /** ICON & IMAGE giữ ở component (từ ngữ tách ở dict) */
 const ICONS = [Book, Sparkles, Users, Trophy, Heart];

@@ -1,4 +1,4 @@
-import Brand from '@components/Brand';
+import Brand from '@/components/Brand';
 
 export default function AdminHome() {
   return (

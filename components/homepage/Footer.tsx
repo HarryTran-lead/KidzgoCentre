@@ -12,13 +12,13 @@ import {
   cubicBezier,
 } from "framer-motion";
 import { Mail, Phone, MapPin, Facebook, Sparkles } from "lucide-react";
-import { PRIMARY_GRAD,LOGO_FOOTER } from "@lib/theme/theme";
+import { PRIMARY_GRAD,LOGO_FOOTER } from "@/lib/theme/theme";
 import {
   pickLocaleFromPath,
   DEFAULT_LOCALE,
   type Locale,
-} from "@lib/i18n/i18n";
-import { useMsg } from "@lib/dict";
+} from "@/lib/i18n/i18n";
+import { useMsg } from "@/lib/dict";
 
 /* ===== Helpers ===== */
 const FbFrame = dynamic(() => import("./fbframe"), { ssr: false });

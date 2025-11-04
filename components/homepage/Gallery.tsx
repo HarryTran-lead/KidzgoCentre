@@ -1,7 +1,7 @@
 // components/sections/Gallery.tsx  (SERVER)
 import { Image as ImageIcon } from "lucide-react";
-import { GALLERY } from "@lib/data/data";
-import { SURFACE_BORDER } from "@lib/theme/theme";
+import { GALLERY } from "@/lib/data/data";
+import { SURFACE_BORDER } from "@/lib/theme/theme";
 
 export default function Gallery() {
   return (

@@ -1,6 +1,6 @@
 import "../globals.css";
-import Sidebar from "@components/teacher/Sidebar";
-import Header from "@components/teacher/Header";
+import Sidebar from "@/components/teacher/Sidebar";
+import Header from "@/components/teacher/Header";
 
 export default function TeacherLayout({
   children,

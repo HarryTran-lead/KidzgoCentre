@@ -1,6 +1,6 @@
 // components/sections/WhyUs.tsx  (SERVER)
-import { ACCENT_TEXT, SURFACE_BORDER } from "@lib/theme/theme";
-import { WHY } from "@lib/data/data";
+import { ACCENT_TEXT, SURFACE_BORDER } from "@/lib/theme/theme";
+import { WHY } from "@/lib/data/data";
 
 export default function WhyUs() {
   return (

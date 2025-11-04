@@ -1,6 +1,6 @@
 // components/sections/Programs.tsx  (SERVER)
-import { PROGRAM_BOXES } from "@lib/data/data";
-import { SURFACE_BORDER } from "@lib/theme/theme";
+import { PROGRAM_BOXES } from "@/lib/data/data";
+import { SURFACE_BORDER } from "@/lib/theme/theme";
 import { BookOpen, CheckCircle } from "lucide-react";
 
 export default function Programs() {

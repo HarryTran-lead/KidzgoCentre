@@ -47,7 +47,7 @@ type Notice = {
   title: string;
   body: string;
   createdAt: string; // ISO
-  from: "Hệ thống" | "Ban quản lý";
+  from: "Hệ thống" | "Ban quản lý" | "Phòng kế toán";
   isNew?: boolean;
 };
 

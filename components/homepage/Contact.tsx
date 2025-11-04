@@ -1,7 +1,7 @@
 // components/sections/Contact.tsx  (CLIENT — có form state)
 "use client";
 import { useState } from "react";
-import { CTA_GRAD, SURFACE_BORDER, PRIMARY_GRAD } from "@lib/theme/theme";
+import { CTA_GRAD, SURFACE_BORDER, PRIMARY_GRAD } from "@/lib/theme/theme";
 import { Phone, Mail, MapPin } from "lucide-react";
 
 export default function Contact() {

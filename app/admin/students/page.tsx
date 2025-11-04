@@ -1,5 +1,5 @@
 import { Mail, Phone, Eye, Pencil } from "lucide-react";
-import Badge from "@components/admin/Badge";
+import Badge from "@/components/admin/Badge";
 
 const rows = [
   {id:"HV001", name:"Nguyễn Văn An", phone:"0901234567", email:"van.an@email.com", cls:"English B1-01", level:"B1", state:"Đang học", fee:"2.500.000 / 2.500.000 VND", feeTag:"Đã đóng"},

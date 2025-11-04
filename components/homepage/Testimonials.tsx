@@ -1,6 +1,6 @@
 // components/sections/Testimonials.tsx  (SERVER)
-import { SURFACE_BORDER } from "@lib/theme/theme";
-import { TESTIMONIALS } from "@lib/data/data";
+import { SURFACE_BORDER } from "@/lib/theme/theme";
+import { TESTIMONIALS } from "@/lib/data/data";
 import { Star } from "lucide-react";
 
 export default function Testimonials() {

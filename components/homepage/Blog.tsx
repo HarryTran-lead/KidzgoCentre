@@ -1,6 +1,6 @@
 // components/sections/Blog.tsx  (SERVER)
-import { BLOGS } from "@lib/data/data";
-import { SURFACE_BORDER } from "@lib/theme/theme";
+import { BLOGS } from "@/lib/data/data";
+import { SURFACE_BORDER } from "@/lib/theme/theme";
 import { Newspaper } from "lucide-react";
 
 export default function Blog() {

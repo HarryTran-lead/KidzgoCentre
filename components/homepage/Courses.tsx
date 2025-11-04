@@ -1,6 +1,6 @@
 // components/sections/Courses.tsx  (SERVER)
-import { COURSES } from "@lib/data/data";
-import { SURFACE_BORDER } from "@lib/theme/theme";
+import { COURSES } from "@/lib/data/data";
+import { SURFACE_BORDER } from "@/lib/theme/theme";
 import { Clock } from "lucide-react";
 
 export default function Courses() {

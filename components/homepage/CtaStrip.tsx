@@ -1,5 +1,5 @@
 // components/sections/CtaStrip.tsx  (SERVER)
-import { CTA_GRAD } from "@lib/theme/theme";
+import { CTA_GRAD } from "@/lib/theme/theme";
 
 export default function CtaStrip() {
   return (
