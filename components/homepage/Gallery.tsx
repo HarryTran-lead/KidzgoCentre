@@ -29,10 +29,7 @@ export default function Gallery() {
             />
           ))}
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          (Đặt ảnh thật tại <code>/public/gallery/1.jpg … 12.jpg</code> để hiển
-          thị đẹp nhất.)
-        </p>
+     
       </div>
     </section>
   );
