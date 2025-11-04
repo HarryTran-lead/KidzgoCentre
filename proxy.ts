@@ -15,6 +15,7 @@ const withLocaleCookie = (res: NextResponse, locale: Locale | null) => {
     res.cookies.set("locale", locale, {
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
     });
   }
   return res;
@@ -23,18 +24,25 @@ const withLocaleCookie = (res: NextResponse, locale: Locale | null) => {
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const locale = pickLocale(pathname);
+  const base = locale ? `/${locale}` : "";
+
   const isPortal = locale
     ? pathname.startsWith(`/${locale}/portal`)
     : pathname.startsWith("/portal");
 
+  // Ngoài vùng portal → set cookie locale rồi cho qua
   if (!isPortal) return withLocaleCookie(NextResponse.next(), locale);
 
+  // Cho phép /portal hoặc /vi/portal đi qua (trang hub tự redirect theo role)
+  const isPortalRoot =
+    pathname === `${base}/portal` || pathname === `${base}/portal/`;
+  if (isPortalRoot) return withLocaleCookie(NextResponse.next(), locale);
+
+  // Lấy role
   const roleCookie = req.cookies.get("role")?.value ?? "";
   const role = (ALL_ROLES as readonly string[]).includes(roleCookie)
     ? (roleCookie as keyof typeof ACCESS_MAP)
     : undefined;
-
-  const base = locale ? `/${locale}` : "";
 
   if (!role) {
     const returnTo = pathname + search;
@@ -45,6 +53,7 @@ export function proxy(req: NextRequest) {
     return withLocaleCookie(NextResponse.redirect(loginUrl), locale);
   }
 
+  // Check quyền theo prefix
   const allowPrefixes = (ACCESS_MAP as Record<string, string[]>)[role] ?? [];
   const allowed = allowPrefixes.some((p) =>
     pathname.startsWith(locale ? `/${locale}${p}` : p)

@@ -19,13 +19,13 @@ export default function Gallery() {
           </div>
         </div>
 
-        <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 [&>img]:mb-4">
+        <div className="columns-2 sm:columns-3 lg:columns-3 gap-4 [&>img]:mb-4">
           {GALLERY.map((src, i) => (
             <img
               key={i}
               src={src}
               alt={`KidzGo gallery ${i + 1}`}
-              className={`w-full rounded-xl border ${SURFACE_BORDER} shadow-sm object-cover`}
+              className={`w-full rounded-xl border ${SURFACE_BORDER} shadow-sm object-cover break-inside-avoid`}
             />
           ))}
         </div>

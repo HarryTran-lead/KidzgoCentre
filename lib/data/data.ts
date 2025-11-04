@@ -141,5 +141,5 @@ export const BLOGS = [
 
 export const GALLERY = Array.from(
   { length: 12 },
-  (_, i) => `/gallery/${i + 1}.jpg`
+  (_, i) => `/image/Club${i + 1}.jpg`
 );

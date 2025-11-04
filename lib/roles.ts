@@ -1,15 +1,22 @@
-export type Role = 'customer' | 'user' | 'teacher' | 'admin';
+// lib/roles.ts
+export const ROLES = {
+  ADMIN: "ADMIN",
+  STAFF: "STAFF",
+  TEACHER: "TEACHER",
+  USER: "USER",
+  STUDENT: "STUDENT",
+} as const;
 
-export const ALL_ROLES: Role[] = ['customer', 'user', 'teacher', 'admin'];
+export type Role = keyof typeof ROLES;
 
-export const ACCESS_MAP: Record<Role, string[]> = {
-  customer: ['/portal/customer'],
-  user: ['/portal/user'],
-  teacher: ['/portal/teacher'],
-  admin: ['/portal/admin', '/portal/teacher', '/portal/user', '/portal/customer'],
+// Danh sách roles hợp lệ
+export const ALL_ROLES = Object.values(ROLES) as readonly string[];
+
+/** Mỗi role được phép vào những prefix nào trong /portal */
+export const ACCESS_MAP: Record<Role, readonly string[]> = {
+  ADMIN:   ["/portal/admin", "/portal/staff", "/portal/teacher", "/portal/student"],
+  STAFF:   ["/portal/staff"],
+  TEACHER: ["/portal/teacher"],
+  USER:    ["/portal/student"],
+  STUDENT: ["/portal/student"],
 };
-
-export function canAccess(role: Role, pathname: string) {
-  const prefixes = ACCESS_MAP[role] ?? [];
-  return prefixes.some((p) => pathname.startsWith(p));
-}

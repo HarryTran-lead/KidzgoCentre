@@ -1,25 +1,10 @@
+KidzGo Staff Module (Next.js App Router)
+----------------------------------------
+Cách dùng:
+1) Giải nén ZIP này vào thư mục gốc của dự án (my-center-fe).
+   - Nếu đã có 'middleware.ts', hãy gộp logic bảo vệ '/staff' vào file hiện có thay vì ghi đè.
+2) Cài icon nếu chưa có: npm i lucide-react
+3) Chạy dev: npm run dev
+4) Truy cập: http://localhost:3000/staff
 
-# Student Portal (Next.js App Router)
-
-Paste these folders into your project:
-
-- `app/student/*`
-- `components/student/*`
-
-The layout mirrors the Admin structure:
-```
-app/student/layout.tsx
-app/student/page.tsx             (Dashboard)
-app/student/schedule/page.tsx
-app/student/profile/page.tsx
-app/student/tuition/page.tsx
-app/student/materials/page.tsx
-app/student/notifications/page.tsx
-components/student/Sidebar.tsx
-components/student/Header.tsx
-```
-
-Notes
-- Uses Tailwind classes; no `clsx` dependency.
-- Icons from `lucide-react` — ensure it’s installed: `npm i lucide-react`.
-- Pages are static demo data; wire up your APIs later.
+Middleware mặc định đọc cookie 'role' và chỉ cho phép STAFF/ADMIN vào /staff.
