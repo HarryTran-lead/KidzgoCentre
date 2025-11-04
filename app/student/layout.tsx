@@ -1,5 +1,5 @@
-import Sidebar from "@/components/student/Sidebar";
-import Header from "@/components/student/Header";
+import Sidebar from "@components/student/Sidebar";
+import Header from "@components/student/Header";
 import "../globals.css";
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {

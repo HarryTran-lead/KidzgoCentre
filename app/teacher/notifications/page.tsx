@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from "react";
 import {
   Bell,
   SendHorizonal,
@@ -9,7 +9,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-} from 'lucide-react';
+} from "lucide-react";
 
 /**
  * Trang: Thông báo & Trao đổi (Giảng viên)
@@ -22,16 +22,16 @@ import {
 
 // ----------------------------- Utils -----------------------------
 
-type NoticeKind = 'info' | 'warning' | 'success' | 'reminder';
+type NoticeKind = "info" | "warning" | "success" | "reminder";
 
 function classNames(...a: (string | false | null | undefined)[]) {
-  return a.filter(Boolean).join(' ');
+  return a.filter(Boolean).join(" ");
 }
 
 function timeAgo(date: Date) {
   const diff = Date.now() - date.getTime();
   const minutes = Math.floor(diff / (1000 * 60));
-  if (minutes < 1) return 'vừa xong';
+  if (minutes < 1) return "vừa xong";
   if (minutes < 60) return `${minutes} phút trước`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} giờ trước`;
@@ -47,59 +47,54 @@ type Notice = {
   title: string;
   body: string;
   createdAt: string; // ISO
-  from: 'Hệ thống' | 'Ban quản lý';
+  from: "Hệ thống" | "Ban quản lý";
   isNew?: boolean;
 };
 
 const SEED_NOTICES: Notice[] = [
   {
-    id: 'n1',
-    kind: 'info',
-    title: 'Lịch dạy mới được cập nhật',
-    body:
-      'Lớp IELTS Foundation - A1 chuyển sang phòng 301 từ ngày 12/10. Vui lòng kiểm tra lại thời khóa biểu.',
+    id: "n1",
+    kind: "info",
+    title: "Lịch dạy mới được cập nhật",
+    body: "Lớp IELTS Foundation - A1 chuyển sang phòng 301 từ ngày 12/10. Vui lòng kiểm tra lại thời khóa biểu.",
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 giờ trước
-    from: 'Ban quản lý',
+    from: "Ban quản lý",
     isNew: true,
   },
   {
-    id: 'n2',
-    kind: 'warning',
-    title: 'Nhắc nhở điểm danh',
-    body:
-      'Bạn chưa điểm danh buổi học ngày 08/10 cho lớp TOEIC Intermediate. Vui lòng cập nhật trước 17:00 hôm nay.',
+    id: "n2",
+    kind: "warning",
+    title: "Nhắc nhở điểm danh",
+    body: "Bạn chưa điểm danh buổi học ngày 08/10 cho lớp TOEIC Intermediate. Vui lòng cập nhật trước 17:00 hôm nay.",
     createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 ngày trước
-    from: 'Hệ thống',
+    from: "Hệ thống",
     isNew: true,
   },
   {
-    id: 'n3',
-    kind: 'success',
-    title: 'Tài liệu mới đã được tải lên',
-    body:
-      'Đề thi giữa kỳ môn Business English đã được tải lên hệ thống. Bạn có thể tải xuống tại mục Môn học & Tài liệu.',
+    id: "n3",
+    kind: "success",
+    title: "Tài liệu mới đã được tải lên",
+    body: "Đề thi giữa kỳ môn Business English đã được tải lên hệ thống. Bạn có thể tải xuống tại mục Môn học & Tài liệu.",
     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 ngày trước
-    from: 'Ban quản lý',
+    from: "Ban quản lý",
     isNew: false,
   },
   {
-    id: 'n4',
-    kind: 'info',
-    title: 'Thông báo họp giảng viên',
-    body:
-      'Cuộc họp giảng viên định kỳ sẽ diễn ra vào 9:00 sáng Chủ nhật, 13/10 tại phòng họp tầng 2.',
+    id: "n4",
+    kind: "info",
+    title: "Thông báo họp giảng viên",
+    body: "Cuộc họp giảng viên định kỳ sẽ diễn ra vào 9:00 sáng Chủ nhật, 13/10 tại phòng họp tầng 2.",
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 ngày trước
-    from: 'Ban quản lý',
+    from: "Ban quản lý",
     isNew: false,
   },
   {
-    id: 'n5',
-    kind: 'success',
-    title: 'Đã thanh toán lương tháng 9',
-    body:
-      'Lương tháng 9/2025 đã được chuyển khoản. Tổng: 20.400.000 VND. Vui lòng kiểm tra tài khoản.',
+    id: "n5",
+    kind: "success",
+    title: "Đã thanh toán lương tháng 9",
+    body: "Lương tháng 9/2025 đã được chuyển khoản. Tổng: 20.400.000 VND. Vui lòng kiểm tra tài khoản.",
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 ngày trước
-    from: 'Phòng kế toán',
+    from: "Phòng kế toán",
     isNew: false,
   },
 ];
@@ -113,47 +108,47 @@ type SentItem = {
 
 const SEED_SENT: SentItem[] = [
   {
-    id: 's1',
-    title: 'Thông báo dời lịch học',
-    toClass: 'IELTS Foundation - A1',
+    id: "s1",
+    title: "Thông báo dời lịch học",
+    toClass: "IELTS Foundation - A1",
     sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
-    id: 's2',
-    title: 'Bài tập về nhà tuần này',
-    toClass: 'TOEIC Intermediate',
+    id: "s2",
+    title: "Bài tập về nhà tuần này",
+    toClass: "TOEIC Intermediate",
     sentAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
-    id: 's3',
-    title: 'Nhắc nhở chuẩn bị kiểm tra',
-    toClass: 'Business English',
+    id: "s3",
+    title: "Nhắc nhở chuẩn bị kiểm tra",
+    toClass: "Business English",
     sentAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
   },
 ];
 
 const CLASS_OPTIONS = [
-  'IELTS Foundation - A1',
-  'TOEIC Intermediate',
-  'Business English',
+  "IELTS Foundation - A1",
+  "TOEIC Intermediate",
+  "Business English",
 ];
 
 // ----------------------------- Small UI -----------------------------
 
-const Badge: React.FC<{ color?: 'gray' | 'blue' | 'red' | 'green'; children: React.ReactNode }> = ({
-  color = 'gray',
-  children,
-}) => {
+const Badge: React.FC<{
+  color?: "gray" | "blue" | "red" | "green";
+  children: React.ReactNode;
+}> = ({ color = "gray", children }) => {
   const map = {
-    gray: 'bg-gray-100 text-gray-700',
-    blue: 'bg-blue-100 text-blue-700',
-    red: 'bg-rose-100 text-rose-700',
-    green: 'bg-emerald-100 text-emerald-700',
+    gray: "bg-gray-100 text-gray-700",
+    blue: "bg-blue-100 text-blue-700",
+    red: "bg-rose-100 text-rose-700",
+    green: "bg-emerald-100 text-emerald-700",
   } as const;
   return (
     <span
       className={classNames(
-        'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+        "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
         map[color]
       )}
     >
@@ -163,16 +158,16 @@ const Badge: React.FC<{ color?: 'gray' | 'blue' | 'red' | 'green'; children: Rea
 };
 
 function KindIcon({ kind }: { kind: NoticeKind }) {
-  const base = 'w-5 h-5';
+  const base = "w-5 h-5";
   switch (kind) {
-    case 'info':
-      return <Info className={classNames(base, 'text-sky-600')} />;
-    case 'warning':
-      return <AlertTriangle className={classNames(base, 'text-amber-600')} />;
-    case 'success':
-      return <CheckCircle2 className={classNames(base, 'text-emerald-600')} />;
-    case 'reminder':
-      return <Clock className={classNames(base, 'text-slate-600')} />;
+    case "info":
+      return <Info className={classNames(base, "text-sky-600")} />;
+    case "warning":
+      return <AlertTriangle className={classNames(base, "text-amber-600")} />;
+    case "success":
+      return <CheckCircle2 className={classNames(base, "text-emerald-600")} />;
+    case "reminder":
+      return <Clock className={classNames(base, "text-slate-600")} />;
     default:
       return <Bell className={base} />;
   }
@@ -190,7 +185,9 @@ const NoticeCard: React.FC<{
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h4 className="text-gray-900 font-semibold leading-6">{notice.title}</h4>
+            <h4 className="text-gray-900 font-semibold leading-6">
+              {notice.title}
+            </h4>
             {notice.isNew && <Badge color="blue">Mới</Badge>}
           </div>
           <p className="text-sm text-slate-600 mt-1">{notice.body}</p>
@@ -211,7 +208,8 @@ const SentHistoryItem: React.FC<{ item: SentItem }> = ({ item }) => {
     <div className="rounded-xl border bg-white px-4 py-3">
       <div className="font-medium text-gray-900">{item.title}</div>
       <div className="text-xs text-slate-500 mt-1">
-        Gửi đến: <span className="font-medium">{item.toClass}</span> • {timeAgo(d)}
+        Gửi đến: <span className="font-medium">{item.toClass}</span> •{" "}
+        {timeAgo(d)}
       </div>
     </div>
   );
@@ -220,14 +218,14 @@ const SentHistoryItem: React.FC<{ item: SentItem }> = ({ item }) => {
 // ----------------------------- Page -----------------------------
 
 export default function Page() {
-  const [tab, setTab] = useState<'feed' | 'send'>('feed');
+  const [tab, setTab] = useState<"feed" | "send">("feed");
   const [notices, setNotices] = useState<Notice[]>(SEED_NOTICES);
   const [sent, setSent] = useState<SentItem[]>(SEED_SENT);
 
   // form
-  const [clazz, setClazz] = useState('');
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [clazz, setClazz] = useState("");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
 
   const unreadCount = notices.filter((n) => n.isNew).length;
 
@@ -251,21 +249,21 @@ export default function Page() {
     // optional: also add a new info notice to the feed
     const newNotice: Notice = {
       id: `n${Date.now()}`,
-      kind: 'info',
+      kind: "info",
       title,
       body: content,
       createdAt: new Date().toISOString(),
-      from: 'Ban quản lý',
+      from: "Ban quản lý",
       isNew: true,
     };
     setNotices((prev) => [newNotice, ...prev]);
 
     // reset
-    setClazz('');
-    setTitle('');
-    setContent('');
+    setClazz("");
+    setTitle("");
+    setContent("");
     // chuyển qua tab thông báo để thấy ngay
-    setTab('feed');
+    setTab("feed");
   }
 
   return (
@@ -273,13 +271,15 @@ export default function Page() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900">Thông báo &amp; Trao đổi</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900">
+            Thông báo &amp; Trao đổi
+          </h1>
           <p className="text-sm text-slate-500">
             Quản lý thông báo và gửi tin nhắn cho học viên
           </p>
         </div>
 
-        {tab === 'feed' && (
+        {tab === "feed" && (
           <button
             onClick={markAllRead}
             className="inline-flex items-center gap-2 rounded-xl bg-slate-900 text-white px-3 py-2 text-sm font-medium hover:bg-black/90"
@@ -294,10 +294,12 @@ export default function Page() {
       {/* Tabs */}
       <div className="flex w-full rounded-2xl border bg-white p-1">
         <button
-          onClick={() => setTab('feed')}
+          onClick={() => setTab("feed")}
           className={classNames(
-            'flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl',
-            tab === 'feed' ? 'bg-slate-100 text-gray-900' : 'text-slate-600 hover:text-gray-900'
+            "flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl",
+            tab === "feed"
+              ? "bg-slate-100 text-gray-900"
+              : "text-slate-600 hover:text-gray-900"
           )}
         >
           <Bell size={16} />
@@ -309,10 +311,12 @@ export default function Page() {
           )}
         </button>
         <button
-          onClick={() => setTab('send')}
+          onClick={() => setTab("send")}
           className={classNames(
-            'ml-1 flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl',
-            tab === 'send' ? 'bg-slate-100 text-gray-900' : 'text-slate-600 hover:text-gray-900'
+            "ml-1 flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl",
+            tab === "send"
+              ? "bg-slate-100 text-gray-900"
+              : "text-slate-600 hover:text-gray-900"
           )}
         >
           <SendHorizonal size={16} />
@@ -320,7 +324,7 @@ export default function Page() {
         </button>
       </div>
 
-      {tab === 'feed' ? (
+      {tab === "feed" ? (
         // --------- FEED (Danh sách thông báo) ----------
         <div className="space-y-4">
           {notices.map((n) => (
@@ -332,7 +336,9 @@ export default function Page() {
         <div className="grid lg:grid-cols-2 gap-4">
           {/* Form gửi */}
           <div className="rounded-2xl border bg-white p-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Gửi thông báo cho học viên</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">
+              Gửi thông báo cho học viên
+            </h3>
             <form onSubmit={handleSend} className="space-y-3">
               <div>
                 <label className="text-sm text-slate-600">Chọn lớp học</label>
