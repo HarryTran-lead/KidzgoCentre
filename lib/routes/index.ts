@@ -1,6 +1,6 @@
 export const EndPoint = {
   HOME: "/",
-  AUTH:"/auth",
-  LOGIN: "/auth?view=login",
-    FORGOTPASSWORD: "auth?view=forgotpass",
+  AUTH: "/auth",
+  LOGIN: "/auth/login",
+  FORGOTPASSWORD: "/auth/forgotpass",
 } as const;

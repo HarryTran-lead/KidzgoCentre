@@ -6,7 +6,7 @@ export default function AuthBackground() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       {/* Base soft gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-rose-100 via-sky-50 to-amber-100" />
+      <div className="absolute inset-0 bg-linear-to-br from-rose-100 via-sky-50 to-amber-100" />
 
       {/* Decorative moving blobs */}
       <motion.div
@@ -16,7 +16,7 @@ export default function AuthBackground() {
         transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute -bottom-28 -right-24 h-[28rem] w-[28rem] rounded-full blur-3xl"
+        className="absolute -bottom-28 -right-24 h-112 w-112 rounded-full blur-3xl"
         style={{ background: "radial-gradient(closest-side, rgba(14,165,233,.35), transparent)" }}
         animate={{ y: [0, -24, 0], x: [0, -14, 0] }}
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
