@@ -19,6 +19,7 @@ import {
   pickLocaleFromPath,
   type Locale,
   DEFAULT_LOCALE,
+  localizePath
 } from "@/lib/i18n";
 import { useMsg } from "@/lib/dict";
 import { EndPoint } from "@/lib/routes";
@@ -280,7 +281,7 @@ export default function Navbar() {
             <div className="hidden xl:flex items-center gap-2 md:gap-3 shrink-0 z-10">
               <LanguageToggle />
               <Link
-               href={EndPoint.LOGIN} 
+               href={localizePath(EndPoint.LOGIN, locale)}
                 className="group inline-flex items-center gap-2 h-10 px-3 rounded-xl 
                 border border-slate-200 font-semibold text-[13px] md:text-sm text-slate-700 
                 bg-white shadow-sm transition-all duration-300
@@ -398,7 +399,7 @@ export default function Navbar() {
             {/* Auth buttons trong drawer */}
             <div className="grid grid-cols-1">
               <Link
-                href={EndPoint.LOGIN} 
+                href={localizePath(EndPoint.LOGIN, locale)}
                 className={`flex items-center justify-center gap-2 h-11 rounded-xl  ${CTA_GRAD} 
              text-white font-semibold text-sm
              transition-all duration-200`}
