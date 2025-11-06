@@ -4,7 +4,7 @@ import { auth } from "./auth";
 import { brand } from "./brand";
 import { footer } from "./footer";
 import { heroBanner } from "./heroBanner";
-import type { Locale } from "../i18n/i18n";
+import type { Locale } from "../i18n";
 
 export const dict = {
   vi: {

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { cookies } from "next/headers";
-import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/i18n";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Toaster } from "react-hot-toast";

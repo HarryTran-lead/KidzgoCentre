@@ -13,7 +13,7 @@ import {
   Star,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import type { Locale } from "@/lib/i18n/i18n";
+import type { Locale } from "@/lib/i18n";
 import { useMsg } from "@/lib/dict";
 
 /** ICON & IMAGE giữ ở component (từ ngữ tách ở dict) */
@@ -118,6 +118,15 @@ export default function Hero({ locale }: Props) {
 
   const slide = slides[idx];
   const Icon = slide.icon;
+
+  // Auto slide
+  useEffect(() => {
+    if (isAnimating) return;
+    const t = setTimeout(() => {
+      next();
+    }, 5000); // 5s
+    return () => clearTimeout(t);
+  }, [idx, isAnimating]);
 
   return (
     <section

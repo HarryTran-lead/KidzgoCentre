@@ -1,0 +1,360 @@
+"use client";
+
+import { motion, useAnimation } from "framer-motion";
+import {
+  Mail,
+  Lock,
+  ShieldCheck,
+  Sparkles,
+  CheckCircle2,
+  TrendingUp,
+  Bell,
+  Award,
+  ArrowRight,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { CustomTextInput, CustomPasswordInput } from "./FormInput";
+import { CTA_GRAD, LOGO } from "@/lib/theme/theme";
+import Image from "next/image";
+
+type Props = {
+  action: (formData: FormData) => void;
+  returnTo?: string;
+};
+
+const FEATURES = [
+  {
+    icon: TrendingUp,
+    title: "Theo dõi tiến bộ",
+    description: "Báo cáo chi tiết về sự phát triển của bé",
+  },
+  {
+    icon: Bell,
+    title: "Thông báo realtime",
+    description: "Cập nhật tức thì mọi hoạt động quan trọng",
+  },
+  {
+    icon: Award,
+    title: "Ưu đãi độc quyền",
+    description: "Chương trình khuyến mãi dành riêng cho bạn",
+  },
+];
+
+export default function LoginCard({ action, returnTo = "" }: Props) {
+  const controls = useAnimation();
+  const [selectedRole, setSelectedRole] = useState("customer");
+  const [remember, setRemember] = useState(false);
+
+  useEffect(() => {
+    controls.start((i) => ({
+      opacity: 1,
+      y: 0,
+      transition: { delay: i * 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+    }));
+  }, [controls]);
+
+  const handleSubmit = (e: React.MouseEvent) => {
+    const formData = new FormData();
+    formData.append("returnTo", returnTo);
+    formData.append(
+      "email",
+      (document.querySelector('input[name="email"]') as HTMLInputElement)
+        ?.value || ""
+    );
+    formData.append(
+      "password",
+      (document.querySelector('input[name="password"]') as HTMLInputElement)
+        ?.value || ""
+    );
+    formData.append("role", selectedRole);
+    action(formData);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      className="mx-auto w-full max-w-6xl"
+    >
+      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-0 rounded-3xl border border-white/60 bg-white/80 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 overflow-hidden">
+        {/* Left: Hero section */}
+        <div className="relative px-8 py-2 sm:px-10 sm:py-4 lg:px-12 lg:py-6 bg-linear-to-br from-slate-50/50 to-white/30 flex flex-col justify-between min-h-full">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-linear-to-br from-sky-400/10 to-pink-400/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-linear-to-tr from-amber-400/10 to-sky-400/10 rounded-full blur-3xl" />
+
+          <div className="relative z-10">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-sky-500/10 to-pink-500/10 backdrop-blur-sm px-4 py-2 text-sm font-medium text-slate-700 border border-sky-200/50"
+            >
+              <Sparkles className="h-4 w-4 text-sky-600" />
+              KidzGo Education Platform
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+            >
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight text-slate- mt-2">
+                Chào mừng{" "}
+                <span className="bg-linear-to-r from-pink-600 via-amber-500 to-sky-600 bg-clip-text text-transparent">
+                  trở lại
+                </span>
+              </h1>
+            </motion.div>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.6 }}
+              className="mt-3 text-lg text-slate-600 leading-relaxed"
+            >
+              Quản lý học tập, kết nối giáo viên và theo dõi
+              <br className="hidden sm:block" />
+              sự phát triển của con bạn mọi lúc, mọi nơi.
+            </motion.p>
+
+            <div className="mt-6 space-y-4">
+              {FEATURES.map((feature, i) => (
+                <motion.div
+                  key={feature.title}
+                  custom={i}
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={controls}
+                  whileHover={{ x: 4, transition: { duration: 0.2 } }}
+                  className="group flex items-start gap-4 rounded-2xl bg-white/60 backdrop-blur-sm p-4 border border-slate-200/50 hover:border-sky-300/50 hover:shadow-md transition-all cursor-default"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-sky-500 to-pink-500 text-white shadow-lg shadow-sky-500/20 group-hover:shadow-xl group-hover:shadow-sky-500/30 transition-all">
+                    <feature.icon className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1 pt-1">
+                    <h3 className="font-semibold text-slate-900">
+                      {feature.title}
+                    </h3>
+                    <p className="text-sm text-slate-600 mt-0.5">
+                      {feature.description}
+                    </p>
+                  </div>
+                  <CheckCircle2 className="h-5 w-5 text-green-500 mt-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </motion.div>
+              ))}
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9, duration: 0.6 }}
+              className="mt-10 grid grid-cols-3 gap-4"
+            >
+              {[
+                { value: "5000+", label: "Học viên" },
+                { value: "200+", label: "Giáo viên" },
+                { value: "98%", label: "Hài lòng" },
+              ].map((stat) => (
+                <div key={stat.label} className="text-center">
+                  <div className="text-2xl font-bold bg-linear-to-r from-pink-600 to-sky-600 bg-clip-text text-transparent">
+                    {stat.value}
+                  </div>
+                  <div className="text-xs text-slate-600 mt-1">
+                    {stat.label}
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Right: Form section */}
+        <div className="px-8 py-2 sm:px-10 sm:py-4 lg:px-12 lg:py-4 bg-white/90 backdrop-blur-xl flex flex-col justify-between">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          >
+            <div className="mb-6 flex flex-col items-center text-center">
+              <div className="mb-4">
+                <Image
+                  src={LOGO}
+                  alt="KidzGo"
+                  width={220}
+                  height={220}
+                  className="rounded-md"
+                  priority
+                />
+              </div>
+
+              <h3 className="text-2xl font-bold text-slate-900">Đăng nhập</h3>
+              <p className="text-slate-600 mt-2">
+                Kết nối ngay để quản lý và theo dõi lộ trình học tại KidzGo.
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+              >
+                <CustomTextInput
+                  label="Email của bạn"
+                  name="email"
+                  icon={Mail}
+                  type="email"
+                  autoComplete="email"
+                  inputProps={{ placeholder: "name@example.com" }}
+                />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.6, duration: 0.5 }}
+              >
+                <CustomPasswordInput
+                  label="Mật khẩu"
+                  name="password"
+                  icon={Lock}
+                  autoComplete="current-password"
+                  inputProps={{ placeholder: "••••••••" }}
+                />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.8, duration: 0.5 }}
+                className="flex items-center justify-between px-0.5 text-sm pt-4"
+              >
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={() => setRemember(!remember)}
+                    className="h-4 w-4 rounded  text-sky-500 focus:ring-sky-500 cursor-pointer"
+                  />
+                  <span className="text-slate-600 hover:brightness-90 transition-colors">
+                    Ghi nhớ đăng nhập
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  className=" text-sky-600 hover:brightness-75 hover:underline transition-colors"
+                >
+                  Quên mật khẩu?
+                </button>
+              </motion.div>
+
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9, duration: 0.5 }}
+                whileHover={{ scale: 1.05, y: -1 }} // nhẹ và tinh tế
+                whileTap={{ scale: 0.97 }}
+                onClick={handleSubmit}
+                className={`relative w-full overflow-hidden rounded-xl px-8 py-4 font-semibold text-white shadow-md transition-all duration-200
+               ${CTA_GRAD} hover:brightness-90 hover:shadow-lg active:scale-95`}
+              >
+                <span className="relative z-10">Đăng nhập ngay</span>
+              </motion.button>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1, duration: 0.5 }}
+                className="pt-4 border-t border-slate-200"
+              >
+                <p className="text-center text-xs text-slate-500 leading-relaxed">
+                  Bằng việc đăng nhập, bạn đồng ý với{" "}
+                  <button
+                    type="button"
+                    className="text-sky-600 hover:underline"
+                  >
+                    Điều khoản sử dụng
+                  </button>{" "}
+                  và{" "}
+                  <button
+                    type="button"
+                    className="text-sky-600 hover:underline"
+                  >
+                    Chính sách bảo mật
+                  </button>{" "}
+                  của KidzGo.
+                </p>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1, duration: 0.5 }}
+                className="text-right pt-4"
+              >
+                <a
+                  href="/"
+                  className="group inline-flex items-center text-sm text-slate-500"
+                  aria-label="Quay về trang chủ"
+                >
+                  <span className="relative flex items-center gap-1 transition-transform duration-300 group-hover:translate-x-1">
+                    {/* Chữ đổi gradient */}
+                    <span
+                      className="
+          transition-all
+          group-hover:bg-linear-to-r group-hover:from-red-500 group-hover:via-pink-600 group-hover:to-rose-600
+          group-hover:text-transparent group-hover:bg-clip-text
+        "
+                    >
+                      Quay về trang chủ
+                    </span>
+
+                    {/* Icon đổi gradient cùng chữ */}
+                    <span
+                      className="
+          transition-all flex items-center
+          group-hover:bg-linear-to-r group-hover:from-red-500 group-hover:via-pink-600 group-hover:to-rose-600
+          group-hover:text-transparent group-hover:bg-clip-text
+        "
+                    >
+                      <ArrowRight className="h-4 w-4  text-slate-600 transition-colors duration-300 group-hover:text-rose-500" />
+                    </span>
+
+                    {/* Underline */}
+                    <span
+                      className="
+          pointer-events-none absolute left-0 right-0.5 -bottom-0.5
+          h-px bg-linear-to-r from-amber-400 via-pink-500 to-rose-500
+          scale-x-0 origin-left transition-transform duration-300
+          group-hover:scale-x-100
+        "
+                    />
+                  </span>
+                </a>
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.2, duration: 0.6 }}
+        className="mt-4 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500"
+      >
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-green-600" />
+          <span>Bảo mật SSL 256-bit</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-blue-600" />
+          <span>Đã được chứng nhận</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Award className="h-4 w-4 text-amber-600" />
+          <span>Top 10 EdTech 2024</span>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
