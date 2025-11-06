@@ -6,7 +6,7 @@ import { Tooltip } from "@mui/material";
 import { toast } from "react-hot-toast";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { type Locale, pickLocaleFromPath, localizePath } from "@/lib/i18n/i18n";
+import { type Locale, pickLocaleFromPath, localizePath } from "@/lib/i18n";
 
 export default function LanguageToggle() {
   const pathname = usePathname();
@@ -14,7 +14,7 @@ export default function LanguageToggle() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const current = (pickLocaleFromPath(pathname) ?? "en") as Locale;
+  const current = (pickLocaleFromPath(pathname) ?? "vi") as Locale;
   const target: Locale = current === "vi" ? "en" : "vi";
 
   // Hiện toast sau khi đổi ngôn ngữ thật
@@ -24,8 +24,8 @@ export default function LanguageToggle() {
       if (lastLocale && lastLocale !== current) {
         toast.success(
           current === "vi"
-            ? "Đã chuyển ngôn ngữ sang Tiếng Việt"
-            : "Switched to English Language",
+            ? "Switched to Vietnamese Language"
+            : "Đã chuyển ngôn ngữ sang Tiếng Anh",
           { duration: 3000 }
         );
         localStorage.removeItem("lastLocale");

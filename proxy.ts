@@ -1,7 +1,7 @@
 // proxy.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { ALL_ROLES, ACCESS_MAP } from "@/lib/roles";
-import { LOCALES, type Locale } from "@/lib/i18n/i18n";
+import { LOCALES, type Locale } from "@/lib/i18n";
 
 const LOCALES_ARR = LOCALES as readonly string[];
 

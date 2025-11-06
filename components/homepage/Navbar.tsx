@@ -11,16 +11,17 @@ import React, {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { Menu, X, LogIn, UserPlus } from "lucide-react";
+import { Menu, X, LogIn, } from "lucide-react";
 import { motion, useMotionValue, animate } from "framer-motion";
 import { LOGO, CTA_GRAD } from "@/lib/theme/theme";
-import LanguageToggle from "@/components/button/LanguageToggle";
+import LanguageToggle from "@/components/ui/button/LanguageToggle";
 import {
   pickLocaleFromPath,
   type Locale,
   DEFAULT_LOCALE,
-} from "@/lib/i18n/i18n";
+} from "@/lib/i18n";
 import { useMsg } from "@/lib/dict";
+import { EndPoint } from "@/lib/routes";
 
 type NavItem = { id: string; label: string; icon: string };
 
@@ -279,7 +280,7 @@ export default function Navbar() {
             <div className="hidden xl:flex items-center gap-2 md:gap-3 shrink-0 z-10">
               <LanguageToggle />
               <Link
-                href="/login"
+               href={EndPoint.LOGIN} 
                 className="group inline-flex items-center gap-2 h-10 px-3 rounded-xl 
                 border border-slate-200 font-semibold text-[13px] md:text-sm text-slate-700 
                 bg-white shadow-sm transition-all duration-300
@@ -397,7 +398,7 @@ export default function Navbar() {
             {/* Auth buttons trong drawer */}
             <div className="grid grid-cols-1">
               <Link
-                href="/login"
+                href={EndPoint.LOGIN} 
                 className={`flex items-center justify-center gap-2 h-11 rounded-xl  ${CTA_GRAD} 
              text-white font-semibold text-sm
              transition-all duration-200`}

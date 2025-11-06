@@ -11,18 +11,15 @@ import {
   cubicBezier,
 } from "framer-motion";
 import { Mail, Phone, MapPin, Facebook, Sparkles } from "lucide-react";
-import { LOGO_FOOTER } from "@/lib/theme/theme";
+import { LOGO } from "@/lib/theme/theme";
 import {
   pickLocaleFromPath,
   DEFAULT_LOCALE,
   type Locale,
-} from "@/lib/i18n/i18n";
+} from "@/lib/i18n";
 import { useMsg } from "@/lib/dict";
-import dynamic from "next/dynamic";
 
-/* ===== Helpers ===== */
-const FbFrame = dynamic(() => import("../homepage/fbFrame/index"), { ssr: false });
-
+/* ===== Facebook Page Plugin (iframe only) ===== */
 const fbSrc = (pageUrl: string, w: number, h: number) =>
   `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(
     pageUrl
@@ -140,7 +137,7 @@ export default function Footer() {
           <motion.div variants={item} className="space-y-2 self-stretch">
             <Link href="/" className="flex items-center gap-2.5">
               <Image
-                src={LOGO_FOOTER}
+                src={LOGO}
                 alt="KidzGo logo"
                 width={900}
                 height={900}

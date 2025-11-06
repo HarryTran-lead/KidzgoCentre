@@ -1,32 +1,37 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+// app/login/page.tsx
+import LoginCard from "@/components/auth/LoginCard";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-async function setRole(formData: FormData) {
-  'use server';
-  const role = String(formData.get('role') || 'customer');
-  const returnTo = String(formData.get('returnTo') || `/portal/${role}`);
-  (await cookies()).set('role', role, { path: '/', httpOnly: true, sameSite: 'lax' });
+// Server Action
+async function loginAction(formData: FormData) {
+  "use server";
+
+  const email = String(formData.get("email") || "");
+  const _password = String(formData.get("password") || "");
+  const returnTo = String(formData.get("returnTo") || "/portal");
+
+  // ⬅️ PHẢI await ở Server Action
+  const jar = await cookies();
+  jar.set("session", `user:${email}`, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    // tùy chọn: maxAge: 60 * 60 * 24 * 7, secure: process.env.NODE_ENV === "production",
+  });
+
   redirect(returnTo);
 }
 
-export default async function Login({ searchParams }: { searchParams: { returnTo?: string } }) {
-  const returnTo = searchParams?.returnTo || '';
+type SP = { [k: string]: string | string[] | undefined };
+
+export default function LoginPage({ searchParams }: { searchParams?: SP }) {
+  const returnTo = (searchParams?.returnTo as string | undefined) ?? "";
   return (
-    <main className="min-h-[60vh] grid place-items-center p-10">
-      <form action={setRole} className="w-full max-w-sm space-y-4 border rounded-xl p-5">
-        <h1 className="text-xl font-semibold">Login (Demo)</h1>
-        <p className="text-sm text-gray-600">Chọn vai trò để mô phỏng đăng nhập.</p>
-        <input type="hidden" name="returnTo" defaultValue={returnTo} />
-        <select name="role" className="w-full border rounded px-3 py-2">
-          <option value="customer">Customer</option>
-          <option value="user">User</option>
-          <option value="teacher">Teacher</option>
-          <option value="admin">Admin</option>
-        </select>
-        <button className="w-full rounded bg-black text-white py-2">Sign in</button>
-      </form>
-    </main>
+    <div className="w-full">
+      <LoginCard action={loginAction} returnTo={returnTo} />
+    </div>
   );
 }
