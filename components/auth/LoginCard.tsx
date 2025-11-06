@@ -12,37 +12,46 @@ import {
   Award,
   ArrowRight,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CustomTextInput, CustomPasswordInput } from "./FormInput";
 import { CTA_GRAD, LOGO } from "@/lib/theme/theme";
 import Image from "next/image";
+import Link from "next/link";
+import type { Locale } from "@/lib/i18n";
+import { useMsg } from "@/lib/dict";
 
 type Props = {
   action: (formData: FormData) => void;
   returnTo?: string;
+  locale?: Locale;
 };
 
-const FEATURES = [
-  {
-    icon: TrendingUp,
-    title: "Theo dõi tiến bộ",
-    description: "Báo cáo chi tiết về sự phát triển của bé",
-  },
-  {
-    icon: Bell,
-    title: "Thông báo realtime",
-    description: "Cập nhật tức thì mọi hoạt động quan trọng",
-  },
-  {
-    icon: Award,
-    title: "Ưu đãi độc quyền",
-    description: "Chương trình khuyến mãi dành riêng cho bạn",
-  },
-];
-
-export default function LoginCard({ action, returnTo = "" }: Props) {
+export default function LoginCard({ action, returnTo = "", locale }: Props) {
   const controls = useAnimation();
   const [remember, setRemember] = useState(false);
+  const msg = useMsg(locale);
+
+  // map features từ dict + icon
+  const FEATURES = useMemo(
+    () => [
+      {
+        icon: TrendingUp,
+        title: msg.loginCard.features.progressTitle,
+        description: msg.loginCard.features.progressDesc,
+      },
+      {
+        icon: Bell,
+        title: msg.loginCard.features.realtimeTitle,
+        description: msg.loginCard.features.realtimeDesc,
+      },
+      {
+        icon: Award,
+        title: msg.loginCard.features.dealsTitle,
+        description: msg.loginCard.features.dealsDesc,
+      },
+    ],
+    [msg]
+  );
 
   useEffect(() => {
     controls.start((i) => ({
@@ -68,12 +77,17 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
     action(formData);
   };
 
+  //  Wrapper width “co giãn” theo breakpoint
+  const WRAP =
+    "w-full mx-auto w-full " +
+    "max-w-sm sm:max-w-md md:max-w-md lg:max-w-7xl xl:max-w-6xl 2xl:max-w-6xl";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-      className="mx-auto w-full max-w-6xl"
+      className={WRAP}
     >
       {/* Mobile: block | Desktop(≥lg): 2 cột */}
       <div className="block lg:grid lg:grid-cols-[1.4fr_1fr] gap-0 rounded-3xl border border-white/60 bg-white/80 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 overflow-hidden">
@@ -90,7 +104,7 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
               className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-sky-500/10 to-pink-500/10 backdrop-blur-sm px-4 py-2 text-sm font-medium text-slate-700 border border-sky-200/50"
             >
               <Sparkles className="h-4 w-4 text-sky-600" />
-              KidzGo Education Platform
+              {msg.loginCard.badge}
             </motion.div>
 
             <motion.h1
@@ -99,9 +113,9 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
               transition={{ delay: 0.3, duration: 0.6 }}
               className="text-3xl lg:text-5xl font-bold leading-tight mt-3 text-slate-900"
             >
-              Chào mừng{" "}
+              {msg.loginCard.hero.welcome}{" "}
               <span className="bg-linear-to-r from-pink-600 via-amber-500 to-sky-600 bg-clip-text text-transparent">
-                trở lại
+                {msg.loginCard.hero.back}
               </span>
             </motion.h1>
 
@@ -111,9 +125,7 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
               transition={{ delay: 0.5, duration: 0.6 }}
               className="mt-4 text-lg text-slate-600 leading-relaxed"
             >
-              Quản lý học tập, kết nối giáo viên và theo dõi
-              <br />
-              sự phát triển của con bạn mọi lúc, mọi nơi.
+              {msg.loginCard.hero.subtitle}
             </motion.p>
 
             <div className="mt-6 space-y-4">
@@ -149,9 +161,9 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
               className="mt-10 grid grid-cols-3 gap-4"
             >
               {[
-                { value: "5000+", label: "Học viên" },
-                { value: "200+", label: "Giáo viên" },
-                { value: "98%", label: "Hài lòng" },
+                { value: "5000+", label: msg.loginCard.stats.students },
+                { value: "200+", label: msg.loginCard.stats.teachers },
+                { value: "98%", label: msg.loginCard.stats.satisfaction },
               ].map((stat) => (
                 <div key={stat.label} className="text-center">
                   <div className="text-2xl font-bold bg-linear-to-r from-pink-600 to-sky-600 bg-clip-text text-transparent">
@@ -186,28 +198,34 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
                   className="rounded-md w-auto h-[60px] sm:h-[72px] md:h-20"
                 />
               </div>
-              <h3 className="text-2xl font-bold text-slate-900">Đăng nhập</h3>
+              <h3 className="text-2xl font-bold text-slate-900">
+                {msg.loginCard.form.title}
+              </h3>
               <p className="text-slate-600 mt-2">
-                Kết nối ngay để quản lý và theo dõi lộ trình học tại KidzGo.
+                {msg.loginCard.form.subtitle}
               </p>
             </div>
 
             <div className="space-y-5">
               <CustomTextInput
-                label="Email của bạn"
+                label={msg.loginCard.form.emailLabel}
                 name="email"
                 icon={Mail}
                 type="email"
                 autoComplete="email"
-                inputProps={{ placeholder: "name@example.com" }}
+                inputProps={{
+                  placeholder: msg.loginCard.form.emailPlaceholder,
+                }}
               />
 
               <CustomPasswordInput
-                label="Mật khẩu"
+                label={msg.loginCard.form.passwordLabel}
                 name="password"
                 icon={Lock}
                 autoComplete="current-password"
-                inputProps={{ placeholder: "••••••••" }}
+                inputProps={{
+                  placeholder: msg.loginCard.form.passwordPlaceholder,
+                }}
               />
 
               <div className="flex items-center justify-between px-0.5 text-sm pt-4">
@@ -219,7 +237,7 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
                     className="h-4 w-4 rounded text-sky-500 focus:ring-sky-500 cursor-pointer"
                   />
                   <span className="text-slate-600 hover:brightness-90 transition-colors">
-                    Ghi nhớ đăng nhập
+                    {msg.loginCard.form.remember}
                   </span>
                 </label>
 
@@ -227,7 +245,7 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
                   type="button"
                   className="text-sky-600 hover:brightness-75 hover:underline transition-colors"
                 >
-                  Quên mật khẩu?
+                  {msg.loginCard.form.forgot}
                 </button>
               </div>
 
@@ -236,29 +254,31 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1, duration: 0.5 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={handleSubmit}
+                onClick={() => handleSubmit()}
                 className={`relative w-full overflow-hidden rounded-xl px-8 py-4 font-semibold text-white shadow-md transition-all duration-200 ${CTA_GRAD} hover:brightness-90 hover:shadow-lg active:scale-95`}
               >
-                <span className="relative z-10">Đăng nhập ngay</span>
+                <span className="relative z-10">
+                  {msg.loginCard.form.submit}
+                </span>
               </motion.button>
 
               <div className="pt-4 border-t border-slate-200">
                 <p className="text-center text-xs text-slate-500 leading-relaxed">
-                  Bằng việc đăng nhập, bạn đồng ý với{" "}
+                  {msg.loginCard.form.consentPrefix}{" "}
                   <button
                     type="button"
                     className="text-sky-600 hover:underline"
                   >
-                    Điều khoản sử dụng
+                    {msg.loginCard.form.terms}
                   </button>{" "}
-                  và{" "}
+                  {msg.loginCard.form.and}{" "}
                   <button
                     type="button"
                     className="text-sky-600 hover:underline"
                   >
-                    Chính sách bảo mật
+                    {msg.loginCard.form.privacy}
                   </button>{" "}
-                  của KidzGo.
+                  {msg.loginCard.form.consentSuffix}
                 </p>
               </div>
 
@@ -268,19 +288,18 @@ export default function LoginCard({ action, returnTo = "" }: Props) {
                 transition={{ delay: 0.1, duration: 0.5 }}
                 className="text-right pt-4"
               >
-                <a
-                  href="/"
+                <Link
+                  href={`/${locale}`}
                   className="group inline-flex items-center text-sm text-slate-500"
-                  aria-label="Quay về trang chủ"
                 >
                   <span className="relative flex items-center gap-1 transition-transform duration-300 group-hover:translate-x-1">
                     <span className="transition-all group-hover:bg-linear-to-r group-hover:from-amber-600 group-hover:via-pink-600 group-hover:to-rose-500 group-hover:text-transparent group-hover:bg-clip-text">
-                      Quay về trang chủ
+                      {msg.loginCard.form.backHome}
                     </span>
                     <ArrowRight className="h-4 w-4 text-slate-600 transition-colors duration-300 group-hover:text-rose-500" />
                     <span className="pointer-events-none absolute left-0 right-0.5 -bottom-0.5 h-px bg-linear-to-r from-amber-400 via-pink-500 to-rose-500 scale-x-0 origin-left transition-transform duration-300 group-hover:scale-x-100" />
                   </span>
-                </a>
+                </Link>
               </motion.div>
             </div>
           </motion.div>

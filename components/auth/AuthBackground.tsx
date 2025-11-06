@@ -16,7 +16,7 @@ export default function AuthBackground() {
         transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute -bottom-28 -right-24 h-112 w-112 rounded-full blur-3xl"
+        className="absolute -bottom-28 -right-24 h-112 w-md rounded-full blur-3xl"
         style={{ background: "radial-gradient(closest-side, rgba(14,165,233,.35), transparent)" }}
         animate={{ y: [0, -24, 0], x: [0, -14, 0] }}
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}

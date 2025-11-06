@@ -42,6 +42,7 @@ export default function LanguageToggle() {
     const url = qs ? `${nextPath}?${qs}` : nextPath;
 
     document.cookie = `locale=${target};path=/;max-age=31536000;samesite=lax`;
+    document.documentElement.setAttribute("lang", target);
     localStorage.setItem("lastLocale", current);
 
     router.push(url);

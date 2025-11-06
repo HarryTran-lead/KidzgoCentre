@@ -1,6 +1,5 @@
 // app/auth/layout.tsx
 import type { ReactNode } from "react";
-import Link from "next/link";
 import AuthBackground from "@/components/auth/AuthBackground";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
