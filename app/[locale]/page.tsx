@@ -1,4 +1,4 @@
-// app/[locale]/page.tsx  (SERVER COMPONENT)
+// app/[locale]/page.tsx
 import Navbar from "@/components/homepage/Navbar";
 import Hero from "@/components/homepage/Hero";
 import Roadmap from "@/components/homepage/Roadmap";
@@ -19,12 +19,14 @@ export async function generateStaticParams() {
   return [{ locale: "en" }, { locale: "vi" }];
 }
 
-export default function LocalizedHomePage({
+export default async function LocalizedHomePage({
   params,
 }: {
-  params: { locale: Locale };
+  //  Next 15: params là Promise
+  params: Promise<{ locale: Locale }>;
 }) {
-  // Nếu cần truyền locale xuống các section bạn có thể dùng params.locale
+  const { locale } = await params; // nếu cần dùng, đã có sẵn ở đây
+
   return (
     <div className={`min-h-screen ${SURFACE_SOFT} text-slate-900`}>
       <Navbar />

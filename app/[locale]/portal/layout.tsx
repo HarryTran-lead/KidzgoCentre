@@ -22,13 +22,15 @@ function roleFromPath(pathname: string): Role | null {
   return null;
 }
 
-export default async function PortalLayout({
-  children,
-  params,
-}: {
+type Props = {
   children: ReactNode;
-  params: { locale: Locale };
-}) {
+  // Next 15: params là Promise
+  params: Promise<{ locale: Locale }>;
+};
+
+export default async function PortalLayout({ children, params }: Props) {
+  const { locale } = await params;
+
   const session = await getSession();
   const devBypass = process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === "1";
 
@@ -37,13 +39,14 @@ export default async function PortalLayout({
 
   // 2) Chưa có session → nếu dev-bypass, suy role từ URL hoặc ENV
   if (!role && devBypass) {
-    const h = await headers(); // Next 15+
+    const h = await headers(); // môi trường bạn: async
     const raw =
       h.get("x-invoke-path") ||
       h.get("x-matched-path") ||
       h.get("next-url") ||
       h.get("referer") ||
       "";
+
     const pathname = raw?.startsWith("http")
       ? (() => {
           try {
@@ -61,7 +64,7 @@ export default async function PortalLayout({
 
   // 3) Prod + chưa login → về login
   if (!role) {
-    redirect(localizePath(`/auth/login?returnTo=/portal`, params.locale));
+    redirect(localizePath(`/auth/login?returnTo=/portal`, locale));
   }
 
   return (
