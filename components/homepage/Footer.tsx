@@ -393,7 +393,7 @@ function FooterLink({
     >
       {children}
       {!noUnderline && (
-        <span className="pointer-events-none absolute left-0 right-0 -bottom-1 h-[0.5px] rounded-full bg-linear-to-r from-yellow-400 via-pink-400 to-purple-400 opacity-0 scale-x-0 origin-left transition-opacity transition-transform duration-300 group-hover:opacity-100 group-hover:scale-x-100" />
+        <span className="pointer-events-none absolute left-0 right-0 -bottom-1 h-[0.5px] rounded-full bg-linear-to-r from-yellow-400 via-pink-400 to-purple-400 opacity-0 scale-x-0 origin-left transition-transform duration-300 group-hover:opacity-100 group-hover:scale-x-100" />
       )}
     </Link>
   );

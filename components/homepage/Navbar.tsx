@@ -11,7 +11,7 @@ import React, {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { Menu, X, LogIn, } from "lucide-react";
+import { Menu, X, LogIn } from "lucide-react";
 import { motion, useMotionValue, animate } from "framer-motion";
 import { LOGO, CTA_GRAD } from "@/lib/theme/theme";
 import LanguageToggle from "@/components/ui/button/LanguageToggle";
@@ -19,7 +19,7 @@ import {
   pickLocaleFromPath,
   type Locale,
   DEFAULT_LOCALE,
-  localizePath
+  localizePath,
 } from "@/lib/i18n";
 import { useMsg } from "@/lib/dict";
 import { EndPoint } from "@/lib/routes";
@@ -71,6 +71,7 @@ export default function Navbar() {
       { id: "programs", label: msg.nav.programs, icon: "🎓" },
       { id: "gallery", label: msg.nav.gallery, icon: "📸" },
       { id: "blog", label: msg.nav.blog, icon: "📝" },
+      { id: "faqs", label: msg.nav.faqs, icon: "💬" },
       { id: "contact", label: msg.nav.contact, icon: "☎️" },
     ],
     [msg]
@@ -281,7 +282,7 @@ export default function Navbar() {
             <div className="hidden xl:flex items-center gap-2 md:gap-3 shrink-0 z-10">
               <LanguageToggle />
               <Link
-               href={localizePath(EndPoint.LOGIN, locale)}
+                href={localizePath(EndPoint.LOGIN, locale)}
                 className="group inline-flex items-center gap-2 h-10 px-3 rounded-xl 
                 border border-slate-200 font-semibold text-[13px] md:text-sm text-slate-700 
                 bg-white shadow-sm transition-all duration-300

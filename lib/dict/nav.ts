@@ -6,6 +6,7 @@ export const nav = {
     gallery: "Hình ảnh",
     blog: "Bài viết",
     contact: "Liên hệ",
+    faqs: "Câu hỏi",
   },
   en: {
     roadmap: "Roadmap",
@@ -14,5 +15,6 @@ export const nav = {
     gallery: "Gallery",
     blog: "Blog",
     contact: "Contact",
+    faqs: "FAQs",
   },
 };

@@ -9,6 +9,7 @@ import Testimonials from "@/components/homepage/Testimonials";
 import Gallery from "@/components/homepage/Gallery";
 import Blog from "@/components/homepage/Blog";
 import CtaStrip from "@/components/homepage/CtaStrip";
+import FAQs from "@/components/homepage/FAQs";
 import Contact from "@/components/homepage/Contact";
 import Footer from "@/components/homepage/Footer";
 import { SURFACE_SOFT } from "@/lib/theme/theme";
@@ -31,12 +32,13 @@ export default function LocalizedHomePage({
       <Roadmap />
       <WhyUs />
       <Courses />
-      <Programs />
       <Testimonials />
       <Gallery />
+      <Programs />
       <Blog />
-      <CtaStrip />
+      <FAQs />
       <Contact />
+      <CtaStrip />
       <Footer />
     </div>
   );
