@@ -24,20 +24,19 @@ function roleFromPath(pathname: string): Role | null {
 
 type Props = {
   children: ReactNode;
-  // Next 15: params là Promise
-  params: Promise<{ locale: Locale }>;
+  // Next 15: params là Promise và locale = string (KHÔNG thu hẹp "vi" | "en")
+  params: Promise<{ locale: string }>;
 };
 
 export default async function PortalLayout({ children, params }: Props) {
-  const { locale } = await params;
+  const { locale } = await params; // string từ Next
+  const loc = locale as Locale; // cast sang union riêng của app khi cần
 
   const session = await getSession();
   const devBypass = process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === "1";
 
-  // 1) Có session thì dùng
   let role: Role | null = session?.role ? normalizeRole(session.role) : null;
 
-  // 2) Chưa có session → nếu dev-bypass, suy role từ URL hoặc ENV
   if (!role && devBypass) {
     const h = await headers(); // môi trường bạn: async
     const raw =
@@ -62,15 +61,14 @@ export default async function PortalLayout({ children, params }: Props) {
       normalizeRole(process.env.NEXT_PUBLIC_DEV_ROLE || "ADMIN");
   }
 
-  // 3) Prod + chưa login → về login
+  // Prod + chưa login → về login
   if (!role) {
-    redirect(localizePath(`/auth/login?returnTo=/portal`, locale));
+    redirect(localizePath(`/auth/login?returnTo=/portal`, loc));
   }
 
   return (
     <div className="min-h-screen grid md:grid-cols-[280px_1fr] bg-slate-50">
       <Sidebar role={role} />
-      {/* Cột phải: Header + nội dung */}
       <div className="flex min-h-screen flex-col">
         <HeaderPortal role={role} />
         <main className="p-4 md:p-6">{children}</main>

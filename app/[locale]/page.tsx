@@ -1,4 +1,3 @@
-// app/[locale]/page.tsx
 import Navbar from "@/components/homepage/Navbar";
 import Hero from "@/components/homepage/Hero";
 import Roadmap from "@/components/homepage/Roadmap";
@@ -15,17 +14,17 @@ import Footer from "@/components/homepage/Footer";
 import { SURFACE_SOFT } from "@/lib/theme/theme";
 import type { Locale } from "@/lib/i18n";
 
-export async function generateStaticParams() {
-  return [{ locale: "en" }, { locale: "vi" }];
+export async function generateStaticParams(): Promise<{ locale: string }[]> {
+  return ["en", "vi"].map((locale) => ({ locale }));
 }
 
 export default async function LocalizedHomePage({
   params,
 }: {
-  //  Next 15: params là Promise
-  params: Promise<{ locale: Locale }>;
+  params: Promise<{ locale: string }>; // ✅ props rộng = string
 }) {
-  const { locale } = await params; // nếu cần dùng, đã có sẵn ở đây
+  const { locale } = await params;
+  const loc = locale as Locale; // ✅ cast khi dùng nếu cần
 
   return (
     <div className={`min-h-screen ${SURFACE_SOFT} text-slate-900`}>
