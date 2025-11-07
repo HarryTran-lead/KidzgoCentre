@@ -1,10 +1,24 @@
-KidzGo Staff Module (Next.js App Router)
-----------------------------------------
-Cách dùng:
-1) Giải nén ZIP này vào thư mục gốc của dự án (my-center-fe).
-   - Nếu đã có 'middleware.ts', hãy gộp logic bảo vệ '/staff' vào file hiện có thay vì ghi đè.
-2) Cài icon nếu chưa có: npm i lucide-react
-3) Chạy dev: npm run dev
-4) Truy cập: http://localhost:3000/staff
+KidzGo Roles (ACCOUNTANT & MANAGEMENT) — Drop-in for Next.js App Router
+----------------------------------------------------------------------
+Thêm 2 role mới:
+- ACCOUNTANT (Kế toán): /portal/accountant/*
+- MANAGEMENT (Vận hành): /portal/management/*
 
-Middleware mặc định đọc cookie 'role' và chỉ cho phép STAFF/ADMIN vào /staff.
+Cấu trúc:
+- lib/roles.ts (bổ sung ROLES, ALL_ROLES, ACCESS_MAP)
+- components/accountant/Sidebar.tsx
+- app/portal/accountant/(layout + các trang con)
+- components/management/Sidebar.tsx
+- app/portal/management/(layout + các trang con)
+
+Yêu cầu:
+- Tailwind + lucide-react đã cài (nếu thiếu: npm i lucide-react)
+
+Routing bảo vệ:
+- Dùng proxy.ts theo hướng dẫn trước đó; chỉ cần đảm bảo ACCESS_MAP chứa 2 prefix:
+  "/portal/accountant" và "/portal/management".
+- Không để middleware.ts (Next 16 dùng proxy.ts).
+
+Sau khi dán:
+- rm -rf .next && npm run dev
+- Truy cập: /portal/accountant hoặc /portal/management (cookie role phải là ACCOUNTANT/MANAGEMENT hoặc ADMIN)
