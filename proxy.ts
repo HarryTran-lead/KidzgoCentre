@@ -1,23 +1,57 @@
 // proxy.ts
 import { NextResponse, type NextRequest } from "next/server";
-import { ALL_ROLES, ACCESS_MAP } from "@/lib/roles";
+import { ALL_ROLES, ACCESS_MAP } from "@/lib/role";
 import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 
 const LOCALES_ARR = LOCALES as readonly string[];
+const ONE_YEAR = 60 * 60 * 24 * 365;
+
+const isDevBypass = () =>
+  process.env.NODE_ENV !== "production" &&
+  process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === "1";
 
 function pickLocale(pathname: string): Locale | null {
   const seg1 = pathname.split("/")[1];
   return LOCALES_ARR.includes(seg1 as any) ? (seg1 as Locale) : null;
 }
 
-const oneYear = 60 * 60 * 24 * 365;
 function setLocaleCookie(res: NextResponse, locale: Locale) {
   res.cookies.set("locale", locale, {
     path: "/",
-    maxAge: oneYear,
+    maxAge: ONE_YEAR,
     sameSite: "lax",
   });
   return res;
+}
+
+/** Bỏ prefix locale khỏi pathname nếu có ("/vi/portal/teacher" -> "/portal/teacher") */
+function stripLocale(pathname: string): string {
+  const seg1 = pathname.split("/")[1];
+  if (LOCALES_ARR.includes(seg1 as any)) {
+    return pathname.slice(("/" + seg1).length) || "/";
+  }
+  return pathname;
+}
+
+/** Suy ra role từ path không có locale */
+function roleFromPathNoLocale(
+  pathNoLocale: string
+):
+  | "ADMIN"
+  | "STAFF_ACCOUNTING"
+  | "STAFF_MANAGER"
+  | "TEACHER"
+  | "STUDENT"
+  | null {
+  const p = pathNoLocale.toLowerCase();
+  if (p.startsWith("/portal/admin")) return "ADMIN";
+  if (p.startsWith("/portal/staff-accountant")) return "STAFF_ACCOUNTING";
+  if (p.startsWith("/portal/staff-management")) return "STAFF_MANAGER";
+  if (p.startsWith("/portal/teacher") || p.startsWith("/teacher"))
+    return "TEACHER";
+  if (p.startsWith("/portal/student") || p.startsWith("/student"))
+    return "STUDENT";
+  return null;
 }
 
 export function proxy(req: NextRequest) {
@@ -31,6 +65,29 @@ export function proxy(req: NextRequest) {
   const effectiveLocale: Locale = segLocale ?? cookieLocale ?? DEFAULT_LOCALE;
   const baseFromSeg = segLocale ? `/${segLocale}` : "";
   const baseFromEffective = `/${effectiveLocale}`;
+
+  // === DEV BYPASS: xử lý ngay cho /auth/login?returnTo=... ===
+  if (isDevBypass()) {
+    const isLogin =
+      pathname === "/auth/login" ||
+      pathname === "/vi/auth/login" ||
+      pathname === "/en/auth/login";
+
+    if (isLogin) {
+      const returnTo = req.nextUrl.searchParams.get("returnTo") || "/portal";
+      const roleParam =
+        req.nextUrl.searchParams.get("role") ||
+        process.env.NEXT_PUBLIC_DEV_ROLE ||
+        "ADMIN";
+      const res = NextResponse.redirect(new URL(returnTo, req.url));
+      res.cookies.set("role", roleParam, {
+        path: "/",
+        httpOnly: false,
+        maxAge: ONE_YEAR,
+      });
+      return segLocale ? setLocaleCookie(res, segLocale) : res;
+    }
+  }
 
   // Portal?
   const isPortal = segLocale
@@ -54,12 +111,30 @@ export function proxy(req: NextRequest) {
         pathname === `/${segLocale}/portal/`));
 
   if (isPortalRoot) {
-    // vẫn sync cookie nếu có segment
     const res = NextResponse.next();
     return segLocale ? setLocaleCookie(res, segLocale) : res;
   }
 
-  // ==== AUTHZ CHO PORTAL ====
+  // ==== DEV BYPASS: tự set cookie role theo URL và reload 1 lần ====
+  if (isDevBypass()) {
+    const pathNoLocale = stripLocale(pathname);
+    const wanted = roleFromPathNoLocale(pathNoLocale);
+    if (wanted) {
+      const current = req.cookies.get("role")?.value;
+      if (current !== wanted) {
+        // redirect lại chính URL để request mới có cookie role
+        const res = NextResponse.redirect(req.nextUrl);
+        res.cookies.set("role", wanted, {
+          path: "/",
+          httpOnly: false,
+          maxAge: ONE_YEAR,
+        });
+        return segLocale ? setLocaleCookie(res, segLocale) : res;
+      }
+    }
+  }
+
+  // ==== AUTHZ CHO PORTAL (prod / hoặc sau khi đã set cookie) ====
   const roleCookie = req.cookies.get("role")?.value ?? "";
   const role = (ALL_ROLES as readonly string[]).includes(roleCookie)
     ? (roleCookie as keyof typeof ACCESS_MAP)
@@ -96,13 +171,18 @@ export function proxy(req: NextRequest) {
   return segLocale ? setLocaleCookie(res, segLocale) : res;
 }
 
-// 👇 Cho middleware chạy trên toàn site có prefix locale + root,
-//    đồng thời vẫn giữ các route /portal có/không prefix.
+// Matcher: thêm cả /auth/login để dev-bypass redirect theo returnTo
 export const config = {
   matcher: [
-    "/", // root (để đồng bộ cookie khi / redirect)
-    "/(vi|en)/:path*", // toàn bộ public có prefix locale
-    "/portal/:path*", // portal không prefix
-    "/(vi|en)/portal/:path*", // portal có prefix
+    "/",
+    "/(vi|en)/:path*",
+    "/auth/login",
+    "/(vi|en)/auth/login",
+    "/portal/:path*",
+    "/(vi|en)/portal/:path*",
+    "/accountant/:path*",
+    "/management/:path*",
+    "/teacher/:path*",
+    "/student/:path*",
   ],
 };
