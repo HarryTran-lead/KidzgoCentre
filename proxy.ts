@@ -6,9 +6,10 @@ import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 const LOCALES_ARR = LOCALES as readonly string[];
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-// Preview (Vercel) & local dev: cho auto-login
-// Vercel tự set VERCEL_ENV = "development" | "preview" | "production"
-const isPreviewOrDev = process.env.VERCEL_ENV !== "production";
+/** ⚠️ DEMO ONLY: mở auto-login ở mọi môi trường (prod cũng bật)
+ *  Đặt về false khi không còn cần mở toang.
+ */
+const ALWAYS_AUTO_LOGIN = true;
 
 function pickLocale(pathname: string): Locale | null {
   const seg1 = pathname.split("/")[1];
@@ -24,13 +25,16 @@ function setLocaleCookie(res: NextResponse, locale: Locale) {
   return res;
 }
 
+/** Bỏ prefix locale khỏi pathname nếu có ("/vi/portal/teacher" -> "/portal/teacher") */
 function stripLocale(pathname: string): string {
   const seg1 = pathname.split("/")[1];
-  if (LOCALES_ARR.includes(seg1 as any))
+  if (LOCALES_ARR.includes(seg1 as any)) {
     return pathname.slice(("/" + seg1).length) || "/";
+  }
   return pathname;
 }
 
+/** Suy ra role từ path không có locale */
 type Role =
   | "ADMIN"
   | "STAFF_ACCOUNTANT"
@@ -52,8 +56,11 @@ function roleFromPathNoLocale(pathNoLocale: string): Role | null {
 export default function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
+  // Locale trên URL (nếu có) và trong cookie
   const segLocale = pickLocale(pathname);
   const cookieLocale = req.cookies.get("locale")?.value as Locale | undefined;
+
+  // Locale dùng khi cần tự quyết định (portal không prefix, v.v.)
   const effectiveLocale: Locale = segLocale ?? cookieLocale ?? DEFAULT_LOCALE;
   const baseFromSeg = segLocale ? `/${segLocale}` : "";
   const baseFromEffective = `/${effectiveLocale}`;
@@ -81,13 +88,13 @@ export default function proxy(req: NextRequest) {
     return segLocale ? setLocaleCookie(res, segLocale) : res;
   }
 
-  // ========== AUTO-LOGIN CHO PREVIEW/DEV (KHÔNG CẦN TOKEN/.ENV) ==========
-  if (isPreviewOrDev) {
+  // ========== AUTO-LOGIN Ở MỌI MÔI TRƯỜNG (DEMO) ==========
+  if (ALWAYS_AUTO_LOGIN) {
     const pathNoLocale = stripLocale(pathname);
     const wanted = (roleFromPathNoLocale(pathNoLocale) ?? "ADMIN") as Role;
     const current = req.cookies.get("role")?.value;
 
-    // Nếu chưa có cookie hoặc sai role → set lại role và reload (dọn query nếu có)
+    // Chưa có cookie hoặc role khác => set lại cookie role và reload URL (xoá query role/dev nếu có)
     if (current !== wanted) {
       const cleanUrl = new URL(req.url);
       cleanUrl.searchParams.delete("role");
@@ -104,7 +111,7 @@ export default function proxy(req: NextRequest) {
     }
   }
 
-  // ===================== AUTHZ (PRODUCTION) =====================
+  // ===================== AUTHZ (nếu tắt auto-login) =====================
   const roleCookie = req.cookies.get("role")?.value ?? "";
   const role = (ALL_ROLES as readonly string[]).includes(roleCookie)
     ? (roleCookie as keyof typeof ACCESS_MAP)
@@ -134,6 +141,7 @@ export default function proxy(req: NextRequest) {
     return setLocaleCookie(NextResponse.redirect(url403), effectiveLocale);
   }
 
+  // OK
   const res = NextResponse.next();
   return segLocale ? setLocaleCookie(res, segLocale) : res;
 }
