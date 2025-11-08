@@ -14,10 +14,13 @@
   --font-sans: var(--font-sans);
 }
 html,body{ font-family: var(--font-sans); }
+.sidebar-container {
+  transition: width .35s ease;
+}
 
 /* ==== Custom scrollbar ==== */
 .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #888 transparent; }
-.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(128, 128, 128, 0.4);

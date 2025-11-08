@@ -18,7 +18,7 @@ export function buildMenu(roleInput: Role | string): MenuItem[] {
   switch (role) {
     case "ADMIN":
       return adminMenu(root);
-    case "STAFF_ACCOUNTING":
+    case "STAFF_ACCOUNTANT":
       return staffAccountingMenu(root);
     case "STAFF_MANAGER":
       return staffManagerMenu(root);

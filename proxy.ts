@@ -1,4 +1,3 @@
-// proxy.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { ALL_ROLES, ACCESS_MAP } from "@/lib/role";
 import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
@@ -6,9 +5,23 @@ import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 const LOCALES_ARR = LOCALES as readonly string[];
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-const isDevBypass = () =>
-  process.env.NODE_ENV !== "production" &&
-  process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === "1";
+/** Auto-login:
+ * - Local dev: NEXT_PUBLIC_DEV_AUTO_LOGIN=1
+ * - Vercel Preview: AUTO_LOGIN_PREVIEW=1
+ * Production: luôn tắt
+ */
+const isDevBypass = () => {
+  const allowLocal =
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === "1";
+  const allowPreview =
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.AUTO_LOGIN_PREVIEW === "1";
+  return allowLocal || allowPreview;
+};
+
+const pickBypassRole = () =>
+  process.env.AUTO_LOGIN_ROLE || process.env.NEXT_PUBLIC_DEV_ROLE || "ADMIN";
 
 function pickLocale(pathname: string): Locale | null {
   const seg1 = pathname.split("/")[1];
@@ -38,14 +51,14 @@ function roleFromPathNoLocale(
   pathNoLocale: string
 ):
   | "ADMIN"
-  | "STAFF_ACCOUNTING"
+  | "STAFF_ACCOUNTANT"
   | "STAFF_MANAGER"
   | "TEACHER"
   | "STUDENT"
   | null {
   const p = pathNoLocale.toLowerCase();
   if (p.startsWith("/portal/admin")) return "ADMIN";
-  if (p.startsWith("/portal/staff-accountant")) return "STAFF_ACCOUNTING";
+  if (p.startsWith("/portal/staff-accountant")) return "STAFF_ACCOUNTANT";
   if (p.startsWith("/portal/staff-management")) return "STAFF_MANAGER";
   if (p.startsWith("/portal/teacher") || p.startsWith("/teacher"))
     return "TEACHER";
@@ -76,9 +89,7 @@ export function proxy(req: NextRequest) {
     if (isLogin) {
       const returnTo = req.nextUrl.searchParams.get("returnTo") || "/portal";
       const roleParam =
-        req.nextUrl.searchParams.get("role") ||
-        process.env.NEXT_PUBLIC_DEV_ROLE ||
-        "ADMIN";
+        (req.nextUrl.searchParams.get("role") as string) || pickBypassRole();
       const res = NextResponse.redirect(new URL(returnTo, req.url));
       res.cookies.set("role", roleParam, {
         path: "/",
@@ -122,7 +133,6 @@ export function proxy(req: NextRequest) {
     if (wanted) {
       const current = req.cookies.get("role")?.value;
       if (current !== wanted) {
-        // redirect lại chính URL để request mới có cookie role
         const res = NextResponse.redirect(req.nextUrl);
         res.cookies.set("role", wanted, {
           path: "/",

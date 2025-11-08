@@ -4,7 +4,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { useLayoutEffect, useState, useEffect, useRef, type ReactNode } from "react";
+import {
+  useLayoutEffect,
+  useState,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -15,7 +21,6 @@ import {
 } from "lucide-react";
 import { buildMenu } from "../menu/index";
 import type { Role } from "@/lib/role";
-import { ROLE_LABEL } from "@/lib/role";
 import { pickLocaleFromPath, DEFAULT_LOCALE, localizePath } from "@/lib/i18n";
 import type { LucideIcon } from "lucide-react";
 import { LOGO, LOGO_ONLY } from "@/lib/theme/theme";
@@ -151,16 +156,15 @@ function Flyout({
   useLayoutEffect(() => {
     if (!open || !anchorRect) return;
 
-    const GAP_X = 6;      // khoảng cách ngang với sidebar
-    const PAD = 12;       // đệm mép viewport
+    const GAP_X = 6; // khoảng cách ngang với sidebar
+    const PAD = 12; // đệm mép viewport
 
     const measure = () => {
       const flyH = panelRef.current?.offsetHeight ?? 0;
       const left = anchorRect.right + GAP_X;
 
       // căn giữa theo tâm anchor, rồi clamp trong viewport
-      let top =
-        anchorRect.top + anchorRect.height / 2 - flyH / 2;
+      let top = anchorRect.top + anchorRect.height / 2 - flyH / 2;
 
       top = Math.max(PAD, Math.min(top, window.innerHeight - PAD - flyH));
 
@@ -197,7 +201,7 @@ function Flyout({
     >
       {/* mũi nối với sidebar, căn theo tâm anchor */}
       <span
-        className="pointer-events-none absolute left-[-6px]
+        className="pointer-events-none absolute -left-1.5
                    border-y-[6px] border-y-transparent border-r-[6px] border-r-white"
         style={{ top: pos.arrowTop }}
       />
@@ -222,7 +226,6 @@ function Flyout({
     document.body
   );
 }
-
 
 /* ===== Group (hỗ trợ flyout khi thu gọn) ===== */
 function Group({
@@ -281,8 +284,6 @@ function Group({
               : "text-slate-500 hover:text-pink-600 hover:bg-slate-50/80"
           }`}
       >
-   
-
         {/* Nhãn/biểu tượng nhóm */}
         {!collapsed ? (
           <span className="inline-flex items-center gap-2.5 transition-all duration-300 ease-out">
@@ -405,6 +406,30 @@ export default function Sidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // state tạo border/shadow cho header title
+  const navRef = useRef<HTMLDivElement | null>(null);
+  const [topScrolled, setTopScrolled] = useState(false);
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+
+    // rAF để mượt & tránh spam setState
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        setTopScrolled(el.scrollTop > 0);
+        ticking = false;
+      });
+    };
+
+    // init 1 lần để đúng trạng thái khi load giữa trang
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   // Flyout state
   const [fly, setFly] = useState<{
     open: boolean;
@@ -432,17 +457,6 @@ export default function Sidebar({
   // Close mobile on route changes
   useEffect(() => setMobileOpen(false), [pathname]);
 
-  // Close mobile if click outside
-  useEffect(() => {
-    const handle = (e: MouseEvent) => {
-      if (mobileOpen && !(e.target as Element).closest(".sidebar-container")) {
-        setMobileOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [mobileOpen]);
-
   // Lock scroll when mobile open
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -451,10 +465,18 @@ export default function Sidebar({
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    const open = () => setMobileOpen(true);
+    window.addEventListener("portal:sidebar-open", open);
+    return () => window.removeEventListener("portal:sidebar-open", open);
+  }, []);
+
   const sidebarContent = (
     <>
       {/* Header with Logo + sticky edge toggle */}
-      <div className="relative h-16 md:h-16 flex items-center justify-start lg:justify-center px-4 pl-5 lg:pl-0">
+      <div
+        className={`relative h-16 md:h-16 flex items-center justify-start lg:justify-center px-4 pl-5 lg:pl-0`}
+      >
         {/* Full logo */}
         <div
           className={`absolute inset-0 flex items-center justify-start lg:justify-center pl-1 transition-all duration-500 ease-out ${
@@ -472,7 +494,6 @@ export default function Sidebar({
             className="h-15 w-auto"
           />
         </div>
-
         {/* Icon-only */}
         <div
           className={`absolute inset-0 flex items-center justify-start lg:justify-center transition-all duration-500 ease-out ${
@@ -490,11 +511,10 @@ export default function Sidebar({
             className="h-12 w-13"
           />
         </div>
-
         {/* Toggle button */}
         <button
           onClick={() => setCollapsed((v) => !v)}
-          className="hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 z-10
+          className="hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 z-80 pointer-events-auto
                w-8 h-8 rounded-full items-center justify-center
                bg-white border border-slate-200 text-slate-400
                shadow-md hover:shadow-xl hover:text-blue-600 hover:border-blue-300
@@ -511,9 +531,16 @@ export default function Sidebar({
             }`}
           />
         </button>
-      </div>
 
-      <hr className="border-slate-100 transition-all duration-300" />
+        {/* Đường kẻ đáy header bằng <hr> */}
+        <hr
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-0 -bottom-px m-0 
+                border-0 border-t border-slate-200 
+                transition-opacity duration-200 
+                ${topScrolled ? "opacity-100" : "opacity-0"}`}
+        />
+      </div>
 
       {/* Branch picker */}
       {branches?.length && !collapsed ? (
@@ -588,7 +615,13 @@ export default function Sidebar({
       ) : null}
 
       {/* Menu */}
-      <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-2 custom-scrollbar">
+      <nav
+        ref={navRef}
+        className="flex-1 min-h-0 overflow-y-auto px-3 pt-3 custom-scrollbar"
+        onScroll={(e) =>
+          setTopScrolled((e.currentTarget as HTMLDivElement).scrollTop > 0)
+        }
+      >
         <div className={collapsed ? "space-y-1" : "space-y-0.5"}>
           {items.map((it, idx) =>
             isGroup(it) ? (
@@ -697,32 +730,27 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-40 p-2.5 rounded-xl bg-white shadow-lg border border-slate-200 text-slate-600 hover:bg-pink-50 hover:border-pink-300 hover:text-pink-600 hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 ease-out"
-        type="button"
-        aria-label="Mở menu"
-      >
-        <Menu size={24} strokeWidth={2} />
-      </button>
-
       {/* Mobile Overlay */}
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-in fade-in duration-300"
+          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-70 animate-in fade-in duration-300"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        className={`sidebar-container h-screen sticky top-0 shrink-0 border-r border-slate-200 bg-white/98 backdrop-blur-xl flex flex-col shadow-xl lg:shadow-sm transition-all duration-500 ease-out
-          ${collapsed ? "w-[72px]" : "w-[280px]"}
-          lg:translate-x-0 lg:relative
-          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
-          fixed lg:sticky z-50 lg:z-auto
-        `}
+        className={`bg-white
+    h-screen shrink-0 flex flex-col shadow-xl transition-all duration-500 ease-out border-r border-slate-200 
+    ${collapsed ? "w-[72px]" : "w-[280px]"}
+    
+    /* Mobile: overlay */
+    fixed top-0 left-0 z-80
+    ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+
+    /* Desktop: sidebar chiếm chỗ thật, không overlay */
+    lg:sticky lg:translate-x-0 lg:z-60
+  `}
       >
         {/* Close button for mobile */}
         <button
@@ -739,21 +767,6 @@ export default function Sidebar({
 
       {/* Global styles for scrollbar & animations */}
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgb(203 213 225 / 0.4);
-          border-radius: 100px;
-          transition: background 0.3s ease-out;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgb(148 163 184 / 0.7);
-        }
-
         @keyframes slide-in-from-top-2 {
           from {
             transform: translateY(-0.5rem);
