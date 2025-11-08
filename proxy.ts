@@ -1,14 +1,14 @@
+// proxy.ts
 import { NextResponse, type NextRequest } from "next/server";
-import { ALL_ROLES, ACCESS_MAP } from "@/lib/role";
+import { ALL_ROLES, ACCESS_MAP } from "@/lib/role"; // <- chỉnh cho khớp lib/roles.ts
 import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 
 const LOCALES_ARR = LOCALES as readonly string[];
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-/** Auto-login:
+/** Auto-login bypass:
  * - Local dev: NEXT_PUBLIC_DEV_AUTO_LOGIN=1
- * - Vercel Preview: AUTO_LOGIN_PREVIEW=1
- * Production: luôn tắt
+ * - Vercel Preview: AUTO_LOGIN_PREVIEW=1  (Production luôn tắt)
  */
 const isDevBypass = () => {
   const allowLocal =
@@ -18,6 +18,12 @@ const isDevBypass = () => {
     process.env.VERCEL_ENV === "preview" &&
     process.env.AUTO_LOGIN_PREVIEW === "1";
   return allowLocal || allowPreview;
+};
+
+// Secret bypass cho Production (tuỳ chọn): ?dev=<DEV_BYPASS_TOKEN>
+const isSecretBypass = (req: NextRequest) => {
+  const tok = req.nextUrl.searchParams.get("dev");
+  return !!tok && tok === process.env.DEV_BYPASS_TOKEN;
 };
 
 const pickBypassRole = () =>
@@ -70,17 +76,17 @@ function roleFromPathNoLocale(
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
-  // Locale trên URL (nếu có) và trong cookie
   const segLocale = pickLocale(pathname);
   const cookieLocale = req.cookies.get("locale")?.value as Locale | undefined;
 
-  // Locale dùng khi cần tự quyết định (portal không prefix, v.v.)
   const effectiveLocale: Locale = segLocale ?? cookieLocale ?? DEFAULT_LOCALE;
   const baseFromSeg = segLocale ? `/${segLocale}` : "";
   const baseFromEffective = `/${effectiveLocale}`;
 
-  // === DEV BYPASS: xử lý ngay cho /auth/login?returnTo=... ===
-  if (isDevBypass()) {
+  const bypassOn = isDevBypass() || isSecretBypass(req);
+
+  // === BYPASS: xử lý ngay cho /auth/login?returnTo=... ===
+  if (bypassOn) {
     const isLogin =
       pathname === "/auth/login" ||
       pathname === "/vi/auth/login" ||
@@ -94,6 +100,7 @@ export function proxy(req: NextRequest) {
       res.cookies.set("role", roleParam, {
         path: "/",
         httpOnly: false,
+        sameSite: "lax",
         maxAge: ONE_YEAR,
       });
       return segLocale ? setLocaleCookie(res, segLocale) : res;
@@ -126,8 +133,8 @@ export function proxy(req: NextRequest) {
     return segLocale ? setLocaleCookie(res, segLocale) : res;
   }
 
-  // ==== DEV BYPASS: tự set cookie role theo URL và reload 1 lần ====
-  if (isDevBypass()) {
+  // ==== BYPASS: tự set cookie role theo URL và reload 1 lần ====
+  if (bypassOn) {
     const pathNoLocale = stripLocale(pathname);
     const wanted = roleFromPathNoLocale(pathNoLocale);
     if (wanted) {
@@ -137,6 +144,7 @@ export function proxy(req: NextRequest) {
         res.cookies.set("role", wanted, {
           path: "/",
           httpOnly: false,
+          sameSite: "lax",
           maxAge: ONE_YEAR,
         });
         return segLocale ? setLocaleCookie(res, segLocale) : res;
@@ -144,13 +152,12 @@ export function proxy(req: NextRequest) {
     }
   }
 
-  // ==== AUTHZ CHO PORTAL (prod / hoặc sau khi đã set cookie) ====
+  // ==== AUTHZ CHO PORTAL ====
   const roleCookie = req.cookies.get("role")?.value ?? "";
   const role = (ALL_ROLES as readonly string[]).includes(roleCookie)
     ? (roleCookie as keyof typeof ACCESS_MAP)
     : undefined;
 
-  // Chưa đăng nhập → ép về trang login theo effectiveLocale
   if (!role) {
     const returnTo = pathname + search;
     const loginUrl = new URL(
@@ -181,7 +188,7 @@ export function proxy(req: NextRequest) {
   return segLocale ? setLocaleCookie(res, segLocale) : res;
 }
 
-// Matcher: thêm cả /auth/login để dev-bypass redirect theo returnTo
+// Đừng export config ở đây nếu bạn có file middleware.ts riêng
 export const config = {
   matcher: [
     "/",
