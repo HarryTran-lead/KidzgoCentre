@@ -13,20 +13,24 @@ import {
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
+import type { Locale } from "@/lib/i18n";
+import { getMessages } from "@/lib/dict";
 
-const RAWS: RawItem[] = [
-  ["Trang chủ", House, ""],
-  ["Lịch học", CalendarCheck, "/schedule"],
-  ["Điểm danh", CheckSquare, "/attendance"],
-  ["Hồ sơ", User, "/profile"],
-  ["Học phí", CreditCard, "/tuition"], // nếu app dùng /payments, đổi path này
-  ["Bài tập", ClipboardList, "/assignments"],
-  ["Tài liệu", BookOpen, "/materials"],
-  ["Báo cáo", BarChart3, "/reports"],
-  ["Phản hồi", MessageSquareMore, "/feedback"],
-  ["Thông báo", Bell, "/notifications"],
-];
+export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
+  const t = getMessages(locale).menuStudent.items;
 
-export function studentMenu(root: string): MenuItem[] {
+  const RAWS: RawItem[] = [
+    [t.home, House, ""],
+    [t.schedule, CalendarCheck, "/schedule"],
+    [t.attendance, CheckSquare, "/attendance"],
+    [t.profile, User, "/profile"],
+    [t.tuition, CreditCard, "/tuition"],
+    [t.assignments, ClipboardList, "/assignments"],
+    [t.materials, BookOpen, "/materials"],
+    [t.reports, BarChart3, "/reports"],
+    [t.feedback, MessageSquareMore, "/feedback"],
+    [t.notifications, Bell, "/notifications"],
+  ];
+
   return makeMenu(root, RAWS);
 }

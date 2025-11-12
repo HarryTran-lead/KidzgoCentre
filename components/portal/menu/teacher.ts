@@ -13,20 +13,24 @@ import {
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
+import type { Locale } from "@/lib/i18n";
+import { getMessages } from "@/lib/dict";
 
-const RAWS: RawItem[] = [
-  ["Tổng quan", LayoutDashboard, ""],
-  ["Hồ sơ cá nhân", User, "/profile"],
-  ["Lớp học của tôi", NotebookText, "/classes"],
-  ["Lịch giảng dạy", CalendarClock, "/schedule"],
-  ["Môn học & Tài liệu", BookOpenText, "/subjects"],
-  ["Bài tập & Nộp bài", ClipboardCheck, "/assignments"],
-  ["Điểm danh", CheckSquare, "/attendance"],
-  ["Báo cáo & Feedback", MessageCircle, "/feedback"],
-  ["Công giờ & Thu nhập", Clock4, "/timesheet"],
-  ["Thông báo", Bell, "/notifications"],
-];
+export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
+  const t = getMessages(locale).menuTeacher.items;
 
-export function teacherMenu(root: string): MenuItem[] {
+  const RAWS: RawItem[] = [
+    [t.dashboard, LayoutDashboard, ""],
+    [t.profile, User, "/profile"],
+    [t.myClasses, NotebookText, "/classes"],
+    [t.schedule, CalendarClock, "/schedule"],
+    [t.subjects, BookOpenText, "/subjects"],
+    [t.assignments, ClipboardCheck, "/assignments"],
+    [t.attendance, CheckSquare, "/attendance"],
+    [t.feedback, MessageCircle, "/feedback"],
+    [t.timesheet, Clock4, "/timesheet"],
+    [t.notifications, Bell, "/notifications"],
+  ];
+
   return makeMenu(root, RAWS);
 }

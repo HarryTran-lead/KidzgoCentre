@@ -1,4 +1,6 @@
-// lib/roles.ts
+// @/lib/role
+import { EndPoint } from "@/lib/routes";
+
 export type Role =
   | "ADMIN"
   | "STAFF_ACCOUNTANT"
@@ -6,22 +8,24 @@ export type Role =
   | "TEACHER"
   | "STUDENT";
 
+/** Map role -> base portal path */
 export const ROLES: Record<Role, string> = {
-  ADMIN: "/portal/admin",
-  STAFF_ACCOUNTANT: "/portal/staff-accountant",
-  STAFF_MANAGER: "/portal/staff-management",
-  TEACHER: "/portal/teacher",
-  STUDENT: "/portal/student",
+  ADMIN: EndPoint.ADMIN,
+  STAFF_ACCOUNTANT: EndPoint.STAFF_ACCOUNTANT,
+  STAFF_MANAGER: EndPoint.STAFF_MANAGER,
+  TEACHER: EndPoint.TEACHER,
+  STUDENT: EndPoint.STUDENT,
 };
 
 export const ALL_ROLES = Object.keys(ROLES) as Role[];
 
+/** Các prefix path được phép cho từng role */
 export const ACCESS_MAP: Record<Role, string[]> = {
-  ADMIN: [ROLES.ADMIN],
-  STAFF_ACCOUNTANT: [ROLES.STAFF_ACCOUNTANT],
-  STAFF_MANAGER: [ROLES.STAFF_MANAGER],
-  TEACHER: [ROLES.TEACHER],
-  STUDENT: [ROLES.STUDENT],
+  ADMIN: [EndPoint.ADMIN],
+  STAFF_ACCOUNTANT: [EndPoint.STAFF_ACCOUNTANT],
+  STAFF_MANAGER: [EndPoint.STAFF_MANAGER],
+  TEACHER: [EndPoint.TEACHER],
+  STUDENT: [EndPoint.STUDENT],
 };
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -32,6 +36,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   STUDENT: "Học viên",
 };
 
+/** Chuẩn hoá chuỗi role từ nhiều biến thể sang union Role */
 export function normalizeRole(input?: string): Role {
   const v = (input || "").toUpperCase().trim();
   if (["ADMIN"].includes(v)) return "ADMIN";

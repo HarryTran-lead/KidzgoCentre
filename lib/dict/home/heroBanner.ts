@@ -1,4 +1,4 @@
-
+// lib/dict/home/heroBanner.ts
 export const heroBanner = {
   vi: {
     slides: [

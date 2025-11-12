@@ -10,18 +10,25 @@ import {
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
+import type { Locale } from "@/lib/i18n";
+import { getMessages } from "@/lib/dict";
 
-const RAWS: RawItem[] = [
-  ["Dashboard", LayoutDashboard, ""],
-  ["Quản lý tài khoản", UserCog, "/accounts"],
-  ["Lead / CRM", Users, "/leads"],
-  ["Điều phối lịch/lớp/phòng", CalendarRange, "/schedule"],
-  ["Bù (make-up)", RefreshCw, "/makeup"],
-  ["Báo cáo tháng", FileText, "/monthly-report"],
-  ["Hồ sơ học sinh", NotebookText, "/students"],
-  ["Mẫu thông báo", FileText, "/templates"],
-];
+export function staffManagerMenu(
+  root: string,
+  locale: Locale = "vi"
+): MenuItem[] {
+  const t = getMessages(locale).menuStaffManager.items;
 
-export function staffManagerMenu(root: string): MenuItem[] {
+  const RAWS: RawItem[] = [
+    [t.dashboard, LayoutDashboard, ""],
+    [t.accounts, UserCog, "/accounts"],
+    [t.crm, Users, "/leads"],
+    [t.allocation, CalendarRange, "/schedule"],
+    [t.makeup, RefreshCw, "/makeup"],
+    [t.monthlyReport, FileText, "/monthly-report"],
+    [t.studentProfiles, NotebookText, "/students"],
+    [t.templates, FileText, "/templates"],
+  ];
+
   return makeMenu(root, RAWS);
 }

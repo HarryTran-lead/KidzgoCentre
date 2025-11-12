@@ -21,7 +21,7 @@ import {
   DEFAULT_LOCALE,
   localizePath,
 } from "@/lib/i18n";
-import { useMsg } from "@/lib/dict";
+import { getMessages } from "@/lib/dict";
 import { EndPoint } from "@/lib/routes";
 
 type NavItem = { id: string; label: string; icon: string };
@@ -61,7 +61,7 @@ export default function Navbar() {
     () => (pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE) as Locale,
     [pathname]
   );
-  const msg = useMsg(locale);
+  const msg = getMessages(locale);
 
   // tạo NAV_ITEMS theo ngôn ngữ:
   const NAV_ITEMS = useMemo(

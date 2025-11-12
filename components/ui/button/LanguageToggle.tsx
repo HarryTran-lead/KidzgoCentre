@@ -53,27 +53,33 @@ export default function LanguageToggle() {
       ? "Chuyển ngôn ngữ sang tiếng Anh"
       : "Switch to Vietnamese language";
 
-  // ✅ Hiện cờ và chữ của NGÔN NGỮ SẮP CHUYỂN ĐẾN
+  // Hiện cờ và chữ của NGÔN NGỮ SẮP CHUYỂN ĐẾN
   const flagSrc = target === "vi" ? "/flags/vi.svg" : "/flags/en.svg";
   const label = target.toUpperCase();
+
+  const hoverBorder =
+    target === "vi"
+      ? "hover:border-rose-300" // khi chuẩn bị chuyển sang VI → hover viền đỏ
+      : "hover:border-blue-300"; // khi chuẩn bị chuyển sang EN → hover viền xanh
+
+  const loaderColor = target === "vi" ? "text-red-500" : "text-blue-500";
 
   return (
     <Tooltip title={tooltipTitle} arrow>
       <button
         onClick={onSwitch}
         disabled={loading}
-        className={`inline-flex items-center justify-center gap-2
+        className={`inline-flex items-center justify-center gap-1.5
           h-9 px-3 rounded-lg border text-sm font-semibold
           border-slate-200 bg-white
-          hover:shadow-sm hover:scale-[1.02]
-          active:scale-[0.98]
+          hover:shadow-sm ${hoverBorder}
           transition-all duration-200 ease-out mr-2
           ${loading ? "cursor-wait opacity-70" : ""}
         `}
         aria-label="Switch language"
       >
         {loading ? (
-          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+          <Loader2 className={`w-4 h-4 animate-spin ${loaderColor}`} />
         ) : (
           <>
             <Image

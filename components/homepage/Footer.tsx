@@ -12,12 +12,8 @@ import {
 } from "framer-motion";
 import { Mail, Phone, MapPin, Facebook, Sparkles } from "lucide-react";
 import { LOGO } from "@/lib/theme/theme";
-import {
-  pickLocaleFromPath,
-  DEFAULT_LOCALE,
-  type Locale,
-} from "@/lib/i18n";
-import { useMsg } from "@/lib/dict";
+import { pickLocaleFromPath, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import { getMessages } from "@/lib/dict";
 
 /* ===== Facebook Page Plugin (iframe only) ===== */
 const fbSrc = (pageUrl: string, w: number, h: number) =>
@@ -92,7 +88,7 @@ export default function Footer() {
     () => (pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE) as Locale,
     [pathname]
   );
-  const msg = useMsg(locale);
+  const msg = getMessages(locale);
   const rights =
     locale === "vi" ? "Bảo lưu mọi quyền." : "All rights reserved.";
 
@@ -389,11 +385,22 @@ function FooterLink({
   return (
     <Link
       href={href}
-      className="group relative inline-flex items-center text-sm text-slate-700 hover:text-rose-700 transition-colors"
+      className="group relative inline-flex items-center text-sm text-slate-700 hover:text-rose-700 transition-colors pb-0.5" // chừa chỗ cho gạch
     >
       {children}
       {!noUnderline && (
-        <span className="pointer-events-none absolute left-0 right-0 -bottom-1 h-[0.5px] rounded-full bg-linear-to-r from-yellow-400 via-pink-400 to-purple-400 opacity-0 scale-x-0 origin-left transition-transform duration-300 group-hover:opacity-100 group-hover:scale-x-100" />
+        <span
+          aria-hidden
+          className="
+            pointer-events-none absolute inset-x-0 bottom-0
+            h-px rounded-full
+            bg-linear-to-r from-yellow-400 via-pink-400 to-purple-400
+            opacity-0 scale-x-0 origin-left
+            transition-transform duration-300
+            group-hover:opacity-100 group-hover:scale-x-100
+            will-change-transform
+          "
+        />
       )}
     </Link>
   );

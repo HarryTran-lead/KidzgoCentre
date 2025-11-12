@@ -17,8 +17,8 @@ import { CustomTextInput, CustomPasswordInput } from "./FormInput";
 import { CTA_GRAD, LOGO } from "@/lib/theme/theme";
 import Image from "next/image";
 import Link from "next/link";
-import type { Locale } from "@/lib/i18n";
-import { useMsg } from "@/lib/dict";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import { getMessages } from "@/lib/dict";
 
 type Props = {
   action: (formData: FormData) => void;
@@ -29,7 +29,11 @@ type Props = {
 export default function LoginCard({ action, returnTo = "", locale }: Props) {
   const controls = useAnimation();
   const [remember, setRemember] = useState(false);
-  const msg = useMsg(locale);
+    const resolvedLocale = useMemo(
+   () => (locale ?? DEFAULT_LOCALE) as Locale,
+    [locale]
+  );
+  const msg = useMemo(() => getMessages(resolvedLocale), [resolvedLocale]);
 
   // map features từ dict + icon
   const FEATURES = useMemo(
@@ -289,7 +293,7 @@ export default function LoginCard({ action, returnTo = "", locale }: Props) {
                 className="text-right pt-4"
               >
                 <Link
-                  href={`/${locale}`}
+                  href={`/${resolvedLocale}`}
                   className="group inline-flex items-center text-sm text-slate-500"
                 >
                   <span className="relative flex items-center gap-1 transition-transform duration-300 group-hover:translate-x-1">

@@ -1,6 +1,7 @@
 // proxy.ts
 import { NextResponse, type NextRequest } from "next/server";
-import { ALL_ROLES, ACCESS_MAP } from "@/lib/role";
+import { ALL_ROLES, ACCESS_MAP } from "@/lib/role"; 
+import { EndPoint } from "@/lib/routes";
 import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 
 const LOCALES_ARR = LOCALES as readonly string[];
@@ -41,14 +42,17 @@ type Role =
   | "STAFF_MANAGER"
   | "TEACHER"
   | "STUDENT";
+
 function roleFromPathNoLocale(pathNoLocale: string): Role | null {
   const p = pathNoLocale.toLowerCase();
-  if (p.startsWith("/portal/admin")) return "ADMIN";
-  if (p.startsWith("/portal/staff-accountant")) return "STAFF_ACCOUNTANT";
-  if (p.startsWith("/portal/staff-management")) return "STAFF_MANAGER";
-  if (p.startsWith("/portal/teacher") || p.startsWith("/teacher"))
+
+  // Ưu tiên so với EndPoint.*, vẫn giữ fallback non-portal (dev routes)
+  if (p.startsWith(EndPoint.ADMIN)) return "ADMIN";
+  if (p.startsWith(EndPoint.STAFF_ACCOUNTANT)) return "STAFF_ACCOUNTANT";
+  if (p.startsWith(EndPoint.STAFF_MANAGER)) return "STAFF_MANAGER";
+  if (p.startsWith(EndPoint.TEACHER) || p.startsWith("/teacher"))
     return "TEACHER";
-  if (p.startsWith("/portal/student") || p.startsWith("/student"))
+  if (p.startsWith(EndPoint.STUDENT) || p.startsWith("/student"))
     return "STUDENT";
   return null;
 }
@@ -120,7 +124,7 @@ export default function proxy(req: NextRequest) {
   if (!role) {
     const returnTo = pathname + search;
     const loginUrl = new URL(
-      `${baseFromEffective}/auth/login?returnTo=${encodeURIComponent(
+      `${baseFromEffective}${EndPoint.LOGIN}?returnTo=${encodeURIComponent(
         returnTo
       )}`,
       req.url
@@ -147,6 +151,7 @@ export default function proxy(req: NextRequest) {
 }
 
 export const config = {
+  // Lưu ý: matcher phải là chuỗi tĩnh để Next phân tích ở build time
   matcher: [
     "/",
     "/(vi|en)/:path*",

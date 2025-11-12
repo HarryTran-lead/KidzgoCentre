@@ -10,17 +10,24 @@ import {
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
+import type { Locale } from "@/lib/i18n";
+import { getMessages } from "@/lib/dict";
 
-const RAWS: RawItem[] = [
-  ["Dashboard",             LayoutDashboard, ""],
-  ["Hóa đơn & phiếu thu",   FileText,       "/invoices"],
-  ["Thanh toán PayOS",      QrCode,         "/payos"],
-  ["Công nợ",               AlertCircle,    "/dues"],
-  ["Điều chỉnh / Hoàn tiền",Undo2,          "/adjustments"],
-  ["Báo cáo tài chính",     BarChart3,      "/reports"],
-  ["Audit Log",             ClipboardList,  "/audit-log"],
-];
+export function staffAccountingMenu(
+  root: string,
+  locale: Locale = "vi"
+): MenuItem[] {
+  const t = getMessages(locale).menuStaffAccounting.items;
 
-export function staffAccountingMenu(root: string): MenuItem[] {
+  const RAWS: RawItem[] = [
+    [t.dashboard, LayoutDashboard, ""],
+    [t.invoices, FileText, "/invoices"],
+    [t.payos, QrCode, "/payos"],
+    [t.dues, AlertCircle, "/dues"],
+    [t.adjustments, Undo2, "/adjustments"],
+    [t.financeReports, BarChart3, "/reports"],
+    [t.auditLog, ClipboardList, "/audit-log"],
+  ];
+
   return makeMenu(root, RAWS);
 }

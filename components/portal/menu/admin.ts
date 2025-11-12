@@ -18,70 +18,72 @@ import {
 } from "lucide-react";
 import { makeMenu, makeGroup, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
+import { getMessages } from "@/lib/dict";
+import type { Locale } from "@/lib/i18n";
 
-export function adminMenu(root: string): MenuItem[] {
-  // Các link nhanh (không nằm trong group)
+export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
+  const t = getMessages(locale).menuAdmin;
+
   const QUICK: RawItem[] = [
-    ["Tổng quan kinh doanh", BarChart3, ""],
-    ["Tổng quan trung tâm", LayoutDashboard, "/center"],
+    [t.quick.businessOverview, BarChart3, ""],
+    [t.quick.centerOverview, LayoutDashboard, "/center"],
   ];
 
-  // Nhóm: Tuyển sinh
   const LEADS: RawItem[] = [
-    ["Quản lý leads", Inbox, "/leads"],
-    ["Quản lý tuyển sinh", Users, "/admissions"],
+    [t.groups.leads.manageLeads, Inbox, "/leads"],
+    [t.groups.leads.admissions, Users, "/admissions"],
   ];
 
-  // Nhóm: Chiến dịch & Khuyến mãi
   const CAMPAIGN: RawItem[] = [
-    ["Tạo chiến dịch", Megaphone, "/campaigns/create"],
-    ["Quản lý chiến dịch", Megaphone, "/campaigns"],
-    ["Quản lý CT khuyến mãi", BadgePercent, "/promotions/programs"],
-    ["Quản lý khuyến mãi", Gift, "/promotions"],
+    [t.groups.campaign.createCampaign, Megaphone, "/campaigns/create"],
+    [t.groups.campaign.manageCampaigns, Megaphone, "/campaigns"],
+    [t.groups.campaign.promoPrograms, BadgePercent, "/promotions/programs"],
+    [t.groups.campaign.promotions, Gift, "/promotions"],
   ];
 
-  // Nhóm: Học tập (gộp khóa học, lớp học, học viên)
   const LEARNING: RawItem[] = [
-    // Khóa học
-    ["Tạo khóa học", GraduationCap, "/courses/create"],
-    ["Danh sách khóa học", GraduationCap, "/courses"],
-    ["Đăng ký học", GraduationCap, "/courses/registrations"],
-    ["Lịch sử đăng ký", GraduationCap, "/courses/registrations/history"],
-    // Lớp học
-    ["Tạo lớp học", BookOpen, "/classes/create"],
-    ["Danh sách lớp học", BookOpen, "/classes"],
-    ["Chuyển lớp (lớp học)", BookOpen, "/classes/transfer"],
-    ["Kiểm tra lịch phòng học", BookOpen, "/classes/room-check"],
-    // Học viên
-    ["Danh sách học viên", Users, "/students"],
-    ["Chuyển lớp (học viên)", Users, "/students/transfer"],
-    ["Bảo lưu", Users, "/students/defer"],
+    [t.groups.learning.courses.create, GraduationCap, "/courses/create"],
+    [t.groups.learning.courses.list, GraduationCap, "/courses"],
+    [
+      t.groups.learning.courses.registrations,
+      GraduationCap,
+      "/courses/registrations",
+    ],
+    [
+      t.groups.learning.courses.registrationsHistory,
+      GraduationCap,
+      "/courses/registrations/history",
+    ],
+    [t.groups.learning.classes.create, BookOpen, "/classes/create"],
+    [t.groups.learning.classes.list, BookOpen, "/classes"],
+    [t.groups.learning.classes.transfer, BookOpen, "/classes/transfer"],
+    [t.groups.learning.classes.roomCheck, BookOpen, "/classes/room-check"],
+    [t.groups.learning.students.list, Users, "/students"],
+    [t.groups.learning.students.transfer, Users, "/students/transfer"],
+    [t.groups.learning.students.defer, Users, "/students/defer"],
   ];
 
-  // Nhóm: Vận hành
   const OPS: RawItem[] = [
-    ["Quản lý phòng học", Building2, "/rooms"],
-    ["Lịch & Phân bổ", CalendarRange, "/schedule"],
-    ["Học phí & Công nợ", CreditCard, "/fees"],
-    ["Feedback lớp học", ClipboardCheck, "/feedback"],
-    ["Ngoại khóa & Trại hè", CalendarClock, "/extracurricular"],
+    [t.groups.ops.rooms, Building2, "/rooms"],
+    [t.groups.ops.schedule, CalendarRange, "/schedule"],
+    [t.groups.ops.fees, CreditCard, "/fees"],
+    [t.groups.ops.feedback, ClipboardCheck, "/feedback"],
+    [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
   ];
 
-  // Nhóm: Hệ thống
   const SYSTEM: RawItem[] = [
-    ["Quản lý tài khoản", Settings, "/accounts"],
-    ["Quản lý giáo viên", Users, "/teachers"],
-    ["Báo cáo", BarChart3, "/reports"],
-    ["Cài đặt", Settings, "/settings"],
+    [t.groups.system.accounts, Settings, "/accounts"],
+    [t.groups.system.teachers, Users, "/teachers"],
+    [t.groups.system.reports, BarChart3, "/reports"],
+    [t.groups.system.settings, Settings, "/settings"],
   ];
 
-  // Trả ra: 2 mục nhanh + 5 nhóm
   return [
     ...makeMenu(root, QUICK),
-    makeGroup(root, "Quản lý tuyển sinh", Inbox, LEADS),
-    makeGroup(root, "Chiến dịch & Khuyến mãi", Megaphone, CAMPAIGN),
-    makeGroup(root, "Học tập", GraduationCap, LEARNING), 
-    makeGroup(root, "Vận hành", Building2, OPS),
-    makeGroup(root, "Hệ thống", Settings, SYSTEM),
+    makeGroup(root, t.groups.leads.title, Inbox, LEADS),
+    makeGroup(root, t.groups.campaign.title, Megaphone, CAMPAIGN),
+    makeGroup(root, t.groups.learning.title, GraduationCap, LEARNING),
+    makeGroup(root, t.groups.ops.title, Building2, OPS),
+    makeGroup(root, t.groups.system.title, Settings, SYSTEM),
   ];
 }

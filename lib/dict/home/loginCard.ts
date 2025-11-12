@@ -1,4 +1,4 @@
-// lib/dict/loginCard.ts
+// lib/dict/home/loginCard.ts
 export const loginCard = {
   vi: {
     badge: "Nền tảng giáo dục KidzGo",

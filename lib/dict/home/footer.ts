@@ -1,3 +1,4 @@
+// lib/dict/home/footer.ts
 export const footer = {
   vi: {
     ctaTitle: "Sẵn sàng để bé tỏa sáng?",

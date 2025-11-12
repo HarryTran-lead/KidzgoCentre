@@ -13,8 +13,8 @@ import {
   Star,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import type { Locale } from "@/lib/i18n";
-import { useMsg } from "@/lib/dict";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import { getMessages } from "@/lib/dict";
 
 /** ICON & IMAGE giữ ở component (từ ngữ tách ở dict) */
 const ICONS = [Book, Sparkles, Users, Trophy, Heart];
@@ -67,7 +67,12 @@ type Props = { locale?: Locale | string };
 export default function Hero({ locale }: Props) {
   const params = useParams();
   const urlLocale = (params as any)?.locale as string | undefined;
-  const msg = useMsg(locale ?? urlLocale);
+  // Ưu tiên prop -> param -> DEFAULT_LOCALE
+  const resolvedLocale = useMemo(
+    () => (locale ?? urlLocale ?? DEFAULT_LOCALE) as Locale,
+    [locale, urlLocale]
+  );
+  const msg = useMemo(() => getMessages(resolvedLocale), [resolvedLocale]);
 
   const [idx, setIdx] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);

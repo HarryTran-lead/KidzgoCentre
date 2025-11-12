@@ -9,16 +9,10 @@ import {
   useState,
   useEffect,
   useRef,
+  useMemo,
   type ReactNode,
 } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  MapPin,
-  Menu,
-  X,
-  ChevronLeft,
-} from "lucide-react";
+import { ChevronDown, MapPin, X, ChevronLeft } from "lucide-react";
 import { buildMenu } from "../menu/index";
 import type { Role } from "@/lib/role";
 import { pickLocaleFromPath, DEFAULT_LOCALE, localizePath } from "@/lib/i18n";
@@ -40,7 +34,8 @@ type GroupItem = {
   items: FlatItem[];
 };
 type AnyItem = FlatItem | GroupItem;
-const isGroup = (x: AnyItem): x is GroupItem => (x as any).items;
+const isGroup = (x: AnyItem): x is GroupItem =>
+  Array.isArray((x as any)?.items);
 
 /* ===== NavLink ===== */
 function NavLink({
@@ -369,7 +364,10 @@ export default function Sidebar({
   const locale = (pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE) as
     | "vi"
     | "en";
-  const items = buildMenu(role) as AnyItem[];
+  const items = useMemo(
+    () => buildMenu(role, locale) as AnyItem[],
+    [role, locale]
+  );
   const withLocale = (p: string) => localizePath(p, locale);
   // Lấy path không kèm locale để suy ra root của role
   const pathNoLocale = pathname.replace(/^\/(vi|en)(?=\/)/, "");
