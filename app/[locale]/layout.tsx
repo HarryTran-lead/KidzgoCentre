@@ -5,14 +5,14 @@ import Footer from "@/components/home/Footer";
 import { SURFACE_SOFT } from "@/lib/theme/theme";
 import type { Locale } from "@/lib/i18n";
 
-export default function LocaleLayout({
-  children,
-  params,
-}: {
+type LayoutProps = {
   children: ReactNode;
-  params: { locale: string };
-}) {
-  const loc = params.locale as Locale; // để dùng sau nếu cần
+  params: Promise<{ locale: string }>;
+};
+
+export default async function LocaleLayout({ children, params }: LayoutProps) {
+  const { locale } = await params; // lấy ra locale từ Promise
+  const loc = locale as Locale; // dùng nếu cần
 
   return (
     <div className={`min-h-screen ${SURFACE_SOFT} text-slate-900`}>
