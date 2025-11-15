@@ -13,7 +13,7 @@ export default function Contact() {
   });
 
   return (
-    <section id="contact" className="py-20 scroll-mt-24">
+    <section id="contact" className="py-10">
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center mb-10">
           <h2 className="text-4xl font-extrabold">

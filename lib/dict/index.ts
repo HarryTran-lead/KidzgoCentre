@@ -1,15 +1,16 @@
 // lib/dict/index.ts
-import { nav } from "./home/nav";
-import { auth } from "./home/auth";
+import { nav } from "./home/Header/nav";
+import { auth } from "./home/Header/auth";
 import { brand } from "./home/brand";
-import { footer } from "./home/footer";
-import { heroBanner } from "./home/heroBanner";
-import { loginCard } from "./home/loginCard";
+import { footer } from "./home/Footer/footer";
+import { heroBanner } from "./home/Review/heroBanner";
+import { loginCard } from "./auth/loginCard";
 import { menuAdmin } from "./menu/menuAdmin";
 import { menuStaffAccounting } from "./menu/menuStaffAccounting";
 import { menuStaffManager } from "./menu/menuStaffManager";
 import { menuTeacher } from "./menu/menuTeacher";
 import { menuStudent } from "./menu/menuStudent";
+import { faqsText } from "./home/FAQs/faqs";
 
 import { DEFAULT_LOCALE, pickLocaleFromPath, type Locale } from "../i18n";
 
@@ -26,6 +27,7 @@ export const dict = {
     menuStaffManager: menuStaffManager.vi,
     menuTeacher: menuTeacher.vi,
     menuStudent: menuStudent.vi,
+    faqs: faqsText.vi,
   },
   en: {
     nav: nav.en,
@@ -39,6 +41,7 @@ export const dict = {
     menuStaffManager: menuStaffManager.en,
     menuTeacher: menuTeacher.en,
     menuStudent: menuStudent.en,
+    faqs: faqsText.en,
   },
 } as const;
 

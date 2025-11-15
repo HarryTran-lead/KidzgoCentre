@@ -3,6 +3,10 @@ export const EndPoint = {
   HOME: "/",
   LOGIN: "/auth/login",
   FORGOTPASSWORD: "/auth/forgotpass",
+  
+  // HomePage
+  CONTACT: "/contact",
+  FAQS: "/faqs",
 
   // Portal
   ADMIN: "/portal/admin",

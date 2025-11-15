@@ -24,11 +24,14 @@ import {
 import { getMessages } from "@/lib/dict";
 import { EndPoint } from "@/lib/routes";
 
-type NavItem = { id: string; label: string; icon: string };
+type NavItem =
+  | { id: string; label: string; icon: string; kind: "section" }
+  | { id: string; label: string; icon: string; kind: "route"; href: string };
 
 function useScrollSpy(ids: string[], offset = 100) {
   const [active, setActive] = useState<string>("hero");
   useEffect(() => {
+    if (ids.length === 0) return;
     const onScroll = () => {
       const found = ids.find((id) => {
         const el = document.getElementById(id);
@@ -45,16 +48,30 @@ function useScrollSpy(ids: string[], offset = 100) {
   return active;
 }
 
-function smoothTo(id: string, pad = 88) {
+/** Lấy offset header từ biến CSS do Navbar set */
+function getHeaderOffsetPx() {
+  if (typeof window === "undefined") return 64;
+  const v = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue(
+      "--app-header-h"
+    )
+  );
+  return Number.isFinite(v) ? v : 64;
+}
+
+/** Scroll mượt tới id, tự trừ đúng cao header */
+function smoothTo(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
-  const y = el.getBoundingClientRect().top + window.pageYOffset - pad;
+  const pad = getHeaderOffsetPx();
+  const y = el.getBoundingClientRect().top + window.scrollY - pad;
   window.scrollTo({ top: y, behavior: "smooth" });
 }
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
 
   const pathname = usePathname();
   const locale = useMemo(
@@ -63,18 +80,32 @@ export default function Navbar() {
   );
   const msg = getMessages(locale);
 
-  // tạo NAV_ITEMS theo ngôn ngữ:
-  const NAV_ITEMS = useMemo(
+  /** ====== NAV ITEMS ====== */
+  const NAV_ITEMS: NavItem[] = useMemo(
     () => [
-      { id: "roadmap", label: msg.nav.roadmap, icon: "🎯" },
-      { id: "courses", label: msg.nav.courses, icon: "📚" },
-      { id: "programs", label: msg.nav.programs, icon: "🎓" },
-      { id: "gallery", label: msg.nav.gallery, icon: "📸" },
-      { id: "blog", label: msg.nav.blog, icon: "📝" },
-      { id: "faqs", label: msg.nav.faqs, icon: "💬" },
-      { id: "contact", label: msg.nav.contact, icon: "☎️" },
+      {
+        id: "home",
+        label: msg.nav.home,
+        icon: "🏠",
+        kind: "route",
+        href: localizePath(EndPoint.HOME, locale),
+      },
+      {
+        id: "faqs",
+        label: msg.nav.faqs,
+        icon: "💬",
+        kind: "route",
+        href: localizePath(EndPoint.FAQS, locale),
+      },
+      {
+        id: "contact",
+        label: msg.nav.contact,
+        icon: "☎️",
+        kind: "route",
+        href: localizePath(EndPoint.CONTACT, locale),
+      },
     ],
-    [msg]
+    [msg, locale]
   );
 
   useEffect(() => {
@@ -84,16 +115,26 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // ⬇️ cập nhật deps để đổi ngôn ngữ vẫn đúng
-  const ids = useMemo(
-    () => ["hero", ...NAV_ITEMS.map((n) => n.id)],
+  const homePath = localizePath(EndPoint.HOME, locale);
+  const isHomePage =
+    pathname === homePath || pathname === `${homePath}/` || pathname === "/";
+
+  const sectionIds = useMemo(
+    () => NAV_ITEMS.filter((n) => n.kind === "section").map((n) => n.id),
     [NAV_ITEMS]
   );
-  const activeId = useScrollSpy(ids, 100);
-  const activeIndex = Math.max(
-    0,
-    NAV_ITEMS.findIndex((n) => n.id === activeId)
-  );
+  const activeSectionId = useScrollSpy(isHomePage ? sectionIds : [], 100);
+
+  const activeKey = useMemo(() => {
+    if (pathname.includes("/contact")) return "contact";
+    if (pathname.includes("/faqs")) return "faqs";
+    return activeSectionId;
+  }, [pathname, activeSectionId]);
+
+  const activeIndex = useMemo(() => {
+    const idx = NAV_ITEMS.findIndex((n) => n.id === activeKey);
+    return idx === -1 ? 0 : idx;
+  }, [NAV_ITEMS, activeKey]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
@@ -109,7 +150,6 @@ export default function Navbar() {
   const w = useMotionValue(0);
   const h = useMotionValue(0);
 
-  // ✨ thêm flag để tránh animate lần đầu & chỉ render khi đo xong
   const [indReady, setIndReady] = useState(false);
   const didMount = useRef(false);
 
@@ -147,17 +187,15 @@ export default function Navbar() {
     animate(h, [rect.th], spring);
   }
 
-  // ⬇️ lần đầu: set vị trí ngay lập tức & bật hiển thị indicator
   useLayoutEffect(() => {
     requestAnimationFrame(() => {
-      moveIndicatorToIndex(Math.max(0, activeIndex), true); // instant
+      moveIndicatorToIndex(Math.max(0, activeIndex), true);
       setIndReady(true);
       didMount.current = true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ⬇️ từ lần sau mới animate
   useEffect(() => {
     if (!didMount.current) return;
     moveIndicatorToIndex(Math.max(0, activeIndex));
@@ -173,25 +211,54 @@ export default function Navbar() {
     document.body.style.overflow = open ? "hidden" : "unset";
   }, [open]);
 
+  /** === ĐO CHIỀU CAO THỰC TẾ CỦA NAVBAR & GHI CSS VAR === */
+  useLayoutEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+
+    const setVar = () => {
+      const rect = el.getBoundingClientRect();
+      // cộng thêm safe-area top nếu có:
+      const safeTop =
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--safe-top"
+          )
+        ) || 0;
+      const h = Math.ceil(rect.height + safeTop);
+      document.documentElement.style.setProperty("--app-header-h", `${h}px`);
+    };
+
+    setVar();
+    const ro = new ResizeObserver(setVar);
+    ro.observe(el);
+    window.addEventListener("resize", setVar, { passive: true });
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", setVar);
+    };
+  }, []);
+
   return (
     <>
       <nav
+        ref={navRef}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
           scrolled
             ? "bg-white/55 backdrop-blur-xl shadow-md border-b border-transparent"
             : "bg-white/95 backdrop-blur-sm border-b border-pink-100"
         }`}
       >
-        {/* Responsive paddings: 16 / 20 / 24 / 48 / 64 / 80 px */}
         <div className="max-w-7xl mx-auto px-4 sm:px-5 md:px-6 lg:px-6 xl:px-12 2xl:px-0">
-          {/* Responsive heights: 56 / 64 / 72 / 80 px */}
           <div className="relative flex items-center justify-between gap-3 sm:gap-4 md:gap-6 h-14 md:h-14 lg:h-15 xl:h-16">
-            {/* Logo */}
+            {/* Logo → ở home thì scroll mượt tới hero, không thì chuyển route */}
             <a
-              href="#hero"
+              href={homePath + "#hero"}
               onClick={(e) => {
-                e.preventDefault();
-                smoothTo("hero");
+                if (isHomePage) {
+                  e.preventDefault();
+                  smoothTo("hero");
+                }
               }}
               className="flex items-center shrink-0"
             >
@@ -205,7 +272,7 @@ export default function Navbar() {
               />
             </a>
 
-            {/* CENTER MENU (desktop, lg+) */}
+            {/* CENTER MENU (desktop) */}
             <div className="hidden xl:block absolute inset-x-0">
               <div className="flex justify-center pointer-events-none">
                 <div
@@ -216,7 +283,7 @@ export default function Navbar() {
                   {indReady && (
                     <motion.span
                       className="absolute top-0 left-0 rounded-lg pointer-events-none overflow-hidden"
-                      initial={false} // tránh animate lần đầu
+                      initial={false}
                       style={{
                         x,
                         y,
@@ -242,30 +309,44 @@ export default function Navbar() {
 
                   {NAV_ITEMS.map((item, i) => {
                     const isActive = i === activeIndex;
-                    return (
-                      <a
-                        key={item.id}
-                        href={`#${item.id}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          smoothTo(item.id);
-                        }}
-                        ref={setItemRef(i)}
-                        className={`relative inline-flex h-10 items-center rounded-lg px-3
-                          text-[14px] overflow-visible transition-colors duration-300
-                          ${
+
+                    if (item.kind === "section") {
+                      const sectionHref = homePath + "#" + item.id;
+                      return (
+                        <a
+                          key={item.id}
+                          href={sectionHref}
+                          onClick={(e) => {
+                            if (isHomePage) {
+                              e.preventDefault();
+                              smoothTo(item.id);
+                            }
+                          }}
+                          ref={setItemRef(i)}
+                          className={`relative inline-flex h-10 items-center rounded-lg px-3 text-[14px] overflow-visible transition-colors duration-300 ${
                             isActive
                               ? "text-rose-700"
                               : "text-slate-700 hover:text-rose-600 hover:bg-rose-50/60"
-                          }
-                       
-                          after:content-[''] after:absolute after:left-1 after:right-1 after:bottom-0.5
-                          after:h-[1.5px] after:rounded-full after:bg-linear-to-r after:from-yellow-400 after:via-pink-400 after:to-purple-400
-                          after:opacity-0 after:scale-x-0 after:origin-center
-                          after:transition-transform after:duration-300 after:ease-out
-                          hover:after:opacity-100 hover:after:scale-x-100
-                          focus-visible:after:opacity-100 focus-visible:after:scale-x-100
-                        `}
+                          } after:content-[''] after:absolute after:left-1 after:right-1 after:bottom-0.5 after:h-[1.5px] after:rounded-full after:bg-linear-to-r after:from-yellow-400 after:via-pink-400 after:to-purple-400 after:opacity-0 after:scale-x-0 after:origin-center after:transition-transform after:duration-300 after:ease-out hover:after:opacity-100 hover:after:scale-x-100 focus-visible:after:opacity-100 focus-visible:after:scale-x-100`}
+                        >
+                          <span className="relative z-10 inline-flex items-center gap-1.5">
+                            <span className="text-base">{item.icon}</span>
+                            <span>{item.label}</span>
+                          </span>
+                        </a>
+                      );
+                    }
+
+                    return (
+                      <a
+                        key={item.id}
+                        href={item.href}
+                        ref={setItemRef(i)}
+                        className={`relative inline-flex h-10 items-center rounded-lg px-3 text-[14px] overflow-visible transition-colors duration-300 ${
+                          isActive
+                            ? "text-rose-700"
+                            : "text-slate-700 hover:text-rose-600 hover:bg-rose-50/60"
+                        } after:content-[''] after:absolute after:left-1 after:right-1 after:bottom-0.5 after:h-[1.5px] after:rounded-full after:bg-linear-to-r after:from-yellow-400 after:via-pink-400 after:to-purple-400 after:opacity-0 after:scale-x-0 after:origin-center after:transition-transform after:duration-300 after:ease-out hover:after:opacity-100 hover:after:scale-x-100 focus-visible:after:opacity-100 focus-visible:after:scale-x-100`}
                       >
                         <span className="relative z-10 inline-flex items-center gap-1.5">
                           <span className="text-base">{item.icon}</span>
@@ -306,7 +387,7 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile/Tablet overlay */}
+      {/* Mobile / tablet drawer */}
       <div
         className={`fixed inset-0 z-60 xl:hidden transition-all duration-500 ${
           open
@@ -359,41 +440,83 @@ export default function Navbar() {
 
           {/* Body */}
           <div className="p-3 sm:p-4 md:p-5 space-y-2 overflow-y-auto h-[calc(100%-56px)] md:h-[calc(100%-64px)]">
-            {NAV_ITEMS.map((item, i) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  smoothTo(item.id);
-                  setOpen(false);
-                }}
-                className={`flex items-center gap-3 sm:gap-3.5 md:gap-4
-                  min-h-[52px] md:min-h-14 px-3 sm:px-3.5 md:px-4
-                  rounded-xl border transition-all
-                  ${
-                    activeIndex === i
-                      ? "bg-linear-to-r from-yellow-50 via-pink-50 to-purple-50 border-pink-300 shadow-sm"
-                      : "border-slate-100 hover:bg-pink-50"
-                  }
-                `}
-                style={{
-                  animation: open
-                    ? `slideInRight 0.25s ease-out ${i * 0.05}s both`
-                    : "none",
-                }}
-              >
-                <span className="text-[18px] sm:text-[20px] md:text-[22px]">
-                  {item.icon}
-                </span>
-                <span className="font-semibold text-slate-700 text-[14px] sm:text-[15px] md:text-[16px]">
-                  {item.label}
-                </span>
-                {activeIndex === i && (
-                  <span className="ml-auto w-2 h-2 rounded-full bg-linear-to-r from-pink-400 to-purple-400 animate-pulse" />
-                )}
-              </a>
-            ))}
+            {NAV_ITEMS.map((item, i) => {
+              const isActive = i === activeIndex;
+
+              if (item.kind === "section") {
+                const sectionHref = homePath + "#" + item.id;
+                return (
+                  <a
+                    key={item.id}
+                    href={sectionHref}
+                    onClick={(e) => {
+                      if (isHomePage) {
+                        e.preventDefault();
+                        smoothTo(item.id);
+                      }
+                      setOpen(false);
+                    }}
+                    className={`flex items-center gap-3 sm:gap-3.5 md:gap-4
+                      min-h-[52px] md:min-h-14 px-3 sm:px-3.5 md:px-4
+                      rounded-xl border transition-all
+                      ${
+                        isActive
+                          ? "bg-linear-to-r from-yellow-50 via-pink-50 to-purple-50 border-pink-300 shadow-sm"
+                          : "border-slate-100 hover:bg-pink-50"
+                      }
+                    `}
+                    style={{
+                      animation: open
+                        ? `slideInRight 0.25s ease-out ${i * 0.05}s both`
+                        : "none",
+                    }}
+                  >
+                    <span className="text-[18px] sm:text-[20px] md:text-[22px]">
+                      {item.icon}
+                    </span>
+                    <span className="font-semibold text-slate-700 text-[14px] sm:text-[15px] md:text-[16px]">
+                      {item.label}
+                    </span>
+                    {isActive && (
+                      <span className="ml-auto w-2 h-2 rounded-full bg-linear-to-r from-pink-400 to-purple-400 animate-pulse" />
+                    )}
+                  </a>
+                );
+              }
+
+              // route item
+              return (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center gap-3 sm:gap-3.5 md:gap-4
+                    min-h-[52px] md:min-h-14 px-3 sm:px-3.5 md:px-4
+                    rounded-xl border transition-all
+                    ${
+                      isActive
+                        ? "bg-linear-to-r from-yellow-50 via-pink-50 to-purple-50 border-pink-300 shadow-sm"
+                        : "border-slate-100 hover:bg-pink-50"
+                    }
+                  `}
+                  style={{
+                    animation: open
+                      ? `slideInRight 0.25s ease-out ${i * 0.05}s both`
+                      : "none",
+                  }}
+                >
+                  <span className="text-[18px] sm:text-[20px] md:text-[22px]">
+                    {item.icon}
+                  </span>
+                  <span className="font-semibold text-slate-700 text-[14px] sm:text-[15px] md:text-[16px]">
+                    {item.label}
+                  </span>
+                  {isActive && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-linear-to-r from-pink-400 to-purple-400 animate-pulse" />
+                  )}
+                </a>
+              );
+            })}
 
             <hr className="border border-slate-100 my-4 md:my-3" />
 
@@ -413,7 +536,6 @@ export default function Navbar() {
           </div>
         </aside>
       </div>
-
       <style jsx>{`
         @keyframes slideInRight {
           from {
@@ -429,3 +551,5 @@ export default function Navbar() {
     </>
   );
 }
+
+

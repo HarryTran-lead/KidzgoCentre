@@ -14,6 +14,7 @@ import { Mail, Phone, MapPin, Facebook, Sparkles } from "lucide-react";
 import { LOGO } from "@/lib/theme/theme";
 import { pickLocaleFromPath, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { getMessages } from "@/lib/dict";
+import FbFrame from "./fbframe";
 
 /* ===== Facebook Page Plugin (iframe only) ===== */
 const fbSrc = (pageUrl: string, w: number, h: number) =>
@@ -117,10 +118,7 @@ export default function Footer() {
   const MAIL_PALETTE: Palette = "rose";
 
   return (
-    <footer className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-linear-to-br from-rose-50 via-amber-50 to-fuchsia-50" />
-      <div className="absolute inset-0 pointer-events-none mask-[radial-gradient(900px_400px_at_10%_0%,#000_45%,transparent)] bg-[radial-gradient(1200px_200px_at_80%_0%,rgba(255,255,255,0.55),transparent)]" />
-
+    <footer className="relative overflow-hidden bg-white">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-4 md:px-4 lg:px-4 xl:px-0 pt-8 pb-4">
         <motion.div
           variants={container}
@@ -148,57 +146,12 @@ export default function Footer() {
             </p>
 
             <div className="pt-2 flex flex-col">
-              <div className="rounded-md ring-1 ring-slate-200 bg-white shadow-sm overflow-hidden w-fit">
-                {/* 2xl */}
-                <div className="hidden 2xl:block" style={{ width: 500 }}>
-                  <iframe
-                    title="KidzGo Facebook Page (2xl)"
-                    src={fbSrc(facebookUrl, 500, 260)}
-                    loading="lazy"
-                    allow="encrypted-media; clipboard-write; picture-in-picture; web-share"
-                    style={{
-                      border: "none",
-                      overflow: "hidden",
-                      width: 500,
-                      height: 260,
-                    }}
-                  />
-                </div>
-                {/* lg–xl */}
-                <div
-                  className="hidden lg:block 2xl:hidden"
-                  style={{ width: 420 }}
-                >
-                  <iframe
-                    title="KidzGo Facebook Page (lg-xl)"
-                    src={fbSrc(facebookUrl, 420, 260)}
-                    loading="lazy"
-                    allow="encrypted-media; clipboard-write; picture-in-picture; web-share"
-                    style={{
-                      border: "none",
-                      overflow: "hidden",
-                      width: 420,
-                      height: 260,
-                    }}
-                  />
-                </div>
-                {/* sm & xs */}
-                <div className="block lg:hidden" style={{ width: 360 }}>
-                  <iframe
-                    title="KidzGo Facebook Page (sm)"
-                    src={fbSrc(facebookUrl, 360, 260)}
-                    loading="lazy"
-                    allow="encrypted-media; clipboard-write; picture-in-picture; web-share"
-                    style={{
-                      border: "none",
-                      overflow: "hidden",
-                      width: 360,
-                      height: 260,
-                    }}
-                  />
-                </div>
-              </div>
-
+              <FbFrame
+                url={facebookUrl}
+                height={260}
+                showFacepile={false}
+                hideCover={false}
+              />
               <div className="mt-2 text-xs text-slate-500">
                 <Link
                   href={facebookUrl}

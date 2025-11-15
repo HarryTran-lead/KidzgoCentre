@@ -1,4 +1,3 @@
-// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -25,7 +24,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // cookies() là Promise → cần await
   const jar = await cookies();
   const cookieLocale =
     (jar.get("locale")?.value as Locale | undefined) ?? DEFAULT_LOCALE;
