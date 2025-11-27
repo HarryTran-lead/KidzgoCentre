@@ -24,7 +24,6 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.schedule, CalendarCheck, "/schedule"],
     [t.attendance, CheckSquare, "/attendance"],
     [t.profile, User, "/profile"],
-    [t.tuition, CreditCard, "/tuition"],
     [t.assignments, ClipboardList, "/assignments"],
     [t.materials, BookOpen, "/materials"],
     [t.reports, BarChart3, "/reports"],

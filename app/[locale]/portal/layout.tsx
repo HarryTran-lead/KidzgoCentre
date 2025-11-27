@@ -20,7 +20,7 @@ function roleFromPath(pathname: string): Role | void {
   if (seg1 === "admin") return "ADMIN";
   if (seg1 === "teacher") return "TEACHER";
   if (seg1 === "student") return "STUDENT";
-
+if (seg1 === "parent") return "PARENT";
   // /portal/staff/management | /portal/staff/accounting
   if (seg1 === "staff") {
     if (seg2 === "management") return "STAFF_MANAGER";
@@ -40,6 +40,27 @@ export default async function PortalLayout({ children, params }: Props) {
   const loc = locale as Locale;
 
   const session = await getSession();
+const h = await headers();
+  const rawPath =
+    h.get("x-invoke-path") ||
+    h.get("x-matched-path") ||
+    h.get("next-url") ||
+    h.get("referer") ||
+    "";
+
+  const pathname = rawPath?.startsWith("http")
+    ? (() => {
+        try {
+          return new URL(rawPath).pathname;
+        } catch {
+          return rawPath;
+        }
+      })()
+    : rawPath || "";
+
+  const parts = pathname.split("#")[0].split("?")[0].split("/").filter(Boolean);
+  const localeIdx = parts[0] === "vi" || parts[0] === "en" ? 1 : 0;
+  const isPortalEntry = parts[localeIdx] === "portal" && parts.length === localeIdx + 1;
 
   // Cho phép bypass ở local hoặc vercel preview
   const devBypass =
@@ -51,22 +72,7 @@ export default async function PortalLayout({ children, params }: Props) {
   let role: Role | null = session?.role ? normalizeRole(session.role) : null;
 
   if (!role && devBypass) {
-    const h = await headers();
-    const raw =
-      h.get("x-invoke-path") ||
-      h.get("x-matched-path") ||
-      h.get("next-url") ||
-      h.get("referer") ||
-      "";
-    const pathname = raw?.startsWith("http")
-      ? (() => {
-          try {
-            return new URL(raw).pathname;
-          } catch {
-            return raw;
-          }
-        })()
-      : raw || "";
+   
 
     role =
       roleFromPath(pathname) ||
@@ -77,10 +83,13 @@ export default async function PortalLayout({ children, params }: Props) {
       );
   }
 
-  if (!role) {
+if (!role && !isPortalEntry) {
     redirect(localizePath(`/auth/login?returnTo=/portal`, loc));
   }
 
+  if (!role) {
+    return <div className="min-h-dvh bg-slate-50">{children}</div>;
+  }
   return (
     <div className="h-dvh w-full">
       {/* dùng dvh để ổn định trên mobile */}

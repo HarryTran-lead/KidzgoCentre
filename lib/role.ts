@@ -6,7 +6,9 @@ export type Role =
   | "STAFF_ACCOUNTANT"
   | "STAFF_MANAGER"
   | "TEACHER"
-  | "STUDENT";
+  | "STUDENT"
+  | "PARENT";
+
 
 /** Map role -> base portal path */
 export const ROLES: Record<Role, string> = {
@@ -15,6 +17,7 @@ export const ROLES: Record<Role, string> = {
   STAFF_MANAGER: EndPoint.STAFF_MANAGER,
   TEACHER: EndPoint.TEACHER,
   STUDENT: EndPoint.STUDENT,
+  PARENT: EndPoint.PARENT,
 };
 
 export const ALL_ROLES = Object.keys(ROLES) as Role[];
@@ -26,6 +29,8 @@ export const ACCESS_MAP: Record<Role, string[]> = {
   STAFF_MANAGER: [EndPoint.STAFF_MANAGER],
   TEACHER: [EndPoint.TEACHER],
   STUDENT: [EndPoint.STUDENT],
+  PARENT: [EndPoint.PARENT],
+
 };
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -34,6 +39,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   STAFF_MANAGER: "Quản lý",
   TEACHER: "Giáo viên",
   STUDENT: "Học viên",
+  PARENT: "Phụ huynh",
 };
 
 /** Chuẩn hoá chuỗi role từ nhiều biến thể sang union Role */
@@ -46,5 +52,6 @@ export function normalizeRole(input?: string): Role {
     return "STAFF_MANAGER";
   if (["TEACHER"].includes(v)) return "TEACHER";
   if (["STUDENT", "USER", "CUSTOMER"].includes(v)) return "STUDENT";
+  if (["PARENT", "GUARDIAN"].includes(v)) return "PARENT";
   return "STUDENT";
 }

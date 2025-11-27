@@ -14,4 +14,5 @@ export const EndPoint = {
   STAFF_MANAGER: "/portal/staff-management",
   TEACHER: "/portal/teacher",
   STUDENT: "/portal/student",
+  PARENT: "/portal/parent",
 } as const;

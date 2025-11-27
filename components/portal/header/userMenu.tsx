@@ -59,6 +59,8 @@ const roleBadge = (role: Role) => {
       };
     case "TEACHER":
       return { label: ROLE_LABEL.TEACHER, grad: "from-indigo-500 to-sky-600" };
+      case "PARENT":
+      return { label: ROLE_LABEL.PARENT, grad: "from-emerald-500 to-teal-600" };
     default:
       return {
         label: ROLE_LABEL.STUDENT,
@@ -91,6 +93,7 @@ function useRoleFromUrl(fallback?: Role): Role {
       "staff-management": "STAFF_MANAGER",
       teacher: "TEACHER",
       student: "STUDENT",
+      parent: "PARENT",
     };
     if (map[segRole]) return map[segRole];
   }
@@ -128,6 +131,11 @@ const DEFAULT_BY_ROLE: Record<
     fullname: "Lê Quốc Huy",
     email: "huy.teacher@example.com",
     role: "TEACHER",
+  },
+  PARENT: {
+    fullname: "Bố Khương",
+    email: "phuhuynh.khuong@example.com",
+    role: "PARENT",
   },
   STUDENT: {
     fullname: "Võ Thảo My",

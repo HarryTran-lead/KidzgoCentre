@@ -7,6 +7,7 @@ import { staffAccountingMenu } from "./staffAccounting";
 import { staffManagerMenu } from "./staffManager";
 import { teacherMenu } from "./teacher";
 import { studentMenu } from "./student";
+import { parentMenu } from "./parent";
 import { DEFAULT_LOCALE, pickLocaleFromPath, type Locale } from "@/lib/i18n";
 
 export type { MenuItem } from "./types";
@@ -36,6 +37,8 @@ export function buildMenu(
       return teacherMenu(root, locale);
     case "STUDENT":
       return studentMenu(root, locale);
+       case "PARENT":
+      return parentMenu(root, locale);
     default:
       return studentMenu(root, locale);
   }

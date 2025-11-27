@@ -80,6 +80,7 @@ function useHeaderI18n(locale: Locale) {
     STAFF_MANAGER: "Manager",
     TEACHER: "Teacher",
     STUDENT: "Student",
+    PARENT: "Parent",
   };
 
   return {
@@ -111,6 +112,9 @@ function useHeaderI18n(locale: Locale) {
 
       if (role === "STUDENT") {
         return locale === "en" ? "Student Portal" : "Cổng học viên";
+      }
+if (role === "PARENT") {
+        return locale === "en" ? "Parent Portal" : "Cổng phụ huynh";
       }
 
       if (role === "ADMIN") {
