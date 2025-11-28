@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "KidzGo",
   description: "Learning Through Play",
+  };
+
+export const viewport = {
   themeColor: "#f0f72a",
 };
 

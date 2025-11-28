@@ -24,9 +24,15 @@ type Props = {
   action: (formData: FormData) => void;
   returnTo?: string;
   locale?: Locale;
+  errorMessage?: string;
 };
 
-export default function LoginCard({ action, returnTo = "", locale }: Props) {
+export default function LoginCard({
+  action,
+  returnTo = "",
+  locale,
+  errorMessage,
+}: Props) {
   const controls = useAnimation();
   const [remember, setRemember] = useState(false);
     const resolvedLocale = useMemo(
@@ -209,6 +215,11 @@ export default function LoginCard({ action, returnTo = "", locale }: Props) {
                 {msg.loginCard.form.subtitle}
               </p>
             </div>
+{errorMessage ? (
+              <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                {errorMessage}
+              </div>
+            ) : null}
 
             <div className="space-y-5">
               <CustomTextInput

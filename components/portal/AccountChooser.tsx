@@ -7,12 +7,17 @@ import type { Locale } from "@/lib/i18n";
 export type PinState = { error?: string };
 
 type Props = {
-  locale?: Locale; // 👈 cho optional để không crash nếu không truyền
+  locale?: Locale;
   studentName: string;
   parentName: string;
   studentAction: (formData: FormData) => void | Promise<void>;
   parentAction: (state: PinState, formData: FormData) => Promise<PinState>;
 };
+
+// 👉 Hàm lấy chữ cái đầu làm avatar
+function initialAvatar(name: string) {
+  return name?.trim()?.charAt(0)?.toUpperCase() || "?";
+}
 
 export default function AccountChooser({
   locale,
@@ -29,7 +34,6 @@ export default function AccountChooser({
     {}
   );
 
-  // Fallback locale nếu undefined
   const safeLocale = (locale ?? "vi").toUpperCase();
 
   useEffect(() => {
@@ -37,6 +41,10 @@ export default function AccountChooser({
       pinRef.current?.focus();
     }
   }, [showPin]);
+
+  // Avatar text
+  const studentAvatarText = initialAvatar(studentName);
+  const parentAvatarText = initialAvatar(parentName);
 
   return (
     <div className="min-h-dvh bg-gradient-to-br from-sky-50 via-white to-indigo-50 py-10 px-4">
@@ -55,12 +63,14 @@ export default function AccountChooser({
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Thẻ học viên */}
+          {/* --------------------- HỌC SINH --------------------- */}
           <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-6 flex flex-col gap-4">
             <div className="flex items-center gap-4">
+              {/* Avatar student */}
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 text-white grid place-items-center text-xl font-semibold">
-                NB
+                {studentAvatarText}
               </div>
+
               <div>
                 <div className="text-sm text-slate-500">Tài khoản học viên</div>
                 <div className="text-lg font-semibold text-slate-900">
@@ -90,12 +100,14 @@ export default function AccountChooser({
             </form>
           </div>
 
-          {/* Thẻ phụ huynh */}
+          {/* --------------------- PHỤ HUYNH --------------------- */}
           <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-6 flex flex-col gap-4">
             <div className="flex items-center gap-4">
+              {/* Avatar parent */}
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-white grid place-items-center text-xl font-semibold">
-                BK
+                {parentAvatarText}
               </div>
+
               <div>
                 <div className="text-sm text-slate-500">Tài khoản phụ huynh</div>
                 <div className="text-lg font-semibold text-slate-900">

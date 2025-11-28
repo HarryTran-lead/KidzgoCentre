@@ -1,11 +1,9 @@
 // app/[locale]/portal/page.tsx
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";   // 👈 THÊM DÒNG NÀY
 import { localizePath, type Locale } from "@/lib/i18n";
 import { ROLES } from "@/lib/role";
-import AccountChooser, {
-  type PinState,
-} from "@/components/portal/AccountChooser";
+import AccountChooser, { type PinState } from "@/components/portal/AccountChooser";
 
 const STUDENT_NAME = "Nguyễn Băng Ngân";
 const PARENT_NAME = "Bố Khương";
@@ -14,11 +12,7 @@ const PARENT_PIN = process.env.PARENT_PORTAL_PIN ?? "2580";
 async function setStudentRole(locale: Locale, _formData?: FormData) {
   "use server";
   const jar = await cookies();
-  jar.set("role", "STUDENT", {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-  });
+  jar.set("role", "STUDENT", { path: "/", httpOnly: true, sameSite: "lax" });
   jar.set("user-name", STUDENT_NAME, { path: "/", sameSite: "lax" });
   jar.set("user-avatar", "", { path: "/", sameSite: "lax" });
 
@@ -35,11 +29,7 @@ function setParentRole(locale: Locale) {
     }
 
     const jar = await cookies();
-    jar.set("role", "PARENT", {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-    });
+    jar.set("role", "PARENT", { path: "/", httpOnly: true, sameSite: "lax" });
     jar.set("user-name", PARENT_NAME, { path: "/", sameSite: "lax" });
     jar.set("user-avatar", "", { path: "/", sameSite: "lax" });
 
@@ -47,12 +37,10 @@ function setParentRole(locale: Locale) {
   };
 }
 
-export default async function PortalIndex({
-  params,
-}: {
-  params: { locale: Locale };
+export default async function PortalIndex(props: {
+  params: Promise<{ locale: Locale }>;
 }) {
-  const { locale } = params;
+  const { locale } = await props.params;
 
   return (
     <AccountChooser
