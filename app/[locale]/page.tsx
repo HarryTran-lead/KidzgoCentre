@@ -1,4 +1,6 @@
 // app/[locale]/page.tsx
+import Footer from "@/components/home/Footer";
+import Navbar from "@/components/home/Header";
 import HomeSections from "@/components/home/Main/Review/HomeSections";
 import type { Locale } from "@/lib/i18n";
 
@@ -17,7 +19,9 @@ export default function LocalizedHomePage({
   // Layout đã bọc Navbar + Footer + SURFACE_SOFT
   return (
     <main>
+      <Navbar />
       <HomeSections />
+      <Footer />
     </main>
   );
 }

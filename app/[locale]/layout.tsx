@@ -40,26 +40,9 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
     pathname = `/${loc}`;
   }
 
-  // 👉 Portal routes: /vi/portal/... hoặc /portal/...
-  const isPortal =
-    pathname.startsWith(`/${loc}/portal`) || pathname.startsWith("/portal");
-
-  // 🔹 Nếu là portal → KHÔNG render Navbar/Footer,
-  // để app/[locale]/portal/layout.tsx tự điều khiển sidebar + header portal
-  if (isPortal) {
-    return (
-      <div className={`min-h-screen ${SURFACE_SOFT} text-slate-900`}>
-        {children}
-      </div>
-    );
-  }
-
-  // 🔹 Các route thường (home, contact, faqs, ...) vẫn dùng Navbar/Footer
   return (
     <div className={`min-h-screen ${SURFACE_SOFT} text-slate-900`}>
-      <Navbar />
       {children}
-      <Footer />
     </div>
   );
 }

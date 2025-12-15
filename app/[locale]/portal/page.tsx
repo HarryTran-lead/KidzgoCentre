@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";   // 👈 THÊM DÒNG NÀY
 import { localizePath, type Locale } from "@/lib/i18n";
 import { ROLES } from "@/lib/role";
-import AccountChooser, { type PinState } from "@/components/portal/AccountChooser";
+import AccountChooser, { type PinState } from "@/app/[locale]/portal/student/AccountChooser";
 
 const STUDENT_NAME = "Nguyễn Băng Ngân";
 const PARENT_NAME = "Bố Khương";

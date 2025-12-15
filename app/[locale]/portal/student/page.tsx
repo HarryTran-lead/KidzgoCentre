@@ -13,6 +13,7 @@ import {
   FileText,
   Sparkles,
 } from "lucide-react";
+import Sidebar from "@/components/portal/sidebar";
 
 function StatCard({
   icon,
