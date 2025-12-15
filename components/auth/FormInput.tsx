@@ -17,17 +17,28 @@ interface InputProps {
   register?: UseFormRegisterReturn;
   autoComplete?: string;
   inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+  wrapperClassName?: string;
 }
 
 /* ===================== TEXT INPUT ===================== */
 export const CustomTextInput: React.FC<InputProps> = ({
-  label, name, icon: Icon, type = "text", required,
-  error, value, onChange, register, autoComplete, inputProps,
+  label,
+  name,
+  icon: Icon,
+  type = "text",
+  required,
+  error,
+  value,
+  onChange,
+  register,
+  autoComplete,
+  inputProps,
+  wrapperClassName,
 }) => {
   const hasIcon = !!Icon;
 
   return (
-    <div className="relative group">
+    <div className={["relative group", wrapperClassName].filter(Boolean).join(" ")}>
       {/* Icon: default xám, chỉ xanh khi focus */}
       {hasIcon && (
         <div
@@ -89,14 +100,23 @@ export const CustomTextInput: React.FC<InputProps> = ({
 
 /* ===================== PASSWORD INPUT ===================== */
 export const CustomPasswordInput: React.FC<InputProps> = ({
-  label, name, icon: Icon, required, error,
-  value, onChange, register, autoComplete, inputProps,
+  label,
+  name,
+  icon: Icon,
+  required,
+  error,
+  value,
+  onChange,
+  register,
+  autoComplete,
+  inputProps,
+  wrapperClassName,
 }) => {
   const [show, setShow] = useState(false);
   const hasIcon = !!Icon;
 
   return (
-    <div className="relative group">
+    <div className={["relative group", wrapperClassName].filter(Boolean).join(" ")}>
       {hasIcon && (
         <div
           className="

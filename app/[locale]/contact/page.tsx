@@ -11,7 +11,7 @@ export default function ContactPage({
   const loc = locale as Locale;
 
   return (
-    <main className="pt-14 md:pt-14 lg:pt-15 xl:pt-16">
+    <main className="">
       <Contact />
     </main>
   );
