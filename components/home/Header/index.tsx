@@ -11,9 +11,9 @@ import React, {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { Menu, X, LogIn } from "lucide-react";
+import { Menu, X, LogIn, ChevronRight, Sparkles } from "lucide-react";
 import { motion, useMotionValue, animate } from "framer-motion";
-import { LOGO, CTA_GRAD } from "@/lib/theme/theme";
+import { LOGO } from "@/lib/theme/theme";
 import LanguageToggle from "@/components/ui/button/LanguageToggle";
 import {
   pickLocaleFromPath,
@@ -25,11 +25,11 @@ import { getMessages } from "@/lib/dict";
 import { EndPoint } from "@/lib/routes";
 
 type NavItem =
-  | { id: string; label: string; icon: string; kind: "section" }
-  | { id: string; label: string; icon: string; kind: "route"; href: string };
+  | { id: string; label: string; kind: "section" }
+  | { id: string; label: string; kind: "route"; href: string };
 
 function useScrollSpy(ids: string[], offset = 100) {
-  const [active, setActive] = useState<string>("hero");
+  const [active, setActive] = useState<string>("");
   useEffect(() => {
     if (ids.length === 0) return;
     const onScroll = () => {
@@ -39,7 +39,7 @@ function useScrollSpy(ids: string[], offset = 100) {
         const r = el.getBoundingClientRect();
         return r.top <= offset && r.bottom >= offset;
       });
-      if (found) setActive(found);
+      setActive(found || "");
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -48,7 +48,6 @@ function useScrollSpy(ids: string[], offset = 100) {
   return active;
 }
 
-/** Lấy offset header từ biến CSS do Navbar set */
 function getHeaderOffsetPx() {
   if (typeof window === "undefined") return 64;
   const v = parseFloat(
@@ -59,7 +58,6 @@ function getHeaderOffsetPx() {
   return Number.isFinite(v) ? v : 64;
 }
 
-/** Scroll mượt tới id, tự trừ đúng cao header */
 function smoothTo(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -72,6 +70,26 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
+  const lastScrollY = useRef(0);
+  const navVariants = useMemo(
+    () => ({
+      default: {
+        borderRadius: 9999,
+        backgroundColor: "rgba(255, 255, 255, 0.95)",
+        boxShadow: "0 10px 40px -12px rgba(0,0,0,0.08)",
+        backdropFilter: "blur(12px)",
+        borderColor: "rgba(0,0,0,0.08)",
+      },
+      scrolled: {
+        borderRadius: 0,
+        backgroundColor: "rgba(255, 255, 255, 0.98)",
+        boxShadow: "0 4px 20px -8px rgba(0,0,0,0.08)",
+        backdropFilter: "blur(16px)",
+        borderColor: "rgba(0,0,0,0.04)",
+      },
+    }),
+    []
+  );
 
   const pathname = usePathname();
   const locale = useMemo(
@@ -79,28 +97,26 @@ export default function Navbar() {
     [pathname]
   );
   const msg = getMessages(locale);
+  const safeNav = msg.nav as Record<string, string>;
 
-  /** ====== NAV ITEMS ====== */
   const NAV_ITEMS: NavItem[] = useMemo(
     () => [
       {
         id: "home",
         label: msg.nav.home,
-        icon: "🏠",
         kind: "route",
         href: localizePath(EndPoint.HOME, locale),
       },
+      
       {
         id: "faqs",
         label: msg.nav.faqs,
-        icon: "💬",
         kind: "route",
         href: localizePath(EndPoint.FAQS, locale),
       },
       {
         id: "contact",
         label: msg.nav.contact,
-        icon: "☎️",
         kind: "route",
         href: localizePath(EndPoint.CONTACT, locale),
       },
@@ -109,7 +125,13 @@ export default function Navbar() {
   );
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (Math.abs(currentScrollY - lastScrollY.current) < 1) return;
+      setScrolled(currentScrollY > 20);
+      lastScrollY.current = currentScrollY;
+    };
+
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -123,11 +145,12 @@ export default function Navbar() {
     () => NAV_ITEMS.filter((n) => n.kind === "section").map((n) => n.id),
     [NAV_ITEMS]
   );
-  const activeSectionId = useScrollSpy(isHomePage ? sectionIds : [], 100);
+  const activeSectionId = useScrollSpy(isHomePage ? sectionIds : [], 120);
 
   const activeKey = useMemo(() => {
     if (pathname.includes("/contact")) return "contact";
     if (pathname.includes("/faqs")) return "faqs";
+    if (pathname.includes("/pricing")) return "pricing";
     return activeSectionId;
   }, [pathname, activeSectionId]);
 
@@ -146,23 +169,18 @@ export default function Navbar() {
   );
 
   const x = useMotionValue(0);
-  const y = useMotionValue(0);
   const w = useMotionValue(0);
-  const h = useMotionValue(0);
-
   const [indReady, setIndReady] = useState(false);
   const didMount = useRef(false);
 
   function measureRect(el: HTMLElement | null) {
     const wrap = containerRef.current;
-    if (!el || !wrap) return { tx: 0, ty: 0, tw: 0, th: 0 };
+    if (!el || !wrap) return { tx: 0, tw: 0 };
     const a = el.getBoundingClientRect();
     const b = wrap.getBoundingClientRect();
     return {
       tx: Math.round(a.left - b.left),
-      ty: Math.round(a.top - b.top),
       tw: Math.round(a.width),
-      th: Math.round(a.height),
     };
   }
 
@@ -170,21 +188,17 @@ export default function Navbar() {
     const rect = measureRect(itemRefs.current[index]);
     if (instant) {
       x.set(rect.tx);
-      y.set(rect.ty);
       w.set(rect.tw);
-      h.set(rect.th);
       return;
     }
     const spring = {
       type: "spring" as const,
-      stiffness: 120,
-      damping: 28,
-      mass: 1.05,
+      stiffness: 280,
+      damping: 25,
+      mass: 0.8,
     };
     animate(x, [rect.tx], spring);
-    animate(y, [rect.ty], spring);
     animate(w, [rect.tw], spring);
-    animate(h, [rect.th], spring);
   }
 
   useLayoutEffect(() => {
@@ -193,7 +207,6 @@ export default function Navbar() {
       setIndReady(true);
       didMount.current = true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -208,17 +221,15 @@ export default function Navbar() {
   }, [activeIndex]);
 
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "unset";
+    document.body.style.overflow = open ? "hidden" : "";
   }, [open]);
 
-  /** === ĐO CHIỀU CAO THỰC TẾ CỦA NAVBAR & GHI CSS VAR === */
   useLayoutEffect(() => {
     const el = navRef.current;
     if (!el) return;
 
     const setVar = () => {
       const rect = el.getBoundingClientRect();
-      // cộng thêm safe-area top nếu có:
       const safeTop =
         parseFloat(
           getComputedStyle(document.documentElement).getPropertyValue(
@@ -241,17 +252,30 @@ export default function Navbar() {
 
   return (
     <>
-      <nav
+      {/* Main Navbar */}
+      <motion.nav
         ref={navRef}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        initial={false}
+        animate={scrolled ? "scrolled" : "default"}
+        variants={navVariants}
+        transition={{
+          duration: 0.6,
+          ease: [0.32, 0.72, 0, 1],
+        }}
+        className={`fixed z-50 will-change-transform transition-[transform] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           scrolled
-            ? "bg-white/55 backdrop-blur-xl shadow-md border-b border-transparent"
-            : "bg-white/95 backdrop-blur-sm border-b border-pink-100"
+            ? "top-0 left-0 right-0 translate-x-0 translate-y-0 bg-white/95 backdrop-blur-xl backdrop-saturate-150 shadow-sm border-b border-white/40 rounded-none max-w-full"
+            : "top-6 left-1/2 -translate-x-1/2 translate-y-0 w-[calc(100%-3rem)] max-w-7xl bg-white/90 backdrop-blur-lg backdrop-saturate-125 border border-white/50 rounded-2xl shadow-lg"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-5 md:px-6 lg:px-6 xl:px-12 2xl:px-0">
-          <div className="relative flex items-center justify-between gap-3 sm:gap-4 md:gap-6 h-14 md:h-14 lg:h-15 xl:h-16">
-            {/* Logo → ở home thì scroll mượt tới hero, không thì chuyển route */}
+        <div className="max-w-7xl mx-auto px-8 sm:px-10 lg:px-12">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="relative"
+            >
             <a
               href={homePath + "#hero"}
               onClick={(e) => {
@@ -260,60 +284,51 @@ export default function Navbar() {
                   smoothTo("hero");
                 }
               }}
-              className="flex items-center shrink-0"
+                className="flex items-center group"
             >
               <Image
                 src={LOGO}
                 alt="KidzGo logo"
-                width={900}
-                height={900}
+                  width={160}
+                  height={48}
                 priority
-                className="h-12 md:h-13 lg:h-13 xl:h-15 mb-0.5 w-auto"
+                  className="h-12 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
               />
-            </a>
 
-            {/* CENTER MENU (desktop) */}
-            <div className="hidden xl:block absolute inset-x-0">
-              <div className="flex justify-center pointer-events-none">
+            </a>
+            </motion.div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex absolute left-1/2 transform -translate-x-1/2">
+              <div className="flex items-center">
                 <div
                   ref={containerRef}
-                  className="relative inline-flex items-center gap-1 rounded-xl bg-white ring-1 ring-slate-200 p-1 pointer-events-auto"
-                  style={{ isolation: "isolate" }}
+                  className="relative inline-flex items-center gap-0.5 p-2.5"
                 >
                   {indReady && (
-                    <motion.span
-                      className="absolute top-0 left-0 rounded-lg pointer-events-none overflow-hidden"
+                    <motion.div
+                      className="absolute top-2.5 left-2.5 h-[calc(100%-20px)] bg-gradient-to-r from-pink-400/20 to-rose-400/20 rounded-xl border border-pink-100/50 shadow-sm"
                       initial={false}
                       style={{
                         x,
-                        y,
                         width: w,
-                        height: h,
-                        willChange: "transform, width, height",
                       }}
-                    >
-                      <div className="absolute inset-0 bg-linear-to-br from-pink-400/10 via-fuchsia-400/10 to-yellow-400/10" />
-                      <div className="absolute inset-0 bg-linear-to-br from-white/0 to-white/20 backdrop-blur-sm" />
-                      <div className="absolute inset-0 ring-1 ring-pink-300/30 rounded-lg" />
-                      <motion.div
-                        className="absolute inset-0 bg-linear-to-r from-transparent via-white/25 to-transparent"
-                        animate={{ x: ["-100%", "100%"] }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "linear",
-                        }}
-                      />
-                    </motion.span>
+                      transition={{
+                        type: "spring",
+                        stiffness: 280,
+                        damping: 25,
+                        mass: 0.8,
+                      }}
+                    />
                   )}
-
+                  
                   {NAV_ITEMS.map((item, i) => {
                     const isActive = i === activeIndex;
 
                     if (item.kind === "section") {
                       const sectionHref = homePath + "#" + item.id;
                       return (
-                        <a
+                        <motion.a
                           key={item.id}
                           href={sectionHref}
                           onClick={(e) => {
@@ -323,233 +338,338 @@ export default function Navbar() {
                             }
                           }}
                           ref={setItemRef(i)}
-                          className={`relative inline-flex h-10 items-center rounded-lg px-3 text-[14px] overflow-visible transition-colors duration-300 ${
-                            isActive
-                              ? "text-rose-700"
-                              : "text-slate-700 hover:text-rose-600 hover:bg-rose-50/60"
-                          } after:content-[''] after:absolute after:left-1 after:right-1 after:bottom-0.5 after:h-[1.5px] after:rounded-full after:bg-linear-to-r after:from-yellow-400 after:via-pink-400 after:to-purple-400 after:opacity-0 after:scale-x-0 after:origin-center after:transition-transform after:duration-300 after:ease-out hover:after:opacity-100 hover:after:scale-x-100 focus-visible:after:opacity-100 focus-visible:after:scale-x-100`}
+                          className={`
+                            relative z-10 px-4 py-2.5 mx-1 text-sm font-medium rounded-xl
+                            transition-all duration-300 ease-out
+                            group/nav-item whitespace-nowrap
+                            ${isActive 
+                              ? "text-pink-600 font-semibold"
+                              : "text-gray-800 hover:text-pink-600"
+                            }
+                          `}
+                          whileHover={{ 
+                            scale: 1.03
+                          }}
+                          whileTap={{ scale: 0.95 }}
                         >
-                          <span className="relative z-10 inline-flex items-center gap-1.5">
-                            <span className="text-base">{item.icon}</span>
-                            <span>{item.label}</span>
+                          <span className="relative inline-block whitespace-nowrap">
+                          {item.label}
+                            <span
+                              className={`
+                                absolute left-0 right-0 -bottom-1 h-0.5 rounded-full
+                                bg-gradient-to-r from-pink-500 to-rose-500
+                                transform origin-left transition-all duration-300 ease-out
+                                ${isActive 
+                                  ? "scale-x-100 opacity-100" 
+                                  : "scale-x-0 opacity-0 group-hover/nav-item:scale-x-100 group-hover/nav-item:opacity-100"
+                                }
+                              `}
+                            />
                           </span>
-                        </a>
+                        </motion.a>
                       );
                     }
 
                     return (
-                      <a
+                      <motion.a
                         key={item.id}
                         href={item.href}
                         ref={setItemRef(i)}
-                        className={`relative inline-flex h-10 items-center rounded-lg px-3 text-[14px] overflow-visible transition-colors duration-300 ${
-                          isActive
-                            ? "text-rose-700"
-                            : "text-slate-700 hover:text-rose-600 hover:bg-rose-50/60"
-                        } after:content-[''] after:absolute after:left-1 after:right-1 after:bottom-0.5 after:h-[1.5px] after:rounded-full after:bg-linear-to-r after:from-yellow-400 after:via-pink-400 after:to-purple-400 after:opacity-0 after:scale-x-0 after:origin-center after:transition-transform after:duration-300 after:ease-out hover:after:opacity-100 hover:after:scale-x-100 focus-visible:after:opacity-100 focus-visible:after:scale-x-100`}
+                        className={`
+                          relative z-10 px-4 py-2.5 mx-1 text-sm font-medium rounded-xl
+                          transition-all duration-300 ease-out
+                          group/nav-item whitespace-nowrap
+                          ${isActive 
+                            ? "text-pink-600 font-semibold"
+                            : "text-gray-800 hover:text-pink-600"
+                          }
+                        `}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.95 }}
                       >
-                        <span className="relative z-10 inline-flex items-center gap-1.5">
-                          <span className="text-base">{item.icon}</span>
-                          <span>{item.label}</span>
+                        <span className="relative inline-block whitespace-nowrap">
+                        {item.label}
+                          <span
+                            className={`
+                              absolute left-0 right-0 -bottom-1 h-0.5 rounded-full
+                              bg-gradient-to-r from-pink-500 to-rose-500
+                              transform origin-left transition-all duration-300 ease-out
+                              ${isActive 
+                                ? "scale-x-100 opacity-100" 
+                                : "scale-x-0 opacity-0 group-hover/nav-item:scale-x-100 group-hover/nav-item:opacity-100"
+                              }
+                            `}
+                          />
                         </span>
-                      </a>
+                      </motion.a>
                     );
                   })}
                 </div>
               </div>
             </div>
 
-            {/* Auth buttons */}
-            <div className="hidden xl:flex items-center gap-2 md:gap-3 shrink-0 z-10">
-              <LanguageToggle />
-              <Link
-                href={localizePath(EndPoint.LOGIN, locale)}
-                className="group inline-flex items-center gap-2 h-10 px-3 rounded-xl 
-                border border-slate-200 font-semibold text-[13px] md:text-sm text-slate-700 
-                bg-white shadow-sm transition-all duration-300
-                hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:shadow-md hover:scale-[1.02]"
+            {/* Right Side Actions */}
+            <div className="hidden lg:flex items-center gap-4">
+              <motion.div
+                whileHover={{ scale: 1.08, rotate: 5 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <LogIn className="w-4 h-4 text-slate-500 group-hover:text-rose-500 transition-colors duration-300" />
-                <span>{msg.auth.login}</span>
-              </Link>
+                <LanguageToggle />
+              </motion.div>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link
+                  href={localizePath(EndPoint.LOGIN, locale)}
+                  className="group relative inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-pink-500/25 active:shadow-inner"
+                >
+                  {/* Button glow effect */}
+                  <span className="absolute inset-0 bg-gradient-to-r from-pink-400 to-rose-400 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <span className="relative flex items-center gap-2">
+                    <LogIn className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                    {msg.auth.login}
+                  </span>
+                </Link>
+              </motion.div>
             </div>
 
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setOpen((v) => !v)}
-              className="xl:hidden p-2 rounded-xl hover:bg-pink-50"
+            {/* Mobile Menu Button */}
+            <motion.button
+              onClick={() => setOpen(!open)}
+              className="lg:hidden p-3 hover:bg-gray-100/50 rounded-xl transition-colors relative group"
               aria-label="Toggle menu"
-              aria-expanded={open}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
             >
-              {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+              {/* Button background effect */}
+              <span className="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="relative">
+                {open ? (
+                  <X className="w-5 h-5 text-gray-700" />
+                ) : (
+                  <Menu className="w-5 h-5 text-gray-700" />
+                )}
+              </span>
+            </motion.button>
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
-      {/* Mobile / tablet drawer */}
-      <div
-        className={`fixed inset-0 z-60 xl:hidden transition-all duration-500 ${
-          open
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        }`}
+      {/* Mobile Menu */}
+      <motion.div
+        initial={false}
+        animate={{
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? "auto" : "none",
+        }}
+        transition={{ duration: 0.2 }}
+        className="lg:hidden fixed inset-0 z-50"
       >
-        <div
-          className={`absolute inset-0 bg-black/45 backdrop-blur-sm transition-opacity ${
-            open ? "opacity-100" : "opacity-0"
-          }`}
+        {/* Backdrop */}
+        <motion.div 
+          initial={false}
+          animate={{ opacity: open ? 0.5 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="absolute inset-0 bg-gradient-to-br from-gray-900/30 to-pink-900/20 backdrop-blur-sm"
           onClick={() => setOpen(false)}
-          aria-hidden
         />
-        <aside
-          className={`absolute top-0 right-0 h-full 
-              w-[300px] sm:w-[360px] md:w-[400px] lg:w-[440px]
-            bg-white shadow-2xl transition-transform duration-500 ${
-              open ? "translate-x-0" : "translate-x-full"
-            }`}
-          role="dialog"
-          aria-modal="true"
+        
+        {/* Menu Panel */}
+        <motion.div
+          initial={false}
+          animate={{
+            x: open ? 0 : "100%",
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 300,
+            damping: 30,
+            mass: 0.8,
+          }}
+          className="absolute right-0 top-0 h-full w-full max-w-md bg-white/95 backdrop-blur-xl shadow-2xl border-l border-white/20"
         >
-          {/* Header */}
-          <div className="h-14 md:h-16 px-4 sm:px-5 md:px-6 mb-2 flex items-center justify-between">
+          <div className="flex items-center justify-between p-6 border-b border-gray-100/50">
             <div className="flex items-center gap-3">
-              <Image
-                src={LOGO}
-                alt="KidzGo logo"
-                width={900}
-                height={900}
-                className="h-12 sm:h-13 md:h-14 w-auto"
-                priority
+            <Image
+              src={LOGO}
+              alt="KidzGo logo"
+                width={140}
+                height={42}
+                className="h-10 w-auto"
               />
-              <div className="ml-2 mt-2">
-                <LanguageToggle />
+              <Sparkles className="w-5 h-5 text-pink-400 animate-pulse" />
+            </div>
+            <motion.button
+              onClick={() => setOpen(false)}
+              className="p-3 hover:bg-gray-100/50 rounded-xl transition-colors relative group"
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="relative">
+                <X className="w-5 h-5 text-gray-700" />
+              </span>
+            </motion.button>
+          </div>
+          
+          <div className="p-6 h-[calc(100%-80px)] overflow-y-auto">
+            <div className="mb-6">
+              <div className="inline-block">
+              <LanguageToggle />
               </div>
             </div>
+            
+            <div className="space-y-2 mb-8">
+              {NAV_ITEMS.map((item, i) => {
+                const isActive = i === activeIndex;
+                
+                if (item.kind === "section") {
+                  const sectionHref = homePath + "#" + item.id;
+                  return (
+                    <motion.a
+                      key={item.id}
+                      href={sectionHref}
+                      onClick={(e) => {
+                        if (isHomePage) {
+                          e.preventDefault();
+                          smoothTo(item.id);
+                        }
+                        setOpen(false);
+                      }}
+                      className={`
+                        flex items-center justify-between px-5 py-4 rounded-xl
+                        text-gray-800 transition-all duration-300
+                        group/mobile-item relative overflow-hidden
+                        ${isActive 
+                          ? "bg-gradient-to-r from-pink-50 to-rose-50 text-transparent bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text" 
+                          : "hover:bg-gray-50/80"
+                        }
+                      `}
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {/* Background effect */}
+                      <span className={`
+                        absolute inset-0 bg-gradient-to-r from-pink-500/5 to-rose-500/5
+                        opacity-0 group-hover/mobile-item:opacity-100
+                        transition-opacity duration-300
+                      `} />
+                      
+                      <span className="relative flex items-center gap-3">
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                          isActive 
+                            ? "bg-gradient-to-r from-pink-400 to-rose-400 scale-125" 
+                            : "bg-gray-300 group-hover/mobile-item:bg-pink-300"
+                        }`} />
+                        <span className={`font-medium ${
+                          isActive 
+                            ? "" 
+                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-gradient-to-r group-hover/mobile-item:from-pink-500 group-hover/mobile-item:to-rose-500"
+                        }`}>
+                          {item.label}
+                        </span>
+                      </span>
+                      
+                      <span className="relative">
+                        <ChevronRight className={`w-4 h-4 transition-all duration-300 ${
+                          isActive 
+                            ? "text-pink-500 transform translate-x-0.5" 
+                            : "text-gray-400 group-hover/mobile-item:text-pink-400 group-hover/mobile-item:translate-x-0.5"
+                        }`} />
+                      </span>
+                    </motion.a>
+                  );
+                }
 
-            <button
-              onClick={() => setOpen(false)}
-              className="p-2 mt-2 rounded-lg hover:bg-slate-100"
-              aria-label="Đóng menu"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-
-          <hr className=" border-b border-slate-100 mb-1" />
-
-          {/* Body */}
-          <div className="p-3 sm:p-4 md:p-5 space-y-2 overflow-y-auto h-[calc(100%-56px)] md:h-[calc(100%-64px)]">
-            {NAV_ITEMS.map((item, i) => {
-              const isActive = i === activeIndex;
-
-              if (item.kind === "section") {
-                const sectionHref = homePath + "#" + item.id;
                 return (
-                  <a
+                  <motion.div
                     key={item.id}
-                    href={sectionHref}
-                    onClick={(e) => {
-                      if (isHomePage) {
-                        e.preventDefault();
-                        smoothTo(item.id);
-                      }
-                      setOpen(false);
-                    }}
-                    className={`flex items-center gap-3 sm:gap-3.5 md:gap-4
-                      min-h-[52px] md:min-h-14 px-3 sm:px-3.5 md:px-4
-                      rounded-xl border transition-all
-                      ${
-                        isActive
-                          ? "bg-linear-to-r from-yellow-50 via-pink-50 to-purple-50 border-pink-300 shadow-sm"
-                          : "border-slate-100 hover:bg-pink-50"
-                      }
-                    `}
-                    style={{
-                      animation: open
-                        ? `slideInRight 0.25s ease-out ${i * 0.05}s both`
-                        : "none",
-                    }}
+                    whileHover={{ x: 4 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="relative"
                   >
-                    <span className="text-[18px] sm:text-[20px] md:text-[22px]">
-                      {item.icon}
-                    </span>
-                    <span className="font-semibold text-slate-700 text-[14px] sm:text-[15px] md:text-[16px]">
-                      {item.label}
-                    </span>
-                    {isActive && (
-                      <span className="ml-auto w-2 h-2 rounded-full bg-linear-to-r from-pink-400 to-purple-400 animate-pulse" />
-                    )}
-                  </a>
+                  <Link
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                      className={`
+                        flex items-center justify-between px-5 py-4 rounded-xl
+                        text-gray-800 transition-all duration-300
+                        group/mobile-item relative overflow-hidden
+                        ${isActive 
+                          ? "bg-gradient-to-r from-pink-50 to-rose-50 text-transparent bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text" 
+                          : "hover:bg-gray-50/80"
+                        }
+                      `}
+                    >
+                      {/* Background effect */}
+                      <span className={`
+                        absolute inset-0 bg-gradient-to-r from-pink-500/5 to-rose-500/5
+                        opacity-0 group-hover/mobile-item:opacity-100
+                        transition-opacity duration-300
+                      `} />
+                      
+                      <span className="relative flex items-center gap-3">
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                          isActive 
+                            ? "bg-gradient-to-r from-pink-400 to-rose-400 scale-125" 
+                            : "bg-gray-300 group-hover/mobile-item:bg-pink-300"
+                        }`} />
+                        <span className={`font-medium ${
+                          isActive 
+                            ? "" 
+                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-gradient-to-r group-hover/mobile-item:from-pink-500 group-hover/mobile-item:to-rose-500"
+                        }`}>
+                          {item.label}
+                        </span>
+                      </span>
+                      
+                      <span className="relative">
+                        <ChevronRight className={`w-4 h-4 transition-all duration-300 ${
+                          isActive 
+                            ? "text-pink-500 transform translate-x-0.5" 
+                            : "text-gray-400 group-hover/mobile-item:text-pink-400 group-hover/mobile-item:translate-x-0.5"
+                        }`} />
+                      </span>
+                  </Link>
+                  </motion.div>
                 );
-              }
-
-              // route item
-              return (
-                <a
-                  key={item.id}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 sm:gap-3.5 md:gap-4
-                    min-h-[52px] md:min-h-14 px-3 sm:px-3.5 md:px-4
-                    rounded-xl border transition-all
-                    ${
-                      isActive
-                        ? "bg-linear-to-r from-yellow-50 via-pink-50 to-purple-50 border-pink-300 shadow-sm"
-                        : "border-slate-100 hover:bg-pink-50"
-                    }
-                  `}
-                  style={{
-                    animation: open
-                      ? `slideInRight 0.25s ease-out ${i * 0.05}s both`
-                      : "none",
-                  }}
-                >
-                  <span className="text-[18px] sm:text-[20px] md:text-[22px]">
-                    {item.icon}
-                  </span>
-                  <span className="font-semibold text-slate-700 text-[14px] sm:text-[15px] md:text-[16px]">
-                    {item.label}
-                  </span>
-                  {isActive && (
-                    <span className="ml-auto w-2 h-2 rounded-full bg-linear-to-r from-pink-400 to-purple-400 animate-pulse" />
-                  )}
-                </a>
-              );
-            })}
-
-            <hr className="border border-slate-100 my-4 md:my-3" />
-
-            {/* Auth buttons trong drawer */}
-            <div className="grid grid-cols-1">
+              })}
+            </div>
+            
+            <div className="mt-8 pt-8 border-t border-gray-100/50">
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="relative"
+              >
               <Link
                 href={localizePath(EndPoint.LOGIN, locale)}
-                className={`flex items-center justify-center gap-2 h-11 rounded-xl  ${CTA_GRAD} 
-             text-white font-semibold text-sm
-             transition-all duration-200`}
-                onClick={() => setOpen(false)}
-              >
-                <LogIn className="w-4 h-4" />
-                <span>{msg.auth.login}</span>
-              </Link>
+                  className="group relative flex items-center justify-center gap-3 w-full py-4 
+                    bg-gradient-to-r from-pink-500 to-rose-500 
+                    hover:from-pink-600 hover:to-rose-600 
+                    text-white font-semibold rounded-xl 
+                    transition-all duration-300 shadow-lg hover:shadow-xl"
+                  onClick={() => setOpen(false)}
+                >
+                  {/* Button glow */}
+                  <span className="absolute inset-0 bg-gradient-to-r from-pink-400 to-rose-400 rounded-xl blur-lg opacity-0 group-hover:opacity-70 transition-opacity duration-300" />
+                  
+                  <span className="relative flex items-center gap-3">
+                    <LogIn className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                    <span className="tracking-wide">{msg.auth.login}</span>
+                  </span>
+                  
+                  {/* Arrow animation */}
+                  <span className="relative ml-2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                    →
+                  </span>
+                </Link>
+              </motion.div>
             </div>
           </div>
-        </aside>
-      </div>
-      <style jsx>{`
-        @keyframes slideInRight {
-          from {
-            opacity: 0;
-            transform: translateX(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
+        </motion.div>
+      </motion.div>
     </>
   );
 }
-
-
