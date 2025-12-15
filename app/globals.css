@@ -1,7 +1,7 @@
 /* ==== VERY TOP OF FILE ==== */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-@import "tailwindcss";
-
+@import 'tailwindcss';
+@plugin 'lightswind/plugin';
 /* (phần còn lại) */
 :root{
   --background:#ffffff;

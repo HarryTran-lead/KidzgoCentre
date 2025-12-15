@@ -736,7 +736,7 @@ export default function Hero({ locale }: Props) {
             height: 44px;
             z-index: 30;
           }
-          .hero-prev {
+          .hero-prev {  
             left: 12px;
             right: auto;
           }
