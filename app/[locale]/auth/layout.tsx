@@ -1,10 +1,12 @@
 // app/auth/layout.tsx
 import type { ReactNode } from "react";
 import AuthBackground from "@/components/auth/AuthBackground";
+import Navbar from "@/components/home/Header";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-screen">
+      <Navbar />
       {/* Pastel animated background */}
       <AuthBackground />
 

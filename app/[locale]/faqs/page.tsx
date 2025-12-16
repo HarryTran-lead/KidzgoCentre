@@ -1,3 +1,5 @@
+import Footer from "@/components/home/Footer";
+import Navbar from "@/components/home/Header";
 import FAQs from "@/components/home/Main/FAQs";
 import type { Locale } from "@/lib/i18n";
 
@@ -7,7 +9,9 @@ export default function FAQsPage({ params }: { params: { locale: string } }) {
 
   return (
     <main className="pt-14 md:pt-14 lg:pt-15 xl:pt-16">
+      <Navbar />
       <FAQs />
+      <Footer />
     </main>
   );
 }

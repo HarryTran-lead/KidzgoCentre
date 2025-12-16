@@ -47,7 +47,7 @@ export default function AccountChooser({
   const parentAvatarText = initialAvatar(parentName);
 
   return (
-    <div className="min-h-dvh bg-gradient-to-br from-sky-50 via-white to-indigo-50 py-10 px-4">
+    <div className="min-h-dvh bg-l-to-br from-sky-50 via-white to-indigo-50 py-10 px-4">
       <div className="max-w-5xl mx-auto space-y-8">
         <div className="space-y-3 text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 text-indigo-700 px-4 py-1 text-sm font-medium">
