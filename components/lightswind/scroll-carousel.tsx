@@ -178,7 +178,7 @@ export const ScrollCarousel = forwardRef<HTMLDivElement, ScrollCarouselProps>(
           ref={(el: HTMLDivElement | null) => {
             if (el) refs.current[index] = el;
           }}
-          className="feature-card flex-shrink-0 w-full md:w-full  h-full
+          className="feature-card shrink-0 w-full md:w-full  h-full
           z-10 gap-4  group relative transition-all duration-300 ease-in-out"
         >
           <div

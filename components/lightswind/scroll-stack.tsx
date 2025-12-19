@@ -129,7 +129,7 @@ const ScrollStack: React.FC<ScrollStackProps> = ({
   return (
     <section
       ref={scrollableSectionRef}
-      className="relative max-h-screen w-full lg:w-[100%] overflow-y-scroll 
+      className="relative max-h-screen w-full lg:w-full overflow-y-scroll 
       scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-300"
     >
       <div
@@ -144,7 +144,7 @@ const ScrollStack: React.FC<ScrollStackProps> = ({
           <div className="container px-6 lg:px-8 mx-auto h-full flex flex-col justify-center">
             <div
               ref={cardsContainerRef}
-              className="relative w-full max-w-5xl mx-auto flex-shrink-0"
+              className="relative w-full max-w-5xl mx-auto shrink-0"
               style={{ height: cardHeight }}
             >
               {cards.slice(0, 5).map((card, index) => {
@@ -172,7 +172,7 @@ const ScrollStack: React.FC<ScrollStackProps> = ({
                     }}
                   >
                     <div
-                      className="absolute inset-0 z-0 bg-gradient-to-b from-black/40 to-black/80"
+                      className="absolute inset-0 z-0 bg-linear-to-b from-black/40 to-black/80"
                       style={{
                         backgroundImage: `url('${backgroundImage}')`,
                         backgroundSize: "cover",

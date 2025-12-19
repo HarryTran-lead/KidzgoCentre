@@ -52,7 +52,7 @@ export default function Contact() {
   };
 
   return (
-    <section id="contact" className="relative overflow-hidden bg-gradient-to-b from-white to-slate-50 py-24">
+    <section id="contact" className="relative overflow-hidden bg-linear-to-b from-white to-slate-50 py-24">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
@@ -89,7 +89,7 @@ export default function Contact() {
           <div className="lg:col-span-1 space-y-6">
             <div className="group bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100">
               <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <div className="w-14 h-14 rounded-xl bg-linear-to-br from-blue-500 to-blue-600 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                   <PhoneCall className="w-6 h-6" />
                 </div>
                 <div>
@@ -108,7 +108,7 @@ export default function Contact() {
 
             <div className="group bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100">
               <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <div className="w-14 h-14 rounded-xl bg-linear-to-br from-purple-500 to-pink-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                   <Mail className="w-6 h-6" />
                 </div>
                 <div>
@@ -127,7 +127,7 @@ export default function Contact() {
 
             <div className="group bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100">
               <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <div className="w-14 h-14 rounded-xl bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                   <MapPin className="w-6 h-6" />
                 </div>
                 <div>
@@ -147,7 +147,7 @@ export default function Contact() {
               <div className="flex gap-3">
                 {[
                   { icon: Facebook, color: "bg-blue-500 hover:bg-blue-600", label: "Facebook" },
-                  { icon: Instagram, color: "bg-gradient-to-br from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600", label: "Instagram" },
+                  { icon: Instagram, color: "bg-linear-to-br from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600", label: "Instagram" },
                   { icon: Twitter, color: "bg-sky-500 hover:bg-sky-600", label: "Twitter" },
                   { icon: MessageCircle, color: "bg-green-500 hover:bg-green-600", label: "Zalo" }
                 ].map((item, idx) => (
@@ -176,7 +176,7 @@ export default function Contact() {
             <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
               <div className="p-8 md:p-10">
                 <div className="flex items-center gap-3 mb-8">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 text-white grid place-items-center shadow-lg">
+                  <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-500 text-white grid place-items-center shadow-lg">
                     <MessageSquare className="w-6 h-6" />
                   </div>
                   <div>

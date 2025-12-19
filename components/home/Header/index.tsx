@@ -471,7 +471,7 @@ export default function Navbar() {
           initial={false}
           animate={{ opacity: open ? 0.5 : 0 }}
           transition={{ duration: 0.2 }}
-          className="absolute inset-0 bg-gradient-to-br from-gray-900/30 to-pink-900/20 backdrop-blur-sm"
+          className="absolute inset-0 bg-linear-to-br from-gray-900/30 to-pink-900/20 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         />
         

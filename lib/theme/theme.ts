@@ -15,5 +15,5 @@ export const CTA_GRAD =
 export const ACCENT_TEXT =
   "bg-gradient-to-r from-amber-400 via-pink-500 to-rose-500 bg-clip-text text-transparent";
 export const SURFACE_SOFT =
-  "bg-gradient-to-b from-pink-50 via-amber-50 to-white";
+  "bg-linear-to-b from-pink-50 via-amber-50 to-white";
 export const SURFACE_BORDER = "border-rose-100";

@@ -1,6 +1,6 @@
 
 import * as React from "react";
-import { useToast } from "../hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import {
   Toast,
   ToastClose,
@@ -16,10 +16,11 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      <div className="fixed md:top-4 right-0 md:right-4 z-[100] flex flex-col gap-2 w-auto max-w-sm">
-        {toasts.map(({ id, title, description, action, type, variant, duration, ...props }) => {
+      <div className="fixed md:top-4 right-0 md:right-4 z-100 flex flex-col gap-2 w-auto max-w-sm">
+        {toasts.map((toast) => {
+          const { id, title, description, action, type, variant, duration, ...props } = toast;
           // Map toast type to variant if variant is not provided
-          const toastVariant = variant || (
+          const toastVariant: "default" | "destructive" | "success" | "warning" | "info" = variant || (
             type === "success" ? "success" :
             type === "warning" ? "warning" :
             type === "info" ? "info" :

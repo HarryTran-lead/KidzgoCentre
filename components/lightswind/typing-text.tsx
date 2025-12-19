@@ -46,11 +46,11 @@ export const TypingText = ({
       if (Array.isArray(node)) {
         return node.map(extractText).join("");
       }
-      if (
-        React.isValidElement(node) &&
-        typeof node.props.children !== "undefined"
-      ) {
-        return extractText(node.props.children);
+      if (React.isValidElement(node)) {
+        const element = node as React.ReactElement<{ children?: ReactNode }>;
+        if (typeof element.props.children !== "undefined") {
+          return extractText(element.props.children);
+        }
       }
       return "";
     };
@@ -75,8 +75,10 @@ export const TypingText = ({
     }),
   };
 
+  const ComponentToRender = Component as any;
+
   return (
-    <Component
+    <ComponentToRender
       className={cn(
         "inline-flex",
         className,
@@ -111,6 +113,6 @@ export const TypingText = ({
           </motion.span>
         ))}
       </motion.span>
-    </Component>
+    </ComponentToRender>
   );
 };

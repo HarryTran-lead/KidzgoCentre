@@ -75,7 +75,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       return (
         <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
           {/* Animated Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900">
+          <div className="absolute inset-0 bg-linear-to-br from-slate-900 via-teal-900 to-slate-900">
             {/* Floating Orbs */}
             <div className="absolute top-20 left-10 w-72 h-72 bg-teal-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
             <div className="absolute top-40 right-10 w-72 h-72 bg-cyan-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
@@ -102,13 +102,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           <div className="relative z-10 max-w-xl w-full animate-fade-in-up">
             <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 px-8 pt-8 pb-4  space-y-6 relative overflow-hidden">
               {/* Decorative Elements */}
-              <div className="absolute -top-2 -right-2 w-20 h-20 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-full opacity-10 blur-xl"></div>
-              <div className="absolute -bottom-2 -left-2 w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full opacity-10 blur-xl"></div>
+              <div className="absolute -top-2 -right-2 w-20 h-20 bg-linear-to-br from-teal-400 to-cyan-500 rounded-full opacity-10 blur-xl"></div>
+              <div className="absolute -bottom-2 -left-2 w-16 h-16 bg-linear-to-br from-emerald-400 to-teal-500 rounded-full opacity-10 blur-xl"></div>
 
               {/* Error Icon & Title */}
               <div className="text-center space-y-4">
                 <div className="relative inline-block">
-                  <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center shadow-lg animate-bounce-slow">
+                  <div className="w-24 h-24 bg-linear-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center shadow-lg animate-bounce-slow">
                     <FiAlertTriangle className="w-12 h-12 text-red-500" />
                   </div>
                   <div className="absolute inset-0 bg-red-300 opacity-20 rounded-full blur-xl animate-pulse"></div>

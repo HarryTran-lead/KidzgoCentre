@@ -112,6 +112,16 @@ const addEase = (
   pos.z += (to.z - pos.z) / ease;
 };
 
+const addEaseEuler = (
+  rotation: THREE.Euler,
+  to: { x: number; y: number; z: number },
+  ease: number
+) => {
+  rotation.x += (to.x - rotation.x) / ease;
+  rotation.y += (to.y - rotation.y) / ease;
+  rotation.z += (to.z - rotation.z) / ease;
+};
+
 const getElementBackground = (element: HTMLElement): string | null => {
   let currentElement: HTMLElement | null = element;
 
@@ -272,7 +282,7 @@ const AnimatedWave: React.FC<AnimatedWaveProps> = ({
       // Initial position of the entire wave group in 3D space
       move: new THREE.Vector3(0, waveOffsetY, cameraDistance),
       // Initial rotation of the entire wave group
-      look: new THREE.Vector3((waveRotation * Math.PI) / 180, 0, 0), // Convert degrees to radians for X-axis rotation
+      look: new THREE.Euler((waveRotation * Math.PI) / 180, 0, 0), // Convert degrees to radians for X-axis rotation
 
       // Mouse distortion properties
       mouseDistortionStrength: mouseDistortionStrength,
@@ -370,12 +380,11 @@ const AnimatedWave: React.FC<AnimatedWaveProps> = ({
             const distY_mouse = originalY - currentMouseY * 0.5;
             const dist_mouse = Math.sqrt(distX_mouse * distX_mouse + distY_mouse * distY_mouse);
 
-            // Generate a 3D Simplex noise value for the ripple.
-            // `this.distortionTime` makes the ripple evolve over time.
+            // Generate a 2D Simplex noise value for the ripple.
+            // `this.distortionTime` is added to x for time-based evolution.
             const mouseRippleNoise = this.simplex(
-              distX_mouse / this.mouseDistortionSmoothness, // Smoothness of the mouse ripple
-              distY_mouse / this.mouseDistortionSmoothness,
-              this.distortionTime // Third dimension for time-based evolution
+              distX_mouse / this.mouseDistortionSmoothness + this.distortionTime, // Smoothness of the mouse ripple with time
+              distY_mouse / this.mouseDistortionSmoothness
             ) * this.mouseDistortionStrength; // Overall strength of the mouse ripple
 
             // Apply a falloff (diminishing effect) as the vertex gets further from the mouse.
@@ -430,7 +439,7 @@ const AnimatedWave: React.FC<AnimatedWaveProps> = ({
           this.move.x = -(mouse.x * 0.04);
           this.move.y = waveOffsetY + (mouse.y * 0.04); // Add Y movement with corrected direction
           addEase(this.group.position, this.move, this.ease);
-          addEase(this.group.rotation, this.look, this.ease);
+          addEaseEuler(this.group.rotation, this.look, this.ease);
         }
       },
 

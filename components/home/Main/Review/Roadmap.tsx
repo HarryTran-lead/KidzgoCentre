@@ -170,7 +170,7 @@ export default function Roadmap() {
     <section 
       id="roadmap" 
       ref={sectionRef}
-      className="py-20 scroll-mt-24 overflow-hidden bg-gradient-to-b from-white to-rose-50/30 relative"
+      className="py-20 scroll-mt-24 overflow-hidden bg-linear-to-b from-white to-rose-50/30 relative"
     >
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
@@ -203,18 +203,18 @@ export default function Roadmap() {
         {/* Roadmap Timeline Container */}
         <div ref={containerRef} className="relative min-h-[1200px] lg:min-h-[1400px]">
           {/* Timeline Line - Desktop với animation progress */}
-          <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-pink-300 via-blue-300 to-emerald-300 transform -translate-x-1/2 overflow-hidden">
+          <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-1 bg-linear-to-b from-pink-300 via-blue-300 to-emerald-300 transform -translate-x-1/2 overflow-hidden">
             {/* Static gradient line */}
-            <div className="absolute inset-0 bg-gradient-to-b from-pink-300 via-blue-300 to-emerald-300"></div>
+            <div className="absolute inset-0 bg-linear-to-b from-pink-300 via-blue-300 to-emerald-300"></div>
             
             {/* Animated progress fill */}
             <div 
-              className="absolute top-0 left-0 w-full bg-gradient-to-b from-pink-500 via-blue-500 to-emerald-500 transition-all duration-500"
+              className="absolute top-0 left-0 w-full bg-linear-to-b from-pink-500 via-blue-500 to-emerald-500 transition-all duration-500"
               style={{ height: `${timelineProgress}%` }}
             ></div>
             
             {/* Shimmer effect */}
-            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-transparent via-white/30 to-transparent animate-shimmer"></div>
+            <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-transparent via-white/30 to-transparent animate-shimmer"></div>
           </div>
 
           {/* Animated Progress Indicator trên timeline */}
@@ -320,7 +320,7 @@ export default function Roadmap() {
                     </div>
                     
                     {/* Decorative corner */}
-                    <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-br ${item.color} opacity-10 rounded-bl-3xl`}></div>
+                    <div className={`absolute top-0 right-0 w-16 h-16 bg-linear-to-br ${item.color} opacity-10 rounded-bl-3xl`}></div>
                     
                     {/* Icon - Center với animation */}
                     <div className={`
@@ -332,7 +332,7 @@ export default function Roadmap() {
                       ${isVisible[i] ? 'animate-zoom-in' : 'opacity-0 scale-50'}
                     `}
                     style={{ animationDelay: `${i * 150 + 400}ms` }}>
-                      <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-10`}></div>
+                      <div className={`absolute inset-0 bg-linear-to-br ${item.color} opacity-10`}></div>
                       <Icon className={`w-10 h-10 bg-gradient-to-r ${item.color} bg-clip-text text-transparent`} />
                       
                       {/* Floating dots */}
@@ -402,7 +402,7 @@ export default function Roadmap() {
                 <Trophy className="w-8 h-8 text-white" />
               </div>
               {/* Trail effect */}
-               <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-1 h-12 bg-gradient-to-b from-emerald-400 to-transparent"></div>
+               <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-1 h-12 bg-linear-to-b from-emerald-400 to-transparent"></div>
               {/* Celebration particles */}
               <div className="absolute -top-4 -left-4 w-4 h-4 rounded-full bg-yellow-400 animate-ping"></div>
               <div className="absolute -top-4 -right-4 w-3 h-3 rounded-full bg-pink-400 animate-ping" style={{ animationDelay: '300ms' }}></div>

@@ -196,7 +196,7 @@ export function AiInput() {
                     : "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
                 )}
               >
-                <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                <div className="w-4 h-4 flex items-center justify-center shrink-0">
                   <motion.div
                     animate={{
                       rotate: showSearch ? 180 : 0,
@@ -235,7 +235,7 @@ export function AiInput() {
                       }}
                       exit={{ width: 0, opacity: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="text-sm overflow-hidden whitespace-nowrap text-[#ff3f17] flex-shrink-0"
+                      className="text-sm overflow-hidden whitespace-nowrap text-[#ff3f17] shrink-0"
                     >
                       Search
                     </motion.span>

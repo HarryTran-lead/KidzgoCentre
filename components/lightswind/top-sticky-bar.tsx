@@ -105,7 +105,7 @@ removeEventListener("scroll", handleScroll);
       }}
       transition={{ duration, ease }}
       className={cn(
-        "fixed top-0 left-0 w-full z-[60] bg-gray-800 text-white py-1 text-sm text-center shadow-md",
+        "fixed top-0 left-0 w-full z-60 bg-gray-800 text-white py-1 text-sm text-center shadow-md",
         className
       )}
     >

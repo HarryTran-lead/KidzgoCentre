@@ -34,7 +34,7 @@ export const ShineButton: React.FC<ShineButtonProps> = ({
   return (
     <button
       onClick={onClick}
-      className={`relative text-white font-medium rounded-md min-w-[120px] min-h-[44px] transition-all duration-700 ease-in-out
+      className={`relative text-white font-medium rounded-md min-w-[120px] min-h-11 transition-all duration-700 ease-in-out
         border-none cursor-pointer shadow-[0px_0px_20px_rgba(71,184,255,0.5),0px_5px_5px_-1px_rgba(58,125,233,0.25),inset_4px_4px_8px_rgba(175,230,255,0.5),inset_-4px_-4px_8px_rgba(19,95,216,0.35)]
         focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-500
         hover:bg-[length:280%_auto] active:scale-95 ${className}`}

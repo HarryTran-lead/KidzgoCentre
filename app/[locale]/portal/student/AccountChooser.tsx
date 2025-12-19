@@ -67,7 +67,7 @@ export default function AccountChooser({
           <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-6 flex flex-col gap-4">
             <div className="flex items-center gap-4">
               {/* Avatar student */}
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 text-white grid place-items-center text-xl font-semibold">
+              <div className="w-14 h-14 rounded-full bg-linear-to-br from-indigo-500 to-sky-500 text-white grid place-items-center text-xl font-semibold">
                 {studentAvatarText}
               </div>
 
@@ -104,7 +104,7 @@ export default function AccountChooser({
           <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-6 flex flex-col gap-4">
             <div className="flex items-center gap-4">
               {/* Avatar parent */}
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-white grid place-items-center text-xl font-semibold">
+              <div className="w-14 h-14 rounded-full bg-linear-to-br from-amber-500 to-orange-500 text-white grid place-items-center text-xl font-semibold">
                 {parentAvatarText}
               </div>
 

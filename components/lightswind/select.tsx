@@ -402,9 +402,8 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
                 return child.toString();
             }
             if (React.isValidElement(child) && child.props.children) {
-                return React.Children.map(child.props.children, getChildText).join(
-                    ""
-                );
+                const mapped = React.Children.map(child.props.children, getChildText);
+                return (mapped || []).join("");
             }
             return "";
         };
