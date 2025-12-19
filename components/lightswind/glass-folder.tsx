@@ -16,7 +16,7 @@ const GlassFolder: React.FC<GlassFolderProps> = ({ icon, className }) => {
         className
       )}
     >
-      <div className="relative w-60 h-40 cursor-pointer origin-bottom [perspective:1500px] z-50">
+      <div className="relative w-60 h-40 cursor-pointer origin-bottom perspective-[1500px] z-50">
         {/* Top tab */}
         <div
           className="bg-blue-600/30 backdrop-blur-md w-full h-full origin-top rounded-2xl rounded-tl-none 

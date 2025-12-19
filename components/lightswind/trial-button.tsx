@@ -192,13 +192,13 @@ export const TrialButton: React.FC<TrialButtonProps> = ({
       </style>
 
       <button
-        className=" backdrop-blur-md !font-bold
+        className=" backdrop-blur-md font-bold
           shiny-custom-styles /* Apply custom gradient and animation styles */
           isolate relative overflow-hidden cursor-pointer
           outline-offset-4
-          py-[0.75rem] px-[1.25rem] /* Tailwind equivalent for padding */
+          py-3 px-5 /* Tailwind equivalent for padding */
            text-base leading-tight /* Font styles */
-          !rounded-full text-black dark:text-white /* Updated text colors */
+          rounded-full text-black dark:text-white /* Updated text colors */
           bg-white dark:bg-black /* Requested background colors */
           active:translate-y-px /* Active state for a subtle press effect */
           flex items-center justify-center /* Center children */

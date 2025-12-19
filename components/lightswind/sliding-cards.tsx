@@ -128,7 +128,7 @@ const SlidingCards: React.FC<SlidingCardsProps> = ({
         className
       )}
     >
-      {cards.map(({ id, icon, bgClass = "bg-gradient-to-br from-pink-300 to-orange-200" }, index) => (
+      {cards.map(({ id, icon, bgClass = "bg-linear-to-br from-pink-300 to-orange-200" }, index) => (
         <article
           key={id}
           onClick={() => onCardClick?.(index)}

@@ -42,31 +42,31 @@ const item: Variants = {
 /* ===== Icon palettes ===== */
 const BADGE_STYLES = {
   rose: {
-    grad: "group-hover:bg-gradient-to-br group-hover:from-pink-500 group-hover:to-rose-600 group-hover/contact:bg-gradient-to-br group-hover/contact:from-pink-500 group-hover/contact:to-rose-600",
+    grad: "group-hover:bg-linear-to-br group-hover:from-pink-500 group-hover:to-rose-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-pink-500 group-hover/contact:to-rose-600",
     ring: "group-hover:ring-rose-300 group-hover/contact:ring-rose-300",
   },
   amber: {
-    grad: "group-hover:bg-gradient-to-br group-hover:from-amber-400 group-hover:to-orange-500 group-hover/contact:bg-gradient-to-br group-hover/contact:from-amber-400 group-hover/contact:to-orange-500",
+    grad: "group-hover:bg-linear-to-br group-hover:from-amber-400 group-hover:to-orange-500 group-hover/contact:bg-linear-to-br group-hover/contact:from-amber-400 group-hover/contact:to-orange-500",
     ring: "group-hover:ring-amber-300 group-hover/contact:ring-amber-300",
   },
   sky: {
-    grad: "group-hover:bg-gradient-to-br group-hover:from-sky-400 group-hover:to-blue-600 group-hover/contact:bg-gradient-to-br group-hover/contact:from-sky-400 group-hover/contact:to-blue-600",
+    grad: "group-hover:bg-linear-to-br group-hover:from-sky-400 group-hover:to-blue-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-sky-400 group-hover/contact:to-blue-600",
     ring: "group-hover:ring-sky-300 group-hover/contact:ring-sky-300",
   },
   violet: {
-    grad: "group-hover:bg-gradient-to-br group-hover:from-violet-500 group-hover:to-fuchsia-600 group-hover/contact:bg-gradient-to-br group-hover/contact:from-violet-500 group-hover/contact:to-fuchsia-600",
+    grad: "group-hover:bg-linear-to-br group-hover:from-violet-500 group-hover:to-fuchsia-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-violet-500 group-hover/contact:to-fuchsia-600",
     ring: "group-hover:ring-violet-300 group-hover/contact:ring-violet-300",
   },
   emerald: {
-    grad: "group-hover:bg-gradient-to-br group-hover:from-emerald-400 group-hover:to-teal-600 group-hover/contact:bg-gradient-to-br group-hover/contact:from-emerald-400 group-hover/contact:to-teal-600",
+    grad: "group-hover:bg-linear-to-br group-hover:from-emerald-400 group-hover:to-teal-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-emerald-400 group-hover/contact:to-teal-600",
     ring: "group-hover:ring-emerald-300 group-hover/contact:ring-emerald-300",
   },
   red: {
-    grad: "group-hover:bg-gradient-to-br group-hover:from-red-500 group-hover:to-rose-600 group-hover/contact:bg-gradient-to-br group-hover/contact:from-red-500 group-hover/contact:to-rose-600",
+    grad: "group-hover:bg-linear-to-br group-hover:from-red-500 group-hover:to-rose-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-red-500 group-hover/contact:to-rose-600",
     ring: "group-hover:ring-red-300 group-hover/contact:ring-red-300",
   },
   blue: {
-    grad: "group-hover:bg-gradient-to-br group-hover:from-blue-500 group-hover:to-indigo-600 group-hover/contact:bg-gradient-to-br group-hover/contact:from-blue-500 group-hover/contact:to-indigo-600",
+    grad: "group-hover:bg-linear-to-br group-hover:from-blue-500 group-hover:to-indigo-600 group-hover/contact:bg-linear-to-br group-hover/contact:from-blue-500 group-hover/contact:to-indigo-600",
     ring: "group-hover:ring-blue-300 group-hover/contact:ring-blue-300",
   },
 } as const;

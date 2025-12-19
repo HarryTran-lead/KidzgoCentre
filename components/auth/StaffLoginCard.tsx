@@ -303,7 +303,7 @@ export default function StaffLoginCard({
                             transition={{ duration: 0.2 }}
                           >
                             <motion.div
-                              className="w-8 h-8 rounded-md bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center"
+                              className="w-8 h-8 rounded-md bg-linear-to-br from-pink-500 to-rose-600 flex items-center justify-center"
                               whileHover={{
                                 rotate: [0, -10, 10, -10, 0],
                                 scale: 1.1
@@ -353,7 +353,7 @@ export default function StaffLoginCard({
                           </motion.p>
                           {/* Glow effect on hover */}
                           <motion.div
-                            className="absolute inset-0 rounded-lg bg-gradient-to-br from-pink-400/0 to-rose-500/0 group-hover:from-pink-400/20 group-hover:to-rose-500/20 pointer-events-none transition-all duration-300"
+                            className="absolute inset-0 rounded-lg bg-linear-to-br from-pink-400/0 to-rose-500/0 group-hover:from-pink-400/20 group-hover:to-rose-500/20 pointer-events-none transition-all duration-300"
                             initial={{ opacity: 0 }}
                             whileHover={{ opacity: 1 }}
                           />

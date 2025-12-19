@@ -8,7 +8,7 @@ import type { UseFormRegisterReturn } from "react-hook-form";
 interface InputProps {
   label: string;
   name: string;
-  icon?: React.ElementType;
+  icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   type?: string;
   required?: boolean;
   error?: string;

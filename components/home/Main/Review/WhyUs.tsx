@@ -49,12 +49,12 @@ export default function WhyUs() {
   ];
 
   const iconGradients = [
-    'bg-gradient-to-br from-amber-500 to-orange-500',
-    'bg-gradient-to-br from-blue-500 to-purple-500',
-    'bg-gradient-to-br from-emerald-500 to-teal-500',
-    'bg-gradient-to-br from-rose-500 to-pink-500',
-    'bg-gradient-to-br from-indigo-500 to-violet-500',
-    'bg-gradient-to-br from-cyan-500 to-sky-500',
+    'bg-linear-to-br from-amber-500 to-orange-500',
+    'bg-linear-to-br from-blue-500 to-purple-500',
+    'bg-linear-to-br from-emerald-500 to-teal-500',
+    'bg-linear-to-br from-rose-500 to-pink-500',
+    'bg-linear-to-br from-indigo-500 to-violet-500',
+    'bg-linear-to-br from-cyan-500 to-sky-500',
   ];
 
   return (
@@ -103,7 +103,7 @@ export default function WhyUs() {
               >
                 {/* Background glow effect */}
                 <div className={`
-                  absolute inset-0 rounded-3xl bg-gradient-to-br ${cardGradients[gradientIndex]} 
+                  absolute inset-0 rounded-3xl bg-linear-to-br ${cardGradients[gradientIndex]} 
                   blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500
                   ${isVisible ? 'opacity-30' : 'opacity-0'}
                 `}></div>
@@ -115,7 +115,7 @@ export default function WhyUs() {
                   overflow-hidden
                   group-hover:bg-white/80 group-hover:shadow-xl group-hover:shadow-gray-300/50
                   transition-all duration-500
-                  before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/50 before:to-transparent
+                  before:absolute before:inset-0 before:bg-linear-to-br before:from-white/50 before:to-transparent
                 `}>
                   {/* Decorative top border */}
                   <div className={`h-1 bg-gradient-to-r ${cardGradients[gradientIndex].replace('/10', '/100').replace('/5', '/100')}`}></div>
@@ -172,7 +172,7 @@ export default function WhyUs() {
                 </div>
                 
                 {/* Floating elements */}
-                <div className="absolute -z-10 top-4 -right-4 w-24 h-24 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-md"></div>
+                <div className="absolute -z-10 top-4 -right-4 w-24 h-24 bg-linear-to-br from-white/20 to-transparent rounded-full blur-md"></div>
                 <div className="absolute -z-10 bottom-4 -left-4 w-16 h-16 bg-gradient-to-tr from-white/20 to-transparent rounded-full blur-md"></div>
               </div>
             );

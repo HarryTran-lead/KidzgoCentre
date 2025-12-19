@@ -37,7 +37,9 @@ export function VideoText({
   ...motionProps
 }: VideoTextProps & HTMLMotionProps<"div">) {
   const [svgMask, setSvgMask] = useState("");
-  const content = React.Children.toArray(children).join("");
+  const content = React.Children.toArray(children)
+    .map((child) => (typeof child === "string" || typeof child === "number" ? child.toString() : ""))
+    .join("");
 
   useEffect(() => {
     const responsiveFontSize =
