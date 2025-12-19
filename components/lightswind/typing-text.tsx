@@ -75,8 +75,10 @@ export const TypingText = ({
     }),
   };
 
+  const ComponentToRender = Component as any;
+
   return (
-    <Component
+    <ComponentToRender
       className={cn(
         "inline-flex",
         className,
@@ -111,6 +113,6 @@ export const TypingText = ({
           </motion.span>
         ))}
       </motion.span>
-    </Component>
+    </ComponentToRender>
   );
 };

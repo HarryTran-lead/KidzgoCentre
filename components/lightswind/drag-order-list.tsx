@@ -96,7 +96,7 @@ function ReorderHandle({ dragControls }: { dragControls: DragControls }) {
 
 const inactiveShadow = "0px 0px 0px rgba(0,0,0,0.8)";
 
-function useRaisedShadow(value: ReturnType<typeof useMotionValue>) {
+function useRaisedShadow(value: ReturnType<typeof useMotionValue<number>>) {
   const boxShadow = useMotionValue(inactiveShadow);
 
   useEffect(() => {
