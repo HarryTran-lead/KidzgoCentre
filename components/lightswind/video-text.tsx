@@ -37,7 +37,9 @@ export function VideoText({
   ...motionProps
 }: VideoTextProps & HTMLMotionProps<"div">) {
   const [svgMask, setSvgMask] = useState("");
-  const content = React.Children.toArray(children).join("");
+  const content = React.Children.toArray(children)
+    .map((child) => (typeof child === "string" || typeof child === "number" ? child.toString() : ""))
+    .join("");
 
   useEffect(() => {
     const responsiveFontSize =
@@ -58,7 +60,8 @@ export function VideoText({
   const validTags = ["div", "span", "section", "article", "p", "h1", "h2", "h3", "h4", "h5", "h6"] as const;
   type ValidTag = (typeof validTags)[number];
 
-  const MotionComponent = motion[validTags.includes(as) ? as : "div"] as React.ElementType;
+  const MotionComponentBase = motion[validTags.includes(as) ? as : "div"];
+  const MotionComponent: any = MotionComponentBase;
 
   if (!svgMask) {
     return (

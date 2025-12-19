@@ -67,7 +67,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
         return (
           <div className={`inline-flex items-center space-x-2 ${className}`}>
             {showIcon && (
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <IconComponent className={`h-5 w-5 ${colors.icon} animate-pulse`} />
               </div>
             )}
@@ -87,7 +87,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
             
             <div className="relative flex items-start space-x-4">
               {showIcon && (
-                <div className="flex-shrink-0 mt-1">
+                <div className="shrink-0 mt-1">
                   <div className={`p-2 ${colors.accent} rounded-full`}>
                     <IconComponent className={`h-6 w-6 ${colors.icon}`} />
                   </div>
@@ -106,7 +106,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
               {dismissible && (
                 <button
                   onClick={onDismiss}
-                  className={`flex-shrink-0 p-1 rounded-full hover:${colors.accent} transition-colors duration-200`}
+                  className={`shrink-0 p-1 rounded-full hover:${colors.accent} transition-colors duration-200`}
                 >
                   <FaTimes className={`h-4 w-4 ${colors.icon} hover:opacity-75`} />
                 </button>
@@ -121,7 +121,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 {showIcon && (
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <IconComponent className={`h-5 w-5 ${colors.icon} animate-bounce`} />
                   </div>
                 )}
@@ -132,7 +132,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
               {dismissible && (
                 <button
                   onClick={onDismiss}
-                  className={`ml-4 flex-shrink-0 p-1 rounded-full hover:${colors.accent} transition-all duration-200 hover:scale-110`}
+                  className={`ml-4 shrink-0 p-1 rounded-full hover:${colors.accent} transition-all duration-200 hover:scale-110`}
                 >
                   <FaTimes className={`h-4 w-4 ${colors.icon}`} />
                 </button>
@@ -145,7 +145,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
         return (
           <div className={`flex items-center justify-center space-x-3 ${colors.bg} ${colors.border} border rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 group ${className}`}>
             {showIcon && (
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className={`p-2 ${colors.accent} rounded-full group-hover:scale-110 transition-transform duration-300`}>
                   <IconComponent className={`h-5 w-5 ${colors.icon}`} />
                 </div>
@@ -159,7 +159,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
             {dismissible && (
               <button
                 onClick={onDismiss}
-                className={`flex-shrink-0 p-2 rounded-full hover:${colors.accent} transition-all duration-200 hover:scale-110 hover:rotate-90`}
+                className={`shrink-0 p-2 rounded-full hover:${colors.accent} transition-all duration-200 hover:scale-110 hover:rotate-90`}
               >
                 <FaTimes className={`h-4 w-4 ${colors.icon}`} />
               </button>
@@ -177,7 +177,7 @@ const ErrorMessageShowcase: React.FC = () => {
   const [showDismissible, setShowDismissible] = React.useState(true);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-teal-50 p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">

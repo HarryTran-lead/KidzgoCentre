@@ -35,8 +35,8 @@ const Calendar = () => {
     to: addDays(today, 7),
   });
 
-  const handleModeChange = (value: "single" | "multiple" | "range") => {
-    setMode(value);
+  const handleModeChange = (value: string) => {
+    setMode(value as "single" | "multiple" | "range");
   };
 
   // This logic uses native Date methods, so it doesn't need to change.

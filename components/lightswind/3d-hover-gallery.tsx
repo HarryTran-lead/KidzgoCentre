@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef, useEffect, useState } from "react";
-const cn = (...classes) => classes.filter(Boolean).join(" ");
+const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(" ");
 
 export interface ThreeDHoverGalleryProps {
   images?: string[];

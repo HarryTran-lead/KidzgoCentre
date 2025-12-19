@@ -53,7 +53,7 @@ export default function Testimonials() {
   return (
     <section className="py-24 md:py-32 scroll-mt-24 relative overflow-hidden">
       {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white via-rose-50/30 to-white -z-10"></div>
+      <div className="absolute inset-0 bg-linear-to-b from-white via-rose-50/30 to-white -z-10"></div>
       <div className="absolute top-20 left-1/4 w-96 h-96 bg-gradient-to-r from-pink-500/5 to-rose-500/5 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-full blur-3xl -z-10"></div>
       
@@ -98,12 +98,12 @@ export default function Testimonials() {
             {/* Left: Content */}
             <div className="relative">
               {/* Floating decorative elements */}
-              <div className="absolute -top-6 -left-6 w-24 h-24 bg-gradient-to-br from-pink-500/10 to-rose-500/10 rounded-2xl blur-xl"></div>
+              <div className="absolute -top-6 -left-6 w-24 h-24 bg-linear-to-br from-pink-500/10 to-rose-500/10 rounded-2xl blur-xl"></div>
               <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-tr from-blue-500/10 to-indigo-500/10 rounded-2xl blur-xl"></div>
               
               <div className="relative backdrop-blur-sm bg-white/60 rounded-3xl border border-white/50 shadow-2xl p-8 md:p-10">
                 {/* Quote icon */}
-                <div className="absolute -top-4 -left-4 w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 grid place-items-center shadow-xl">
+                <div className="absolute -top-4 -left-4 w-16 h-16 rounded-2xl bg-linear-to-br from-pink-500 to-rose-500 grid place-items-center shadow-xl">
                   <Quote className="w-8 h-8 text-white" />
                 </div>
                 
@@ -161,7 +161,7 @@ export default function Testimonials() {
                 <div className={`absolute inset-0 rounded-3xl bg-gradient-to-r ${gradients[idx % gradients.length]} blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500`}></div>
                 
                 {/* Main avatar image */}
-                <div className="relative rounded-2xl overflow-hidden border-2 border-white/50 shadow-2xl bg-gradient-to-br from-white to-gray-50">
+                <div className="relative rounded-2xl overflow-hidden border-2 border-white/50 shadow-2xl bg-linear-to-br from-white to-gray-50">
                   <AnimatePresence mode="wait">
                     <motion.img
                       key={slide.avatar}
@@ -237,7 +237,7 @@ export default function Testimonials() {
               
               {/* Floating elements */}
               <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-tr from-amber-500/10 to-orange-500/10 rounded-full blur-xl -z-10"></div>
-              <div className="absolute -top-4 -left-4 w-20 h-20 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-xl -z-10"></div>
+              <div className="absolute -top-4 -left-4 w-20 h-20 bg-linear-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-xl -z-10"></div>
             </div>
           </div>
 

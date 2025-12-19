@@ -3,10 +3,10 @@ import * as React from "react";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { motion, useInView, HTMLMotionProps } from "framer-motion";
 import { twMerge } from "tailwind-merge";
-import clsx from "clsx";
+import clsx, { type ClassValue } from "clsx";
 
 // Re-implementing the 'cn' utility function directly for self-containment
-function cn(...inputs: clsx.ClassValue[]) {
+function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 

@@ -203,7 +203,7 @@ export default function Page() {
                 className="outline-none bg-transparent text-sm text-slate-900 placeholder:text-slate-400"
               />
             </div>
-            <button className="px-3 py-2 rounded-xl bg-gradient-to-br from-pink-500 to-amber-400 text-white text-sm font-semibold shadow-sm">
+            <button className="px-3 py-2 rounded-xl bg-linear-to-br from-pink-500 to-amber-400 text-white text-sm font-semibold shadow-sm">
               + Thêm phòng học
             </button>
           </div>

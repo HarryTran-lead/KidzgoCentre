@@ -107,7 +107,7 @@ function DockItem({
             exit={{ opacity: 0, y: 0 }}
             transition={{ duration: 0.2 }}
             className="absolute -top-6 left-1/2 w-fit whitespace-pre rounded-md 
-            border border   bg-[#060606] px-2 py-0.5 text-xs text-white"
+            border  bg-[#060606] px-2 py-0.5 text-xs text-white"
             style={{ x: "-50%" }}
             role="tooltip"
           >

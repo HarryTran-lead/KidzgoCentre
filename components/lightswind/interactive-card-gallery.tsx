@@ -47,7 +47,7 @@ const CardItem = ({
           backgroundImage: `url('${imageSrc}')`,
         }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black opacity-50" />
+      <div className="absolute inset-0 bg-linear-to-b from-transparent to-black opacity-50" />
       <div className="relative flex flex-col items-center text-white p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-out">
         <h2 className="text-lg font-bold">{title}</h2>
         <p className="mt-2 italic text-sm">{description}</p>

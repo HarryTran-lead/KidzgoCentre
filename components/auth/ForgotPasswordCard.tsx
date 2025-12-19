@@ -107,7 +107,7 @@ const ForgotPasswordCard: React.FC<ForgotPasswordCardProps> = ({
           {/* Instructions */}
           <div className="bg-teal-50 border border-teal-200 rounded-xl p-5 space-y-3.5 text-left">
             <div className="flex items-start gap-3">
-              <FiShield className="w-5 h-5 text-teal-600 mt-0.5 flex-shrink-0" />
+              <FiShield className="w-5 h-5 text-teal-600 mt-0.5 shrink-0" />
               <div>
                 <p className="font-semibold text-gray-900 mb-0.5">
                   Kiểm tra email của bạn
@@ -119,7 +119,7 @@ const ForgotPasswordCard: React.FC<ForgotPasswordCardProps> = ({
             </div>
 
             <div className="flex items-start gap-3">
-              <FiClock className="w-5 h-5 text-teal-600 mt-0.5 flex-shrink-0" />
+              <FiClock className="w-5 h-5 text-teal-600 mt-0.5 shrink-0" />
               <div>
                 <p className="font-semibold text-gray-900 mb-0.5">
                   Thời gian hiệu lực
