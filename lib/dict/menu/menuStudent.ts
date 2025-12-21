@@ -2,7 +2,6 @@
 export const menuStudent = {
   vi: {
     groups: {
-      scheduleAttendance: "Thời khóa biểu & Điểm danh",
       homework: "Bài tập",
       testsReports: "Kiểm tra & Báo cáo",
       gamification: "Gamification",
@@ -12,13 +11,10 @@ export const menuStudent = {
     items: {
       home: "Trang chủ",
       // Thời khóa biểu & Điểm danh
-      viewSchedule: "Xem Thời khóa biểu",
-      attendanceHistory: "Lịch sử điểm danh",
+      schedule: "Thời khóa biểu",
+      attendance: "Điểm danh",
       // Bài tập
-      homeworkList: "Danh sách bài tập",
-      submitHomework: "Nộp bài tập",
-      homeworkScores: "Xem điểm bài tập",
-      homeworkFeedback: "Nhận xét & Feedback",
+      homework: "Bài tập",
       // Kiểm tra & Báo cáo
       testResults: "Kết quả kiểm tra",
       monthlyReports: "Báo cáo học tập tháng",
@@ -39,7 +35,6 @@ export const menuStudent = {
   },
   en: {
     groups: {
-      scheduleAttendance: "Schedule & Attendance",
       homework: "Homework",
       testsReports: "Tests & Reports",
       gamification: "Gamification",
@@ -49,13 +44,10 @@ export const menuStudent = {
     items: {
       home: "Home",
       // Schedule & Attendance
-      viewSchedule: "View Schedule",
-      attendanceHistory: "Attendance History",
+      schedule: "Schedule",
+      attendance: "Attendance",
       // Homework
-      homeworkList: "Homework List",
-      submitHomework: "Submit Homework",
-      homeworkScores: "Homework Scores",
-      homeworkFeedback: "Comments & Feedback",
+      homework: "Homework",
       // Tests & Reports
       testResults: "Test Results",
       monthlyReports: "Monthly Reports",

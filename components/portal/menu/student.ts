@@ -35,31 +35,26 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     href: root,
   };
 
-  // 🗓️ Thời khóa biểu & Điểm danh
-  const scheduleAttendanceGroup = makeGroup(
-    root,
-    t.groups.scheduleAttendance,
-    CalendarCheck,
-    [
-      [t.items.viewSchedule, Calendar, "/schedule"],
-      [t.items.attendanceHistory, History, "/attendance"],
-    ],
-    false
-  );
+  // 🗓️ Thời khóa biểu
+  const scheduleItem: MenuItem = {
+    label: t.items.schedule,
+    icon: Calendar,
+    href: `${root}/schedule`,
+  };
+
+  // ✅ Điểm danh
+  const attendanceItem: MenuItem = {
+    label: t.items.attendance,
+    icon: History,
+    href: `${root}/attendance`,
+  };
 
   // 📚 Bài tập
-  const homeworkGroup = makeGroup(
-    root,
-    t.groups.homework,
-    ClipboardList,
-    [
-      [t.items.homeworkList, ClipboardList, "/homework"],
-      [t.items.submitHomework, Upload, "/homework/submit"],
-      [t.items.homeworkScores, GraduationCap, "/homework/scores"],
-      [t.items.homeworkFeedback, MessageSquare, "/homework/feedback"],
-    ],
-    false
-  );
+  const homeworkItem: MenuItem = {
+    label: t.items.homework,
+    icon: ClipboardList,
+    href: `${root}/homework`,
+  };
 
   // 📝 Kiểm tra & Báo cáo
   const testsReportsGroup = makeGroup(
@@ -115,8 +110,9 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
 
   return [
     homeItem,
-    scheduleAttendanceGroup,
-    homeworkGroup,
+    scheduleItem,
+    attendanceItem,
+    homeworkItem,
     testsReportsGroup,
     gamificationGroup,
     mediaGroup,
