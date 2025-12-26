@@ -20,6 +20,7 @@ import type { LucideIcon } from "lucide-react";
 import { LOGO, LOGO_ONLY } from "@/lib/theme/theme";
 import Tooltip from "@mui/material/Tooltip";
 import { createPortal } from "react-dom";
+import ChildSelector from "../parent/ChildSelector";
 
 /* ===== Types ===== */
 type FlatItem = {
@@ -189,7 +190,7 @@ function Flyout({
   return createPortal(
     <div
       ref={panelRef}
-      className="fixed z-[1200] w-64 max-h-[80vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-2xl p-2 animate-in fade-in slide-in-from-left-2"
+      className="fixed z-1200 w-64 max-h-[80vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-2xl p-2 animate-in fade-in slide-in-from-left-2"
       style={{ top: pos.top, left: pos.left }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -611,6 +612,13 @@ export default function Sidebar({
           </div>
         </div>
       ) : null}
+
+      {/* Child Selector for Parent role */}
+      {role === "PARENT" && !collapsed && (
+        <div className="px-3 py-2">
+          <ChildSelector />
+        </div>
+      )}
 
       {/* Menu */}
       <nav

@@ -1,6 +1,4 @@
 import {
-  House,
-  Users,
   Calendar,
   History,
   FileText,
@@ -21,7 +19,20 @@ import {
   Award,
   Image,
   User,
-  Bell,
+  HelpCircle,
+  Settings,
+  UserCircle,
+  LockKeyhole,
+  LogOut,
+  CalendarCheck2,
+  BookOpen,
+  FileSpreadsheet,
+  Banknote,
+  Gamepad2,
+  ImageIcon,
+  BellRing,
+  HeadphonesIcon,
+  Users,
   Ticket,
 } from "lucide-react";
 import { makeMenu, makeGroup, type RawItem } from "./utils";
@@ -32,125 +43,70 @@ import { getMessages } from "@/lib/dict";
 export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const t = getMessages(locale).menuParent;
 
-  // Home (flat item)
-  const homeItem: MenuItem = {
-    label: t.items.home,
-    icon: House,
-    href: root,
+  // 🗓️ Lịch học & Điểm danh
+  const scheduleItem: MenuItem = {
+    label: t.items.schedule,
+    icon: CalendarCheck2,
+    href: `${root}/schedule`,
   };
 
-  // 👶 Quản lý con
-  const childManagementGroup = makeGroup(
-    root,
-    t.groups.childManagement,
-    Users,
-    [[t.items.manageChildren, Users, "/children"]],
-    false
-  );
-
-  // 🗓️ Thời khóa biểu & Điểm danh
-  const scheduleAttendanceGroup = makeGroup(
-    root,
-    t.groups.scheduleAttendance,
-    Calendar,
-    [
-      [t.items.childSchedule, Calendar, "/schedule"],
-      [t.items.childAttendance, History, "/attendance"],
-      [t.items.leaveRequest, FileText, "/leave-request"],
-      [t.items.makeupCredits, ShieldCheck, "/makeup-credits"],
-    ],
-    false
-  );
-
   // 📚 Bài tập
-  const homeworkGroup = makeGroup(
-    root,
-    t.groups.homework,
-    ClipboardList,
-    [
-      [t.items.homeworkStatus, ClipboardList, "/homework"],
-      [t.items.homeworkScores, GraduationCap, "/homework/scores"],
-      [t.items.teacherComments, MessageSquare, "/homework/comments"],
-    ],
-    false
-  );
+  const homeworkItem: MenuItem = {
+    label: t.items.homework,
+    icon: BookOpen,
+    href: `${root}/homework`,
+  };
 
   // 📝 Kiểm tra & Báo cáo
-  const testsReportsGroup = makeGroup(
-    root,
-    t.groups.testsReports,
-    FileCheck,
-    [
-      [t.items.placementTest, FileCheck, "/placement-test"],
-      [t.items.testResults, BarChart3, "/tests"],
-      [t.items.monthlyReports, FileText, "/reports"],
-      [t.items.reportHistory, History, "/reports/history"],
-    ],
-    false
-  );
+  const testsReportsItem: MenuItem = {
+    label: t.items.testsReports,
+    icon: FileSpreadsheet,
+    href: `${root}/tests`,
+  };
 
   // 💳 Thanh toán
-  const paymentGroup = makeGroup(
-    root,
-    t.groups.payment,
-    CreditCard,
-    [
-      [t.items.invoices, Receipt, "/invoices"],
-      [t.items.paymentStatus, DollarSign, "/payment/status"],
-      [t.items.makePayment, Wallet, "/payment"],
-      [t.items.paymentHistory, History, "/payment/history"],
-    ],
-    false
-  );
-
-  // 🎮 Gamification
-  const gamificationGroup = makeGroup(
-    root,
-    t.groups.gamification,
-    Target,
-    [
-      [t.items.childMissions, Target, "/missions"],
-      [t.items.childStreak, Flame, "/streak"],
-      [t.items.childStars, Star, "/stars"],
-      [t.items.childXp, TrendingUp, "/xp"],
-      [t.items.childLevel, Award, "/level"],
-    ],
-    false
-  );
+  const paymentItem: MenuItem = {
+    label: t.items.payment,
+    icon: Banknote,
+    href: `${root}/payment`,
+  };
 
   // 🖼️ Media
-  const mediaGroup = makeGroup(
-    root,
-    t.groups.media,
-    Image,
-    [
-      [t.items.childMedia, User, "/media/child"],
-      [t.items.classMedia, Image, "/media/class"],
-    ],
-    false
-  );
+  const mediaItem: MenuItem = {
+    label: t.items.media,
+    icon: ImageIcon,
+    href: `${root}/media`,
+  };
 
-  // 🔔 Thông báo & Hỗ trợ
-  const notificationsSupportGroup = makeGroup(
-    root,
-    t.groups.notificationsSupport,
-    Bell,
-    [
-      [t.items.importantNotifications, Bell, "/notifications"],
-      [t.items.supportTicket, Ticket, "/support"],
-    ],
-    false
-  );
+  // 🔔 Thông báo
+  const notificationsItem: MenuItem = {
+    label: t.items.notifications,
+    icon: BellRing,
+    href: `${root}/notifications`,
+  };
+
+  // 🆘 Hỗ trợ
+  const supportItem: MenuItem = {
+    label: t.items.support,
+    icon: HeadphonesIcon,
+    href: `${root}/support`,
+  };
+
+  // ⚙️ Tài khoản
+  const accountItem: MenuItem = {
+    label: t.items.account,
+    icon: Settings,
+    href: `${root}/account`,
+  };
 
   return [
-    homeItem,
-    childManagementGroup,
-    scheduleAttendanceGroup,
-    homeworkGroup,
-    testsReportsGroup,
-    paymentGroup,
-    gamificationGroup,
-    mediaGroup,
-    notificationsSupportGroup,
+    scheduleItem,
+    homeworkItem,
+    testsReportsItem,
+    paymentItem,
+    mediaItem,
+    notificationsItem,
+    supportItem,
+    accountItem,
   ];
 }

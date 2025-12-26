@@ -17,7 +17,7 @@ export const menuStudent = {
       homework: "Bài tập",
       // Kiểm tra & Báo cáo
       testResults: "Kết quả kiểm tra",
-      monthlyReports: "Báo cáo học tập tháng",
+      monthlyReports: "Tiến độ học tập",
       // Gamification
       missions: "Nhiệm vụ (Mission)",
       streak: "Streak học tập",
@@ -50,7 +50,7 @@ export const menuStudent = {
       homework: "Homework",
       // Tests & Reports
       testResults: "Test Results",
-      monthlyReports: "Monthly Reports",
+      monthlyReports: "Learning Progress",
       // Gamification
       missions: "Missions",
       streak: "Learning Streak",
