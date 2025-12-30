@@ -17,13 +17,15 @@ import { useEffect, useRef, useState } from "react";
 export default function Roadmap() {
   const [isVisible, setIsVisible] = useState<boolean[]>(Array(6).fill(false));
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [isTitleVisible, setIsTitleVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const finishLineRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
 
   const items = [
     {
-      title: "PRONUNCIATION MASTER",
+      title: "Bậc Thầy Phát Âm",
       desc: "Chuẩn hoá âm – nhịp – trọng âm theo kiểu vui & dễ nhớ.",
       icon: Volume2,
       color: "from-pink-500 to-rose-500",
@@ -32,7 +34,7 @@ export default function Roadmap() {
       step: 1
     },
     {
-      title: "COMMUNICATION BOOST",
+      title: "Tăng Cường Giao Tiếp",
       desc: "Giao tiếp phản xạ, trò chơi tình huống – tự tin nói.",
       icon: MessageCircle,
       color: "from-blue-500 to-cyan-500",
@@ -41,7 +43,7 @@ export default function Roadmap() {
       step: 2
     },
     {
-      title: "EXAM STARTER",
+      title: "Khởi Đầu Thi Cử",
       desc: "Nền tảng Cambridge/Pre-TOEIC – làm bài không sợ.",
       icon: Trophy,
       color: "from-amber-500 to-orange-500",
@@ -50,7 +52,7 @@ export default function Roadmap() {
       step: 3
     },
     {
-      title: "PLAN & HABITS",
+      title: "Kế Hoạch & Thói Quen",
       desc: "Thói quen 20–30' /ngày; ba mẹ theo dõi tiến độ.",
       icon: Calendar,
       color: "from-emerald-500 to-green-500",
@@ -59,7 +61,7 @@ export default function Roadmap() {
       step: 4
     },
     {
-      title: "REPORT & COACHING",
+      title: "Báo Cáo & Hướng Dẫn",
       desc: "Bảng tiến bộ hàng tháng & 1:1 coaching khi cần.",
       icon: BarChart3,
       color: "from-purple-500 to-violet-500",
@@ -68,7 +70,7 @@ export default function Roadmap() {
       step: 5
     },
     {
-      title: "PROJECT & CLUB",
+      title: "Dự Án & Câu Lạc Bộ",
       desc: "CLB, field trip – dùng tiếng Anh ngoài lớp.",
       icon: Users,
       color: "from-indigo-500 to-blue-500",
@@ -99,12 +101,16 @@ export default function Roadmap() {
       }
       setScrollProgress(progress);
 
-      // Hiệu ứng finish line di chuyển
+      // Hiệu ứng finish line di chuyển - Trophy trượt xuống theo scroll
       if (finishLineRef.current) {
         const finishLine = finishLineRef.current;
-        const maxScroll = sectionHeight * 0.8;
-        const translateY = Math.min(maxScroll, (scrollY - sectionTop + windowHeight * 0.3) * 0.5);
-        finishLine.style.transform = `translate(-50%, ${translateY}px)`;
+        // Tính toán vị trí Trophy dựa trên scroll progress
+        // Trophy bắt đầu từ đầu timeline và di chuyển xuống cuối
+        const trophyStart = 0; // Bắt đầu từ đầu timeline
+        const trophyEnd = container.offsetHeight; // Kết thúc ở cuối container
+        const trophyPosition = trophyStart + (progress * (trophyEnd - trophyStart));
+        finishLine.style.top = `${trophyPosition}px`;
+        finishLine.style.transform = `translate(-50%, 0)`;
       }
 
       // Hiệu ứng hiện từng card
@@ -148,6 +154,28 @@ export default function Roadmap() {
 
     const observer = new IntersectionObserver(observerCallback, observerOptions);
     
+    // Intersection Observer cho title header
+    const titleObserverOptions = {
+      root: null,
+      rootMargin: '0px',
+      threshold: 0.2
+    };
+
+    const titleObserverCallback = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setIsTitleVisible(true);
+        }
+      });
+    };
+
+    const titleObserver = new IntersectionObserver(titleObserverCallback, titleObserverOptions);
+    
+    // Quan sát title header
+    if (titleRef.current) {
+      titleObserver.observe(titleRef.current);
+    }
+    
     // Quan sát các card
     setTimeout(() => {
       const cardElements = document.querySelectorAll('.roadmap-card');
@@ -160,6 +188,7 @@ export default function Roadmap() {
     return () => {
       window.removeEventListener('scroll', handleScroll);
       observer.disconnect();
+      titleObserver.disconnect();
     };
   }, []);
 
@@ -170,63 +199,70 @@ export default function Roadmap() {
     <section 
       id="roadmap" 
       ref={sectionRef}
-      className="py-20 scroll-mt-24 overflow-hidden bg-linear-to-b from-white to-rose-50/30 relative"
+      className="py-20 scroll-mt-24 pb-0 overflow-hidden bg-gradient-to-b from-white via-rose-50 to-pink-50 relative  z-30"
+      style={{
+        borderTopLeftRadius: '3rem',
+        borderTopRightRadius: '3rem',
+        boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.1)',
+      }}
     >
       {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: 'inherit' }}>
         <div className="absolute top-1/4 left-10 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
         <div className="absolute bottom-1/4 right-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
       </div>
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6 relative z-10">
         {/* Header */}
-        <div className="text-center mb-16 relative">
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2 animate-bounce">
-            <Sparkles className="w-8 h-8 text-yellow-400" />
-          </div>
-          
-          <h2 className="text-4xl md:text-5xl font-black relative mb-4">
-            <span className="inline-block animate-bounce">✨</span>
+        <div ref={titleRef} className="text-center mb-16 relative">
+          <h2 className={`text-4xl md:text-5xl font-black relative mb-4 transition-all duration-1000 ${
+            isTitleVisible 
+              ? 'opacity-100 translate-y-0' 
+              : 'opacity-0 translate-y-10'
+          }`}>
             Lộ trình học{" "}
             <span className={`${ACCENT_TEXT} relative inline-block`}>
               6 bước
               <Star className="absolute -top-2 -right-4 w-4 h-4 text-yellow-500 animate-spin" />
             </span>
-            <span className="inline-block animate-bounce ml-2">🚀</span>
           </h2>
           
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+          <p className={`text-lg text-slate-600 max-w-2xl mx-auto transition-all duration-1000 delay-300 ${
+            isTitleVisible 
+              ? 'opacity-100 translate-y-0' 
+              : 'opacity-0 translate-y-10'
+          }`}>
             Hành trình khám phá tiếng Anh đầy màu sắc dành riêng cho trẻ em
           </p>
         </div>
 
         {/* Roadmap Timeline Container */}
-        <div ref={containerRef} className="relative min-h-[1200px] lg:min-h-[1400px]">
+        <div ref={containerRef} className="relative min-h-[900px] lg:min-h-[1100px]">
           {/* Timeline Line - Desktop với animation progress */}
-          <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-1 bg-linear-to-b from-pink-300 via-blue-300 to-emerald-300 transform -translate-x-1/2 overflow-hidden">
+          <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-3 bg-linear-to-b from-pink-300 via-blue-300 to-emerald-300 transform -translate-x-1/2 overflow-hidden rounded-full">
             {/* Static gradient line */}
-            <div className="absolute inset-0 bg-linear-to-b from-pink-300 via-blue-300 to-emerald-300"></div>
+            <div className="absolute inset-0 bg-linear-to-b from-pink-300 via-blue-300 to-emerald-300 rounded-full"></div>
             
             {/* Animated progress fill */}
             <div 
-              className="absolute top-0 left-0 w-full bg-linear-to-b from-pink-500 via-blue-500 to-emerald-500 transition-all duration-500"
+              className="absolute top-0 left-0 w-full bg-linear-to-b from-pink-500 via-blue-500 to-emerald-500 transition-all duration-500 rounded-full"
               style={{ height: `${timelineProgress}%` }}
             ></div>
             
             {/* Shimmer effect */}
-            <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-transparent via-white/30 to-transparent animate-shimmer"></div>
+            <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-transparent via-white/30 to-transparent animate-shimmer rounded-full"></div>
           </div>
 
-          {/* Animated Progress Indicator trên timeline */}
+          {/* Animated Progress Indicator trên timeline - Trophy */}
           <div 
             className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 z-20 transition-all duration-500 ease-out"
             style={{ top: `${timelineProgress}%` }}
           >
             <div className="relative">
-              <div className="w-6 h-6 rounded-full border-4 border-white bg-gradient-to-r from-pink-500 to-rose-500 shadow-xl animate-pulse">
-                <div className="absolute -inset-3 rounded-full bg-pink-500/20 animate-ping"></div>
+              <div className="w-12 h-12 rounded-full border-4 border-white bg-gradient-to-r from-emerald-400 to-green-500 shadow-xl flex items-center justify-center animate-pulse">
+                <Trophy className="w-6 h-6 text-white" />
+                <div className="absolute -inset-3 rounded-full bg-emerald-500/20 animate-ping"></div>
               </div>
-              <div className="absolute -top-6 -left-6 w-12 h-12 rounded-full border-4 border-white/30"></div>
             </div>
           </div>
 
@@ -391,27 +427,30 @@ export default function Roadmap() {
             })}
           </div>
 
-          {/* Finish Line với animation scroll */}
-          <div 
-            ref={finishLineRef}
-            className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 transition-all duration-300 ease-out"
-            style={{ top: '0%' }}
-          >
-            <div className="relative">
-              <div className="w-16 h-16 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full border-4 border-white shadow-2xl flex items-center justify-center animate-bounce">
-                <Trophy className="w-8 h-8 text-white" />
-              </div>
-              {/* Trail effect */}
-               <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-1 h-12 bg-linear-to-b from-emerald-400 to-transparent"></div>
-              {/* Celebration particles */}
-              <div className="absolute -top-4 -left-4 w-4 h-4 rounded-full bg-yellow-400 animate-ping"></div>
-              <div className="absolute -top-4 -right-4 w-3 h-3 rounded-full bg-pink-400 animate-ping" style={{ animationDelay: '300ms' }}></div>
-              <div className="absolute -bottom-4 left-0 w-3 h-3 rounded-full bg-blue-400 animate-ping" style={{ animationDelay: '600ms' }}></div>
-            </div>
-          </div>
+
         </div>
 
         
+      </div>
+
+      {/* Wave shape bottom decoration - matching WhyUs.tsx background (white) */}
+      <div className="relative w-full" style={{ marginBottom: '0', lineHeight: 0 }}>
+        <svg 
+          viewBox="0 0 1440 100" 
+          fill="none" 
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-auto"
+          preserveAspectRatio="none"
+          style={{ display: 'block', verticalAlign: 'bottom' }}
+        >
+          {/* Smooth wave with white color matching WhyUs.tsx background */}
+          <path 
+            d="M0,50 C240,10 480,90 720,50 C960,10 1200,90 1440,50 L1440,100 L0,100 Z" 
+            fill="white"
+            stroke="none"
+            style={{ shapeRendering: 'geometricPrecision' }}
+          />
+        </svg>
       </div>
 
       {/* Custom CSS cho animation */}
@@ -476,4 +515,4 @@ export default function Roadmap() {
       `}</style>
     </section>
   );
-}
+}  
