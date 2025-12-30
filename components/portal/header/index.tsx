@@ -1,8 +1,20 @@
 // components/portal/PortalHeader.tsx
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import { Bell, Search, Menu, X } from "lucide-react";
+import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
+import {
+  Bell,
+  Search,
+  Menu,
+  X,
+  Coins,
+  Gem,
+  Flame,
+  UserCircle2,
+  ChevronDown,
+  Sparkles,
+  Shield,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 import UserMenu from "./userMenu";
 import LanguageToggle from "@/components/ui/button/LanguageToggle";
@@ -39,6 +51,122 @@ type Props = {
   darkMode?: boolean;
   onThemeToggle?: () => void;
 };
+
+/* ============== Student Header ============== */
+function StudentStat({
+  icon,
+  label,
+  value,
+  gradient,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  gradient: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-white backdrop-blur shadow-[0_10px_40px_rgba(59,130,246,0.35)]">
+      <span
+        className={`grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-lg`}
+      >
+        {icon}
+      </span>
+      <div className="leading-tight">
+        <div className="text-[11px] uppercase tracking-wide text-indigo-50/80">
+          {label}
+        </div>
+        <div className="text-base font-extrabold">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function StudentHeaderBar({
+  onMenuClick,
+  userName,
+}: {
+  onMenuClick: () => void;
+  userName?: string;
+}) {
+  const stats = [
+    {
+      label: "KidzGo Coins",
+      value: "1,357",
+      icon: <Coins size={18} />,
+      gradient: "from-amber-400 to-orange-500",
+    },
+    {
+      label: "Kim cương",
+      value: "6",
+      icon: <Gem size={18} />,
+      gradient: "from-sky-400 to-indigo-500",
+    },
+    {
+      label: "Chuỗi ngày",
+      value: "6 ngày",
+      icon: <Flame size={18} />,
+      gradient: "from-rose-400 to-amber-500",
+    },
+  ];
+
+  return (
+    <header className="sticky top-0 z-50">
+      <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-r from-[#27117a] via-[#361288] to-[#4a1ea4] text-white shadow-[0_10px_30px_rgba(59,130,246,0.35)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(255,255,255,0.2),transparent_40%),radial-gradient(circle_at_80%_10%,rgba(129,140,248,0.18),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(236,72,153,0.2),transparent_45%)]" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22%3E%3Ccircle cx=%222%22 cy=%222%22 r=%222%22 fill=%22%23ffffff%22 opacity=%220.15%22/%3E%3C/svg%3E')]" />
+
+        <div className="relative mx-auto flex h-16 items-center gap-3 px-3 sm:px-4 lg:px-6">
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden shrink-0 rounded-xl bg-white/10 p-2 text-white backdrop-blur hover:bg-white/15 active:scale-95 transition-all"
+            aria-label="Mở menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/15 text-white shadow-inner">
+              <Shield size={22} />
+            </span>
+            <div className="leading-tight">
+              <div className="text-xs font-semibold uppercase tracking-wide text-indigo-100">
+                KidzGo Portal
+              </div>
+              <div className="text-lg font-black drop-shadow-sm">
+                Học viên {userName ?? "Nguyễn Văn An"}
+              </div>
+            </div>
+          </div>
+
+          <div className="ml-auto hidden items-center gap-2 md:flex lg:gap-3">
+            {stats.map((s) => (
+              <StudentStat
+                key={s.label}
+                icon={s.icon}
+                label={s.label}
+                value={s.value}
+                gradient={s.gradient}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-semibold backdrop-blur sm:px-4">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-white/20 shadow-inner">
+              <UserCircle2 size={22} />
+            </div>
+            <div className="leading-tight">
+              <div className="text-xs text-indigo-100/90">Xin chào</div>
+              <div className="text-sm font-bold">
+                {userName ?? "Nguyễn Văn An"}
+              </div>
+            </div>
+            <ChevronDown size={16} className="text-white/80" />
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
 
 /* ============== Helpers: Path & Role & I18n ============== */
 
@@ -113,7 +241,8 @@ function useHeaderI18n(locale: Locale) {
       if (role === "STUDENT") {
         return locale === "en" ? "Student Portal" : "Cổng học viên";
       }
-if (role === "PARENT") {
+
+      if (role === "PARENT") {
         return locale === "en" ? "Parent Portal" : "Cổng phụ huynh";
       }
 
@@ -205,6 +334,13 @@ export default function PortalHeader({
     if (onMenuToggle) return onMenuToggle();
     window.dispatchEvent(new CustomEvent("portal:sidebar-open"));
   };
+
+  // ✅ Student uses special header
+  if (currentRole === "STUDENT") {
+    return (
+      <StudentHeaderBar onMenuClick={handleMenuClick} userName={userName} />
+    );
+  }
 
   return (
     <>

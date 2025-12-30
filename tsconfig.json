@@ -15,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+"jsx": "preserve",
     "incremental": true,
     /* ⚠️ Thêm 2 dòng dưới để alias và check HOA/thường */
     "baseUrl": ".",
