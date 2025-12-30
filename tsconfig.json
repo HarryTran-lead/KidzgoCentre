@@ -15,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-"jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     /* ⚠️ Thêm 2 dòng dưới để alias và check HOA/thường */
     "baseUrl": ".",
@@ -37,8 +37,9 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
-, "app/[locale]/portal/student/feedback"  ],
+    "**/*.mts",
+    "app/[locale]/portal/student/feedback"
+  ],
   "exclude": [
     "node_modules"
   ]
