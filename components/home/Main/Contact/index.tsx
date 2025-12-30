@@ -1,6 +1,9 @@
 // components/sections/Contact.tsx (CLIENT — có form state)
 "use client";
+
 import { useState } from "react";
+import { motion, cubicBezier } from "framer-motion";
+import Image from "next/image";
 import {
   Phone,
   Mail,
@@ -15,7 +18,12 @@ import {
   Building,
   MessageCircle,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Globe,
+  Clock,
+  CheckCircle,
+  Users,
+  Heart
 } from "lucide-react";
 
 export default function Contact() {
@@ -51,140 +59,214 @@ export default function Contact() {
     setIsSubmitting(false);
   };
 
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 50 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.8,
+        ease: cubicBezier(0.22, 1, 0.36, 1)
+      }
+    }
+  };
+
+  const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 40, rotateX: -10 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      rotateX: 0,
+      transition: {
+        duration: 0.6,
+        ease: cubicBezier(0.22, 1, 0.36, 1)
+      }
+    },
+    hover: {
+      y: -8,
+      scale: 1.02,
+      transition: {
+        type: "spring" as const,
+        stiffness: 300,
+        damping: 25
+      }
+    }
+  };
+
   return (
-    <section id="contact" className="relative overflow-hidden bg-linear-to-b from-white to-slate-50 py-24">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-pink-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-10"></div>
-      </div>
-
-      {/* Hero Section */}
-      <div className="relative mb-16">
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200/50">
-            <Sparkles className="w-4 h-4 text-blue-500" />
-            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">
-              Get In Touch
-            </span>
-            <Sparkles className="w-4 h-4 text-purple-500" />
-          </div>
-          
-          <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
-            Let's <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Connect</span> & 
-            <span className="block">Start Your Journey</span>
-          </h2>
-          
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Have questions? We're here to help. Reach out to us and our team will 
-            get back to you within 24 hours.
-          </p>
-        </div>
-      </div>
-
-      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-3 gap-8">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100 mt-30">
+      {/* Main Content */}
+      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100 rounded-t-3xl shadow-2xl">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto"
+        >
           {/* Contact Info Cards */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="group bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100">
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-xl bg-linear-to-br from-blue-500 to-blue-600 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <PhoneCall className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-lg mb-1">Call Us</h3>
-                  <p className="text-sm text-gray-500 mb-2">Available 8AM - 8PM</p>
-                  <a 
-                    href="tel:+84999888777" 
-                    className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors flex items-center gap-2 group-hover:gap-3"
-                  >
-                    +84 999 888 777
-                    <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
-                  </a>
+          <div className="space-y-6">
+            {/* Call Us Card */}
+            <motion.div
+              variants={cardVariants}
+              whileHover="hover"
+              className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100"
+            >
+              <div className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <PhoneCall className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Call Us</h3>
+                    <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      Available 8AM - 8PM
+                    </p>
+                    <a 
+                      href="tel:+84999888777" 
+                      className="text-lg font-bold text-gray-900 hover:text-emerald-600 transition-colors flex items-center gap-2 group-hover:gap-3"
+                    >
+                      +84 999 888 777
+                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
+                    </a>
+                  </div>
                 </div>
               </div>
-            </div>
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-emerald-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </motion.div>
 
-            <div className="group bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100">
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-xl bg-linear-to-br from-purple-500 to-pink-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <Mail className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-lg mb-1">Email Us</h3>
-                  <p className="text-sm text-gray-500 mb-2">We reply within hours</p>
-                  <a 
-                    href="mailto:support@kidzgo.edu.vn" 
-                    className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors flex items-center gap-2 group-hover:gap-3"
-                  >
-                    support@kidzgo.edu.vn
-                    <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
-                  </a>
+            {/* Email Us Card */}
+            <motion.div
+              variants={cardVariants}
+              whileHover="hover"
+              className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100"
+            >
+              <div className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <Mail className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Email Us</h3>
+                    <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      We reply within hours
+                    </p>
+                    <a 
+                      href="mailto:support@kidzgo.edu.vn" 
+                      className="text-base font-semibold text-gray-900 hover:text-green-600 transition-colors flex items-center gap-2 group-hover:gap-3"
+                    >
+                      support@kidzgo.edu.vn
+                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
+                    </a>
+                  </div>
                 </div>
               </div>
-            </div>
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-green-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </motion.div>
 
-            <div className="group bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100">
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-xl bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <MapPin className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-lg mb-1">Visit Us</h3>
-                  <p className="text-sm text-gray-500 mb-2">Head Office</p>
-                  <p className="text-gray-700 font-medium">
-                    123 Nguyen Hue Street, <br />
-                    District 1, Ho Chi Minh City
-                  </p>
+            {/* Visit Us Card */}
+            <motion.div
+              variants={cardVariants}
+              whileHover="hover"
+              className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100"
+            >
+              <div className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-teal-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <MapPin className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Visit Us</h3>
+                    <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
+                      <Building className="w-3.5 h-3.5" />
+                      Head Office
+                    </p>
+                    <p className="text-gray-700 font-medium">
+                      123 Nguyen Hue Street, <br />
+                      District 1, Ho Chi Minh City
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-teal-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </motion.div>
 
-            {/* Social Media */}
-            <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
-              <h3 className="font-bold text-gray-900 text-lg mb-4">Follow Our Journey</h3>
-              <div className="flex gap-3">
-                {[
-                  { icon: Facebook, color: "bg-blue-500 hover:bg-blue-600", label: "Facebook" },
-                  { icon: Instagram, color: "bg-linear-to-br from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600", label: "Instagram" },
-                  { icon: Twitter, color: "bg-sky-500 hover:bg-sky-600", label: "Twitter" },
-                  { icon: MessageCircle, color: "bg-green-500 hover:bg-green-600", label: "Zalo" }
-                ].map((item, idx) => (
-                  <a
-                    key={idx}
-                    href="#"
-                    className="group flex-1"
-                    aria-label={item.label}
-                  >
-                    <div className={`
-                      w-full aspect-square rounded-xl ${item.color} 
-                      text-white grid place-items-center shadow-md
-                      hover:shadow-lg transition-all duration-300
-                      group-hover:-translate-y-1
-                    `}>
-                      <item.icon className="w-5 h-5" />
-                    </div>
-                  </a>
-                ))}
+            {/* Social Media Card */}
+            <motion.div
+              variants={cardVariants}
+              className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100"
+            >
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-md">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">Follow Our Journey</h3>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { icon: Facebook, color: "bg-gradient-to-br from-blue-500 to-blue-600", label: "Facebook" },
+                    { icon: Instagram, color: "bg-gradient-to-br from-pink-500 to-orange-500", label: "Instagram" },
+                    { icon: Twitter, color: "bg-gradient-to-br from-sky-500 to-blue-400", label: "Twitter" },
+                    { icon: MessageCircle, color: "bg-gradient-to-br from-green-500 to-emerald-500", label: "Zalo" }
+                  ].map((item, idx) => (
+                    <a
+                      key={idx}
+                      href="#"
+                      className="group/social"
+                      aria-label={item.label}
+                    >
+                      <div className={`
+                        w-full aspect-square rounded-xl ${item.color} 
+                        text-white grid place-items-center shadow-md
+                        hover:shadow-lg transition-all duration-300
+                        group-hover/social:-translate-y-1
+                      `}>
+                        <item.icon className="w-5 h-5" />
+                      </div>
+                    </a>
+                  ))}
+                </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Contact Form */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
-              <div className="p-8 md:p-10">
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-500 text-white grid place-items-center shadow-lg">
+          <motion.div
+            variants={cardVariants}
+            className="lg:col-span-2"
+          >
+            <div className="group relative bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100">
+              {/* Form Header */}
+              <div className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 p-6 border-b border-emerald-100">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <MessageSquare className="w-6 h-6" />
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-gray-900">Send Us a Message</h3>
-                    <p className="text-gray-500">Fill out the form below and we'll get back to you soon</p>
+                    <p className="text-gray-600">Fill out the form below and we'll get back to you soon</p>
                   </div>
                 </div>
+              </div>
 
+              {/* Form Content */}
+              <div className="p-6">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="group">
@@ -197,7 +279,7 @@ export default function Contact() {
                       <input
                         type="text"
                         required
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="John Doe"
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -214,7 +296,7 @@ export default function Contact() {
                       <input
                         type="email"
                         required
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="john@example.com"
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -232,7 +314,7 @@ export default function Contact() {
                       </label>
                       <input
                         type="tel"
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="+84 999 888 777"
                         value={form.phone}
                         onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -248,7 +330,7 @@ export default function Contact() {
                       </label>
                       <input
                         type="text"
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="Your organization"
                         value={form.company}
                         onChange={(e) => setForm({ ...form, company: e.target.value })}
@@ -271,9 +353,9 @@ export default function Contact() {
                           key={type.value}
                           type="button"
                           className={`
-                            px-4 py-3 rounded-xl border-2 transition-all duration-300 font-medium
+                            px-4 py-3 rounded-xl border-2 transition-all duration-300 font-medium text-sm
                             ${form.inquiryType === type.value
-                              ? "border-blue-500 bg-blue-50 text-blue-600"
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-600 shadow-sm"
                               : "border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-900"
                             }
                           `}
@@ -292,7 +374,7 @@ export default function Contact() {
                     <input
                       type="text"
                       required
-                      className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                      className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                       placeholder="How can we help you?"
                       value={form.subject}
                       onChange={(e) => setForm({ ...form, subject: e.target.value })}
@@ -306,17 +388,17 @@ export default function Contact() {
                     <textarea
                       required
                       rows={4}
-                      className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all duration-300 bg-white hover:border-gray-300 resize-none"
+                      className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300 resize-none"
                       placeholder="Tell us more about your inquiry..."
                       value={form.message}
                       onChange={(e) => setForm({ ...form, message: e.target.value })}
                     />
                   </div>
 
-                  <div className="flex items-center justify-between pt-4">
+                  <div className="flex items-center justify-between pt-6 border-t border-gray-100">
                     <p className="text-sm text-gray-500">
                       By submitting, you agree to our{" "}
-                      <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">
+                      <a href="#" className="text-emerald-600 hover:text-emerald-700 font-medium">
                         Privacy Policy
                       </a>
                     </p>
@@ -324,7 +406,7 @@ export default function Contact() {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="group relative px-8 py-4 rounded-full text-white font-bold bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-3"
+                      className="group relative px-8 py-4 rounded-full text-white font-bold bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-3"
                     >
                       <span className="relative">
                         {isSubmitting ? "Sending..." : "Send Message"}
@@ -334,37 +416,29 @@ export default function Contact() {
                       )}
                       
                       {/* Animated background effect */}
-                      <span className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></span>
+                      <span className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></span>
                     </button>
                   </div>
                 </form>
               </div>
             </div>
 
-            {/* Stats */}
-            <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { value: "24h", label: "Response Time" },
-                { value: "99%", label: "Satisfaction Rate" },
-                { value: "5K+", label: "Happy Parents" },
-                { value: "7/7", label: "Support Days" }
-              ].map((stat, idx) => (
-                <div 
-                  key={idx}
-                  className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-gray-200 hover:border-blue-200 transition-colors"
-                >
-                  <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-gray-600 font-medium mt-1">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+            
+          </motion.div>
+        </motion.div>
       </div>
-    </section>
+
+      {/* Bottom Decoration SVG */}
+      <div className="z-20 relative w-full overflow-hidden bg-[#d0fae4]" style={{ marginTop: 0, lineHeight: 0 }}>
+        <Image
+          src="/image/hero-deluxe-end.svg"
+          alt=""
+          width={1512}
+          height={317}
+          className="w-full h-auto"
+          style={{ display: 'block', verticalAlign: 'bottom' }}
+        />
+      </div>
+    </div>
   );
 }
