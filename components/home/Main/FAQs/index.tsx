@@ -4,9 +4,9 @@ import React, { useState, Fragment } from "react";
 import {
   ChevronDown,
   Search,
-  MessageCircleQuestion,
   Check,
 } from "lucide-react";
+import Image from "next/image";
 import { Listbox, Transition } from "@headlessui/react";
 import { categories, faqsByLocale } from "./data";
 import { DEFAULT_LOCALE, pickLocaleFromPath } from "@/lib/i18n";
@@ -73,131 +73,10 @@ const KidzGoFAQ: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-sky-50">
-      {/* Header */}
-      <header className="relative overflow-hidden bg-linear-to-br from-blue-600 via-sky-500 to-cyan-400 pb-16 sm:pb-20">
-        {/* Backgrounds */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl" />
-        </div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41Ii8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-20" />
-
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 md:px-8 pt-8">
-          <div className="grid gap-8 lg:grid-cols-5 lg:items-center">
-            {/* LEFT */}
-            <div className="flex flex-col justify-center space-y-4 sm:space-y-6 lg:col-span-3">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 self-start">
-                <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-white text-sm font-semibold border border-white/30 shadow-lg">
-                  <MessageCircleQuestion size={18} className="animate-pulse" />
-                  {msg.header.badge}
-                </span>
-              </div>
-
-              {/* Title */}
-              <div>
-                <h1 className="text-3xl sm:text-4xl md:text-[40px] font-black text-white leading-tight mb-3 drop-shadow-lg">
-                  {msg.header.title.main}{" "}
-                  <span className="text-amber-300">
-                    {msg.header.title.accent}
-                  </span>
-                </h1>
-                <div className="h-1.5 w-24 bg-yellow-300 rounded-full shadow-lg" />
-              </div>
-
-              {/* Subtitle */}
-              <p className="text-sm sm:text-base md:text-[15px] text-white leading-relaxed max-w-xl font-medium">
-                {msg.header.subtitle}
-              </p>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3 pt-2">
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20">
-                  <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
-                    {faqs.length}+
-                  </div>
-                  <div className="text-xs sm:text-sm text-white font-medium">
-                    {msg.stats.questions}
-                  </div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20">
-                  <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
-                    {categories.length - 1}
-                  </div>
-                  <div className="text-xs sm:text-sm text-white font-medium">
-                    {msg.stats.topics}
-                  </div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20">
-                  <div className="text-2xl sm:text-3xl font-bold text-yellow-300 mb-1">
-                    24/7
-                  </div>
-                  <div className="text-xs sm:text-sm text-white font-medium">
-                    {msg.stats.support}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT */}
-            <div className="hidden lg:flex items-center justify-end lg:col-span-2">
-              <div className="relative w-full max-w-sm">
-                <div className="absolute top-0 left-0 animate-bounce delay-100">
-                  <div className="bg-white rounded-2xl p-4 shadow-2xl border border-white/50">
-                    <Search size={26} className="text-sky-600" />
-                  </div>
-                </div>
-                <div className="absolute top-1/4 right-0 animate-bounce delay-300">
-                  <div className="bg-yellow-400 rounded-2xl p-4 shadow-2xl">
-                    <MessageCircleQuestion
-                      size={26}
-                      className="text-yellow-900"
-                    />
-                  </div>
-                </div>
-                <div className="absolute bottom-1/4 left-1/4 animate-bounce delay-500">
-                  <div className="bg-green-500 rounded-2xl p-4 shadow-2xl">
-                    <Check size={26} className="text-white" />
-                  </div>
-                </div>
-
-                <div className="relative mx-auto w-56 h-56 sm:w-64 sm:h-64">
-                  <div className="absolute inset-0 bg-white/20 backdrop-blur-xl rounded-full border-4 border-white/30 shadow-2xl" />
-                  <div className="absolute inset-7 bg-white rounded-full flex items-center justify-center shadow-xl">
-                    <div className="text-center p-5">
-                      <MessageCircleQuestion
-                        size={52}
-                        className="text-sky-600 mx-auto mb-3"
-                        strokeWidth={1.5}
-                      />
-                      <div className="text-lg font-bold text-gray-800 mb-1">
-                        {msg.hub.title}
-                      </div>
-                      <div className="text-xs text-gray-600 font-medium">
-                        {msg.hub.subtitle}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Wave bottom */}
-        <div className="absolute inset-x-0 bottom-0 pointer-events-none">
-          <svg viewBox="0 0 1440 60" className="w-full">
-            <path
-              d="M0,45 C360,90 1080,10 1440,55 L1440,130 L0,130 Z"
-              className="fill-sky-50"
-            ></path>
-          </svg>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-sky-50 mt-30">
       {/* Main */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-sky-50 rounded-t-4xl shadow-2xl">
+
         {/* Search & Filter */}
         <div className="mb-8 sm:mb-10 flex flex-col gap-3 sm:gap-4 md:flex-row md:justify-center items-center">
           {/* Search */}
@@ -248,10 +127,9 @@ const KidzGoFAQ: React.FC = () => {
                         key={category.name}
                         value={category.name}
                         className={({ active, selected }) =>
-                          `px-4 sm:px-5 py-2.5 cursor-pointer flex items-center justify-between text-sm sm:text-base ${
-                            selected
-                              ? "bg-blue-50 text-blue-700"
-                              : active
+                          `px-4 sm:px-5 py-2.5 cursor-pointer flex items-center justify-between text-sm sm:text-base ${selected
+                            ? "bg-blue-50 text-blue-700"
+                            : active
                               ? "bg-gray-100 text-gray-800"
                               : "text-gray-700"
                           }`
@@ -278,7 +156,7 @@ const KidzGoFAQ: React.FC = () => {
         </div>
 
         {/* FAQ Items */}
-        <div className="space-y-4 sm:space-y-5">
+        <div className="space-y-4 sm:space-y-5 max-w-4xl mx-auto">
           {currentFAQs.map((faq, index) => {
             const isExpanded = expandedItems.has(faq.id);
             return (
@@ -291,38 +169,33 @@ const KidzGoFAQ: React.FC = () => {
                 {/* Card */}
                 <div
                   className={`bg-white rounded-2xl shadow-sm sm:shadow-md hover:shadow-md sm:hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border-l-4 
-                  max-w-xl mx-auto md:max-w-none
-                  ${
-                    isExpanded
+                  ${isExpanded
                       ? "border-sky-500 ring-1 ring-sky-100"
                       : "border-transparent hover:border-sky-500/50"
-                  } relative overflow-hidden`}
+                    } relative overflow-hidden`}
                 >
                   <button
                     onClick={() => toggleExpanded(faq.id)}
-                    className={`relative w-full text-left flex items-start justify-between group transition-all duration-300 ${
-                      isExpanded
+                    className={`relative w-full text-left flex items-start justify-between group transition-all duration-300 ${isExpanded
                         ? "px-4 pt-4 sm:px-5 sm:pt-5 md:px-6 md:pt-6"
                         : "px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start gap-3 sm:gap-4 flex-1">
                       <div
-                        className={`shrink-0 mt-0.5 sm:mt-1 p-1.5 sm:p-2 rounded-xl transition-all duration-300 ${
-                          isExpanded
+                        className={`shrink-0 mt-0.5 sm:mt-1 p-1.5 sm:p-2 rounded-xl transition-all duration-300 ${isExpanded
                             ? "bg-blue-50 scale-110"
                             : "bg-gray-50 group-hover:bg-slate-100"
-                        }`}
+                          }`}
                       >
                         {faq.icon}
                       </div>
                       <div className="flex-1">
                         <h3
-                          className={`font-semibold transition-colors duration-300 text-[15px] sm:text-[17px] ${
-                            isExpanded
+                          className={`font-semibold transition-colors duration-300 text-[15px] sm:text-[17px] ${isExpanded
                               ? "text-gray-900"
                               : "text-gray-700 group-hover:text-gray-900"
-                          }`}
+                            }`}
                         >
                           {faq.question}
                         </h3>
@@ -334,28 +207,25 @@ const KidzGoFAQ: React.FC = () => {
                       </div>
                     </div>
                     <div
-                      className={`shrink-0 ml-3 sm:ml-4 p-1.5 sm:p-2 rounded-full transition-all duration-300 ${
-                        isExpanded
+                      className={`shrink-0 ml-3 sm:ml-4 p-1.5 sm:p-2 rounded-full transition-all duration-300 ${isExpanded
                           ? "bg-sky-50 rotate-180"
                           : "group-hover:bg-gray-100"
-                      }`}
+                        }`}
                     >
                       <ChevronDown
-                        className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 ${
-                          isExpanded
+                        className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 ${isExpanded
                             ? "text-sky-700"
                             : "text-gray-400 group-hover:text-sky-500"
-                        }`}
+                          }`}
                       />
                     </div>
                   </button>
 
                   <div
-                    className={`transition-all duration-500 ease-in-out ${
-                      isExpanded
+                    className={`transition-all duration-500 ease-in-out ${isExpanded
                         ? "max-h-96 opacity-100 overflow-visible"
                         : "max-h-0 opacity-0 overflow-hidden"
-                    }`}
+                      }`}
                   >
                     <div className="px-4 sm:px-6 pb-4 sm:pb-6 relative">
                       <div className="ml-10 sm:ml-14 pt-2 sm:pt-0">
@@ -420,6 +290,18 @@ const KidzGoFAQ: React.FC = () => {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Bottom Decoration SVG */}
+      <div className=" z-20 relative w-full overflow-hidden bg-sky-50" style={{ marginTop: 0, lineHeight: 0 }}>
+        <Image
+          src="/image/hero-deluxe-end.svg"
+          alt=""
+          width={1512}
+          height={317}
+          className="w-full h-auto"
+          style={{ display: 'block', verticalAlign: 'bottom' }}
+        />
       </div>
     </div>
   );
