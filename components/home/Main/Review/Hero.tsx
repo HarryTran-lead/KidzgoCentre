@@ -76,14 +76,53 @@ export default function Hero({ locale }: Props) {
 
   const [idx, setIdx] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [scrollOpacity, setScrollOpacity] = useState(1);
+  const [scrollScale, setScrollScale] = useState(1);
 
-  /** Bật animation đồng loạt sau khi mount để tránh “khựng” */
+  /** Bật animation đồng loạt sau khi mount để tránh "khựng" */
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() =>
       requestAnimationFrame(() => setReady(true))
     );
     return () => cancelAnimationFrame(id);
+  }, []);
+
+  // Scroll effect: fade out và scale down Hero content khi scroll xuống, và ngược lại khi scroll lên
+  useEffect(() => {
+    const handleScroll = () => {
+      const heroSection = document.getElementById('hero') || document.querySelector('section[data-ready]');
+      if (!heroSection) return;
+
+      const rect = heroSection.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      const scrollY = window.scrollY;
+      
+      // Tính toán progress dựa trên scroll position
+      // Khi Hero ở đầu trang (scrollY = 0), progress = 0
+      // Khi scroll xuống, progress tăng từ 0 đến 1
+      // Khi scroll lên lại, progress giảm từ 1 về 0
+      const heroHeight = heroSection.offsetHeight;
+      const progressStart = 0;
+      const progressEnd = heroHeight * 0.5; // Bắt đầu fade khi scroll được 50% chiều cao Hero
+      
+      let scrollProgress = 0;
+      if (scrollY > progressStart) {
+        scrollProgress = Math.min(1, (scrollY - progressStart) / progressEnd);
+      }
+      
+      // Opacity: từ 1 xuống 0.8 khi scroll xuống
+      setScrollOpacity(Math.max(0.8, 1 - (scrollProgress * 0.2)));
+      // Scale: từ 1 xuống 0.7 khi scroll xuống
+      setScrollScale(Math.max(0.7, 1 - (scrollProgress * 0.3)));
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Gọi ngay lần đầu
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   /** Tạo mảng particles/stars bằng PRNG có seed cố định (SSR == CSR) */
@@ -135,8 +174,9 @@ export default function Hero({ locale }: Props) {
 
   return (
     <section
+      id="hero"
       data-ready={ready ? "true" : "false"}
-      className={`relative min-h-screen flex items-center overflow-hidden ${
+      className={`fixed inset-0 min-h-screen flex items-center overflow-hidden z-10 ${
         ready ? "opacity-100" : "opacity-0"
       } transition-opacity duration-200`}
     >
@@ -198,7 +238,13 @@ export default function Hero({ locale }: Props) {
       </div>
 
       {/* Content */}
-      <div className="relative w-full h-full flex items-center justify-center z-10 px-4 sm:px-6 lg:px-8">
+      <div 
+        className="relative w-full h-full flex items-center justify-center z-20 px-4 sm:px-6 lg:px-8 transition-all duration-500"
+        style={{ 
+          opacity: Math.max(0.8, scrollOpacity),
+          transform: `scale(${scrollScale})`,
+        }}
+      >
         <div className="text-center max-w-5xl mx-auto">
           <div
             key={`icon-${idx}`}

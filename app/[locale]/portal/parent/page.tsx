@@ -1,4 +1,5 @@
 import { CreditCard, ShieldCheck, Bell, BookOpen, ArrowRight, TrendingUp, Clock } from "lucide-react";
+import ChildOverviewCard from "@/components/portal/parent/ChildOverviewCard";
 
 const weeklySchedule = [
   { day: "Thứ 2", time: "19:00 - 21:00", room: "P201", topic: "Reading & Vocabulary" },
@@ -13,6 +14,9 @@ const approvals = [
 export default function ParentPage() {
   return (
     <div className="space-y-6">
+      {/* Child Overview */}
+      <ChildOverviewCard />
+
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-4">

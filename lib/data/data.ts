@@ -34,25 +34,25 @@ export const WHY = [
 
 export const COURSES = [
   {
-    title: "General English",
-    level: "All Levels",
-    time: "2 × 90’ / tuần",
-    badge: "Adults",
+    title: "Tiếng Anh Tổng Quát",
+    level: "Mọi Trình Độ",
+    time: "2 × 90' / tuần",
+    badge: "Người Lớn",
     img: "https://images.unsplash.com/photo-1513258496099-48168024aec0?q=80&w=1400&auto=format&fit=crop",
   },
   {
-    title: "IELTS Intensive",
-    level: "Intermediate+",
-    time: "3 × 90’ / tuần",
-    badge: "Exam",
+    title: "IELTS Chuyên Sâu",
+    level: "Trung Cấp+",
+    time: "3 × 90' / tuần",
+    badge: "Luyện Thi",
     img: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=1400&auto=format&fit=crop",
     highlight: true,
   },
   {
-    title: "Kids & Teens",
+    title: "Trẻ Em & Thanh Thiếu Niên",
     level: "6–17 tuổi",
-    time: "2 × 60’ / tuần",
-    badge: "Young Learners",
+    time: "2 × 60' / tuần",
+    badge: "Học Viên Nhỏ",
     img: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1400&auto=format&fit=crop",
   },
 ];

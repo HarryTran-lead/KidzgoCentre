@@ -141,7 +141,7 @@ export default function TeachersPage() {
                 placeholder="Tìm kiếm giáo viên..."
               />
             </div>
-            <button className="px-4 py-2 rounded-xl text-white font-medium bg-gradient-to-r from-pink-500 to-rose-500 shadow hover:shadow-md">
+            <button className="px-4 py-2 rounded-xl text-white font-medium bg-linear-to-r from-pink-500 to-rose-500 shadow hover:shadow-md">
               + Thêm giáo viên
             </button>
           </div>

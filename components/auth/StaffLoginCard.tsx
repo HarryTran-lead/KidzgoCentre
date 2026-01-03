@@ -171,7 +171,7 @@ export default function StaffLoginCard({
         {particleStyle.current.map((p, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-gradient-to-r from-pink-400/10 to-rose-500/10"
+            className="absolute rounded-full bg-linear-to-r from-pink-400/10 to-rose-500/10"
             style={{ ...p, filter: "blur(20px)" }}
           />
         ))}
@@ -254,7 +254,7 @@ export default function StaffLoginCard({
 
                 {/* Shimmer Effect */}
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                  className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent"
                   style={{
                     transform: "skewX(-20deg)",
                   }}
@@ -399,13 +399,13 @@ export default function StaffLoginCard({
                       <Image
                         src={LOGO}
                         alt="KidzGo"
-                        width={80}
-                        height={80}
+                        width={100}
+                        height={100}
                         priority
-                        className="rounded-md w-auto h-12"
+                        className="rounded-md w-auto h-16"
                       />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Đăng nhập Nhân viên</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Đăng nhập cho giáo viên, nhân viên và admin</h2>
                     <p className="text-sm text-gray-600">Quản lý trung tâm và học viên</p>
                   </div>
 
@@ -505,7 +505,7 @@ export default function StaffLoginCard({
                       whileTap={{ scale: 0.98 }}
                       onClick={handleSubmit}
                       disabled={!selectedBranch}
-                      className="w-full bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                      className="w-full bg-linear-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
                     >
                       Đăng nhập ngay
                     </motion.button>

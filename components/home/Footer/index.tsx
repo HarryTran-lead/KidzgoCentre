@@ -118,7 +118,7 @@ export default function Footer() {
   const MAIL_PALETTE: Palette = "rose";
 
   return (
-    <footer className="relative overflow-hidden bg-white">
+    <footer className="relative overflow-hidden z-40" style={{ backgroundColor: '#f5f1e4' }}>
       <div className="relative mx-auto max-w-7xl px-4 sm:px-4 md:px-4 lg:px-4 xl:px-0 pt-8 pb-4">
         <motion.div
           variants={container}
@@ -139,7 +139,7 @@ export default function Footer() {
                 className="h-12 lg:h-16 xl:h-20 mb-0.5 w-auto"
               />
             </Link>
-            <p className="text-sm leading-6 text-slate-700">
+            <p className="text-sm leading-6" style={{ color: '#2c2e2a' }}>
               {locale === "vi"
                 ? "Đồng hành cùng con trên hành trình chinh phục tiếng Anh."
                 : "We accompany your kids on their English learning journey."}
@@ -152,11 +152,14 @@ export default function Footer() {
                 showFacepile={false}
                 hideCover={false}
               />
-              <div className="mt-2 text-xs text-slate-500">
+              <div className="mt-2 text-xs" style={{ color: '#2c2e2a' }}>
                 <Link
                   href={facebookUrl}
                   target="_blank"
-                  className="inline-flex items-center gap-1 hover:text-blue-600"
+                  className="inline-flex items-center gap-1"
+                  style={{ color: '#2c2e2a' }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#2ba0ff'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = '#2c2e2a'}
                 >
                   <Facebook className="w-3.5 h-3.5" />
                   /kidzgoEnglish
@@ -292,16 +295,18 @@ export default function Footer() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.3 }}
-          className="mt-10 border-t border-rose-200/70 pt-6"
+          className="mt-10 border-t pt-6"
+          style={{ borderColor: '#bf5622' }}
         >
           <motion.div
             variants={item}
-            className="flex items-center justify-center gap-2 text-center text-slate-700 text-sm"
+            className="flex items-center justify-center gap-2 text-center text-sm"
+            style={{ color: '#2c2e2a' }}
           >
             <motion.span
               animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="text-yellow-500"
+              style={{ color: '#f5e211' }}
             >
               <Sparkles className="w-4 h-4" />
             </motion.span>
@@ -314,7 +319,7 @@ export default function Footer() {
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="text-yellow-500"
+              style={{ color: '#f5e211' }}
             >
               <Sparkles className="w-4 h-4" />
             </motion.span>
@@ -338,7 +343,10 @@ function FooterLink({
   return (
     <Link
       href={href}
-      className="group relative inline-flex items-center text-sm text-slate-700 hover:text-rose-700 transition-colors pb-0.5" // chừa chỗ cho gạch
+      className="group relative inline-flex items-center text-sm transition-colors pb-0.5"
+      style={{ color: '#2c2e2a' }}
+      onMouseEnter={(e) => e.currentTarget.style.color = '#bf5622'}
+      onMouseLeave={(e) => e.currentTarget.style.color = '#2c2e2a'}
     >
       {children}
       {!noUnderline && (
@@ -347,12 +355,12 @@ function FooterLink({
           className="
             pointer-events-none absolute inset-x-0 bottom-0
             h-px rounded-full
-            bg-linear-to-r from-yellow-400 via-pink-400 to-purple-400
             opacity-0 scale-x-0 origin-left
             transition-transform duration-300
             group-hover:opacity-100 group-hover:scale-x-100
             will-change-transform
           "
+          style={{ background: 'linear-gradient(to right, #f5e211, #ff705c, #ebc1ff)' }}
         />
       )}
     </Link>
@@ -366,21 +374,43 @@ export function IconBadge({
   children: React.ReactNode;
   palette?: Palette;
 }) {
-  const picked = BADGE_STYLES[palette ?? "rose"];
+  const paletteColors: Record<string, { default: string; hover: string; ring: string }> = {
+    rose: { default: '#2c2e2a', hover: '#ff705c', ring: '#ff705c' },
+    amber: { default: '#2c2e2a', hover: '#f5e211', ring: '#f5e211' },
+    sky: { default: '#2c2e2a', hover: '#2ba0ff', ring: '#2ba0ff' },
+    violet: { default: '#2c2e2a', hover: '#ebc1ff', ring: '#ebc1ff' },
+    emerald: { default: '#2c2e2a', hover: '#8ed462', ring: '#8ed462' },
+    red: { default: '#2c2e2a', hover: '#ff705c', ring: '#ff705c' },
+    blue: { default: '#2c2e2a', hover: '#2ba0ff', ring: '#2ba0ff' },
+  };
+  const colors = paletteColors[palette ?? "rose"];
+  
   return (
     <span
       aria-hidden
       className={[
         "shrink-0 mr-2 inline-grid place-items-center w-8 h-8 rounded-full",
-        "ring-1 ring-slate-200 bg-white text-slate-600",
+        "bg-white",
         "transition-all duration-200 transform-gpu",
-        picked.grad,
-        picked.ring,
         "group-hover:text-white group-hover:scale-110",
         "group-hover/contact:text-white group-hover/contact:scale-110",
-        "group-hover:shadow-sm group-hover:shadow-rose-200/40",
-        "group-hover/contact:shadow-sm group-hover/contact:shadow-rose-200/40",
+        "group-hover:shadow-sm",
+        "group-hover/contact:shadow-sm",
       ].join(" ")}
+      style={{ 
+        color: colors.default,
+        borderColor: colors.ring,
+        borderWidth: '1px',
+        borderStyle: 'solid'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = colors.hover;
+        e.currentTarget.style.color = '#fff';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = '#fff';
+        e.currentTarget.style.color = colors.default;
+      }}
     >
       <span className="transition-transform duration-200">{children}</span>
     </span>
@@ -401,9 +431,22 @@ function ContactLink({
       href={href}
       target={href.startsWith("http") ? "_blank" : undefined}
       className={[
-        "group/contact inline-flex items-center gap-1 text-sm transition-colors text-slate-700",
-        TEXT_COLOR[palette],
+        "group/contact inline-flex items-center gap-1 text-sm transition-colors",
       ].join(" ")}
+      style={{ color: '#2c2e2a' }}
+      onMouseEnter={(e) => {
+        const paletteColors: Record<string, string> = {
+          rose: '#ff705c',
+          amber: '#f5e211',
+          sky: '#2ba0ff',
+          violet: '#ebc1ff',
+          emerald: '#8ed462',
+          red: '#ff705c',
+          blue: '#2ba0ff'
+        };
+        e.currentTarget.style.color = paletteColors[palette] || '#bf5622';
+      }}
+      onMouseLeave={(e) => e.currentTarget.style.color = '#2c2e2a'}
     >
       {children}
     </Link>

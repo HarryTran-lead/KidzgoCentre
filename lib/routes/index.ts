@@ -2,12 +2,13 @@
 export const EndPoint = {
   HOME: "/",
   LOGIN: "/auth/login/parent",
-  LOGIN_STAFF: "/auth/login/staff",
+  LOGIN_STAFF: "/auth/login/management",
   FORGOTPASSWORD: "/auth/forgotpass",
   
   // HomePage
   CONTACT: "/contact",
   FAQS: "/faqs",
+  BLOGS: "/blogs",
 
   // Portal
   ADMIN: "/portal/admin",

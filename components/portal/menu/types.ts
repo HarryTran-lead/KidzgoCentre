@@ -8,6 +8,7 @@ export type FlatItem = {
   label: string;
   icon: IconType;
   href: string; // path tuyệt đối (đã prefix root)
+  badge?: number; // badge hiển thị số thông báo
 };
 
 /** Nhóm mục (collapsible) */

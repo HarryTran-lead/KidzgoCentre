@@ -45,7 +45,7 @@ const animationStyles = {
 
 const colorSchemes = {
   default: "text-foreground",
-  gradient: "bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600",
+  gradient: "bg-clip-text text-transparent bg-linear-to-r from-blue-500 to-purple-600",
   primary: "text-primary",
   secondary: "text-secondary",
   custom: "", // use customColor

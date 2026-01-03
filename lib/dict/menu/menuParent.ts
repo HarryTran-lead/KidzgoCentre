@@ -2,22 +2,28 @@
 export const menuParent = {
   vi: {
     items: {
-      home: "Trang chủ",
-      progress: "Tiến độ",
-      attendance: "Điểm danh",
-      tuition: "Học phí",
+      // Main menu items
+      schedule: "Lịch học & Điểm danh",
+      homework: "Bài tập & Nộp bài",
+      testsReports: "Kiểm tra & Báo cáo",
+      payment: "Thanh toán",
+      media: "Kho tài liệu",
       notifications: "Thông báo",
-      security: "Phê duyệt",
+      support: "Hỗ trợ",
+      account: "Tài khoản",
     },
   },
   en: {
     items: {
-      home: "Home",
-      progress: "Progress",
-      attendance: "Attendance",
-      tuition: "Tuition",
+      // Main menu items
+      schedule: "Schedule & Attendance",
+      homework: "Homework",
+      testsReports: "Tests & Reports",
+      payment: "Payment",
+      media: "Media",
       notifications: "Notifications",
-      security: "Approvals",
+      support: "Support",
+      account: "Account",
     },
   },
 } as const;
