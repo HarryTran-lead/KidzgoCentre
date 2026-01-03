@@ -96,7 +96,7 @@ export default function AccountChooser({
   const parentAvatarText = initialAvatar(parentName);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-blue-400 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-500 to-blue-400 relative overflow-hidden">
       {/* Decorative background elements */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>
