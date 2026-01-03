@@ -394,13 +394,13 @@ export default function LoginCard({
                       <Image
                         src={LOGO}
                         alt="KidzGo"
-                        width={80}
-                        height={80}
+                        width={100}
+                        height={100}
                         priority
-                        className="rounded-md w-auto h-12"
+                        className="rounded-md w-auto h-16"
                       />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Đăng nhập</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Đăng nhập cho học sinh và phụ huynh</h2>
                   </div>
 
                   {/* Error Message */}

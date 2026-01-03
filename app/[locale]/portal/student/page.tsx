@@ -1,272 +1,198 @@
 // app/[locale]/portal/student/page.tsx
 import type { ReactNode } from "react";
 import {
-  Calendar,
-  Clock,
-  UserRound,
-  AlertCircle,
-  BookOpen,
   ArrowRight,
-  Trophy,
-  CheckSquare,
-  Laptop,
-  FileText,
+  BellRing,
+  CalendarClock,
+  CheckCircle2,
+  ChevronRight,
+  Clock4,
+  GraduationCap,
   Sparkles,
 } from "lucide-react";
-import Sidebar from "@/components/portal/sidebar";
 
-function StatCard({
-  icon,
-  label,
-  value,
+type Notice = {
+  title: string;
+  content: string;
+  date: string;
+  type?: "warning" | "info";
+};
+
+function GlassCard({
+  children,
+  className = "",
 }: {
-  icon: ReactNode;
-  label: string;
-  value: string | number;
+  children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 flex items-center gap-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-      <div className="w-10 h-10 rounded-xl bg-slate-50 grid place-items-center text-indigo-600">
-        {icon}
-      </div>
-      <div>
-        <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-xl font-extrabold text-slate-900">{value}</div>
-      </div>
+    <div
+      className={[
+        "rounded-3xl border border-white/15 bg-white/10 backdrop-blur-xl",
+        "shadow-[0_18px_55px_rgba(0,0,0,0.20)]",
+        className,
+      ].join(" ")}
+    >
+      {children}
     </div>
   );
 }
 
-function QuickAction({
-  icon,
-  title,
-  desc,
-}: {
-  icon: ReactNode;
-  title: string;
-  desc: string;
-}) {
+function NoticeItem({ notice }: { notice: Notice }) {
+  const isWarning = notice.type === "warning";
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 hover:-translate-y-0.5 hover:shadow-md transition grid gap-2">
-      <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 grid place-items-center">
-        {icon}
+    <div className="rounded-2xl border border-white/20 bg-white/12 p-3 backdrop-blur">
+      <div className="flex items-start gap-3">
+        <div
+          className={[
+            "grid h-9 w-9 shrink-0 place-items-center rounded-xl",
+            isWarning ? "bg-amber-400/20 text-amber-200" : "bg-sky-400/20 text-sky-200",
+          ].join(" ")}
+        >
+          <BellRing size={16} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-extrabold text-white text-[15px]">{notice.title}</div>
+          <div className="mt-0.5 text-sm text-white/80 leading-snug">{notice.content}</div>
+          <div className="mt-1.5 text-xs font-semibold text-white/60">{notice.date}</div>
+        </div>
       </div>
-      <div className="font-semibold text-slate-900">{title}</div>
-      <p className="text-sm text-slate-600">{desc}</p>
-      <button className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600">
-        Mở nhanh <ArrowRight size={16} />
-      </button>
     </div>
   );
 }
 
 export default function Page() {
-  const todayClass = {
-    name: "Lớp Tiếng Anh A1",
-    time: "19:00 - 21:00",
-    room: "Phòng 201",
-    teacher: "Cô Phương",
-  };
-
-  const notices = [
+  const notices: Notice[] = [
     {
-      type: "info",
       title: "Cập nhật tài liệu",
-      date: "19/12/2024",
       content: "Tải slide và bài nghe buổi 8 trong mục Tài liệu.",
+      date: "19/12/2024",
+      type: "info",
     },
     {
-      type: "warning",
       title: "Nộp bài tập",
-      date: "18/12/2024",
       content: "Bài viết chủ đề Giáng Sinh hạn nộp trước 22/12.",
+      date: "18/12/2024",
+      type: "warning",
     },
-  ];
-
-  const tasks = [
-    { title: "Ôn từ vựng Unit 5", due: "Hôm nay", tag: "Tự học" },
-    { title: "Hoàn thành worksheet buổi 7", due: "Trước 22/12", tag: "Bài tập" },
-    { title: "Luyện nói 10 phút", due: "Mỗi ngày", tag: "Kỹ năng" },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Greeting + stats */}
-      <div className="grid md:grid-cols-2 gap-4 items-stretch">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(79,70,229,0.08)] relative overflow-hidden">
-          <div className="absolute right-6 top-6 text-indigo-100">
-            <Sparkles size={42} />
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-linear-to-br from-indigo-500 to-sky-500 text-white grid place-items-center text-xl font-bold">
-              A
-            </div>
-            <div>
-              <div className="text-lg font-bold text-slate-900">
-                Xin chào, Nguyễn Văn An
+    // ✅ NO min-h-screen here (prevents extra scroll/blank)
+    <div className="relative">
+      <div className="mx-auto max-w-6xl px-2 sm:px-4 py-3 lg:py-4">
+        <div className="grid gap-4 lg:grid-cols-[420px_1fr] items-start">
+          {/* LEFT */}
+          <div className="space-y-4">
+            {/* Hero */}
+            <GlassCard className="p-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-extrabold text-white/90">
+                <Sparkles size={14} />
+                Home Student
               </div>
-              <div className="text-slate-500 text-sm">
-                Hôm nay bạn có 1 buổi học và 2 nhiệm vụ cần hoàn thành.
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          <StatCard
-            icon={<Calendar size={20} />}
-            label="Buổi học hôm nay"
-            value={1}
-          />
-          <StatCard
-            icon={<CheckSquare size={20} />}
-            label="Bài tập còn lại"
-            value={2}
-          />
-          <StatCard
-            icon={<Trophy size={20} />}
-            label="Chuỗi ngày chăm chỉ"
-            value="6 ngày"
-          />
-        </div>
-      </div>
+              <h1 className="mt-3 text-[28px] leading-tight font-black text-white drop-shadow-sm">
+                Xin chào, Nguyễn Văn An!
+              </h1>
 
-      {/* Today schedule + notices */}
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="p-5 border-b flex items-center justify-between">
-            <h3 className="font-semibold text-slate-900">Lịch học hôm nay</h3>
-            <button className="text-sm text-indigo-600 inline-flex items-center gap-1 font-semibold">
-              Xem tất cả <ArrowRight size={16} />
-            </button>
-          </div>
-          <div className="p-5 space-y-3">
-            <div className="rounded-xl bg-slate-50 p-4 flex flex-wrap gap-4 items-center">
-              <div className="font-medium text-slate-900">
-                {todayClass.name}
-              </div>
-              <div className="text-sm text-slate-600 flex items-center gap-2">
-                <Clock size={16} /> {todayClass.time}
-              </div>
-              <div className="text-sm text-slate-600 flex items-center gap-2">
-                <BookOpen size={16} /> {todayClass.room}
-              </div>
-              <div className="text-sm text-slate-600 flex items-center gap-2">
-                <UserRound size={16} /> {todayClass.teacher}
-              </div>
-            </div>
+              <p className="mt-1.5 text-sm text-white/85">
+                Hôm nay bạn có <b>1 buổi học</b> và <b>2 nhiệm vụ</b> cần hoàn thành.
+              </p>
 
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 text-indigo-800">
-                <div className="font-semibold">Chuẩn bị trước khi đến lớp</div>
-                <ul className="text-sm list-disc list-inside mt-2 space-y-1">
-                  <li>Ôn lại từ vựng buổi trước</li>
-                  <li>Mang workbook đã hoàn thành</li>
-                  <li>Đọc trước đoạn hội thoại trang 32</li>
+              <div className="mt-4 flex items-center gap-3">
+                <button className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 px-5 py-2.5 text-sm font-black text-white shadow-[0_14px_45px_rgba(59,130,246,0.40)] transition hover:-translate-y-0.5">
+                  TIẾP TỤC HỌC
+                  <ArrowRight size={15} className="transition group-hover:translate-x-0.5" />
+                </button>
+
+                <button className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/90 backdrop-blur transition hover:bg-white/15">
+                  Xem lịch học
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            </GlassCard>
+
+            {/* Today class */}
+            <GlassCard className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-black uppercase tracking-wider text-white/70">
+                    Buổi học hôm nay
+                  </div>
+                  <div className="mt-1 text-xl font-black text-white">Main Quest</div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold text-white/90">
+                      <CalendarClock size={13} />
+                      19:00 - 21:00
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold text-white/90">
+                      <Clock4 size={13} />
+                      Cô Phương
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold text-white/90">
+                      Sitt 21
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-400/80 to-indigo-500/80 text-white shadow-lg">
+                  <GraduationCap size={20} />
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
+                <div className="text-sm font-black text-white/90">
+                  Chuẩn bị trước khi đến lớp
+                </div>
+                <ul className="mt-2 space-y-1.5 text-sm text-white/85">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 size={15} className="mt-0.5 text-emerald-300" />
+                    Rèo: chờ tổng bật ngày cuối lớp
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 size={15} className="mt-0.5 text-emerald-300" />
+                    Mang workbook đã hoàn thành
+                  </li>
                 </ul>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
-                <div className="font-semibold text-slate-900">
-                  Ghi chú từ giáo viên
-                </div>
-                <p className="text-sm text-slate-600 mt-1">
-                  Hãy luyện phát âm các từ có âm /θ/ và /ð/ trước khi tới lớp để
-                  thuyết trình nhóm tốt hơn.
-                </p>
-              </div>
-            </div>
+            </GlassCard>
           </div>
-        </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="p-5 border-b flex items-center justify-between">
-            <h3 className="font-semibold text-slate-900">Thông báo học vụ</h3>
-            <div className="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-semibold">
-              {notices.length}
-            </div>
-          </div>
-          <div className="p-5 space-y-3">
-            {notices.map((n, i) => (
-              <div
-                key={i}
-                className="rounded-xl border p-3 bg-white flex items-start gap-3"
-              >
-                <div
-                  className={
-                    "mt-0.5 " +
-                    (n.type === "warning" ? "text-amber-500" : "text-sky-500")
-                  }
-                >
-                  <AlertCircle size={18} />
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium text-slate-900">{n.title}</div>
-                  <div className="text-sm text-slate-600 line-clamp-2">
-                    {n.content}
+          {/* RIGHT */}
+          <div className="lg:pt-16">
+            <div className="max-w-xl lg:ml-auto">
+              <GlassCard className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-wider text-white/70">
+                      Thông báo học vụ
+                    </div>
+                    <div className="mt-1 text-lg font-black text-white">
+                      Cập nhật mới nhất cho bạn
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">{n.date}</div>
+                  <span className="rounded-full bg-white/12 px-3 py-1 text-xs font-black text-white/90">
+                    {notices.length}
+                  </span>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* Tasks */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="p-5 border-b flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900">Nhiệm vụ hôm nay</h3>
-          <button className="text-sm text-indigo-600 font-semibold inline-flex items-center gap-1">
-            Đánh dấu hoàn thành <ArrowRight size={16} />
-          </button>
-        </div>
-        <div className="p-5 grid md:grid-cols-3 gap-3">
-          {tasks.map((task, idx) => (
-            <div
-              key={idx}
-              className="rounded-xl border border-slate-200 p-4 bg-slate-50/60"
-            >
-              <div className="text-xs text-indigo-600 font-semibold">
-                {task.tag}
-              </div>
-              <div className="font-semibold text-slate-900 mt-1">
-                {task.title}
-              </div>
-              <div className="text-sm text-slate-500">Hạn: {task.due}</div>
-              <button className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-indigo-600">
-                Cập nhật <ArrowRight size={14} />
-              </button>
+                <div className="mt-3 space-y-3">
+                  {notices.map((n) => (
+                    <NoticeItem key={n.title} notice={n} />
+                  ))}
+                </div>
+
+                <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/85">
+                  <div className="flex items-center gap-2">
+                    <BellRing size={15} />
+                    Nhớ bật thông báo để không bỏ lỡ bài tập!
+                  </div>
+                  <ChevronRight size={15} />
+                </div>
+              </GlassCard>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Tools */}
-      <div className="rounded-2xl border border-slate-200 bg-white">
-        <div className="p-5 border-b">
-          <h3 className="font-semibold text-slate-900">Công cụ học tập</h3>
-        </div>
-        <div className="p-5 grid md:grid-cols-4 gap-4">
-          <QuickAction
-            icon={<BookOpen size={18} />}
-            title="Tài liệu"
-            desc="Slide, audio và từ vựng của từng buổi học."
-          />
-          <QuickAction
-            icon={<FileText size={18} />}
-            title="Bài tập"
-            desc="Nộp file, xem phản hồi và điểm số."
-          />
-          <QuickAction
-            icon={<Laptop size={18} />}
-            title="Lớp trực tuyến"
-            desc="Tham gia Zoom và kiểm tra thiết bị."
-          />
-          <QuickAction
-            icon={<CheckSquare size={18} />}
-            title="Điểm danh"
-            desc="Check-in nhanh trước giờ học."
-          />
+          </div>
         </div>
       </div>
     </div>

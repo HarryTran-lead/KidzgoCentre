@@ -107,12 +107,18 @@ export default function Navbar() {
         kind: "route",
         href: localizePath(EndPoint.HOME, locale),
       },
-      
+
       {
         id: "faqs",
         label: msg.nav.faqs,
         kind: "route",
         href: localizePath(EndPoint.FAQS, locale),
+      },
+      {
+        id: "bantin",
+        label: msg.nav.bantin,
+        kind: "route",
+        href: localizePath(EndPoint.BLOGS, locale),
       },
       {
         id: "contact",
@@ -150,6 +156,7 @@ export default function Navbar() {
   const activeKey = useMemo(() => {
     if (pathname.includes("/contact")) return "contact";
     if (pathname.includes("/faqs")) return "faqs";
+    if (pathname.includes("/blogs")) return "bantin";
     if (pathname.includes("/pricing")) return "pricing";
     return activeSectionId;
   }, [pathname, activeSectionId]);
@@ -303,11 +310,11 @@ export default function Navbar() {
               <div className="flex items-center">
                 <div
                   ref={containerRef}
-                  className="relative inline-flex items-center gap-0.5 p-2.5"
+                  className="relative inline-flex items-center gap-0.5 px-1.5 pb-2.5 py-2"
                 >
                   {indReady && (
                     <motion.div
-                      className="absolute top-2.5 left-2.5 h-[calc(100%-20px)] bg-gradient-to-r from-pink-400/20 to-rose-400/20 rounded-xl border border-pink-100/50 shadow-sm"
+                      className="absolute top-2 left-0 h-[calc(100%-16px)] bg-gradient-to-r from-pink-400/20 to-rose-400/20 rounded-xl border border-pink-100/50 shadow-sm"
                       initial={false}
                       style={{
                         x,
@@ -376,7 +383,7 @@ export default function Navbar() {
                         href={item.href}
                         ref={setItemRef(i)}
                         className={`
-                          relative z-10 px-4 py-2.5 mx-1 text-sm font-medium rounded-xl
+                          relative z-10 px-4 py-2.5 mx-0.5 text-sm font-medium rounded-xl
                           transition-all duration-300 ease-out
                           group/nav-item whitespace-nowrap
                           ${isActive 

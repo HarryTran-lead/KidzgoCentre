@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { TESTIMONIALS, GALLERY } from "@/lib/data/data";
-import { Star, ChevronLeft, ChevronRight, Quote, Award, Sparkles } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Star, ChevronLeft, ChevronRight, Quote, Award, Sparkles, Heart, MessageCircle, TrendingUp } from "lucide-react";
+import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 
 const AUTO_MS = 6000;
 
@@ -18,16 +18,22 @@ export default function Testimonials() {
   );
 
   const [idx, setIdx] = useState(0);
-  const [direction, setDirection] = useState(0); // -1 for left, 1 for right
+  const [direction, setDirection] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  
+  const springX = useSpring(mouseX, { stiffness: 150, damping: 15 });
+  const springY = useSpring(mouseY, { stiffness: 150, damping: 15 });
 
   useEffect(() => {
-    if (slides.length === 0) return;
+    if (slides.length === 0 || isHovered) return;
     const t = setInterval(() => {
       setDirection(1);
       setIdx((p) => (p + 1) % slides.length);
     }, AUTO_MS);
     return () => clearInterval(t);
-  }, [slides.length]);
+  }, [slides.length, isHovered]);
 
   if (slides.length === 0) return null;
 
@@ -41,207 +47,387 @@ export default function Testimonials() {
 
   const slide = slides[idx];
 
-  // Gradient backgrounds for each testimonial
+  const handleMouseMove = (e: React.MouseEvent) => {
+    mouseX.set(e.clientX);
+    mouseY.set(e.clientY);
+  };
+
   const gradients = [
-    "from-indigo-500 via-purple-500 to-pink-500",
-    "from-amber-500 via-orange-500 to-rose-500",
+    "from-pink-500 via-rose-500 to-amber-500",
     "from-emerald-500 via-teal-500 to-cyan-500",
-    "from-rose-500 via-pink-500 to-purple-500",
+    "from-violet-500 via-purple-500 to-fuchsia-500",
     "from-blue-500 via-indigo-500 to-violet-500",
+    "from-amber-500 via-orange-500 to-rose-500",
   ];
 
   return (
-    <section className="py-24 md:py-32 scroll-mt-24 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-linear-to-b from-white via-rose-50/30 to-white -z-10"></div>
-      <div className="absolute top-20 left-1/4 w-96 h-96 bg-gradient-to-r from-pink-500/5 to-rose-500/5 rounded-full blur-3xl -z-10"></div>
-      <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-full blur-3xl -z-10"></div>
-      
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header with modern design */}
-        <div className="text-center mb-16 relative">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="relative">
-              <Sparkles className="w-5 h-5 text-pink-500 animate-pulse" />
-              <div className="absolute inset-0 bg-pink-500/20 blur-sm"></div>
-            </div>
-            <span className="text-sm font-semibold uppercase tracking-wider bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-              Phản hồi từ học viên
+    <section
+      className="pt-20 md:pt-28 pb-32 md:pb-40 scroll-mt-24 relative overflow-hidden bg-[#8ED462] z-30 mt-[-10px]"
+      onMouseMove={handleMouseMove}
+    >
+      {/* Animated gradient orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-full"
+          animate={{
+            scale: [1, 1.2, 1],
+            x: [0, 30, 0],
+            y: [0, -30, 0],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        <motion.div
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-full"
+          animate={{
+            scale: [1, 1.1, 1],
+            x: [0, -20, 0],
+            y: [0, 20, 0],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 1
+          }}
+        />
+      </div>
+
+      {/* Floating particles */}
+      <div className="absolute inset-0 overflow-hidden">
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 bg-white/30 rounded-full"
+            style={{
+              left: `${(i * 7) % 100}%`,
+              top: `${(i * 10) % 100}%`,
+            }}
+            animate={{
+              y: [0, -40, 0],
+              opacity: [0.2, 0.8, 0.2],
+            }}
+            transition={{
+              duration: 4 + i * 0.3,
+              repeat: Infinity,
+              delay: i * 0.2,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Mouse follow gradient */}
+      <motion.div
+        className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-pink-500/5 via-rose-500/5 to-amber-500/5 blur-3xl pointer-events-none"
+        style={{
+          x: springX,
+          y: springY,
+          translateX: "-50%",
+          translateY: "-50%",
+        }}
+      />
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
+        {/* Header */}
+        <motion.div
+          className="text-center mb-20 relative"
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+        >
+          <motion.div
+            className="inline-flex items-center gap-2 mb-6"
+            initial={{ scale: 0.9, opacity: 0 }}
+            whileInView={{ scale: 1, opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <span className="px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-semibold border border-white/30">
+              Phản hồi từ cộng đồng
             </span>
-          </div>
-          
-          <h2 className="text-5xl md:text-6xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
-              Cảm nhận thực tế từ{" "}
-              <span className="relative inline-block">
-                <span className="relative z-10 bg-gradient-to-r from-pink-500 via-rose-500 to-amber-500 bg-clip-text text-transparent">
-                  phụ huynh & học viên
+          </motion.div>
+
+          <motion.h2
+            className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+          >
+            <span className="relative inline-block">
+              <span className="text-white drop-shadow-lg">
+                Câu chuyện{" "}
+                <span className="relative inline-block">
+                  <span className="relative z-10 bg-gradient-to-r from-white to-white bg-clip-text text-transparent">
+                    thành công
+                  </span>
+                  <motion.span
+                    className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-amber-300 via-rose-300 to-pink-300 rounded-full"
+                    initial={{ scaleX: 0 }}
+                    whileInView={{ scaleX: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8, delay: 0.5 }}
+                  />
                 </span>
-                <span className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-rose-500/20 to-amber-500/20 blur-xl -z-10"></span>
               </span>
             </span>
-          </h2>
-          
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Không chỉ là điểm số, mà còn là sự thay đổi trong tư duy và niềm yêu thích tiếng Anh
-          </p>
-        </div>
+          </motion.h2>
+
+          <motion.p
+            className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            Hàng nghìn phụ huynh đã tin tưởng và chứng kiến sự tiến bộ vượt bậc của con em
+          </motion.p>
+        </motion.div>
 
         {/* Main testimonial slider */}
-        <div className="relative">
-          {/* Large background quote */}
-          <div className="absolute -top-10 -left-10 text-[300px] opacity-5 text-pink-500 -z-10 select-none">
+        <div className="relative" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+          {/* Background decorative elements */}
+          <div className="absolute -top-20 -left-20 text-[400px] opacity-[0.03] text-white select-none">
             <Quote className="w-full h-full" />
           </div>
 
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left: Content */}
-            <div className="relative">
-              {/* Floating decorative elements */}
-              <div className="absolute -top-6 -left-6 w-24 h-24 bg-linear-to-br from-pink-500/10 to-rose-500/10 rounded-2xl blur-xl"></div>
-              <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-tr from-blue-500/10 to-indigo-500/10 rounded-2xl blur-xl"></div>
-              
-              <div className="relative backdrop-blur-sm bg-white/60 rounded-3xl border border-white/50 shadow-2xl p-8 md:p-10">
-                {/* Quote icon */}
-                <div className="absolute -top-4 -left-4 w-16 h-16 rounded-2xl bg-linear-to-br from-pink-500 to-rose-500 grid place-items-center shadow-xl">
-                  <Quote className="w-8 h-8 text-white" />
+            {/* Left: Content Card */}
+            <motion.div
+              className="relative"
+              initial={{ opacity: 0, x: -40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}
+            >
+              {/* Card glow effect */}
+              <div className={`absolute -inset-4 bg-gradient-to-r ${gradients[idx % gradients.length]} rounded-3xl opacity-20 blur-2xl -z-10`} />
+
+              <div className="relative backdrop-blur-xl bg-white/10 rounded-3xl border border-white/30 shadow-2xl p-8 md:p-10 overflow-hidden group">
+                {/* Animated background pattern */}
+                <div className="absolute inset-0 opacity-5">
+                  <div className="absolute inset-0 bg-[url('/image/pattern.svg')] bg-repeat bg-[length:100px_100px]"></div>
                 </div>
-                
+
+
                 <AnimatePresence mode="wait" custom={direction}>
                   <motion.div
                     key={slide.name}
                     custom={direction}
-                    initial={{ opacity: 0, x: direction * 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: direction * -50 }}
-                    transition={{ duration: 0.5, ease: "easeInOut" }}
-                    className="space-y-6"
+                    initial={{ opacity: 0, x: direction * 60, scale: 0.95 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: direction * -60, scale: 0.95 }}
+                    transition={{ duration: 0.6, ease: "easeInOut" }}
+                    className="space-y-8 relative z-10"
                   >
-                    {/* Rating stars */}
-                    <div className="flex gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={i} className="relative">
-                          <Star className="w-6 h-6 text-amber-400 fill-amber-400" />
-                          <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-400 blur-sm opacity-50"></div>
-                        </div>
-                      ))}
+                    {/* Rating with animation */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ scale: 0, rotate: -180 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ duration: 0.3, delay: i * 0.1 }}
+                            className="relative"
+                          >
+                            <Star className="w-7 h-7 text-amber-300 fill-amber-300" />
+                            <motion.div
+                              className="absolute inset-0 bg-amber-300 blur-md"
+                              animate={{ opacity: [0.3, 0.8, 0.3] }}
+                              transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
+                            />
+                          </motion.div>
+                        ))}
+                      </div>
+                      <motion.div
+                        className="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-sm border border-amber-500/30"
+                        whileHover={{ scale: 1.05 }}
+                      >
+                        <span className="text-sm font-semibold text-white">5.0/5.0</span>
+                      </motion.div>
                     </div>
-                    
-                    {/* Quote text */}
+
+                    {/* Quote text with gradient highlight */}
                     <div className="relative">
-                      <p className="text-2xl md:text-3xl font-medium text-gray-900 leading-relaxed">
-                        "{slide.quote}"
-                      </p>
-                      <div className="absolute -bottom-4 -right-4 text-8xl text-pink-500/20">"</div>
+                      <motion.p
+                        className="text-2xl md:text-3xl lg:text-4xl font-medium text-white leading-relaxed"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                      >
+                        <span className="bg-gradient-to-r from-white via-white/90 to-white bg-clip-text text-transparent">
+                          "{slide.quote}"
+                        </span>
+                      </motion.p>
+                      <motion.div
+                        className="absolute -bottom-8 -right-8 text-9xl text-white/10"
+                        animate={{ rotate: [0, 360] }}
+                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                      >
+                        "
+                      </motion.div>
                     </div>
-                    
-                    {/* Student info */}
-                    <div className="pt-6 border-t border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-900">{slide.name}</h3>
-                          <p className="text-gray-600">{slide.score}</p>
-                        </div>
-                        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-100 to-green-100 border border-emerald-200/50">
-                          <Award className="w-4 h-4 text-emerald-600" />
-                          <span className="text-sm font-semibold text-emerald-700">Thành tích xuất sắc</span>
+
+                    {/* Student info with badges */}
+                    <motion.div
+                      className="pt-8 border-t border-white/20"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-2xl font-bold text-white">{slide.name}</h3>
+                            <motion.div
+                              whileHover={{ scale: 1.1 }}
+                              className="w-2 h-2 rounded-full bg-emerald-400"
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ duration: 2, repeat: Infinity }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <TrendingUp className="w-4 h-4 text-emerald-300" />
+                            <p className="text-lg text-white/80">{slide.score}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   </motion.div>
                 </AnimatePresence>
-              </div>
-            </div>
 
-            {/* Right: Avatar and navigation */}
-            <div className="relative">
-              {/* Avatar card */}
-              <div className="relative group">
-                {/* Glow effect */}
-                <div className={`absolute inset-0 rounded-3xl bg-gradient-to-r ${gradients[idx % gradients.length]} blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500`}></div>
-                
-                {/* Main avatar image */}
-                <div className="relative rounded-2xl overflow-hidden border-2 border-white/50 shadow-2xl bg-linear-to-br from-white to-gray-50">
+                {/* Corner accents */}
+                <motion.div
+                  className="absolute top-0 right-0 w-32 h-32 border-t-2 border-r-2 border-white/20 rounded-tr-3xl"
+                  animate={{ borderColor: ["rgba(255,255,255,0.2)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0.2)"] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                />
+                <motion.div
+                  className="absolute bottom-0 left-0 w-32 h-32 border-b-2 border-l-2 border-white/20 rounded-bl-3xl"
+                  animate={{ borderColor: ["rgba(255,255,255,0.2)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0.2)"] }}
+                  transition={{ duration: 3, repeat: Infinity, delay: 1.5 }}
+                />
+              </div>
+            </motion.div>
+
+            {/* Right: Avatar Gallery */}
+            <motion.div
+              className="relative"
+              initial={{ opacity: 0, x: 40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+            >
+              {/* Main avatar card */}
+              <div className="relative group" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+                {/* Glow ring */}
+                <motion.div
+                  className={`absolute -inset-6 rounded-3xl bg-gradient-to-r ${gradients[idx % gradients.length]} opacity-30 blur-xl`}
+                  animate={{ rotate: [0, 360] }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                />
+
+                {/* Avatar container */}
+                <div className="relative rounded-3xl overflow-hidden border-4 border-white/40 shadow-2xl bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm">
                   <AnimatePresence mode="wait">
-                    <motion.img
+                    <motion.div
                       key={slide.avatar}
-                      src={slide.avatar}
-                      alt={slide.name}
-                      className="w-full h-[400px] object-cover"
-                      initial={{ opacity: 0, scale: 1.1 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{ duration: 0.6, ease: "easeInOut" }}
-                    />
+                      className="relative"
+                      initial={{ opacity: 0, filter: "blur(10px)" }}
+                      animate={{ opacity: 1, filter: "blur(0px)" }}
+                      exit={{ opacity: 0, filter: "blur(10px)" }}
+                      transition={{ duration: 0.6 }}
+                    >
+                      <img
+                        src={slide.avatar}
+                        alt={slide.name}
+                        className="w-full h-[500px] object-cover"
+                      />
+                      {/* Gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      
+                      {/* Progress indicator */}
+                      <div className="absolute top-6 left-6 flex items-center gap-2">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg grid place-items-center">
+                          <span className="text-xl font-black text-white">{idx + 1}</span>
+                        </div>
+                        <div className="text-white">
+                          <div className="text-sm opacity-80">Testimonial</div>
+                          <div className="text-lg font-bold">{slide.name.split(' ')[0]}</div>
+                        </div>
+                      </div>
+                    </motion.div>
                   </AnimatePresence>
-                  
-                  {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
-                  
-                  {/* Current index badge */}
-                  <div className="absolute top-4 right-4 w-12 h-12 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg grid place-items-center">
-                    <span className="text-xl font-black bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-                      {idx + 1}
-                    </span>
-                  </div>
                 </div>
-                
+
                 {/* Navigation controls */}
-                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-3">
-                  <button
+                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-4">
+                  <motion.button
                     onClick={prev}
-                    className="w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl hover:shadow-2xl hover:scale-110 transition-all duration-300 grid place-items-center group/nav"
-                    aria-label="Previous testimonial"
+                    className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl hover:shadow-3xl transition-all duration-300 grid place-items-center group/nav"
+                    whileHover={{ scale: 1.1, x: -5 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <ChevronLeft className="w-5 h-5 text-gray-700 group-hover/nav:text-pink-600 transition-colors" />
-                  </button>
-                  
-                  {/* Thumbnails */}
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm shadow-lg">
+                    <ChevronLeft className="w-6 h-6 text-white group-hover/nav:text-amber-300 transition-colors" />
+                  </motion.button>
+
+                  {/* Thumbnail carousel */}
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-xl">
                     {slides.map((s, i) => {
                       const active = i === idx;
                       return (
-                        <button
+                        <motion.button
                           key={s.name}
                           onClick={() => navigate(i)}
-                          className={`relative w-8 h-8 rounded-full transition-all duration-300 ${
-                            active 
-                              ? 'scale-125 ring-2 ring-pink-500 ring-offset-2' 
-                              : 'hover:scale-110'
-                          }`}
-                          aria-label={`Chọn ${s.name}`}
+                          className="relative"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
                         >
-                          <img
-                            src={s.avatar}
-                            alt={s.name}
-                            className="w-full h-full rounded-full object-cover"
-                            loading="lazy"
-                          />
+                          <div className={`relative w-12 h-12 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
+                            active 
+                              ? 'border-white scale-110' 
+                              : 'border-white/30 hover:border-white/60'
+                          }`}>
+                            <img
+                              src={s.avatar}
+                              alt={s.name}
+                              className="w-full h-full object-cover"
+                            />
+                            {active && (
+                              <motion.div
+                                className="absolute inset-0 bg-gradient-to-r from-pink-500/30 to-rose-500/30"
+                                layoutId="activeThumb"
+                              />
+                            )}
+                          </div>
                           {active && (
-                            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-pink-500/20 to-rose-500/20 animate-pulse"></div>
+                            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full bg-white"></div>
                           )}
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
-                  
-                  <button
+
+                  <motion.button
                     onClick={next}
-                    className="w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl hover:shadow-2xl hover:scale-110 transition-all duration-300 grid place-items-center group/nav"
-                    aria-label="Next testimonial"
+                    className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl hover:shadow-3xl transition-all duration-300 grid place-items-center group/nav"
+                    whileHover={{ scale: 1.1, x: 5 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <ChevronRight className="w-5 h-5 text-gray-700 group-hover/nav:text-pink-600 transition-colors" />
-                  </button>
+                    <ChevronRight className="w-6 h-6 text-white group-hover/nav:text-amber-300 transition-colors" />
+                  </motion.button>
                 </div>
               </div>
+
               
-              {/* Floating elements */}
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-tr from-amber-500/10 to-orange-500/10 rounded-full blur-xl -z-10"></div>
-              <div className="absolute -top-4 -left-4 w-20 h-20 bg-linear-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-xl -z-10"></div>
-            </div>
+            </motion.div>
           </div>
 
-          
         </div>
       </div>
     </section>
