@@ -107,7 +107,7 @@ export default function StreakOverlay({ streakData, onClose }: StreakOverlayProp
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ type: "spring", damping: 15, stiffness: 300 }}
-            className="relative max-w-2xl w-full mx-4 bg-gradient-to-br from-orange-500 via-red-500 to-pink-500 rounded-3xl shadow-2xl overflow-hidden"
+            className="relative max-w-2xl w-full mx-4 bg-linear-to-br from-orange-500 via-red-500 to-pink-500 rounded-3xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}

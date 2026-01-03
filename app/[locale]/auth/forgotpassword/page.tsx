@@ -63,7 +63,7 @@
 //   };
 
 //   return (
-//     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-pink-500 via-orange-500 to-yellow-500">
+//     <div className="flex items-center justify-center min-h-screen bg-linear-to-r from-pink-500 via-orange-500 to-yellow-500">
 //       <ForgotPasswordCard
 //         formData={formData}
 //         setFormData={setFormData}

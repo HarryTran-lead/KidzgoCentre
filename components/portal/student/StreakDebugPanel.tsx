@@ -65,7 +65,7 @@ export default function StreakDebugPanel({ onShowOverlay }: StreakDebugPanelProp
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-4 right-4 z-[9998] p-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-full shadow-lg transition-all hover:scale-110"
+        className="fixed bottom-4 right-4 z-[9998] p-3 bg-linear-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-full shadow-lg transition-all hover:scale-110"
         title="Streak Debug Panel"
       >
         {isOpen ? <X className="w-6 h-6" /> : <Flame className="w-6 h-6" />}
@@ -75,7 +75,7 @@ export default function StreakDebugPanel({ onShowOverlay }: StreakDebugPanelProp
       {isOpen && (
         <div className="fixed bottom-20 right-4 z-[9998] w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-orange-500 to-red-500 p-4 text-white">
+          <div className="bg-linear-to-r from-orange-500 to-red-500 p-4 text-white">
             <div className="flex items-center gap-2">
               <Settings className="w-5 h-5" />
               <h3 className="font-bold text-lg">Streak Debug Panel</h3>
@@ -93,7 +93,7 @@ export default function StreakDebugPanel({ onShowOverlay }: StreakDebugPanelProp
                   <button
                     key={preset.value}
                     onClick={() => handleTestStreak(preset.value)}
-                    className="p-3 bg-gradient-to-br from-orange-50 to-red-50 hover:from-orange-100 hover:to-red-100 border border-orange-200 rounded-lg text-left transition-all hover:scale-105"
+                    className="p-3 bg-linear-to-br from-orange-50 to-red-50 hover:from-orange-100 hover:to-red-100 border border-orange-200 rounded-lg text-left transition-all hover:scale-105"
                   >
                     <div className="text-sm font-bold text-orange-600">{preset.label}</div>
                     <div className="text-xs text-gray-600">{preset.description}</div>

@@ -2,10 +2,11 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/portal/sidebar";
-import PortalHeader from "@/components/portal/header";
 import { normalizeRole, type Role } from "@/lib/role";
 import { getSession } from "@/lib/auth";
-import StudentStreakWrapper from "@/components/student/StudentStreakWrapper";
+import StudentStreakWrapper from "@/components/portal/student/StudentStreakWrapper";
+import StudentHeader from "@/components/portal/student/StudentHeader";
+import StudentFooter from "@/components/portal/student/StudentFooter";
 
 type Props = {
   children: ReactNode;
@@ -24,38 +25,41 @@ export default async function StudentLayout({ children }: Props) {
 
   return (
     <StudentStreakWrapper>
-      <div className="h-dvh w-full overflow-hidden">
-        <div className="flex h-full min-h-0">
+      <div className="h-dvh w-full overflow-hidden flex flex-col">
+        {/* background layer */}
+        <div className="pointer-events-none fixed inset-0 z-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1a0f63] via-[#23104f] to-[#0b0a36]" />
+          <Image
+            src="/image/BackGroundStudent.png"
+            alt="Student Background"
+            fill
+            priority
+            quality={100}
+            className="object-fill object-center"
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/5" />
+        </div>
+
+        {/* Header section */}
+        <div className="relative z-10 shrink-0">
+          <StudentHeader userName={user?.name} avatarUrl={user?.avatar} />
+        </div>
+
+      
+        {/* Main content section with sidebar */}
+        <div className="relative flex flex-1 min-h-0">
           <Sidebar role={role} />
 
-          <section className="flex min-w-0 flex-1 flex-col min-h-0">
-            <PortalHeader role={role} userName={user?.name} avatarUrl={user?.avatar} />
-
-            {/* scroll area */}
-            <div className="relative min-h-0 flex-1 min-w-0 overflow-y-auto px-4 py-4 sm:px-6 isolate">
-              {/* background layer */}
-              <div className="pointer-events-none absolute inset-0 z-0">
-                {/* fallback gradient behind image (so contain doesn't look empty) */}
-                <div className="absolute inset-0 bg-gradient-to-br from-[#1a0f63] via-[#23104f] to-[#0b0a36]" />
-
-             <Image
-  src="/image/BackGroundStudent.png"
-  alt="Student Background"
-  fill
-  priority
-  className="object-cover object-[70%_40%]"
-/>
-
-
-                {/* nhẹ thôi để chữ dễ đọc (đừng đậm quá) */}
-                <div className="absolute inset-0 bg-black/10" />
-              </div>
-
-              {/* content layer */}
-              <div className="relative z-10">{children}</div>
+          <section className="flex min-w-0 flex-1 flex-col min-h-0 relative">
+            <div className="relative min-h-0 flex-1 min-w-0 overflow-y-auto isolate">
+              {/* content layer - positioned on left side with max width to leave space for island */}
+              <div className="relative z-10 px-6 py-4 max-w-2xl">{children}</div>
             </div>
           </section>
         </div>
+
+        <StudentFooter />
       </div>
     </StudentStreakWrapper>
   );

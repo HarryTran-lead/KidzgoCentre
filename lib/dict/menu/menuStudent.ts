@@ -3,21 +3,22 @@ export const menuStudent = {
   vi: {
     groups: {
       homework: "Bài tập",
-      testsReports: "Kiểm tra & Báo cáo",
+      reportsTests: "Báo cáo",
       gamification: "Gamification",
       media: "Media",
-      notifications: "Thông báo",
+      communications: "Giao tiếp",
     },
     items: {
+      all: "Tất cả",
       home: "Trang chủ",
       // Thời khóa biểu & Điểm danh
-      schedule: "Thời khóa biểu",
+      schedule: "Lịch học",
       attendance: "Điểm danh",
       // Bài tập
       homework: "Bài tập",
-      // Kiểm tra & Báo cáo
+      // Báo cáo & Kiểm tra
       testResults: "Kết quả kiểm tra",
-      monthlyReports: "Tiến độ học tập",
+      monthlyReports: "Báo cáo học tập",
       // Gamification
       missions: "Nhiệm vụ (Mission)",
       streak: "Streak học tập",
@@ -28,29 +29,30 @@ export const menuStudent = {
       // Media
       classMedia: "Album ảnh/video lớp",
       personalMedia: "Album cá nhân",
-      // Thông báo
-      homeworkNotifications: "Thông báo bài tập",
-      scheduleNotifications: "Thông báo thay đổi TKB",
+      // Giao tiếp
+      messages: "Tin nhắn",
+      notifications: "Thông báo",
     },
   },
   en: {
     groups: {
       homework: "Homework",
-      testsReports: "Tests & Reports",
+      reportsTests: "Reports",
       gamification: "Gamification",
       media: "Media",
-      notifications: "Notifications",
+      communications: "Communications",
     },
     items: {
+      all: "All",
       home: "Home",
       // Schedule & Attendance
       schedule: "Schedule",
       attendance: "Attendance",
       // Homework
       homework: "Homework",
-      // Tests & Reports
+      // Reports & Tests
       testResults: "Test Results",
-      monthlyReports: "Learning Progress",
+      monthlyReports: "Learning Reports",
       // Gamification
       missions: "Missions",
       streak: "Learning Streak",
@@ -61,9 +63,9 @@ export const menuStudent = {
       // Media
       classMedia: "Class Photos/Videos",
       personalMedia: "Personal Album",
-      // Notifications
-      homeworkNotifications: "Homework Notifications",
-      scheduleNotifications: "Schedule Change Notifications",
+      // Communications
+      messages: "Messages",
+      notifications: "Notifications",
     },
   },
 } as const;

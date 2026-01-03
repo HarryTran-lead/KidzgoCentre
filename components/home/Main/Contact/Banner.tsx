@@ -32,7 +32,7 @@ export default function BannerContact() {
 
   return (
     <header 
-      className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-green-400 to-emerald-400 pb-16 sm:pb-20 sticky top-0 pt-24 z-10"
+      className="relative overflow-hidden bg-linear-to-br from-emerald-500 via-green-400 to-emerald-400 pb-16 sm:pb-20 sticky top-0 pt-24 z-10"
       style={{ opacity }}
     >
       {/* Background Effects */}

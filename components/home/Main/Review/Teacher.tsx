@@ -105,7 +105,7 @@ export default function Teacher() {
       {/* Animated gradient orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-yellow-200/20 to-amber-200/10 rounded-full"
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-linear-to-r from-yellow-200/20 to-amber-200/10 rounded-full"
           animate={{
             scale: [1, 1.2, 1],
             x: [0, 30, 0],
@@ -118,7 +118,7 @@ export default function Teacher() {
           }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-amber-200/20 to-yellow-200/10 rounded-full"
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-linear-to-r from-amber-200/20 to-yellow-200/10 rounded-full"
           animate={{
             scale: [1, 1.1, 1],
             x: [0, -20, 0],
@@ -158,7 +158,7 @@ export default function Teacher() {
 
       {/* Mouse follow gradient */}
       <motion.div
-        className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-yellow-200/10 via-amber-200/10 to-yellow-200/10 blur-3xl pointer-events-none"
+        className="absolute w-96 h-96 rounded-full bg-linear-to-r from-yellow-200/10 via-amber-200/10 to-yellow-200/10 blur-3xl pointer-events-none"
         style={{
           x: springX,
           y: springY,
@@ -245,7 +245,7 @@ export default function Teacher() {
                     }}
                   >
                   {/* Decorative top border */}
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-400 via-rose-400 to-pink-400 z-10" />
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-pink-400 via-rose-400 to-pink-400 z-10" />
                   
                   {/* Teacher Image */}
                   <div className="relative w-full h-[250px] sm:h-[280px] overflow-hidden">
@@ -259,7 +259,7 @@ export default function Teacher() {
                     />
                     {/* Enhanced gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 via-transparent to-amber-500/10" />
+                    <div className="absolute inset-0 bg-linear-to-br from-pink-500/10 via-transparent to-amber-500/10" />
                     
                     {/* Country Badge - Enhanced */}
                     <motion.div 
@@ -274,7 +274,7 @@ export default function Teacher() {
                     
                     {/* Experience Badge - Enhanced */}
                     <motion.div 
-                      className="absolute top-4 left-4 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 backdrop-blur-md rounded-full text-xs font-bold text-white shadow-xl flex items-center gap-1.5 border border-amber-400/30"
+                      className="absolute top-4 left-4 px-4 py-2 bg-linear-to-r from-amber-500 to-orange-500 backdrop-blur-md rounded-full text-xs font-bold text-white shadow-xl flex items-center gap-1.5 border border-amber-400/30"
                       whileHover={{ scale: 1.1 }}
                     >
                       <Star className="w-3.5 h-3.5 fill-white" />
@@ -283,15 +283,15 @@ export default function Teacher() {
                   </div>
 
                   {/* Card Content - Enhanced */}
-                  <div className="p-4 sm:p-5 bg-gradient-to-b from-white to-gray-50/50 flex flex-col flex-1">
+                  <div className="p-4 sm:p-5 bg-linear-to-b from-white to-gray-50/50 flex flex-col flex-1">
                     {/* Achievement Button - Enhanced */}
                     <motion.div
                       className="w-full mb-3"
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <button className="w-full px-4 py-2.5 bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                      <button className="w-full px-4 py-2.5 bg-linear-to-r from-pink-500 via-rose-500 to-pink-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-linear-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                         <Award className="w-4 h-4 relative z-10" />
                         <span className="relative z-10">{teacher.achievement}</span>
                       </button>

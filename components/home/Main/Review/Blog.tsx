@@ -96,7 +96,7 @@ export default function Blog() {
   return (
     <section 
       id="blog" 
-      className="py-28 pb-0 scroll-mt-24 bg-gradient-to-b from-blue-50 via-cyan-50 to-blue-100 relative z-30 overflow-hidden"
+      className="py-28 pb-0 scroll-mt-24 bg-linear-to-b from-blue-50 via-cyan-50 to-blue-100 relative z-30 overflow-hidden"
     >
       {/* Animated background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -104,7 +104,7 @@ export default function Blog() {
         {[...Array(8)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 rounded-full bg-gradient-to-r from-blue-400/20 to-cyan-400/20"
+            className="absolute w-1 h-1 rounded-full bg-linear-to-r from-blue-400/20 to-cyan-400/20"
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -124,7 +124,7 @@ export default function Blog() {
         
         {/* Gradient orbs */}
         <motion.div
-          className="absolute top-1/4 -left-40 w-[600px] h-[600px] bg-gradient-to-r from-blue-300/10 via-cyan-300/10 to-blue-300/10 rounded-full blur-3xl"
+          className="absolute top-1/4 -left-40 w-[600px] h-[600px] bg-linear-to-r from-blue-300/10 via-cyan-300/10 to-blue-300/10 rounded-full blur-3xl"
           animate={{
             rotate: [0, 180, 360],
             scale: [1, 1.1, 1]
@@ -136,7 +136,7 @@ export default function Blog() {
           }}
         />
         <motion.div
-          className="absolute bottom-1/4 -right-40 w-[500px] h-[500px] bg-gradient-to-r from-cyan-300/10 via-blue-300/10 to-cyan-300/10 rounded-full blur-3xl"
+          className="absolute bottom-1/4 -right-40 w-[500px] h-[500px] bg-linear-to-r from-cyan-300/10 via-blue-300/10 to-cyan-300/10 rounded-full blur-3xl"
           animate={{
             rotate: [360, 180, 0],
             scale: [1, 1.2, 1]
@@ -173,7 +173,7 @@ export default function Blog() {
                 variants={fadeInUp}
               >
                 <span className="block text-gray-900">Bài viết</span>
-                <span className="bg-gradient-to-r from-amber-400 via-pink-500 to-rose-500 bg-clip-text text-transparent relative inline-block">
+                <span className="bg-linear-to-r from-amber-400 via-pink-500 to-rose-500 bg-clip-text text-transparent relative inline-block">
                   <motion.span animate={floatingAnimation}>
                     Nổi bật
                   </motion.span>
@@ -202,7 +202,7 @@ export default function Blog() {
             >
               <motion.a
                 href="#"
-                className="group/cta relative inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-pink-500 to-rose-500 text-white font-bold shadow-xl shadow-pink-500/30 overflow-hidden"
+                className="group/cta relative inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-linear-to-r from-amber-400 via-pink-500 to-rose-500 text-white font-bold shadow-xl shadow-pink-500/30 overflow-hidden"
                 whileHover="hover"
                 whileTap={{ scale: 0.95 }}
               >
@@ -219,7 +219,7 @@ export default function Blog() {
                 
                 {/* Shimmer effect */}
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                  className="absolute inset-0 bg-linear-to-r from-transparent via-white/30 to-transparent"
                   initial={{ x: "-100%" }}
                   variants={{
                     hover: { x: "100%" }
@@ -229,7 +229,7 @@ export default function Blog() {
                 
                 {/* Glow effect */}
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-amber-400/50 via-pink-500/50 to-rose-500/50 blur-xl opacity-0"
+                  className="absolute inset-0 bg-linear-to-r from-amber-400/50 via-pink-500/50 to-rose-500/50 blur-xl opacity-0"
                   variants={{
                     hover: { opacity: 1 }
                   }}
@@ -273,7 +273,7 @@ export default function Blog() {
                     
                     {/* Gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-60"></div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-rose-500/10 mix-blend-overlay"></div>
+                    <div className="absolute inset-0 bg-linear-to-r from-pink-500/10 to-rose-500/10 mix-blend-overlay"></div>
                     
                     {/* Tag badge */}
                     <motion.div
@@ -302,7 +302,7 @@ export default function Blog() {
                           ease: "easeInOut"
                         }}
                       >
-                        <span className="inline-flex items-center gap-1 px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 text-white text-xs font-bold shadow-lg">
+                        <span className="inline-flex items-center gap-1 px-4 py-2 rounded-full bg-linear-to-r from-amber-500 to-pink-500 text-white text-xs font-bold shadow-lg">
                           <TrendingUp size={12} />
                           Đang Hot
                         </span>
@@ -336,7 +336,7 @@ export default function Blog() {
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <span className="bg-gradient-to-r from-gray-900 to-gray-700 group-hover:from-rose-600 group-hover:to-pink-600 bg-clip-text text-transparent transition-all duration-300">
+                      <span className="bg-linear-to-r from-gray-900 to-gray-700 group-hover:from-rose-600 group-hover:to-pink-600 bg-clip-text text-transparent transition-all duration-300">
                         {post.title}
                       </span>
                     </motion.h3>
@@ -392,7 +392,7 @@ export default function Blog() {
                         
                         {/* Hover gradient background */}
                         <motion.div
-                          className="absolute inset-0 bg-gradient-to-r from-pink-500 to-rose-500"
+                          className="absolute inset-0 bg-linear-to-r from-pink-500 to-rose-500"
                           initial={{ x: "-100%" }}
                           variants={{
                             hover: { x: 0 }
@@ -402,7 +402,7 @@ export default function Blog() {
                         
                         {/* Glow effect */}
                         <motion.div
-                          className="absolute -inset-1 bg-gradient-to-r from-pink-400/40 to-rose-400/40 blur-md opacity-0"
+                          className="absolute -inset-1 bg-linear-to-r from-pink-400/40 to-rose-400/40 blur-md opacity-0"
                           variants={{
                             hover: { opacity: 1 }
                           }}
@@ -423,7 +423,7 @@ export default function Blog() {
                   
                   {/* Corner accent */}
                   <motion.div
-                    className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-gradient-to-br from-pink-400/10 to-rose-400/10 blur-xl"
+                    className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-linear-to-br from-pink-400/10 to-rose-400/10 blur-xl"
                     animate={{
                       rotate: 360,
                       scale: [1, 1.1, 1]
@@ -440,7 +440,7 @@ export default function Blog() {
                 {index === 0 && (
                   <>
                     <motion.div
-                      className="absolute -top-4 -left-4 w-8 h-8 rounded-full bg-gradient-to-r from-pink-400 to-rose-400"
+                      className="absolute -top-4 -left-4 w-8 h-8 rounded-full bg-linear-to-r from-pink-400 to-rose-400"
                       animate={{
                         y: [0, -20, 0],
                         x: [0, 10, 0]
@@ -452,7 +452,7 @@ export default function Blog() {
                       }}
                     />
                     <motion.div
-                      className="absolute -bottom-4 -right-4 w-6 h-6 rounded-full bg-gradient-to-r from-amber-400 to-orange-400"
+                      className="absolute -bottom-4 -right-4 w-6 h-6 rounded-full bg-linear-to-r from-amber-400 to-orange-400"
                       animate={{
                         y: [0, 20, 0],
                         x: [0, -10, 0]

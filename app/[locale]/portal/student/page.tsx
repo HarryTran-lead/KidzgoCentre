@@ -28,8 +28,9 @@ function GlassCard({
   return (
     <div
       className={[
-        "rounded-3xl border border-white/15 bg-white/10 backdrop-blur-xl",
-        "shadow-[0_18px_55px_rgba(0,0,0,0.20)]",
+        "rounded-3xl border border-white/20 bg-white/12 backdrop-blur-xl",
+        "shadow-[0_18px_55px_rgba(0,0,0,0.22)]",
+        "transition-all duration-300 hover:shadow-[0_20px_65px_rgba(0,0,0,0.28)] hover:border-white/30",
         className,
       ].join(" ")}
     >
@@ -41,15 +42,15 @@ function GlassCard({
 function NoticeItem({ notice }: { notice: Notice }) {
   const isWarning = notice.type === "warning";
   return (
-    <div className="rounded-2xl border border-white/20 bg-white/12 p-3 backdrop-blur">
+    <div className="group rounded-2xl border border-white/20 bg-white/12 p-3 backdrop-blur transition-all duration-300 hover:bg-white/16 hover:border-white/30 hover:shadow-lg hover:-translate-y-0.5">
       <div className="flex items-start gap-3">
         <div
           className={[
-            "grid h-9 w-9 shrink-0 place-items-center rounded-xl",
-            isWarning ? "bg-amber-400/20 text-amber-200" : "bg-sky-400/20 text-sky-200",
+            "grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-all duration-300",
+            isWarning ? "bg-amber-400/20 text-amber-200 group-hover:bg-amber-400/30" : "bg-sky-400/20 text-sky-200 group-hover:bg-sky-400/30",
           ].join(" ")}
         >
-          <BellRing size={16} />
+          <BellRing size={16} className="transition-transform group-hover:scale-110" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-extrabold text-white text-[15px]">{notice.title}</div>
@@ -79,11 +80,11 @@ export default function Page() {
 
   return (
     // ✅ NO min-h-screen here (prevents extra scroll/blank)
-    <div className="relative">
-      <div className="mx-auto max-w-6xl px-2 sm:px-4 py-3 lg:py-4">
-        <div className="grid gap-4 lg:grid-cols-[420px_1fr] items-start">
+    <div className="relative pb-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
+        <div className="grid gap-5 lg:grid-cols-[1fr_380px] xl:grid-cols-[minmax(380px,520px)_minmax(320px,420px)] items-start">
           {/* LEFT */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Hero */}
             <GlassCard className="p-5">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-extrabold text-white/90">
@@ -100,14 +101,14 @@ export default function Page() {
               </p>
 
               <div className="mt-4 flex items-center gap-3">
-                <button className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 px-5 py-2.5 text-sm font-black text-white shadow-[0_14px_45px_rgba(59,130,246,0.40)] transition hover:-translate-y-0.5">
+                <button className="group inline-flex items-center gap-2 rounded-full bg-linear-to-r from-sky-400 to-indigo-500 px-5 py-2.5 text-sm font-black text-white shadow-[0_14px_45px_rgba(59,130,246,0.40)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_55px_rgba(59,130,246,0.55)] active:scale-95">
                   TIẾP TỤC HỌC
-                  <ArrowRight size={15} className="transition group-hover:translate-x-0.5" />
+                  <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
                 </button>
 
-                <button className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/90 backdrop-blur transition hover:bg-white/15">
+                <button className="group inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/12 px-4 py-2.5 text-sm font-semibold text-white/90 backdrop-blur transition-all duration-300 hover:bg-white/18 hover:border-white/40 hover:-translate-y-0.5 active:scale-95">
                   Xem lịch học
-                  <ChevronRight size={15} />
+                  <ChevronRight size={15} className="transition-transform group-hover:translate-x-0.5" />
                 </button>
               </div>
             </GlassCard>
@@ -136,7 +137,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-400/80 to-indigo-500/80 text-white shadow-lg">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-linear-to-br from-fuchsia-400/80 to-indigo-500/80 text-white shadow-lg">
                   <GraduationCap size={20} />
                 </div>
               </div>
@@ -160,8 +161,8 @@ export default function Page() {
           </div>
 
           {/* RIGHT */}
-          <div className="lg:pt-16">
-            <div className="max-w-xl lg:ml-auto">
+          <div className="lg:pt-10">
+            <div className="w-full">
               <GlassCard className="p-4">
                 <div className="flex items-center justify-between">
                   <div>

@@ -9,4 +9,4 @@ export const brand = {
   text: "#334155",
   subtle: "#64748B"
 };
-export const GRAD = `bg-gradient-to-r from-[${"#FF80AB"}] via-[${"#FFD166"}] to-[${"#A3D5FF"}]`;
+export const GRAD = `bg-linear-to-r from-[${"#FF80AB"}] via-[${"#FFD166"}] to-[${"#A3D5FF"}]`;

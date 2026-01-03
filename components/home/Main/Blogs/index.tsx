@@ -109,9 +109,9 @@ export default function Blogs() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 via-rose-50 to-pink-100 mt-30">
+    <div className="min-h-screen bg-linear-to-b from-pink-50 via-rose-50 to-pink-100 mt-30">
       {/* Main Content */}
-      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 -mt-40 bg-gradient-to-b from-pink-50 via-rose-50 to-pink-100 rounded-t-3xl shadow-2xl">
+      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 -mt-40 bg-linear-to-b from-pink-50 via-rose-50 to-pink-100 rounded-t-3xl shadow-2xl">
         {/* Search & Filter */}
         <motion.div
           initial="hidden"
@@ -181,7 +181,7 @@ export default function Blogs() {
                   className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100"
                 >
                   {/* Image */}
-                  <div className="relative h-48 sm:h-56 overflow-hidden bg-gradient-to-br from-pink-100 to-rose-100">
+                  <div className="relative h-48 sm:h-56 overflow-hidden bg-linear-to-br from-pink-100 to-rose-100">
                     <Image
                       src={blog.img}
                       alt={blog.title}

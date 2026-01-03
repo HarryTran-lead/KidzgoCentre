@@ -60,7 +60,7 @@ function Skeleton({
               "bg-muted relative overflow-hidden",
               variantClasses[variant],
               animationClasses[animation],
-              shimmer && "before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent"
+              shimmer && "before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-linear-to-r before:from-transparent before:via-white/20 before:to-transparent"
             )}
             style={style}
           />
@@ -75,7 +75,7 @@ function Skeleton({
         "bg-primary/20 relative overflow-hidden",
         variantClasses[variant],
         animationClasses[animation],
-        shimmer && "before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
+        shimmer && "before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-linear-to-r before:from-transparent before:via-white/20 before:to-transparent",
         className
       )}
       style={style}

@@ -49,7 +49,7 @@ export default function Courses() {
         "Phát âm chuẩn ngay từ đầu"
       ],
       color: "from-pink-400 to-orange-300",
-      bgColor: "bg-gradient-to-br from-pink-50 to-orange-50",
+      bgColor: "bg-linear-to-br from-pink-50 to-orange-50",
       borderColor: "border-pink-200",
       textColor: "text-pink-600",
       accentColor: "bg-pink-400",
@@ -80,7 +80,7 @@ export default function Courses() {
         "Tự tin thuyết trình nhóm"
       ],
       color: "from-blue-400 to-cyan-300",
-      bgColor: "bg-gradient-to-br from-blue-50 to-cyan-50",
+      bgColor: "bg-linear-to-br from-blue-50 to-cyan-50",
       borderColor: "border-blue-200",
       textColor: "text-blue-600",
       accentColor: "bg-blue-400",
@@ -111,7 +111,7 @@ export default function Courses() {
         "Làm việc nhóm hiệu quả"
       ],
       color: "from-purple-400 to-violet-300",
-      bgColor: "bg-gradient-to-br from-purple-50 to-violet-50",
+      bgColor: "bg-linear-to-br from-purple-50 to-violet-50",
       borderColor: "border-purple-200",
       textColor: "text-purple-600",
       accentColor: "bg-purple-400",
@@ -142,7 +142,7 @@ export default function Courses() {
         "Tự tin thảo luận và tranh biện"
       ],
       color: "from-green-400 to-emerald-300",
-      bgColor: "bg-gradient-to-br from-green-50 to-emerald-50",
+      bgColor: "bg-linear-to-br from-green-50 to-emerald-50",
       borderColor: "border-green-200",
       textColor: "text-green-600",
       accentColor: "bg-green-400",
@@ -247,15 +247,15 @@ export default function Courses() {
     <section 
       ref={sectionRef}
       id="courses" 
-      className="pt-16 md:pt-32 pb-0 scroll-mt-24 bg-gradient-to-b from-yellow-50 via-amber-50 to-yellow-100 relative z-30 overflow-hidden min-h-screen"
+      className="pt-16 md:pt-32 pb-0 scroll-mt-24 bg-linear-to-b from-yellow-50 via-amber-50 to-yellow-100 relative z-30 overflow-hidden min-h-screen"
     >
       {/* Animated background elements */}
       <motion.div 
-        className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-yellow-200/30 to-amber-200/30 rounded-full blur-3xl"
+        className="absolute top-0 left-0 w-96 h-96 bg-linear-to-br from-yellow-200/30 to-amber-200/30 rounded-full blur-3xl"
         style={{ y: y1 }}
       />
       <motion.div 
-        className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-amber-200/30 to-yellow-200/30 rounded-full blur-3xl"
+        className="absolute bottom-0 right-0 w-96 h-96 bg-linear-to-br from-amber-200/30 to-yellow-200/30 rounded-full blur-3xl"
         style={{ y: y2 }}
       />
       
@@ -281,7 +281,7 @@ export default function Courses() {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.1 }}
           >
-            <span className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-gradient-x">
+            <span className="bg-linear-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-gradient-x">
               Bé Yêu
             </span>
             <span className="text-gray-800 block md:inline md:ml-4">Học Tiếng Anh Vui</span>
@@ -417,7 +417,7 @@ export default function Courses() {
                     {/* Main Course Card - Thu gọn lại */}
                     <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden border-2 ${course.borderColor} flex flex-col flex-1`}>
                       {/* Course Header - Sáng hơn */}
-                      <div className={`relative bg-gradient-to-br ${course.color} px-6 py-5 shadow-lg`}>
+                      <div className={`relative bg-linear-to-br ${course.color} px-6 py-5 shadow-lg`}>
                         <div className="flex items-center gap-4 mb-3">
                           <div className="w-14 h-14 bg-white/30 backdrop-blur-sm rounded-xl flex items-center justify-center border-2 border-white/40 flex-shrink-0 shadow-md">
                             <IconComponent className="w-7 h-7 text-white drop-shadow-lg" />

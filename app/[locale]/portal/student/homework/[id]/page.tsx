@@ -596,7 +596,7 @@ export default function AssignmentDetailPage() {
           </h2>
 
           {/* Score */}
-          <div className="p-6 bg-gradient-to-br from-emerald-50 to-blue-50 rounded-xl mb-6 text-center border border-emerald-200">
+          <div className="p-6 bg-linear-to-br from-emerald-50 to-blue-50 rounded-xl mb-6 text-center border border-emerald-200">
             <div className="text-5xl font-bold text-emerald-600 mb-2">
               {assignment.grading.score}/{assignment.grading.maxScore}
             </div>
