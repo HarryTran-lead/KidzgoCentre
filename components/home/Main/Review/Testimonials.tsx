@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { TESTIMONIALS, GALLERY } from "@/lib/data/data";
 import { Star, ChevronLeft, ChevronRight, Quote, Award, Sparkles, Heart, MessageCircle, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
+import { ACCENT_TEXT } from "@/lib/theme/theme";
 
 const AUTO_MS = 6000;
 
@@ -20,6 +21,8 @@ export default function Testimonials() {
   const [idx, setIdx] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [isTitleVisible, setIsTitleVisible] = useState(false);
+  const titleRef = useRef<HTMLDivElement>(null);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   
@@ -34,6 +37,33 @@ export default function Testimonials() {
     }, AUTO_MS);
     return () => clearInterval(t);
   }, [slides.length, isHovered]);
+
+  // Intersection Observer cho title header
+  useEffect(() => {
+    const titleObserverOptions = {
+      root: null,
+      rootMargin: '0px',
+      threshold: 0.2
+    };
+
+    const titleObserverCallback = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setIsTitleVisible(true);
+        }
+      });
+    };
+
+    const titleObserver = new IntersectionObserver(titleObserverCallback, titleObserverOptions);
+
+    if (titleRef.current) {
+      titleObserver.observe(titleRef.current);
+    }
+
+    return () => {
+      titleObserver.disconnect();
+    };
+  }, []);
 
   if (slides.length === 0) return null;
 
@@ -132,61 +162,29 @@ export default function Testimonials() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header */}
-        <motion.div
-          className="text-center mb-20 relative"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-        >
-          <motion.div
-            className="inline-flex items-center gap-2 mb-6"
-            initial={{ scale: 0.9, opacity: 0 }}
-            whileInView={{ scale: 1, opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <span className="px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-semibold border border-white/30">
-              Phản hồi từ cộng đồng
-            </span>
-          </motion.div>
-
-          <motion.h2
-            className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-          >
-            <span className="relative inline-block">
-              <span className="text-white drop-shadow-lg">
-                Câu chuyện{" "}
-                <span className="relative inline-block">
-                  <span className="relative z-10 bg-gradient-to-r from-white to-white bg-clip-text text-transparent">
-                    thành công
-                  </span>
-                  <motion.span
-                    className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-amber-300 via-rose-300 to-pink-300 rounded-full"
-                    initial={{ scaleX: 0 }}
-                    whileInView={{ scaleX: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.8, delay: 0.5 }}
-                  />
-                </span>
+        <div ref={titleRef} className="text-center mb-20 relative">
+          <h2 className={`text-4xl md:text-5xl font-black relative mb-4 transition-all duration-1000 ${
+            isTitleVisible 
+              ? 'opacity-100 translate-y-0' 
+              : 'opacity-0 translate-y-10'
+          }`}>
+            <span className="text-white drop-shadow-lg">
+              Câu chuyện{" "}
+              <span className={`${ACCENT_TEXT} relative inline-block p-2`}>
+                thành công
+                <Star className="absolute -top-2 -right-4 w-4 h-4 text-yellow-500 animate-spin" />
               </span>
             </span>
-          </motion.h2>
-
-          <motion.p
-            className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
+          </h2>
+          
+          <p className={`text-lg text-white/90 max-w-2xl mx-auto transition-all duration-1000 delay-300 ${
+            isTitleVisible 
+              ? 'opacity-100 translate-y-0' 
+              : 'opacity-0 translate-y-10'
+          }`}>
             Hàng nghìn phụ huynh đã tin tưởng và chứng kiến sự tiến bộ vượt bậc của con em
-          </motion.p>
-        </motion.div>
+          </p>
+        </div>
 
         {/* Main testimonial slider */}
         <div className="relative" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
