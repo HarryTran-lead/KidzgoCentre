@@ -79,14 +79,14 @@ export default function Page() {
   ];
 
   return (
-    // ✅ NO min-h-screen here (prevents extra scroll/blank)
-    <div className="relative pb-6">
+    // Layout chỉ cho trang tất cả - chừa không gian bên phải để thấy background
+    <div className="relative pb-6 min-h-full">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
-        <div className="grid gap-5 lg:grid-cols-[1fr_380px] xl:grid-cols-[minmax(380px,520px)_minmax(320px,420px)] items-start">
-          {/* LEFT */}
+        {/* Container với max-width để chừa ra bên phải */}
+        <div className="max-w-xl lg:max-w-2xl">
           <div className="space-y-5">
             {/* Hero */}
-            <GlassCard className="p-5">
+            <GlassCard className="p-5 max-w-lg">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-extrabold text-white/90">
                 <Sparkles size={14} />
                 Home Student
@@ -100,7 +100,7 @@ export default function Page() {
                 Hôm nay bạn có <b>1 buổi học</b> và <b>2 nhiệm vụ</b> cần hoàn thành.
               </p>
 
-              <div className="mt-4 flex items-center gap-3">
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button className="group inline-flex items-center gap-2 rounded-full bg-linear-to-r from-sky-400 to-indigo-500 px-5 py-2.5 text-sm font-black text-white shadow-[0_14px_45px_rgba(59,130,246,0.40)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_55px_rgba(59,130,246,0.55)] active:scale-95">
                   TIẾP TỤC HỌC
                   <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
@@ -114,7 +114,7 @@ export default function Page() {
             </GlassCard>
 
             {/* Today class */}
-            <GlassCard className="p-4">
+            <GlassCard className="p-4 max-w-lg">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[11px] font-black uppercase tracking-wider text-white/70">
@@ -158,43 +158,60 @@ export default function Page() {
                 </ul>
               </div>
             </GlassCard>
-          </div>
 
-          {/* RIGHT */}
-          <div className="lg:pt-10">
-            <div className="w-full">
-              <GlassCard className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] font-black uppercase tracking-wider text-white/70">
-                      Thông báo học vụ
-                    </div>
-                    <div className="mt-1 text-lg font-black text-white">
-                      Cập nhật mới nhất cho bạn
-                    </div>
+            {/* Teacher Notes */}
+            <GlassCard className="p-4 max-w-lg">
+              <div className="flex items-start gap-3">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-blue-400/80 to-cyan-500/80 text-white shadow-lg">
+                  <Sparkles size={20} />
+                </div>
+                <div className="flex-1">
+                  <div className="text-[11px] font-black uppercase tracking-wider text-white/70">
+                    Ghi chú từ giáo viên
                   </div>
-                  <span className="rounded-full bg-white/12 px-3 py-1 text-xs font-black text-white/90">
-                    {notices.length}
-                  </span>
+                  <p className="mt-1 text-sm text-white/90 leading-relaxed">
+                    Hãy luyện phát âm các từ có âm /ð/ và /θ/ trước khi tới lớp để thuyết trình nhóm tốt hơn
+                  </p>
+                  <div className="mt-1.5 text-xs font-semibold text-white/60">19/12/2024</div>
                 </div>
-
-                <div className="mt-3 space-y-3">
-                  {notices.map((n) => (
-                    <NoticeItem key={n.title} notice={n} />
-                  ))}
-                </div>
-
-                <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/85">
-                  <div className="flex items-center gap-2">
-                    <BellRing size={15} />
-                    Nhớ bật thông báo để không bỏ lỡ bài tập!
-                  </div>
-                  <ChevronRight size={15} />
-                </div>
-              </GlassCard>
-            </div>
+              </div>
+            </GlassCard>
           </div>
         </div>
+      </div>
+
+      {/* THÔNG BÁO HỌC VỤ - Fixed ở góc dưới bên phải, nhỏ gọn */}
+      <div className="fixed bottom-6 right-6 z-50 w-[320px] max-w-[calc(100vw-48px)]">
+        <GlassCard className="p-3 shadow-2xl">
+          <div className="flex items-center gap-2">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-400/20 text-blue-200">
+              <BellRing size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-black uppercase tracking-wider text-white/70">
+                Thông báo học vụ
+              </div>
+              <div className="text-sm font-black text-white truncate">
+                Cập nhật tài liệu
+              </div>
+            </div>
+            <span className="rounded-full bg-red-500/90 px-2 py-0.5 text-xs font-black text-white">
+              2
+            </span>
+          </div>
+
+          <div className="mt-2 rounded-xl border border-white/15 bg-white/10 p-2 backdrop-blur">
+            <p className="text-xs text-white/90 leading-snug line-clamp-2">
+              Tải slide và bài nghe bước 8 🎧 trong mục Tài liệu.
+            </p>
+            <div className="mt-1 text-[10px] font-semibold text-white/60">19/12/2024</div>
+          </div>
+
+          <button className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur transition-all hover:bg-white/15 hover:border-white/30">
+            Xem tất cả
+            <ChevronRight size={13} />
+          </button>
+        </GlassCard>
       </div>
     </div>
   );

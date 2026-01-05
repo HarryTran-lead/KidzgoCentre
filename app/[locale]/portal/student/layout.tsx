@@ -53,8 +53,8 @@ export default async function StudentLayout({ children }: Props) {
 
           <section className="flex min-w-0 flex-1 flex-col min-h-0 relative">
             <div className="relative min-h-0 flex-1 min-w-0 overflow-y-auto isolate">
-              {/* content layer - positioned on left side with max width to leave space for island */}
-              <div className="relative z-10 px-6 py-4 max-w-2xl">{children}</div>
+              {/* content layer - full width for dashboard */}
+              <div className="relative z-10">{children}</div>
             </div>
           </section>
         </div>
