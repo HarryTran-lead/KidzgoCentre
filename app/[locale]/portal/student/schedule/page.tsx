@@ -191,22 +191,20 @@ export default function Page() {
     <div className="h-full flex flex-col px-4 sm:px-6 lg:px-10 py-4 lg:py-11">
       <div className="flex-1 flex flex-col space-y-4 max-w-[1600px] mx-auto w-full ">
       {/* Header with Tabs */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
-        <div className="flex items-center gap-2">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
-                activeTab === tab.id
-                  ? 'bg-gray-900 text-white shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-wrap gap-3">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm ${
+              activeTab === tab.id
+                ? 'bg-gray-900 text-white'
+                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Week Navigation */}

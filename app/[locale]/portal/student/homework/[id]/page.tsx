@@ -238,11 +238,11 @@ export default function AssignmentDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-screen p-8">
       {/* Back Button */}
       <button
         onClick={() => router.back()}
-        className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-medium"
+        className="flex items-center gap-2 text-white hover:text-white/20 font-medium"
       >
         <ArrowLeft size={20} />
         Quay lại danh sách

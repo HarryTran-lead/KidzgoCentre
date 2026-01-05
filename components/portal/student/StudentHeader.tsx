@@ -77,7 +77,7 @@ export default function StudentHeader({
                 />
               </div>
               <div className="text-lg font-black text-white drop-shadow-md">
-                6 ngày
+                36 ngày
               </div>
             </div>
           </div>
@@ -120,7 +120,7 @@ export default function StudentHeader({
                     width={16}
                     height={16}
                   />
-                  <span className="text-sm font-bold text-white/90">6,367</span>
+                  <span className="text-sm font-bold text-white/90">3,636</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Image
@@ -129,7 +129,7 @@ export default function StudentHeader({
                     width={16}
                     height={16}
                   />
-                  <span className="text-sm font-bold text-white/90">3</span>
+                  <span className="text-sm font-bold text-white/90">3,636</span>
                 </div>
               </div>
             </div>
