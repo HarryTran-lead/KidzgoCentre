@@ -1,476 +1,355 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Clock, MapPin, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, X, Clock, MapPin, Users, BookOpen } from 'lucide-react';
 
-type ClassItem = { title: string; time: string; room: string };
-type DayItem = { dow: string; date: number; classes: ClassItem[] };
+type TabType = 'all' | 'class' | 'makeup' | 'event';
 
-type ViewType = 'Lịch Học' | 'Ngày' | '3 Ngày' | 'Tuần' | 'Tháng';
-
-// Time slots từ 09:00 đến 21:00
-const TIME_SLOTS = [
-  '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', 
-  '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'
-];
-
-/** DATA TĨNH — thay đổi ở đây nếu cần */
-const WEEK: DayItem[] = [
-  { dow: 'Thứ 2', date: 3, classes: [{ title: 'Lớp Tiếng Anh A1', time: '19:00 - 21:00', room: 'Phòng 201' }] },
-  { dow: 'Thứ 3', date: 4, classes: [{ title: 'Lớp Tiếng Anh B1', time: '18:00 - 20:00', room: 'Phòng 102' }] },
-  { dow: 'Thứ 4', date: 5, classes: [] },
-  { dow: 'Thứ 5', date: 6, classes: [{ title: 'Lớp Tiếng Anh A1', time: '19:00 - 21:00', room: 'Phòng 201' }] },
-  { dow: 'Thứ 6', date: 7, classes: [{ title: 'Lớp Tiếng Nhật N5', time: '19:30 - 21:30', room: 'Phòng 203' }] },
-  { dow: 'Thứ 7', date: 8, classes: [] },
-  { dow: 'Chủ nhật', date: 9, classes: [] },
-];
-
-const MONTHS = [
-  'Thg 1', 'Thg 2', 'Thg 3', 'Thg 4', 'Thg 5', 'Thg 6',
-  'Thg 7', 'Thg 8', 'Thg 9', 'Thg 10', 'Thg 11', 'Thg 12'
-];
-
-const VIEW_TYPES: ViewType[] = ['Lịch Học', 'Ngày', '3 Ngày', 'Tuần', 'Tháng'];
-
-// Helper function to get days in month
-const getDaysInMonth = (month: number, year: number): number => {
-  return new Date(year, month, 0).getDate();
+type ClassEvent = {
+  id: string;
+  title: string;
+  time: string;
+  timeEnd?: string;
+  room: string;
+  type: 'class' | 'makeup' | 'event';
+  color: 'blue' | 'orange' | 'pink' | 'yellow';
+  teacher?: string;
+  students?: number;
+  description?: string;
 };
 
-// Helper function to get first day of month (0 = Sunday, 1 = Monday, etc.)
-const getFirstDayOfMonth = (month: number, year: number): number => {
-  return new Date(year, month - 1, 1).getDay();
+// Sample data
+const SCHEDULE_DATA: { [key: string]: ClassEvent[] } = {
+  '2024-12-02': [
+    { id: '1', title: 'PRE-IELTS 11', time: '18:30', timeEnd: '20:00', room: 'Phòng 101', type: 'class', color: 'blue', teacher: 'Cô Hương', students: 15 }
+  ],
+  '2024-12-03': [
+    { id: '2', title: 'IELTS Speaking Club', time: '20:15', timeEnd: '21:15', room: 'Hội trường', type: 'event', color: 'orange', teacher: 'Mr. John', students: 30 }
+  ],
+  '2024-12-04': [
+    { id: '3', title: 'TOEFL Junior A', time: '17:30', timeEnd: '19:00', room: 'Phòng 202', type: 'class', color: 'blue', teacher: 'Cô Linh', students: 12 }
+  ],
+  '2024-12-05': [
+    { id: '4', title: 'IELTS Foundation - A1', time: '19:00', timeEnd: '21:00', room: 'Phòng 301', type: 'class', color: 'blue', teacher: 'Thầy Nam', students: 18 }
+  ],
+  '2024-12-06': [
+    { id: '5', title: 'TOEIC Intermediate', time: '16:00', timeEnd: '18:00', room: 'Phòng 205', type: 'class', color: 'pink', teacher: 'Cô Mai', students: 20 },
+    { id: '6', title: 'Kids English F1', time: '18:30', timeEnd: '20:00', room: 'Phòng 102', type: 'class', color: 'blue', teacher: 'Ms. Sarah', students: 10 }
+  ],
+  '2024-12-07': [
+    { id: '7', title: 'Hợp phụ huynh tháng 12', time: '09:00', timeEnd: '11:00', room: 'Hội trường', type: 'event', color: 'yellow', students: 50 }
+  ],
+  '2024-12-08': [
+    { id: '8', title: 'Mock Test IELTS', time: '08:00', timeEnd: '11:30', room: 'Phòng 201', type: 'event', color: 'yellow', teacher: 'Ban giám khảo', students: 25 }
+  ]
 };
 
-// Helper function to check if year is leap year
-const isLeapYear = (year: number): boolean => {
-  return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-};
+const TABS = [
+  { id: 'all' as TabType, label: 'Tất cả' },
+  { id: 'class' as TabType, label: 'Lớp học' },
+  { id: 'makeup' as TabType, label: 'Buổi bù' },
+  { id: 'event' as TabType, label: 'Sự kiện' }
+];
 
-// Custom Dropdown Component
-function CustomDropdown({ 
-  value, 
-  options, 
-  onChange,
-  className = "" 
-}: { 
-  value: string; 
-  options: string[]; 
-  onChange: (value: string) => void;
-  className?: string;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+const TIME_SLOTS = ['Sáng', 'Chiều', 'Tối'];
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
+const WEEK_DAYS = [
+  { short: 'Th 2', full: 'Thứ 2', date: 2 },
+  { short: 'Th 3', full: 'Thứ 3', date: 3 },
+  { short: 'Th 4', full: 'Thứ 4', date: 4 },
+  { short: 'Th 5', full: 'Thứ 5', date: 5 },
+  { short: 'Th 6', full: 'Thứ 6', date: 6 },
+  { short: 'Th 7', full: 'Thứ 7', date: 7 },
+  { short: 'CN', full: 'Chủ nhật', date: 8 }
+];
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
+// Modal Component
+function ClassDetailModal({ event, onClose }: { event: ClassEvent; onClose: () => void }) {
   return (
-    <div ref={dropdownRef} className={`relative ${className}`}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-gray-900 hover:bg-slate-50 transition-colors w-full"
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div 
+        className="relative w-full max-w-md rounded-2xl border border-white/20 bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
       >
-        <span>{value}</span>
-        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-50 mt-2 w-full rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
-          <div className="max-h-[300px] overflow-y-auto">
-            {options.map((option, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  onChange(option);
-                  setIsOpen(false);
-                }}
-                className={`w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors ${
-                  option === value ? 'bg-slate-100 font-medium' : ''
-                }`}
-              >
-                {option}
-              </button>
-            ))}
+        {/* Header */}
+        <div className={`relative px-6 py-5 rounded-t-2xl ${
+          event.color === 'blue' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+          event.color === 'orange' ? 'bg-gradient-to-r from-orange-400 to-orange-500' :
+          event.color === 'pink' ? 'bg-gradient-to-r from-pink-400 to-pink-500' :
+          'bg-gradient-to-r from-yellow-400 to-yellow-500'
+        }`}>
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 rounded-full bg-white/20 p-1.5 text-white hover:bg-white/30 transition-colors"
+          >
+            <X size={18} />
+          </button>
+          <h3 className="text-xl font-bold text-white pr-8">{event.title}</h3>
+          <div className="mt-2 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white">
+            {event.type === 'class' ? 'Lớp học' : event.type === 'makeup' ? 'Buổi bù' : 'Sự kiện'}
           </div>
         </div>
-      )}
-    </div>
-  );
-}
 
-// Month Dropdown with Column Layout (no scroll)
-function MonthDropdown({ 
-  value, 
-  onChange 
-}: { 
-  value: number; 
-  onChange: (value: number) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div ref={dropdownRef} className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-gray-900 hover:bg-slate-50 transition-colors min-w-[100px]"
-      >
-        <span>Tháng</span>
-        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-50 mt-2 rounded-lg border border-slate-200 bg-white shadow-lg p-3 right-0">
-          <div className="grid grid-cols-3 gap-2 w-max">
-            {MONTHS.map((month, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  onChange(index + 1);
-                  setIsOpen(false);
-                }}
-                className={`px-4 py-2 text-sm rounded hover:bg-slate-50 transition-colors whitespace-nowrap ${
-                  value === index + 1 ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-900'
-                }`}
-              >
-                {month}
-              </button>
-            ))}
+        {/* Content */}
+        <div className="p-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
+              <Clock size={20} />
+            </div>
+            <div className="flex-1">
+              <div className="text-xs font-semibold text-gray-500 uppercase">Thời gian</div>
+              <div className="mt-1 text-sm font-medium text-gray-900">
+                {event.time} - {event.timeEnd}
+              </div>
+            </div>
           </div>
+
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-purple-50 text-purple-600">
+              <MapPin size={20} />
+            </div>
+            <div className="flex-1">
+              <div className="text-xs font-semibold text-gray-500 uppercase">Địa điểm</div>
+              <div className="mt-1 text-sm font-medium text-gray-900">{event.room}</div>
+            </div>
+          </div>
+
+          {event.teacher && (
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-green-50 text-green-600">
+                <BookOpen size={20} />
+              </div>
+              <div className="flex-1">
+                <div className="text-xs font-semibold text-gray-500 uppercase">Giáo viên</div>
+                <div className="mt-1 text-sm font-medium text-gray-900">{event.teacher}</div>
+              </div>
+            </div>
+          )}
+
+          {event.students && (
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-600">
+                <Users size={20} />
+              </div>
+              <div className="flex-1">
+                <div className="text-xs font-semibold text-gray-500 uppercase">Học viên</div>
+                <div className="mt-1 text-sm font-medium text-gray-900">{event.students} học viên</div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-2xl">
+          <button
+            onClick={onClose}
+            className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 
 export default function Page() {
-  const todayIndex = 0; // giả định hôm nay là Thứ 2 (ô đầu)
-  const [selectedMonth, setSelectedMonth] = useState(12);
-  const [selectedYear] = useState(2025);
-  const [viewType, setViewType] = useState<ViewType>('Tháng');
-  const today = 21; // Ngày hiện tại
+  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [selectedEvent, setSelectedEvent] = useState<ClassEvent | null>(null);
+  const [currentWeek, setCurrentWeek] = useState('2/12/2024 – 8/12/2024');
 
-  const handlePrevious = () => {
-    // Logic để chuyển về kỳ trước (tuần/tháng trước)
-    console.log('Previous period');
+  const getEventsByDate = (dateKey: string): ClassEvent[] => {
+    const events = SCHEDULE_DATA[dateKey] || [];
+    if (activeTab === 'all') return events;
+    return events.filter(e => e.type === activeTab);
   };
 
-  const handleNext = () => {
-    // Logic để chuyển tới kỳ tiếp (tuần/tháng sau)
-    console.log('Next period');
+  const getEventsByTimeSlot = (dateKey: string, timeSlot: string): ClassEvent[] => {
+    const events = getEventsByDate(dateKey);
+    return events.filter(e => {
+      const hour = parseInt(e.time.split(':')[0]);
+      if (timeSlot === 'Sáng') return hour >= 6 && hour < 12;
+      if (timeSlot === 'Chiều') return hour >= 12 && hour < 18;
+      return hour >= 18;
+    });
   };
 
-  // Render Day View with Time Slots
-  const renderDayView = () => (
-    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-      {/* Day Header */}
-      <div className="border-b border-slate-200 p-4 bg-slate-50">
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-gray-500">CN</div>
-          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white font-semibold">
-            {today}
-          </div>
-        </div>
-      </div>
-      
-      {/* Time Slots */}
-      <div className="p-4 overflow-y-auto" style={{ maxHeight: '600px' }}>
-        {TIME_SLOTS.map((time) => (
-          <div key={time} className="flex border-b border-slate-100 py-4 hover:bg-slate-50">
-            <div className="w-16 text-sm text-gray-500">{time}</div>
-            <div className="flex-1">
-              {/* Placeholder for events - add logic to display events here */}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // Render 3 Days View with Time Slots
-  const render3DaysView = () => {
-    const days = [
-      { dow: 'CN', date: 21 },
-      { dow: 'T2', date: 22 },
-      { dow: 'T3', date: 23 },
-    ];
-
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-        {/* Days Header */}
-        <div className="border-b border-slate-200 p-4 bg-slate-50">
-          <div className="grid grid-cols-4 gap-4">
-            <div className="w-16"></div>
-            {days.map((day, idx) => (
-              <div key={idx} className="flex flex-col items-center">
-                <div className="text-sm text-gray-500">{day.dow}</div>
-                <div className={`mt-1 flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
-                  idx === 0 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-gray-900'
-                }`}>
-                  {day.date}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Time Slots Grid */}
-        <div className="p-4 overflow-y-auto" style={{ maxHeight: '600px' }}>
-          {TIME_SLOTS.map((time) => (
-            <div key={time} className="grid grid-cols-4 gap-4 border-b border-slate-100 py-4 hover:bg-slate-50">
-              <div className="w-16 text-sm text-gray-500">{time}</div>
-              {days.map((_, idx) => (
-                <div key={idx} className="flex-1">
-                  {/* Placeholder for events */}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  const handlePreviousWeek = () => {
+    console.log('Previous week');
   };
 
-  // Render Week View with Time Slots
-  const renderWeekView = () => {
-    const weekDays = [
-      { dow: 'T2', date: 3 },
-      { dow: 'T3', date: 4 },
-      { dow: 'T4', date: 5 },
-      { dow: 'T5', date: 6 },
-      { dow: 'T6', date: 7 },
-      { dow: 'T7', date: 8 },
-      { dow: 'CN', date: 9 },
-    ];
-
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-        {/* Week Header */}
-        <div className="border-b border-slate-200 p-4 bg-slate-50">
-          <div className="grid grid-cols-8 gap-2">
-            <div className="w-16"></div>
-            {weekDays.map((day, idx) => (
-              <div key={idx} className="flex flex-col items-center">
-                <div className="text-sm text-gray-500">{day.dow}</div>
-                <div className={`mt-1 flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
-                  idx === 0 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-gray-900'
-                }`}>
-                  {day.date}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Time Slots Grid */}
-        <div className="p-4 overflow-y-auto" style={{ maxHeight: '600px' }}>
-          {TIME_SLOTS.map((time) => (
-            <div key={time} className="grid grid-cols-8 gap-2 border-b border-slate-100 py-4 hover:bg-slate-50">
-              <div className="w-16 text-sm text-gray-500">{time}</div>
-              {weekDays.map((_, idx) => (
-                <div key={idx} className="flex-1">
-                  {/* Placeholder for events */}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  const handleNextWeek = () => {
+    console.log('Next week');
   };
 
-  // Render Month Calendar View
-  const renderMonthView = () => {
-    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
-    const firstDayOfWeek = getFirstDayOfMonth(selectedMonth, selectedYear);
-    const daysOfWeek = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-    
-    // Generate calendar data
-    const calendarDays: (number | null)[] = [];
-    
-    // Add empty cells for days before the first day of month
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      calendarDays.push(null);
-    }
-    
-    // Add all days in month
-    for (let day = 1; day <= daysInMonth; day++) {
-      calendarDays.push(day);
-    }
-    
-    // Sample classes data - replace with actual data
-    const classesData: { [key: number]: ClassItem[] } = {
-      3: [{ title: 'Lớp Tiếng Anh A1', time: '19:00 - 21:00', room: 'Phòng 201' }],
-      4: [{ title: 'Lớp Tiếng Anh B1', time: '18:00 - 20:00', room: 'Phòng 102' }],
-      6: [{ title: 'Lớp Tiếng Anh A1', time: '19:00 - 21:00', room: 'Phòng 201' }],
-      7: [{ title: 'Lớp Tiếng Nhật N5', time: '19:30 - 21:30', room: 'Phòng 203' }],
-    };
-    
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        {/* Day of week headers */}
-        <div className="grid grid-cols-7 gap-2 mb-4">
-          {daysOfWeek.map((day) => (
-            <div key={day} className="text-center text-sm font-semibold text-gray-500 py-2">
-              {day}
-            </div>
-          ))}
-        </div>
-        
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-2">
-          {calendarDays.map((day, idx) => {
-            const isToday = day === today;
-            const hasClasses = day !== null && classesData[day];
-            
-            if (day === null) {
-              return <div key={`empty-${idx}`} className="min-h-[120px]" />;
-            }
-            
-            return (
-              <div
-                key={day}
-                className={`rounded-xl p-3 border min-h-[120px] hover:shadow-md transition-shadow cursor-pointer ${
-                  isToday ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-white'
-                }`}
-              >
-                {/* Day number */}
-                <div className="flex items-center justify-center mb-2">
-                  <div
-                    className={`h-8 w-8 rounded-full grid place-items-center text-sm font-semibold ${
-                      isToday ? 'bg-blue-600 text-white' : 'text-gray-900'
-                    }`}
-                  >
-                    {day}
-                  </div>
-                </div>
-
-                {/* Classes */}
-                {hasClasses && (
-                  <div className="space-y-1">
-                    {classesData[day].map((c, i) => (
-                      <div
-                        key={i}
-                        className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs"
-                      >
-                        <div className="font-medium text-gray-900 truncate">{c.title}</div>
-                        <div className="mt-1 text-slate-600">
-                          <div className="flex items-center gap-1">
-                            <Clock size={12} /> {c.time}
-                          </div>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <MapPin size={12} /> {c.room}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Legend */}
-        <div className="mt-6 rounded-xl border border-slate-200 p-4 bg-slate-50">
-          <div className="flex flex-wrap items-center gap-6 text-sm text-gray-900">
-            <label className="inline-flex items-center gap-2">
-              <span className="h-4 w-4 rounded border border-slate-400 inline-block" />
-              Lớp học thường
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <span className="h-4 w-4 rounded-full bg-blue-600 inline-block" />
-              Ngày hôm nay
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <span className="h-4 w-4 rounded border border-dashed border-slate-400 inline-block" />
-              Click để xem chi tiết
-            </label>
-          </div>
-        </div>
-      </div>
-    );
+  const handleToday = () => {
+    console.log('Go to today');
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header with Navigation and Dropdowns */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="h-full flex flex-col px-4 sm:px-6 lg:px-10 py-4 lg:py-11">
+      <div className="flex-1 flex flex-col space-y-4 max-w-[1600px] mx-auto w-full ">
+      {/* Header with Tabs */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
+        <div className="flex items-center gap-2">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
+                activeTab === tab.id
+                  ? 'bg-gray-900 text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Week Navigation */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-4">
-          {/* Left: Navigation Arrows */}
           <div className="flex items-center gap-2">
             <button
-              onClick={handlePrevious}
-              className="inline-flex items-center justify-center rounded-lg border border-slate-200 p-2 hover:bg-slate-50 text-gray-900 transition-colors"
-              aria-label="Previous"
+              onClick={handlePreviousWeek}
+              className="inline-flex items-center justify-center rounded-lg border border-gray-200 p-2 hover:bg-gray-50 transition-colors"
             >
               <ChevronLeft size={20} />
             </button>
             <button
-              onClick={handleNext}
-              className="inline-flex items-center justify-center rounded-lg border border-slate-200 p-2 hover:bg-slate-50 text-gray-900 transition-colors"
-              aria-label="Next"
+              onClick={handleNextWeek}
+              className="inline-flex items-center justify-center rounded-lg border border-gray-200 p-2 hover:bg-gray-50 transition-colors"
             >
               <ChevronRight size={20} />
             </button>
           </div>
 
-          {/* Center: Period Display */}
-          <div className="text-xl font-bold text-blue-600">
-            {viewType === 'Ngày' && `${today} Thg ${selectedMonth} ${selectedYear}`}
-            {viewType === '3 Ngày' && `${today}-${today + 2} Thg ${selectedMonth} ${selectedYear}`}
-            {viewType === 'Tuần' && `Thg ${selectedMonth} ${selectedYear}`}
-            {viewType === 'Tháng' && `Thg ${selectedMonth} ${selectedYear}`}
-            {viewType === 'Lịch Học' && `Lịch Học`}
+          <div className="text-lg font-bold text-gray-900">
+            Tuần {currentWeek}
           </div>
 
-          {/* Right: Dropdowns */}
-          <div className="flex items-center gap-3">
-            {/* Month Selector */}
-            <MonthDropdown value={selectedMonth} onChange={setSelectedMonth} />
-
-            {/* View Type Selector */}
-            <CustomDropdown 
-              value={viewType} 
-              options={VIEW_TYPES} 
-              onChange={(val) => setViewType(val as ViewType)}
-              className="w-[140px]"
-            />
-          </div>
+          <button
+            onClick={handleToday}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 transition-colors"
+          >
+            Tuần này
+          </button>
         </div>
       </div>
 
-      {/* Dynamic Content Based on View Type */}
-      {viewType === 'Ngày' && renderDayView()}
-      {viewType === '3 Ngày' && render3DaysView()}
-      {viewType === 'Tuần' && renderWeekView()}
-      {viewType === 'Tháng' && renderMonthView()}
-      {viewType === 'Lịch Học' && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-gray-500">
-          Chức năng Lịch Học đang được phát triển
+      {/* Schedule Table - Flex-1 để fill remaining space */}
+        <div className="flex-1 rounded-2xl border border-gray-200 overflow-hidden shadow-sm flex flex-col bg-white">
+        <div className="flex-1 overflow-auto p-4 my-4">
+          <table className="w-full border-collapse bg-white">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-600 w-24 sticky left-0 bg-gray-50 z-20">
+                  Ca / Ngày
+                </th>
+                {WEEK_DAYS.map((day, idx) => (
+                  <th key={idx} className="px-3 py-3 text-center text-sm font-medium text-gray-900 min-w-[130px]">
+                    <div className="text-gray-500 text-xs font-normal">{day.short}</div>
+                    <div className="mt-1 text-gray-900 font-semibold">{day.date}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {TIME_SLOTS.map((slot, slotIdx) => (
+                <tr key={slot} className={slotIdx !== TIME_SLOTS.length - 1 ? 'border-b border-gray-200' : ''}>
+                  <td className="px-3 py-3 text-sm font-medium text-gray-900 align-top bg-gray-50 sticky left-0 z-10">
+                    {slot}
+                  </td>
+                  {WEEK_DAYS.map((day, dayIdx) => {
+                    const dateKey = `2024-12-0${day.date}`;
+                    const events = getEventsByTimeSlot(dateKey, slot);
+                    
+                    return (
+                      <td key={dayIdx} className="px-2 py-2 align-top">
+                        {events.length > 0 ? (
+                          <div className="space-y-2">
+                            {events.map(event => (
+                              <button
+                                key={event.id}
+                                onClick={() => setSelectedEvent(event)}
+                                className={`w-full text-left rounded-xl border p-2.5 transition-all hover:shadow-md hover:-translate-y-0.5 ${
+                                  event.color === 'blue' ? 'border-blue-300 bg-blue-50' :
+                                  event.color === 'orange' ? 'border-orange-300 bg-orange-50' :
+                                  event.color === 'pink' ? 'border-pink-300 bg-pink-50' :
+                                  'border-yellow-300 bg-yellow-50'
+                                }`}
+                              >
+                                <div className="flex items-start gap-1.5 mb-1">
+                                  <div className={`h-2 w-2 rounded-full mt-1 shrink-0 ${
+                                    event.color === 'blue' ? 'bg-blue-500' :
+                                    event.color === 'orange' ? 'bg-orange-500' :
+                                    event.color === 'pink' ? 'bg-pink-500' :
+                                    'bg-yellow-500'
+                                  }`} />
+                                  <div className="flex-1 min-w-0">
+                                    <div className={`text-xs font-bold leading-tight ${
+                                      event.color === 'blue' ? 'text-blue-700' :
+                                      event.color === 'orange' ? 'text-orange-700' :
+                                      event.color === 'pink' ? 'text-pink-700' :
+                                      'text-yellow-700'
+                                    }`}>
+                                      {event.time} - {event.timeEnd}
+                                    </div>
+                                    <div className={`mt-0.5 text-[11px] font-semibold leading-snug ${
+                                      event.color === 'blue' ? 'text-blue-900' :
+                                      event.color === 'orange' ? 'text-orange-900' :
+                                      event.color === 'pink' ? 'text-pink-900' :
+                                      'text-yellow-900'
+                                    }`}>
+                                      {event.title}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className={`text-[10px] font-medium ${
+                                  event.color === 'blue' ? 'text-blue-600' :
+                                  event.color === 'orange' ? 'text-orange-600' :
+                                  event.color === 'pink' ? 'text-pink-600' :
+                                  'text-yellow-600'
+                                }`}>
+                                  {event.room}
+                                </div>
+                                {event.type === 'event' && (
+                                  <div className={`mt-1 text-[9px] font-semibold ${
+                                    event.color === 'blue' ? 'text-blue-500' :
+                                    event.color === 'orange' ? 'text-orange-500' :
+                                    event.color === 'pink' ? 'text-pink-500' :
+                                    'text-yellow-500'
+                                  }`}>
+                                    {event.type === 'event' ? 'Hội trường' : ''}
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400 italic text-center py-3">Trống</div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      </div>
+
+      {/* Modal */}
+      {selectedEvent && (
+        <ClassDetailModal 
+          event={selectedEvent} 
+          onClose={() => setSelectedEvent(null)} 
+        />
       )}
+      </div>
     </div>
   );
 }
