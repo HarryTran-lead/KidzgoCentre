@@ -9,33 +9,17 @@ export const menuAdmin = {
       leads: {
         title: "Quản lý tuyển sinh",
         manageLeads: "Quản lý leads",
-        admissions: "Quản lý tuyển sinh",
-      },
-      campaign: {
-        title: "Chiến dịch & Khuyến mãi",
-        createCampaign: "Tạo chiến dịch",
-        manageCampaigns: "Quản lý chiến dịch",
-        promoPrograms: "Quản lý CT khuyến mãi",
-        promotions: "Quản lý khuyến mãi",
       },
       learning: {
         title: "Học tập",
         courses: {
-          create: "Tạo khóa học",
           list: "Danh sách khóa học",
-          registrations: "Đăng ký học",
-          registrationsHistory: "Lịch sử đăng ký",
         },
         classes: {
-          create: "Tạo lớp học",
           list: "Danh sách lớp học",
-          transfer: "Chuyển lớp (lớp học)",
-          roomCheck: "Kiểm tra lịch phòng học",
         },
         students: {
           list: "Danh sách học viên",
-          transfer: "Chuyển lớp (học viên)",
-          defer: "Bảo lưu",
         },
       },
       ops: {
@@ -46,10 +30,16 @@ export const menuAdmin = {
         feedback: "Feedback lớp học",
         extracurricular: "Ngoại khóa & Trại hè",
       },
+      finance: {
+        title: "Tài chính",
+        cashbook: "Sổ quỹ",
+        payroll: "Bảng lương",
+      },
       system: {
         title: "Hệ thống",
         accounts: "Quản lý tài khoản",
         teachers: "Quản lý giáo viên",
+        branches: "Quản lý chi nhánh",
         reports: "Báo cáo",
         settings: "Cài đặt",
       },
@@ -65,33 +55,17 @@ export const menuAdmin = {
       leads: {
         title: "Admissions",
         manageLeads: "Leads",
-        admissions: "Admissions Management",
-      },
-      campaign: {
-        title: "Campaigns & Promotions",
-        createCampaign: "Create Campaign",
-        manageCampaigns: "Manage Campaigns",
-        promoPrograms: "Promotion Programs",
-        promotions: "Promotions",
       },
       learning: {
         title: "Learning",
         courses: {
-          create: "Create Course",
           list: "Courses",
-          registrations: "Enrollments",
-          registrationsHistory: "Enrollment History",
         },
         classes: {
-          create: "Create Class",
           list: "Classes",
-          transfer: "Class Transfer",
-          roomCheck: "Room Availability",
         },
         students: {
           list: "Students",
-          transfer: "Student Transfer",
-          defer: "Deferment",
         },
       },
       ops: {
@@ -102,10 +76,16 @@ export const menuAdmin = {
         feedback: "Class Feedback",
         extracurricular: "Extracurricular & Camps",
       },
+      finance: {
+        title: "Finance",
+        cashbook: "Cashbook",
+        payroll: "Payroll",
+      },
       system: {
         title: "System",
         accounts: "Accounts",
         teachers: "Teachers",
+        branches: "Branches",
         reports: "Reports",
         settings: "Settings",
       },
