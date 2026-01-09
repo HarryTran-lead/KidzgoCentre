@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth";
 import StudentStreakWrapper from "@/components/portal/student/StudentStreakWrapper";
 import StudentHeader from "@/components/portal/student/StudentHeader";
 import StudentFooter from "@/components/portal/student/StudentFooter";
+import NeonContentFrame from "@/components/portal/student/NeonContentFrame";
 
 type Props = {
   children: ReactNode;
@@ -48,14 +49,16 @@ export default async function StudentLayout({ children }: Props) {
 
       
         {/* Main content section with sidebar */}
-        <div className="relative flex flex-1 min-h-0">
+        <div className="relative flex flex-1 min-h-0 px-4 pb-4 pt-2">
           <Sidebar role={role} />
 
-          <section className="flex min-w-0 flex-1 flex-col min-h-0 relative">
-            <div className="relative min-h-0 flex-1 min-w-0 overflow-y-auto isolate">
-              {/* content layer - full width for dashboard */}
-              <div className="relative z-10">{children}</div>
-            </div>
+          <section className="flex min-w-0 flex-1 flex-col min-h-0 relative ml-3">
+            <NeonContentFrame>
+              <div className="relative h-full overflow-hidden">
+                {/* content layer - full width for dashboard */}
+                <div className="relative z-10 p-6 h-full overflow-hidden">{children}</div>
+              </div>
+            </NeonContentFrame>
           </section>
         </div>
 

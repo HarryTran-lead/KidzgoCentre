@@ -78,18 +78,18 @@ export default function Page() {
   const [selectedEvent, setSelectedEvent] = useState<ClassEvent | null>(null);
 
   return (
-    <div className="min-h-screen bg-transparent p-4 lg:p-8 relative font-sans selection:bg-cyan-500/30">
-      <div className="max-w-[1600px] mx-auto space-y-6 relative z-10">
+    <div className="h-full bg-transparent p-2 lg:p-3 relative font-sans selection:bg-cyan-500/30 overflow-hidden">
+      <div className="max-w-[1600px] mx-auto space-y-3 relative z-10 h-full flex flex-col">
         
         {/* Header Tabs */}
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-2 shrink-0">
           {['all', 'class', 'makeup', 'event'].map((id) => (
             <button
               key={id}
               onClick={() => setActiveTab(id as TabType)}
-              className={`px-8 py-3 rounded-2xl text-sm font-black transition-all border-2 tracking-widest ${
+              className={`px-5 py-2 rounded-xl text-xs font-black transition-all border-2 tracking-widest ${
                 activeTab === id
-                  ? 'bg-white border-white text-indigo-900 shadow-[0_0_25px_rgba(255,255,255,0.5)] scale-105'
+                  ? 'bg-white border-white text-indigo-900'
                   : 'bg-indigo-950/40 border-white/10 text-white hover:border-white/30 backdrop-blur-md'
               }`}
             >
@@ -99,29 +99,29 @@ export default function Page() {
         </div>
 
         {/* Navigation Tuần */}
-        <div className="rounded-[2.5rem] border-2 border-white/10 bg-indigo-950/40 backdrop-blur-xl p-6 shadow-2xl flex items-center justify-between">
-          <div className="flex gap-3">
-            <button className="p-3 rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-cyan-500/30 transition-all"><ChevronLeft size={28} /></button>
-            <button className="p-3 rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-cyan-500/30 transition-all"><ChevronRight size={28} /></button>
+        <div className="rounded-2xl border-2 border-white/10 bg-indigo-950/40 backdrop-blur-xl p-3 shadow-2xl flex items-center justify-between shrink-0">
+          <div className="flex gap-2">
+            <button className="p-2 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-cyan-500/30 transition-all"><ChevronLeft size={20} /></button>
+            <button className="p-2 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-cyan-500/30 transition-all"><ChevronRight size={20} /></button>
           </div>
-          <div className="text-2xl font-black text-white tracking-tighter flex items-center gap-4">
-            <Rocket className="text-cyan-400 animate-bounce" />
+          <div className="text-lg font-black text-white tracking-tighter flex items-center gap-3">
+            <Rocket className="text-cyan-400 animate-bounce" size={20} />
             TUẦN 2/12/2024 – 8/12/2024
           </div>
-          <button className="px-8 py-3 rounded-2xl bg-white/10 border border-white/20 text-white font-black uppercase text-xs tracking-widest hover:bg-white/20 transition-all">Tuần này</button>
+          <button className="px-5 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-black uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all">Tuần này</button>
         </div>
 
         {/* BẢNG LỊCH HỌC VIỀN NEON RỰC RỠ */}
-        <div className="rounded-[3rem] border-2 border-cyan-400/60 bg-indigo-950/50 backdrop-blur-2xl shadow-[0_0_30px_rgba(34,211,238,0.4),inset_0_0_20px_rgba(34,211,238,0.1)] overflow-hidden relative">
-          <div className="overflow-auto p-6 custom-scrollbar">
-            <table className="w-full border-separate border-spacing-3">
+        <div className="rounded-2xl border-2 border-cyan-400/60 bg-indigo-950/50 backdrop-blur-2xl overflow-hidden relative flex-1 min-h-0">
+          <div className="overflow-auto h-full p-3">
+            <table className="w-full border-separate border-spacing-2">
               <thead>
                 <tr>
-                  <th className="p-5 text-center text-[11px] font-black text-cyan-300 uppercase tracking-[0.3em] bg-white/10 rounded-[1.5rem] border border-white/10 shadow-inner">Trạm / Ngày</th>
+                  <th className="p-3 text-center text-[10px] font-black text-cyan-300 uppercase tracking-[0.2em] bg-white/10 rounded-xl border border-white/10 shadow-inner">Trạm / Ngày</th>
                   {WEEK_DAYS.map((day, idx) => (
-                    <th key={idx} className="p-5 min-w-[160px] text-center bg-white/10 rounded-[1.5rem] border border-white/20 backdrop-blur-md">
+                    <th key={idx} className="p-4 min-w-[140px] text-center bg-white/10 rounded-xl border border-white/20 backdrop-blur-md">
                       <div className="text-cyan-200/60 text-xs font-black uppercase mb-1 tracking-tighter">{day.short}</div>
-                      <div className="text-4xl font-black text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]">{day.date}</div>
+                      <div className="text-3xl font-black text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]">{day.date}</div>
                     </th>
                   ))}
                 </tr>
@@ -129,7 +129,7 @@ export default function Page() {
               <tbody>
                 {['Sáng', 'Chiều', 'Tối'].map((slot) => (
                   <tr key={slot}>
-                    <td className="p-6 text-center bg-white/5 rounded-[1.5rem] border border-white/5 backdrop-blur-sm">
+                    <td className="p-4 text-center bg-white/5 rounded-xl border border-white/5 backdrop-blur-sm">
                       <div className="text-2xl mb-1">{slot === 'Sáng' ? '☀️' : slot === 'Chiều' ? '🌤️' : '🌙'}</div>
                       <div className="text-xs font-black text-white uppercase tracking-widest opacity-80">{slot}</div>
                     </td>
@@ -144,14 +144,14 @@ export default function Page() {
                         });
 
                       return (
-                        <td key={dIdx} className="align-top min-h-[140px]">
+                        <td key={dIdx} className="align-top min-h-[120px]">
                           {events.length > 0 ? (
-                            <div className="space-y-3">
+                            <div className="space-y-2.5">
                               {events.map(event => (
                                 <button
                                   key={event.id}
                                   onClick={() => setSelectedEvent(event)}
-                                  className={`w-full text-left rounded-[1.8rem] border-2 p-5 transition-all hover:scale-[1.04] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)] group relative overflow-hidden ${
+                                  className={`w-full text-left rounded-xl border-2 p-4 transition-all hover:scale-[1.04] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)] group relative overflow-hidden ${
                                     event.color === 'blue' ? 'border-cyan-400 bg-cyan-500/20 shadow-[0_0_15px_rgba(34,211,238,0.2)]' :
                                     event.color === 'orange' ? 'border-orange-400 bg-orange-500/20 shadow-[0_0_15px_rgba(251,146,60,0.2)]' :
                                     event.color === 'pink' ? 'border-pink-400 bg-pink-500/20 shadow-[0_0_15px_rgba(244,114,182,0.2)]' : 
@@ -160,23 +160,24 @@ export default function Page() {
                                 >
                                   <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-40"></div>
                                   <div className="relative z-10">
-                                    <div className="flex items-center gap-2 mb-2 font-black text-[11px] text-white/90 uppercase tracking-tighter">
-                                      <span className={`h-2.5 w-2.5 rounded-full animate-pulse shadow-[0_0_10px_currentColor] ${
+                                    <div className="flex items-center gap-2 mb-1.5 font-black text-[10px] text-white/90 uppercase tracking-tighter">
+                                      <span className={`h-2 w-2 rounded-full animate-pulse shadow-[0_0_10px_currentColor] ${
                                         event.color === 'blue' ? 'bg-cyan-400 text-cyan-400' :
                                         event.color === 'orange' ? 'bg-orange-400 text-orange-400' : 'bg-pink-400 text-pink-400'
                                       }`} />
                                       {event.time} - {event.timeEnd}
                                     </div>
-                                    <div className="text-base font-black text-white leading-tight mb-2 drop-shadow-sm group-hover:text-cyan-200 transition-colors uppercase tracking-tight">{event.title}</div>
-                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-cyan-100/60 uppercase"><MapPin size={12} /> {event.room}</div>
+                                    <div className="text-sm font-black text-white leading-tight mb-1.5 drop-shadow-sm group-hover:text-cyan-200 transition-colors uppercase tracking-tight">{event.title}</div>
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-cyan-100/60 uppercase"><MapPin size={11} /> {event.room}</div>
                                   </div>
                                 </button>
                               ))}
                             </div>
                           ) : (
-                            <div className="h-24 flex items-center justify-center opacity-10 group-hover:opacity-30 transition-opacity">
+                            <div className="h-28 flex items-center justify-center opacity-10 group-hover:opacity-30 transition-opacity">
                               <Star size={20} className="text-white animate-spin-slow" />
                             </div>
+                           
                           )}
                         </td>
                       );
