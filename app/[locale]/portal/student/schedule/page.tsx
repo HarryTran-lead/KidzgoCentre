@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, X, Clock, MapPin, Users, BookOpen, Star, Rocket } from 'lucide-react';
+import { FilterTabs, TabOption } from '@/components/portal/student/FilterTabs';
 
 type TabType = 'all' | 'class' | 'makeup' | 'event';
 
@@ -77,26 +78,27 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [selectedEvent, setSelectedEvent] = useState<ClassEvent | null>(null);
 
+  // Tab options cho FilterTabs component
+  const scheduleTabs: TabOption[] = [
+    { id: 'all', label: 'TẤT CẢ' },
+    { id: 'class', label: 'LỚP HỌC' },
+    { id: 'makeup', label: 'BUỔI BÙ' },
+    { id: 'event', label: 'SỰ KIỆN' },
+  ];
+
   return (
     <div className="h-full bg-transparent p-2 lg:p-3 relative font-sans selection:bg-cyan-500/30 overflow-hidden">
       <div className="max-w-[1600px] mx-auto space-y-3 relative z-10 h-full flex flex-col">
         
         {/* Header Tabs */}
-        <div className="flex flex-wrap gap-2 shrink-0">
-          {['all', 'class', 'makeup', 'event'].map((id) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id as TabType)}
-              className={`px-5 py-2 rounded-xl text-xs font-black transition-all border-2 tracking-widest ${
-                activeTab === id
-                  ? 'bg-white border-white text-indigo-900'
-                  : 'bg-indigo-950/40 border-white/10 text-white hover:border-white/30 backdrop-blur-md'
-              }`}
-            >
-              {id === 'all' ? 'TẤT CẢ' : id === 'class' ? 'LỚP HỌC' : id === 'makeup' ? 'BUỔI BÙ' : 'SỰ KIỆN'}
-            </button>
-          ))}
-        </div>
+        <FilterTabs
+          tabs={scheduleTabs}
+          activeTab={activeTab}
+          onChange={(tabId) => setActiveTab(tabId as TabType)}
+          variant="outline"
+          size="md"
+          className="shrink-0"
+        />
 
         {/* Navigation Tuần */}
         <div className="rounded-2xl border-2 border-white/10 bg-indigo-950/40 backdrop-blur-xl p-3 shadow-2xl flex items-center justify-between shrink-0">

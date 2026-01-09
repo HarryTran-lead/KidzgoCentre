@@ -14,8 +14,8 @@ import {
   Award,
 } from "lucide-react";
 import { Card } from "@/components/lightswind/card";
-import { Badge } from "@/components/lightswind/badge";
 import { Button } from "@/components/lightswind/button";
+import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
 import type {
   AssignmentListItem,
   AssignmentStatus,
@@ -164,12 +164,12 @@ export default function HomeworkPage() {
 
   const getTypeIcon = (type: AssignmentType) => {
     switch (type) {
-      case "ESSAY": return <FileText size={20} />;
-      case "FILE_UPLOAD": return <Upload size={20} />;
-      case "QUIZ": return <CheckCircle size={20} />;
-      case "PROJECT": return <BookOpen size={20} />;
-      case "PRESENTATION": return <Award size={20} />;
-      default: return <FileText size={20} />;
+      case "ESSAY": return <FileText size={24} />;
+      case "FILE_UPLOAD": return <Upload size={24} />;
+      case "QUIZ": return <CheckCircle size={24} />;
+      case "PROJECT": return <BookOpen size={24} />;
+      case "PRESENTATION": return <Award size={24} />;
+      default: return <FileText size={24} />;
     }
   };
 
@@ -184,19 +184,14 @@ export default function HomeworkPage() {
     return map[type] || "Bài tập";
   };
 
-  // Helper render nút Filter
-  const FilterButton = ({ label, count, active, onClick }: any) => (
-    <button
-      onClick={onClick}
-      className={`px-5 py-2.5 rounded-full text-[13px] font-bold transition-all shadow-md ${
-        active
-          ? "bg-slate-900 text-white"
-          : "bg-white text-slate-950 hover:bg-slate-50"
-      }`}
-    >
-      {label} ({count})
-    </button>
-  );
+  // Tab options cho FilterTabs component
+  const homeworkTabs: TabOption[] = [
+    { id: 'ALL', label: 'Tất cả', count: stats.total },
+    { id: 'PENDING', label: 'Chưa nộp', count: stats.notSubmitted },
+    { id: 'SUBMITTED', label: 'Đã nộp', count: stats.submitted },
+    { id: 'LATE', label: 'Nộp trễ', count: stats.late },
+    { id: 'MISSING', label: 'Quá hạn', count: stats.missing },
+  ];
 
   return (
     <div className="flex flex-col h-[calc(100vh-120px)]">
@@ -207,39 +202,15 @@ export default function HomeworkPage() {
           <p className="text-white mt-1 font-semibold text-base">Quản lý và nộp bài tập của bạn</p>
         </div>
 
-        {/* Filters Row */}
-        <div className="flex flex-wrap gap-3 mb-4">
-          <FilterButton 
-            label="Tất cả" 
-            count={stats.total} 
-            active={statusFilter === "ALL"} 
-            onClick={() => setStatusFilter("ALL")} 
-          />
-          <FilterButton 
-            label="Chưa nộp" 
-            count={stats.notSubmitted} 
-            active={statusFilter === "PENDING"} 
-            onClick={() => setStatusFilter("PENDING")} 
-          />
-          <FilterButton 
-            label="Đã nộp" 
-            count={stats.submitted} 
-            active={statusFilter === "SUBMITTED"} 
-            onClick={() => setStatusFilter("SUBMITTED")} 
-          />
-          <FilterButton 
-            label="Nộp trễ" 
-            count={stats.late} 
-            active={statusFilter === "LATE"} 
-            onClick={() => setStatusFilter("LATE")} 
-          />
-          <FilterButton 
-            label="Quá hạn" 
-            count={stats.missing} 
-            active={statusFilter === "MISSING"} 
-            onClick={() => setStatusFilter("MISSING")} 
-          />
-        </div>
+        {/* Filters Row - using shared FilterTabs component */}
+        <FilterTabs
+          tabs={homeworkTabs}
+          activeTab={statusFilter}
+          onChange={(tabId) => setStatusFilter(tabId)}
+          variant="outline"
+          size="md"
+          className="mb-4"
+        />
 
         {/* Search & Sort Bar */}
         <div className="flex gap-3">
@@ -279,12 +250,12 @@ export default function HomeworkPage() {
                 key={assignment.id}
                 hoverable
                 onClick={() => router.push(`/${locale}/portal/student/homework/${assignment.id}`)}
-                className="bg-white/40 backdrop-blur-xl border border-white/40 rounded-2xl p-4 cursor-pointer"
+                className="bg-white/40 backdrop-blur-xl border border-white/40 rounded-2xl p-5 cursor-pointer"
               >
                 <div className="flex gap-4">
                   {/* Left: Icon */}
                   <div className="shrink-0">
-                    <div className="w-12 h-12 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-sm">
+                    <div className="w-14 h-14 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-sm">
                       {getTypeIcon(assignment.type)}
                     </div>
                   </div>
@@ -292,10 +263,10 @@ export default function HomeworkPage() {
                   {/* Middle: Info */}
                   <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                     <div>
-                      <h3 className="font-bold text-slate-950 text-[15px] leading-tight mb-1.5 truncate pr-2">
+                      <h3 className="font-bold text-slate-950 text-base leading-tight mb-2 truncate pr-2">
                         {assignment.title}
                       </h3>
-                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2.5">
                         <span className="flex items-center gap-1">
                           <BookOpen size={12} /> {assignment.className}
                         </span>
@@ -307,16 +278,16 @@ export default function HomeworkPage() {
                     </div>
 
                     {/* Dates */}
-                    <div className="flex items-center gap-3 text-xs">
-                       <span className="text-slate-700 font-semibold flex items-center gap-1">
-                         <Calendar size={12} /> Giao: {assignment.assignedDate}
+                    <div className="flex items-center gap-4 text-sm">
+                       <span className="text-slate-700 font-semibold flex items-center gap-1.5">
+                         <Calendar size={14} /> Giao: {assignment.assignedDate}
                        </span>
-                       <span className={`flex items-center gap-1 font-bold ${isMissing ? 'text-rose-600' : 'text-rose-600'}`}>
-                         <Clock size={12} /> Hạn: {assignment.dueDate}
+                       <span className={`flex items-center gap-1.5 font-bold ${isMissing ? 'text-rose-600' : 'text-rose-600'}`}>
+                         <Clock size={14} /> Hạn: {assignment.dueDate}
                        </span>
                        {assignment.hasAttachments && (
-                         <span className="text-slate-700 font-semibold flex items-center gap-0.5">
-                           <Paperclip size={12} className="rotate-45" /> Có tài liệu
+                         <span className="text-slate-700 font-semibold flex items-center gap-1">
+                           <Paperclip size={14} className="rotate-45" /> Có tài liệu
                          </span>
                        )}
                     </div>
@@ -332,7 +303,7 @@ export default function HomeworkPage() {
                     
                     <Button 
                       size="sm"
-                      className="h-9 px-5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800"
+                      className="h-10 px-6 rounded-lg text-sm font-bold bg-slate-900 hover:bg-slate-800"
                     >
                       {isSubmitted ? "Xem lại" : "Nộp bài"}
                     </Button>

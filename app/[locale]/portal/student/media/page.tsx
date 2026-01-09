@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
+import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
 
 // --- Types ---
 interface MediaItem {
@@ -402,41 +403,19 @@ export default function MediaPage() {
               }
             />
 
-            {/* Tabs */}
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => setActiveTab('all')}
-                className={`px-6 py-3 rounded-2xl font-bold transition-all ${
-                  activeTab === 'all'
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50'
-                    : 'bg-white/10 text-white/60 hover:bg-white/20'
-                }`}
-              >
-                Tất cả ({albums.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('class')}
-                className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
-                  activeTab === 'class'
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/50'
-                    : 'bg-white/10 text-white/60 hover:bg-white/20'
-                }`}
-              >
-                <Users size={18} />
-                Lớp học ({albums.filter(a => a.type === 'class').length})
-              </button>
-              <button
-                onClick={() => setActiveTab('personal')}
-                className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
-                  activeTab === 'personal'
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/50'
-                    : 'bg-white/10 text-white/60 hover:bg-white/20'
-                }`}
-              >
-                <User size={18} />
-                Cá nhân ({albums.filter(a => a.type === 'personal').length})
-              </button>
-            </div>
+            {/* Tabs - using shared FilterTabs component */}
+            <FilterTabs
+              tabs={[
+                { id: 'all', label: 'Tất cả', count: albums.length },
+                { id: 'class', label: 'Lớp học', count: albums.filter(a => a.type === 'class').length, icon: <Users size={18} /> },
+                { id: 'personal', label: 'Cá nhân', count: albums.filter(a => a.type === 'personal').length, icon: <User size={18} /> },
+              ]}
+              activeTab={activeTab}
+              onChange={(tabId) => setActiveTab(tabId as typeof activeTab)}
+              variant="outline"
+              size="lg"
+              className="mb-6"
+            />
 
             {/* Albums Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

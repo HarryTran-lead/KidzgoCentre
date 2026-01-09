@@ -21,6 +21,7 @@ import {
   Users
 } from "lucide-react";
 import { useState } from "react";
+import { FilterTabs } from "@/components/portal/student/FilterTabs";
 
 export default function GamificationPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'missions' | 'rewards' | 'leaderboard'>('overview');
@@ -93,6 +94,23 @@ export default function GamificationPage() {
       
       {/* Header Stats - Floating Card */}
       <div className="max-w-7xl mx-auto mb-8">
+         <div className="max-w-7xl mx-auto mb-6">
+        <div className=" p-2 rounded-2xl">
+          <FilterTabs
+            tabs={[
+              { id: 'overview', label: 'Tổng quan', icon: <Sparkles className="w-4 h-4" /> },
+              { id: 'missions', label: 'Nhiệm vụ', icon: <Target className="w-4 h-4" /> },
+              { id: 'rewards', label: 'Phần thưởng', icon: <Gift className="w-4 h-4" /> },
+              { id: 'leaderboard', label: 'Bảng xếp hạng', icon: <Trophy className="w-4 h-4" /> },
+            ]}
+            activeTab={activeTab}
+            onChange={(tabId) => setActiveTab(tabId as typeof activeTab)}
+            variant="outline"
+            size="lg"
+            className="w-full"
+          />
+        </div>
+      </div>
         <div className="relative bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-purple-600/20 backdrop-blur-xl border border-purple-500/30 rounded-3xl p-8 shadow-2xl overflow-hidden">
           {/* Animated background */}
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjAzIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
@@ -148,30 +166,8 @@ export default function GamificationPage() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="max-w-7xl mx-auto mb-6">
-        <div className="flex gap-2 bg-slate-900/50 p-2 rounded-2xl backdrop-blur-lg border border-white/10">
-          {[
-            { id: 'overview', label: 'Tổng quan', icon: Sparkles },
-            { id: 'missions', label: 'Nhiệm vụ', icon: Target },
-            { id: 'rewards', label: 'Phần thưởng', icon: Gift },
-            { id: 'leaderboard', label: 'Bảng xếp hạng', icon: Trophy },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-all ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Navigation Tabs - using shared FilterTabs component */}
+     
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto">
