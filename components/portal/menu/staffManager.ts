@@ -7,6 +7,10 @@ import {
   RefreshCw,
   FileText,
   NotebookText,
+  MessageSquare,
+  Megaphone,
+  BookOpenCheck,
+  Image,
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -25,7 +29,11 @@ export function staffManagerMenu(
     [t.crm, Users, "/leads"],
     [t.allocation, CalendarRange, "/schedule"],
     [t.makeup, RefreshCw, "/makeup"],
+    [t.lessonPlans, BookOpenCheck, "/lesson-plans"],
     [t.monthlyReport, FileText, "/monthly-report"],
+    [t.tickets, MessageSquare, "/tickets"],
+    [t.notifications, Megaphone, "/notifications"],
+    [t.media, Image, "/media"],
     [t.studentProfiles, NotebookText, "/students"],
     [t.templates, FileText, "/templates"],
   ];
