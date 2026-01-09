@@ -43,10 +43,10 @@ export default function Contact() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API call
+    // Mô phỏng gọi API
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    alert("Thank you! Your message has been sent.");
+    alert("Cảm ơn bạn! Tin nhắn của bạn đã được gửi.");
     setForm({
       name: "",
       email: "",
@@ -105,18 +105,18 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-emerald-50 via-green-50 to-emerald-100 mt-30">
-      {/* Main Content */}
-      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-linear-to-b from-emerald-50 via-green-50 to-emerald-100 rounded-t-3xl shadow-2xl">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100 mt-30">
+      {/* Nội dung chính */}
+      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100 rounded-t-3xl shadow-2xl">
         <motion.div
           initial="hidden"
           animate="visible"
           variants={staggerContainer}
           className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto"
         >
-          {/* Contact Info Cards */}
+          {/* Thẻ thông tin liên hệ */}
           <div className="space-y-6">
-            {/* Call Us Card */}
+            {/* Thẻ Gọi điện */}
             <motion.div
               variants={cardVariants}
               whileHover="hover"
@@ -128,10 +128,10 @@ export default function Contact() {
                     <PhoneCall className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">Call Us</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Gọi cho chúng tôi</h3>
                     <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
-                      Available 8AM - 8PM
+                      Có mặt 8AM - 8PM
                     </p>
                     <a 
                       href="tel:+84999888777" 
@@ -143,11 +143,11 @@ export default function Contact() {
                   </div>
                 </div>
               </div>
-              {/* Hover overlay */}
+              {/* Lớp phủ khi hover */}
               <div className="absolute inset-0 bg-emerald-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </motion.div>
 
-            {/* Email Us Card */}
+            {/* Thẻ Email */}
             <motion.div
               variants={cardVariants}
               whileHover="hover"
@@ -159,10 +159,10 @@ export default function Contact() {
                     <Mail className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">Email Us</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Email</h3>
                     <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
                       <CheckCircle className="w-3.5 h-3.5" />
-                      We reply within hours
+                      Phản hồi trong vòng vài giờ
                     </p>
                     <a 
                       href="mailto:support@kidzgo.edu.vn" 
@@ -174,11 +174,11 @@ export default function Contact() {
                   </div>
                 </div>
               </div>
-              {/* Hover overlay */}
+              {/* Lớp phủ khi hover */}
               <div className="absolute inset-0 bg-green-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </motion.div>
 
-            {/* Visit Us Card */}
+            {/* Thẻ Địa chỉ */}
             <motion.div
               variants={cardVariants}
               whileHover="hover"
@@ -190,23 +190,23 @@ export default function Contact() {
                     <MapPin className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">Visit Us</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Đến thăm chúng tôi</h3>
                     <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
                       <Building className="w-3.5 h-3.5" />
-                      Head Office
+                      Văn phòng chính
                     </p>
                     <p className="text-gray-700 font-medium">
-                      123 Nguyen Hue Street, <br />
-                      District 1, Ho Chi Minh City
+                      123 Đường Nguyễn Huệ, <br />
+                      Quận 1, TP. Hồ Chí Minh
                     </p>
                   </div>
                 </div>
               </div>
-              {/* Hover overlay */}
+              {/* Lớp phủ khi hover */}
               <div className="absolute inset-0 bg-teal-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </motion.div>
 
-            {/* Social Media Card */}
+            {/* Thẻ Mạng xã hội */}
             <motion.div
               variants={cardVariants}
               className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100"
@@ -216,9 +216,9 @@ export default function Contact() {
                   <div className="w-10 h-10 rounded-lg bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-md">
                     <Users className="w-5 h-5" />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900">Follow Our Journey</h3>
+                  <h3 className="text-lg font-bold text-gray-900">Theo dõi hành trình của chúng tôi</h3>
                 </div>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4  ">
                   {[
                     { icon: Facebook, color: "bg-linear-to-br from-blue-500 to-blue-600", label: "Facebook" },
                     { icon: Instagram, color: "bg-linear-to-br from-pink-500 to-orange-500", label: "Instagram" },
@@ -232,7 +232,7 @@ export default function Contact() {
                       aria-label={item.label}
                     >
                       <div className={`
-                        w-full aspect-square rounded-xl ${item.color} 
+                        w-10 h-10 aspect-square rounded-xl ${item.color} 
                         text-white grid place-items-center shadow-md
                         hover:shadow-lg transition-all duration-300
                         group-hover/social:-translate-y-1
@@ -246,26 +246,26 @@ export default function Contact() {
             </motion.div>
           </div>
 
-          {/* Contact Form */}
+          {/* Form liên hệ */}
           <motion.div
             variants={cardVariants}
             className="lg:col-span-2"
           >
             <div className="group relative bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100">
-              {/* Form Header */}
-              <div className="bg-linear-to-r from-emerald-500/10 to-green-500/10 p-6 border-b border-emerald-100">
+              {/* Header form */}
+              <div className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 p-6 border-b border-emerald-100">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-xl bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <MessageSquare className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-gray-900">Send Us a Message</h3>
-                    <p className="text-gray-600">Fill out the form below and we'll get back to you soon</p>
+                    <h3 className="text-2xl font-bold text-gray-900">Gửi tin nhắn cho chúng tôi</h3>
+                    <p className="text-gray-600">Điền vào biểu mẫu bên dưới và chúng tôi sẽ phản hồi sớm</p>
                   </div>
                 </div>
               </div>
 
-              {/* Form Content */}
+              {/* Nội dung form */}
               <div className="p-6">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid md:grid-cols-2 gap-6">
@@ -273,14 +273,14 @@ export default function Contact() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4" />
-                          Full Name *
+                          Họ và tên *
                         </div>
                       </label>
                       <input
                         type="text"
                         required
                         className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
-                        placeholder="John Doe"
+                        placeholder="Nguyễn Văn A"
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                       />
@@ -290,14 +290,14 @@ export default function Contact() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                           <Mail className="w-4 h-4" />
-                          Email Address *
+                          Địa chỉ email *
                         </div>
                       </label>
                       <input
                         type="email"
                         required
                         className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
-                        placeholder="john@example.com"
+                        placeholder="nguyenvana@example.com"
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
                       />
@@ -309,7 +309,7 @@ export default function Contact() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4" />
-                          Phone Number
+                          Số điện thoại
                         </div>
                       </label>
                       <input
@@ -325,13 +325,13 @@ export default function Contact() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                           <Building className="w-4 h-4" />
-                          Company / School
+                          Công ty / Trường học
                         </div>
                       </label>
                       <input
                         type="text"
                         className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
-                        placeholder="Your organization"
+                        placeholder="Tổ chức của bạn"
                         value={form.company}
                         onChange={(e) => setForm({ ...form, company: e.target.value })}
                       />
@@ -340,42 +340,13 @@ export default function Contact() {
 
                   <div className="group">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Inquiry Type *
-                    </label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {[
-                        { value: "general", label: "General Inquiry" },
-                        { value: "admission", label: "Admission" },
-                        { value: "partnership", label: "Partnership" },
-                        { value: "support", label: "Support" }
-                      ].map((type) => (
-                        <button
-                          key={type.value}
-                          type="button"
-                          className={`
-                            px-4 py-3 rounded-xl border-2 transition-all duration-300 font-medium text-sm
-                            ${form.inquiryType === type.value
-                              ? "border-emerald-500 bg-emerald-50 text-emerald-600 shadow-sm"
-                              : "border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-900"
-                            }
-                          `}
-                          onClick={() => setForm({ ...form, inquiryType: type.value })}
-                        >
-                          {type.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="group">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Subject *
+                      Tiêu đề *
                     </label>
                     <input
                       type="text"
                       required
                       className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
-                      placeholder="How can we help you?"
+                      placeholder="Chúng tôi có thể giúp gì cho bạn?"
                       value={form.subject}
                       onChange={(e) => setForm({ ...form, subject: e.target.value })}
                     />
@@ -383,13 +354,13 @@ export default function Contact() {
 
                   <div className="group">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Your Message *
+                      Tin nhắn của bạn *
                     </label>
                     <textarea
                       required
                       rows={4}
                       className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300 resize-none"
-                      placeholder="Tell us more about your inquiry..."
+                      placeholder="Hãy cho chúng tôi biết thêm về yêu cầu của bạn..."
                       value={form.message}
                       onChange={(e) => setForm({ ...form, message: e.target.value })}
                     />
@@ -397,10 +368,10 @@ export default function Contact() {
 
                   <div className="flex items-center justify-between pt-6 border-t border-gray-100">
                     <p className="text-sm text-gray-500">
-                      By submitting, you agree to our{" "}
+                      Bằng cách gửi, bạn đồng ý với{" "}
                       <a href="#" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                        Privacy Policy
-                      </a>
+                        Chính sách Bảo mật
+                      </a> của chúng tôi
                     </p>
                     
                     <button
@@ -409,14 +380,14 @@ export default function Contact() {
                       className="group relative px-8 py-4 rounded-full text-white font-bold bg-linear-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-3"
                     >
                       <span className="relative">
-                        {isSubmitting ? "Sending..." : "Send Message"}
+                        {isSubmitting ? "Đang gửi..." : "Gửi tin nhắn"}
                       </span>
                       {!isSubmitting && (
                         <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                       )}
                       
-                      {/* Animated background effect */}
-                      <span className="absolute inset-0 rounded-full bg-linear-to-r from-emerald-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></span>
+                      {/* Hiệu ứng nền động */}
+                      <span className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></span>
                     </button>
                   </div>
                 </form>
@@ -428,7 +399,7 @@ export default function Contact() {
         </motion.div>
       </div>
 
-      {/* Bottom Decoration SVG */}
+      {/* SVG trang trí dưới cùng */}
       <div className="z-20 relative w-full overflow-hidden bg-[#d0fae4]" style={{ marginTop: 0, lineHeight: 0 }}>
         <Image
           src="/image/hero-deluxe-end.svg"

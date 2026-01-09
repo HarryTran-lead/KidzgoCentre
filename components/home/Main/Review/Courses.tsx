@@ -23,7 +23,7 @@ export default function Courses() {
   return (
     <section
       id="courses"
-      className="py-24 md:py-32 scroll-mt-24 bg-white relative z-30 overflow-hidden"
+      className="py-24 pt-0 md:py-32 scroll-mt-24 bg-white relative z-30 overflow-hidden"
       style={{
         backgroundImage: "url('/image/timeline-end-green-front.svg')",
         backgroundRepeat: "no-repeat",
@@ -112,7 +112,7 @@ export default function Courses() {
 
           
           <motion.h2 
-            className="mt-8 text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight"
+            className="mt-8 text-4xl md:text-5xl lg:text-6xl  font-bold tracking-tight"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}

@@ -72,7 +72,7 @@ export default function WhyUs() {
   };
 
   return (
-    <section id="why" className="py-24 scroll-mt-24 overflow-hidden bg-white relative z-30">
+    <section id="why" className=" pt-0 scroll-mt-24 overflow-hidden bg-white relative z-30">
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div 
@@ -143,8 +143,8 @@ export default function WhyUs() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header với animation */}
-        <div ref={titleRef} className="text-center mb-16">
-          <h2 className={`mt-6 text-5xl md:text-6xl font-bold bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent transition-all duration-1000 ${
+        <div ref={titleRef} className="text-center mb-16 pt-8">
+          <h2 className={`text-4xl md:text-6xl p-8 font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent transition-all duration-1000 ${
             isTitleVisible 
               ? 'opacity-100 translate-y-0' 
               : 'opacity-0 translate-y-10'

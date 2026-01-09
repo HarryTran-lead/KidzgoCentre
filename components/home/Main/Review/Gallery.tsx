@@ -1,16 +1,19 @@
 // components/sections/Gallery.tsx  (CLIENT)
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { Image as ImageIcon, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { GALLERY } from "@/lib/data/data";
+import { ACCENT_TEXT } from "@/lib/theme/theme";
 
 const AUTO_MS = 4000;
 
 export default function Gallery() {
   const images = useMemo(() => GALLERY.filter(Boolean), []);
   const [idx, setIdx] = useState(0);
+  const [isTitleVisible, setIsTitleVisible] = useState(false);
+  const titleRef = useRef<HTMLDivElement>(null);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   
@@ -27,6 +30,33 @@ export default function Gallery() {
     const t = setInterval(() => setIdx((p) => (p + 1) % images.length), AUTO_MS);
     return () => clearInterval(t);
   }, [images.length]);
+
+  // Intersection Observer cho title header
+  useEffect(() => {
+    const titleObserverOptions = {
+      root: null,
+      rootMargin: '0px',
+      threshold: 0.2
+    };
+
+    const titleObserverCallback = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setIsTitleVisible(true);
+        }
+      });
+    };
+
+    const titleObserver = new IntersectionObserver(titleObserverCallback, titleObserverOptions);
+
+    if (titleRef.current) {
+      titleObserver.observe(titleRef.current);
+    }
+
+    return () => {
+      titleObserver.disconnect();
+    };
+  }, []);
 
   if (images.length === 0) return null;
 
@@ -76,7 +106,7 @@ export default function Gallery() {
   return (
     <section 
       id="gallery" 
-      className="py-20 pb-0 scroll-mt-24 bg-[#8ED462] relative z-30 overflow-hidden"
+      className="py-20 pb-0 scroll-mt-24  bg-[#8ED462] relative z-30 overflow-hidden"
       onMouseMove={handleMouseMove}
     >
       {/* Animated gradient orbs */}
@@ -145,57 +175,30 @@ export default function Gallery() {
       />
 
       <div className="mx-auto max-w-6xl px-6 relative z-10">
-        {/* Header with animations */}
-        <motion.div 
-          className="flex items-center justify-between mb-8"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-        >
-          <div>
-            <motion.h3 
-              className="text-3xl font-black flex items-center gap-2 text-white"
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-              >
-                <ImageIcon className="w-6 h-6 text-white" />
-              </motion.div>
-              Lớp học & CLB Tiếng Anh KidzGo
-            </motion.h3>
-            <motion.p 
-              className="text-white/90"
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              Khoảnh khắc học tập – vui chơi – ngoại khóa.
-            </motion.p>
-          </div>
-          <motion.div 
-            className="hidden sm:flex items-center gap-2 text-sm text-white/80"
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <motion.span 
-              className="h-2 w-2 rounded-full bg-white inline-block"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-            <span>
-              {idx + 1}/{images.length}
+        {/* Header */}
+        <div ref={titleRef} className="text-center mb-16 relative">
+          <h2 className={`text-4xl md:text-5xl font-black relative mb-4 transition-all duration-1000 ${
+            isTitleVisible 
+              ? 'opacity-100 translate-y-0' 
+              : 'opacity-0 translate-y-10'
+          }`}>
+            <span className="text-white drop-shadow-lg">
+              Lớp học & CLB{" "}
+              <span className={`${ACCENT_TEXT} relative inline-block p-2`}>
+                Tiếng Anh KidzGo
+                <Star className="absolute -top-2 -right-4 w-4 h-4 text-yellow-500 animate-spin" />
+              </span>
             </span>
-          </motion.div>
-        </motion.div>
+          </h2>
+          
+          <p className={`text-lg text-white/90 max-w-2xl mx-auto transition-all duration-1000 delay-300 ${
+            isTitleVisible 
+              ? 'opacity-100 translate-y-0' 
+              : 'opacity-0 translate-y-10'
+          }`}>
+            Khoảnh khắc học tập – vui chơi – ngoại khóa.
+          </p>
+        </div>
 
         <motion.div 
           className="relative flex items-center justify-center"
@@ -262,7 +265,7 @@ export default function Gallery() {
 
         {/* Dots */}
         <motion.div 
-          className="flex items-center justify-center gap-2 mt-6"
+          className="flex items-center justify-center gap-2 mb-20"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -291,25 +294,7 @@ export default function Gallery() {
         </motion.div>
       </div>
 
-      {/* Wave shape bottom decoration - matching Programs.tsx background colors */}
-      <div className="relative w-full overflow-hidden" style={{ marginBottom: '0', lineHeight: 0 }}>
-        <svg 
-          viewBox="0 0 1440 120" 
-          fill="none" 
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-auto"
-          preserveAspectRatio="none"
-          style={{ display: 'block', verticalAlign: 'bottom' }}
-        >
-          {/* Smooth wave with color #fefbe8 */}
-          <path 
-            d="M0,60 C240,20 480,100 720,60 C960,20 1200,100 1440,60 L1440,120 L0,120 Z" 
-            fill="#fefbe8"
-            stroke="none"
-            style={{ shapeRendering: 'geometricPrecision' }}
-          />
-        </svg>
-      </div>
+      
     </section>
   );
 }
