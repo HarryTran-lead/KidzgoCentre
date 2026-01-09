@@ -156,7 +156,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                   </div>
 
                   {/* Hover Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-teal-500/5 to-teal-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  <div className="absolute inset-0 bg-linear-to-r from-teal-500/0 via-teal-500/5 to-teal-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
                 </button>
 
                 {isDetailsOpen && (
@@ -200,13 +200,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                 {/* Primary Button - Refresh */}
                 <button
                   onClick={() => window.location.reload()}
-                  className="group relative overflow-hidden px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2 transform-gpu"
+                  className="group relative overflow-hidden px-6 py-3 text-sm font-semibold text-white bg-linear-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2 transform-gpu"
                 >
                   <div className="relative z-10 flex items-center justify-center">
                     <FiRefreshCcw className="w-5 h-5 mr-3 group-hover:rotate-180 transition-transform duration-500" />
                     Tải lại trang
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
                   <div className="absolute inset-0 rounded-2xl bg-teal-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </button>
 
@@ -224,7 +224,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                     <FiArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform duration-300" />
                     Quay lại trang
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-teal-500/10 to-teal-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  <div className="absolute inset-0 bg-linear-to-r from-teal-500/0 via-teal-500/10 to-teal-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
                 </button>
 
                 {/* Secondary Button - Về Trang chủ */}
@@ -236,7 +236,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                     <FiHome className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-300" />
                     Về Trang chủ
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-gray-500/0 via-gray-500/10 to-gray-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  <div className="absolute inset-0 bg-linear-to-r from-gray-500/0 via-gray-500/10 to-gray-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
                 </button>
               </div>
 

@@ -164,7 +164,7 @@ export default function LoginCard({
         {particleStyle.current.map((p, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-gradient-to-r from-pink-400/10 to-rose-500/10"
+            className="absolute rounded-full bg-linear-to-r from-pink-400/10 to-rose-500/10"
             style={{ ...p, filter: "blur(20px)" }}
           />
         ))}
@@ -249,7 +249,7 @@ export default function LoginCard({
 
                 {/* Shimmer Effect */}
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                  className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent"
                   style={{
                     transform: "skewX(-20deg)",
                   }}
@@ -394,13 +394,13 @@ export default function LoginCard({
                       <Image
                         src={LOGO}
                         alt="KidzGo"
-                        width={80}
-                        height={80}
+                        width={100}
+                        height={100}
                         priority
-                        className="rounded-md w-auto h-12"
+                        className="rounded-md w-auto h-16"
                       />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Đăng nhập</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Đăng nhập cho học sinh và phụ huynh</h2>
                   </div>
 
                   {/* Error Message */}
@@ -456,7 +456,7 @@ export default function LoginCard({
                       transition={{ delay: 0.1, duration: 0.4 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={handleSubmit}
-                      className="w-full bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                      className="w-full bg-linear-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
                     >
                       Đăng nhập ngay
                     </motion.button>

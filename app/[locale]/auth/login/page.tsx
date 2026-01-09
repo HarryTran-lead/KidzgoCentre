@@ -9,5 +9,5 @@ export default async function LoginPage(props: {
   params: Promise<{ locale: Locale }>;
 }) {
   const { locale } = await props.params;
-  redirect(localizePath("/auth/login/parent", locale));
+  redirect(localizePath("/auth/login/", locale));
 }

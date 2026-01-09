@@ -107,12 +107,18 @@ export default function Navbar() {
         kind: "route",
         href: localizePath(EndPoint.HOME, locale),
       },
-      
+
       {
         id: "faqs",
         label: msg.nav.faqs,
         kind: "route",
         href: localizePath(EndPoint.FAQS, locale),
+      },
+      {
+        id: "bantin",
+        label: msg.nav.bantin,
+        kind: "route",
+        href: localizePath(EndPoint.BLOGS, locale),
       },
       {
         id: "contact",
@@ -150,6 +156,7 @@ export default function Navbar() {
   const activeKey = useMemo(() => {
     if (pathname.includes("/contact")) return "contact";
     if (pathname.includes("/faqs")) return "faqs";
+    if (pathname.includes("/blogs")) return "bantin";
     if (pathname.includes("/pricing")) return "pricing";
     return activeSectionId;
   }, [pathname, activeSectionId]);
@@ -303,11 +310,11 @@ export default function Navbar() {
               <div className="flex items-center">
                 <div
                   ref={containerRef}
-                  className="relative inline-flex items-center gap-0.5 p-2.5"
+                  className="relative inline-flex items-center gap-0.5 px-1.5 pb-2.5 py-2"
                 >
                   {indReady && (
                     <motion.div
-                      className="absolute top-2.5 left-2.5 h-[calc(100%-20px)] bg-gradient-to-r from-pink-400/20 to-rose-400/20 rounded-xl border border-pink-100/50 shadow-sm"
+                      className="absolute top-2 left-0 h-[calc(100%-16px)] bg-linear-to-r from-pink-400/20 to-rose-400/20 rounded-xl border border-pink-100/50 shadow-sm"
                       initial={false}
                       style={{
                         x,
@@ -357,7 +364,7 @@ export default function Navbar() {
                             <span
                               className={`
                                 absolute left-0 right-0 -bottom-1 h-0.5 rounded-full
-                                bg-gradient-to-r from-pink-500 to-rose-500
+                                bg-linear-to-r from-pink-500 to-rose-500
                                 transform origin-left transition-all duration-300 ease-out
                                 ${isActive 
                                   ? "scale-x-100 opacity-100" 
@@ -376,7 +383,7 @@ export default function Navbar() {
                         href={item.href}
                         ref={setItemRef(i)}
                         className={`
-                          relative z-10 px-4 py-2.5 mx-1 text-sm font-medium rounded-xl
+                          relative z-10 px-4 py-2.5 mx-0.5 text-sm font-medium rounded-xl
                           transition-all duration-300 ease-out
                           group/nav-item whitespace-nowrap
                           ${isActive 
@@ -392,7 +399,7 @@ export default function Navbar() {
                           <span
                             className={`
                               absolute left-0 right-0 -bottom-1 h-0.5 rounded-full
-                              bg-gradient-to-r from-pink-500 to-rose-500
+                              bg-linear-to-r from-pink-500 to-rose-500
                               transform origin-left transition-all duration-300 ease-out
                               ${isActive 
                                 ? "scale-x-100 opacity-100" 
@@ -422,10 +429,10 @@ export default function Navbar() {
               >
                 <Link
                   href={localizePath(EndPoint.LOGIN, locale)}
-                  className="group relative inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-pink-500/25 active:shadow-inner"
+                  className="group relative inline-flex items-center gap-3 px-6 py-3 bg-linear-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-pink-500/25 active:shadow-inner"
                 >
                   {/* Button glow effect */}
-                  <span className="absolute inset-0 bg-gradient-to-r from-pink-400 to-rose-400 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <span className="absolute inset-0 bg-linear-to-r from-pink-400 to-rose-400 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <span className="relative flex items-center gap-2">
                     <LogIn className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                     {msg.auth.login}
@@ -443,7 +450,7 @@ export default function Navbar() {
               whileTap={{ scale: 0.9 }}
             >
               {/* Button background effect */}
-              <span className="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="absolute inset-0 bg-linear-to-r from-pink-500/10 to-rose-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <span className="relative">
                 {open ? (
                   <X className="w-5 h-5 text-gray-700" />
@@ -506,7 +513,7 @@ export default function Navbar() {
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="absolute inset-0 bg-linear-to-r from-pink-500/10 to-rose-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <span className="relative">
                 <X className="w-5 h-5 text-gray-700" />
               </span>
@@ -542,7 +549,7 @@ export default function Navbar() {
                         text-gray-800 transition-all duration-300
                         group/mobile-item relative overflow-hidden
                         ${isActive 
-                          ? "bg-gradient-to-r from-pink-50 to-rose-50 text-transparent bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text" 
+                          ? "bg-linear-to-r from-pink-50 to-rose-50 text-transparent bg-linear-to-r from-pink-500 to-rose-500 bg-clip-text" 
                           : "hover:bg-gray-50/80"
                         }
                       `}
@@ -551,7 +558,7 @@ export default function Navbar() {
                     >
                       {/* Background effect */}
                       <span className={`
-                        absolute inset-0 bg-gradient-to-r from-pink-500/5 to-rose-500/5
+                        absolute inset-0 bg-linear-to-r from-pink-500/5 to-rose-500/5
                         opacity-0 group-hover/mobile-item:opacity-100
                         transition-opacity duration-300
                       `} />
@@ -559,13 +566,13 @@ export default function Navbar() {
                       <span className="relative flex items-center gap-3">
                         <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                           isActive 
-                            ? "bg-gradient-to-r from-pink-400 to-rose-400 scale-125" 
+                            ? "bg-linear-to-r from-pink-400 to-rose-400 scale-125" 
                             : "bg-gray-300 group-hover/mobile-item:bg-pink-300"
                         }`} />
                         <span className={`font-medium ${
                           isActive 
                             ? "" 
-                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-gradient-to-r group-hover/mobile-item:from-pink-500 group-hover/mobile-item:to-rose-500"
+                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-linear-to-r group-hover/mobile-item:from-pink-500 group-hover/mobile-item:to-rose-500"
                         }`}>
                           {item.label}
                         </span>
@@ -597,14 +604,14 @@ export default function Navbar() {
                         text-gray-800 transition-all duration-300
                         group/mobile-item relative overflow-hidden
                         ${isActive 
-                          ? "bg-gradient-to-r from-pink-50 to-rose-50 text-transparent bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text" 
+                          ? "bg-linear-to-r from-pink-50 to-rose-50 text-transparent bg-linear-to-r from-pink-500 to-rose-500 bg-clip-text" 
                           : "hover:bg-gray-50/80"
                         }
                       `}
                     >
                       {/* Background effect */}
                       <span className={`
-                        absolute inset-0 bg-gradient-to-r from-pink-500/5 to-rose-500/5
+                        absolute inset-0 bg-linear-to-r from-pink-500/5 to-rose-500/5
                         opacity-0 group-hover/mobile-item:opacity-100
                         transition-opacity duration-300
                       `} />
@@ -612,13 +619,13 @@ export default function Navbar() {
                       <span className="relative flex items-center gap-3">
                         <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                           isActive 
-                            ? "bg-gradient-to-r from-pink-400 to-rose-400 scale-125" 
+                            ? "bg-linear-to-r from-pink-400 to-rose-400 scale-125" 
                             : "bg-gray-300 group-hover/mobile-item:bg-pink-300"
                         }`} />
                         <span className={`font-medium ${
                           isActive 
                             ? "" 
-                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-gradient-to-r group-hover/mobile-item:from-pink-500 group-hover/mobile-item:to-rose-500"
+                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-linear-to-r group-hover/mobile-item:from-pink-500 group-hover/mobile-item:to-rose-500"
                         }`}>
                           {item.label}
                         </span>
@@ -646,14 +653,14 @@ export default function Navbar() {
               <Link
                 href={localizePath(EndPoint.LOGIN, locale)}
                   className="group relative flex items-center justify-center gap-3 w-full py-4 
-                    bg-gradient-to-r from-pink-500 to-rose-500 
+                    bg-linear-to-r from-pink-500 to-rose-500 
                     hover:from-pink-600 hover:to-rose-600 
                     text-white font-semibold rounded-xl 
                     transition-all duration-300 shadow-lg hover:shadow-xl"
                   onClick={() => setOpen(false)}
                 >
                   {/* Button glow */}
-                  <span className="absolute inset-0 bg-gradient-to-r from-pink-400 to-rose-400 rounded-xl blur-lg opacity-0 group-hover:opacity-70 transition-opacity duration-300" />
+                  <span className="absolute inset-0 bg-linear-to-r from-pink-400 to-rose-400 rounded-xl blur-lg opacity-0 group-hover:opacity-70 transition-opacity duration-300" />
                   
                   <span className="relative flex items-center gap-3">
                     <LogIn className="w-5 h-5 transition-transform group-hover:translate-x-1" />
