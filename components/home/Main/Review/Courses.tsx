@@ -35,7 +35,7 @@ export default function Courses() {
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div 
-          className="absolute top-20 left-10 w-80 h-80 bg-gradient-to-br from-pink-300 to-rose-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
+          className="absolute top-20 left-10 w-80 h-80 bg-linear-to-br from-pink-300 to-rose-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
           animate={{
             scale: [1, 1.2, 1],
             x: [0, 30, 0],
@@ -63,7 +63,7 @@ export default function Courses() {
         />
         {/* New floating orb */}
         <motion.div 
-          className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-purple-300 to-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15"
+          className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-purple-300 to-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15"
           animate={{
             scale: [1, 1.3, 1],
             borderRadius: ["50%", "40%", "50%"],
@@ -82,7 +82,7 @@ export default function Courses() {
         {[...Array(15)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-gradient-to-r from-pink-400/30 to-rose-400/30 rounded-full"
+            className="absolute w-1 h-1 bg-linear-to-r from-pink-400/30 to-rose-400/30 rounded-full"
             style={{
               left: `${(i * 7) % 100}%`,
               top: `${(i * 10) % 100}%`,
@@ -120,7 +120,7 @@ export default function Courses() {
           >
             Khóa Học{" "}
             <span className="relative inline-block">
-              <span className="bg-gradient-to-r from-amber-400 via-pink-500 to-rose-500 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-amber-400 via-pink-500 to-rose-500 bg-clip-text text-transparent">
                 Nổi Bật
               </span>
 
@@ -181,7 +181,7 @@ export default function Courses() {
                   />
                   
                   {/* Glow effect behind sticker */}
-                  <div className={`absolute inset-0 -z-10 bg-gradient-to-r ${
+                  <div className={`absolute inset-0 -z-10 bg-linear-to-r ${
                     isEven ? "from-amber-400/30 via-pink-400/30 to-rose-400/30" : "from-blue-400/30 via-purple-400/30 to-pink-400/30"
                   } blur-3xl rounded-full scale-110`} />
                 </motion.div>
@@ -208,8 +208,8 @@ export default function Courses() {
                     transition={{ duration: 0.4 }}
                   >
                     {/* Background gradient layers */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-white via-white to-white/80 z-0" />
-                    <div className={`absolute inset-0 bg-gradient-to-br ${
+                    <div className="absolute inset-0 bg-linear-to-br from-white via-white to-white/80 z-0" />
+                    <div className={`absolute inset-0 bg-linear-to-br ${
                       c.highlight 
                         ? "from-pink-500/5 via-rose-500/5 to-amber-500/5" 
                         : "from-blue-500/5 via-purple-500/5 to-pink-500/5"
@@ -256,13 +256,13 @@ export default function Courses() {
                       >
                         <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${
                           c.highlight
-                            ? "bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700"
-                            : "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                            ? "bg-linear-to-r from-rose-100 to-pink-100 text-rose-700"
+                            : "bg-linear-to-r from-blue-100 to-purple-100 text-blue-700"
                         }`}>
                           {c.level}
                         </span>
                         {c.highlight && (
-                          <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 text-sm font-semibold">
+                          <span className="px-3 py-1.5 rounded-full bg-linear-to-r from-amber-100 to-yellow-100 text-amber-700 text-sm font-semibold">
                             <TrendingUp size={12} className="inline mr-1" /> Bán chạy
                           </span>
                         )}
@@ -282,7 +282,7 @@ export default function Courses() {
                             : "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899)",
                         }}
                       >
-                        <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent group-hover:text-transparent group-hover:bg-clip-text transition-all duration-500">
+                        <span className="bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent group-hover:text-transparent group-hover:bg-clip-text transition-all duration-500">
                           {c.title}
                         </span>
                       </motion.h3>
@@ -330,8 +330,8 @@ export default function Courses() {
                           href="#contact"
                           className={`inline-flex items-center gap-3 px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 shadow-lg group/btn ${
                             c.highlight
-                              ? "bg-gradient-to-r from-amber-400 via-pink-500 to-rose-500 hover:shadow-2xl hover:shadow-rose-500/30"
-                              : "bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:shadow-2xl hover:shadow-purple-500/30"
+                              ? "bg-linear-to-r from-amber-400 via-pink-500 to-rose-500 hover:shadow-2xl hover:shadow-rose-500/30"
+                              : "bg-linear-to-r from-blue-500 via-purple-500 to-pink-500 hover:shadow-2xl hover:shadow-purple-500/30"
                           }`}
                           whileHover={{ 
                             scale: 1.05,
@@ -361,7 +361,7 @@ export default function Courses() {
                     {/* Corner accent */}
                     <motion.div 
                       className={`absolute -bottom-6 -left-6 w-32 h-32 rounded-full ${
-                        c.highlight ? "bg-gradient-to-br from-amber-400/20 to-rose-400/20" : "bg-gradient-to-br from-blue-400/20 to-purple-400/20"
+                        c.highlight ? "bg-linear-to-br from-amber-400/20 to-rose-400/20" : "bg-linear-to-br from-blue-400/20 to-purple-400/20"
                       } z-0`}
                       animate={{
                         rotate: [0, 90, 180, 270, 360],

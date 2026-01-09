@@ -112,7 +112,7 @@ export default function Gallery() {
       {/* Animated gradient orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-white/10 to-white/5 rounded-full"
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-linear-to-r from-white/10 to-white/5 rounded-full"
           animate={{
             scale: [1, 1.2, 1],
             x: [0, 30, 0],
@@ -125,7 +125,7 @@ export default function Gallery() {
           }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-white/10 to-white/5 rounded-full"
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-linear-to-r from-white/10 to-white/5 rounded-full"
           animate={{
             scale: [1, 1.1, 1],
             x: [0, -20, 0],
@@ -165,7 +165,7 @@ export default function Gallery() {
 
       {/* Mouse follow gradient */}
       <motion.div
-        className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-white/5 via-white/5 to-white/5 blur-3xl pointer-events-none"
+        className="absolute w-96 h-96 rounded-full bg-linear-to-r from-white/5 via-white/5 to-white/5 blur-3xl pointer-events-none"
         style={{
           x: springX,
           y: springY,

@@ -124,7 +124,7 @@ export default function Contact() {
             >
               <div className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-emerald-500 to-emerald-600 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <PhoneCall className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
@@ -155,7 +155,7 @@ export default function Contact() {
             >
               <div className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-green-500 to-emerald-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <Mail className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
@@ -186,7 +186,7 @@ export default function Contact() {
             >
               <div className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-teal-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-teal-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <MapPin className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
@@ -213,17 +213,17 @@ export default function Contact() {
             >
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-md">
+                  <div className="w-10 h-10 rounded-lg bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-md">
                     <Users className="w-5 h-5" />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900">Theo dõi hành trình của chúng tôi</h3>
                 </div>
                 <div className="grid grid-cols-4  ">
                   {[
-                    { icon: Facebook, color: "bg-gradient-to-br from-blue-500 to-blue-600", label: "Facebook" },
-                    { icon: Instagram, color: "bg-gradient-to-br from-pink-500 to-orange-500", label: "Instagram" },
-                    { icon: Twitter, color: "bg-gradient-to-br from-sky-500 to-blue-400", label: "Twitter" },
-                    { icon: MessageCircle, color: "bg-gradient-to-br from-green-500 to-emerald-500", label: "Zalo" }
+                    { icon: Facebook, color: "bg-linear-to-br from-blue-500 to-blue-600", label: "Facebook" },
+                    { icon: Instagram, color: "bg-linear-to-br from-pink-500 to-orange-500", label: "Instagram" },
+                    { icon: Twitter, color: "bg-linear-to-br from-sky-500 to-blue-400", label: "Twitter" },
+                    { icon: MessageCircle, color: "bg-linear-to-br from-green-500 to-emerald-500", label: "Zalo" }
                   ].map((item, idx) => (
                     <a
                       key={idx}
@@ -255,7 +255,7 @@ export default function Contact() {
               {/* Header form */}
               <div className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 p-6 border-b border-emerald-100">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <MessageSquare className="w-6 h-6" />
                   </div>
                   <div>
@@ -377,7 +377,7 @@ export default function Contact() {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="group relative px-8 py-4 rounded-full text-white font-bold bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-3"
+                      className="group relative px-8 py-4 rounded-full text-white font-bold bg-linear-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-3"
                     >
                       <span className="relative">
                         {isSubmitting ? "Đang gửi..." : "Gửi tin nhắn"}

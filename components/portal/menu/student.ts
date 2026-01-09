@@ -19,6 +19,8 @@ import {
   User,
   Bell,
   Calendar,
+  Crown,
+  MessageCircle,
 } from "lucide-react";
 import { makeMenu, makeGroup, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -28,25 +30,27 @@ import { getMessages } from "@/lib/dict";
 export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const t = getMessages(locale).menuStudent;
 
-  // Home (flat item)
-  const homeItem: MenuItem = {
-    label: t.items.home,
-    icon: House,
+  // 👑 Tất cả (All)
+  const allItem: MenuItem = {
+    label: t.items.all,
+    icon: Crown,
     href: root,
   };
 
-  // 🗓️ Thời khóa biểu
+  // 🗓️ Lịch học (TKB)
   const scheduleItem: MenuItem = {
     label: t.items.schedule,
     icon: Calendar,
     href: `${root}/schedule`,
+    badge: 2,
   };
 
   // ✅ Điểm danh
   const attendanceItem: MenuItem = {
     label: t.items.attendance,
-    icon: History,
+    icon: CalendarCheck,
     href: `${root}/attendance`,
+    badge: 1,
   };
 
   // 📚 Bài tập
@@ -56,14 +60,14 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     href: `${root}/homework`,
   };
 
-  // 📝 Kiểm tra & Báo cáo
-  const testsReportsGroup = makeGroup(
+  // 📊 Báo cáo & Kiểm tra
+  const reportsTestsGroup = makeGroup(
     root,
-    t.groups.testsReports,
-    FileCheck,
+    t.groups.reportsTests,
+    FileText,
     [
-      [t.items.testResults, FileCheck, "/tests"],
       [t.items.monthlyReports, FileText, "/reports"],
+      [t.items.testResults, FileCheck, "/tests"],
     ],
     false
   );
@@ -96,26 +100,26 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     false
   );
 
-  // 🔔 Thông báo
-  const notificationsGroup = makeGroup(
+  // 💬 Giao tiếp (Communications)
+  const communicationsGroup = makeGroup(
     root,
-    t.groups.notifications,
-    Bell,
+    t.groups.communications,
+    MessageCircle,
     [
-      [t.items.homeworkNotifications, ClipboardList, "/notifications/homework"],
-      [t.items.scheduleNotifications, Calendar, "/notifications/schedule"],
+      [t.items.messages, MessageSquare, "/messages"],
+      [t.items.notifications, Bell, "/notifications"],
     ],
     false
   );
 
   return [
-    homeItem,
+    allItem,
     scheduleItem,
     attendanceItem,
     homeworkItem,
-    testsReportsGroup,
+    reportsTestsGroup,
     gamificationGroup,
     mediaGroup,
-    notificationsGroup,
+    communicationsGroup,
   ];
 }

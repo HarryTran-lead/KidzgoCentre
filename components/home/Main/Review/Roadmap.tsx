@@ -199,7 +199,7 @@ export default function Roadmap() {
     <section 
       id="roadmap" 
       ref={sectionRef}
-      className="py-20 scroll-mt-24 pb-0 overflow-hidden bg-gradient-to-b from-white via-rose-50 to-pink-50 relative  z-30"
+      className="py-20 scroll-mt-24 pb-0 overflow-hidden bg-linear-to-b from-white via-rose-50 to-pink-50 relative  z-30"
       style={{
         borderTopLeftRadius: '3rem',
         borderTopRightRadius: '3rem',
@@ -259,7 +259,7 @@ export default function Roadmap() {
             style={{ top: `${timelineProgress}%` }}
           >
             <div className="relative">
-              <div className="w-12 h-12 rounded-full border-4 border-white bg-gradient-to-r from-emerald-400 to-green-500 shadow-xl flex items-center justify-center animate-pulse">
+              <div className="w-12 h-12 rounded-full border-4 border-white bg-linear-to-r from-emerald-400 to-green-500 shadow-xl flex items-center justify-center animate-pulse">
                 <Trophy className="w-6 h-6 text-white" />
                 <div className="absolute -inset-3 rounded-full bg-emerald-500/20 animate-ping"></div>
               </div>
@@ -272,9 +272,9 @@ export default function Roadmap() {
               <span className="text-sm font-medium text-pink-600">Bắt đầu</span>
               <span className="text-sm font-medium text-emerald-600">Hoàn thành</span>
             </div>
-            <div className="h-2 bg-gradient-to-r from-pink-200 via-blue-200 to-emerald-200 rounded-full overflow-hidden">
+            <div className="h-2 bg-linear-to-r from-pink-200 via-blue-200 to-emerald-200 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-pink-500 via-blue-500 to-emerald-500 rounded-full transition-all duration-500"
+                className="h-full bg-linear-to-r from-pink-500 via-blue-500 to-emerald-500 rounded-full transition-all duration-500"
                 style={{ width: `${timelineProgress}%` }}
               ></div>
             </div>
@@ -305,17 +305,17 @@ export default function Roadmap() {
                     `}
                     style={{ animationDelay: `${i * 150}ms` }}>
                       {/* Animated ring */}
-                      <div className={`absolute -inset-1 rounded-full bg-gradient-to-r ${item.color} opacity-20 animate-ping`}></div>
+                      <div className={`absolute -inset-1 rounded-full bg-linear-to-r ${item.color} opacity-20 animate-ping`}></div>
                       
                       {/* Step number */}
-                      <div className={`text-2xl font-black bg-gradient-to-r ${item.color} bg-clip-text text-transparent`}>
+                      <div className={`text-2xl font-black bg-linear-to-r ${item.color} bg-clip-text text-transparent`}>
                         {item.step}
                       </div>
                     </div>
                     
                     {/* Mobile connector */}
-                    <div className="lg:hidden ml-4 h-1 flex-1 bg-gradient-to-r from-gray-200 to-gray-100 rounded-full">
-                      <div className={`h-full w-1/3 bg-gradient-to-r ${item.color} rounded-full`}></div>
+                    <div className="lg:hidden ml-4 h-1 flex-1 bg-linear-to-r from-gray-200 to-gray-100 rounded-full">
+                      <div className={`h-full w-1/3 bg-linear-to-r ${item.color} rounded-full`}></div>
                     </div>
                   </div>
 
@@ -327,7 +327,7 @@ export default function Roadmap() {
                       transition-all duration-500 hover:-translate-y-2
                       relative overflow-hidden
                       ${isEven ? "lg:mr-8" : "lg:ml-8"}
-                      before:absolute before:inset-0 before:bg-gradient-to-r ${item.color} 
+                      before:absolute before:inset-0 before:bg-linear-to-r ${item.color} 
                       before:opacity-0 hover:before:opacity-5 before:transition-opacity before:duration-500
                       ${isVisible[i] 
                         ? 'opacity-100 translate-y-0' 
@@ -345,14 +345,14 @@ export default function Roadmap() {
                       ${isVisible[i] ? 'animate-jump-in' : 'opacity-0 scale-0'}
                     `}
                     style={{ animationDelay: `${i * 150 + 200}ms` }}>
-                      <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${item.color} opacity-20 animate-pulse`}></div>
+                      <div className={`absolute inset-0 rounded-full bg-linear-to-r ${item.color} opacity-20 animate-pulse`}></div>
                       <div className="relative">
-                        <div className={`text-2xl font-black bg-gradient-to-r ${item.color} bg-clip-text text-transparent`}>
+                        <div className={`text-2xl font-black bg-linear-to-r ${item.color} bg-clip-text text-transparent`}>
                           {item.step}
                         </div>
                       </div>
                       {/* Glow effect */}
-                      <div className={`absolute -inset-1 rounded-full bg-gradient-to-r ${item.color} opacity-10 blur-md`}></div>
+                      <div className={`absolute -inset-1 rounded-full bg-linear-to-r ${item.color} opacity-10 blur-md`}></div>
                     </div>
                     
                     {/* Decorative corner */}
@@ -369,7 +369,7 @@ export default function Roadmap() {
                     `}
                     style={{ animationDelay: `${i * 150 + 400}ms` }}>
                       <div className={`absolute inset-0 bg-linear-to-br ${item.color} opacity-10`}></div>
-                      <Icon className={`w-10 h-10 bg-gradient-to-r ${item.color} bg-clip-text text-transparent`} />
+                      <Icon className={`w-10 h-10 bg-linear-to-r ${item.color} bg-clip-text text-transparent`} />
                       
                       {/* Floating dots */}
                       <div className="absolute top-3 right-3 w-3 h-3 rounded-full bg-yellow-400 animate-ping"></div>
@@ -394,14 +394,14 @@ export default function Roadmap() {
                             key={idx}
                             className={`w-3 h-3 rounded-full transition-all duration-300 ${
                               idx === 0 
-                                ? `bg-gradient-to-r ${item.color}` 
+                                ? `bg-linear-to-r ${item.color}` 
                                 : "bg-gray-200 group-hover:bg-gray-300"
                             }`}
                           ></div>
                         ))}
                       </div>
                       
-                      <span className={`text-sm font-semibold bg-gradient-to-r ${item.color} bg-clip-text text-transparent`}>
+                      <span className={`text-sm font-semibold bg-linear-to-r ${item.color} bg-clip-text text-transparent`}>
                         Bước {item.step}
                       </span>
                     </div>
@@ -414,7 +414,7 @@ export default function Roadmap() {
                   <div className="hidden lg:block absolute left-1/2 top-8 transform -translate-x-1/2 z-10">
                     <div className={`
                       w-8 h-8 rounded-full border-4 border-white 
-                      shadow-lg bg-gradient-to-r ${item.color}
+                      shadow-lg bg-linear-to-r ${item.color}
                       group-hover:scale-125 transition-transform duration-300
                       ${isVisible[i] ? 'animate-ping' : 'opacity-0'}
                     `}

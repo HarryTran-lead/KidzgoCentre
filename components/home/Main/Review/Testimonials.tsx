@@ -98,7 +98,7 @@ export default function Testimonials() {
       {/* Animated gradient orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-full"
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-linear-to-r from-pink-500/10 to-rose-500/10 rounded-full"
           animate={{
             scale: [1, 1.2, 1],
             x: [0, 30, 0],
@@ -111,7 +111,7 @@ export default function Testimonials() {
           }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-full"
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-linear-to-r from-emerald-500/10 to-teal-500/10 rounded-full"
           animate={{
             scale: [1, 1.1, 1],
             x: [0, -20, 0],
@@ -151,7 +151,7 @@ export default function Testimonials() {
 
       {/* Mouse follow gradient */}
       <motion.div
-        className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-pink-500/5 via-rose-500/5 to-amber-500/5 blur-3xl pointer-events-none"
+        className="absolute w-96 h-96 rounded-full bg-linear-to-r from-pink-500/5 via-rose-500/5 to-amber-500/5 blur-3xl pointer-events-none"
         style={{
           x: springX,
           y: springY,
@@ -203,7 +203,7 @@ export default function Testimonials() {
               transition={{ duration: 0.7 }}
             >
               {/* Card glow effect */}
-              <div className={`absolute -inset-4 bg-gradient-to-r ${gradients[idx % gradients.length]} rounded-3xl opacity-20 blur-2xl -z-10`} />
+              <div className={`absolute -inset-4 bg-linear-to-r ${gradients[idx % gradients.length]} rounded-3xl opacity-20 blur-2xl -z-10`} />
 
               <div className="relative backdrop-blur-xl bg-white/10 rounded-3xl border border-white/30 shadow-2xl p-8 md:p-10 overflow-hidden group">
                 {/* Animated background pattern */}
@@ -243,7 +243,7 @@ export default function Testimonials() {
                         ))}
                       </div>
                       <motion.div
-                        className="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-sm border border-amber-500/30"
+                        className="px-3 py-1.5 rounded-full bg-linear-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-sm border border-amber-500/30"
                         whileHover={{ scale: 1.05 }}
                       >
                         <span className="text-sm font-semibold text-white">5.0/5.0</span>
@@ -258,7 +258,7 @@ export default function Testimonials() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
                       >
-                        <span className="bg-gradient-to-r from-white via-white/90 to-white bg-clip-text text-transparent">
+                        <span className="bg-linear-to-r from-white via-white/90 to-white bg-clip-text text-transparent">
                           "{slide.quote}"
                         </span>
                       </motion.p>
@@ -325,13 +325,13 @@ export default function Testimonials() {
               <div className="relative group" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
                 {/* Glow ring */}
                 <motion.div
-                  className={`absolute -inset-6 rounded-3xl bg-gradient-to-r ${gradients[idx % gradients.length]} opacity-30 blur-xl`}
+                  className={`absolute -inset-6 rounded-3xl bg-linear-to-r ${gradients[idx % gradients.length]} opacity-30 blur-xl`}
                   animate={{ rotate: [0, 360] }}
                   transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                 />
 
                 {/* Avatar container */}
-                <div className="relative rounded-3xl overflow-hidden border-4 border-white/40 shadow-2xl bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm">
+                <div className="relative rounded-3xl overflow-hidden border-4 border-white/40 shadow-2xl bg-linear-to-br from-white/20 to-white/5 backdrop-blur-sm">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={slide.avatar}
@@ -398,7 +398,7 @@ export default function Testimonials() {
                             />
                             {active && (
                               <motion.div
-                                className="absolute inset-0 bg-gradient-to-r from-pink-500/30 to-rose-500/30"
+                                className="absolute inset-0 bg-linear-to-r from-pink-500/30 to-rose-500/30"
                                 layoutId="activeThumb"
                               />
                             )}

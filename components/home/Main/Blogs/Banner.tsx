@@ -46,7 +46,7 @@ export default function BannerBlog() {
 
   return (
     <header 
-      className="relative overflow-hidden bg-gradient-to-br from-pink-600 via-rose-500 to-pink-400 pb-16 sm:pb-20 pt-24 sticky top-0 z-10"
+      className="relative overflow-hidden bg-linear-to-br from-pink-600 via-rose-500 to-pink-400 pb-16 sm:pb-20 pt-24 sticky top-0 z-10"
       style={{ opacity }}
     >
       {/* Background Effects */}

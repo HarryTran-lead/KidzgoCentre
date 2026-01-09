@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useLoginStreak } from "@/hooks/useLoginStreak";
-import StreakOverlay from "@/components/student/StreakOverlay";
-import StreakDebugPanel from "@/components/student/StreakDebugPanel";
+import StreakOverlay from "./StreakOverlay";
+import StreakDebugPanel from "./StreakDebugPanel";
+
 
 interface StreakData {
   currentStreak: number;

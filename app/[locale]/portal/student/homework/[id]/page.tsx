@@ -238,11 +238,11 @@ export default function AssignmentDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-screen p-8">
       {/* Back Button */}
       <button
         onClick={() => router.back()}
-        className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-medium"
+        className="flex items-center gap-2 text-white hover:text-white/20 font-medium"
       >
         <ArrowLeft size={20} />
         Quay lại danh sách
@@ -596,7 +596,7 @@ export default function AssignmentDetailPage() {
           </h2>
 
           {/* Score */}
-          <div className="p-6 bg-gradient-to-br from-emerald-50 to-blue-50 rounded-xl mb-6 text-center border border-emerald-200">
+          <div className="p-6 bg-linear-to-br from-emerald-50 to-blue-50 rounded-xl mb-6 text-center border border-emerald-200">
             <div className="text-5xl font-bold text-emerald-600 mb-2">
               {assignment.grading.score}/{assignment.grading.maxScore}
             </div>

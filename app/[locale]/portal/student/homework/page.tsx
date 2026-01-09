@@ -50,7 +50,7 @@ function StatusBadge({ status }: { status: AssignmentStatus }) {
   };
 
   const { variant, label } = config[status];
-  
+
   const colors = {
     success: "bg-emerald-50 text-emerald-700 border-emerald-200",
     warning: "bg-amber-50 text-amber-700 border-amber-200",
@@ -59,7 +59,9 @@ function StatusBadge({ status }: { status: AssignmentStatus }) {
   };
 
   return (
-    <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${colors[variant]}`}>
+    <span
+      className={`px-3 py-1 rounded-lg text-xs font-semibold border ${colors[variant]}`}
+    >
       {label}
     </span>
   );
@@ -87,7 +89,9 @@ function StatsCard({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg grid place-items-center ${colorClasses[color]}`}>
+        <div
+          className={`w-10 h-10 rounded-lg grid place-items-center ${colorClasses[color]}`}
+        >
           {icon}
         </div>
         <div className="flex-1">
@@ -182,15 +186,25 @@ export default function HomeworkPage() {
   // Calculate stats
   const stats: HomeworkStats = useMemo(() => {
     const total = SAMPLE_ASSIGNMENTS.length;
-    const submitted = SAMPLE_ASSIGNMENTS.filter(a => a.status === "SUBMITTED").length;
-    const pending = SAMPLE_ASSIGNMENTS.filter(a => a.status === "PENDING").length;
-    const missing = SAMPLE_ASSIGNMENTS.filter(a => a.status === "MISSING").length;
-    const late = SAMPLE_ASSIGNMENTS.filter(a => a.status === "LATE").length;
-    
-    const scoredAssignments = SAMPLE_ASSIGNMENTS.filter(a => a.score !== undefined);
-    const averageScore = scoredAssignments.length > 0
-      ? scoredAssignments.reduce((sum, a) => sum + (a.score || 0), 0) / scoredAssignments.length
-      : undefined;
+    const submitted = SAMPLE_ASSIGNMENTS.filter(
+      (a) => a.status === "SUBMITTED"
+    ).length;
+    const pending = SAMPLE_ASSIGNMENTS.filter(
+      (a) => a.status === "PENDING"
+    ).length;
+    const missing = SAMPLE_ASSIGNMENTS.filter(
+      (a) => a.status === "MISSING"
+    ).length;
+    const late = SAMPLE_ASSIGNMENTS.filter((a) => a.status === "LATE").length;
+
+    const scoredAssignments = SAMPLE_ASSIGNMENTS.filter(
+      (a) => a.score !== undefined
+    );
+    const averageScore =
+      scoredAssignments.length > 0
+        ? scoredAssignments.reduce((sum, a) => sum + (a.score || 0), 0) /
+          scoredAssignments.length
+        : undefined;
 
     return { total, submitted, pending, missing, late, averageScore };
   }, []);
@@ -201,26 +215,31 @@ export default function HomeworkPage() {
 
     // Search filter
     if (searchQuery) {
-      result = result.filter(a =>
-        a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.subject.toLowerCase().includes(searchQuery.toLowerCase())
+      result = result.filter(
+        (a) =>
+          a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          a.subject.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     // Status filter
     if (statusFilter.length > 0) {
-      result = result.filter(a => statusFilter.includes(a.status));
+      result = result.filter((a) => statusFilter.includes(a.status));
     }
 
     // Sort
     result.sort((a, b) => {
       switch (sortBy) {
         case "DUE_DATE_ASC":
-          return new Date(a.dueDate.split("/").reverse().join("-")).getTime() -
-                 new Date(b.dueDate.split("/").reverse().join("-")).getTime();
+          return (
+            new Date(a.dueDate.split("/").reverse().join("-")).getTime() -
+            new Date(b.dueDate.split("/").reverse().join("-")).getTime()
+          );
         case "DUE_DATE_DESC":
-          return new Date(b.dueDate.split("/").reverse().join("-")).getTime() -
-                 new Date(a.dueDate.split("/").reverse().join("-")).getTime();
+          return (
+            new Date(b.dueDate.split("/").reverse().join("-")).getTime() -
+            new Date(a.dueDate.split("/").reverse().join("-")).getTime()
+          );
         case "STATUS":
           const statusOrder = { MISSING: 0, PENDING: 1, LATE: 2, SUBMITTED: 3 };
           return statusOrder[a.status] - statusOrder[b.status];
@@ -234,227 +253,204 @@ export default function HomeworkPage() {
 
   const getTypeIcon = (type: AssignmentType) => {
     switch (type) {
-      case "ESSAY": return <FileText size={16} />;
-      case "FILE_UPLOAD": return <Upload size={16} />;
-      case "QUIZ": return <CheckCircle size={16} />;
-      case "PROJECT": return <BookOpen size={16} />;
-      case "PRESENTATION": return <Award size={16} />;
+      case "ESSAY":
+        return <FileText size={16} />;
+      case "FILE_UPLOAD":
+        return <Upload size={16} />;
+      case "QUIZ":
+        return <CheckCircle size={16} />;
+      case "PROJECT":
+        return <BookOpen size={16} />;
+      case "PRESENTATION":
+        return <Award size={16} />;
     }
   };
 
   const getTypeLabel = (type: AssignmentType) => {
     switch (type) {
-      case "ESSAY": return "Bài viết";
-      case "FILE_UPLOAD": return "Upload file";
-      case "QUIZ": return "Trắc nghiệm";
-      case "PROJECT": return "Dự án";
-      case "PRESENTATION": return "Thuyết trình";
+      case "ESSAY":
+        return "Bài viết";
+      case "FILE_UPLOAD":
+        return "Upload file";
+      case "QUIZ":
+        return "Trắc nghiệm";
+      case "PROJECT":
+        return "Dự án";
+      case "PRESENTATION":
+        return "Thuyết trình";
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Bài tập</h1>
-        <p className="text-slate-600 mt-1">Quản lý và nộp bài tập của bạn</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatsCard
-          icon={<FileText size={20} />}
-          label="Tổng số"
-          value={stats.total}
-          color="indigo"
-        />
-        <StatsCard
-          icon={<CheckCircle size={20} />}
-          label="Đã nộp"
-          value={stats.submitted}
-          color="emerald"
-        />
-        <StatsCard
-          icon={<Clock size={20} />}
-          label="Chưa nộp"
-          value={stats.pending}
-          color="amber"
-        />
-        <StatsCard
-          icon={<XCircle size={20} />}
-          label="Quá hạn"
-          value={stats.missing}
-          color="rose"
-        />
-        <StatsCard
-          icon={<TrendingUp size={20} />}
-          label="Điểm TB"
-          value={stats.averageScore ? stats.averageScore.toFixed(1) : "—"}
-          color="indigo"
-        />
-      </div>
-
-      {/* Search & Filters */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input
-              type="text"
-              placeholder="Tìm kiếm bài tập..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+    <div className="flex flex-col h-full isolate">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-30 pb-4 ">
+        <div className="px-8 pt-8">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-white">Bài tập</h1>
+            <p className="text-white/60 mt-1">Quản lý và nộp bài tập của bạn</p>
           </div>
 
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="DUE_DATE_ASC">Hạn nộp: Gần nhất</option>
-            <option value="DUE_DATE_DESC">Hạn nộp: Xa nhất</option>
-            <option value="STATUS">Trạng thái</option>
-          </select>
+          <div className="flex flex-col gap-4">
+            {/* Status Filter Buttons - Top Left */}
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setStatusFilter([])}
+                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm ${
+                  statusFilter.length === 0
+                    ? "bg-gray-900 text-white"
+                    : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Tất cả ({stats.total})
+              </button>
+              {(
+                ["PENDING", "SUBMITTED", "LATE", "MISSING"] as AssignmentStatus[]
+              ).map((status) => {
+                const labels = {
+                  PENDING: `Chưa nộp (${stats.pending})`,
+                  SUBMITTED: `Đã nộp (${stats.submitted})`,
+                  LATE: `Nộp trễ (${stats.late})`,
+                  MISSING: `Quá hạn (${stats.missing})`,
+                };
+                return (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      setStatusFilter([status]);
+                    }}
+                    className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm ${
+                      statusFilter.includes(status)
+                        ? "bg-gray-900 text-white"
+                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {labels[status]}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Filter Button */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="px-4 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center gap-2 font-medium"
-          >
-            <Filter size={20} />
-            Lọc
-            {statusFilter.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
-                {statusFilter.length}
-              </span>
-            )}
-          </button>
+            {/* Search & Sort Row */}
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* Search */}
+              <div className="flex-1 relative">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={20}
+                />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm bài tập..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-white rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Sort */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="DUE_DATE_ASC">Hạn nộp: Gần nhất</option>
+                <option value="DUE_DATE_DESC">Hạn nộp: Xa nhất</option>
+                <option value="STATUS">Trạng thái</option>
+              </select>
+            </div>
+          </div>
         </div>
-
-        {/* Filter Panel */}
-        {showFilters && (
-          <div className="mt-4 pt-4 border-t border-slate-200">
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Trạng thái
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {(["PENDING", "SUBMITTED", "LATE", "MISSING"] as AssignmentStatus[]).map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => {
-                        setStatusFilter(prev =>
-                          prev.includes(status)
-                            ? prev.filter(s => s !== status)
-                            : [...prev, status]
-                        );
-                      }}
-                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition ${
-                        statusFilter.includes(status)
-                          ? "bg-blue-50 border-blue-200 text-blue-700"
-                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <StatusBadge status={status} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              {statusFilter.length > 0 && (
-                <button
-                  onClick={() => setStatusFilter([])}
-                  className="text-sm text-blue-600 font-medium hover:underline"
-                >
-                  Xóa bộ lọc
-                </button>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Assignments List */}
-      <div className="space-y-3">
-        {filteredAssignments.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-            <FileText size={48} className="mx-auto text-slate-300 mb-4" />
-            <p className="text-slate-500">Không tìm thấy bài tập nào</p>
-          </div>
-        ) : (
-          filteredAssignments.map((assignment) => (
-            <div
-              key={assignment.id}
-              onClick={() => router.push(`/${locale}/portal/student/homework/${assignment.id}`)}
-              className="rounded-xl border border-slate-200 bg-white p-5 hover:shadow-md transition cursor-pointer"
-            >
-              <div className="flex items-start gap-4">
-                {/* Icon */}
-                <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
-                  {getTypeIcon(assignment.type)}
-                </div>
+      {/* Scrollable Content Area */}
+      <div className="px-8 pb-5 h-[600px] overflow-y-scroll">
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-slate-900 mb-1">
-                        {assignment.title}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
-                        <span className="flex items-center gap-1">
-                          <BookOpen size={14} />
-                          {assignment.className}
-                        </span>
-                        <span>•</span>
-                        <span>{assignment.subject}</span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          {getTypeIcon(assignment.type)}
-                          {getTypeLabel(assignment.type)}
-                        </span>
-                      </div>
-                    </div>
-                    <StatusBadge status={assignment.status} />
+        {/* Assignments List */}
+        <div className="space-y-3">
+          {filteredAssignments.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
+              <FileText size={48} className="mx-auto text-slate-300 mb-4" />
+              <p className="text-slate-500">Không tìm thấy bài tập nào</p>
+            </div>
+          ) : (
+            filteredAssignments.map((assignment) => (
+              <div
+                key={assignment.id}
+                onClick={() =>
+                  router.push(
+                    `/${locale}/portal/student/homework/${assignment.id}`
+                  )
+                }
+                className="rounded-xl border border-slate-200 bg-white p-5 hover:shadow-md transition cursor-pointer"
+              >
+                <div className="flex items-start gap-4">
+                  {/* Icon */}
+                  <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
+                    {getTypeIcon(assignment.type)}
                   </div>
 
-                  {/* Metadata */}
-                  <div className="flex flex-wrap items-center gap-4 text-sm">
-                    <span className="text-slate-600 flex items-center gap-1">
-                      <Calendar size={14} />
-                      Giao: {assignment.assignedDate}
-                    </span>
-                    <span className={`font-medium flex items-center gap-1 ${
-                      assignment.status === "MISSING" || assignment.status === "LATE"
-                        ? "text-rose-600"
-                        : "text-slate-900"
-                    }`}>
-                      <Clock size={14} />
-                      Hạn: {assignment.dueDate}
-                    </span>
-                    {assignment.hasAttachments && (
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-slate-900 mb-1">
+                          {assignment.title}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                          <span className="flex items-center gap-1">
+                            <BookOpen size={14} />
+                            {assignment.className}
+                          </span>
+                          <span>•</span>
+                          <span>{assignment.subject}</span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            {getTypeIcon(assignment.type)}
+                            {getTypeLabel(assignment.type)}
+                          </span>
+                        </div>
+                      </div>
+                      <StatusBadge status={assignment.status} />
+                    </div>
+
+                    {/* Metadata */}
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
                       <span className="text-slate-600 flex items-center gap-1">
-                        <Paperclip size={14} />
-                        Có tài liệu
+                        <Calendar size={14} />
+                        Giao: {assignment.assignedDate}
                       </span>
-                    )}
-                    {assignment.score !== undefined && (
-                      <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                        <Award size={14} />
-                        {assignment.score}/{assignment.maxScore}
+                      <span
+                        className={`font-medium flex items-center gap-1 ${
+                          assignment.status === "MISSING" ||
+                          assignment.status === "LATE"
+                            ? "text-rose-600"
+                            : "text-slate-900"
+                        }`}
+                      >
+                        <Clock size={14} />
+                        Hạn: {assignment.dueDate}
                       </span>
-                    )}
+                      {assignment.hasAttachments && (
+                        <span className="text-slate-600 flex items-center gap-1">
+                          <Paperclip size={14} />
+                          Có tài liệu
+                        </span>
+                      )}
+                      {assignment.score !== undefined && (
+                        <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                          <Award size={14} />
+                          {assignment.score}/{assignment.maxScore}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
-        )}
+            ))
+          )} 
+        </div>
       </div>
     </div>
   );

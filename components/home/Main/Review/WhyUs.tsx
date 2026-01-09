@@ -76,7 +76,7 @@ export default function WhyUs() {
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div 
-          className="absolute top-20 left-10 w-80 h-80 bg-gradient-to-br from-pink-300 to-rose-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
+          className="absolute top-20 left-10 w-80 h-80 bg-linear-to-br from-pink-300 to-rose-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
           animate={{
             scale: [1, 1.2, 1],
             x: [0, 30, 0],
@@ -104,7 +104,7 @@ export default function WhyUs() {
         />
         {/* Floating orb */}
         <motion.div 
-          className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-purple-300 to-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15"
+          className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-purple-300 to-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15"
           animate={{
             scale: [1, 1.3, 1],
             borderRadius: ["50%", "40%", "50%"],
@@ -123,7 +123,7 @@ export default function WhyUs() {
         {[...Array(15)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-gradient-to-r from-pink-400/30 to-rose-400/30 rounded-full"
+            className="absolute w-1 h-1 bg-linear-to-r from-pink-400/30 to-rose-400/30 rounded-full"
             style={{
               left: `${(i * 7) % 100}%`,
               top: `${(i * 10) % 100}%`,
@@ -195,7 +195,7 @@ export default function WhyUs() {
                   transition-all duration-500
                 `}>
                   {/* Sticker image section */}
-                  <div className="relative w-full h-48 bg-gradient-to-br from-pink-50 to-rose-50 overflow-hidden">
+                  <div className="relative w-full h-48 bg-linear-to-br from-pink-50 to-rose-50 overflow-hidden">
                     <div className="absolute inset-0 flex items-center justify-center p-4">
                       <motion.div 
                         className="relative w-full h-full flex items-center justify-center"

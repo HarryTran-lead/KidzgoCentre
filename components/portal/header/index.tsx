@@ -67,7 +67,7 @@ function StudentStat({
   return (
     <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-white backdrop-blur shadow-[0_10px_40px_rgba(59,130,246,0.35)]">
       <span
-        className={`grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-lg`}
+        className={`grid h-8 w-8 place-items-center rounded-full bg-linear-to-br ${gradient} text-white shadow-lg`}
       >
         {icon}
       </span>
@@ -111,7 +111,7 @@ function StudentHeaderBar({
 
   return (
     <header className="sticky top-0 z-50">
-      <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-r from-[#27117a] via-[#361288] to-[#4a1ea4] text-white shadow-[0_10px_30px_rgba(59,130,246,0.35)]">
+      <div className="relative overflow-hidden border-b border-white/10 bg-linear-to-r from-[#27117a] via-[#361288] to-[#4a1ea4] text-white shadow-[0_10px_30px_rgba(59,130,246,0.35)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(255,255,255,0.2),transparent_40%),radial-gradient(circle_at_80%_10%,rgba(129,140,248,0.18),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(236,72,153,0.2),transparent_45%)]" />
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22%3E%3Ccircle cx=%222%22 cy=%222%22 r=%222%22 fill=%22%23ffffff%22 opacity=%220.15%22/%3E%3C/svg%3E')]" />
 

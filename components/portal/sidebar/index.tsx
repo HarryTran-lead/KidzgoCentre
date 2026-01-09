@@ -17,13 +17,6 @@ import {
   MapPin,
   X,
   ChevronLeft,
-  Star,
-  CalendarDays,
-  CheckSquare,
-  UserRound,
-  FileText,
-  BellRing,
-  BookOpen,
 } from "lucide-react";
 import { buildMenu } from "../menu/index";
 import type { Role } from "@/lib/role";
@@ -33,6 +26,7 @@ import { LOGO, LOGO_ONLY } from "@/lib/theme/theme";
 import Tooltip from "@mui/material/Tooltip";
 import { createPortal } from "react-dom";
 import ChildSelector from "../parent/ChildSelector";
+import StudentSidebar from "./StudentSidebar";
 
 /* ===== Types ===== */
 type FlatItem = {
@@ -49,110 +43,6 @@ type GroupItem = {
 type AnyItem = FlatItem | GroupItem;
 const isGroup = (x: AnyItem): x is GroupItem =>
   Array.isArray((x as any)?.items);
-
-/* ============ Student helpers ============ */
-function flattenStudentItems(items: AnyItem[]): FlatItem[] {
-  const result: FlatItem[] = [];
-  for (const it of items) {
-    if (isGroup(it)) result.push(...it.items);
-    else result.push(it);
-  }
-  return result;
-}
-
-function StudentIconButton({
-  label,
-  active,
-  Icon,
-  badge,
-  collapsed,
-}: {
-  label: string;
-  active?: boolean;
-  Icon: LucideIcon;
-  badge?: string | number;
-  collapsed?: boolean;
-}) {
-  const core = (
-    <div
-      className={`relative flex items-center rounded-2xl px-3 py-2 transition-all duration-300 ${
-        collapsed ? "justify-center" : "gap-3"
-      } ${
-        active
-          ? "bg-white/20 shadow-[0_12px_30px_rgba(93,63,211,0.35)]"
-          : "bg-white/10 hover:bg-white/15"
-      }`}
-    >
-      <div
-        className={`relative grid h-12 w-12 place-items-center rounded-2xl text-white shadow-lg transition-transform ${
-          active ? "scale-105" : ""
-        } bg-gradient-to-br from-[#5c4fe0] via-[#6c5bf5] to-[#9f6bff]`}
-      >
-        <Icon size={22} strokeWidth={2.4} />
-        {badge ? (
-          <span className="absolute -top-1 -right-1 min-w-[20px] rounded-full bg-rose-500 px-1 text-center text-[11px] font-bold leading-5 shadow-md">
-            {badge}
-          </span>
-        ) : null}
-      </div>
-
-      {!collapsed && (
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white drop-shadow-sm truncate">
-            {label}
-          </div>
-          <div className="text-[11px] text-white/70">Mở nhanh</div>
-        </div>
-      )}
-    </div>
-  );
-
-  return collapsed ? (
-    <Tooltip title={label} placement="right" arrow enterDelay={150}>
-      <span className="block">{core}</span>
-    </Tooltip>
-  ) : (
-    core
-  );
-}
-
-function StudentBottomNav({
-  items,
-  isActive,
-  makeHref,
-}: {
-  items: { label: string; href: string; Icon: LucideIcon; tag?: string }[];
-  isActive: (href: string) => boolean;
-  makeHref: (p: string) => string;
-}) {
-  return (
-    <div className="mt-auto rounded-3xl border border-white/20 bg-white/10 p-3 shadow-[0_14px_50px_rgba(93,63,211,0.35)] backdrop-blur">
-      <div className="grid grid-cols-4 gap-2">
-        {items.map((it) => (
-          <Link
-            key={it.href}
-            href={makeHref(it.href)}
-            className={`group relative flex flex-col items-center gap-1 rounded-2xl bg-gradient-to-br from-[#f6f0ff] to-[#e9ddff] px-2 py-2 text-center shadow-inner transition hover:-translate-y-1 ${
-              isActive(it.href) ? "ring-2 ring-white/70" : ""
-            }`}
-          >
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#7cc7ff] to-[#8064ff] text-white shadow-lg">
-              <it.Icon size={18} strokeWidth={2.3} />
-            </div>
-            <div className="text-[11px] font-semibold text-[#311f7b]">
-              {it.label}
-            </div>
-            {it.tag ? (
-              <span className="absolute -right-1 -top-1 rounded-full bg-emerald-400 px-1.5 text-[9px] font-bold text-white shadow">
-                {it.tag}
-              </span>
-            ) : null}
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* ===== NavLink ===== */
 function NavLink({
@@ -564,192 +454,11 @@ export default function Sidebar({
     return () => window.removeEventListener("portal:sidebar-open", open);
   }, []);
 
-  /* ===================== STUDENT SPECIAL SIDEBAR ===================== */
+  /* ===================== STUDENT SIDEBAR ===================== */
   const isStudent = role === "STUDENT";
 
   if (isStudent) {
-    const flattened = flattenStudentItems(items);
-
-    const homeLink = flattened[0];
-    const scheduleLink = flattened[1];
-    const attendanceLink = flattened[2];
-    const homeworkLink = flattened[3];
-
-    const reportLink =
-      flattened.find((it) => it.href.includes("/reports")) ??
-      flattened.find((it) => it.href.includes("/tests"));
-
-    const noticeLink = flattened.find((it) => it.href.includes("/notifications"));
-
-    const topNav = [
-      { label: "All", href: homeLink?.href ?? roleRoot, Icon: Star },
-      {
-        label: "Lịch học",
-        href: scheduleLink?.href ?? roleRoot,
-        Icon: CalendarDays,
-        badge: 2,
-      },
-      {
-        label: "Điểm danh",
-        href: attendanceLink?.href ?? roleRoot,
-        Icon: CheckSquare,
-        badge: 2,
-      },
-      { label: "Hồ sơ", href: homeworkLink?.href ?? roleRoot, Icon: UserRound },
-      { label: "Tài liệu", href: homeworkLink?.href ?? roleRoot, Icon: BookOpen },
-      { label: "Báo cáo", href: reportLink?.href ?? roleRoot, Icon: FileText },
-      {
-        label: "Thông báo",
-        href: noticeLink?.href ?? roleRoot,
-        Icon: BellRing,
-        badge: 2,
-      },
-    ];
-
-    const bottomNav = [
-      {
-        label: "Lịch học",
-        href: scheduleLink?.href ?? roleRoot,
-        Icon: CalendarDays,
-        tag: "BETA",
-      },
-      {
-        label: "Điểm danh",
-        href: attendanceLink?.href ?? roleRoot,
-        Icon: CheckSquare,
-      },
-      { label: "Hồ sơ", href: homeworkLink?.href ?? roleRoot, Icon: UserRound },
-      { label: "Bài tập", href: homeworkLink?.href ?? roleRoot, Icon: BookOpen },
-    ];
-
-    return (
-      <>
-        {mobileOpen && (
-          <div
-            className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-70 animate-in fade-in duration-300"
-            onClick={() => setMobileOpen(false)}
-          />
-        )}
-
-        <aside
-          className={`relative h-screen shrink-0 overflow-hidden bg-gradient-to-b from-[#1c0f5d] via-[#2b0f6c] to-[#16093f] text-white shadow-[12px_0_40px_rgba(35,17,111,0.35)] transition-all duration-500 ${
-            collapsed ? "w-[102px]" : "w-[280px]"
-          } fixed top-0 left-0 z-80 lg:sticky lg:translate-x-0 ${
-            mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-          }`}
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.15),transparent_40%),radial-gradient(circle_at_80%_10%,rgba(236,72,153,0.18),transparent_40%),radial-gradient(circle_at_50%_80%,rgba(129,140,248,0.16),transparent_45%)]" />
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22%3E%3Ccircle cx=%222%22 cy=%222%22 r=%222%22 fill=%22%23ffffff%22 opacity=%220.12%22/%3E%3C/svg%3E')]" />
-
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="lg:hidden absolute top-4 right-4 z-[90] rounded-xl bg-white/10 p-2 text-white backdrop-blur hover:bg-white/20 active:scale-95 transition-all"
-            aria-label="Đóng menu"
-            type="button"
-          >
-            <X size={18} />
-          </button>
-
-          <div className="relative flex flex-col h-full gap-4 px-3 py-4">
-            <div className="relative flex items-center justify-center">
-              <Image
-                src={collapsed ? LOGO_ONLY : LOGO}
-                alt="KidzGo"
-                width={collapsed ? 52 : 140}
-                height={60}
-                className="h-12 w-auto drop-shadow-[0_10px_25px_rgba(255,255,255,0.25)]"
-                priority
-              />
-
-              <button
-                onClick={() => setCollapsed((v) => !v)}
-                type="button"
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                className={`hidden lg:flex absolute right-2 top-1/2 -translate-y-1/2 z-[80]
-                  w-8 h-8 rounded-full items-center justify-center
-                  bg-white/10 border border-white/20 text-white/90
-                  shadow-md hover:shadow-xl hover:bg-white/15
-                  hover:scale-110 active:scale-95
-                  transition-all duration-300 ease-out`}
-              >
-                <ChevronLeft
-                  size={14}
-                  strokeWidth={2.5}
-                  className={`transition-all duration-500 ease-out ${
-                    collapsed ? "rotate-180" : "rotate-0"
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="flex-1 space-y-2 overflow-y-auto pb-2 custom-scrollbar">
-              {topNav.map((nav) => (
-                <Link key={nav.label} href={withLocale(nav.href)}>
-                  <StudentIconButton
-                    Icon={nav.Icon}
-                    label={nav.label}
-                    active={isActive(nav.href)}
-                    badge={(nav as any).badge}
-                    collapsed={collapsed}
-                  />
-                </Link>
-              ))}
-            </div>
-
-            <StudentBottomNav
-              items={bottomNav}
-              isActive={isActive}
-              makeHref={withLocale}
-            />
-          </div>
-        </aside>
-
-        <style jsx global>{`
-          @keyframes slide-in-from-top-2 {
-            from {
-              transform: translateY(-0.5rem);
-              opacity: 0;
-            }
-            to {
-              transform: translateY(0);
-              opacity: 1;
-            }
-          }
-          @keyframes slide-in-from-left-2 {
-            from {
-              transform: translateX(-8px);
-              opacity: 0;
-            }
-            to {
-              transform: translateX(0);
-              opacity: 1;
-            }
-          }
-          .animate-in {
-            animation-fill-mode: both;
-          }
-          .fade-in {
-            animation-name: fadeIn;
-          }
-          .slide-in-from-top-2 {
-            animation-name: slide-in-from-top-2;
-            animation-duration: 0.25s;
-          }
-          .slide-in-from-left-2 {
-            animation-name: slide-in-from-left-2;
-            animation-duration: 0.22s;
-          }
-          @keyframes fadeIn {
-            from {
-              opacity: 0;
-            }
-            to {
-              opacity: 1;
-            }
-          }
-        `}</style>
-      </>
-    );
+    return <StudentSidebar items={items} roleRoot={roleRoot} version={version} />;
   }
 
   /* ===================== DEFAULT SIDEBAR (OTHER ROLES) ===================== */
