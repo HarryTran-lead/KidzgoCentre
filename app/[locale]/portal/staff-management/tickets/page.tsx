@@ -1,33 +1,36 @@
 "use client";
 
-const LEADS = [
+const tickets = [
   {
-    id: "L-001",
-    name: "Phạm Gia Huy",
-    phone: "0903 111 222",
-    source: "Web form",
-    owner: "NV. Lan",
+    id: "TK-1001",
+    title: "Đổi lịch học tạm thời",
+    requester: "PH: Trần Thị B",
+    category: "Operations",
     status: "Mới",
-    next: "Hẹn gọi 10/10 14:00",
-    placement: "Chưa đặt lịch",
+    updated: "10/10 09:20",
   },
   {
-    id: "L-002",
-    name: "Ngô Khánh An",
-    phone: "0907 333 444",
-    source: "Zalo OA",
-    owner: "NV. Hoa",
-    status: "Đang tư vấn",
-    next: "Demo buổi 12/10",
-    placement: "11/10 18:00",
+    id: "TK-1002",
+    title: "Thắc mắc hóa đơn tháng 10",
+    requester: "PH: Nguyễn Văn A",
+    category: "Accountant",
+    status: "Đang xử lý",
+    updated: "10/10 08:40",
+  },
+  {
+    id: "TK-1003",
+    title: "Xin nhận xét thêm bài tập",
+    requester: "HS: Lê Gia Hân",
+    category: "Teacher",
+    status: "Đã phản hồi",
+    updated: "09/10 17:05",
   },
 ];
 
-const funnel = [
-  { label: "Lead mới", value: "24" },
-  { label: "Đang tư vấn", value: "13" },
-  { label: "Đã test", value: "8" },
-  { label: "Đã ghi danh", value: "6" },
+const stats = [
+  { label: "Ticket mới", value: "8" },
+  { label: "Đang xử lý", value: "5" },
+  { label: "Đã đóng", value: "21" },
 ];
 
 export default function Page() {
@@ -36,19 +39,19 @@ export default function Page() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900">
-            Lead & Placement Test
+            Ticket hỗ trợ
           </h1>
           <p className="text-slate-600 text-sm">
-            Nhận lead, phân công tư vấn, đặt lịch test và chuyển đổi ghi danh
+            Quản lý phản hồi phụ huynh/học viên, phân tuyến cho giáo viên và staff
           </p>
         </div>
         <button className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">
-          Nhập lead
+          Tạo ticket
         </button>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-3">
-        {funnel.map((item) => (
+      <div className="grid md:grid-cols-3 gap-3">
+        {stats.map((item) => (
           <div key={item.label} className="rounded-2xl border bg-white p-4">
             <div className="text-sm text-slate-500">{item.label}</div>
             <div className="text-2xl font-extrabold text-slate-900">
@@ -63,46 +66,41 @@ export default function Page() {
           <thead className="text-left text-slate-500">
             <tr>
               <th className="py-2">Mã</th>
-              <th>Họ tên</th>
-              <th>SĐT</th>
-              <th>Nguồn</th>
-              <th>Phụ trách</th>
+              <th>Tiêu đề</th>
+              <th>Người gửi</th>
+              <th>Nhóm xử lý</th>
               <th>Trạng thái</th>
-              <th>Placement test</th>
-              <th>Tiếp theo</th>
+              <th>Cập nhật</th>
               <th></th>
             </tr>
           </thead>
           <tbody className="align-top text-slate-900">
-            {LEADS.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="py-2">{r.id}</td>
-                <td>{r.name}</td>
-                <td>{r.phone}</td>
-                <td>{r.source}</td>
-                <td>{r.owner}</td>
+            {tickets.map((ticket) => (
+              <tr key={ticket.id} className="border-t">
+                <td className="py-2">{ticket.id}</td>
+                <td className="font-medium">{ticket.title}</td>
+                <td>{ticket.requester}</td>
+                <td>{ticket.category}</td>
                 <td>
                   <span
                     className={`px-2 py-1 rounded-lg text-xs ${
-                      r.status === "Mới"
+                      ticket.status === "Mới"
                         ? "bg-amber-100 text-amber-700"
-                        : "bg-blue-100 text-blue-700"
+                        : ticket.status === "Đang xử lý"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-green-100 text-green-700"
                     }`}
                   >
-                    {r.status}
+                    {ticket.status}
                   </span>
                 </td>
-                <td>{r.placement}</td>
-                <td>{r.next}</td>
+                <td>{ticket.updated}</td>
                 <td className="text-right space-x-2">
                   <button className="px-2 py-1 text-sm rounded-lg border">
-                    Phân công
+                    Xem
                   </button>
                   <button className="px-2 py-1 text-sm rounded-lg border">
-                    Đặt lịch test
-                  </button>
-                  <button className="px-2 py-1 text-sm rounded-lg border">
-                    Chuyển ghi danh
+                    Phân tuyến
                   </button>
                 </td>
               </tr>
