@@ -45,43 +45,58 @@ function StudentIconButton({
   active,
   iconSrc,
   badge,
+  gradient = "from-[#6d28d9] via-[#7c3aed] to-[#a855f7]"
 }: {
   label: string;
   active?: boolean;
   iconSrc: string;
   badge?: string | number;
+  gradient?: string;
 }) {
   return (
     <div className="group relative flex flex-col items-center justify-center gap-3 transition-all duration-300 hover:-translate-y-1">
-      {/* Icon Container với 3D effect */}
+      {/* Icon Container với 3D effect và gradient động */}
       <div
         className={`relative grid place-items-center h-16 w-16 rounded-[18px] transition-all duration-300 shadow-lg ${
           active
-            ? "bg-gradient-to-br from-[#7c3aed] via-[#a855f7] to-[#c084fc] scale-110 shadow-purple-500/50 animate-pulse"
-            : "bg-gradient-to-br from-[#6d28d9] via-[#7c3aed] to-[#a855f7] group-hover:scale-110 group-hover:shadow-purple-400/60 group-hover:rotate-3"
+            ? `bg-gradient-to-br ${gradient} scale-110 shadow-xl shadow-purple-500/50 animate-pulse ring-2 ring-white/30`
+            : `bg-gradient-to-br ${gradient} group-hover:scale-110 group-hover:shadow-xl group-hover:shadow-purple-400/40 group-hover:rotate-3`
         }`}
       >
+        {/* Glow effect bên trong */}
+        <div className={`absolute inset-0 rounded-[18px] bg-gradient-to-t from-white/0 to-white/20 ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`} />
+        
         <Image
           src={iconSrc}
           alt={label}
           width={34}
           height={34}
-          className="relative z-10 transition-transform duration-300 group-hover:scale-125 group-hover:rotate-12"
+          className="relative z-10 transition-transform duration-300 group-hover:scale-125 drop-shadow-lg"
         />
         
-        {/* Badge */}
+        {/* Badge với animation */}
         {badge ? (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-1 text-center text-[10px] font-bold text-white shadow-lg border-2 border-white/50 animate-pulse">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-1 text-center text-[10px] font-bold text-white shadow-lg border-2 border-white/50 animate-float">
             {badge}
           </span>
         ) : null}
+
+        {/* Sparkle effect khi active */}
+        {active && (
+          <>
+            <div className="absolute -top-1 -left-1 w-2 h-2 bg-white rounded-full animate-ping opacity-75" />
+            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-cyan-300 rounded-full animate-ping opacity-75" style={{ animationDelay: '0.5s' }} />
+          </>
+        )}
       </div>
 
-      {/* Label bên dưới */}
+      {/* Label bên dưới với glow effect */}
       <div className="text-center w-full px-0.5">
         <div
           className={`text-xs font-bold text-white drop-shadow-md truncate transition-all leading-tight ${
-            active ? "scale-105" : "group-hover:scale-110"
+            active 
+              ? "scale-105 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" 
+              : "group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]"
           }`}
         >
           {label}
@@ -144,9 +159,10 @@ export default function StudentSidebar({
   const scheduleLink = flattened[1]; // Lịch học
   const homeworkLink = flattened[3]; // Bài tập
   
-  const gamificationLink = flattened.find((it) => it.href.includes("/missions") || it.href.includes("/streak"));
+  // Tìm các link cho gamification, media, communications
+  const gamificationLink = flattened.find((it) => it.href.includes("/gamification"));
   const mediaLink = flattened.find((it) => it.href.includes("/media"));
-  const communicationsLink = flattened.find((it) => it.href.includes("/messages") || it.href.includes("/notifications"));
+  const communicationsLink = flattened.find((it) => it.href.includes("/messages") || it.href.includes("/notifications") || it.href.includes("/comunication"));
 
   const mainNav = [
     { 
@@ -168,17 +184,17 @@ export default function StudentSidebar({
     },
     { 
       label: "Gamification", 
-      href: gamificationLink?.href ?? roleRoot, 
+      href: `${roleRoot}/gamification`,
       iconSrc: "/icons/mushroom.png",
     },
     { 
       label: "Media", 
-      href: mediaLink?.href ?? roleRoot, 
+      href: `${roleRoot}/media`,
       iconSrc: "/icons/gallery.png",
     },
     { 
       label: "Giao tiếp", 
-      href: communicationsLink?.href ?? roleRoot, 
+      href: `${roleRoot}/comunication`,
       iconSrc: "/icons/comunication.png",
     },
   ];

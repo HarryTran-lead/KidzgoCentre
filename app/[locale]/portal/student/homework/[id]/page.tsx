@@ -238,11 +238,12 @@ export default function AssignmentDetailPage() {
   };
 
   return (
-    <div className="space-y-6 min-h-screen p-8">
+    <div className="h-[calc(100vh-120px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] p-8">
+      <div className="space-y-6 max-w-5xl mx-auto">
       {/* Back Button */}
       <button
         onClick={() => router.back()}
-        className="flex items-center gap-2 text-white hover:text-white/20 font-medium"
+        className="flex items-center gap-2 text-white hover:text-white/80 font-medium" 
       >
         <ArrowLeft size={20} />
         Quay lại danh sách
@@ -650,6 +651,7 @@ export default function AssignmentDetailPage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

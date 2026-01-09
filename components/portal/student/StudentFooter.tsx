@@ -42,11 +42,17 @@ export default function StudentFooter() {
       badge: null,
     },
     {
-      href: "/portal/student/report",
-      icon: "/icons/chart.png",
-      label: "Báo cáo",
+      href: "/portal/student/resources",
+      icon: "/icons/folder.png",
+      label: "Tài Liệu",
       badge: null,
     },
+    // {
+    //   href: "/portal/student/report",
+    //   icon: "/icons/chart.png",
+    //   label: "Báo cáo",
+    //   badge: null,
+    // },
     {
       href: "/portal/student/test",
       icon: "/icons/test.png",
