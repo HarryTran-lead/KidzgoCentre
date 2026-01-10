@@ -24,7 +24,11 @@ import {
   FileCheck,
   Users,
   TrendingUp,
-  Zap
+  Zap,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 type SubmissionStatus = "PENDING" | "SUBMITTED" | "REVIEWED" | "OVERDUE";
@@ -175,6 +179,43 @@ const STATUS_CONFIG: Record<SubmissionStatus, {
   }
 };
 
+// SortableHeader Component
+function SortableHeader<T extends string>({ 
+  label, 
+  column, 
+  sortColumn, 
+  sortDirection, 
+  onSort 
+}: { 
+  label: string; 
+  column: T; 
+  sortColumn: T | null; 
+  sortDirection: "asc" | "desc"; 
+  onSort: (col: T) => void;
+}) {
+  const isActive = sortColumn === column;
+  
+  return (
+    <button
+      onClick={() => onSort(column)}
+      className="flex items-center gap-2 hover:text-pink-600 transition-colors cursor-pointer text-left"
+    >
+      <span>{label}</span>
+      <div className="flex flex-col">
+        {isActive ? (
+          sortDirection === "asc" ? (
+            <ChevronUp size={14} className="text-pink-600" />
+          ) : (
+            <ChevronDown size={14} className="text-pink-600" />
+          )
+        ) : (
+          <ArrowUpDown size={14} className="text-gray-400" />
+        )}
+      </div>
+    </button>
+  );
+}
+
 function StudentAvatar({ name, color }: { name: string; color: string }) {
   const initials = name
     .split(" ")
@@ -224,8 +265,10 @@ function SubmissionRow({ item }: { item: Submission }) {
 
   return (
     <div 
-      className={`grid grid-cols-12 gap-4 items-center py-4 px-4 rounded-xl transition-all duration-300 ${
-        isHovered ? "bg-gradient-to-r from-pink-50/50 to-rose-50/50 border border-pink-200" : "bg-white"
+      className={`grid grid-cols-12 gap-4 items-center py-4 px-4 rounded-xl transition-all duration-300 border ${
+        isHovered 
+          ? "bg-gradient-to-r from-pink-50/50 to-rose-50/50 border-pink-200 shadow-sm" 
+          : "bg-white border-pink-100"
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -257,9 +300,6 @@ function SubmissionRow({ item }: { item: Submission }) {
       {/* File Info */}
       <div className="col-span-2">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-pink-100">
-            <FileText size={16} className="text-pink-600" />
-          </div>
           <div>
             <div className="text-sm text-gray-900 truncate">{item.file}</div>
             <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
@@ -293,14 +333,114 @@ function SubmissionRow({ item }: { item: Submission }) {
 
       {/* Actions */}
       <div className="col-span-1 flex items-center justify-end gap-1">
-        <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors">
+        <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer">
           <Eye size={18} />
         </button>
-        <button className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+        <button className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer">
           <Download size={18} />
         </button>
-        <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+        <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer">
           <Send size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Pagination({
+  currentPage,
+  totalPages,
+  totalItems,
+  itemsPerPage,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+}) {
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+
+      if (currentPage <= 3) {
+        pages.push(2, 3, 4, "...", totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push("...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push("...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
+      }
+    }
+
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  return (
+    <div className="flex items-center justify-between px-6 py-4 border-t border-pink-200 bg-white">
+      <div className="text-sm text-gray-600">
+        Hiển thị <span className="font-semibold text-gray-900">{startItem}</span> -{" "}
+        <span className="font-semibold text-gray-900">{endItem}</span>{" "}
+        trong tổng số <span className="font-semibold text-gray-900">{totalItems}</span> bài nộp
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`p-2 rounded-lg border transition-all ${currentPage === 1
+            ? "border-gray-200 text-gray-400 cursor-not-allowed"
+            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
+            }`}
+        >
+          <ChevronLeft size={18} />
+        </button>
+
+        <div className="flex items-center gap-1">
+          {getPageNumbers().map((page, index) => {
+            if (page === "...") {
+              return (
+                <span key={`ellipsis-${index}`} className="px-2 text-gray-400">
+                  ...
+                </span>
+              );
+            }
+
+            return (
+              <button
+                key={page}
+                onClick={() => onPageChange(page as number)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${currentPage === page
+                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                  : "text-gray-700 hover:bg-pink-50 border border-pink-200"
+                  }`}
+              >
+                {page}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`p-2 rounded-lg border transition-all ${currentPage === totalPages
+            ? "border-gray-200 text-gray-400 cursor-not-allowed"
+            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
+            }`}
+        >
+          <ChevronRight size={18} />
         </button>
       </div>
     </div>
@@ -312,8 +452,21 @@ export default function TeacherAssignmentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState<string>("ALL");
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [sortColumn, setSortColumn] = useState<"student" | "assignment" | "turnIn" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const classes = Array.from(new Set(SUBMISSIONS.map(s => s.className)));
+
+  const handleSort = (column: "student" | "assignment" | "turnIn") => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
 
   const filtered = useMemo(() => {
     let result = SUBMISSIONS;
@@ -336,8 +489,42 @@ export default function TeacherAssignmentsPage() {
       );
     }
     
+    // Sort
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let comparison = 0;
+        if (sortColumn === "student") {
+          comparison = a.student.localeCompare(b.student);
+        } else if (sortColumn === "assignment") {
+          comparison = a.assignmentTitle.localeCompare(b.assignmentTitle);
+        } else if (sortColumn === "turnIn") {
+          // Parse date format: "04/12/2024 19:10"
+          const parseDate = (dateStr: string) => {
+            const [datePart, timePart] = dateStr.split(" ");
+            const [day, month, year] = datePart.split("/");
+            return new Date(`${year}-${month}-${day} ${timePart || "00:00"}`);
+          };
+          const dateA = parseDate(a.turnIn);
+          const dateB = parseDate(b.turnIn);
+          comparison = dateA.getTime() - dateB.getTime();
+        }
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    }
+    
     return result;
+  }, [filter, searchQuery, selectedClass, sortColumn, sortDirection]);
+
+  // Reset to page 1 when filter/search changes
+  useEffect(() => {
+    setCurrentPage(1);
   }, [filter, searchQuery, selectedClass]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedSubmissions = filtered.slice(startIndex, endIndex);
 
   const stats = useMemo(() => {
     const total = SUBMISSIONS.length;
@@ -450,7 +637,7 @@ export default function TeacherAssignmentsPage() {
                     <button
                       key={key}
                       onClick={() => setFilter(key)}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all duration-300 ${
+                      className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all duration-300 cursor-pointer ${
                         filter === key
                           ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
                           : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
@@ -469,7 +656,7 @@ export default function TeacherAssignmentsPage() {
                   <button
                     key={key}
                     onClick={() => setFilter(key)}
-                    className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all duration-300 ${
+                    className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all duration-300 cursor-pointer ${
                       filter === key
                         ? `bg-gradient-to-r ${config.bgColor.replace("bg-gradient-to-r ", "")} text-white shadow-md`
                         : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
@@ -483,7 +670,7 @@ export default function TeacherAssignmentsPage() {
             </div>
             
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all">
+              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
                 <TimerReset size={16} />
                 Giao bài mới
               </button>
@@ -527,19 +714,43 @@ export default function TeacherAssignmentsPage() {
         {/* Submissions Table */}
         <div className="px-6">
           {/* Table Header */}
-          <div className="grid grid-cols-12 gap-4 px-4 py-3 text-sm text-gray-600 bg-gradient-to-r from-pink-500/5 to-rose-500/5 rounded-xl mb-2">
-            <div className="col-span-3 font-medium">Học viên & Lớp</div>
-            <div className="col-span-2 font-medium">Bài tập</div>
+          <div className="grid grid-cols-12 gap-4 px-4 py-4 text-sm font-semibold text-gray-700 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl mb-2">
+            <div className="col-span-3">
+              <SortableHeader
+                label="Học viên & Lớp"
+                column="student"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+            </div>
+            <div className="col-span-2">
+              <SortableHeader
+                label="Bài tập"
+                column="assignment"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+            </div>
             <div className="col-span-2 font-medium">Tệp đính kèm</div>
-            <div className="col-span-2 font-medium">Thời gian nộp</div>
+            <div className="col-span-2">
+              <SortableHeader
+                label="Thời gian nộp"
+                column="turnIn"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+            </div>
             <div className="col-span-2 font-medium">Trạng thái</div>
             <div className="col-span-1 font-medium text-right">Thao tác</div>
           </div>
           
           {/* Submissions List */}
-          <div className="max-h-[600px] overflow-y-auto">
-            {filtered.length > 0 ? (
-              filtered.map((item) => (
+          <div className="space-y-2">
+            {paginatedSubmissions.length > 0 ? (
+              paginatedSubmissions.map((item) => (
                 <SubmissionRow key={item.id} item={item} />
               ))
             ) : (
@@ -556,6 +767,17 @@ export default function TeacherAssignmentsPage() {
               </div>
             )}
           </div>
+
+          {/* Pagination */}
+          {filtered.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </div>
 
         {/* AI Tools Section */}
@@ -590,7 +812,7 @@ export default function TeacherAssignmentsPage() {
                   </div>
                 </div>
                 
-                <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 font-medium hover:shadow-lg transition-all">
+                <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 font-medium hover:shadow-lg transition-all cursor-pointer">
                   <Calendar size={16} />
                   Lên lịch nhắc nhở
                 </button>
@@ -623,7 +845,7 @@ export default function TeacherAssignmentsPage() {
                   </div>
                 </div>
                 
-                <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 font-medium hover:shadow-lg transition-all">
+                <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 font-medium hover:shadow-lg transition-all cursor-pointer">
                   <Zap size={16} />
                   Gợi ý từ AI
                 </button>

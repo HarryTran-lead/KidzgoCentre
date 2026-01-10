@@ -183,11 +183,6 @@ function ClassCard({ item, index }: { item: ClassItem; index: number }) {
             <span className="text-xs font-medium text-pink-600">Mã lớp: {item.code}</span>
           </div>
           <h3 className="text-gray-900 font-bold text-xl mb-2">{item.name}</h3>
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-              GV: {item.teacher}
-            </div>
-          </div>
         </div>
         <TrackBadge track={item.track} />
       </div>
@@ -212,23 +207,13 @@ function ClassCard({ item, index }: { item: ClassItem; index: number }) {
             <div className="text-xs text-gray-500">{item.schedule.split(":")[1]}</div>
           </div>
         </div>
-        
-        <div className="flex items-center gap-3 text-gray-700">
-          <div className="p-2 bg-pink-50 rounded-lg">
-            <MapPin size={16} className="text-pink-500" />
-          </div>
-          <div>
-            <div className="font-semibold text-gray-900">{item.room}</div>
-            <div className="text-xs text-gray-500">Phòng học</div>
-          </div>
-        </div>
       </div>
 
       {item.progress && <ProgressBar progress={item.progress} />}
 
       <button 
         onClick={handleViewDetail}
-        className={`mt-6 w-full rounded-xl py-3 text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-300 ${isHovered ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md' : 'bg-white text-gray-900 border border-pink-200 hover:border-pink-300'}`}
+        className={`mt-6 w-full rounded-xl cursor-pointer py-3 text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-300 ${isHovered ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md' : 'bg-white text-gray-900 border border-pink-200 hover:border-pink-300'}`}
       >
         <Eye size={16} />
         Xem chi tiết

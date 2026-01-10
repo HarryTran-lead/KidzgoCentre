@@ -269,7 +269,7 @@ function MiniPieChart({ data }: {
               style={{ backgroundColor: item.color }}
             />
             <span className="text-[10px] text-gray-600 font-medium">{item.label}</span>
-          </div>
+      </div>
         ))}
       </div>
     </div>
@@ -307,7 +307,7 @@ function FeedbackCard({ data }: { data: Feedback }) {
           </div>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 hover:bg-pink-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-pink-100 rounded-lg transition-colors cursor-pointer"
           >
             <ChevronDown size={18} className={`text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           </button>
@@ -501,19 +501,19 @@ function FeedbackCard({ data }: { data: Feedback }) {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-2">
-            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all">
+            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
               <Download size={16} />
               Xuất PDF
             </button>
-            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all">
+            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
               <Send size={16} />
               Gửi Zalo
             </button>
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white text-gray-700 px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-all">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white text-gray-700 px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-all cursor-pointer">
               <Eye size={16} />
               Xem chi tiết
             </button>
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white text-gray-700 px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-all">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white text-gray-700 px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-all cursor-pointer">
               <Share2 size={16} />
               Chia sẻ
             </button>
@@ -526,14 +526,14 @@ function FeedbackCard({ data }: { data: Feedback }) {
         <div className="flex items-center justify-between pt-2 border-t border-pink-200">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">Đánh giá:</span>
+            <span className="text-xs text-gray-500">Đánh giá:</span>
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                 data.progress >= 90 ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white" :
                 data.progress >= 80 ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white" :
                 "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
               }`}>
-                {data.progress >= 90 ? "Xuất sắc" : data.progress >= 80 ? "Tốt" : "Khá"}
-              </span>
+              {data.progress >= 90 ? "Xuất sắc" : data.progress >= 80 ? "Tốt" : "Khá"}
+            </span>
             </div>
             <div className="flex items-center gap-1 text-xs text-gray-500">
               <PieChart size={10} />
@@ -541,7 +541,7 @@ function FeedbackCard({ data }: { data: Feedback }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="text-xs text-pink-600 font-medium hover:text-pink-700 flex items-center gap-1">
+            <button className="text-xs text-pink-600 font-medium hover:text-pink-700 flex items-center gap-1 cursor-pointer">
               Xem đầy đủ
               <ChevronDown size={12} />
             </button>
@@ -565,76 +565,6 @@ function OverallStatsPieChart({ stats }: { stats: any }) {
   const total = pieData.reduce((sum, item) => sum + item.value, 0);
   const average = Math.round(total / pieData.length);
 
-  return (
-    <div className="bg-gradient-to-br from-white to-purple-50 rounded-2xl border border-purple-200 p-4">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="p-2 bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-lg">
-          <PieChart size={18} className="text-white" />
-        </div>
-        <div>
-          <h3 className="font-bold text-gray-900">Thống kê trung bình</h3>
-          <p className="text-xs text-gray-600">Toàn bộ học viên</p>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-center">
-        <div className="relative">
-          <div className="w-32 h-32">
-            <svg width="100%" height="100%" viewBox="0 0 100 100">
-              {(() => {
-                let currentAngle = -90;
-                return pieData.map((item, index) => {
-                  const percentage = (item.value / total) * 100;
-                  const angle = (percentage / 100) * 360;
-                  const startAngle = currentAngle;
-                  const endAngle = currentAngle + angle;
-                  
-                  const startAngleRad = (startAngle * Math.PI) / 180;
-                  const endAngleRad = (endAngle * Math.PI) / 180;
-                  
-                  const x1 = 50 + 40 * Math.cos(startAngleRad);
-                  const y1 = 50 + 40 * Math.sin(startAngleRad);
-                  const x2 = 50 + 40 * Math.cos(endAngleRad);
-                  const y2 = 50 + 40 * Math.sin(endAngleRad);
-                  
-                  const largeArcFlag = angle > 180 ? 1 : 0;
-                  
-                  currentAngle = endAngle;
-                  
-                  return (
-                    <path
-                      key={index}
-                      d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
-                      fill={item.color}
-                      className="transition-all duration-1000"
-                    />
-                  );
-                });
-              })()}
-              <circle cx="50" cy="50" r="20" fill="white" />
-            </svg>
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{average}%</div>
-              <div className="text-xs text-gray-500">Trung bình</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-3 gap-2 mt-4">
-        {pieData.map((item, index) => (
-          <div key={index} className="text-center">
-            <div className="text-lg font-bold" style={{ color: item.color }}>
-              {item.value}%
-            </div>
-            <div className="text-xs text-gray-600">{item.label}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 export default function TeacherFeedbackPage() {
@@ -670,10 +600,13 @@ export default function TeacherFeedbackPage() {
   const overallStats = useMemo(() => {
     if (list.length === 0) return null;
     
+    const avgParticipation = Math.round(list.reduce((sum, f) => sum + f.participation, 0) / list.length);
+    
     return {
       avgHomework: Math.round(list.reduce((sum, f) => sum + f.homeworkRate, 0) / list.length),
       avgAttendance: Math.round(list.reduce((sum, f) => sum + f.attendanceRate, 0) / list.length),
       avgProgress: Math.round(list.reduce((sum, f) => sum + f.progress, 0) / list.length),
+      avgParticipation: avgParticipation,
       topStudent: list.reduce((max, f) => f.progress > max.progress ? f : max, list[0]),
     };
   }, [list]);
@@ -698,50 +631,62 @@ export default function TeacherFeedbackPage() {
 
         {/* Stats Overview with Pie Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
-          {overallStats && (
+        {overallStats && (
             <>
               <OverallStatsPieChart stats={overallStats} />
               
-              <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-gray-600">Học viên đánh giá</div>
-                    <div className="text-2xl font-bold mt-2 text-gray-900">{list.length}</div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-pink-100">
-                    <UserRound size={24} className="text-pink-600" />
-                  </div>
+            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-600">Học viên đánh giá</div>
+                  <div className="text-2xl font-bold mt-2 text-gray-900">{list.length}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-pink-100">
+                  <UserRound size={24} className="text-pink-600" />
                 </div>
               </div>
-              
-              <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl border border-emerald-200 p-5">
-                <div className="flex items-center justify-between">
-                  <div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl border border-emerald-200 p-5">
+              <div className="flex items-center justify-between">
+                <div>
                     <div className="text-sm text-gray-600">Tiến bộ cao nhất</div>
                     <div className="text-2xl font-bold mt-2 text-emerald-600">{overallStats.avgProgress}%</div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-emerald-100">
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-100">
                     <TrendingUp size={24} className="text-emerald-600" />
-                  </div>
                 </div>
               </div>
-              
-              <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl border border-blue-200 p-5">
-                <div className="flex items-center justify-between">
-                  <div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl border border-blue-200 p-5">
+              <div className="flex items-center justify-between">
+                <div>
                     <div className="text-sm text-gray-600">Tỉ lệ hoàn thành</div>
                     <div className="text-2xl font-bold mt-2 text-blue-600">
                       {list.filter(f => f.homeworkRate >= 80).length}/{list.length}
                     </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-blue-100">
+                </div>
+                <div className="p-3 rounded-xl bg-blue-100">
                     <CheckCircle size={24} className="text-blue-600" />
-                  </div>
                 </div>
               </div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-white to-amber-50 rounded-2xl border border-amber-200 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                    <div className="text-sm text-gray-600">Tham gia trung bình</div>
+                    <div className="text-2xl font-bold mt-2 text-amber-600">{overallStats.avgParticipation}%</div>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-100">
+                    <MessageSquare size={24} className="text-amber-600" />
+                </div>
+              </div>
+            </div>
             </>
           )}
-        </div>
+          </div>
 
         {/* Top Student Highlight */}
         {overallStats?.topStudent && (
@@ -782,7 +727,7 @@ export default function TeacherFeedbackPage() {
                 <button
                   key={m}
                   onClick={() => setMonth(m)}
-                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
+                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 cursor-pointer ${
                     m === month
                       ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
                       : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
@@ -794,7 +739,7 @@ export default function TeacherFeedbackPage() {
             </div>
             
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all">
+              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
                 <UserPlus size={16} />
                 Thêm đánh giá mới
               </button>
@@ -828,7 +773,7 @@ export default function TeacherFeedbackPage() {
                 <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
               
-              <button className="p-3.5 rounded-xl bg-white border border-pink-200 hover:bg-pink-50 transition-colors">
+              <button className="p-3.5 rounded-xl bg-white border border-pink-200 hover:bg-pink-50 transition-colors cursor-pointer">
                 <Filter size={18} className="text-gray-600" />
               </button>
             </div>
@@ -903,7 +848,7 @@ export default function TeacherFeedbackPage() {
                   <div className="text-sm text-gray-900 mt-1">"{list[0]?.teacherComment || "Học sinh có tiến bộ rõ rệt trong tháng này..."}"</div>
                 </div>
                 
-                <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 font-medium hover:shadow-lg transition-all">
+                <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 font-medium hover:shadow-lg transition-all cursor-pointer">
                   <Zap size={16} />
                   Đồng bộ từ AI
                 </button>
@@ -937,7 +882,7 @@ export default function TeacherFeedbackPage() {
                   </div>
                 </div>
                 
-                <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white py-3 font-medium hover:shadow-lg transition-all">
+                <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white py-3 font-medium hover:shadow-lg transition-all cursor-pointer">
                   <Download size={16} />
                   Xuất file gửi quản lý
                 </button>
