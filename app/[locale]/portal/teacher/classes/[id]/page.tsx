@@ -25,6 +25,7 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  Star,
 } from "lucide-react";
 
 type Track = "IELTS" | "TOEIC" | "Business";
@@ -37,6 +38,7 @@ type Student = {
   avatar?: string;
   attendance: number;
   progress: number;
+  stars: number;
   lastActive: string;
   status: "active" | "inactive";
 };
@@ -112,32 +114,32 @@ const CLASS_DETAILS: Record<string, ClassDetail> = {
 
 const STUDENTS_DATA: Record<string, Student[]> = {
   CLS001: [
-    { id: "ST001", name: "Nguyễn Văn An", email: "an.nguyen@email.com", phone: "0901 234 567", attendance: 95, progress: 78, lastActive: "2 ngày trước", status: "active" },
-    { id: "ST002", name: "Trần Thị Bình", email: "binh.tran@email.com", phone: "0902 345 678", attendance: 88, progress: 82, lastActive: "1 ngày trước", status: "active" },
-    { id: "ST003", name: "Lê Văn Cường", email: "cuong.le@email.com", phone: "0903 456 789", attendance: 92, progress: 75, lastActive: "3 ngày trước", status: "active" },
-    { id: "ST004", name: "Phạm Thị Dung", email: "dung.pham@email.com", phone: "0904 567 890", attendance: 100, progress: 88, lastActive: "Hôm nay", status: "active" },
-    { id: "ST005", name: "Hoàng Văn Em", email: "em.hoang@email.com", phone: "0905 678 901", attendance: 85, progress: 70, lastActive: "5 ngày trước", status: "active" },
-    { id: "ST006", name: "Vũ Thị Phương", email: "phuong.vu@email.com", phone: "0906 789 012", attendance: 90, progress: 80, lastActive: "1 ngày trước", status: "active" },
-    { id: "ST007", name: "Đặng Văn Giang", email: "giang.dang@email.com", phone: "0907 890 123", attendance: 78, progress: 65, lastActive: "1 tuần trước", status: "active" },
-    { id: "ST008", name: "Bùi Thị Hoa", email: "hoa.bui@email.com", phone: "0908 901 234", attendance: 95, progress: 85, lastActive: "2 ngày trước", status: "active" },
-    { id: "ST009", name: "Ngô Văn Ích", email: "ich.ngo@email.com", phone: "0909 012 345", attendance: 82, progress: 72, lastActive: "4 ngày trước", status: "active" },
-    { id: "ST010", name: "Đỗ Thị Kim", email: "kim.do@email.com", phone: "0910 123 456", attendance: 88, progress: 79, lastActive: "1 ngày trước", status: "active" },
-    { id: "ST011", name: "Lý Văn Long", email: "long.ly@email.com", phone: "0911 234 567", attendance: 75, progress: 68, lastActive: "2 tuần trước", status: "inactive" },
-    { id: "ST012", name: "Võ Thị Mai", email: "mai.vo@email.com", phone: "0912 345 678", attendance: 92, progress: 81, lastActive: "Hôm nay", status: "active" },
-    { id: "ST013", name: "Phan Văn Nam", email: "nam.phan@email.com", phone: "0913 456 789", attendance: 90, progress: 77, lastActive: "3 ngày trước", status: "active" },
-    { id: "ST014", name: "Trương Thị Oanh", email: "oanh.truong@email.com", phone: "0914 567 890", attendance: 85, progress: 73, lastActive: "1 tuần trước", status: "active" },
-    { id: "ST015", name: "Đinh Văn Phúc", email: "phuc.dinh@email.com", phone: "0915 678 901", attendance: 88, progress: 76, lastActive: "2 ngày trước", status: "active" },
-    { id: "ST016", name: "Lương Thị Quỳnh", email: "quynh.luong@email.com", phone: "0916 789 012", attendance: 93, progress: 84, lastActive: "Hôm nay", status: "active" },
-    { id: "ST017", name: "Hồ Văn Sơn", email: "son.ho@email.com", phone: "0917 890 123", attendance: 80, progress: 71, lastActive: "5 ngày trước", status: "active" },
-    { id: "ST018", name: "Nguyễn Thị Tuyết", email: "tuyet.nguyen@email.com", phone: "0918 901 234", attendance: 96, progress: 86, lastActive: "1 ngày trước", status: "active" },
+    { id: "ST001", name: "Nguyễn Văn An", email: "an.nguyen@email.com", phone: "0901 234 567", attendance: 95, progress: 78, stars: 245, lastActive: "2 ngày trước", status: "active" },
+    { id: "ST002", name: "Trần Thị Bình", email: "binh.tran@email.com", phone: "0902 345 678", attendance: 88, progress: 82, stars: 312, lastActive: "1 ngày trước", status: "active" },
+    { id: "ST003", name: "Lê Văn Cường", email: "cuong.le@email.com", phone: "0903 456 789", attendance: 92, progress: 75, stars: 198, lastActive: "3 ngày trước", status: "active" },
+    { id: "ST004", name: "Phạm Thị Dung", email: "dung.pham@email.com", phone: "0904 567 890", attendance: 100, progress: 88, stars: 456, lastActive: "Hôm nay", status: "active" },
+    { id: "ST005", name: "Hoàng Văn Em", email: "em.hoang@email.com", phone: "0905 678 901", attendance: 85, progress: 70, stars: 167, lastActive: "5 ngày trước", status: "active" },
+    { id: "ST006", name: "Vũ Thị Phương", email: "phuong.vu@email.com", phone: "0906 789 012", attendance: 90, progress: 80, stars: 289, lastActive: "1 ngày trước", status: "active" },
+    { id: "ST007", name: "Đặng Văn Giang", email: "giang.dang@email.com", phone: "0907 890 123", attendance: 78, progress: 65, stars: 134, lastActive: "1 tuần trước", status: "active" },
+    { id: "ST008", name: "Bùi Thị Hoa", email: "hoa.bui@email.com", phone: "0908 901 234", attendance: 95, progress: 85, stars: 378, lastActive: "2 ngày trước", status: "active" },
+    { id: "ST009", name: "Ngô Văn Ích", email: "ich.ngo@email.com", phone: "0909 012 345", attendance: 82, progress: 72, stars: 201, lastActive: "4 ngày trước", status: "active" },
+    { id: "ST010", name: "Đỗ Thị Kim", email: "kim.do@email.com", phone: "0910 123 456", attendance: 88, progress: 79, stars: 267, lastActive: "1 ngày trước", status: "active" },
+    { id: "ST011", name: "Lý Văn Long", email: "long.ly@email.com", phone: "0911 234 567", attendance: 75, progress: 68, stars: 112, lastActive: "2 tuần trước", status: "inactive" },
+    { id: "ST012", name: "Võ Thị Mai", email: "mai.vo@email.com", phone: "0912 345 678", attendance: 92, progress: 81, stars: 334, lastActive: "Hôm nay", status: "active" },
+    { id: "ST013", name: "Phan Văn Nam", email: "nam.phan@email.com", phone: "0913 456 789", attendance: 90, progress: 77, stars: 256, lastActive: "3 ngày trước", status: "active" },
+    { id: "ST014", name: "Trương Thị Oanh", email: "oanh.truong@email.com", phone: "0914 567 890", attendance: 85, progress: 73, stars: 189, lastActive: "1 tuần trước", status: "active" },
+    { id: "ST015", name: "Đinh Văn Phúc", email: "phuc.dinh@email.com", phone: "0915 678 901", attendance: 88, progress: 76, stars: 223, lastActive: "2 ngày trước", status: "active" },
+    { id: "ST016", name: "Lương Thị Quỳnh", email: "quynh.luong@email.com", phone: "0916 789 012", attendance: 93, progress: 84, stars: 401, lastActive: "Hôm nay", status: "active" },
+    { id: "ST017", name: "Hồ Văn Sơn", email: "son.ho@email.com", phone: "0917 890 123", attendance: 80, progress: 71, stars: 156, lastActive: "5 ngày trước", status: "active" },
+    { id: "ST018", name: "Nguyễn Thị Tuyết", email: "tuyet.nguyen@email.com", phone: "0918 901 234", attendance: 96, progress: 86, stars: 423, lastActive: "1 ngày trước", status: "active" },
   ],
   CLS002: [
-    { id: "ST019", name: "Trần Văn Anh", email: "anh.tran@email.com", phone: "0919 012 345", attendance: 90, progress: 75, lastActive: "2 ngày trước", status: "active" },
-    { id: "ST020", name: "Lê Thị Bảo", email: "bao.le@email.com", phone: "0920 123 456", attendance: 85, progress: 70, lastActive: "1 tuần trước", status: "active" },
+    { id: "ST019", name: "Trần Văn Anh", email: "anh.tran@email.com", phone: "0919 012 345", attendance: 90, progress: 75, stars: 278, lastActive: "2 ngày trước", status: "active" },
+    { id: "ST020", name: "Lê Thị Bảo", email: "bao.le@email.com", phone: "0920 123 456", attendance: 85, progress: 70, stars: 192, lastActive: "1 tuần trước", status: "active" },
   ],
   CLS003: [
-    { id: "ST021", name: "Phạm Văn Cường", email: "cuong.pham@email.com", phone: "0921 234 567", attendance: 95, progress: 88, lastActive: "Hôm nay", status: "active" },
-    { id: "ST022", name: "Hoàng Thị Dung", email: "dung.hoang@email.com", phone: "0922 345 678", attendance: 92, progress: 85, lastActive: "1 ngày trước", status: "active" },
+    { id: "ST021", name: "Phạm Văn Cường", email: "cuong.pham@email.com", phone: "0921 234 567", attendance: 95, progress: 88, stars: 445, lastActive: "Hôm nay", status: "active" },
+    { id: "ST022", name: "Hoàng Thị Dung", email: "dung.hoang@email.com", phone: "0922 345 678", attendance: 92, progress: 85, stars: 367, lastActive: "1 ngày trước", status: "active" },
   ],
 };
 
@@ -228,7 +230,7 @@ function Pagination({
 }) {
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
-    
+
     if (totalPages <= 7) {
       // Show all pages if 7 or fewer
       for (let i = 1; i <= totalPages; i++) {
@@ -237,7 +239,7 @@ function Pagination({
     } else {
       // Always show first page
       pages.push(1);
-      
+
       if (currentPage <= 3) {
         // Near the start
         pages.push(2, 3, 4, "...", totalPages);
@@ -249,7 +251,7 @@ function Pagination({
         pages.push("...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
       }
     }
-    
+
     return pages;
   };
 
@@ -265,16 +267,15 @@ function Pagination({
         <span className="font-semibold text-gray-900">{endItem}</span>{" "}
         trong tổng số <span className="font-semibold text-gray-900">{totalItems}</span> học viên
       </div>
-      
+
       <div className="flex items-center gap-2">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`p-2 rounded-lg border transition-all ${
-            currentPage === 1
-              ? "border-gray-200 text-gray-400 cursor-not-allowed"
-              : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300"
-          }`}
+          className={`p-2 rounded-lg border transition-all ${currentPage === 1
+            ? "border-gray-200 text-gray-400 cursor-not-allowed"
+            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
+            }`}
         >
           <ChevronLeft size={18} />
         </button>
@@ -293,11 +294,10 @@ function Pagination({
               <button
                 key={page}
                 onClick={() => onPageChange(page as number)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  currentPage === page
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                    : "text-gray-700 hover:bg-pink-50 border border-pink-200"
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${currentPage === page
+                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                  : "text-gray-700 hover:bg-pink-50 border border-pink-200"
+                  }`}
               >
                 {page}
               </button>
@@ -308,11 +308,10 @@ function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`p-2 rounded-lg border transition-all ${
-            currentPage === totalPages
-              ? "border-gray-200 text-gray-400 cursor-not-allowed"
-              : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300"
-          }`}
+          className={`p-2 rounded-lg border transition-all ${currentPage === totalPages
+            ? "border-gray-200 text-gray-400 cursor-not-allowed"
+            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
+            }`}
         >
           <ChevronRight size={18} />
         </button>
@@ -343,7 +342,7 @@ export default function ClassDetailPage() {
 
   const filteredStudents = allStudents.filter((student) => {
     const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         student.email.toLowerCase().includes(searchQuery.toLowerCase());
+      student.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || student.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -375,7 +374,7 @@ export default function ClassDetailPage() {
   const handleSelectAll = () => {
     const allIds = paginatedStudents.map((s) => s.id);
     const allSelected = allIds.every((id) => selectedStudents.has(id));
-    
+
     if (allSelected) {
       // Deselect all on current page
       setSelectedStudents((prev) => {
@@ -411,7 +410,7 @@ export default function ClassDetailPage() {
           <p className="text-gray-600 mb-4">Lớp học không tồn tại hoặc đã bị xóa.</p>
           <button
             onClick={() => router.push(`/${locale}/portal/teacher/classes`)}
-            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl hover:shadow-lg transition-all"
+            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl hover:shadow-lg transition-all cursor-pointer"
           >
             Quay lại
           </button>
@@ -429,73 +428,72 @@ export default function ClassDetailPage() {
       <div className="mb-8">
         <button
           onClick={() => router.push(`/${locale}/portal/teacher/classes`)}
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors cursor-pointer"
         >
           <ArrowLeft size={20} />
           <span>Quay lại danh sách lớp</span>
         </button>
 
         <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
-                  <BookOpen size={24} className="text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-3xl font-bold text-gray-900">{classData.name}</h1>
-                    <TrackBadge track={classData.track} />
-                  </div>
-                  <p className="text-gray-600">Mã lớp: {classData.code}</p>
-                </div>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+                <BookOpen size={24} className="text-white" />
               </div>
-
-              <div className="grid md:grid-cols-3 gap-4 mb-6">
-                <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-pink-100">
-                  <div className="p-2 bg-pink-100 rounded-lg">
-                    <CalendarClock size={18} className="text-pink-600" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Lịch học</div>
-                    <div className="font-semibold text-gray-900">{classData.schedule}</div>
-                  </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-3xl font-bold text-gray-900">{classData.name}</h1>
+                  <TrackBadge track={classData.track} />
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-pink-100">
-                  <div className="p-2 bg-pink-100 rounded-lg">
-                    <MapPin size={18} className="text-pink-600" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Phòng học</div>
-                    <div className="font-semibold text-gray-900">{classData.room}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-pink-100">
-                  <div className="p-2 bg-pink-100 rounded-lg">
-                    <Users size={18} className="text-pink-600" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Học viên</div>
-                    <div className="font-semibold text-gray-900">{classData.students} người</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 bg-white rounded-xl border border-pink-100">
-                <h3 className="font-semibold text-gray-900 mb-2">Mô tả khóa học</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{classData.description}</p>
+                <p className="text-gray-600">Mã lớp: {classData.code}</p>
               </div>
             </div>
-
-            <div className="flex flex-col gap-3">
-              <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all flex items-center justify-center gap-2">
-                <Download size={16} />
-                Xuất danh sách
-              </button>
-              <button className="px-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-700 hover:bg-pink-50 transition-all flex items-center justify-center gap-2">
+            <div className="flex justify-end gap-3">
+              <button className="px-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-700 hover:bg-pink-50 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
                 <Share2 size={16} />
                 Chia sẻ
               </button>
+              <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
+                <Download size={16} />
+                Xuất danh sách
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-pink-100">
+                <div className="p-2 bg-pink-100 rounded-lg">
+                  <CalendarClock size={18} className="text-pink-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Lịch học</div>
+                  <div className="font-semibold text-gray-900">{classData.schedule}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-pink-100">
+                <div className="p-2 bg-pink-100 rounded-lg">
+                  <MapPin size={18} className="text-pink-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Phòng học</div>
+                  <div className="font-semibold text-gray-900">{classData.room}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-pink-100">
+                <div className="p-2 bg-pink-100 rounded-lg">
+                  <Users size={18} className="text-pink-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Học viên</div>
+                  <div className="font-semibold text-gray-900">{classData.students} người</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-white rounded-xl border border-pink-100">
+              <h3 className="font-semibold text-gray-900 mb-2">Mô tả khóa học</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">{classData.description}</p>
             </div>
           </div>
         </div>
@@ -514,7 +512,7 @@ export default function ClassDetailPage() {
             </div>
           </div>
           <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-1000"
               style={{ width: `${classData.progress}%` }}
             />
@@ -594,31 +592,28 @@ export default function ClassDetailPage() {
               <div className="flex items-center gap-2 bg-white border border-pink-200 rounded-xl p-1">
                 <button
                   onClick={() => setStatusFilter("all")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    statusFilter === "all"
-                      ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
-                      : "text-gray-700 hover:bg-pink-50"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${statusFilter === "all"
+                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
+                    : "text-gray-700 hover:bg-pink-50"
+                    }`}
                 >
                   Tất cả
                 </button>
                 <button
                   onClick={() => setStatusFilter("active")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    statusFilter === "active"
-                      ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
-                      : "text-gray-700 hover:bg-pink-50"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${statusFilter === "active"
+                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
+                    : "text-gray-700 hover:bg-pink-50"
+                    }`}
                 >
                   Hoạt động
                 </button>
                 <button
                   onClick={() => setStatusFilter("inactive")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    statusFilter === "inactive"
-                      ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
-                      : "text-gray-700 hover:bg-pink-50"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${statusFilter === "inactive"
+                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
+                    : "text-gray-700 hover:bg-pink-50"
+                    }`}
                 >
                   Không hoạt động
                 </button>
@@ -646,7 +641,7 @@ export default function ClassDetailPage() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Học viên</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Liên hệ</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Đã vắng</th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Tiến bộ</th>
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Thành tích</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Hoạt động</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Thao tác</th>
               </tr>
@@ -655,9 +650,8 @@ export default function ClassDetailPage() {
               {paginatedStudents.map((student, index) => (
                 <tr
                   key={student.id}
-                  className={`border-b border-pink-100 transition-colors hover:bg-pink-50/50 ${
-                    index % 2 === 0 ? "bg-white" : "bg-pink-50/30"
-                  } ${selectedStudents.has(student.id) ? "bg-pink-100/50" : ""}`}
+                  className={`border-b border-pink-100 transition-colors hover:bg-pink-50/50 ${index % 2 === 0 ? "bg-white" : "bg-pink-50/30"
+                    } ${selectedStudents.has(student.id) ? "bg-pink-100/50" : ""}`}
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-center">
@@ -696,28 +690,27 @@ export default function ClassDetailPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200">
-                      <TrendingUp size={14} className="text-blue-600" />
-                      <span className="text-sm font-semibold text-blue-700">{student.progress}%</span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
+                      <Star size={14} className="text-amber-600 fill-amber-600" />
+                      <span className="text-sm font-semibold text-amber-700">{student.stars}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        student.status === "active" ? "bg-emerald-500" : "bg-gray-400"
-                      }`} />
+                      <div className={`w-2 h-2 rounded-full ${student.status === "active" ? "bg-emerald-500" : "bg-gray-400"
+                        }`} />
                       <span className="text-sm text-gray-700">{student.lastActive}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-center gap-2">
-                      <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer">
                         <MessageSquare size={18} />
                       </button>
-                      <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors">
+                      <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer">
                         <Eye size={18} />
                       </button>
-                      <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                      <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
                         <MoreVertical size={18} />
                       </button>
                     </div>

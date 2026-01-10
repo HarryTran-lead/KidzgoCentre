@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { 
-  BookOpen, 
-  CalendarClock, 
-  Users, 
+import { useRouter, useParams } from "next/navigation";
+import {
+  BookOpen,
+  CalendarClock,
+  Users,
   TrendingUp,
   Clock,
   AlertCircle,
@@ -76,8 +77,8 @@ function StatCard({
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all duration-700 transform ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-      }`}
+      className={`bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all duration-700 transform cursor-pointer ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+        }`}
     >
       <div className="flex items-center justify-between">
         <div>
@@ -124,12 +125,115 @@ function Badge({
 
 function ClassCard({
   cls,
-  index
+  index,
+  locale,
+  router
 }: {
   cls: any;
-  index: number
+  index: number;
+  locale: string;
+  router: any;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Map màu theme của lớp sang màu pie chart
+  const getPieChartColor = (colorGradient: string): "pink" | "green" | "blue" | "yellow" | "purple" | "orange" => {
+    if (colorGradient.includes("pink") || colorGradient.includes("rose")) return "pink";
+    if (colorGradient.includes("amber") || colorGradient.includes("orange")) return "orange";
+    if (colorGradient.includes("emerald") || colorGradient.includes("teal") || colorGradient.includes("green")) return "green";
+    if (colorGradient.includes("blue") || colorGradient.includes("sky")) return "blue";
+    if (colorGradient.includes("purple") || colorGradient.includes("indigo")) return "purple";
+    return "pink"; // default
+  };
+
+  // Map màu theme của lớp sang các class Tailwind
+  const getThemeClasses = (colorGradient: string) => {
+    if (colorGradient.includes("pink") || colorGradient.includes("rose")) {
+      return {
+        border: "border-pink-200",
+        bg: "bg-gradient-to-br from-white to-pink-50",
+        hover: "from-pink-500/5 to-rose-500/5",
+        timeBorder: "border-pink-100",
+        dayBg: "bg-pink-50",
+        dayBorder: "border-pink-100",
+        dayText: "text-pink-700",
+        pieBorder: "border-pink-100",
+        corner: "text-pink-200",
+        cornerBg: "bg-pink-100"
+      };
+    }
+    if (colorGradient.includes("amber") || colorGradient.includes("orange")) {
+      return {
+        border: "border-amber-200",
+        bg: "bg-gradient-to-br from-white to-amber-50",
+        hover: "from-amber-500/5 to-orange-500/5",
+        timeBorder: "border-amber-100",
+        dayBg: "bg-amber-50",
+        dayBorder: "border-amber-100",
+        dayText: "text-amber-700",
+        pieBorder: "border-amber-100",
+        corner: "text-amber-200",
+        cornerBg: "bg-amber-100"
+      };
+    }
+    if (colorGradient.includes("emerald") || colorGradient.includes("teal") || colorGradient.includes("green")) {
+      return {
+        border: "border-emerald-200",
+        bg: "bg-gradient-to-br from-white to-emerald-50",
+        hover: "from-emerald-500/5 to-teal-500/5",
+        timeBorder: "border-emerald-100",
+        dayBg: "bg-emerald-50",
+        dayBorder: "border-emerald-100",
+        dayText: "text-emerald-700",
+        pieBorder: "border-emerald-100",
+        corner: "text-emerald-200",
+        cornerBg: "bg-emerald-100"
+      };
+    }
+    if (colorGradient.includes("blue") || colorGradient.includes("sky")) {
+      return {
+        border: "border-blue-200",
+        bg: "bg-gradient-to-br from-blue-50 to-white",
+        hover: "from-blue-500/5 to-sky-500/5",
+        timeBorder: "border-blue-100",
+        dayBg: "bg-blue-50",
+        dayBorder: "border-blue-100",
+        dayText: "text-blue-700",
+        pieBorder: "border-blue-100",
+        corner: "text-blue-200",
+        cornerBg: "bg-blue-100"
+      };
+    }
+    if (colorGradient.includes("purple") || colorGradient.includes("indigo")) {
+      return {
+        border: "border-purple-200",
+        bg: "bg-gradient-to-br from-white to-purple-50",
+        hover: "from-purple-500/5 to-indigo-500/5",
+        timeBorder: "border-purple-100",
+        dayBg: "bg-purple-50",
+        dayBorder: "border-purple-100",
+        dayText: "text-purple-700",
+        pieBorder: "border-purple-100",
+        corner: "text-purple-200",
+        cornerBg: "bg-purple-100"
+      };
+    }
+    // Default pink
+    return {
+      border: "border-pink-200",
+      bg: "bg-gradient-to-br from-white to-pink-50",
+      hover: "from-pink-500/5 to-rose-500/5",
+      timeBorder: "border-pink-100",
+      dayBg: "bg-pink-50",
+      dayBorder: "border-pink-100",
+      dayText: "text-pink-700",
+      pieBorder: "border-pink-100",
+      corner: "text-pink-200",
+      cornerBg: "bg-pink-100"
+    };
+  };
+
+  const themeClasses = getThemeClasses(cls.color);
 
   // Tính toán thời gian còn lại
   const getTimeRemaining = () => {
@@ -155,21 +259,22 @@ function ClassCard({
   const timeRemaining = getTimeRemaining();
   const isUpcomingSoon = timeRemaining.includes("phút") || timeRemaining.includes("h");
 
+  const handleCardClick = () => {
+    if (cls.id) {
+      router.push(`/${locale}/portal/teacher/schedule/${cls.id}`);
+    }
+  };
+
   return (
     <div
-      className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 hover:shadow-xl ${
-        isUpcomingSoon
-          ? 'border-amber-200 bg-gradient-to-br from-amber-50/50 to-white'
-          : 'border-pink-200 bg-gradient-to-br from-white to-pink-50'
-      }`}
+      onClick={handleCardClick}
+      className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 hover:shadow-xl cursor-pointer ${isUpcomingSoon ? themeClasses.border.replace('200', '300') : themeClasses.border} ${themeClasses.bg}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Background gradient effect on hover */}
       <div
-        className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
-          isUpcomingSoon ? 'from-amber-500/5 to-amber-600/5' : 'from-pink-500/5 to-rose-500/5'
-        }`}
+        className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${themeClasses.hover}`}
       />
 
       <div className="relative p-6">
@@ -177,9 +282,7 @@ function ClassCard({
           {/* Left - time & day card */}
           <div className="flex flex-col gap-3 lg:w-56">
             <div
-              className={`w-full rounded-2xl border px-4 py-3 bg-white/80 shadow-sm flex items-center justify-between gap-3 ${
-                isUpcomingSoon ? 'border-amber-200' : 'border-pink-100'
-              }`}
+              className={`w-full rounded-2xl border px-4 py-3 bg-white/80 shadow-sm flex items-center justify-between gap-3 ${themeClasses.timeBorder}`}
             >
               <div className="flex items-center gap-2">
                 <div
@@ -192,20 +295,12 @@ function ClassCard({
                   <div className="text-sm font-semibold text-gray-900">{cls.time}</div>
                 </div>
               </div>
-              {isUpcomingSoon && (
-                <div className="hidden md:flex flex-col items-end text-[11px] text-amber-700 font-semibold">
-                  <span className="inline-flex items-center gap-1">
-                    <BellRing size={12} />
-                    Bắt đầu sau
-                  </span>
-                  <span>{timeRemaining}</span>
-                </div>
-              )}
+
             </div>
 
             <div className="flex gap-2">
-              <div className="flex-1 rounded-xl bg-pink-50 border border-pink-100 px-3 py-2 flex items-center justify-between">
-                <span className="text-xs font-semibold text-pink-700">{cls.day}</span>
+              <div className={`flex-1 rounded-xl ${themeClasses.dayBg} border ${themeClasses.dayBorder} px-3 py-2 flex items-center justify-between`}>
+                <span className={`text-xs font-semibold ${themeClasses.dayText}`}>{cls.day}</span>
                 <span className="text-[11px] text-gray-500">Lịch dạy</span>
               </div>
             </div>
@@ -265,69 +360,27 @@ function ClassCard({
                 </div>
               </div>
             </div>
-
-            {/* Quick Actions */}
-            <div className="flex flex-wrap items-center gap-2 mt-4">
-              <button className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-sm font-medium transition-colors">
-                <PlayCircle size={14} />
-                Vào lớp
-              </button>
-              <button className="flex items-center gap-2 px-3 py-2 bg-pink-50 text-pink-700 hover:bg-pink-100 rounded-lg text-sm font-medium transition-colors">
-                <CheckSquare size={14} />
-                Điểm danh
-              </button>
-              <button className="flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors">
-                <ExternalLink size={14} />
-                Chi tiết
-              </button>
-            </div>
           </div>
 
           {/* Right - progress pie chart */}
           <div className="mt-6 lg:mt-0 lg:w-44 flex items-center justify-center">
-            <div className="bg-white/80 border border-pink-100 rounded-2xl px-4 py-3 shadow-sm flex flex-col items-center gap-2">
+            <div className={`bg-white/80 border ${themeClasses.pieBorder} rounded-2xl px-4 py-3 shadow-sm flex flex-col items-center gap-2`}>
               <span className="text-xs font-semibold text-gray-600">Tiến độ công việc</span>
               <PieChart
                 value={cls.progress ?? 0}
                 size={72}
-                color="pink"
+                color={getPieChartColor(cls.color)}
                 label={`${cls.progress ?? 0}%`}
               />
               <span className="text-[11px] text-gray-500">Hoàn thành chương trình</span>
             </div>
           </div>
         </div>
-
-        {/* Materials Preview */}
-        <div className="mt-6 pt-5 border-t border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-gray-900">Tài liệu buổi học</span>
-            <span className="text-xs text-pink-600 hover:text-pink-700 cursor-pointer flex items-center gap-1">
-              Xem tất cả <ChevronRight size={12} />
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
-              <FileText size={14} />
-              <span>Bài giảng PDF</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm">
-              <Mic size={14} />
-              <span>Audio bài học</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm">
-              <Video size={14} />
-              <span>Video mẫu</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Corner accent */}
-      <div className={`absolute top-0 right-0 w-16 h-16 overflow-hidden ${isUpcomingSoon ? 'text-amber-200' : 'text-pink-200'
-        }`}>
-        <div className={`absolute -top-4 -right-4 w-12 h-12 transform rotate-45 ${isUpcomingSoon ? 'bg-amber-100' : 'bg-pink-100'
-          }`} />
+      <div className={`absolute top-0 right-0 w-16 h-16 overflow-hidden ${themeClasses.corner}`}>
+        <div className={`absolute -top-4 -right-4 w-12 h-12 transform rotate-45 ${themeClasses.cornerBg}`} />
       </div>
     </div>
   );
@@ -342,7 +395,7 @@ function PieChart({
 }: {
   value: number;
   size?: number;
-  color?: "pink" | "green" | "blue" | "yellow";
+  color?: "pink" | "green" | "blue" | "yellow" | "purple" | "orange";
   label?: string;
   animate?: boolean;
 }) {
@@ -380,7 +433,9 @@ function PieChart({
     pink: { fill: "#ec4899", stroke: "#fce7f3", bg: "bg-pink-100" },
     green: { fill: "#10b981", stroke: "#d1fae5", bg: "bg-emerald-100" },
     blue: { fill: "#3b82f6", stroke: "#dbeafe", bg: "bg-blue-100" },
-    yellow: { fill: "#f59e0b", stroke: "#fef3c7", bg: "bg-amber-100" }
+    yellow: { fill: "#f59e0b", stroke: "#fef3c7", bg: "bg-amber-100" },
+    purple: { fill: "#a855f7", stroke: "#e9d5ff", bg: "bg-purple-100" },
+    orange: { fill: "#f97316", stroke: "#fed7aa", bg: "bg-orange-100" }
   };
 
   const radius = size / 2 - 4;
@@ -479,7 +534,7 @@ function BarChart({
       <div className="flex items-end justify-between h-full" style={{ height: `${height}px` }}>
         {displayData.map((value, index) => {
           const barHeight = maxValue > 0 ? (value / maxValue) * (height - 40) : 0;
-  return (
+          return (
             <div key={index} className="flex flex-col items-center flex-1 mx-1">
               <div
                 className="w-3/4 rounded-t-lg transition-all duration-500 ease-out"
@@ -497,7 +552,7 @@ function BarChart({
           );
         })}
       </div>
-      </div>
+    </div>
   );
 }
 
@@ -514,9 +569,28 @@ function LineChart({
   height?: number;
   animate?: boolean;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [animatedData, setAnimatedData] = useState(data.map(() => 0));
-  const maxValue = Math.max(...data);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const maxValue = Math.max(...data, 1);
+  const minValue = Math.min(...data, 0);
+  const valueRange = maxValue - minValue || 1;
   const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.offsetWidth - 40,
+          height: height - 40
+        });
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, [height]);
 
   useEffect(() => {
     if (!animate || hasAnimated.current) return;
@@ -550,61 +624,97 @@ function LineChart({
   }, [data, animate]);
 
   const displayData = animate ? animatedData : data;
-  const pointRadius = 4;
+  const pointRadius = 5;
+  const padding = 20;
+  const chartWidth = dimensions.width || 300;
+  const chartHeight = dimensions.height || height - 40;
 
-  const points = displayData.map((value, index) => {
-    const x = (index / (data.length - 1)) * 100;
-    const y = 100 - (value / maxValue) * 100;
-    return `${x}% ${y}%`;
-  }).join(', ');
+  const getX = (index: number) => {
+    if (data.length === 1) return padding;
+    return padding + (index / (data.length - 1)) * (chartWidth - padding * 2);
+  };
 
-  const pathData = `M ${points.split(', ')[0]} L ${points.split(', ').slice(1).join(' L ')}`;
+  const getY = (value: number) => {
+    const normalizedValue = (value - minValue) / valueRange;
+    return padding + chartHeight - (normalizedValue * (chartHeight - padding * 2));
+  };
+
+  const pathPoints = displayData.map((value, index) => `${getX(index)},${getY(value)}`);
+  const pathData = `M ${pathPoints.join(' L ')}`;
 
   return (
     <div className="w-full h-full p-4">
-      <div className="relative" style={{ height: `${height}px` }}>
-        <div className="absolute inset-0 flex flex-col justify-between">
+      <div ref={containerRef} className="relative" style={{ height: `${height}px` }}>
+        {/* Grid lines */}
+        <svg width="100%" height="100%" className="absolute inset-0">
           {[0, 25, 50, 75, 100].map((percent, idx) => (
-            <div
+            <line
               key={idx}
-              className="border-t border-gray-200"
-              style={{ top: `${percent}%` }}
-            ></div>
+              x1={padding}
+              y1={padding + (percent / 100) * (chartHeight - padding * 2)}
+              x2={chartWidth - padding}
+              y2={padding + (percent / 100) * (chartHeight - padding * 2)}
+              stroke="#e5e7eb"
+              strokeWidth="1"
+            />
           ))}
-        </div>
+        </svg>
 
-        <svg width="100%" height="100%" className="overflow-visible">
+        {/* Line chart */}
+        <svg width="100%" height="100%" className="relative z-10">
+          {/* Gradient fill under line */}
+          <defs>
+            <linearGradient id={`gradient-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={color} stopOpacity="0.05" />
+            </linearGradient>
+          </defs>
+
+          {/* Area under line */}
+          <path
+            d={`${pathData} L ${getX(data.length - 1)},${chartHeight - padding} L ${getX(0)},${chartHeight - padding} Z`}
+            fill={`url(#gradient-${color.replace('#', '')})`}
+            className="transition-all duration-1000 ease-out"
+          />
+
+          {/* Line */}
           <path
             d={pathData}
             fill="none"
             stroke={color}
-            strokeWidth="2"
+            strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
             className="transition-all duration-1000 ease-out"
           />
 
-          {displayData.map((value, index) => {
-            const x = (index / (data.length - 1)) * 100;
-            const y = 100 - (value / maxValue) * 100;
-            return (
+          {/* Data points */}
+          {displayData.map((value, index) => (
+            <g key={index}>
               <circle
-                key={index}
-                cx={`${x}%`}
-                cy={`${y}%`}
-                r={pointRadius}
+                cx={getX(index)}
+                cy={getY(value)}
+                r={pointRadius + 2}
                 fill="white"
-                stroke={color}
+                className="transition-all duration-1000 ease-out"
+              />
+              <circle
+                cx={getX(index)}
+                cy={getY(value)}
+                r={pointRadius}
+                fill={color}
+                stroke="white"
                 strokeWidth="2"
                 className="transition-all duration-1000 ease-out"
               />
-            );
-          })}
+            </g>
+          ))}
         </svg>
 
-        <div className="absolute bottom-0 left-0 right-0 flex justify-between mt-2">
+        {/* Labels */}
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between px-5 pb-1">
           {labels.map((label, index) => (
-            <div key={index} className="text-xs text-gray-600 -rotate-45 origin-left">
+            <div key={index} className="text-xs text-gray-600 text-center" style={{ width: `${100 / labels.length}%` }}>
               {label}
             </div>
           ))}
@@ -615,11 +725,15 @@ function LineChart({
 }
 
 export default function Page() {
+  const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string;
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<"today" | "upcoming">("today");
 
   const [upcomingClasses] = useState([
     {
+      id: "L1",
       name: "IELTS Foundation - A1",
       time: "08:00 - 10:00",
       room: "Phòng 301",
@@ -632,6 +746,7 @@ export default function Page() {
       attendance: 92
     },
     {
+      id: "L2",
       name: "TOEIC Intermediate",
       time: "14:00 - 16:00",
       room: "Phòng 205",
@@ -643,6 +758,7 @@ export default function Page() {
       attendance: 88
     },
     {
+      id: "L3",
       name: "Business English",
       time: "09:00 - 11:00",
       room: "Phòng 102",
@@ -655,6 +771,7 @@ export default function Page() {
       attendance: 95
     },
     {
+      id: "L4",
       name: "Academic Writing",
       time: "19:00 - 21:00",
       room: "Phòng 305",
@@ -666,6 +783,7 @@ export default function Page() {
       attendance: 85
     },
     {
+      id: "L5",
       name: "Conversation Practice",
       time: "10:00 - 11:30",
       room: "Phòng 108",
@@ -823,37 +941,40 @@ export default function Page() {
                   <div className="flex bg-gray-100 p-1 rounded-lg">
                     <button
                       onClick={() => setActiveTab("today")}
-                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === "today"
-                          ? "bg-white text-pink-600 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
+                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === "today"
+                        ? "bg-white text-pink-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
                         }`}
                     >
                       Hôm nay ({todayClasses.length})
                     </button>
                     <button
                       onClick={() => setActiveTab("upcoming")}
-                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === "upcoming"
-                          ? "bg-white text-pink-600 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
+                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === "upcoming"
+                        ? "bg-white text-pink-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
                         }`}
                     >
                       Sắp tới ({upcomingFutureClasses.length})
                     </button>
-                </div>
+                  </div>
 
-                  <button className="text-sm text-pink-600 font-medium hover:text-pink-700 flex items-center gap-1 whitespace-nowrap">
+                  <button
+                    onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
+                    className="text-sm text-pink-600 font-medium hover:text-pink-700 flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                  >
                     Xem lịch đầy đủ
-                  <ChevronRight size={14} />
-                </button>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
               </div>
-            </div>
             </div>
 
             <div className="p-6">
               {activeTab === "today" ? (
                 <div className="space-y-4">
                   {todayClasses.map((cls, index) => (
-                    <ClassCard key={index} cls={cls} index={index} />
+                    <ClassCard key={index} cls={cls} index={index} locale={locale} router={router} />
                   ))}
 
                   {todayClasses.length === 0 && (
@@ -861,17 +982,17 @@ export default function Page() {
                       <CalendarClock size={48} className="text-gray-300 mx-auto mb-4" />
                       <h4 className="text-lg font-medium text-gray-900 mb-2">Không có lớp học nào hôm nay</h4>
                       <p className="text-gray-600">Hãy kiểm tra lịch dạy sắp tới hoặc tận hưởng ngày nghỉ của bạn!</p>
-                      </div>
+                    </div>
                   )}
-                          </div>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {upcomingFutureClasses.map((cls, index) => (
-                    <ClassCard key={index} cls={cls} index={index} />
+                    <ClassCard key={index} cls={cls} index={index} locale={locale} router={router} />
                   ))}
-                          </div>
+                </div>
               )}
-                          </div>
+            </div>
 
             {/* Calendar Preview */}
             <div className="px-6 py-4 border-t border-pink-200 bg-pink-50/50">
@@ -879,26 +1000,26 @@ export default function Page() {
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white rounded-lg border border-pink-200">
                     <Calendar size={18} className="text-pink-600" />
-                        </div>
+                  </div>
                   <div>
                     <div className="text-sm font-medium text-gray-900">Tuần sau có 8 buổi dạy</div>
                     <div className="text-xs text-gray-600">Tổng cộng 16 giờ giảng dạy</div>
-                      </div>
-                    </div>
+                  </div>
+                </div>
                 <button className="px-4 py-2 bg-white border border-pink-200 text-pink-600 hover:bg-pink-50 rounded-lg text-sm font-medium transition-colors">
-                  Xem lịch tuần
-                      </button>
-                    </div>
+                  Xem tất cả
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Charts Section */}
           <div className="grid md:grid-cols-2 gap-6">
             {/* Performance Chart */}
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6">
+            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6">
               <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp size={20} className="text-pink-500" />
+                <div className="flex items-center gap-2">
+                  <TrendingUp size={20} className="text-pink-500" />
                   <h3 className="font-bold text-gray-900">Hiệu suất tuần</h3>
                 </div>
                 <span className="text-sm text-gray-600">Điểm TB: 87%</span>
@@ -913,16 +1034,16 @@ export default function Page() {
                 />
               </div>
             </div>
-            
+
             {/* Class Size Chart */}
             <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Users size={20} className="text-blue-500" />
                   <h3 className="font-bold text-gray-900">Quy mô lớp học</h3>
-                      </div>
+                </div>
                 <span className="text-sm text-gray-600">Tổng: 55 học viên</span>
-                      </div>
+              </div>
               <div className="h-48">
                 <BarChart
                   data={classSizeData.data}
@@ -930,8 +1051,8 @@ export default function Page() {
                   colors={["#ec4899", "#f59e0b", "#10b981", "#3b82f6"]}
                   height={150}
                   animate={isPageLoaded}
-                    />
-                  </div>
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -954,7 +1075,7 @@ export default function Page() {
                 </button>
               </div>
             </div>
-            
+
             <div className="divide-y divide-pink-100">
               {notifications.map((notif, index) => {
                 const Icon = notif.icon;
@@ -965,29 +1086,25 @@ export default function Page() {
                 };
 
                 return (
-                  <div 
+                  <div
                     key={index}
                     className={`px-6 py-4 transition-colors ${!notif.read ? 'bg-pink-50/50' : ''}`}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 cursor-pointer">
                       <div className={`p-2 rounded-lg ${typeColors[notif.type as keyof typeof typeColors]}`}>
                         <Icon size={16} />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-start justify-between">
                           <div>
-                            <div className="font-medium text-gray-900">{notif.title}</div>
-                            <div className="text-sm text-gray-600 mt-1">{notif.message}</div>
+                            <div className="text-sm font-medium text-gray-900">{notif.title}</div>
+                            <div className="text-xs text-gray-600 mt-1">{notif.message}</div>
                           </div>
                           {!notif.read && (
-                            <div className="h-2 w-2 rounded-full bg-rose-500"></div>
+                            <div className="h-1.5 w-1.5 rounded-full bg-rose-500 flex-shrink-0 mt-1"></div>
                           )}
                         </div>
                         <div className="flex items-center justify-between mt-3">
-                          <Badge color={notif.type as any}>
-                            {notif.type === "info" ? "Thông tin" : 
-                             notif.type === "warning" ? "Quan trọng" : "Thành công"}
-                          </Badge>
                           <div className="text-xs text-gray-500">{notif.time}</div>
                         </div>
                       </div>
@@ -1004,7 +1121,7 @@ export default function Page() {
               <Target size={20} className="text-pink-500" />
               <h3 className="font-bold text-gray-900">Tiến độ lớp học</h3>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               {classProgress.slice(0, 4).map((cls, index) => (
                 <div key={index} className="flex flex-col items-center p-3 bg-white rounded-xl border border-pink-200">
@@ -1018,7 +1135,7 @@ export default function Page() {
                     label="Tiến độ"
                     animate={isPageLoaded}
                   />
-                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -1034,7 +1151,7 @@ export default function Page() {
                 <p className="text-sm opacity-90">IELTS Foundation - A1</p>
               </div>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm opacity-90">Tỷ lệ hoàn thành</div>
@@ -1045,7 +1162,7 @@ export default function Page() {
                 <div className="font-bold">4.9/5.0</div>
               </div>
             </div>
-            
+
             <button className="w-full mt-6 py-2.5 bg-white text-pink-600 rounded-xl font-medium hover:bg-white/90 transition-colors">
               Xem chi tiết
             </button>

@@ -83,37 +83,37 @@ export default function Page() {
       <div className="bg-gradient-to-br from-white via-white to-pink-50/30 rounded-2xl border border-pink-200 overflow-hidden shadow-sm">
         {/* Tabs */}
         <div className="px-6 pt-6">
-          <div className="flex flex-wrap gap-3">
-            <TabButton 
-              active={tab === "info"} 
-              onClick={() => setTab("info")} 
-              icon={<UserRound size={18} />}
+          <div className="flex flex-wrap gap-2">
+            <TabButton
+              active={tab === "info"}
+              onClick={() => setTab("info")}
+              icon={<UserRound size={16} />}
               count={4}
               color="pink"
             >
               Thông tin cá nhân
             </TabButton>
-            <TabButton 
-              active={tab === "certs"} 
-              onClick={() => setTab("certs")} 
-              icon={<Award size={18} />}
+            <TabButton
+              active={tab === "certs"}
+              onClick={() => setTab("certs")}
+              icon={<Award size={16} />}
               count={5}
               color="purple"
             >
               Chứng chỉ
             </TabButton>
-            <TabButton 
-              active={tab === "security"} 
-              onClick={() => setTab("security")} 
-              icon={<Shield size={18} />}
+            <TabButton
+              active={tab === "security"}
+              onClick={() => setTab("security")}
+              icon={<Shield size={16} />}
               color="blue"
             >
               Bảo mật
             </TabButton>
-            <TabButton 
-              active={tab === "stats"} 
-              onClick={() => setTab("stats")} 
-              icon={<BarChart3 size={18} />}
+            <TabButton
+              active={tab === "stats"}
+              onClick={() => setTab("stats")}
+              icon={<BarChart3 size={16} />}
               color="emerald"
             >
               Thống kê
@@ -169,24 +169,22 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`relative px-5 py-3.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all duration-300 group ${
-        active
-          ? `bg-gradient-to-r ${colorClasses[color]} text-white shadow-lg`
-          : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
-      }`}
+      className={`relative px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 group cursor-pointer ${active
+        ? "bg-pink-100 text-pink-700 border border-pink-200 shadow-sm"
+        : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+        }`}
     >
-      {icon}
+      {icon && <span className="w-4 h-4 flex items-center justify-center">{icon}</span>}
       {children}
       {count !== undefined && (
-        <span className={`px-2 py-1 rounded-full text-xs ${
-          active 
-            ? "bg-white/20 text-white" 
-            : bgColorClasses[color]
-        }`}>
+        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${active
+          ? "bg-pink-200 text-pink-800"
+          : bgColorClasses[color]
+          }`}>
           {count}
         </span>
       )}
-      
+
       {/* Hover effect */}
       {!active && (
         <div className={`absolute inset-0 rounded-xl bg-gradient-to-r ${colorClasses[color]} opacity-0 group-hover:opacity-5 transition-opacity`} />
@@ -197,12 +195,12 @@ function TabButton({
 
 /* ---------- Thông tin cá nhân - Cải tiến ---------- */
 
-function InfoTab({ 
-  isEditing, 
+function InfoTab({
+  isEditing,
   setIsEditing,
-  isPageLoaded 
-}: { 
-  isEditing: boolean; 
+  isPageLoaded
+}: {
+  isEditing: boolean;
   setIsEditing: (value: boolean) => void;
   isPageLoaded: boolean;
 }) {
@@ -249,14 +247,14 @@ function InfoTab({
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-pink-500/10 p-6">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-pink-500/20 to-rose-500/20 rounded-full -translate-y-16 translate-x-16" />
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-500/20 to-rose-500/20 rounded-full translate-y-12 -translate-x-12" />
-        
+
         <div className="relative flex flex-col md:flex-row items-start gap-8">
           {/* Profile Image */}
           <div className="relative">
             <div className="relative w-40 h-40 rounded-2xl overflow-hidden border-4 border-white shadow-2xl bg-gradient-to-r from-pink-500 to-rose-500 group">
-              <img 
-                src={profileImage} 
-                alt="Profile" 
+              <img
+                src={profileImage}
+                alt="Profile"
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
               {isEditing && (
@@ -342,7 +340,7 @@ function InfoTab({
           ) : (
             <button
               onClick={() => setIsEditing(true)}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all shadow-sm flex items-center gap-2 group"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all shadow-sm flex cursor-pointer items-center gap-2 group"
             >
               <Edit size={16} className="group-hover:rotate-12 transition-transform" />
               Chỉnh sửa hồ sơ
@@ -364,7 +362,7 @@ function InfoTab({
               <p className="text-sm text-gray-600">Mức độ thành thạo các kỹ năng giảng dạy</p>
             </div>
           </div>
-          
+
           <div className="space-y-4">
             {skills.map((skill, index) => (
               <div key={index} className="space-y-2">
@@ -373,7 +371,7 @@ function InfoTab({
                   <span className="text-sm font-bold text-pink-600">{skill.level}%</span>
                 </div>
                 <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-1000"
                     style={{ width: isPageLoaded ? `${skill.level}%` : '0%' }}
                   />
@@ -386,26 +384,26 @@ function InfoTab({
         {/* Personal Info Form */}
         <div className="space-y-6">
           <h3 className="text-xl font-bold text-gray-900">Thông tin chi tiết</h3>
-          
+
           <div className="grid gap-4">
-            <LabeledInput 
-              label="Địa điểm" 
+            <LabeledInput
+              label="Địa điểm"
               value={formData.location}
               disabled={!isEditing}
               icon={<MapPin size={16} />}
-              onChange={(value) => setFormData({...formData, location: value})}
+              onChange={(value) => setFormData({ ...formData, location: value })}
             />
-            
-            <LabeledInput 
-              label="Ngày sinh" 
+
+            <LabeledInput
+              label="Ngày sinh"
               value={formData.birthDate}
               disabled={!isEditing}
               icon={<Calendar size={16} />}
-              onChange={(value) => setFormData({...formData, birthDate: value})}
+              onChange={(value) => setFormData({ ...formData, birthDate: value })}
             />
-            
-            <LabeledInput 
-              label="Ngày tham gia" 
+
+            <LabeledInput
+              label="Ngày tham gia"
               value={formData.joinDate}
               disabled={true}
               icon={<Clock size={16} />}
@@ -425,18 +423,18 @@ function InfoTab({
             <p className="text-sm text-gray-600">Chia sẻ về kinh nghiệm và phương pháp giảng dạy</p>
           </div>
         </div>
-        
+
         <div className="relative group">
           <textarea
             value={formData.bio}
             disabled={!isEditing}
-            onChange={(e) => setFormData({...formData, bio: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
             rows={4}
             className="w-full rounded-xl border border-blue-200 bg-white/50 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition-all disabled:bg-transparent disabled:cursor-not-allowed"
           />
           <div className={`absolute inset-0 bg-gradient-to-b from-white/80 via-white/50 to-transparent rounded-xl pointer-events-none transition-opacity ${isEditing ? 'opacity-0' : 'opacity-100'}`} />
         </div>
-        
+
         {!isEditing && (
           <div className="flex items-center gap-3 mt-4">
             <div className="px-3 py-1.5 bg-pink-100 text-pink-700 rounded-full text-sm">
@@ -571,11 +569,11 @@ function CertsTab() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="px-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-700 hover:bg-pink-50 transition-all flex items-center gap-2">
+          <button className="px-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-700 hover:bg-pink-50 transition-all flex items-center gap-2 cursor-pointer">
             <Download size={16} />
             Xuất tất cả
           </button>
-          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white cursor-pointer hover:shadow-lg transition-all">
+          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white cursor-pointer hover:shadow-lg transition-all">
             <Plus size={16} />
             Thêm mới
             <input
@@ -597,7 +595,7 @@ function CertsTab() {
           >
             {/* Background gradient */}
             <div className={`absolute inset-0 bg-gradient-to-r ${cert.color} opacity-0 group-hover:opacity-5 transition-opacity`} />
-            
+
             {/* Certificate Card */}
             <div className="relative p-6">
               {/* Header */}
@@ -617,17 +615,16 @@ function CertsTab() {
                       <Clock size={12} /> Chờ duyệt
                     </span>
                   )}
-                  <span className={`text-xs px-2.5 py-1 rounded-full ${
-                    cert.level === "Perfect" ? "bg-rose-100 text-rose-700" :
+                  <span className={`text-xs px-2.5 py-1 rounded-full ${cert.level === "Perfect" ? "bg-rose-100 text-rose-700" :
                     cert.level === "Expert" ? "bg-pink-100 text-pink-700" :
-                    cert.level === "Advanced" ? "bg-purple-100 text-purple-700" :
-                    "bg-blue-100 text-blue-700"
-                  }`}>
+                      cert.level === "Advanced" ? "bg-purple-100 text-purple-700" :
+                        "bg-blue-100 text-blue-700"
+                    }`}>
                     {cert.level}
                   </span>
                 </div>
               </div>
-              
+
               {/* Content */}
               <div className="space-y-4">
                 <div>
@@ -643,7 +640,7 @@ function CertsTab() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Progress bar for verification */}
                 {!cert.verified && (
                   <div>
@@ -657,7 +654,7 @@ function CertsTab() {
                   </div>
                 )}
               </div>
-              
+
               {/* Actions */}
               <div className="flex items-center justify-between pt-6 mt-6 border-t border-pink-100">
                 <div className="flex items-center gap-2">
@@ -668,7 +665,7 @@ function CertsTab() {
                     <Share2 size={18} />
                   </button>
                 </div>
-                <button className="px-3 py-1.5 text-sm bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg hover:shadow-md transition-all flex items-center gap-1.5">
+                <button className="px-3 py-1.5 text-sm bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg hover:shadow-md transition-all flex items-center gap-1.5  cursor-pointer">
                   <Download size={14} />
                   Tải xuống
                 </button>
@@ -753,7 +750,7 @@ function SecurityTab() {
       {/* Password Change Form */}
       <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl border border-blue-200 p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 bg-gradient-to-r from-blue-500 to-sky-500 rounded-lg shadow-lg">
+          <div className="p-2.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-lg">
             <ShieldCheck size={20} className="text-white" />
           </div>
           <div>
@@ -763,47 +760,48 @@ function SecurityTab() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-row-3 gap-4">
             <PasswordInput
               label="Mật khẩu hiện tại"
               value={formData.currentPassword}
-              onChange={(value) => setFormData({...formData, currentPassword: value})}
+              onChange={(value) => setFormData({ ...formData, currentPassword: value })}
               showPassword={showCurrentPassword}
               onToggleShow={() => setShowCurrentPassword(!showCurrentPassword)}
             />
-            
+
             <PasswordInput
               label="Mật khẩu mới"
               value={formData.newPassword}
-              onChange={(value) => setFormData({...formData, newPassword: value})}
+              onChange={(value) => setFormData({ ...formData, newPassword: value })}
               showPassword={showNewPassword}
               onToggleShow={() => setShowNewPassword(!showNewPassword)}
             />
-            
+
             <PasswordInput
               label="Xác nhận mật khẩu mới"
               value={formData.confirmPassword}
-              onChange={(value) => setFormData({...formData, confirmPassword: value})}
+              onChange={(value) => setFormData({ ...formData, confirmPassword: value })}
               showPassword={showConfirmPassword}
               onToggleShow={() => setShowConfirmPassword(!showConfirmPassword)}
             />
           </div>
 
-          <div className="flex items-center gap-3 pt-4">
+          <div className="flex items-center justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" })}
+              className="px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-gray-700 hover:bg-blue-50 transition-all cursor-pointer"
+            >
+              Hủy bỏ
+            </button>
             <button
               type="submit"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white hover:shadow-lg transition-all shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all shadow-sm cursor-pointer"
             >
               <ShieldCheck size={16} />
               Cập nhật mật khẩu
             </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" })}
-              className="px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-gray-700 hover:bg-blue-50 transition-all"
-            >
-              Hủy bỏ
-            </button>
+
           </div>
         </form>
       </div>
@@ -820,7 +818,7 @@ function SecurityTab() {
               <p className="text-sm text-gray-600">Tùy chỉnh các tính năng bảo mật</p>
             </div>
           </div>
-          
+
           <div className="space-y-4">
             {securitySettings.map((setting) => (
               <div key={setting.id} className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-emerald-100">
@@ -844,16 +842,14 @@ function SecurityTab() {
               <p className="text-sm text-gray-600">Quản lý các thiết bị đang đăng nhập</p>
             </div>
           </div>
-          
+
           <div className="space-y-3">
             {activeSessions.map((session) => (
-              <div key={session.id} className={`flex items-center justify-between p-3 rounded-xl ${
-                session.current ? 'bg-amber-50 border border-amber-200' : 'bg-white/50 border border-amber-100'
-              }`}>
+              <div key={session.id} className={`flex items-center justify-between p-3 rounded-xl ${session.current ? 'bg-amber-50 border border-amber-200' : 'bg-white/50 border border-amber-100'
+                }`}>
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${
-                    session.current ? 'bg-amber-100' : 'bg-gray-100'
-                  }`}>
+                  <div className={`p-2 rounded-lg ${session.current ? 'bg-amber-100' : 'bg-gray-100'
+                    }`}>
                     <SmartphoneIcon />
                   </div>
                   <div>
@@ -873,8 +869,8 @@ function SecurityTab() {
               </div>
             ))}
           </div>
-          
-          <button className="w-full mt-4 py-2.5 border border-amber-200 text-amber-700 hover:bg-amber-50 rounded-xl text-sm font-medium transition-colors">
+
+          <button className="w-full mt-4 py-2.5 border border-amber-200 text-amber-700 hover:bg-amber-50 rounded-xl text-sm font-medium transition-colors cursor-pointer">
             Xem tất cả phiên đăng nhập
           </button>
         </div>
@@ -943,36 +939,33 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
           <div className="flex bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setActiveTimeFilter("week")}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                activeTimeFilter === "week" 
-                  ? "bg-white text-pink-600 shadow-sm" 
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTimeFilter === "week"
+                ? "bg-white text-pink-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               Tuần
             </button>
             <button
               onClick={() => setActiveTimeFilter("month")}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                activeTimeFilter === "month" 
-                  ? "bg-white text-pink-600 shadow-sm" 
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTimeFilter === "month"
+                ? "bg-white text-pink-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               Tháng
             </button>
             <button
               onClick={() => setActiveTimeFilter("quarter")}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                activeTimeFilter === "quarter" 
-                  ? "bg-white text-pink-600 shadow-sm" 
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTimeFilter === "quarter"
+                ? "bg-white text-pink-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               Quý
             </button>
           </div>
-          <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all flex items-center gap-2">
+          <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer">
             <Download size={16} />
             Xuất báo cáo
           </button>
@@ -994,7 +987,7 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
               {stat.label.includes("Đánh giá") ? "/5.0" : stat.label.includes("Thời gian") ? "h" : "%"}
             </div>
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
+              <div
                 className={`h-full rounded-full bg-gradient-to-r ${stat.color} transition-all duration-1000`}
                 style={{ width: isPageLoaded ? `${Math.min(stat.value, 100)}%` : '0%' }}
               />
@@ -1019,11 +1012,11 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
             </div>
             <div className="text-2xl font-bold text-blue-600">92%</div>
           </div>
-          
+
           <div className="h-64">
-            <EnhancedLineChart 
-              data={monthlyData.values} 
-              labels={monthlyData.labels} 
+            <EnhancedLineChart
+              data={monthlyData.values}
+              labels={monthlyData.labels}
               color="#3b82f6"
               animate={isPageLoaded}
             />
@@ -1046,9 +1039,9 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
               Chi tiết <ChevronRight size={14} />
             </button>
           </div>
-          
+
           <div className="flex items-center justify-center overflow-hidden">
-            <EnhancedPieChart 
+            <EnhancedPieChart
               data={skillData}
               animate={isPageLoaded}
               size={220}
@@ -1073,7 +1066,7 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
             <TrendingUp size={12} /> +5 so với tháng trước
           </div>
         </div>
-        
+
         <div className="bg-gradient-to-br from-white to-amber-50/30 rounded-2xl border border-amber-200 p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg">
@@ -1086,7 +1079,7 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
           </div>
           <div className="text-xs text-amber-500">/tuần</div>
         </div>
-        
+
         <div className="bg-gradient-to-br from-white to-pink-50/30 rounded-2xl border border-pink-200 p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg">
@@ -1123,41 +1116,41 @@ function EnhancedPieChart({
   const innerRadius = radius - strokeWidth / 2;
 
   const total = data.reduce((sum, item) => sum + item.value, 0);
-  
+
   useEffect(() => {
     if (!animate || hasAnimated.current) return;
-    
+
     const timer = setTimeout(() => {
       hasAnimated.current = true;
       let currentValues = [...animatedValues];
       const steps = 60;
       const incrementTime = 20;
-      
+
       const step = (stepCount: number) => {
         currentValues = currentValues.map((val, idx) => {
           const target = data[idx].value;
           const increment = (target - val) / (steps - stepCount);
           return Math.min(val + increment, target);
         });
-        
+
         setAnimatedValues([...currentValues]);
-        
+
         if (stepCount < steps) {
           setTimeout(() => step(stepCount + 1), incrementTime);
         } else {
           setAnimatedValues(data.map(s => s.value));
         }
       };
-      
+
       step(0);
     }, 400);
-    
+
     return () => clearTimeout(timer);
   }, [data, animate]);
 
   const displayValues = animate ? animatedValues : data.map(s => s.value);
   const displayTotal = displayValues.reduce((sum, val) => sum + val, 0);
-  
+
   // Calculate arcs - BẮT ĐẦU TỪ GÓC 0 ĐỘ (12h)
   let currentAngle = -90; // SỬA: Bắt đầu từ -90 độ (12h) thay vì 0 độ (3h)
   const arcs = displayValues.map((value, index) => {
@@ -1165,24 +1158,24 @@ function EnhancedPieChart({
     const angle = (percentage / 100) * 360;
     const startAngle = currentAngle;
     const endAngle = currentAngle + angle;
-    
+
     const startAngleRad = (startAngle * Math.PI) / 180;
     const endAngleRad = (endAngle * Math.PI) / 180;
-    
+
     const x1 = center + innerRadius * Math.cos(startAngleRad);
     const y1 = center + innerRadius * Math.sin(startAngleRad);
     const x2 = center + innerRadius * Math.cos(endAngleRad);
     const y2 = center + innerRadius * Math.sin(endAngleRad);
-    
+
     const largeArcFlag = angle > 180 ? 1 : 0;
-    
+
     const pathData = `
       M ${x1} ${y1}
       A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 1 ${x2} ${y2}
     `;
-    
+
     currentAngle = endAngle;
-    
+
     return {
       path: pathData,
       color: data[index].color,
@@ -1199,8 +1192,8 @@ function EnhancedPieChart({
       {/* Pie Chart - Bên trái */}
       <div className="flex-shrink-0  ">
         <div className="relative overflow-hidden" style={{ width: size, height: size }}>
-          <svg 
-            width={size} 
+          <svg
+            width={size}
             height={size}
             className="overflow-hidden"
           >
@@ -1213,7 +1206,7 @@ function EnhancedPieChart({
               stroke="#f3f4f6"
               strokeWidth={strokeWidth}
             />
-            
+
             {/* Pie slices */}
             {arcs.map((arc, index) => (
               <path
@@ -1224,13 +1217,13 @@ function EnhancedPieChart({
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
                 className="transition-all duration-1000 ease-out"
-                style={{ 
+                style={{
                   strokeDasharray: `${(arc.percentage / 100) * 2 * Math.PI * innerRadius} ${2 * Math.PI * innerRadius}`,
                   strokeDashoffset: 0
                 }}
               />
             ))}
-            
+
             {/* Center circle */}
             <circle
               cx={center}
@@ -1238,7 +1231,7 @@ function EnhancedPieChart({
               r={innerRadius - strokeWidth - 10}
               fill="white"
             />
-            
+
             {/* Center text */}
             <text
               x={center}
@@ -1260,12 +1253,12 @@ function EnhancedPieChart({
           </svg>
         </div>
       </div>
-      
+
       {/* Legend - Bên phải */}
       <div className="flex-1 space-y-2">
         {data.map((skill, index) => (
           <div key={index} className="flex items-center gap-3 p-2.5 hover:bg-gray-50 rounded-lg transition-colors">
-            <div 
+            <div
               className="w-3.5 h-3.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: skill.color }}
             />
@@ -1308,46 +1301,46 @@ function EnhancedLineChart({
 
   useEffect(() => {
     if (!animate || hasAnimated.current) return;
-    
+
     const timer = setTimeout(() => {
       hasAnimated.current = true;
       let currentData = [...animatedData];
       const steps = 60;
       const incrementTime = 20;
-      
+
       const step = (stepCount: number) => {
         currentData = currentData.map((val, idx) => {
           const target = data[idx];
           const increment = (target - val) / (steps - stepCount);
           return val + increment;
         });
-        
+
         setAnimatedData([...currentData]);
-        
+
         if (stepCount < steps) {
           setTimeout(() => step(stepCount + 1), incrementTime);
         } else {
           setAnimatedData([...data]);
         }
       };
-      
+
       step(0);
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [data, animate]);
 
   const displayData = animate ? animatedData : data;
-  
+
   // Calculate points
-  const xScale = (index: number) => 
+  const xScale = (index: number) =>
     padding.left + (index / (data.length - 1)) * (chartWidth - padding.left - padding.right);
-  
-  const yScale = (value: number) => 
+
+  const yScale = (value: number) =>
     padding.top + (1 - (value - minValue) / (maxValue - minValue)) * chartHeight;
 
   // Create path data
-  const points = displayData.map((value, index) => 
+  const points = displayData.map((value, index) =>
     `${xScale(index)} ${yScale(value)}`
   ).join(' L ');
 
@@ -1461,7 +1454,7 @@ function EnhancedLineChart({
               <stop offset="100%" stopColor={color} stopOpacity="0" />
             </linearGradient>
           </defs>
-          
+
           {/* Area under line */}
           <path
             d={`${pathData} L ${xScale(data.length - 1)} ${height - padding.bottom} L ${padding.left} ${height - padding.bottom} Z`}
@@ -1521,7 +1514,7 @@ function EnhancedLineChart({
           })}
         </svg>
       </div>
-      
+
       {/* Chart info */}
       <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
         <div className="flex items-center gap-2">
@@ -1577,9 +1570,8 @@ function LabeledInput({
           placeholder={placeholder}
           disabled={disabled}
           onChange={(e) => onChange?.(e.target.value)}
-          className={`w-full rounded-xl border border-pink-200 bg-white/50 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all ${
-            icon ? 'pl-10' : ''
-          } ${disabled ? 'bg-transparent cursor-not-allowed' : ''}`}
+          className={`w-full rounded-xl border border-pink-200 bg-white/50 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all ${icon ? 'pl-10' : ''
+            } ${disabled ? 'bg-transparent cursor-not-allowed' : ''}`}
         />
       </div>
     </label>

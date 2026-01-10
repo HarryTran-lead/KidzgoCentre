@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CalendarDays, ArrowRightLeft, BellRing, Users, CheckCircle, Clock, AlertCircle, CalendarCheck, Zap, Send, Filter, ChevronDown, Sparkles, Download } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { CalendarDays, ArrowRightLeft, BellRing, Users, CheckCircle, Clock, AlertCircle, CalendarCheck, Zap, Send, Filter, ChevronDown, Sparkles, Download, BookOpen, MoreVertical, Search, ChevronLeft, MapPin, TrendingUp, CheckCheckIcon, ArrowUpDown, ChevronUp } from "lucide-react";
 
 type AttendanceStatus = "PRESENT" | "ABSENT_NOTICE" | "ABSENT_LATE" | "MAKEUP";
 
@@ -18,49 +18,102 @@ type AttendanceRecord = {
 
 type ClassSession = {
   id: string;
-  className: string;
-  classCode: string;
   date: string;
   time: string;
-  room: string;
-  teacher: string;
   records: AttendanceRecord[];
   color: string;
 };
 
-const INITIAL_SESSIONS: ClassSession[] = [
+type Class = {
+  id: string;
+  className: string;
+  classCode: string;
+  room: string;
+  teacher: string;
+  color: string;
+  sessions: ClassSession[];
+};
+
+const INITIAL_CLASSES: Class[] = [
   {
-    id: "CLS001-20241205",
+    id: "CLS001",
     className: "IELTS Foundation - A1",
     classCode: "IELTS-FND-A1",
-    date: "05/12/2024",
-    time: "19:00 - 21:00",
     room: "Phòng 301",
     teacher: "Nguyễn Văn A",
     color: "from-pink-500 to-rose-500",
-    records: [
-      { id: "HV001", student: "Nguyễn Văn An", studentCode: "HV001", status: "PRESENT", email: "an.nguyen@email.com", phone: "0912 345 678" },
-      { id: "HV002", student: "Trần Thị Bình", studentCode: "HV002", status: "ABSENT_NOTICE", note: "Xin phép 24h trước", email: "binh.tran@email.com", phone: "0913 456 789" },
-      { id: "HV003", student: "Lê Văn Cường", studentCode: "HV003", status: "ABSENT_LATE", note: "Thông báo muộn", email: "cuong.le@email.com", phone: "0914 567 890" },
-      { id: "HV004", student: "Phạm Thị Dung", studentCode: "HV004", status: "PRESENT", email: "dung.pham@email.com", phone: "0915 678 901" },
-      { id: "HV005", student: "Hoàng Minh Đức", studentCode: "HV005", status: "MAKEUP", note: "Bù từ lớp TOEIC B1", email: "duc.hoang@email.com", phone: "0916 789 012" },
-      { id: "HV006", student: "Vũ Thị Lan", studentCode: "HV006", status: "PRESENT", email: "lan.vu@email.com", phone: "0917 890 123" },
+    sessions: [
+      {
+        id: "CLS001-20241205",
+        date: "05/12/2024",
+        time: "19:00 - 21:00",
+        color: "from-pink-500 to-rose-500",
+        records: [
+          { id: "HV001", student: "Nguyễn Văn An", studentCode: "HV001", status: "PRESENT", email: "an.nguyen@email.com", phone: "0912 345 678" },
+          { id: "HV002", student: "Trần Thị Bình", studentCode: "HV002", status: "ABSENT_NOTICE", note: "Xin phép 24h trước", email: "binh.tran@email.com", phone: "0913 456 789" },
+          { id: "HV003", student: "Lê Văn Cường", studentCode: "HV003", status: "ABSENT_LATE", note: "Thông báo muộn", email: "cuong.le@email.com", phone: "0914 567 890" },
+          { id: "HV004", student: "Phạm Thị Dung", studentCode: "HV004", status: "PRESENT", email: "dung.pham@email.com", phone: "0915 678 901" },
+          { id: "HV005", student: "Hoàng Minh Đức", studentCode: "HV005", status: "MAKEUP", note: "Bù từ lớp TOEIC B1", email: "duc.hoang@email.com", phone: "0916 789 012" },
+          { id: "HV006", student: "Vũ Thị Lan", studentCode: "HV006", status: "PRESENT", email: "lan.vu@email.com", phone: "0917 890 123" },
+          { id: "HV007", student: "Nguyễn Thị Hoa", studentCode: "HV007", status: "PRESENT", email: "hoa.nguyen@email.com", phone: "0918 901 234" },
+          { id: "HV008", student: "Trần Văn Hùng", studentCode: "HV008", status: "PRESENT", email: "hung.tran@email.com", phone: "0919 012 345" },
+          { id: "HV009", student: "Lê Thị Mai", studentCode: "HV009", status: "ABSENT_NOTICE", note: "Xin phép", email: "mai.le@email.com", phone: "0920 123 456" },
+          { id: "HV010", student: "Phạm Văn Nam", studentCode: "HV010", status: "PRESENT", email: "nam.pham@email.com", phone: "0921 234 567" },
+        ],
+      },
+      {
+        id: "CLS001-20241203",
+        date: "03/12/2024",
+        time: "19:00 - 21:00",
+        color: "from-fuchsia-500 to-purple-500",
+        records: [
+          { id: "HV001", student: "Nguyễn Văn An", studentCode: "HV001", status: "PRESENT", email: "an.nguyen@email.com", phone: "0912 345 678" },
+          { id: "HV002", student: "Trần Thị Bình", studentCode: "HV002", status: "PRESENT", email: "binh.tran@email.com", phone: "0913 456 789" },
+          { id: "HV003", student: "Lê Văn Cường", studentCode: "HV003", status: "MAKEUP", note: "Bù từ lớp TOEIC B1", email: "cuong.le@email.com", phone: "0914 567 890" },
+          { id: "HV004", student: "Phạm Thị Dung", studentCode: "HV004", status: "PRESENT", email: "dung.pham@email.com", phone: "0915 678 901" },
+        ],
+      },
     ],
   },
   {
-    id: "CLS001-20241203",
-    className: "IELTS Foundation - A1",
-    classCode: "IELTS-FND-A1",
-    date: "03/12/2024",
-    time: "19:00 - 21:00",
-    room: "Phòng 301",
-    teacher: "Nguyễn Văn A",
-    color: "from-fuchsia-500 to-purple-500",
-    records: [
-      { id: "HV001", student: "Nguyễn Văn An", studentCode: "HV001", status: "PRESENT", email: "an.nguyen@email.com", phone: "0912 345 678" },
-      { id: "HV002", student: "Trần Thị Bình", studentCode: "HV002", status: "PRESENT", email: "binh.tran@email.com", phone: "0913 456 789" },
-      { id: "HV003", student: "Lê Văn Cường", studentCode: "HV003", status: "MAKEUP", note: "Bù từ lớp TOEIC B1", email: "cuong.le@email.com", phone: "0914 567 890" },
-      { id: "HV004", student: "Phạm Thị Dung", studentCode: "HV004", status: "PRESENT", email: "dung.pham@email.com", phone: "0915 678 901" },
+    id: "CLS002",
+    className: "TOEIC Intermediate",
+    classCode: "TOEIC-INT",
+    room: "Phòng 205",
+    teacher: "Trần Thị B",
+    color: "from-amber-500 to-orange-500",
+    sessions: [
+      {
+        id: "CLS002-20241206",
+        date: "06/12/2024",
+        time: "14:00 - 16:00",
+        color: "from-amber-500 to-orange-500",
+        records: [
+          { id: "HV007", student: "Nguyễn Thị Hoa", studentCode: "HV007", status: "PRESENT", email: "hoa.nguyen@email.com", phone: "0918 901 234" },
+          { id: "HV008", student: "Trần Văn Hùng", studentCode: "HV008", status: "PRESENT", email: "hung.tran@email.com", phone: "0919 012 345" },
+          { id: "HV009", student: "Lê Thị Mai", studentCode: "HV009", status: "ABSENT_NOTICE", note: "Xin phép", email: "mai.le@email.com", phone: "0920 123 456" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "CLS003",
+    className: "Business English",
+    classCode: "BUS-ENG",
+    room: "Phòng 102",
+    teacher: "Lê Văn C",
+    color: "from-emerald-500 to-teal-500",
+    sessions: [
+      {
+        id: "CLS003-20241207",
+        date: "07/12/2024",
+        time: "09:00 - 11:00",
+        color: "from-emerald-500 to-teal-500",
+        records: [
+          { id: "HV010", student: "Phạm Văn Nam", studentCode: "HV010", status: "PRESENT", email: "nam.pham@email.com", phone: "0921 234 567" },
+          { id: "HV011", student: "Hoàng Thị Linh", studentCode: "HV011", status: "PRESENT", email: "linh.hoang@email.com", phone: "0922 345 678" },
+        ],
+      },
     ],
   },
 ];
@@ -70,71 +123,105 @@ const STATUS_CONFIG: Record<AttendanceStatus, {
   icon: any;
   color: string;
   bgColor: string;
-  borderColor: string;
+  dotColor: string;
 }> = {
   PRESENT: {
     text: "Có mặt",
     icon: CheckCircle,
     color: "text-emerald-600",
-    bgColor: "bg-gradient-to-r from-emerald-50 to-emerald-100",
-    borderColor: "border-emerald-200"
+    bgColor: "bg-emerald-50",
+    dotColor: "bg-emerald-500"
   },
   ABSENT_NOTICE: {
-    text: "Vắng (xin phép)",
+    text: "Vắng phép",
     icon: CalendarCheck,
     color: "text-amber-600",
-    bgColor: "bg-gradient-to-r from-amber-50 to-amber-100",
-    borderColor: "border-amber-200"
+    bgColor: "bg-amber-50",
+    dotColor: "bg-amber-500"
   },
   ABSENT_LATE: {
-    text: "Vắng (muộn)",
+    text: "Vắng muộn",
     icon: Clock,
     color: "text-rose-600",
-    bgColor: "bg-gradient-to-r from-rose-50 to-rose-100",
-    borderColor: "border-rose-200"
+    bgColor: "bg-rose-50",
+    dotColor: "bg-rose-500"
   },
   MAKEUP: {
     text: "Buổi bù",
     icon: ArrowRightLeft,
     color: "text-sky-600",
-    bgColor: "bg-gradient-to-r from-sky-50 to-sky-100",
-    borderColor: "border-sky-200"
+    bgColor: "bg-sky-50",
+    dotColor: "bg-sky-500"
   },
 };
 
 function StatusBadge({ status }: { status: AttendanceStatus }) {
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
-  
+
   return (
-    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${config.bgColor} ${config.borderColor} border ${config.color}`}>
+    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${config.bgColor} ${config.color} text-sm font-medium`}>
+      <div className={`w-2 h-2 rounded-full ${config.dotColor}`}></div>
       <Icon size={14} />
-      <span className="text-sm font-medium">{config.text}</span>
+      <span>{config.text}</span>
     </div>
   );
 }
 
-function StatusOption({ value, current, onChange }: { 
-  value: AttendanceStatus; 
-  current: AttendanceStatus; 
-  onChange: (v: AttendanceStatus) => void;
+// SortableHeader Component
+function SortableHeader<T extends string>({ 
+  label, 
+  column, 
+  sortColumn, 
+  sortDirection, 
+  onSort 
+}: { 
+  label: string; 
+  column: T; 
+  sortColumn: T | null; 
+  sortDirection: "asc" | "desc"; 
+  onSort: (col: T) => void;
 }) {
-  const config = STATUS_CONFIG[value];
-  const Icon = config.icon;
-  const active = value === current;
+  const isActive = sortColumn === column;
   
   return (
     <button
-      onClick={() => onChange(value)}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] ${
-        active 
-          ? `${config.bgColor} ${config.color} border ${config.borderColor} shadow-sm` 
-          : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
-      }`}
+      onClick={() => onSort(column)}
+      className="flex items-center gap-2 hover:text-pink-600 transition-colors cursor-pointer text-left"
     >
-      <Icon size={16} />
-      {config.text}
+      <span>{label}</span>
+      <div className="flex flex-col">
+        {isActive ? (
+          sortDirection === "asc" ? (
+            <ChevronUp size={14} className="text-pink-600" />
+          ) : (
+            <ChevronDown size={14} className="text-pink-600" />
+          )
+        ) : (
+          <ArrowUpDown size={14} className="text-gray-400" />
+        )}
+      </div>
     </button>
+  );
+}
+
+function StatusSelect({ value, onChange }: {
+  value: AttendanceStatus;
+  onChange: (v: AttendanceStatus) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as AttendanceStatus)}
+      className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${STATUS_CONFIG[value].bgColor
+        } ${STATUS_CONFIG[value].color} border-gray-200 outline-none cursor-pointer`}
+    >
+      {(Object.keys(STATUS_CONFIG) as AttendanceStatus[]).map((status) => (
+        <option key={status} value={status} className="bg-white">
+          {STATUS_CONFIG[status].text}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -145,117 +232,173 @@ function StudentAvatar({ name }: { name: string }) {
     .slice(-2)
     .join("")
     .toUpperCase();
-    
+
   return (
-    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold text-sm shadow-md">
+    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold text-xs">
       {initials}
     </div>
   );
 }
 
-function RecordRow({
-  record,
-  onChange,
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange
 }: {
-  record: AttendanceRecord;
-  onChange: (status: AttendanceStatus) => void;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }) {
-  const [showDetails, setShowDetails] = useState(false);
-  
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
   return (
-    <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-4 mb-3 transition-all duration-300 hover:shadow-md">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3 flex-1">
-          <StudentAvatar name={record.student} />
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-gray-900">{record.student}</h3>
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">ID: {record.studentCode}</span>
-            </div>
-            <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
-              <span>{record.email}</span>
-              <span>•</span>
-              <span>{record.phone}</span>
-            </div>
-            {record.note && (
-              <div className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs">
-                <AlertCircle size={12} />
-                {record.note}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex flex-col items-end gap-3">
-          <div className="flex items-center gap-2">
-            <StatusBadge status={record.status} />
-            <button 
-              onClick={() => setShowDetails(!showDetails)}
-              className="p-2 hover:bg-pink-100 rounded-lg transition-colors"
-            >
-              <ChevronDown size={16} className={`text-gray-500 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
-            </button>
-          </div>
-          
-          {showDetails && (
-            <div className="mt-3 w-full max-w-xs p-3 bg-white border border-pink-200 rounded-xl">
-              <div className="text-xs font-semibold text-gray-700 mb-2">Thay đổi trạng thái</div>
-              <div className="grid grid-cols-2 gap-2">
-                {(Object.keys(STATUS_CONFIG) as AttendanceStatus[]).map((status) => (
-                  <StatusOption 
-                    key={status} 
-                    value={status} 
-                    current={record.status} 
-                    onChange={onChange} 
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+      <div className="text-sm text-gray-600">
+        Trang <span className="font-semibold">{currentPage}</span> / <span className="font-semibold">{totalPages}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        >
+          ←
+        </button>
+
+        {pages.map(page => (
+          <button
+            key={page}
+            onClick={() => onPageChange(page)}
+            className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${currentPage === page
+              ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white border-transparent'
+              : 'border-gray-200 hover:bg-gray-50'
+              }`}
+          >
+            {page}
+          </button>
+        ))}
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        >
+          →
+        </button>
       </div>
     </div>
   );
 }
 
 export default function TeacherAttendancePage() {
-  const [sessions, setSessions] = useState<ClassSession[]>(INITIAL_SESSIONS);
-  const [sessionId, setSessionId] = useState(INITIAL_SESSIONS[0].id);
+  const [classes, setClasses] = useState<Class[]>(INITIAL_CLASSES);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<AttendanceStatus | "ALL">("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  
-  const current = useMemo(
-    () => sessions.find((s) => s.id === sessionId),
-    [sessions, sessionId],
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortColumn, setSortColumn] = useState<"student" | "studentCode" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const recordsPerPage = 8;
+
+  const selectedClass = useMemo(
+    () => classes.find((c) => c.id === selectedClassId),
+    [classes, selectedClassId],
   );
 
+  const selectedSession = useMemo(() => {
+    if (!selectedClass || !selectedSessionId) return null;
+    return selectedClass.sessions.find((s) => s.id === selectedSessionId);
+  }, [selectedClass, selectedSessionId]);
+
+  const handleSort = (column: "student" | "studentCode") => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+    setCurrentPage(1);
+  };
+
   const filteredRecords = useMemo(() => {
-    if (!current) return [];
-    if (filterStatus === "ALL") return current.records;
-    return current.records.filter(record => record.status === filterStatus);
-  }, [current, filterStatus]);
+    if (!selectedSession) return [];
+
+    let filtered = [...selectedSession.records];
+
+    if (filterStatus !== "ALL") {
+      filtered = filtered.filter(record => record.status === filterStatus);
+    }
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(record =>
+        record.student.toLowerCase().includes(query) ||
+        record.studentCode.toLowerCase().includes(query) ||
+        record.email?.toLowerCase().includes(query) ||
+        record.phone?.includes(query)
+      );
+    }
+
+    // Sort
+    if (sortColumn) {
+      filtered.sort((a, b) => {
+        let comparison = 0;
+        if (sortColumn === "student") {
+          comparison = a.student.localeCompare(b.student);
+        } else if (sortColumn === "studentCode") {
+          comparison = a.studentCode.localeCompare(b.studentCode);
+        }
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    }
+
+    return filtered;
+  }, [selectedSession, filterStatus, searchQuery, sortColumn, sortDirection]);
+
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * recordsPerPage;
+    return filteredRecords.slice(startIndex, startIndex + recordsPerPage);
+  }, [filteredRecords, currentPage]);
+
+  const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+
+  // Reset to page 1 when filter/search/sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, searchQuery, sortColumn]);
 
   const stats = useMemo(() => {
-    if (!current) return null;
-    const total = current.records.length;
-    const present = current.records.filter(r => r.status === "PRESENT").length;
+    if (!selectedSession) return null;
+    const total = selectedSession.records.length;
+    const present = selectedSession.records.filter(r => r.status === "PRESENT").length;
     const absent = total - present;
-    const makeup = current.records.filter(r => r.status === "MAKEUP").length;
-    
+    const makeup = selectedSession.records.filter(r => r.status === "MAKEUP").length;
+
     return { total, present, absent, makeup };
-  }, [current]);
+  }, [selectedSession]);
 
   const handleStatusChange = (recordId: string, status: AttendanceStatus) => {
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === sessionId
+    if (!selectedClassId || !selectedSessionId) return;
+
+    setClasses((prev) =>
+      prev.map((cls) =>
+        cls.id === selectedClassId
           ? {
-              ...session,
-              records: session.records.map((record) =>
-                record.id === recordId ? { ...record, status } : record,
-              ),
-            }
-          : session,
+            ...cls,
+            sessions: cls.sessions.map((session) =>
+              session.id === selectedSessionId
+                ? {
+                  ...session,
+                  records: session.records.map((record) =>
+                    record.id === recordId ? { ...record, status } : record,
+                  ),
+                }
+                : session,
+            ),
+          }
+          : cls,
       ),
     );
   };
@@ -267,317 +410,454 @@ export default function TeacherAttendancePage() {
     }, 1500);
   };
 
-  if (!current) {
-    return null;
-  }
+  const handleClassSelect = (classId: string) => {
+    setSelectedClassId(classId);
+    setSelectedSessionId(null);
+    setCurrentPage(1);
+  };
+
+  const handleSessionSelect = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    setCurrentPage(1);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
+    <div className="min-h-screen bg-gradient-to-b from-pink-50/20 to-white p-4 md:p-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-4 mb-6">
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
-            <Users size={28} className="text-white" />
+            <CheckCheckIcon size={24} className="text-white" />
           </div>
+
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-              Điểm danh & Quản lý buổi bù
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Cập nhật chuyên cần theo thời gian thực, phân loại xin phép trước 24h và xử lý buổi bù cho học viên.
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">Điểm danh lớp học</h1>
+            <p className="text-gray-600 mt-1 text-sm">Quản lý chuyên cần và sắp xếp buổi bù</p>
           </div>
         </div>
+
+        {/* Class Selector */}
+        {!selectedClassId && (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Chọn lớp học</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {classes.map((cls) => (
+                <button
+                  key={cls.id}
+                  onClick={() => handleClassSelect(cls.id)}
+                  className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-pink-300 hover:shadow-sm transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`p-2 rounded-lg bg-gradient-to-r ${cls.color}`}>
+                      <BookOpen size={18} className="text-white" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900">{cls.className}</div>
+                      <div className="text-xs text-gray-600">{cls.classCode}</div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Users size={12} />
+                      {cls.sessions[0]?.records.length || 0} học viên
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CalendarDays size={12} />
+                      {cls.sessions.length} buổi học
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Session Selector */}
-        <div className="bg-gradient-to-r from-white to-pink-50 rounded-2xl border border-pink-200 p-4 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <CalendarDays size={20} className="text-pink-500" />
+        {selectedClassId && !selectedSessionId && selectedClass && (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Chọn buổi học</h3>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <CalendarDays size={16} />
-              {current.date} • {current.time}
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {sessions.map((session) => (
               <button
-                key={session.id}
-                onClick={() => setSessionId(session.id)}
-                className={`px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-2 ${
-                  session.id === sessionId
-                    ? `bg-gradient-to-r ${session.color} text-white shadow-lg`
-                    : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
-                }`}
+                onClick={() => setSelectedClassId(null)}
+                className="text-sm text-pink-600 hover:text-pink-700 font-medium cursor-pointer"
               >
-                <div className={`p-1.5 rounded-lg ${session.id === sessionId ? 'bg-white/20' : 'bg-pink-100'}`}>
-                  <CalendarDays size={14} />
-                </div>
-                <div className="text-left">
-                  <div className="font-semibold">{session.date}</div>
-                  <div className="text-xs opacity-80">{session.className}</div>
-                </div>
+                ← Chọn lớp khác
               </button>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-gray-600">Sĩ số lớp</div>
-                <div className="text-2xl font-bold mt-2 text-gray-900">{stats?.total || 0}</div>
-              </div>
-              <div className="p-3 rounded-xl bg-pink-100">
-                <Users size={24} className="text-pink-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl border border-emerald-200 p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-gray-600">Có mặt</div>
-                <div className="text-2xl font-bold mt-2 text-emerald-600">{stats?.present || 0}</div>
-              </div>
-              <div className="p-3 rounded-xl bg-emerald-100">
-                <CheckCircle size={24} className="text-emerald-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-white to-amber-50 rounded-2xl border border-amber-200 p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-gray-600">Vắng mặt</div>
-                <div className="text-2xl font-bold mt-2 text-amber-600">{stats?.absent || 0}</div>
-              </div>
-              <div className="p-3 rounded-xl bg-amber-100">
-                <Clock size={24} className="text-amber-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-white to-sky-50 rounded-2xl border border-sky-200 p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-gray-600">Buổi bù</div>
-                <div className="text-2xl font-bold mt-2 text-sky-600">{stats?.makeup || 0}</div>
-              </div>
-              <div className="p-3 rounded-xl bg-sky-100">
-                <ArrowRightLeft size={24} className="text-sky-600" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Class Info Bar */}
-        <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-2xl border border-pink-200 p-4 mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-lg bg-gradient-to-r ${current.color} text-white`}>
-                <Sparkles size={20} />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900">{current.className}</h3>
-                <div className="text-sm text-gray-600 flex items-center gap-3">
-                  <span>Mã lớp: {current.classCode}</span>
-                  <span>•</span>
-                  <span>Phòng: {current.room}</span>
-                  <span>•</span>
-                  <span>Giáo viên: {current.teacher}</span>
-                </div>
-              </div>
-            </div>
-            <button 
-              onClick={handleSaveAll}
-              disabled={isSaving}
-              className={`px-5 py-2.5 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 ${
-                isSaving 
-                  ? 'bg-gray-400 text-white cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg'
-              }`}
-            >
-              {isSaving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Đang lưu...
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={18} />
-                  Lưu tất cả thay đổi
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Student List */}
-        <div className="lg:col-span-2">
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users size={20} className="text-pink-500" />
-                  <h3 className="font-bold text-gray-900">Danh sách học viên</h3>
-                  <span className="text-sm text-gray-600">({filteredRecords.length})</span>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 bg-white border border-pink-200 rounded-xl px-3 py-1.5">
-                    <Filter size={16} className="text-gray-500" />
-                    <select 
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value as AttendanceStatus | "ALL")}
-                      className="text-sm bg-transparent outline-none"
-                    >
-                      <option value="ALL">Tất cả trạng thái</option>
-                      <option value="PRESENT">Có mặt</option>
-                      <option value="ABSENT_NOTICE">Vắng (xin phép)</option>
-                      <option value="ABSENT_LATE">Vắng (muộn)</option>
-                      <option value="MAKEUP">Buổi bù</option>
-                    </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {selectedClass.sessions.map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => handleSessionSelect(session.id)}
+                  className={`p-4 rounded-lg border text-left transition-all cursor-pointer ${session.id === selectedSessionId
+                    ? `border-pink-300 bg-gradient-to-r from-pink-50 to-rose-50`
+                    : "border-gray-200 hover:border-pink-200 hover:bg-pink-50/50"
+                    }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-1.5 rounded-md bg-gradient-to-r ${session.color}`}>
+                      <CalendarDays size={14} className="text-white" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900">{session.date}</div>
+                      <div className="text-xs text-gray-600">{session.time}</div>
+                    </div>
                   </div>
-                  
-                  <button className="p-2.5 bg-white border border-pink-200 rounded-xl hover:bg-pink-50">
-                    <Download size={18} className="text-gray-600" />
+                  <div className="text-xs text-gray-500">
+                    {session.records.length} học viên
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Session Info */}
+        {selectedClassId && selectedSessionId && selectedClass && selectedSession && (
+          <>
+            {/* Class Info Card */}
+            <div className="bg-gradient-to-br from-white via-pink-50/30 to-white rounded-2xl border border-pink-200 shadow-sm p-6 mb-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`p-3 rounded-xl bg-gradient-to-r ${selectedClass.color} text-white shadow-lg`}>
+                      <BookOpen size={24} />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900 mb-1">{selectedClass.className}</h2>
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                        <div className="flex items-center gap-1.5">
+                          <CalendarDays size={16} className="text-pink-500" />
+                          <span className="font-medium">{selectedSession.date}</span>
+                          <span>•</span>
+                          <span>{selectedSession.time}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <MapPin size={16} className="text-pink-500" />
+                          <span>{selectedClass.room}</span>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setSelectedSessionId(null)}
+                    className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center gap-2 cursor-pointer"
+                  >
+                    <ChevronLeft size={16} />
+                    Buổi khác
+                  </button>
+                  <button
+                    onClick={handleSaveAll}
+                    disabled={isSaving}
+                    className={`px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all ${isSaving
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer'
+                      }`}
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Đang lưu...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={18} />
+                        Lưu thay đổi
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
             </div>
-            
-            <div className="p-4 max-h-[600px] overflow-y-auto">
-              {filteredRecords.map((record) => (
-                <RecordRow
-                  key={record.id}
-                  record={record}
-                  onChange={(status) => handleStatusChange(record.id, status)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
 
-        {/* Actions Panel */}
-        <div className="space-y-6">
-          {/* Reminder Card */}
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg">
-                <BellRing size={20} className="text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900">Nhắc nhở tự động</h3>
-                <p className="text-sm text-gray-600">Gửi tin nhắn Zalo</p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="text-sm text-gray-600">
-                Tin nhắn sẽ được gửi tự động nếu học viên chưa điểm danh sau 10 phút, phụ huynh có thể xác nhận lý do vắng.
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="flex-1 p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
-                  <div className="text-xs font-semibold text-emerald-700">Đang hoạt động</div>
-                  <div className="text-xs text-emerald-600 mt-1">Tự động gửi mỗi buổi học</div>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tổng học viên</div>
+                  <div className="p-2 rounded-lg bg-gray-100">
+                    <Users size={20} className="text-gray-600" />
+                  </div>
                 </div>
-                
-                <button className="p-3 bg-white border border-emerald-200 rounded-xl hover:bg-emerald-50">
-                  <Zap size={18} className="text-emerald-600" />
-                </button>
+                <div className="text-3xl font-bold text-gray-900">{stats?.total || 0}</div>
               </div>
-              
-              <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 rounded-xl font-medium hover:shadow-lg transition-all">
-                <Send size={16} />
-                Gửi ngay
-              </button>
-            </div>
-          </div>
 
-          {/* Makeup Schedule */}
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-gradient-to-r from-sky-500 to-blue-500 rounded-lg">
-                <ArrowRightLeft size={20} className="text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900">Sắp xếp buổi bù</h3>
-                <p className="text-sm text-gray-600">Chọn lớp tương đương</p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="text-sm text-gray-600">
-                Chọn lớp tương đương trong tuần hoặc chuyển sang buổi bù sau khóa, thông tin sẽ gửi tới quản lý để duyệt.
-              </div>
-              
-              <div className="space-y-2">
-                <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl">
-                  <div className="font-medium text-gray-900">TOEIC B1 - Chiều T3</div>
-                  <div className="text-xs text-gray-600 mt-1">15:00 - 17:00 • Phòng 205</div>
+              <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl border border-emerald-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-semibold text-emerald-600 uppercase tracking-wide">Có mặt</div>
+                  <div className="p-2 rounded-lg bg-emerald-100">
+                    <CheckCircle size={20} className="text-emerald-600" />
+                  </div>
                 </div>
-                
-                <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl">
-                  <div className="font-medium text-gray-900">IELTS C1 - Tối T5</div>
-                  <div className="text-xs text-gray-600 mt-1">19:00 - 21:00 • Phòng 301</div>
-                </div>
+                <div className="text-3xl font-bold text-emerald-600">{stats?.present || 0}</div>
               </div>
-              
-              <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-sky-500 to-blue-500 text-white py-3 rounded-xl font-medium hover:shadow-lg transition-all">
-                <CalendarCheck size={16} />
-                Đề xuất lịch bù
-              </button>
-            </div>
-          </div>
 
-          {/* Quick Stats */}
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
-            <h3 className="font-bold text-gray-900 mb-4">Thống kê nhanh</h3>
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">Tỉ lệ chuyên cần</div>
-                <div className="font-semibold text-emerald-600">
+              <div className="bg-gradient-to-br from-white to-amber-50 rounded-2xl border border-amber-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-semibold text-amber-600 uppercase tracking-wide">Vắng mặt</div>
+                  <div className="p-2 rounded-lg bg-amber-100">
+                    <Clock size={20} className="text-amber-600" />
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-amber-600">{stats?.absent || 0}</div>
+              </div>
+
+              <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-semibold text-pink-600 uppercase tracking-wide">Tỉ lệ chuyên cần</div>
+                  <div className="p-2 rounded-lg bg-pink-100">
+                    <TrendingUp size={20} className="text-pink-600" />
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-pink-600">
                   {stats ? Math.round((stats.present / stats.total) * 100) : 0}%
                 </div>
               </div>
-              
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full" 
-                  style={{ width: `${stats ? (stats.present / stats.total) * 100 : 0}%` }}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-200">
-                <div className="text-center p-2">
-                  <div className="text-2xl font-bold text-rose-500">
-                    {current.records.filter(r => r.status === "ABSENT_LATE").length}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Main Content */}
+      {selectedSession ? (
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Student Table */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <h3 className="font-bold text-gray-900">Danh sách học viên</h3>
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Tìm học viên..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-full md:w-64 focus:outline-none focus:border-pink-300"
+                      />
+                    </div>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value as AttendanceStatus | "ALL")}
+                      className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white outline-none"
+                    >
+                      <option value="ALL">Tất cả trạng thái</option>
+                      <option value="PRESENT">Có mặt</option>
+                      <option value="ABSENT_NOTICE">Vắng phép</option>
+                      <option value="ABSENT_LATE">Vắng muộn</option>
+                      <option value="MAKEUP">Buổi bù</option>
+                    </select>
+                    <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <Download size={18} className="text-gray-600" />
+                    </button>
                   </div>
-                  <div className="text-xs text-gray-600">Vắng muộn</div>
                 </div>
-                
-                <div className="text-center p-2">
-                  <div className="text-2xl font-bold text-amber-500">
-                    {current.records.filter(r => r.status === "ABSENT_NOTICE").length}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-pink-50 to-rose-50 border-b border-pink-200">
+                    <tr>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
+                        <SortableHeader
+                          label="Học viên"
+                          column="student"
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={handleSort}
+                        />
+                      </th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
+                        <SortableHeader
+                          label="Mã HV"
+                          column="studentCode"
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={handleSort}
+                        />
+                      </th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
+                        Trạng thái
+                      </th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
+                        Ghi chú
+                      </th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
+                        Thao tác
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-pink-100">
+                    {paginatedRecords.map((record) => (
+                      <tr key={record.id} className="hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-rose-50/50 transition-colors border-b border-pink-100">
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <StudentAvatar name={record.student} />
+                            <div>
+                              <div className="font-semibold text-gray-900">{record.student}</div>
+                              <div className="text-xs text-gray-500">{record.phone}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-900 font-medium">
+                          {record.studentCode}
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusSelect
+                            value={record.status}
+                            onChange={(status) => handleStatusChange(record.id, status)}
+                          />
+                        </td>
+                        <td className="px-4 py-4 max-w-xs">
+                          {record.note ? (
+                            <div className="flex items-center gap-1 text-amber-600 text-sm">
+                              <AlertCircle size={14} />
+                              <span className="truncate">{record.note}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-sm">Không có</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
+                          <button className="p-2 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer">
+                            <MoreVertical size={16} className="text-gray-500" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {filteredRecords.length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    Không tìm thấy học viên nào
                   </div>
-                  <div className="text-xs text-gray-600">Xin phép</div>
+                )}
+
+                {totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Side Panel */}
+          <div className="space-y-4">
+            {/* Makeup Card */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-gradient-to-r from-sky-500 to-blue-500 rounded-lg">
+                  <ArrowRightLeft size={18} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Buổi bù</h3>
+                  <p className="text-sm text-gray-600">Đề xuất lịch bù</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="text-sm text-gray-500">
+                  Chọn lớp tương đương để học viên bù buổi vắng.
+                </div>
+
+                <div className="space-y-2">
+                  <div className="p-3 bg-sky-50 rounded-lg border border-sky-100">
+                    <div className="font-medium text-sm text-gray-900">TOEIC B1 - Chiều T3</div>
+                    <div className="text-xs text-gray-600 mt-1">15:00 - 17:00 • Phòng 205</div>
+                  </div>
+
+                  <div className="p-3 bg-sky-50 rounded-lg border border-sky-100">
+                    <div className="font-medium text-sm text-gray-900">IELTS C1 - Tối T5</div>
+                    <div className="text-xs text-gray-600 mt-1">19:00 - 21:00 • Phòng 301</div>
+                  </div>
+                </div>
+
+                <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-sky-500 to-blue-500 text-white py-2.5 rounded-lg font-medium text-sm hover:shadow-md transition-shadow cursor-pointer">
+                  <CalendarCheck size={16} />
+                  Đề xuất lịch bù
+                </button>
+              </div>
+            </div>
+
+            {/* Notification Card */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg">
+                  <BellRing size={18} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Nhắc nhở</h3>
+                  <p className="text-sm text-gray-600">Gửi thông báo</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="text-sm text-gray-500">
+                  Gửi thông báo cho học viên vắng mặt.
+                </div>
+
+                <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                  <div className="text-xs font-medium text-emerald-700 mb-1">Tự động gửi</div>
+                  <div className="text-xs text-emerald-600">10 phút sau giờ học</div>
+                </div>
+
+                <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-2.5 rounded-lg font-medium text-sm hover:shadow-md transition-shadow cursor-pointer">
+                  <Send size={16} />
+                  Gửi thông báo
+                </button>
+              </div>
+            </div>
+
+            {/* Summary Card */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <h3 className="font-bold text-gray-900 mb-4">Thống kê nhanh</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                    <span>Tỉ lệ chuyên cần</span>
+                    <span className="font-semibold text-emerald-600">
+                      {stats ? Math.round((stats.present / stats.total) * 100) : 0}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full"
+                      style={{ width: `${stats ? (stats.present / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200">
+                  <div>
+                    <div className="text-lg font-bold text-rose-500">
+                      {selectedSession?.records.filter(r => r.status === "ABSENT_LATE").length || 0}
+                    </div>
+                    <div className="text-xs text-gray-600">Vắng muộn</div>
+                  </div>
+
+                  <div>
+                    <div className="text-lg font-bold text-amber-500">
+                      {selectedSession?.records.filter(r => r.status === "ABSENT_NOTICE").length || 0}
+                    </div>
+                    <div className="text-xs text-gray-600">Xin phép</div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
