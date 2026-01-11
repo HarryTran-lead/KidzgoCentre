@@ -374,14 +374,23 @@ export default function Sidebar({
     const rawHref = href && href.length > 0 ? href : roleRoot;
     const target = withLocale(rawHref);
 
+    // Check if this is a root link (Dashboard)
     const isRootLink =
       rawHref === roleRoot ||
+      rawHref === "" ||
       /^\/(vi|en)\/?$/.test(target) ||
       target.endsWith("/portal") ||
       /\/portal\/(admin|teacher|student)$/.test(target) ||
-      /\/portal\/staff\/(management|accounting)$/.test(target);
+      /\/portal\/staff\/(management|accountant)$/.test(target) ||
+      /\/portal\/staff-accountant$/.test(target) ||
+      /\/portal\/staff-management$/.test(target);
 
-    if (isRootLink) return pathname === target;
+    // For root links, only match exact pathname (no sub-paths)
+    if (isRootLink) {
+      return pathname === target || pathname === target + "/";
+    }
+    
+    // For non-root links, match exact or sub-paths
     return pathname === target || pathname.startsWith(target + "/");
   };
 

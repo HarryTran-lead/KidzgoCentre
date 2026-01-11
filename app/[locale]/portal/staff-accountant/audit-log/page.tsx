@@ -261,7 +261,7 @@ export default function Page() {
                           <button
                             key={type}
                             onClick={() => setSelectedType(type)}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
                               selectedType === type
                                 ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg"
                                 : "bg-white border border-pink-200 text-rose-700 hover:bg-pink-50"
@@ -280,7 +280,7 @@ export default function Page() {
                         <button
                           key={type}
                           onClick={() => setSelectedType(type)}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
                             selectedType === type
                               ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
                               : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
@@ -300,7 +300,7 @@ export default function Page() {
                   <div className="space-y-2">
                     <button
                       onClick={() => setSelectedUser("all")}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
                         selectedUser === "all"
                           ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg"
                           : "bg-white border border-pink-200 text-rose-700 hover:bg-pink-50"
@@ -313,7 +313,7 @@ export default function Page() {
                       <button
                         key={user}
                         onClick={() => setSelectedUser(user)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
                           selectedUser === user
                             ? "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg"
                             : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
@@ -332,11 +332,11 @@ export default function Page() {
             <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 shadow-lg shadow-pink-100">
               <h3 className="font-bold text-rose-900 mb-4">Thao tác nhanh</h3>
               <div className="space-y-2">
-                <button className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg hover:shadow-pink-200 transition-all">
+                <button className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg hover:shadow-pink-200 transition-all cursor-pointer">
                   <span className="font-medium">Xuất báo cáo</span>
                   <Download size={18} />
                 </button>
-                <button className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-pink-200 bg-white text-rose-700 hover:bg-pink-50 transition-colors">
+                <button className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-pink-200 bg-white text-rose-700 hover:bg-pink-50 transition-colors cursor-pointer">
                   <span className="font-medium">Làm mới dữ liệu</span>
                   <RefreshCw size={18} />
                 </button>
@@ -417,7 +417,7 @@ export default function Page() {
                             </div>
                             <button
                               onClick={() => copyLogId(log.id)}
-                              className={`p-2 rounded-lg transition-colors ${
+                              className={`p-2 rounded-lg transition-colors cursor-pointer ${
                                 copiedId === log.id
                                   ? "bg-emerald-100 text-emerald-600"
                                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
@@ -498,11 +498,11 @@ export default function Page() {
               <span>Hệ thống kiểm toán • Ghi nhận toàn bộ hoạt động • Không thể chỉnh sửa</span>
             </div>
             <div className="flex items-center gap-4">
-              <button className="text-gray-700 hover:text-gray-900 font-medium flex items-center gap-1 hover:underline">
+              <button className="text-gray-700 hover:text-gray-900 font-medium flex items-center gap-1 hover:underline cursor-pointer">
                 <Calendar size={16} />
                 Lịch sử đầy đủ
               </button>
-              <button className="text-gray-700 hover:text-gray-900 font-medium flex items-center gap-1 hover:underline">
+              <button className="text-gray-700 hover:text-gray-900 font-medium flex items-center gap-1 hover:underline cursor-pointer">
                 <Download size={16} />
                 Xuất nhật ký
               </button>

@@ -187,7 +187,7 @@ export default function Page() {
                           <button
                             key={type}
                             onClick={() => setAdjustmentType(type)}
-                            className={`p-3 rounded-xl border transition-all flex flex-col items-center gap-2 ${
+                            className={`p-3 rounded-xl border transition-all flex flex-col items-center gap-2 cursor-pointer ${
                               adjustmentType === type
                                 ? `bg-gradient-to-r ${config.color} text-white border-transparent shadow-lg`
                                 : "bg-white border-pink-200 text-gray-700 hover:bg-pink-50"
@@ -253,7 +253,7 @@ export default function Page() {
                 <div className="flex flex-wrap gap-4 pt-4">
                   <button
                     onClick={copyAdjustmentCode}
-                    className={`px-5 py-3.5 rounded-xl font-medium flex items-center gap-2 transition-all ${
+                    className={`px-5 py-3.5 rounded-xl font-medium flex items-center gap-2 transition-all cursor-pointer ${
                       copied ? "bg-emerald-500 text-white" : "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg"
                     }`}
                   >
@@ -263,7 +263,7 @@ export default function Page() {
 
                   <button
                     onClick={doAdjust}
-                    className="group flex-1 min-w-[200px] px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-xl transition-all shadow-lg flex items-center justify-center gap-3"
+                    className="group flex-1 min-w-[200px] px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-xl transition-all shadow-lg flex items-center justify-center gap-3 cursor-pointer"
                   >
                     <div className="p-2 rounded-lg bg-white/20 group-hover:bg-white/30 transition-colors">
                       {adjustmentType === "refund" ? (
@@ -352,7 +352,7 @@ export default function Page() {
                     <Clock size={20} className="text-pink-500" />
                     <h3 className="font-bold text-gray-900">Lịch sử điều chỉnh</h3>
                   </div>
-                  <button className="text-sm text-pink-600 hover:text-pink-700 font-medium">
+                  <button className="text-sm text-pink-600 hover:text-pink-700 font-medium cursor-pointer">
                     Xem tất cả
                   </button>
                 </div>
@@ -432,7 +432,7 @@ export default function Page() {
                 </div>
               </div>
               
-              <button className="w-full mt-6 py-2.5 bg-white text-purple-600 rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center justify-center gap-2">
+              <button className="w-full mt-6 py-2.5 bg-white text-purple-600 rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center justify-center gap-2 cursor-pointer">
                 <BarChart3 size={16} />
                 Xuất báo cáo
               </button>
@@ -448,11 +448,11 @@ export default function Page() {
               <span>Bút toán tự động • Tài chính thời gian thực • Đối soát tự động</span>
             </div>
             <div className="flex items-center gap-4">
-              <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1">
+              <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 cursor-pointer">
                 <Shield size={16} />
                 Kiểm toán
               </button>
-              <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1">
+              <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 cursor-pointer">
                 <Download size={16} />
                 Xuất báo cáo
               </button>

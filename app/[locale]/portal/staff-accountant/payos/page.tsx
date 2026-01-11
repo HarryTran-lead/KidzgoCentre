@@ -248,7 +248,7 @@ export default function Page() {
                   </div>
                   <button
                     onClick={copyLink}
-                    className={`px-5 py-3.5 rounded-xl font-medium flex items-center gap-2 transition-all ${copied ? "bg-emerald-500 text-white" : "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg"}`}
+                    className={`px-5 py-3.5 rounded-xl font-medium flex items-center gap-2 transition-all cursor-pointer ${copied ? "bg-emerald-500 text-white" : "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg"}`}
                   >
                     {copied ? <CheckCircle2 size={18} /> : <Copy size={18} />}
                     {copied ? "Đã copy!" : "Copy link"}
@@ -286,11 +286,11 @@ export default function Page() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mt-8 w-full max-w-md">
-                    <button className="p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-colors flex items-center gap-2">
+                    <button className="p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-colors flex items-center gap-2 cursor-pointer">
                       <RefreshCcw size={16} className="text-gray-600" />
                       Tạo mới
                     </button>
-                    <button className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white hover:shadow-lg transition-all flex items-center gap-2">
+                    <button className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer">
                       <Download size={16} />
                       Tải xuống
                     </button>
@@ -312,7 +312,7 @@ export default function Page() {
                 </div>
                 <button
                   onClick={syncTransactions}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-medium hover:shadow-lg transition-all flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-medium hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <RefreshCcw size={16} />
                   Đồng bộ
@@ -332,7 +332,7 @@ export default function Page() {
                     <button
                       key={filter}
                       onClick={() => setActiveFilter(filter)}
-                      className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
+                      className={`px-3 py-1.5 text-sm rounded-lg transition-all cursor-pointer ${
                         activeFilter === filter
                           ? filter === "all" 
                             ? "bg-gray-900 text-white"
@@ -389,10 +389,10 @@ export default function Page() {
                       </div>
                       
                       <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-pink-100">
-                        <button className="p-1.5 text-gray-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg transition-colors">
+                        <button className="p-1.5 text-gray-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg transition-colors cursor-pointer">
                           <Eye size={16} />
                         </button>
-                        <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                        <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer">
                           <Link2 size={16} />
                         </button>
                       </div>
@@ -440,7 +440,7 @@ export default function Page() {
               </div>
             </div>
             
-            <button className="w-full mt-6 py-2.5 bg-white text-purple-600 rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center justify-center gap-2">
+            <button className="w-full mt-6 py-2.5 bg-white text-purple-600 rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center justify-center gap-2 cursor-pointer">
               <BarChart3 size={16} />
               Xem chi tiết
             </button>
@@ -456,11 +456,11 @@ export default function Page() {
             <span>Webhook thời gian thực • Tự động đối soát</span>
           </div>
           <div className="flex items-center gap-4">
-            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1">
+            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 cursor-pointer">
               <Shield size={16} />
               Bảo mật
             </button>
-            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1">
+            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 cursor-pointer">
               <Download size={16} />
               Xuất báo cáo
             </button>

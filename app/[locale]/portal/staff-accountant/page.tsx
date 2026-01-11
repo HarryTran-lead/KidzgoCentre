@@ -1,5 +1,5 @@
 "use client";
-import { FileText, QrCode, AlertTriangle, TrendingUp, TrendingDown, DollarSign, CreditCard, Receipt, Calendar, Clock, Download, Filter, Search, Sparkles, Zap, CheckCircle, XCircle, BarChart3, Wallet, Eye, ArrowUpRight, ChevronRight, MoreVertical } from "lucide-react";
+import { FileText, QrCode, AlertTriangle, TrendingUp, TrendingDown, DollarSign, CreditCard, Receipt, Calendar, Clock, Download, Filter, Search, Zap, CheckCircle, XCircle, BarChart3, Wallet, Eye, ArrowUpRight, ChevronRight, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 
 function StatCard({ 
@@ -75,6 +75,106 @@ function StatCard({
   );
 }
 
+function PaymentStatusPieChart() {
+  const data = [
+    { label: "Đã thanh toán", value: 89, color: "#10b981" },
+    { label: "Chờ xử lý", value: 8, color: "#f59e0b" },
+    { label: "Quá hạn", value: 3, color: "#ef4444" }
+  ];
+  
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const size = 180;
+  const center = size / 2;
+  const radius = 70;
+  
+  let currentAngle = -90;
+  const arcs = data.map((item) => {
+    const percentage = (item.value / total) * 100;
+    const angle = (percentage / 100) * 360;
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + angle;
+    
+    const startAngleRad = (startAngle * Math.PI) / 180;
+    const endAngleRad = (endAngle * Math.PI) / 180;
+    
+    const x1 = center + radius * Math.cos(startAngleRad);
+    const y1 = center + radius * Math.sin(startAngleRad);
+    const x2 = center + radius * Math.cos(endAngleRad);
+    const y2 = center + radius * Math.sin(endAngleRad);
+    
+    const largeArcFlag = angle > 180 ? 1 : 0;
+    
+    const pathData = `
+      M ${center} ${center}
+      L ${x1} ${y1}
+      A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}
+      Z
+    `;
+    
+    currentAngle = endAngle;
+    
+    return {
+      path: pathData,
+      color: item.color,
+      value: item.value,
+      percentage: percentage,
+      label: item.label
+    };
+  });
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size} className="mb-4">
+        {arcs.map((arc, index) => (
+          <path
+            key={index}
+            d={arc.path}
+            fill={arc.color}
+            className="transition-all duration-1000 opacity-90 hover:opacity-100"
+            style={{ 
+              animationDelay: `${index * 200}ms`,
+              transformOrigin: `${center}px ${center}px`
+            }}
+          />
+        ))}
+        {/* Center circle */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius * 0.4}
+          fill="white"
+        />
+        {/* Center text */}
+        <text
+          x={center}
+          y={center}
+          textAnchor="middle"
+          dy="0.35em"
+          className="text-lg font-bold fill-gray-900"
+        >
+          {total}%
+        </text>
+      </svg>
+      
+      {/* Legend */}
+      <div className="space-y-2 w-full">
+        {data.map((item, index) => (
+          <div key={index} className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="text-sm text-gray-700">{item.label}</span>
+            </div>
+            <span className="text-sm font-bold text-gray-900">{item.value}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TransactionItem({ 
   type, 
   description, 
@@ -125,7 +225,7 @@ function TransactionItem({
           <StatusIcon size={12} />
           {status === "completed" ? "Hoàn thành" : status === "pending" ? "Đang xử lý" : "Thất bại"}
         </span>
-        <button className="p-1.5 text-gray-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+        <button className="p-1.5 text-gray-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg opacity-0 group-hover:opacity-100 transition-all cursor-pointer">
           <Eye size={16} />
         </button>
       </div>
@@ -138,10 +238,10 @@ export default function Page() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   const financialStats = [
-    { label: "Hóa đơn phát hành (tháng)", value: "182", hint: "+14 so với tháng trước", trend: "up", color: "pink", icon: FileText },
-    { label: "Giao dịch PayOS (tháng)", value: "126", hint: "Tỉ lệ khớp: 98.4%", trend: "up", color: "green", icon: QrCode },
-    { label: "Công nợ hiện tại", value: "37.200.000 đ", hint: "Tuổi nợ trung bình: 21 ngày", trend: "down", color: "yellow", icon: AlertTriangle },
-    { label: "Doanh thu tháng", value: "258.450.000 đ", hint: "+12.5% so với tháng trước", trend: "up", color: "blue", icon: DollarSign },
+    { label: "Hóa đơn phát hành", value: "182", hint: "+14", trend: "up", color: "pink", icon: FileText },
+    { label: "Giao dịch PayOS", value: "126", hint: "98.4%", trend: "up", color: "green", icon: QrCode },
+    { label: "Công nợ hiện tại", value: "37.2M đ", hint: "21 ngày", trend: "down", color: "yellow", icon: AlertTriangle },
+    { label: "Doanh thu tháng", value: "258.45M đ", hint: "+12.5%", trend: "up", color: "blue", icon: DollarSign },
   ];
 
   const recentTransactions = [
@@ -199,12 +299,6 @@ export default function Page() {
     activeFilter === "all" || t.type === activeFilter.slice(0, -1)
   );
 
-  const quickStats = [
-    { label: "Đã thanh toán", value: "89%", color: "from-emerald-500 to-teal-500" },
-    { label: "Chờ xử lý", value: "8%", color: "from-amber-500 to-orange-500" },
-    { label: "Quá hạn", value: "3%", color: "from-rose-500 to-pink-500" },
-  ];
-
   useEffect(() => {
     setIsPageLoaded(true);
   }, []);
@@ -221,9 +315,6 @@ export default function Page() {
             <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
               Tổng quan tài chính
             </h1>
-            <p className="text-gray-600 mt-1">
-              Theo dõi nhanh hoá đơn, PayOS, công nợ và báo cáo tài chính
-            </p>
           </div>
         </div>
 
@@ -243,30 +334,6 @@ export default function Page() {
           ))}
         </div>
 
-        {/* Quick Insights */}
-        <div className="bg-gradient-to-r from-white to-pink-50 rounded-2xl border border-pink-200 p-5 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg">
-                <Sparkles size={20} className="text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900">Thông tin nhanh</h3>
-                <p className="text-sm text-gray-600">Tổng hợp các chỉ số tài chính quan trọng</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {quickStats.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className={`text-2xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
-                    {stat.value}
-                  </div>
-                  <div className="text-xs text-gray-600">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Main Content */}
@@ -282,13 +349,13 @@ export default function Page() {
                   <span className="text-sm text-gray-600">({recentTransactions.length} giao dịch)</span>
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  <div className="flex bg-white border border-pink-200 rounded-xl p-1">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex bg-white border border-pink-200 rounded-xl p-0.5">
                     {(["all", "invoices", "payments", "debts"] as const).map((filter) => (
                       <button
                         key={filter}
                         onClick={() => setActiveFilter(filter)}
-                        className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
+                        className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                           activeFilter === filter
                             ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
                             : "text-gray-700 hover:bg-pink-50"
@@ -301,8 +368,8 @@ export default function Page() {
                     ))}
                   </div>
                   
-                  <button className="p-2.5 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-colors">
-                    <Filter size={18} className="text-gray-600" />
+                  <button className="p-2 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-colors cursor-pointer">
+                    <Filter size={16} className="text-gray-600" />
                   </button>
                 </div>
               </div>
@@ -333,7 +400,7 @@ export default function Page() {
             </div>
             
             <div className="px-6 py-4 border-t border-pink-200">
-              <button className="w-full text-center text-pink-600 font-medium hover:text-pink-700 flex items-center justify-center gap-1">
+              <button className="w-full text-center text-pink-600 font-medium hover:text-pink-700 flex items-center justify-center gap-1 cursor-pointer">
                 Xem tất cả giao dịch
                 <ChevronRight size={16} />
               </button>
@@ -351,53 +418,49 @@ export default function Page() {
             </div>
             
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group">
+              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-pink-100 rounded-lg">
                     <FileText size={16} className="text-pink-600" />
                   </div>
                   <div className="text-left">
-                    <div className="font-medium text-gray-900">Xuất hóa đơn</div>
-                    <div className="text-xs text-gray-600">Tạo hóa đơn mới</div>
+                    <div className="font-medium text-gray-900 text-sm">Xuất hóa đơn</div>
                   </div>
                 </div>
                 <ArrowUpRight size={16} className="text-gray-400 group-hover:text-pink-600" />
               </button>
               
-              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group">
+              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-100 rounded-lg">
                     <QrCode size={16} className="text-emerald-600" />
                   </div>
                   <div className="text-left">
-                    <div className="font-medium text-gray-900">Tạo QR PayOS</div>
-                    <div className="text-xs text-gray-600">QR thanh toán động</div>
+                    <div className="font-medium text-gray-900 text-sm">Tạo QR PayOS</div>
                   </div>
                 </div>
                 <ArrowUpRight size={16} className="text-gray-400 group-hover:text-emerald-600" />
               </button>
               
-              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group">
+              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-amber-100 rounded-lg">
                     <AlertTriangle size={16} className="text-amber-600" />
                   </div>
                   <div className="text-left">
-                    <div className="font-medium text-gray-900">Quản lý công nợ</div>
-                    <div className="text-xs text-gray-600">Theo dõi nợ học viên</div>
+                    <div className="font-medium text-gray-900 text-sm">Quản lý công nợ</div>
                   </div>
                 </div>
                 <ArrowUpRight size={16} className="text-gray-400 group-hover:text-amber-600" />
               </button>
               
-              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group">
+              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <Download size={16} className="text-blue-600" />
                   </div>
                   <div className="text-left">
-                    <div className="font-medium text-gray-900">Xuất báo cáo</div>
-                    <div className="text-xs text-gray-600">PDF, Excel</div>
+                    <div className="font-medium text-gray-900 text-sm">Xuất báo cáo</div>
                   </div>
                 </div>
                 <ArrowUpRight size={16} className="text-gray-400 group-hover:text-blue-600" />
@@ -438,7 +501,7 @@ export default function Page() {
               </div>
             </div>
             
-            <button className="w-full mt-6 py-2.5 bg-white text-blue-600 rounded-xl font-medium hover:bg-white/90 transition-colors">
+            <button className="w-full mt-6 py-2.5 bg-white text-blue-600 rounded-xl font-medium hover:bg-white/90 transition-colors cursor-pointer">
               <BarChart3 size={16} className="inline mr-2" />
               Xem chi tiết
             </button>
@@ -446,42 +509,12 @@ export default function Page() {
 
           {/* Payment Status */}
           <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-gray-900">Trạng thái thanh toán</h3>
               <Calendar size={18} className="text-gray-500" />
             </div>
             
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>Đã thanh toán</span>
-                  <span className="font-bold text-gray-900">89%</span>
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full" style={{ width: "89%" }} />
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>Chờ xử lý</span>
-                  <span className="font-bold text-gray-900">8%</span>
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full" style={{ width: "8%" }} />
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>Quá hạn</span>
-                  <span className="font-bold text-gray-900">3%</span>
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-rose-500 to-pink-500 rounded-full" style={{ width: "3%" }} />
-                </div>
-              </div>
-            </div>
+            <PaymentStatusPieChart />
           </div>
         </div>
       </div>
@@ -490,15 +523,15 @@ export default function Page() {
       <div className="mt-8 pt-6 border-t border-pink-200">
         <div className="flex items-center justify-between text-sm text-gray-600">
           <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-pink-500" />
+            <RefreshCw size={16} className="text-pink-500" />
             <span>Dữ liệu được cập nhật thời gian thực</span>
           </div>
           <div className="flex items-center gap-4">
-            <button className="text-pink-600 hover:text-pink-700 font-medium">
+            <button className="text-pink-600 hover:text-pink-700 font-medium cursor-pointer">
               <Download size={16} className="inline mr-1" />
               Xuất báo cáo
             </button>
-            <button className="text-pink-600 hover:text-pink-700 font-medium">
+            <button className="text-pink-600 hover:text-pink-700 font-medium cursor-pointer">
               <Calendar size={16} className="inline mr-1" />
               Chọn kỳ
             </button>
