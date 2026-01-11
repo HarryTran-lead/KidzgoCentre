@@ -406,7 +406,7 @@ export default function Page() {
             </div>
             
             <div className="mt-6 pt-4 border-t border-pink-200">
-              <button className="w-full py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-medium hover:shadow-lg transition-all">
+              <button className="w-full py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-medium hover:shadow-lg transition-all cursor-pointer">
                 <Bell size={16} className="inline mr-2" />
                 Kích hoạt nhắc nhở
               </button>
@@ -440,7 +440,7 @@ export default function Page() {
               </div>
             </div>
             
-            <button className="w-full mt-6 py-2.5 bg-white text-blue-600 rounded-xl font-medium hover:bg-white/90 transition-colors">
+            <button className="w-full mt-6 py-2.5 bg-white text-blue-600 rounded-xl font-medium hover:bg-white/90 transition-colors cursor-pointer">
               <BarChart3 size={16} className="inline mr-2" />
               Xem báo cáo
             </button>
@@ -482,7 +482,7 @@ export default function Page() {
                       <button
                         key={filter}
                         onClick={() => setActiveFilter(filter)}
-                        className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
+                        className={`px-3 py-1.5 text-sm rounded-lg transition-all cursor-pointer ${
                           activeFilter === filter
                             ? filter === "all" 
                               ? "bg-gray-900 text-white"
@@ -562,15 +562,15 @@ export default function Page() {
                         <div className="text-sm text-gray-600 mt-1">{bucketInfo?.label}</div>
                         
                         <div className="flex items-center gap-2 mt-3">
-                          <button className="px-3 py-1.5 text-xs rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
+                          <button className="px-3 py-1.5 text-xs rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors cursor-pointer">
                             <Phone size={12} className="inline mr-1" />
                             Gọi
                           </button>
-                          <button className="px-3 py-1.5 text-xs rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
+                          <button className="px-3 py-1.5 text-xs rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors cursor-pointer">
                             <MessageSquare size={12} className="inline mr-1" />
                             Zalo
                           </button>
-                          <button className="p-1.5 text-gray-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg">
+                          <button className="p-1.5 text-gray-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg cursor-pointer">
                             <Eye size={16} />
                           </button>
                         </div>
@@ -591,7 +591,7 @@ export default function Page() {
           </div>
           
           <div className="px-6 py-4 border-t border-pink-200">
-            <button className="w-full text-center text-pink-600 font-medium hover:text-pink-700 flex items-center justify-center gap-1">
+            <button className="w-full text-center text-pink-600 font-medium hover:text-pink-700 flex items-center justify-center gap-1 cursor-pointer">
               Xem tất cả công nợ ({DEBTS.length} học viên)
               <ArrowUpRight size={16} />
             </button>
@@ -607,11 +607,11 @@ export default function Page() {
             <span>Cập nhật lần cuối: Hôm nay, 10:45 • Tự động nhắc nhở đã kích hoạt</span>
           </div>
           <div className="flex items-center gap-4">
-            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1">
+            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 cursor-pointer">
               <Download size={16} />
               Xuất báo cáo
             </button>
-            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1">
+            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 cursor-pointer">
               <CreditCard size={16} />
               Tạo hóa đơn
             </button>

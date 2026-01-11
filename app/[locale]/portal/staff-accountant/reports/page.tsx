@@ -253,7 +253,7 @@ export default function Page() {
                 <button
                   key={chart}
                   onClick={() => setActiveChart(chart)}
-                  className={`px-4 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all ${
+                  className={`px-4 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
                     activeChart === chart
                       ? `bg-gradient-to-r ${
                           chart === "revenue" ? "from-pink-500 to-rose-500" :
@@ -282,7 +282,7 @@ export default function Page() {
                 <button
                   key={period}
                   onClick={() => setTimePeriod(period)}
-                  className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-all cursor-pointer ${
                     timePeriod === period
                       ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
                       : "text-gray-700 hover:bg-pink-50"
@@ -294,7 +294,7 @@ export default function Page() {
               ))}
             </div>
             
-            <button className="p-2.5 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-colors">
+            <button className="p-2.5 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-colors cursor-pointer">
               <Filter size={18} className="text-gray-600" />
             </button>
           </div>
@@ -510,7 +510,7 @@ export default function Page() {
                 )}
               </button>
               
-              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group">
+              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-all group cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-100 rounded-lg">
                     <Share2 size={16} className="text-emerald-600" />
@@ -552,7 +552,7 @@ export default function Page() {
               </div>
             </div>
             
-            <button className="w-full mt-6 py-2.5 bg-white text-purple-600 rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center justify-center gap-2">
+            <button className="w-full mt-6 py-2.5 bg-white text-purple-600 rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center justify-center gap-2 cursor-pointer">
               <Calculator size={16} />
               Phân tích chi tiết
             </button>
@@ -640,11 +640,11 @@ export default function Page() {
             <span>Dữ liệu được cập nhật tự động • Phân tích thời gian thực</span>
           </div>
           <div className="flex items-center gap-4">
-            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1">
+            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 cursor-pointer">
               <Eye size={16} />
               Xem trước
             </button>
-            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1">
+            <button className="text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 cursor-pointer">
               <RefreshCcw size={16} />
               Làm mới
             </button>
