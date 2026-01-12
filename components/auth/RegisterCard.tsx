@@ -45,7 +45,15 @@ export default function RegisterCard({
   locale,
   errorMessage,
 }: Props) {
-  const controls = useAnimation();
+const controls = useAnimation();
+
+useEffect(() => {
+  controls.start((i) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+  }));
+}, [controls]);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const resolvedLocale = useMemo(
     () => (locale ?? DEFAULT_LOCALE) as Locale,

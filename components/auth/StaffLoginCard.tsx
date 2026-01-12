@@ -26,11 +26,13 @@ import { CustomTextInput, CustomPasswordInput } from "./FormInput";
 import { LOGO } from "@/lib/theme/theme";
 import Image from "next/image";
 import Link from "next/link";
-import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
-import { getMessages } from "@/lib/dict";
+import { DEFAULT_LOCALE, localizePath, type Locale } from "@/lib/i18n";
+import { useRouter } from "next/navigation";
+import { useLazyGetCurrentUserQuery, useLoginMutation } from "@/lib/store/authApi";
+import { setAccessToken, setRefreshToken } from "@/lib/store/authToken";
+import { normalizeRole, ROLES } from "@/lib/role";
 
 type Props = {
-  action: (formData: FormData) => void;
   returnTo?: string;
   locale?: Locale;
   errorMessage?: string;
@@ -45,19 +47,31 @@ const BRANCHES = [
 ];
 
 export default function StaffLoginCard({
-  action,
   returnTo = "",
   locale,
   errorMessage,
 }: Props) {
-  const controls = useAnimation();
+const controls = useAnimation();
+
+useEffect(() => {
+  controls.start((i) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+  }));
+}, [controls]);
   const [remember, setRemember] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState("");
+  const [loginError, setLoginError] = useState(errorMessage ?? "");
+
+  const [login, { isLoading }] = useLoginMutation();
+  const [getCurrentUser] = useLazyGetCurrentUserQuery();
+  const router = useRouter();
+
   const resolvedLocale = useMemo(
     () => (locale ?? DEFAULT_LOCALE) as Locale,
     [locale]
   );
-  const msg = useMemo(() => getMessages(resolvedLocale), [resolvedLocale]);
 
   // Features cho nhân viên
   const FEATURES = useMemo(
@@ -65,17 +79,17 @@ export default function StaffLoginCard({
       {
         icon: BookOpen,
         title: "Quản lý học viên",
-        description: "Theo dõi và quản lý thông tin học viên"
+        description: "Theo dõi và quản lý thông tin học viên",
       },
       {
         icon: Users,
         title: "Quản lý giáo viên",
-        description: "Phân công và quản lý đội ngũ giáo viên"
+        description: "Phân công và quản lý đội ngũ giáo viên",
       },
       {
         icon: TrendingUp,
         title: "Báo cáo & Thống kê",
-        description: "Xem báo cáo và thống kê chi tiết"
+        description: "Xem báo cáo và thống kê chi tiết",
       },
     ],
     []
@@ -98,21 +112,52 @@ export default function StaffLoginCard({
     }));
   }, [controls]);
 
-  const handleSubmit = () => {
-    const formData = new FormData();
-    formData.append("returnTo", returnTo);
-    formData.append(
-      "email",
-      (document.querySelector('input[name="email"]') as HTMLInputElement)
-        ?.value || ""
-    );
-    formData.append(
-      "password",
-      (document.querySelector('input[name="password"]') as HTMLInputElement)
-        ?.value || ""
-    );
-    formData.append("branch", selectedBranch);
-    action(formData);
+  const setCookie = (name: string, value: string) => {
+    // If you want “remember me” persistence, you can add max-age/expires here based on `remember`.
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/`;
+  };
+
+  const handleSubmit = async () => {
+    const email =
+      (document.querySelector('input[name="email"]') as HTMLInputElement)?.value || "";
+    const password =
+      (document.querySelector('input[name="password"]') as HTMLInputElement)?.value || "";
+
+    if (!selectedBranch) {
+      setLoginError("Vui lòng chọn chi nhánh trung tâm.");
+      return;
+    }
+
+    if (!email || !password) {
+      setLoginError("Vui lòng nhập email và mật khẩu.");
+      return;
+    }
+
+    try {
+      setLoginError("");
+
+      const response = await login({ email, password }).unwrap();
+      setAccessToken(response.data.accessToken);
+      setRefreshToken(response.data.refreshToken);
+
+      const currentUser = await getCurrentUser().unwrap();
+      const normalizedRole = normalizeRole(currentUser.data.role);
+
+      setCookie("role", normalizedRole);
+      setCookie(
+        "user-name",
+        currentUser.data.fullName || currentUser.data.userName || "KidzGo User"
+      );
+      setCookie("user-avatar", "");
+      setCookie("user-branch", selectedBranch);
+
+      const destination =
+        returnTo || localizePath(ROLES[normalizedRole] ?? "/portal", resolvedLocale);
+
+      router.push(destination);
+    } catch (error) {
+      setLoginError("Email hoặc mật khẩu không chính xác. Vui lòng thử lại.");
+    }
   };
 
   // Deterministic particles
@@ -139,9 +184,9 @@ export default function StaffLoginCard({
     const style = document.createElement("style");
     style.textContent = `
       @keyframes float {
-        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.2; }
-        33% { transform: translate(15px, -15px) scale(1.05); opacity: 0.3; }
-        66% { transform: translate(-10px, 10px) scale(0.95); opacity: 0.25; }
+        0% { transform: translate(0px, 0px); opacity: 0.55; }
+        50% { transform: translate(-10px, 14px); opacity: 0.85; }
+        100% { transform: translate(0px, 0px); opacity: 0.55; }
       }
     `;
     document.head.appendChild(style);
@@ -151,377 +196,236 @@ export default function StaffLoginCard({
   }, []);
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* BG layer */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10"
-        style={{
-          backgroundImage:
-            "linear-gradient(135deg, rgba(236, 72, 153, 0.35) 0%, rgba(244, 114, 182, 0.28) 40%, rgba(249, 168, 212, 0.26) 100%), url('/image/Banner6.JPG')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          filter: "blur(10px)",
-          transform: "scale(1.03)",
-        }}
-      />
+    <div className="relative overflow-hidden">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-linear-to-br from-pink-50 via-white to-rose-50" />
 
-      {/* Animated particles background */}
-      <div className="absolute inset-0 overflow-hidden">
-        {particleStyle.current.map((p, i) => (
+      {/* Decorative blobs */}
+      <div className="absolute -top-24 -left-24 h-64 w-64 rounded-full bg-pink-200/40 blur-3xl" />
+      <div className="absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-rose-200/40 blur-3xl" />
+
+      {/* Particles */}
+      <div className="pointer-events-none absolute inset-0">
+        {particleStyle.current.map((s, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-linear-to-r from-pink-400/10 to-rose-500/10"
-            style={{ ...p, filter: "blur(20px)" }}
+            className="absolute rounded-full bg-pink-300/25 blur-xl"
+            style={s as React.CSSProperties}
           />
         ))}
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 min-h-screen flex items-center justify-center p-3 sm:p-4 lg:p-6"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-6xl items-center justify-center px-4 py-8"
       >
-        <div className="w-full max-w-5xl">
-          
-
-          {/* Main Card */}
-          <div className="bg-white/12 backdrop-blur-xl rounded-2xl border border-white/20 shadow-xl overflow-hidden mt-8">
-            <div className="grid lg:grid-cols-2 min-h-[600px]">
-              {/* LEFT Section - Hero Content */}
-              <div className="relative p-6 lg:p-8 flex flex-col justify-between overflow-hidden">
-                {/* Animated Background */}
-                <motion.div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundImage: "url('/image/Banner6.JPG')",
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    x: [0, -20, 0],
-                    y: [0, -10, 0],
-                  }}
-                  transition={{
-                    duration: 20,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-                {/* Darken layer for better text contrast */}
-                <div className="absolute inset-0 bg-black/25" />
-
-                {/* Animated Gradient Overlay */}
-                <motion.div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, rgba(236, 72, 153, 0.65) 0%, rgba(217, 70, 239, 0.55) 55%, rgba(244, 114, 182, 0.62) 100%)",
-                  }}
-                  animate={{
-                    background: [
-                      "linear-gradient(135deg, rgba(236, 72, 153, 0.65) 0%, rgba(217, 70, 239, 0.55) 55%, rgba(244, 114, 182, 0.62) 100%)",
-                      "linear-gradient(135deg, rgba(244, 114, 182, 0.65) 0%, rgba(236, 72, 153, 0.55) 55%, rgba(217, 70, 239, 0.62) 100%)",
-                      "linear-gradient(135deg, rgba(236, 72, 153, 0.65) 0%, rgba(217, 70, 239, 0.55) 55%, rgba(244, 114, 182, 0.62) 100%)",
-                    ],
-                  }}
-                  transition={{
-                    duration: 8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-
-                {/* Animated Overlay Gradient */}
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-tr from-rose-900/25 via-transparent to-pink-200/20"
-                  animate={{
-                    opacity: [0.3, 0.5, 0.3],
-                    background: [
-                      "linear-gradient(to top right, rgba(190, 18, 60, 0.25), transparent, rgba(251, 207, 232, 0.2))",
-                      "linear-gradient(to top right, rgba(190, 18, 60, 0.35), transparent, rgba(251, 207, 232, 0.3))",
-                      "linear-gradient(to top right, rgba(190, 18, 60, 0.25), transparent, rgba(251, 207, 232, 0.2))",
-                    ],
-                  }}
-                  transition={{
-                    duration: 6,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-
-                {/* Shimmer Effect */}
-                <motion.div
-                  className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent"
-                  style={{
-                    transform: "skewX(-20deg)",
-                  }}
-                  animate={{
-                    x: ["-100%", "200%"],
-                  }}
-                  transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    repeatDelay: 2,
-                    ease: "easeInOut",
-                  }}
-                />
-
-                {/* Features Grid */}
-                <div className="relative z-10 flex-1 flex items-center">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
-                    {FEATURES.map((feature, index) => {
-                      const Icon = feature.icon;
-                      return (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, y: 30, scale: 0.9, rotateX: -15 }}
-                          animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }}
-                          transition={{
-                            delay: 0.3 + index * 0.15,
-                            duration: 0.6,
-                            ease: [0.22, 1, 0.36, 1],
-                            type: "spring",
-                            stiffness: 100
-                          }}
-                          whileHover={{
-                            scale: 1.05,
-                            y: -8,
-                            rotateY: 5,
-                            transition: { duration: 0.3, ease: "easeOut" }
-                          }}
-                          className="group bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/15 hover:border-pink-300/60 hover:bg-white/15 transition-all duration-300 cursor-pointer"
-                          style={{
-                            boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                          }}
-                        >
-                          <motion.div
-                            className="flex items-center gap-2 mb-1.5"
-                            whileHover={{ x: 4 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <motion.div
-                              className="w-8 h-8 rounded-md bg-linear-to-br from-pink-500 to-rose-600 flex items-center justify-center"
-                              whileHover={{
-                                rotate: [0, -10, 10, -10, 0],
-                                scale: 1.1
-                              }}
-                              transition={{ duration: 0.5 }}
-                            >
-                              <motion.div
-                                animate={{
-                                  rotate: [0, 5, -5, 0],
-                                }}
-                                transition={{
-                                  duration: 2,
-                                  repeat: Infinity,
-                                  repeatDelay: 3,
-                                  delay: index * 0.3
-                                }}
-                              >
-                                <Icon className="h-4 w-4 text-white" />
-                              </motion.div>
-                            </motion.div>
-                            <div>
-                              <motion.div
-                                className="text-lg font-bold text-white"
-                                initial={{ opacity: 0, scale: 0.5 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: 0.5 + index * 0.1, duration: 0.4 }}
-                              >
-                                4+
-                              </motion.div>
-                              <div className="text-xs text-white/80">Centers</div>
-                            </div>
-                          </motion.div>
-                          <motion.h3
-                            className="font-semibold text-white text-xs"
-                            whileHover={{ x: 2 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            {feature.title}
-                          </motion.h3>
-                          <motion.p
-                            className="text-xs text-white/80 mt-0.5"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.6 + index * 0.1 }}
-                          >
-                            {feature.description}
-                          </motion.p>
-                          {/* Glow effect on hover */}
-                          <motion.div
-                            className="absolute inset-0 rounded-lg bg-linear-to-br from-pink-400/0 to-rose-500/0 group-hover:from-pink-400/20 group-hover:to-rose-500/20 pointer-events-none transition-all duration-300"
-                            initial={{ opacity: 0 }}
-                            whileHover={{ opacity: 1 }}
-                          />
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Social Media */}
-                <div className="relative z-10 pt-4 border-t border-white/15 mt-auto">
-                  <p className="text-white/80 text-xs mb-2">Kết nối với chúng tôi</p>
-                  <div className="flex items-center gap-1.5">
-                    {[Facebook, TrendingUp, Bell, Instagram].map((Icon, index) => (
-                      <motion.a
-                        key={index}
-                        href="#"
-                        initial={{ opacity: 0, scale: 0 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.8 + index * 0.1, duration: 0.3 }}
-                        whileHover={{ scale: 1.15, rotate: 5 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="w-7 h-7 rounded-md bg-white/10 backdrop-blur-sm border border-white/25 flex items-center justify-center text-white hover:bg-white/15 transition-all duration-300"
-                      >
-                        <Icon className="h-3 w-3" />
-                      </motion.a>
-                    ))}
-                  </div>
-                </div>
+        <div className="w-full overflow-hidden rounded-2xl border border-white/60 bg-white/60 shadow-xl backdrop-blur">
+          <div className="grid grid-cols-1 lg:grid-cols-2">
+            {/* LEFT Section */}
+            <div className="relative overflow-hidden bg-linear-to-br from-pink-600 to-rose-600 p-6 lg:p-10 text-white">
+              <div className="mb-6 flex items-center gap-2">
+                <Link
+                  href={`/${resolvedLocale}`}
+                  className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium hover:bg-white/15"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Quay lại
+                </Link>
               </div>
 
-              {/* RIGHT Section - Login Form */}
-              <div className="bg-white/96 backdrop-blur-sm p-6 lg:p-8 flex flex-col justify-center overflow-y-auto max-h-[600px]">
-                <motion.div
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.5 }}
-                  className="w-full max-w-sm mx-auto space-y-6"
-                >
-                  {/* Form Header */}
-                  <div className="text-center">
-                    <div className="mb-3 flex justify-center">
-                      <Image
-                        src={LOGO}
-                        alt="KidzGo"
-                        width={100}
-                        height={100}
-                        priority
-                        className="rounded-md w-auto h-16"
-                      />
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Đăng nhập cho giáo viên, nhân viên và admin</h2>
-                    <p className="text-sm text-gray-600">Quản lý trung tâm và học viên</p>
-                  </div>
+              <div className="space-y-5">
+                <h1 className="text-2xl font-bold leading-tight">
+                  Cổng đăng nhập nhân sự KidzGo
+                </h1>
+                <p className="text-sm text-white/90">
+                  Dành cho giáo viên, nhân viên và admin để quản lý trung tâm & học viên.
+                </p>
+              </div>
 
-                  {/* Error Message */}
-                  {errorMessage && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-                      {errorMessage}
-                    </div>
-                  )}
-
-                  {/* Login Form */}
-                  <div className="space-y-5">
-                    {/* Branch Selection */}
-                    <div className="space-y-2">
-                      <label htmlFor="branch" className="block text-sm font-medium text-gray-700">
-                        Chi nhánh trung tâm
-                      </label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                          <MapPin className="h-5 w-5 text-gray-400 group-focus-within:text-pink-600 transition-colors" />
-                        </div>
-                        <select
-                          id="branch"
-                          name="branch"
-                          value={selectedBranch}
-                          onChange={(e) => setSelectedBranch(e.target.value)}
-                          required
-                          className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200 appearance-none cursor-pointer"
-                        >
-                          <option value="">Chọn chi nhánh</option>
-                          {BRANCHES.map((branch) => (
-                            <option key={branch.id} value={branch.id}>
-                              {branch.name}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                          <svg
-                            className="w-5 h-5 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </div>
+              <div className="mt-8 space-y-4">
+                {FEATURES.map((f, i) => (
+                  <motion.div
+                    key={f.title}
+                    custom={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={controls}
+                    className="rounded-xl bg-white/10 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-lg bg-white/15 p-2">
+                        <f.icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold">{f.title}</div>
+                        <div className="text-xs text-white/85">{f.description}</div>
                       </div>
                     </div>
-
-                    <CustomTextInput
-                      label="Email của bạn"
-                      name="email"
-                      icon={Mail}
-                      type="email"
-                      autoComplete="email"
-                      inputProps={{
-                        placeholder: "Nhập email của bạn",
-                        className: "w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200"
-                      }}
-                    />
-
-                    <CustomPasswordInput
-                      label="Mật khẩu"
-                      name="password"
-                      icon={Lock}
-                      autoComplete="current-password"
-                      inputProps={{
-                        placeholder: "Nhập mật khẩu của bạn",
-                        className: "w-full pl-10 pr-9 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200"
-                      }}
-                    />
-
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={remember}
-                          onChange={() => setRemember(!remember)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 text-pink-600 focus:ring-pink-600"
-                        />
-                        <span className="text-xs text-gray-700">Ghi nhớ đăng nhập</span>
-                      </label>
-                      <button className="text-xs text-pink-600 hover:text-pink-700 font-medium">
-                        Quên mật khẩu?
-                      </button>
-                    </div>
-
-                    <motion.button
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1, duration: 0.4 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleSubmit}
-                      disabled={!selectedBranch}
-                      className="w-full bg-linear-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
-                    >
-                      Đăng nhập ngay
-                    </motion.button>
-
-                    {/* Footer Text */}
-                    <div className="pt-3 border-t border-gray-200 text-center">
-                      <p className="text-xs text-gray-600">
-                        Bạn là phụ huynh?{" "}
-                        <Link href={`/${resolvedLocale}/auth/login/parent`} className="text-pink-600 hover:text-pink-700 font-medium">
-                          Đăng nhập phụ huynh
-                        </Link>
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                ))}
               </div>
+
+              <div className="mt-8 border-t border-white/15 pt-6">
+                <div className="grid grid-cols-2 gap-2 text-xs text-white/85">
+                  {NAV_ITEMS.map((n) => (
+                    <div key={n.label} className="flex items-center gap-2">
+                      <n.icon className="h-4 w-4" />
+                      <span>{n.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 flex items-center gap-3 text-white/80">
+                  <Facebook className="h-4 w-4" />
+                  <Instagram className="h-4 w-4" />
+                  <Youtube className="h-4 w-4" />
+                  <Twitter className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT Section - Login Form */}
+            <div className="bg-white/96 backdrop-blur-sm p-6 lg:p-8 flex flex-col justify-center overflow-y-auto max-h-[600px]">
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="w-full max-w-sm mx-auto space-y-6"
+              >
+                {/* Form Header */}
+                <div className="text-center">
+                  <div className="mb-3 flex justify-center">
+                    <Image
+                      src={LOGO}
+                      alt="KidzGo"
+                      width={100}
+                      height={100}
+                      priority
+                      className="rounded-md w-auto h-16"
+                    />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                    Đăng nhập cho giáo viên, nhân viên và admin
+                  </h2>
+                  <p className="text-sm text-gray-600">Quản lý trung tâm và học viên</p>
+                </div>
+
+                {/* Error Message */}
+                {loginError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                    {loginError}
+                  </div>
+                )}
+
+                {/* Login Form */}
+                <div className="space-y-5">
+                  {/* Branch Selection */}
+                  <div className="space-y-2">
+                    <label htmlFor="branch" className="block text-sm font-medium text-gray-700">
+                      Chi nhánh trung tâm
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                        <MapPin className="h-5 w-5 text-gray-400 group-focus-within:text-pink-600 transition-colors" />
+                      </div>
+                      <select
+                        id="branch"
+                        name="branch"
+                        value={selectedBranch}
+                        onChange={(e) => setSelectedBranch(e.target.value)}
+                        required
+                        className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200 appearance-none cursor-pointer"
+                      >
+                        <option value="">Chọn chi nhánh</option>
+                        {BRANCHES.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedBranch && (
+                      <p className="text-xs text-gray-500">
+                        {
+                          BRANCHES.find((b) => b.id === selectedBranch)?.address
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Email */}
+                  <CustomTextInput
+                    label="Email"
+                    name="email"
+                    placeholder="nhanvien@kidzgo.edu.vn"
+                    icon={Mail}
+                    required
+                    inputProps={{
+                      className:
+                        "w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200",
+                    }}
+                  />
+
+                  {/* Password */}
+                  <CustomPasswordInput
+                    label="Mật khẩu"
+                    name="password"
+                    placeholder="••••••••"
+                    icon={Lock}
+                    required
+                    inputProps={{
+                      className:
+                        "w-full pl-10 pr-9 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200",
+                    }}
+                  />
+
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={remember}
+                        onChange={() => setRemember(!remember)}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-pink-600 focus:ring-pink-600"
+                      />
+                      <span className="text-xs text-gray-700">Ghi nhớ đăng nhập</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="text-xs text-pink-600 hover:text-pink-700 font-medium"
+                    >
+                      Quên mật khẩu?
+                    </button>
+                  </div>
+
+                  <motion.button
+                    type="button"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1, duration: 0.4 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleSubmit}
+                    disabled={!selectedBranch || isLoading}
+                    className="w-full bg-linear-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                  >
+                    {isLoading ? "Đang đăng nhập..." : "Đăng nhập ngay"}
+                  </motion.button>
+
+                  {/* Footer Text */}
+                  <div className="pt-3 border-t border-gray-200 text-center">
+                    <p className="text-xs text-gray-600">
+                      Bạn là phụ huynh?{" "}
+                      <Link
+                        href={`/${resolvedLocale}/auth/login/parent`}
+                        className="text-pink-600 hover:text-pink-700 font-medium"
+                      >
+                        Đăng nhập phụ huynh
+                      </Link>
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </div>
         </div>
@@ -529,4 +433,3 @@ export default function StaffLoginCard({
     </div>
   );
 }
-

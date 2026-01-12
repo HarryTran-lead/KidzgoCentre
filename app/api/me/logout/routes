@@ -1,0 +1,17 @@
+import { NextResponse } from "next/server";
+import { getAccessTokenFromHeader, getUserByAccessToken, revokeUserTokens } from "@/lib/mock/auth";
+
+export async function POST(req: Request) {
+  const token = getAccessTokenFromHeader(req.headers.get("authorization"));
+  const user = getUserByAccessToken(token);
+
+  if (!user) {
+    return NextResponse.json(
+      { isSuccess: false, message: "Chưa đăng nhập" },
+      { status: 401 }
+    );
+  }
+
+  revokeUserTokens(user.id);
+  return NextResponse.json({ isSuccess: true, data: null });
+}

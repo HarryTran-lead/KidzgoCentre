@@ -3,18 +3,25 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  images: {
-    // Cho phép load ảnh từ Unsplash (hero background)
-    remotePatterns: [
+
+  async rewrites() {
+    return [
       {
-        protocol: "https",
-        hostname: "images.unsplash.com",
+        source: "/api/:path*",
+        destination: "https://kidzgo-be.onrender.com/api/:path*",
       },
-    ],
-    // có thể giữ mặc định formats: ['image/avif', 'image/webp']
+    ];
   },
+
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      // (optional) nếu bạn load ảnh từ onrender hay domain khác thì thêm ở đây
+      // { protocol: "https", hostname: "kidzgo-be.onrender.com" },
+    ],
+  },
+
   experimental: {
-    // (tùy chọn) giảm bundle khi import icon
     optimizePackageImports: ["lucide-react"],
   },
 };
