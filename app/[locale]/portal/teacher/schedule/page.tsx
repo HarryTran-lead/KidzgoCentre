@@ -256,9 +256,19 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
     width = `calc(${itemWidthPercent}% - ${(totalGaps / layoutInfo.totalInGroup) + (baseLeft * 2 / layoutInfo.totalInGroup)}px)`;
   }
   
+  // Chuyển màu gradient thành màu nhạt
+  const lightColor = lesson.color
+    .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
+    .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
+    .replace('from-fuchsia-500 to-purple-500', 'from-fuchsia-100 to-purple-100')
+    .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
+    .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
+    .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
+    .replace('from-purple-500 to-indigo-500', 'from-purple-100 to-indigo-100');
+
   return (
     <div 
-      className={`absolute rounded-xl shadow-lg transition-all duration-300 ${isHovered ? 'shadow-pink-200 -translate-y-0.5 z-10' : 'shadow-pink-100'} ${lesson.color} p-4 text-white ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}
+      className={`absolute rounded-xl shadow-lg transition-all duration-300 border border-pink-200 ${isHovered ? 'shadow-pink-200 -translate-y-0.5 z-10' : 'shadow-pink-100'} ${lightColor} p-4 text-gray-900 ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}
       style={{
         left: typeof left === 'number' ? `${left}px` : left,
         top: `${startPosition}px`,
@@ -273,13 +283,13 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
         <div>
           <div className="font-bold text-sm">{lesson.course}</div>
           {!compact && (
-            <div className="text-xs opacity-90 mt-1">{lesson.time}</div>
+            <div className="text-xs text-gray-700 mt-1">{lesson.time}</div>
           )}
         </div>
         
         {!compact && (
           <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs text-gray-700">
               <div className="flex items-center gap-1">
                 <MapPin size={12} />
                 <span>{lesson.room}</span>
@@ -297,9 +307,9 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
                       e.stopPropagation();
                       setShowColorPicker(!showColorPicker);
                     }}
-                    className="text-xs bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer flex items-center gap-1"
+                    className="text-xs bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer flex items-center gap-1 border border-pink-200"
                   >
-                    <Palette size={12} />
+                    <Palette size={12} className="text-gray-700" />
                   </button>
                   {showColorPicker && (
                     <div className="absolute right-0 bottom-full mb-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-50 overflow-hidden w-[140px]">
@@ -324,7 +334,7 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
               )}
               <button
                 onClick={() => router.push(`/${locale}/portal/teacher/schedule/${lesson.id}`)}
-                className="text-xs bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer"
+                className="text-xs bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer border border-pink-200 text-gray-700"
               >
               Chi tiết
             </button>
@@ -339,6 +349,7 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
 /** Day Timeline View */
 function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; hours?: number; onColorChange?: (lessonId: string, color: string) => void }) {
   const [currentTime, setCurrentTime] = useState(new Date());
+  // Hiển thị theo giờ từ 7am đến 7pm (không chia 3 ca)
   const timeSlots = Array.from({ length: hours }, (_, i) => i + 7); // 7am to 7pm
 
   // Loại bỏ các buổi học trùng giờ - chỉ giữ lại buổi học hợp lệ (không trùng giờ)
@@ -421,7 +432,7 @@ function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; h
 
       {/* Timeline Container */}
       <div className="relative p-4 h-[720px] overflow-y-auto">
-        {/* Time labels */}
+        {/* Time labels - theo giờ */}
         <div className="absolute left-0 top-0 bottom-0 w-16">
           {timeSlots.map(hour => (
             <div 
@@ -588,58 +599,88 @@ function WeekLessonButton({
   );
 }
 
-/** Week Calendar View */
+/** Grid Lesson Card Component */
+function GridLessonCard({ 
+  lesson, 
+  lightColor, 
+  locale, 
+  router, 
+  onColorChange 
+}: { 
+  lesson: Lesson; 
+  lightColor: string; 
+  locale: string; 
+  router: any; 
+  onColorChange?: (lessonId: string, color: string) => void;
+}) {
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  
+  return (
+    <div className="relative group">
+      <div
+        onClick={() => router.push(`/${locale}/portal/teacher/schedule/${lesson.id}`)}
+        className={`rounded-lg ${lightColor} p-3 text-gray-900 cursor-pointer hover:shadow-md transition-all border border-pink-200`}
+      >
+        <div className="font-semibold text-sm whitespace-nowrap overflow-hidden text-ellipsis">{lesson.time}</div>
+        <div className="font-medium text-xs mt-1 overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
+          {lesson.course}
+        </div>
+        <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
+          <MapPin size={12} className="flex-shrink-0" />
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap">{lesson.room}</span>
+        </div>
+      </div>
+      {onColorChange && (
+        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowColorPicker(!showColorPicker);
+            }}
+            className="bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg p-1.5 transition-colors cursor-pointer shadow-sm"
+          >
+            <Palette size={12} className="text-gray-700" />
+          </button>
+          {showColorPicker && (
+            <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-50 overflow-hidden w-[140px]">
+              <div className="text-[10px] font-semibold text-gray-700 mb-1.5 px-1">Chọn màu</div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {COLOR_OPTIONS.map((color) => (
+                  <button
+                    key={color.value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onColorChange(lesson.id, color.value);
+                      setShowColorPicker(false);
+                    }}
+                    className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-pink-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Week Calendar View - Grid format với 3 ca */
 function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]; onColorChange?: (lessonId: string, color: string) => void }) {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const timeSlots = Array.from({ length: 13 }, (_, i) => i + 7); // 7am to 7pm
-
-  // Loại bỏ các buổi học trùng giờ cho mỗi ngày
-  const dayValidLessons = useMemo(() => {
-    const validLessonsMap = new Map<string, Lesson[]>();
-    weekData.forEach(day => {
-      const validLessons = removeOverlappingLessons(day.lessons);
-      validLessonsMap.set(day.date, validLessons);
-    });
-    return validLessonsMap;
-  }, [weekData]);
-
-  // Tính toán layout cho các buổi học trong mỗi ngày (sau khi đã loại bỏ trùng giờ)
-  const dayLayouts = useMemo(() => {
-    const layoutsMap = new Map<string, Map<string, { groupIndex: number; positionInGroup: number; totalInGroup: number }>>();
-    dayValidLessons.forEach((lessons, date) => {
-      const layouts = groupOverlappingLessons(lessons);
-      layoutsMap.set(date, layouts);
-    });
-    return layoutsMap;
-  }, [dayValidLessons]);
-
-  // Cập nhật thời gian realtime mỗi giây
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // Tính toán vị trí của thời gian hiện tại
-  const getCurrentTimePosition = () => {
-    const currentHour = currentTime.getHours();
-    const currentMinute = currentTime.getMinutes();
-    // Chỉ hiển thị nếu trong khoảng 7am - 7pm
-    if (currentHour < 7 || currentHour >= 19) return null;
-    return ((currentHour - 7) * 60 + currentMinute);
-  };
-
-  const currentTimePos = getCurrentTimePosition();
-  const today = new Date();
-  const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   
-  // Tạo mảng 7 ngày để đảm bảo đủ cột
-  const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+  // Chia thành 3 ca: Sáng (7-12h), Chiều (12-17h), Tối (17-22h)
+  const timeShifts = [
+    { label: 'Sáng', start: 7, end: 12 },
+    { label: 'Chiều', start: 12, end: 17 },
+    { label: 'Tối', start: 17, end: 22 },
+  ];
+
+  // Tạo mảng 6 ngày (bỏ Chủ nhật)
+  const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
   const calendarDays = daysOfWeek.map((dow, index) => {
     return weekData.find(day => day.dow === dow) || {
       date: '',
@@ -650,19 +691,20 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
     };
   });
 
-  const getTimePosition = (time: string) => {
-    const [startTime] = time.split(' - ');
-    const [hour, minute] = startTime.split(':').map(Number);
-    return ((hour - 7) * 60 + minute); // 7am = 0px, mỗi phút = 1px
+  // Hàm kiểm tra buổi học thuộc ca nào
+  const getShiftForLesson = (lesson: Lesson): string | null => {
+    const [startTime] = lesson.time.split(' - ');
+    const [hour] = startTime.split(':').map(Number);
+    
+    if (hour >= 7 && hour < 12) return 'Sáng';
+    if (hour >= 12 && hour < 17) return 'Chiều';
+    if (hour >= 17 && hour < 22) return 'Tối';
+    return null;
   };
 
-  const getDuration = (time: string) => {
-    const [start, end] = time.split(' - ');
-    const [startHour, startMin] = start.split(':').map(Number);
-    const [endHour, endMin] = end.split(':').map(Number);
-    const startTotal = startHour * 60 + startMin;
-    const endTotal = endHour * 60 + endMin;
-    return (endTotal - startTotal); // Mỗi phút = 1px
+  // Lọc buổi học theo ca và ngày
+  const getLessonsForShift = (day: DaySchedule, shiftLabel: string): Lesson[] => {
+    return day.lessons.filter(lesson => getShiftForLesson(lesson) === shiftLabel);
   };
 
   return (
@@ -676,103 +718,88 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
             <span className="text-sm text-gray-600">({weekData[0]?.month || 'Tháng 10'})</span>
           </div>
           <div className="flex items-center gap-2">
-                  <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
-                    <ChevronLeft size={18} />
-                  </button>
-                  <span className="text-sm text-gray-700 px-3">Tuần này</span>
-                  <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
-                    <ChevronRight size={18} />
-                  </button>
+            <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-sm text-gray-700 px-3">Tuần này</span>
+            <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Calendar Grid */}
+      {/* Calendar Grid - 3 ca x 6 ngày */}
       <div className="relative overflow-x-auto">
-        <div className="min-w-[800px]">
-          {/* Time column + Days grid */}
-          <div className="flex">
-            {/* Time labels column */}
-            <div className="w-20 flex-shrink-0 border-r border-pink-200 bg-pink-50/50">
-              <div className="h-16 border-b border-pink-200"></div>
-              {timeSlots.map(hour => (
-                <div
-                  key={hour}
-                  className="h-[60px] border-b border-pink-100 flex items-start justify-end pr-2 pt-1"
-                >
-                  <span className="text-xs text-gray-600">{hour}:00</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Days columns */}
-            <div className="flex-1 grid grid-cols-7">
-              {calendarDays.map((day, dayIndex) => (
-                <div key={dayIndex} className="border-r border-pink-200 last:border-r-0">
-                  {/* Day header */}
-                  <div className={`h-16 border-b border-pink-200 p-2 text-center ${day.lessons.length > 0 ? 'bg-white' : 'bg-pink-50/30'}`}>
-                    <div className="text-xs text-gray-500 mb-1">{day.dow}</div>
-                    <div className={`text-lg font-bold ${day.lessons.length > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+        <div className="min-w-[900px]">
+          <table className="w-full border-collapse table-fixed">
+            {/* Header row */}
+            <thead>
+              <tr className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b-2 border-pink-300">
+                <th className="w-24 px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-pink-200">
+                  Ca / Ngày
+                </th>
+                {calendarDays.map((day, index) => (
+                  <th key={index} className="w-[calc((100%-96px)/6)] px-4 py-3 text-center border-r border-pink-200 last:border-r-0 whitespace-nowrap">
+                    <div className="text-xs text-gray-600 mb-1 whitespace-nowrap">{day.dow.replace('Thứ ', 'Th ')}</div>
+                    <div className={`text-lg font-bold whitespace-nowrap ${day.day ? 'text-gray-900' : 'text-gray-400'}`}>
                       {day.day || ''}
                     </div>
-                    {(() => {
-                      const validCount = dayValidLessons.get(day.date)?.length || 0;
-                      const removedCount = (day.lessons.length || 0) - validCount;
-                      return validCount > 0 && (
-                        <div className="text-xs text-pink-600 mt-1">
-                          {validCount} buổi
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Time slots */}
-                  <div className="relative" style={{ height: `${timeSlots.length * 60}px` }}>
-                    {/* Grid lines */}
-                    {timeSlots.map(hour => (
-                      <div
-                        key={hour}
-                        className="absolute left-0 right-0 border-t border-pink-100"
-                        style={{ top: `${(hour - 7) * 60}px` }}
-                      />
-                    ))}
-
-                    {/* Current time indicator - chỉ hiển thị cho ngày hôm nay */}
-                    {day.date === todayDateStr && currentTimePos !== null && (
-                      <div 
-                        className="absolute left-0 right-0 z-20"
-                        style={{ top: `${currentTimePos}px` }}
-                      >
-                        <div className="absolute left-0 h-0.5 w-full bg-gradient-to-r from-pink-500 to-rose-500"></div>
-                        <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-rose-500"></div>
-                      </div>
-                    )}
-
-                    {/* Lessons - chỉ hiển thị các buổi học không trùng giờ */}
-                    {(dayValidLessons.get(day.date) || []).map((lesson, lessonIndex) => {
-                      const top = getTimePosition(lesson.time);
-                      const height = getDuration(lesson.time);
-                      const layoutInfo = dayLayouts.get(day.date)?.get(lesson.id);
-                      
-                      return (
-                        <WeekLessonButton
-                          key={lesson.id}
-                          lesson={lesson}
-                          top={top}
-                          height={height}
-                          locale={locale}
-                          router={router}
-                          onColorChange={onColorChange}
-                          hasConflict={false}
-                          layoutInfo={layoutInfo}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            
+            {/* Body - 3 ca */}
+            <tbody>
+              {timeShifts.map((shift, shiftIndex) => (
+                <tr key={shift.label} className="border-b border-pink-200 last:border-b-0">
+                  {/* Shift label column */}
+                  <td className="w-24 px-4 py-6 text-center bg-pink-50/50 border-r border-pink-200 align-top whitespace-nowrap">
+                    <div className="font-bold text-gray-900 text-sm whitespace-nowrap">{shift.label}</div>
+                    <div className="text-xs text-gray-600 mt-1 whitespace-nowrap">{shift.start}:00 - {shift.end}:00</div>
+                  </td>
+                  
+                  {/* Day columns */}
+                  {calendarDays.map((day, dayIndex) => {
+                    const lessons = getLessonsForShift(day, shift.label);
+                    return (
+                      <td key={dayIndex} className="w-[calc((100%-96px)/6)] px-3 py-4 border-r border-pink-200 last:border-r-0 align-top min-h-[200px] bg-white">
+                        {lessons.length === 0 ? (
+                          <div className="text-center text-gray-400 text-sm py-8 whitespace-nowrap">Trống</div>
+                        ) : (
+                          <div className="space-y-2">
+                            {lessons.map((lesson) => {
+                              // Chuyển màu gradient thành màu nhạt
+                              const lightColor = lesson.color
+                                .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
+                                .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
+                                .replace('from-fuchsia-500 to-purple-500', 'from-fuchsia-100 to-purple-100')
+                                .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
+                                .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
+                                .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
+                                .replace('from-purple-500 to-indigo-500', 'from-purple-100 to-indigo-100');
+                              
+                              return (
+                                <GridLessonCard
+                                  key={lesson.id}
+                                  lesson={lesson}
+                                  lightColor={lightColor}
+                                  locale={locale}
+                                  router={router}
+                                  onColorChange={onColorChange}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
               ))}
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1038,19 +1065,19 @@ export default function Page() {
                 </div>
               </div>
               
-              <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+              <div className="grid grid-cols-6 gap-2">
                 {weekData.map(day => (
                   <button
                     key={day.date}
                     onClick={() => setSelectedDate(day.date)}
-                    className={`w-full rounded-xl p-3 transition-all duration-300 cursor-pointer ${selectedDate === day.date ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg' : 'bg-white border border-pink-200 hover:border-pink-300'}`}
+                    className={`w-full rounded-lg p-2 transition-all duration-300 cursor-pointer ${selectedDate === day.date ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg' : 'bg-white border border-pink-200 hover:border-pink-300'}`}
                   >
                     <div className="text-center">
-                      <div className={`text-sm ${selectedDate === day.date ? 'text-white/90' : 'text-gray-500'}`}>{day.dow}</div>
-                      <div className={`text-2xl font-bold mt-1 ${selectedDate === day.date ? 'text-white' : 'text-gray-900'}`}>{day.day}</div>
-                      <div className={`text-xs mt-1 ${selectedDate === day.date ? 'text-white/80' : 'text-gray-600'}`}>{day.month}</div>
+                      <div className={`text-xs ${selectedDate === day.date ? 'text-white/90' : 'text-gray-500'}`}>{day.dow.replace('Thứ ', 'Th ')}</div>
+                      <div className={`text-lg font-bold mt-0.5 ${selectedDate === day.date ? 'text-white' : 'text-gray-900'}`}>{day.day}</div>
+                      <div className={`text-[10px] mt-0.5 ${selectedDate === day.date ? 'text-white/80' : 'text-gray-600'}`}>{day.month}</div>
                       {day.lessons.length > 0 && (
-                        <div className={`text-xs mt-2 px-2 py-1 rounded-full ${selectedDate === day.date ? 'bg-white/20' : 'bg-pink-100 text-pink-600'}`}>
+                        <div className={`text-[10px] mt-1 px-1.5 py-0.5 rounded-full ${selectedDate === day.date ? 'bg-white/20' : 'bg-pink-100 text-pink-600'}`}>
                           {day.lessons.length} buổi
                         </div>
                       )}
@@ -1124,14 +1151,25 @@ export default function Page() {
                       
                       {dayData && (
                         <div className="mt-2 space-y-1">
-                          {dayData.lessons.slice(0, 2).map((lesson, idx) => (
-                            <div 
-                              key={idx} 
-                              className={`text-xs p-1.5 rounded-lg text-white ${lesson.color}`}
-                            >
-                              {lesson.time.split(' - ')[0]}
-                            </div>
-                          ))}
+                          {dayData.lessons.slice(0, 2).map((lesson, idx) => {
+                            // Chuyển màu gradient thành màu nhạt
+                            const lightColor = lesson.color
+                              .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
+                              .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
+                              .replace('from-fuchsia-500 to-purple-500', 'from-fuchsia-100 to-purple-100')
+                              .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
+                              .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
+                              .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
+                              .replace('from-purple-500 to-indigo-500', 'from-purple-100 to-indigo-100');
+                            return (
+                              <div 
+                                key={idx} 
+                                className={`text-xs p-1.5 rounded-lg text-gray-900 border border-pink-200 ${lightColor}`}
+                              >
+                                {lesson.time.split(' - ')[0]}
+                              </div>
+                            );
+                          })}
                           {dayData.lessons.length > 2 && (
                             <div className="text-xs text-pink-600 font-medium text-center">
                               +{dayData.lessons.length - 2} buổi
