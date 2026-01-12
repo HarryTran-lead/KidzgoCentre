@@ -4,9 +4,7 @@ import { motion, useAnimation } from "framer-motion";
 import {
   Mail,
   Lock,
-  Building2,
   TrendingUp,
-  Bell,
   Home,
   DollarSign,
   HelpCircle,
@@ -21,13 +19,12 @@ import {
   MapPin,
   ArrowLeft,
 } from "lucide-react";
-import { useEffect, useMemo, useState, useRef } from "react";
-import { CustomTextInput, CustomPasswordInput } from "./FormInput";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CustomPasswordInput, CustomTextInput } from "./FormInput";
 import { LOGO } from "@/lib/theme/theme";
 import Image from "next/image";
 import Link from "next/link";
 import { DEFAULT_LOCALE, localizePath, type Locale } from "@/lib/i18n";
-import { useRouter } from "next/navigation";
 import { useLazyGetCurrentUserQuery, useLoginMutation } from "@/lib/store/authApi";
 import { setAccessToken, setRefreshToken } from "@/lib/store/authToken";
 import { normalizeRole, ROLES } from "@/lib/role";
@@ -46,27 +43,15 @@ const BRANCHES = [
   { id: "branch4", name: "Chi nhánh Bình Thạnh", address: "321 Xô Viết Nghệ Tĩnh, Bình Thạnh, TP.HCM" },
 ];
 
-export default function StaffLoginCard({
-  returnTo = "",
-  locale,
-  errorMessage,
-}: Props) {
-const controls = useAnimation();
+export default function StaffLoginCard({ returnTo = "", locale, errorMessage }: Props) {
+  const controls = useAnimation();
 
-useEffect(() => {
-  controls.start((i) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] },
-  }));
-}, [controls]);
   const [remember, setRemember] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState("");
   const [loginError, setLoginError] = useState(errorMessage ?? "");
 
   const [login, { isLoading }] = useLoginMutation();
   const [getCurrentUser] = useLazyGetCurrentUserQuery();
-  const router = useRouter();
 
   const resolvedLocale = useMemo(
     () => (locale ?? DEFAULT_LOCALE) as Locale,
@@ -112,9 +97,20 @@ useEffect(() => {
     }));
   }, [controls]);
 
-  const setCookie = (name: string, value: string) => {
-    // If you want “remember me” persistence, you can add max-age/expires here based on `remember`.
-    document.cookie = `${name}=${encodeURIComponent(value)}; path=/`;
+  const setServerSession = async (payload: {
+    role: string;
+    name: string;
+    avatar: string;
+    branch: string;
+  }) => {
+    await fetch("/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    // branch cookie for UI usage
+    document.cookie = `user-branch=${encodeURIComponent(payload.branch)}; path=/`;
   };
 
   const handleSubmit = async () => {
@@ -143,18 +139,22 @@ useEffect(() => {
       const currentUser = await getCurrentUser().unwrap();
       const normalizedRole = normalizeRole(currentUser.data.role);
 
-      setCookie("role", normalizedRole);
-      setCookie(
-        "user-name",
-        currentUser.data.fullName || currentUser.data.userName || "KidzGo User"
-      );
-      setCookie("user-avatar", "");
-      setCookie("user-branch", selectedBranch);
+      await setServerSession({
+        role: normalizedRole,
+        name: currentUser.data.fullName || currentUser.data.userName || "KidzGo User",
+        avatar: "",
+        branch: selectedBranch,
+      });
 
-      const destination =
-        returnTo || localizePath(ROLES[normalizedRole] ?? "/portal", resolvedLocale);
+      const roleBasePath =
+        ["PARENT", "STUDENT"].includes(normalizedRole)
+          ? "/portal"
+          : (ROLES[normalizedRole] ?? "/portal");
 
-      router.push(destination);
+      const destination = returnTo || localizePath(roleBasePath, resolvedLocale);
+
+      // hard navigation to ensure server cookies are read on the next page
+      window.location.assign(destination);
     } catch (error) {
       setLoginError("Email hoặc mật khẩu không chính xác. Vui lòng thử lại.");
     }
@@ -236,11 +236,9 @@ useEffect(() => {
               </div>
 
               <div className="space-y-5">
-                <h1 className="text-2xl font-bold leading-tight">
-                  Cổng đăng nhập nhân sự KidzGo
-                </h1>
+                <h1 className="text-2xl font-bold leading-tight">Đăng nhập Staff</h1>
                 <p className="text-sm text-white/90">
-                  Dành cho giáo viên, nhân viên và admin để quản lý trung tâm & học viên.
+                  Dành cho giáo viên, nhân viên và admin để quản lý trung tâm.
                 </p>
               </div>
 
@@ -329,6 +327,7 @@ useEffect(() => {
                       <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                         <MapPin className="h-5 w-5 text-gray-400 group-focus-within:text-pink-600 transition-colors" />
                       </div>
+
                       <select
                         id="branch"
                         name="branch"
@@ -345,37 +344,28 @@ useEffect(() => {
                         ))}
                       </select>
                     </div>
-
-                    {selectedBranch && (
-                      <p className="text-xs text-gray-500">
-                        {
-                          BRANCHES.find((b) => b.id === selectedBranch)?.address
-                        }
-                      </p>
-                    )}
                   </div>
 
-                  {/* Email */}
                   <CustomTextInput
-                    label="Email"
+                    label="Email của bạn"
                     name="email"
-                    placeholder="nhanvien@kidzgo.edu.vn"
                     icon={Mail}
-                    required
+                    type="email"
+                    autoComplete="email"
                     inputProps={{
+                      placeholder: "Nhập email của bạn",
                       className:
                         "w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200",
                     }}
                   />
 
-                  {/* Password */}
                   <CustomPasswordInput
                     label="Mật khẩu"
                     name="password"
-                    placeholder="••••••••"
                     icon={Lock}
-                    required
+                    autoComplete="current-password"
                     inputProps={{
+                      placeholder: "Nhập mật khẩu của bạn",
                       className:
                         "w-full pl-10 pr-9 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200",
                     }}

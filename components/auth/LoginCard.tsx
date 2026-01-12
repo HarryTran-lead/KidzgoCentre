@@ -24,12 +24,11 @@ import {
   Youtube,
   Twitter,
 } from "lucide-react";
-import { useEffect, useMemo, useState, useRef } from "react";
-import { CustomTextInput, CustomPasswordInput } from "./FormInput";
-import { LOGO } from "@/lib/theme/theme";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { CustomPasswordInput, CustomTextInput } from "./FormInput";
+import { LOGO } from "@/lib/theme/theme";
 import { DEFAULT_LOCALE, localizePath, type Locale } from "@/lib/i18n";
-import { useRouter } from "next/navigation";
 import { useLazyGetCurrentUserQuery, useLoginMutation } from "@/lib/store/authApi";
 import { setAccessToken, setRefreshToken } from "@/lib/store/authToken";
 import { normalizeRole, ROLES } from "@/lib/role";
@@ -41,20 +40,12 @@ type Props = {
 };
 
 export default function LoginCard({ returnTo = "", locale, errorMessage }: Props) {
-const controls = useAnimation();
-
-useEffect(() => {
-  controls.start((i) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] },
-  }));
-}, [controls]);
+  const controls = useAnimation();
   const [remember, setRemember] = useState(false);
   const [loginError, setLoginError] = useState(errorMessage ?? "");
+
   const [login, { isLoading }] = useLoginMutation();
   const [getCurrentUser] = useLazyGetCurrentUserQuery();
-  const router = useRouter();
 
   const resolvedLocale = useMemo(
     () => (locale ?? DEFAULT_LOCALE) as Locale,
@@ -100,9 +91,12 @@ useEffect(() => {
     }));
   }, [controls]);
 
-  const setCookie = (name: string, value: string) => {
-    // If you want “remember me” persistence, you can add max-age/expires here based on `remember`.
-    document.cookie = `${name}=${encodeURIComponent(value)}; path=/`;
+  const setServerSession = async (payload: { role: string; name: string; avatar: string }) => {
+    await fetch("/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
   };
 
   const handleSubmit = async () => {
@@ -126,17 +120,18 @@ useEffect(() => {
       const currentUser = await getCurrentUser().unwrap();
       const normalizedRole = normalizeRole(currentUser.data.role);
 
-      setCookie("role", normalizedRole);
-      setCookie(
-        "user-name",
-        currentUser.data.fullName || currentUser.data.userName || "KidzGo User"
-      );
-      setCookie("user-avatar", "");
+      await setServerSession({
+        role: normalizedRole,
+        name: currentUser.data.fullName || currentUser.data.userName || "KidzGo User",
+        avatar: "",
+      });
 
-      const destination =
-        returnTo || localizePath(ROLES[normalizedRole] ?? "/portal", resolvedLocale);
+      const roleBasePath =
+        ["PARENT", "STUDENT"].includes(normalizedRole) ? "/portal" : (ROLES[normalizedRole] ?? "/portal");
 
-      router.push(destination);
+      const destination = returnTo || localizePath(roleBasePath, resolvedLocale);
+
+      window.location.assign(destination);
     } catch (error) {
       setLoginError("Email hoặc mật khẩu không chính xác. Vui lòng thử lại.");
     }
@@ -172,17 +167,12 @@ useEffect(() => {
       }
     `;
     document.head.appendChild(style);
-    return () => {
-      document.head.removeChild(style);
-    };
+    return () => document.head.removeChild(style);
   }, []);
 
   return (
     <div className="relative overflow-hidden">
-      {/* Background gradient */}
       <div className="absolute inset-0 bg-linear-to-br from-pink-50 via-white to-rose-50" />
-
-      {/* Decorative blobs */}
       <div className="absolute -top-24 -left-24 h-64 w-64 rounded-full bg-pink-200/40 blur-3xl" />
       <div className="absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-rose-200/40 blur-3xl" />
 
@@ -205,7 +195,7 @@ useEffect(() => {
       >
         <div className="w-full overflow-hidden rounded-2xl border border-white/60 bg-white/60 shadow-xl backdrop-blur">
           <div className="grid grid-cols-1 lg:grid-cols-2">
-            {/* LEFT Section */}
+            {/* LEFT */}
             <div className="relative overflow-hidden bg-linear-to-br from-pink-600 to-rose-600 p-6 lg:p-10 text-white">
               <div className="mb-6 flex items-center gap-2">
                 <a
@@ -218,9 +208,7 @@ useEffect(() => {
               </div>
 
               <div className="space-y-5">
-                <h1 className="text-2xl font-bold leading-tight">
-                  Đăng nhập KidzGo
-                </h1>
+                <h1 className="text-2xl font-bold leading-tight">Đăng nhập KidzGo</h1>
                 <p className="text-sm text-white/90">
                   Dành cho học sinh và phụ huynh để theo dõi học tập & kết nối giáo viên.
                 </p>
@@ -267,7 +255,7 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* RIGHT Section - Login Form */}
+            {/* RIGHT */}
             <div className="bg-white/96 backdrop-blur-sm p-6 lg:p-8 flex flex-col justify-center">
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
@@ -275,7 +263,6 @@ useEffect(() => {
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="w-full max-w-sm mx-auto space-y-6"
               >
-                {/* Form Header */}
                 <div className="text-center">
                   <div className="mb-3 flex justify-center">
                     <Image
@@ -292,14 +279,12 @@ useEffect(() => {
                   </h2>
                 </div>
 
-                {/* Error Message */}
                 {loginError && (
                   <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
                     {loginError}
                   </div>
                 )}
 
-                {/* Login Form */}
                 <div className="space-y-5">
                   <CustomTextInput
                     label="Email của bạn"
