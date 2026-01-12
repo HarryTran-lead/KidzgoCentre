@@ -33,6 +33,9 @@ async function handler(req: Request, ctx: { params: { path: string[] } }) {
 
   // Return upstream response as-is (status + headers + body)
   const resHeaders = new Headers(upstreamRes.headers);
+    resHeaders.delete("content-encoding");
+  resHeaders.delete("content-length");
+  resHeaders.delete("transfer-encoding");
   const body = await upstreamRes.arrayBuffer();
 
   return new NextResponse(body, {
