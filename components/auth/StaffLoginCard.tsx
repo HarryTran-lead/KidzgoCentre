@@ -489,11 +489,11 @@ export default function StaffLoginCard({
                           type="checkbox"
                           checked={remember}
                           onChange={() => setRemember(!remember)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 text-pink-600 focus:ring-pink-600"
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-pink-600 focus:ring-pink-600 cursor-pointer"
                         />
                         <span className="text-xs text-gray-700">Ghi nhớ đăng nhập</span>
                       </label>
-                      <button className="text-xs text-pink-600 hover:text-pink-700 font-medium">
+                      <button className="text-xs text-pink-600 hover:text-pink-700 font-medium cursor-pointer">
                         Quên mật khẩu?
                       </button>
                     </div>
@@ -505,7 +505,7 @@ export default function StaffLoginCard({
                       whileTap={{ scale: 0.98 }}
                       onClick={handleSubmit}
                       disabled={!selectedBranch}
-                      className="w-full bg-linear-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                      className="w-full bg-linear-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
                     >
                       Đăng nhập ngay
                     </motion.button>

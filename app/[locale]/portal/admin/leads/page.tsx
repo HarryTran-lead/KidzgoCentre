@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, PhoneCall, CalendarDays, Mail, MessageCircle, Clock } from "lucide-react";
+import { 
+  Search, PhoneCall, CalendarDays, Mail, MessageCircle, 
+  Clock, Filter, MoreVertical, Plus, Eye, User, 
+  BookOpen, TrendingUp, ChevronRight, Phone, Mail as MailIcon,
+  Calendar, UserCheck, CheckCircle, AlertCircle, ArrowUpDown,
+  ArrowUp, ArrowDown, UserPlus
+} from "lucide-react";
 
 type Status = "NEW" | "CONTACTED" | "ENROLLED" | "LOST";
 
@@ -13,6 +19,9 @@ type Lead = {
   createdAt: string;
   status: Status;
   note?: string;
+  email?: string;
+  phone?: string;
+  source?: string;
 };
 
 const LEADS: Lead[] = [
@@ -23,6 +32,9 @@ const LEADS: Lead[] = [
     course: "Tiếng Anh thiếu nhi",
     createdAt: "05/12/2024 09:15",
     status: "NEW",
+    email: "thu.nguyen@gmail.com",
+    phone: "0912 345 678",
+    source: "Website",
   },
   {
     id: "LD002",
@@ -32,6 +44,9 @@ const LEADS: Lead[] = [
     createdAt: "04/12/2024 14:20",
     status: "CONTACTED",
     note: "Đã gọi, hẹn tư vấn tại trung tâm",
+    email: "long.tran@gmail.com",
+    phone: "0913 456 789",
+    source: "Facebook",
   },
   {
     id: "LD003",
@@ -41,110 +56,576 @@ const LEADS: Lead[] = [
     createdAt: "01/12/2024 16:00",
     status: "ENROLLED",
     note: "Đã đóng cọc 2.000.000đ",
+    email: "ngoc.pham@gmail.com",
+    phone: "0914 567 890",
+    source: "Website",
+  },
+  {
+    id: "LD004",
+    parentName: "Lê Minh Tuấn",
+    studentName: "Lê Minh Anh",
+    course: "IELTS Junior",
+    createdAt: "30/11/2024 11:30",
+    status: "CONTACTED",
+    email: "tuan.le@gmail.com",
+    phone: "0915 678 901",
+    source: "Zalo",
+  },
+  {
+    id: "LD005",
+    parentName: "Vũ Thị Lan",
+    studentName: "Vũ Đức An",
+    course: "Tiếng Anh giao tiếp",
+    createdAt: "28/11/2024 15:45",
+    status: "LOST",
+    note: "Đã chọn trung tâm khác",
+    email: "lan.vu@gmail.com",
+    phone: "0916 789 012",
+    source: "Website",
+  },
+  {
+    id: "LD006",
+    parentName: "Hoàng Văn Đức",
+    studentName: "Hoàng Minh Khôi",
+    course: "Toán tư duy",
+    createdAt: "25/11/2024 10:20",
+    status: "ENROLLED",
+    email: "duc.hoang@gmail.com",
+    phone: "0917 890 123",
+    source: "Tư vấn trực tiếp",
   },
 ];
 
-const STATUS_INFO: Record<Status, { text: string; cls: string }> = {
-  NEW: { text: "Mới", cls: "bg-amber-50 text-amber-700" },
-  CONTACTED: { text: "Đã liên hệ", cls: "bg-sky-50 text-sky-700" },
-  ENROLLED: { text: "Đăng ký", cls: "bg-emerald-50 text-emerald-700" },
-  LOST: { text: "Không tham gia", cls: "bg-rose-50 text-rose-700" },
+const STATUS_CONFIG: Record<Status, {
+  text: string;
+  color: string;
+  bgColor: string;
+  icon: any;
+}> = {
+  NEW: {
+    text: "Mới",
+    color: "text-amber-600",
+    bgColor: "bg-amber-50 border border-amber-200",
+    icon: AlertCircle
+  },
+  CONTACTED: {
+    text: "Đã liên hệ",
+    color: "text-blue-600",
+    bgColor: "bg-blue-50 border border-blue-200",
+    icon: Phone
+  },
+  ENROLLED: {
+    text: "Đăng ký",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-50 border border-emerald-200",
+    icon: CheckCircle
+  },
+  LOST: {
+    text: "Không tham gia",
+    color: "text-rose-600",
+    bgColor: "bg-rose-50 border border-rose-200",
+    icon: AlertCircle
+  },
 };
 
 function StatusBadge({ status }: { status: Status }) {
-  const { text, cls } = STATUS_INFO[status];
-  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${cls}`}>{text}</span>;
+  const config = STATUS_CONFIG[status];
+  const Icon = config.icon;
+  
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${config.bgColor} ${config.color}`}>
+      <Icon size={14} />
+      {config.text}
+    </div>
+  );
+}
+
+type SortField = 'parentName' | 'studentName' | 'course' | 'createdAt' | 'status';
+type SortDirection = 'asc' | 'desc' | null;
+
+function SortableHeader({ 
+  field, 
+  currentField, 
+  direction, 
+  onSort, 
+  children 
+}: { 
+  field: SortField; 
+  currentField: SortField | null; 
+  direction: SortDirection; 
+  onSort: (field: SortField) => void; 
+  children: React.ReactNode;
+}) {
+  const isActive = currentField === field;
+  
+  return (
+    <th 
+      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-pink-50/50 transition-colors"
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-2">
+        <span>{children}</span>
+        {isActive ? (
+          direction === 'asc' ? (
+            <ArrowUp size={14} className="text-pink-500" />
+          ) : (
+            <ArrowDown size={14} className="text-pink-500" />
+          )
+        ) : (
+          <ArrowUpDown size={14} className="text-gray-400" />
+        )}
+      </div>
+    </th>
+  );
 }
 
 export default function LeadsPage() {
   const [status, setStatus] = useState<Status | "ALL">("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
-  const list = useMemo(() => {
-    if (status === "ALL") return LEADS;
-    return LEADS.filter((lead) => lead.status === status);
-  }, [status]);
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortField(null);
+        setSortDirection(null);
+      } else {
+        setSortDirection('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const filteredLeads = useMemo(() => {
+    let filtered = LEADS;
+    
+    if (status !== "ALL") {
+      filtered = filtered.filter((lead) => lead.status === status);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((lead) => 
+        lead.parentName.toLowerCase().includes(query) ||
+        lead.studentName.toLowerCase().includes(query) ||
+        lead.course.toLowerCase().includes(query) ||
+        lead.email?.toLowerCase().includes(query) ||
+        lead.phone?.includes(query)
+      );
+    }
+
+    // Sorting
+    if (sortField && sortDirection) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: string | number = '';
+        let bValue: string | number = '';
+        
+        switch (sortField) {
+          case 'parentName':
+            aValue = a.parentName;
+            bValue = b.parentName;
+            break;
+          case 'studentName':
+            aValue = a.studentName;
+            bValue = b.studentName;
+            break;
+          case 'course':
+            aValue = a.course;
+            bValue = b.course;
+            break;
+          case 'createdAt':
+            aValue = a.createdAt;
+            bValue = b.createdAt;
+            break;
+          case 'status':
+            aValue = a.status;
+            bValue = b.status;
+            break;
+        }
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortDirection === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        }
+        
+        return 0;
+      });
+    }
+    
+    return filtered;
+  }, [status, searchQuery, sortField, sortDirection]);
+
+  const stats = {
+    total: LEADS.length,
+    new: LEADS.filter(l => l.status === "NEW").length,
+    contacted: LEADS.filter(l => l.status === "CONTACTED").length,
+    enrolled: LEADS.filter(l => l.status === "ENROLLED").length,
+    conversionRate: Math.round((LEADS.filter(l => l.status === "ENROLLED").length / LEADS.length) * 100)
+  };
 
   return (
-    <div className="space-y-6 text-slate-900">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold">Form đăng ký khách hàng</h1>
-          <p className="text-sm text-slate-500">
-            Theo dõi lịch sử liên hệ, phân công tư vấn và cập nhật kết quả chuyển đổi.
-          </p>
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
-          <Clock size={16} className="text-slate-400" /> Cập nhật cuối: 10 phút trước
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
-          {["ALL", "NEW", "CONTACTED", "ENROLLED", "LOST"].map((item) => (
-            <button
-              key={item}
-              onClick={() => setStatus(item as typeof status)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${
-                status === item ? "bg-slate-900 text-white" : "text-slate-600"
-              }`}
-            >
-              {item === "ALL" ? "Tất cả" : STATUS_INFO[item as Status].text}
-            </button>
-          ))}
-        </div>
-        <div className="relative">
-          <input
-            placeholder="Tìm theo phụ huynh hoặc khóa học"
-            className="h-10 w-72 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm placeholder-slate-400 focus:outline-none"
-          />
-          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white">
-        <div className="grid grid-cols-[1.4fr,1.4fr,1fr,1fr,160px] gap-4 border-b border-slate-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          <div>Phụ huynh</div>
-          <div>Học viên</div>
-          <div>Khóa quan tâm</div>
-          <div>Thời gian</div>
-          <div className="text-right">Trạng thái</div>
-        </div>
-        {list.map((lead) => (
-          <div key={lead.id} className="grid grid-cols-[1.4fr,1.4fr,1fr,1fr,160px] items-center gap-4 border-b border-slate-100 px-5 py-4">
+    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+              <UserPlus size={28} className="text-white" />
+            </div>
             <div>
-              <div className="font-semibold">{lead.parentName}</div>
-              <div className="text-xs text-slate-500">{lead.id}</div>
-            </div>
-            <div className="text-sm text-slate-600">{lead.studentName}</div>
-            <div className="text-sm text-slate-600">{lead.course}</div>
-            <div className="text-sm text-slate-600">{lead.createdAt}</div>
-            <div className="flex items-center justify-end gap-2">
-              <StatusBadge status={lead.status} />
-              <button className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 hover:bg-slate-50">
-                <MessageCircle size={16} />
-              </button>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent mb-2">
+                Quản lý khách hàng tiềm năng
+              </h1>
+              <p className="text-gray-600">
+                Theo dõi và quản lý quá trình chuyển đổi từ khách hàng tiềm năng
+              </p>
             </div>
           </div>
-        ))}
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 px-4 py-2.5 border border-pink-200 rounded-xl text-sm font-medium hover:bg-pink-50 transition-colors cursor-pointer">
+              <Filter size={16} />
+              Bộ lọc nâng cao
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-medium hover:shadow-lg transition-all cursor-pointer">
+              <Plus size={16} />
+              Thêm lead mới
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6">
+          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Tổng leads</div>
+                <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+              </div>
+              <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white shadow-lg">
+                <User size={20} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Leads mới</div>
+                <div className="text-2xl font-bold text-amber-600">{stats.new}</div>
+              </div>
+              <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg">
+                <AlertCircle size={20} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Đã liên hệ</div>
+                <div className="text-2xl font-bold text-blue-600">{stats.contacted}</div>
+              </div>
+              <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white shadow-lg">
+                <PhoneCall size={20} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Đăng ký thành công</div>
+                <div className="text-2xl font-bold text-emerald-600">{stats.enrolled}</div>
+              </div>
+              <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg">
+                <UserCheck size={20} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Tỷ lệ chuyển đổi</div>
+                <div className="text-2xl font-bold text-pink-600">{stats.conversionRate}%</div>
+              </div>
+              <div className="p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg">
+                <TrendingUp size={20} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters and Search */}
+        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Status Filter */}
+            <div className="flex flex-wrap gap-1">
+              <button
+                onClick={() => setStatus("ALL")}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+                  status === "ALL" 
+                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md" 
+                    : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+                }`}
+              >
+                Tất cả ({stats.total})
+              </button>
+              {(Object.keys(STATUS_CONFIG) as Status[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatus(s)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+                    status === s 
+                      ? `${STATUS_CONFIG[s].bgColor} ${STATUS_CONFIG[s].color}` 
+                      : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+                  }`}
+                >
+                  {STATUS_CONFIG[s].text}
+                </button>
+              ))}
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Tìm kiếm phụ huynh, học viên, khóa học..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2.5 border border-pink-200 rounded-xl text-sm w-full md:w-80 bg-white focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs text-slate-500">Liên hệ qua điện thoại</div>
-          <div className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <PhoneCall size={16} /> 5 cuộc gọi hôm nay
+      {/* Leads Table */}
+      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden mb-6 shadow-sm">
+        <div className="p-6 border-b border-pink-200 bg-gradient-to-r from-pink-500/10 to-rose-500/10">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <UserPlus size={20} className="text-pink-500" />
+              Danh sách khách hàng tiềm năng
+            </h2>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Clock size={16} />
+              Cập nhật cuối: 10 phút trước
+            </div>
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs text-slate-500">Lịch hẹn tư vấn</div>
-          <div className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <CalendarDays size={16} /> 3 cuộc hẹn tuần này
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <colgroup>
+              <col className="w-[25%]" />
+              <col className="w-[25%]" />
+              <col className="w-[15%]" />
+              <col className="w-[20%]" />
+              <col className="w-[15%]" />
+            </colgroup>
+            <thead className="bg-gradient-to-r from-pink-500/10 to-rose-500/10">
+              <tr className="border-b border-pink-200">
+                <SortableHeader 
+                  field="parentName" 
+                  currentField={sortField} 
+                  direction={sortDirection} 
+                  onSort={handleSort}
+                >
+                  Thông tin khách hàng
+                </SortableHeader>
+                <SortableHeader 
+                  field="studentName" 
+                  currentField={sortField} 
+                  direction={sortDirection} 
+                  onSort={handleSort}
+                >
+                  Học viên & Khóa học
+                </SortableHeader>
+                <SortableHeader 
+                  field="createdAt" 
+                  currentField={sortField} 
+                  direction={sortDirection} 
+                  onSort={handleSort}
+                >
+                  Thời gian
+                </SortableHeader>
+                <SortableHeader 
+                  field="status" 
+                  currentField={sortField} 
+                  direction={sortDirection} 
+                  onSort={handleSort}
+                >
+                  Trạng thái
+                </SortableHeader>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-pink-100">
+              {filteredLeads.map((lead) => (
+                <tr key={lead.id} className="hover:bg-pink-50/50 transition-colors">
+                  <td className="px-6 py-4 align-top">
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold text-sm flex-shrink-0">
+                        {lead.parentName.split(' ').slice(-1)[0][0]}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-900 truncate">{lead.parentName}</div>
+                        <div className="flex items-center gap-1 mt-2 text-sm text-gray-600">
+                          <MailIcon size={12} className="flex-shrink-0" />
+                          <span className="truncate">{lead.email}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 align-top">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 truncate">{lead.studentName}</div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                        <BookOpen size={14} className="flex-shrink-0" />
+                        <span className="truncate">{lead.course}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 align-top whitespace-nowrap">
+                    <div className="text-sm text-gray-600 flex items-center gap-1">
+                      <Calendar size={14} className="text-pink-500 flex-shrink-0" />
+                      <span>{lead.createdAt}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 align-top">
+                    <div className="space-y-2">
+                      <StatusBadge status={lead.status} />
+                      {lead.note && (
+                        <div className="text-xs text-gray-500 truncate max-w-full" title={lead.note}>
+                          {lead.note}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 align-top whitespace-nowrap">
+                    <div className="flex items-center gap-2 justify-start">
+                      <button className="p-2 hover:bg-pink-100 rounded-lg transition-colors cursor-pointer" title="Nhắn tin">
+                        <MessageCircle size={18} className="text-gray-600" />
+                      </button>
+                      <button className="p-2 hover:bg-pink-100 rounded-lg transition-colors cursor-pointer" title="Xem chi tiết">
+                        <Eye size={18} className="text-gray-600" />
+                      </button>
+                      <button className="p-2 hover:bg-pink-100 rounded-lg transition-colors cursor-pointer">
+                        <MoreVertical size={18} className="text-gray-600" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {filteredLeads.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              Không tìm thấy khách hàng tiềm năng nào
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 hover:shadow-md transition-all cursor-pointer">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-gradient-to-r from-blue-500 to-sky-500 text-white rounded-xl shadow-lg">
+              <PhoneCall size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Liên hệ điện thoại</h3>
+              <p className="text-sm text-gray-600">Gọi lại khách hàng</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="text-sm text-gray-500">
+              5 cuộc gọi cần thực hiện hôm nay
+            </div>
+            <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-sky-500 text-white py-2.5 rounded-xl font-medium hover:shadow-md transition-all cursor-pointer">
+              <PhoneCall size={16} />
+              Bắt đầu gọi
+            </button>
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs text-slate-500">Email tự động</div>
-          <div className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <Mail size={16} /> 12 email nhắc học phí
+
+        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 hover:shadow-md transition-all cursor-pointer">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl shadow-lg">
+              <CalendarDays size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Lịch hẹn tư vấn</h3>
+              <p className="text-sm text-gray-600">Sắp xếp lịch hẹn</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="text-sm text-gray-500">
+              3 cuộc hẹn trong tuần này
+            </div>
+            <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-2.5 rounded-xl font-medium hover:shadow-md transition-all cursor-pointer">
+              <CalendarDays size={16} />
+              Xem lịch hẹn
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 hover:shadow-md transition-all cursor-pointer">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl shadow-lg">
+              <Mail size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Email marketing</h3>
+              <p className="text-sm text-gray-600">Gửi email tự động</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="text-sm text-gray-500">
+              12 email nhắc học phí đang chờ
+            </div>
+            <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white py-2.5 rounded-xl font-medium hover:shadow-md transition-all cursor-pointer">
+              <Mail size={16} />
+              Gửi email
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Stats */}
+      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <ChevronRight size={16} className="text-pink-500" />
+            <span>Hiển thị {filteredLeads.length}/{LEADS.length} khách hàng tiềm năng • 
+              Tỷ lệ chuyển đổi: {stats.conversionRate}% • 
+              Cập nhật thời gian thực</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <span>Đăng ký thành công</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <span>Đã liên hệ</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+              <span>Cần liên hệ</span>
+            </div>
           </div>
         </div>
       </div>
