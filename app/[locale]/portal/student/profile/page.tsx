@@ -12,6 +12,7 @@ import {
   Download,
   CheckCircle2,
 } from "lucide-react";
+import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
 
 type Score = {
   title: string;
@@ -30,40 +31,12 @@ type Course = {
   hasCertificate?: boolean;
 };
 
-function SegmentedTabs({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: "info" | "scores" | "history") => void;
-}) {
-  const base =
-    "flex-1 text-center py-2.5 rounded-xl text-sm transition";
-  const active = "bg-white shadow-sm text-gray-900 font-semibold";
-  const inactive = "text-slate-600 hover:bg-white/60";
-  return (
-    <div className="rounded-xl bg-slate-100 p-1 grid grid-cols-3">
-      <button
-        className={`${base} ${value === "info" ? active : inactive}`}
-        onClick={() => onChange("info")}
-      >
-        Thông tin
-      </button>
-      <button
-        className={`${base} ${value === "scores" ? active : inactive}`}
-        onClick={() => onChange("scores")}
-      >
-        Điểm số
-      </button>
-      <button
-        className={`${base} ${value === "history" ? active : inactive}`}
-        onClick={() => onChange("history")}
-      >
-        Lịch sử
-      </button>
-    </div>
-  );
-}
+// Tab options for FilterTabs
+const profileTabOptions: TabOption[] = [
+  { id: "info", label: "Thông tin" },
+  { id: "scores", label: "Điểm số" },
+  { id: "history", label: "Lịch sử" },
+];
 
 function InfoRow({
   icon,
@@ -231,72 +204,83 @@ export default function ProfilePage() {
 
   // ======= UI =======
   return (
-    <div className="space-y-6">
-      <SegmentedTabs value={tab} onChange={setTab} />
+    <div className="space-y-4">
+      {/* Tabs sử dụng FilterTabs */}
+      <div className="rounded-2xl p-2">
+        <FilterTabs
+          tabs={profileTabOptions}
+          activeTab={tab}
+          onChange={(tabId) => setTab(tabId as "info" | "scores" | "history")}
+          variant="outline"
+          size="md"
+          className="justify-center"
+        />
+      </div>
 
       {tab === "info" && (
-        <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-gray-900 text-white grid place-items-center text-xl font-bold">
+        <div className="space-y-4">
+          {/* Profile Card - gọn hơn */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
+              <div className="w-14 h-14 rounded-full bg-gray-900 text-white grid place-items-center text-xl font-bold shrink-0">
                 {student.name.split(" ").pop()?.[0] ?? "A"}
               </div>
-              <div>
-                <div className="text-gray-900 text-lg font-bold">
+              <div className="min-w-0 flex-1">
+                <div className="text-gray-900 text-lg font-bold truncate">
                   {student.name}
                 </div>
-                <div className="text-slate-600">{student.level}</div>
+                <div className="text-slate-600 text-sm">{student.level}</div>
               </div>
-              <div className="ms-auto">
-                <button className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-gray-900 hover:bg-slate-50">
-                  Chỉnh sửa
-                </button>
-              </div>
+              <button className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-gray-900 hover:bg-slate-50">
+                Chỉnh sửa
+              </button>
             </div>
 
-            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Info Grid - compact */}
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <InfoRow
-                icon={<UserRound size={18} className="text-gray-900" />}
+                icon={<UserRound size={16} className="text-gray-900" />}
                 label="Họ và tên"
                 value={student.name}
               />
               <InfoRow
-                icon={<Mail size={18} className="text-gray-900" />}
+                icon={<Mail size={16} className="text-gray-900" />}
                 label="Email"
                 value={student.email}
               />
               <InfoRow
-                icon={<Phone size={18} className="text-gray-900" />}
+                icon={<Phone size={16} className="text-gray-900" />}
                 label="Số điện thoại"
                 value={student.phone}
               />
               <InfoRow
-                icon={<MapPin size={18} className="text-gray-900" />}
+                icon={<MapPin size={16} className="text-gray-900" />}
                 label="Địa chỉ"
                 value={student.address}
               />
               <InfoRow
-                icon={<CalendarIcon size={18} className="text-gray-900" />}
+                icon={<CalendarIcon size={16} className="text-gray-900" />}
                 label="Ngày sinh"
                 value={student.dob}
               />
               <InfoRow
-                icon={<Award size={18} className="text-gray-900" />}
+                icon={<Award size={16} className="text-gray-900" />}
                 label="Trình độ"
                 value={student.level}
               />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          {/* Attendance Progress - compact */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <ProgressBar percent={student.attendPercent} />
           </div>
         </div>
       )}
 
       {tab === "scores" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
-          <div className="text-gray-900 font-semibold mb-1">Kết quả học tập</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+          <div className="text-gray-900 font-semibold mb-2">Kết quả học tập</div>
           {scores.map((s, i) => (
             <ScoreItem key={i} item={s} />
           ))}
@@ -304,8 +288,8 @@ export default function ProfilePage() {
       )}
 
       {tab === "history" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
-          <div className="text-gray-900 font-semibold mb-1">Lịch sử học tập</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+          <div className="text-gray-900 font-semibold mb-2">Lịch sử học tập</div>
           {history.map((c, i) => (
             <CourseCard key={i} c={c} />
           ))}

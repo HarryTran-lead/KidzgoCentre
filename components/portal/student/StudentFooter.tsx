@@ -3,14 +3,21 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 export default function StudentFooter() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(false);
 
+  // Extract locale from pathname
+  const locale = useMemo(() => {
+    const parts = pathname.split('/');
+    return parts[1] || 'vi'; // Default to 'vi' if no locale found
+  }, [pathname]);
+
   const isActive = (href: string) => {
-    return pathname === href || pathname.startsWith(href + "/");
+    const fullHref = `/${locale}${href}`;
+    return pathname === fullHref || pathname.startsWith(fullHref + "/");
   };
 
   useEffect(() => {
@@ -42,7 +49,7 @@ export default function StudentFooter() {
       badge: null,
     },
     {
-      href: "/portal/student/resources",
+      href: "/portal/student/materials",
       icon: "/icons/folder.png",
       label: "Tài Liệu",
       badge: null,
@@ -54,7 +61,7 @@ export default function StudentFooter() {
     //   badge: null,
     // },
     {
-      href: "/portal/student/test",
+      href: "/portal/student/tests",
       icon: "/icons/test.png",
       label: "Kiểm tra",
       badge: null,
@@ -64,7 +71,7 @@ export default function StudentFooter() {
   return (
     <>
       {/* Home Button - Fixed ở góc dưới trái */}
-      <Link href="/">
+      <Link href={`/${locale}`}>
         <div
           className={`fixed bottom-4 left-13 z-[100] flex flex-col items-center gap-2 transition-all duration-300 ${
             isActive("/") && !pathname.includes("/")
@@ -102,7 +109,7 @@ export default function StudentFooter() {
       >
         <div className="flex flex-row gap-3 px-2 pb-0">
           {footerItems.map((item) => (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={`/${locale}${item.href}`}>
               <div
                 className={`relative flex flex-col items-center gap-1.5 px-4 pt-4 pb-6 rounded-t-3xl transition-all duration-300 ${
                   isActive(item.href)
