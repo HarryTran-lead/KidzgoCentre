@@ -671,6 +671,9 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const currentHour = now.getHours() + now.getMinutes() / 60;
   
   // Chia thành 3 ca: Sáng (7-12h), Chiều (12-17h), Tối (17-22h)
   const timeShifts = [
@@ -678,6 +681,10 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
     { label: 'Chiều', start: 12, end: 17 },
     { label: 'Tối', start: 17, end: 22 },
   ];
+
+  const isCurrentShift = (shift: { start: number; end: number }) => {
+    return currentHour >= shift.start && currentHour < shift.end;
+  };
 
   // Tạo mảng 6 ngày (bỏ Chủ nhật)
   const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
@@ -739,14 +746,20 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
                 <th className="w-24 px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-pink-200">
                   Ca / Ngày
                 </th>
-                {calendarDays.map((day, index) => (
-                  <th key={index} className="w-[calc((100%-96px)/6)] px-4 py-3 text-center border-r border-pink-200 last:border-r-0 whitespace-nowrap">
-                    <div className="text-xs text-gray-600 mb-1 whitespace-nowrap">{day.dow.replace('Thứ ', 'Th ')}</div>
-                    <div className={`text-lg font-bold whitespace-nowrap ${day.day ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {day.day || ''}
-                    </div>
-                  </th>
-                ))}
+                {calendarDays.map((day, index) => {
+                  const isToday = day.date === todayStr;
+                  return (
+                    <th key={index} className="w-[calc((100%-96px)/6)] px-4 py-3 text-center border-r border-pink-200 last:border-r-0 whitespace-nowrap">
+                      <div className="text-xs text-gray-600 mb-1 whitespace-nowrap flex items-center justify-center gap-1">
+                        <span>{day.dow.replace('Thứ ', 'Th ')}</span>
+                        {isToday && <span className="text-[10px] font-semibold text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full">Hôm nay</span>}
+                      </div>
+                      <div className={`text-lg font-bold whitespace-nowrap ${day.day ? 'text-gray-900' : 'text-gray-400'} ${isToday ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white inline-flex px-3 py-1 rounded-lg shadow-sm' : ''}`}>
+                        {day.day || ''}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             
@@ -758,13 +771,29 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
                   <td className="w-24 px-4 py-6 text-center bg-pink-50/50 border-r border-pink-200 align-top whitespace-nowrap">
                     <div className="font-bold text-gray-900 text-sm whitespace-nowrap">{shift.label}</div>
                     <div className="text-xs text-gray-600 mt-1 whitespace-nowrap">{shift.start}:00 - {shift.end}:00</div>
+                    {isCurrentShift(shift) && (
+                      <div className="text-[10px] mt-2 text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-pink-500 animate-pulse" />
+                        Đang diễn ra
+                      </div>
+                    )}
                   </td>
                   
                   {/* Day columns */}
                   {calendarDays.map((day, dayIndex) => {
                     const lessons = getLessonsForShift(day, shift.label);
+                    const isToday = day.date === todayStr;
+                    const isNow = isToday && isCurrentShift(shift);
                     return (
-                      <td key={dayIndex} className="w-[calc((100%-96px)/6)] px-3 py-4 border-r border-pink-200 last:border-r-0 align-top min-h-[200px] bg-white">
+                      <td
+                        key={dayIndex}
+                        className={`w-[calc((100%-96px)/6)] px-3 py-4 border-r border-pink-200 last:border-r-0 align-top min-h-[200px] bg-white relative ${isNow ? 'ring-2 ring-pink-400 ring-offset-1' : ''}`}
+                      >
+                        {isToday && (
+                          <div className="absolute top-2 left-3 text-[10px] text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-200">
+                            Hôm nay
+                          </div>
+                        )}
                         {lessons.length === 0 ? (
                           <div className="text-center text-gray-400 text-sm py-8 whitespace-nowrap">Trống</div>
                         ) : (
@@ -932,8 +961,14 @@ export default function Page() {
   const [tab, setTab] = useState<'week' | 'month' | 'timeline'>('week');
   const [currentWeek, setCurrentWeek] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(WEEK_DATA[0].date);
   const [weekData, setWeekData] = useState<DaySchedule[]>(WEEK_DATA);
+
+  const today = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const current = useMemo(() => new Date(WEEK_DATA[0].date), []);
   const monthTitle = useMemo(
@@ -990,7 +1025,10 @@ export default function Page() {
 
   useEffect(() => {
     setIsLoaded(true);
-  }, []);
+    // ưu tiên chọn ngày hôm nay nếu có trong dữ liệu, nếu không chọn ngày đầu
+    const hasToday = weekData.find((d) => d.date === today);
+    setSelectedDate(hasToday ? hasToday.date : weekData[0]?.date ?? null);
+  }, [weekData, today]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
@@ -1098,7 +1136,7 @@ export default function Page() {
 
         {tab === 'month' && (
           <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200 px-6 py-4">
+              <div className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 font-bold text-gray-900">
                   <CalendarIcon size={20} className="text-pink-500" /> {monthTitle}

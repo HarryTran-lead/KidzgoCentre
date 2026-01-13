@@ -158,7 +158,7 @@ export const CustomPasswordInput: React.FC<InputProps> = ({
         type="button"
         onClick={() => setShow(p => !p)}
         onMouseDown={e => e.preventDefault()}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
         tabIndex={-1}
         aria-label={show ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
       >
