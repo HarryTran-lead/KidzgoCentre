@@ -1,260 +1,541 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
-  Bell,
-  BookOpenCheck,
-  CalendarRange,
-  ClipboardCheck,
-  ClipboardList,
-  MessageSquare,
-  NotebookPen,
-  School,
   Users,
+  CalendarRange,
+  NotebookPen,
+  MessageSquare,
+  TrendingUp,
+  Sparkles,
+  Calendar,
+  BarChart3,
+  Target,
+  Download,
+  MoreVertical,
+  TrendingDown,
+  AlertCircle,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
-function Stat({
-  icon: Icon,
+function StatCard({
+  icon,
   label,
   value,
   hint,
+  trend = "up",
+  color = "pink",
+  delay = 0,
 }: {
-  icon: any;
+  icon: React.ReactNode;
   label: string;
   value: string;
-  hint?: string;
+  hint: string;
+  trend?: "up" | "down" | "stable";
+  color?: "pink" | "green" | "yellow" | "blue" | "purple";
+  delay?: number;
 }) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), delay);
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  const colorClasses = {
+    pink: "bg-gradient-to-r from-pink-500 to-rose-500",
+    green: "bg-gradient-to-r from-emerald-500 to-teal-500",
+    yellow: "bg-gradient-to-r from-amber-500 to-orange-500",
+    blue: "bg-gradient-to-r from-blue-500 to-sky-500",
+    purple: "bg-gradient-to-r from-purple-500 to-indigo-500",
+  };
+
+  const trendColors = {
+    up: "text-emerald-600",
+    down: "text-rose-600",
+    stable: "text-amber-600",
+  };
+
   return (
-    <div className="rounded-2xl border bg-white p-4">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center">
-          <Icon size={18} className="text-slate-700" />
+    <div
+      className={`bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all duration-700 transform cursor-pointer ${
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm text-gray-600">{label}</div>
+          <div className="text-2xl font-bold mt-2 text-gray-900">{value}</div>
+          <div className={`text-xs flex items-center gap-1 mt-1 ${trendColors[trend]}`}>
+            {trend === "up" && <ArrowUpRight size={12} />}
+            {trend === "down" && <ArrowDownRight size={12} />}
+            {trend === "stable" && <span>→</span>}
+            {hint}
+          </div>
         </div>
-        <div className="text-sm text-slate-500">{label}</div>
+        <div className={`p-3 rounded-xl bg-gradient-to-r ${colorClasses[color]} text-white shadow-lg`}>
+          {icon}
+        </div>
       </div>
-      <div className="mt-2 text-2xl font-extrabold text-slate-900">{value}</div>
-      {hint && <div className="text-xs text-slate-500 mt-1">{hint}</div>}
     </div>
   );
 }
 
-const workflowCards = [
-  {
-    icon: Users,
-    title: "Lead & ghi danh",
-    items: [
-      "Theo dõi lead mới, phân công tư vấn",
-      "Lên lịch placement test và nhập kết quả",
-      "Chốt ghi danh, tạo hồ sơ học viên",
-    ],
-  },
-  {
-    icon: CalendarRange,
-    title: "Xếp lớp & TKB",
-    items: [
-      "Tạo lớp, gán giáo viên chính/TA",
-      "Kiểm tra xung đột phòng, lịch học",
-      "Hỗ trợ mô hình đa lớp và lớp bổ trợ",
-    ],
-  },
-  {
-    icon: ClipboardCheck,
-    title: "Học bù & MakeUpCredit",
-    items: [
-      "Duyệt đơn nghỉ dưới 24h và nghỉ dài",
-      "Theo dõi MakeUpCredit theo từng học viên",
-      "Gợi ý buổi bù phù hợp cho phụ huynh",
-    ],
-  },
-  {
-    icon: BookOpenCheck,
-    title: "Giáo án & chất lượng",
-    items: [
-      "Quản lý thư viện giáo án khung",
-      "Giám sát giáo viên nộp giáo án thực tế",
-      "Kiểm soát nội dung dạy chuẩn hóa",
-    ],
-  },
-  {
-    icon: NotebookPen,
-    title: "Báo cáo tháng (AI)",
-    items: [
-      "Theo dõi tiến độ giáo viên chỉnh sửa",
-      "Bình luận/nhắc nhở ngay trên bản nháp",
-      "Trình duyệt trước khi publish cho phụ huynh",
-    ],
-  },
-  {
-    icon: MessageSquare,
-    title: "Hồ sơ & giao tiếp",
-    items: [
-      "Xem lịch sử học viên và ghi chú đặc biệt",
-      "Gửi thông báo broadcast qua Zalo OA",
-      "Theo dõi phản hồi phụ huynh/học viên",
-    ],
-  },
+function Badge({
+  color = "gray",
+  children,
+}: {
+  color?: "gray" | "blue" | "red" | "green" | "purple" | "yellow" | "pink";
+  children: React.ReactNode;
+}) {
+  const colorClasses = {
+    gray: "bg-gray-100 text-gray-700",
+    blue: "bg-blue-50 text-blue-700 border border-blue-200",
+    red: "bg-rose-50 text-rose-700 border border-rose-200",
+    green: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    purple: "bg-purple-50 text-purple-700 border border-purple-200",
+    yellow: "bg-amber-50 text-amber-700 border border-amber-200",
+    pink: "bg-pink-50 text-pink-700 border border-pink-200",
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colorClasses[color]}`}>
+      {children}
+    </span>
+  );
+}
+
+// Chart Data (staff-management)
+const leadGrowthData = [
+  { month: "T7", leads: 120, qualified: 48 },
+  { month: "T8", leads: 142, qualified: 62 },
+  { month: "T9", leads: 158, qualified: 71 },
+  { month: "T10", leads: 176, qualified: 86 },
+  { month: "T11", leads: 195, qualified: 92 },
+  { month: "T12", leads: 228, qualified: 108 },
 ];
 
-const reminders = [
-  "Xử lý 6 lead mới chưa được phân công",
-  "Duyệt 3 đơn nghỉ dưới 24h",
-  "Hoàn tất xếp lớp bổ trợ kỹ năng Speaking",
-  "Nhắc 5 giáo viên nộp báo cáo tháng",
+const classOpsData = [
+  { day: "T2", sessions: 22, conflicts: 1 },
+  { day: "T3", sessions: 25, conflicts: 0 },
+  { day: "T4", sessions: 24, conflicts: 2 },
+  { day: "T5", sessions: 26, conflicts: 1 },
+  { day: "T6", sessions: 28, conflicts: 1 },
+  { day: "T7", sessions: 18, conflicts: 0 },
+  { day: "CN", sessions: 12, conflicts: 0 },
 ];
 
-const tickets = [
-  {
-    title: "Yêu cầu đổi lịch học",
-    detail: "Phụ huynh lớp Cambridge Movers B",
-  },
-  {
-    title: "Hỏi về MakeUpCredit",
-    detail: "HS Nguyễn Minh Anh (K9)",
-  },
-  {
-    title: "Xin tư vấn lớp phù hợp",
-    detail: "Lead mới: Zalo OA",
-  },
+const ticketDistribution = [
+  { name: "Tư vấn học", value: 45, color: "#3b82f6" },
+  { name: "Đổi lịch", value: 28, color: "#8b5cf6" },
+  { name: "Báo cáo", value: 18, color: "#10b981" },
+  { name: "Khác", value: 9, color: "#f59e0b" },
 ];
 
-const quickActions = [
-  "Tạo lead mới",
-  "Xếp lớp học viên",
-  "Duyệt đơn nghỉ",
-  "Tạo giáo án khung",
-  "Nhắc báo cáo tháng",
-  "Duyệt ticket hỗ trợ",
-  "Gửi thông báo broadcast",
-  "Duyệt media lớp học",
-  "Gửi thông báo Zalo",
+const reportProgressData = [
+  { month: "T7", submitted: 62, pending: 18 },
+  { month: "T8", submitted: 68, pending: 15 },
+  { month: "T9", submitted: 71, pending: 14 },
+  { month: "T10", submitted: 75, pending: 12 },
+  { month: "T11", submitted: 79, pending: 10 },
+  { month: "T12", submitted: 83, pending: 9 },
 ];
 
 export default function Page() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-slate-900">
-          Vận hành & học vụ
-        </h1>
-        <p className="text-slate-600 text-sm">
-          Lead, xếp lớp, học bù, báo cáo tháng và giao tiếp phụ huynh
-        </p>
-      </div>
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "leads" | "schedule" | "reports">("overview");
 
-      <div className="grid md:grid-cols-3 gap-4">
-        <Stat
-          icon={Users}
-          label="Lead mới (tuần)"
-          value="37"
-          hint="+9 so với tuần trước"
-        />
-        <Stat
-          icon={CalendarRange}
-          label="Lớp & ca tuần này"
-          value="124"
-          hint="Xung đột: 2"
-        />
-        <Stat
-          icon={NotebookPen}
-          label="Báo cáo tháng"
-          value="18 bản nháp"
-          hint="Còn chờ 6 giáo viên"
-        />
-      </div>
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="rounded-2xl border bg-white p-4">
-          <div className="flex items-center gap-2 text-slate-900 font-semibold mb-3">
-            <School size={18} />
-            Quy trình vận hành chính
-          </div>
-          <p className="text-sm text-slate-600">
-            Tổng hợp các module cần theo dõi mỗi ngày cho staff vận hành.
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600">
-            {quickActions.map((action) => (
-              <span
-                key={action}
-                className="rounded-full border border-slate-200 px-3 py-1"
-              >
-                {action}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-4">
-          <div className="flex items-center gap-2 text-slate-900 font-semibold mb-3">
-            <ClipboardCheck size={18} />
-            Checklist hôm nay
-          </div>
-          <ul className="text-sm text-slate-900 list-disc pl-5 space-y-1">
-            {reminders.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-4">
-          <div className="flex items-center gap-2 text-slate-900 font-semibold mb-3">
-            <Bell size={18} />
-            Ticket & hỗ trợ
-          </div>
-          <ul className="space-y-2 text-sm text-slate-900">
-            {tickets.map((ticket) => (
-              <li key={ticket.title} className="border rounded-xl p-3">
-                <div className="font-semibold">{ticket.title}</div>
-                <div className="text-xs text-slate-500">{ticket.detail}</div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border bg-white p-4">
-        <div className="flex items-center gap-2 text-slate-900 font-semibold mb-2">
-          <ClipboardList size={18} />
-          Tóm tắt tiến độ
-        </div>
-        <div className="grid md:grid-cols-3 gap-3 text-sm">
-          <div className="rounded-xl border border-slate-200 p-3">
-            <div className="text-slate-500">Placement test tuần này</div>
-            <div className="text-xl font-semibold text-slate-900">12 lịch</div>
-            <div className="text-xs text-slate-500">Còn 3 lịch cần xác nhận</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-3">
-            <div className="text-slate-500">Đơn nghỉ chờ duyệt</div>
-            <div className="text-xl font-semibold text-slate-900">5 đơn</div>
-            <div className="text-xs text-slate-500">2 đơn dưới 24h</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-3">
-            <div className="text-slate-500">Thông báo chờ gửi</div>
-            <div className="text-xl font-semibold text-slate-900">8 bản</div>
-            <div className="text-xs text-slate-500">Zalo OA + Email</div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-semibold text-slate-900 mb-3">
-          Module cần thao tác
-        </h3>
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {workflowCards.map((card) => (
-            <div key={card.title} className="rounded-2xl border bg-white p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center">
-                  <card.icon size={18} className="text-slate-700" />
-                </div>
-                <div className="font-semibold text-slate-900">{card.title}</div>
-              </div>
-              <ul className="mt-3 text-sm text-slate-700 list-disc pl-5 space-y-1">
-                {card.items.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-lg">
+          <p className="text-sm font-semibold text-gray-900">{label}</p>
+          {payload.map((p: any) => (
+            <p key={p.dataKey} className="text-sm" style={{ color: p.color }}>
+              {p.name}: {p.value}
+            </p>
           ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6">
+      {/* Header */}
+      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+              <BarChart3 size={28} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                Vận hành & Học vụ
+              </h1>
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                <Sparkles size={14} className="text-pink-500" />
+                Tổng quan lead, xếp lớp, học bù, báo cáo tháng và ticket hỗ trợ
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-4 py-2 bg-white border border-pink-200 rounded-xl">
+              <Calendar size={16} className="text-pink-500" />
+              <span className="text-sm font-medium text-gray-700">Tháng 12/2024</span>
+            </div>
+            <button className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all cursor-pointer flex items-center gap-2">
+              <Download size={16} />
+              Xuất báo cáo
+            </button>
+            <button className="p-2 bg-white border border-pink-200 rounded-xl hover:bg-pink-50 transition-colors cursor-pointer">
+              <MoreVertical size={20} className="text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Main Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard
+            icon={<Users size={20} />}
+            label="Lead mới (tháng)"
+            value="228"
+            hint="+17% so với T11"
+            trend="up"
+            color="pink"
+            delay={100}
+          />
+          <StatCard
+            icon={<Target size={20} />}
+            label="Qualified Lead"
+            value="108"
+            hint="Tỷ lệ 47%"
+            trend="stable"
+            color="blue"
+            delay={200}
+          />
+          <StatCard
+            icon={<CalendarRange size={20} />}
+            label="Ca học tuần này"
+            value="155"
+            hint="Xung đột: 5"
+            trend="down"
+            color="yellow"
+            delay={300}
+          />
+          <StatCard
+            icon={<NotebookPen size={20} />}
+            label="Báo cáo tháng"
+            value="83% đã nộp"
+            hint="Còn 9 báo cáo"
+            trend="up"
+            color="green"
+            delay={400}
+          />
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div
+        className={`flex items-center gap-1 mb-6 p-1 bg-white border border-pink-200 rounded-xl w-fit transition-all duration-700 ${
+          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
+        }`}
+      >
+        {(
+          [
+            { key: "overview", label: "Tổng quan" },
+            { key: "leads", label: "Lead" },
+            { key: "schedule", label: "Lịch học" },
+            { key: "reports", label: "Báo cáo" },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              activeTab === tab.key
+                ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                : "text-gray-700 hover:bg-pink-50"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Main Content */}
+      {activeTab === "overview" && (
+        <>
+          <div className={`grid lg:grid-cols-2 gap-6 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <TrendingUp size={20} className="text-blue-500" />
+                    Tăng trưởng Lead
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">6 tháng gần nhất</p>
+                </div>
+                <Badge color="blue">+24% tháng này</Badge>
+              </div>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={leadGrowthData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="month" tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                    <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Area type="monotone" dataKey="leads" name="Lead" stroke="#3b82f6" fill="url(#leadFill)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="qualified" name="Qualified" stroke="#10b981" fill="url(#qualifiedFill)" strokeWidth={2} />
+                    <defs>
+                      <linearGradient id="leadFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="qualifiedFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <MessageSquare size={20} className="text-purple-500" />
+                    Phân loại ticket
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">Theo nhóm yêu cầu</p>
+                </div>
+                <Badge color="purple">Tuần này</Badge>
+              </div>
+
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={ticketDistribution} cx="50%" cy="50%" labelLine={false} outerRadius={90} dataKey="value">
+                      {ticketDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: any) => [`${value}%`, "Tỷ lệ"]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {ticketDistribution.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 hover:bg-pink-50/50 rounded-xl transition-colors cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="text-sm text-gray-700">{item.name}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{item.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className={`grid md:grid-cols-2 gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <CalendarRange size={20} className="text-emerald-500" />
+                  Ca học & xung đột tuần
+                </h3>
+                <Badge color="green">7 ngày</Badge>
+              </div>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={classOpsData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="day" tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                    <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Bar dataKey="sessions" name="Ca học" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="conflicts" name="Xung đột" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <AlertCircle size={20} className="text-rose-500" />
+                    Tiến độ báo cáo tháng
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">Tỷ lệ nộp & tồn</p>
+                </div>
+                <Badge color="pink">+4% cải thiện</Badge>
+              </div>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={reportProgressData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="month" tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                    <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Line type="monotone" dataKey="submitted" name="Đã nộp" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="pending" name="Còn lại" stroke="#ec4899" strokeWidth={3} dot={{ r: 4 }} strokeDasharray="5 5" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === "leads" && (
+        <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
+                <div className="p-2 bg-gradient-to-r from-blue-500 to-sky-500 rounded-lg">
+                  <TrendingUp size={20} className="text-white" />
+                </div>
+                Lead & Qualified 6 tháng
+              </h3>
+              <Badge color="blue">Tổng lead: 1,019</Badge>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={leadGrowthData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                  <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <Area type="monotone" dataKey="leads" name="Lead" stroke="#3b82f6" fill="url(#leadFill2)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="qualified" name="Qualified" stroke="#10b981" fill="url(#qualifiedFill2)" strokeWidth={2} />
+                  <defs>
+                    <linearGradient id="leadFill2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="qualifiedFill2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "schedule" && (
+        <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
+                <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg">
+                  <CalendarRange size={20} className="text-white" />
+                </div>
+                Ca học & xung đột tuần
+              </h3>
+              <Badge color="green">Tuần hiện tại</Badge>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={classOpsData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="day" tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                  <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <Bar dataKey="sessions" name="Ca học" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="conflicts" name="Xung đột" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "reports" && (
+        <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
+                <div className="p-2 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg">
+                  <NotebookPen size={20} className="text-white" />
+                </div>
+                Tiến độ báo cáo tháng
+              </h3>
+              <Badge color="pink">83% đã nộp</Badge>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={reportProgressData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                  <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <Line type="monotone" dataKey="submitted" name="Đã nộp" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="pending" name="Còn lại" stroke="#ec4899" strokeWidth={3} dot={{ r: 4 }} strokeDasharray="5 5" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className={`mt-8 pt-6 border-t border-pink-200 transition-all duration-700 delay-300 ${isPageLoaded ? "opacity-100" : "opacity-0"}`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-pink-500" />
+            <span>Cập nhật thời gian thực • Dữ liệu được cập nhật lúc 14:30</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Ổn định</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <span>Cần chú ý</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-rose-500" />
+              <span>Cần hành động</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
