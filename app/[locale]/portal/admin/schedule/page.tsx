@@ -176,18 +176,28 @@ function CreateScheduleModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div 
-        className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-pink-200 bg-gradient-to-br from-white to-pink-50"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-gradient-to-r from-pink-50 to-rose-50 border-b border-pink-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Tạo lịch mới</h2>
+        <div className="sticky top-0 bg-gradient-to-r from-pink-100 to-rose-100 border-b border-pink-200 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md">
+              <CalendarDays size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg md:text-xl font-bold text-gray-900">Tạo lịch mới</h2>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Chọn ngày, ca học và điền thông tin lớp/buổi bù/sự kiện.
+              </p>
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-pink-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-pink-200/60 bg-white/60 border border-pink-200 transition-colors"
           >
-            <X size={20} className="text-gray-600" />
+            <X size={18} className="text-gray-600" />
           </button>
         </div>
 

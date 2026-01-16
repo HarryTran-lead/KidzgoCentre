@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
-import { Button } from "@/components/lightswind/button";
-import { Badge } from "@/components/lightswind/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/lightswind/dialog";
+import { ChevronLeft, ChevronRight, CalendarDays, MapPin, Users, Clock3 } from "lucide-react";
 
 type TabType = "all" | "classes" | "makeup" | "events";
 type TimeSlot = "morning" | "afternoon" | "evening";
@@ -16,7 +13,6 @@ interface ClassEvent {
   room?: string;
   location?: string;
   type: "class" | "makeup" | "event";
-  color: "blue" | "yellow" | "red" | "green" | "purple";
   teacher?: string;
   description?: string;
 }
@@ -34,7 +30,7 @@ const MOCK_WEEKLY_SCHEDULE: { [key in TimeSlot]: DaySchedule } = {
         title: "Họp phụ huynh tháng 12",
         location: "Hội trường",
         type: "event",
-        color: "yellow",
+        teacher: "Ban quản lý",
       },
     ],
     "CN": [
@@ -44,9 +40,8 @@ const MOCK_WEEKLY_SCHEDULE: { [key in TimeSlot]: DaySchedule } = {
         title: "Mock Test IELTS",
         room: "Phòng 201",
         type: "class",
-        color: "yellow",
-        teacher: "Ms. Hoa",
-        description: "Bài kiểm tra thử IELTS toàn diện bao gồm 4 kỹ năng: Listening, Reading, Writing, Speaking",
+        teacher: "Academic",
+        description: "Bài kiểm tra thử IELTS toàn diện",
       },
     ],
   },
@@ -58,9 +53,7 @@ const MOCK_WEEKLY_SCHEDULE: { [key in TimeSlot]: DaySchedule } = {
         title: "TOEFL Junior A",
         room: "Phòng 202",
         type: "class",
-        color: "blue",
-        teacher: "Ms. Lan",
-        description: "Lớp học TOEFL Junior dành cho học sinh cấp 2, tập trung vào kỹ năng Listening và Reading",
+        teacher: "Thầy Tín",
       },
     ],
     "Thứ 6": [
@@ -70,9 +63,8 @@ const MOCK_WEEKLY_SCHEDULE: { [key in TimeSlot]: DaySchedule } = {
         title: "TOEIC Intermediate",
         room: "Phòng 205",
         type: "class",
-        color: "red",
-        teacher: "Mr. Minh",
-        description: "Khóa TOEIC trung cấp, luyện thi đạt điểm 600-750",
+        teacher: "Thầy Minh",
+        description: "Bù cho 03/12",
       },
     ],
   },
@@ -84,9 +76,7 @@ const MOCK_WEEKLY_SCHEDULE: { [key in TimeSlot]: DaySchedule } = {
         title: "PRE-IELTS 11",
         room: "Phòng 101",
         type: "class",
-        color: "blue",
-        teacher: "Ms. Hương",
-        description: "Khóa học Pre-IELTS cho học sinh lớp 11, chuẩn bị nền tảng cho kỳ thi IELTS",
+        teacher: "Cô Hạnh",
       },
     ],
     "Thứ 3": [
@@ -96,9 +86,7 @@ const MOCK_WEEKLY_SCHEDULE: { [key in TimeSlot]: DaySchedule } = {
         title: "IELTS Speaking Club",
         location: "Hội trường",
         type: "event",
-        color: "yellow",
-        teacher: "Native Teacher",
-        description: "Câu lạc bộ luyện Speaking với giáo viên bản xứ, chủ đề tự do",
+        teacher: "Academic",
       },
     ],
     "Thứ 5": [
@@ -108,9 +96,7 @@ const MOCK_WEEKLY_SCHEDULE: { [key in TimeSlot]: DaySchedule } = {
         title: "IELTS Foundation - A1",
         room: "Phòng 301",
         type: "class",
-        color: "blue",
-        teacher: "Ms. Thu",
-        description: "Khóa học IELTS Foundation dành cho người mới bắt đầu, trình độ A1",
+        teacher: "Cô Phương",
       },
     ],
     "Thứ 6": [
@@ -120,33 +106,47 @@ const MOCK_WEEKLY_SCHEDULE: { [key in TimeSlot]: DaySchedule } = {
         title: "Kids English F1",
         room: "Phòng 102",
         type: "class",
-        color: "purple",
-        teacher: "Ms. Trang",
-        description: "Tiếng Anh thiếu nhi cơ bản, phát triển 4 kỹ năng qua trò chơi và hoạt động tương tác",
+        teacher: "Cô Vi",
       },
     ],
   },
 };
 
 const DAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
+const DAY_DATES = ["02/12", "03/12", "04/12", "05/12", "06/12", "07/12", "08/12"];
 const TIME_SLOTS = [
   { key: "morning" as TimeSlot, label: "Sáng" },
   { key: "afternoon" as TimeSlot, label: "Chiều" },
   { key: "evening" as TimeSlot, label: "Tối" },
 ];
 
-const COLOR_STYLES = {
-  blue: "bg-blue-100 border-blue-400 text-blue-900",
-  yellow: "bg-yellow-100 border-yellow-400 text-yellow-900",
-  red: "bg-red-100 border-red-400 text-red-900",
-  green: "bg-green-100 border-green-400 text-green-900",
-  purple: "bg-purple-100 border-purple-400 text-purple-900",
+const TYPE_META = {
+  class: {
+    text: "Lớp học",
+    badge: "bg-indigo-600 text-white",
+    chip: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+  },
+  makeup: {
+    text: "Buổi bù",
+    badge: "bg-rose-600 text-white",
+    chip: "bg-rose-50 text-rose-700 border border-rose-200",
+  },
+  event: {
+    text: "Sự kiện",
+    badge: "bg-amber-500 text-white",
+    chip: "bg-amber-50 text-amber-700 border border-amber-200",
+  },
 };
+
+function TypeBadge({ type }: { type: "class" | "makeup" | "event" }) {
+  const { text, badge } = TYPE_META[type];
+  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge}`}>{text}</span>;
+}
 
 export default function SchedulePage() {
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [selectedClass, setSelectedClass] = useState<ClassEvent | null>(null);
-  const [currentWeek, setCurrentWeek] = useState("Tuần 2/12/2024 - 8/12/2024");
+  const [currentWeek, setCurrentWeek] = useState("02/12/2024 - 08/12/2024");
 
   const filterEvents = (events: ClassEvent[]) => {
     if (activeTab === "all") return events;
@@ -171,233 +171,325 @@ export default function SchedulePage() {
     console.log("Current week");
   };
 
+  const getEventColor = (type: string) => {
+    switch (type) {
+      case "class":
+        return "bg-gradient-to-r from-pink-500 to-rose-500";
+      case "makeup":
+        return "bg-gradient-to-r from-fuchsia-500 to-purple-500";
+      case "event":
+        return "bg-gradient-to-r from-amber-500 to-orange-500";
+      default:
+        return "bg-gradient-to-r from-blue-500 to-sky-500";
+    }
+  };
+
+  const getLightColor = (type: string) => {
+    switch (type) {
+      case "class":
+        return "bg-gradient-to-br from-pink-100 to-rose-100";
+      case "makeup":
+        return "bg-gradient-to-br from-fuchsia-100 to-purple-100";
+      case "event":
+        return "bg-gradient-to-br from-amber-100 to-orange-100";
+      default:
+        return "bg-gradient-to-br from-blue-100 to-sky-100";
+    }
+  };
+
+  const modeDot = (room?: string, location?: string) => {
+    const place = room || location || "";
+    return place.toLowerCase().includes("online") ? "bg-emerald-500" : "bg-sky-500";
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Lịch học</h1>
-        <p className="text-slate-600">Xem thời khóa biểu và lịch học của con.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+            <CalendarDays className="text-white" size={28} />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              Lịch học của con
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Xem thời khoá biểu theo tuần, buổi bù và sự kiện đặc biệt của con.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 flex-wrap">
-        <Button
-          variant={activeTab === "all" ? "default" : "outline"}
-          onClick={() => setActiveTab("all")}
-          className={activeTab === "all" ? "bg-slate-900 text-white" : ""}
-        >
-          Tất cả
-        </Button>
-        <Button
-          variant={activeTab === "classes" ? "default" : "outline"}
-          onClick={() => setActiveTab("classes")}
-        >
-          Lớp học
-        </Button>
-        <Button
-          variant={activeTab === "makeup" ? "default" : "outline"}
-          onClick={() => setActiveTab("makeup")}
-        >
-          Buổi bù
-        </Button>
-        <Button
-          variant={activeTab === "events" ? "default" : "outline"}
-          onClick={() => setActiveTab("events")}
-        >
-          Sự kiện
-        </Button>
+      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-2 inline-flex gap-2">
+        {["all", "classes", "makeup", "events"].map((tab) => {
+          const isActive = activeTab === tab;
+          const tabText = {
+            all: "Tất cả",
+            classes: "Lớp học",
+            makeup: "Buổi bù",
+            events: "Sự kiện",
+          }[tab];
+          
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab as TabType)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                isActive
+                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                  : "bg-white border border-pink-200 text-gray-600 hover:bg-pink-50"
+              }`}
+            >
+              {tabText}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Week Navigation */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-        <h2 className="text-lg font-semibold text-slate-900">Thời khoá biểu theo tuần</h2>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <span className="text-sm font-medium text-slate-700 min-w-[200px] text-center">
-            {currentWeek}
-          </span>
-          <Button variant="outline" size="icon" onClick={goToNextWeek}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" onClick={goToCurrentWeek}>
-            Tuần này
-          </Button>
-        </div>
-      </div>
-
-      {/* Calendar Grid */}
-      <div className="overflow-x-auto">
-        <div className="min-w-[1000px] border border-slate-200 rounded-lg overflow-hidden">
-          {/* Header Row */}
-          <div className="grid grid-cols-8 bg-slate-50">
-            <div className="p-3 border-r border-slate-200 font-semibold text-slate-700">
-              Ca / Ngày
+      {/* Week Navigation - Style giống admin */}
+      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 shadow-sm">
+        <div className="flex items-center justify-between p-6 border-b border-pink-200 bg-gradient-to-r from-pink-500/10 to-rose-500/10">
+          <div className="flex items-center gap-4">
+            <div className="relative p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg">
+              <CalendarDays size={24} />
+              <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center">
+                <span className="text-xs font-bold text-pink-600">02</span>
+              </div>
             </div>
-            {DAYS.map((day, index) => (
-              <div
-                key={day}
-                className="p-3 border-r last:border-r-0 border-slate-200 text-center"
-              >
-                <div className="font-semibold text-slate-700">{day}</div>
-                <div className="text-xs text-slate-500">{index + 2}</div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">Lịch tuần</div>
+              <div className="text-gray-600">{currentWeek}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 transition-colors cursor-pointer"
+              onClick={goToPreviousWeek}
+            >
+              <ChevronLeft size={18} className="text-gray-600" />
+            </button>
+            <div className="min-w-[220px] text-center text-sm font-semibold text-gray-700">
+              Tuần từ 02/12 đến 08/12
+            </div>
+            <button
+              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 transition-colors cursor-pointer"
+              onClick={goToNextWeek}
+            >
+              <ChevronRight size={18} className="text-gray-600" />
+            </button>
+            <button
+              className="ml-2 rounded-xl border border-pink-200 bg-white px-4 py-2 text-sm hover:bg-pink-50 transition-colors cursor-pointer text-gray-700"
+              onClick={goToCurrentWeek}
+            >
+              Tuần này
+            </button>
+          </div>
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="overflow-x-auto">
+          <div className="min-w-[1000px]">
+            {/* Header Row */}
+            <div className="grid grid-cols-8 border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 text-sm font-semibold text-gray-700">
+              <div className="px-4 py-3">Ca / Ngày</div>
+              {DAYS.map((day, index) => (
+                <div key={day} className="px-4 py-3 border-l border-pink-200">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="capitalize">{day}</span>
+                    <span className="h-8 w-8 flex items-center justify-center rounded-full text-sm font-bold bg-white text-gray-700 border border-pink-200">
+                      {index + 2}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Time Slots Rows */}
+            {TIME_SLOTS.map((slot, rowIdx) => (
+              <div key={slot.key} className="grid grid-cols-8 border-t border-pink-100">
+                <div className="px-4 py-4 text-sm font-semibold text-gray-700 bg-gradient-to-r from-pink-500/5 to-rose-500/5 flex items-center justify-center">
+                  <div className="flex flex-col items-center">
+                    <span className="font-bold text-lg">{slot.label}</span>
+                    {slot.key === "morning" && <span className="text-xs text-gray-500 mt-1">7:00-12:00</span>}
+                    {slot.key === "afternoon" && <span className="text-xs text-gray-500 mt-1">12:00-18:00</span>}
+                    {slot.key === "evening" && <span className="text-xs text-gray-500 mt-1">18:00-22:00</span>}
+                  </div>
+                </div>
+
+                {DAYS.map((day) => {
+                  const events = MOCK_WEEKLY_SCHEDULE[slot.key][day] || [];
+                  const filteredEvents = filterEvents(events);
+
+                  return (
+                    <div
+                      key={`${slot.key}-${day}`}
+                      className={`min-h-[130px] p-3 ${
+                        rowIdx % 2 ? "bg-white" : "bg-pink-50/30"
+                      } border-l border-pink-100`}
+                    >
+                      <div className="space-y-2">
+                        {filteredEvents.map((event) => {
+                          const lightColor = getLightColor(event.type);
+                          return (
+                            <button
+                              key={event.id}
+                              onClick={() => setSelectedClass(event)}
+                              className={`w-full text-left rounded-xl p-2.5 text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-pink-200 ${lightColor}`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className={`h-2 w-2 rounded-full ${modeDot(event.room, event.location)}`} />
+                                    <span className="font-semibold text-gray-900 truncate">{event.title}</span>
+                                  </div>
+                                  <div className="text-[11px] text-gray-600 mb-1">{event.time}</div>
+                                  <div className="text-[11px] text-gray-500 flex items-center gap-1">
+                                    <MapPin size={10} />
+                                    <span className="truncate">{event.room || event.location}</span>
+                                  </div>
+                                  {event.teacher && (
+                                    <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                                      <Users size={10} />
+                                      <span>{event.teacher}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                        {filteredEvents.length === 0 && (
+                          <div className="text-[13px] text-gray-400 italic text-center py-4">
+                            Trống
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
-
-          {/* Time Slots Rows */}
-          {TIME_SLOTS.map((slot) => (
-            <div key={slot.key} className="grid grid-cols-8 border-t border-slate-200">
-              <div className="p-3 border-r border-slate-200 font-medium text-slate-600 bg-slate-50">
-                {slot.label}
-              </div>
-              {DAYS.map((day) => {
-                const events = MOCK_WEEKLY_SCHEDULE[slot.key][day] || [];
-                const filteredEvents = filterEvents(events);
-
-                return (
-                  <div
-                    key={`${slot.key}-${day}`}
-                    className="p-2 border-r last:border-r-0 border-slate-200 min-h-[100px]"
-                  >
-                    {filteredEvents.length === 0 ? (
-                      <div className="text-xs text-slate-400 italic">Trống</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {filteredEvents.map((event) => (
-                          <button
-                            key={event.id}
-                            onClick={() => setSelectedClass(event)}
-                            className={`w-full text-left p-2 rounded-lg border-l-4 ${
-                              COLOR_STYLES[event.color]
-                            } hover:shadow-md transition-shadow cursor-pointer`}
-                          >
-                            <div className="flex items-start gap-1">
-                              <div className="w-1 h-1 rounded-full bg-current mt-1.5 flex-shrink-0"></div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-medium mb-0.5">{event.time}</div>
-                                <div className="text-sm font-semibold leading-tight mb-1">
-                                  {event.title}
-                                </div>
-                                {event.room && (
-                                  <div className="text-xs opacity-75">{event.room}</div>
-                                )}
-                                {event.location && (
-                                  <div className="text-xs opacity-75">{event.location}</div>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
         </div>
       </div>
 
-      {/* Class Detail Dialog */}
-      <Dialog open={!!selectedClass} onOpenChange={(open) => !open && setSelectedClass(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-slate-900">
-              Chi tiết lịch học
-            </DialogTitle>
-          </DialogHeader>
-          {selectedClass && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                  {selectedClass.title}
-                </h3>
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge
-                    className={
-                      selectedClass.type === "class"
-                        ? "bg-blue-100 text-blue-700 border-blue-300"
-                        : selectedClass.type === "makeup"
-                        ? "bg-green-100 text-green-700 border-green-300"
-                        : "bg-yellow-100 text-yellow-700 border-yellow-300"
-                    }
-                  >
-                    {selectedClass.type === "class"
-                      ? "Lớp học"
-                      : selectedClass.type === "makeup"
-                      ? "Buổi bù"
-                      : "Sự kiện"}
-                  </Badge>
+      {/* Class Detail Modal */}
+      {selectedClass && (
+        <div 
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedClass(null)}
+        >
+          <div 
+            className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-pink-200 bg-gradient-to-br from-white to-pink-50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-gradient-to-r from-pink-100 to-rose-100 border-b border-pink-200 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${getEventColor(selectedClass.type)} text-white shadow-md`}>
+                  <CalendarDays size={18} />
+                </div>
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold text-gray-900">Chi tiết lịch học</h2>
                 </div>
               </div>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex items-start gap-3">
-                  <CalendarIcon className="w-5 h-5 text-slate-500 mt-0.5" />
-                  <div>
-                    <div className="font-medium text-slate-700">Thời gian</div>
-                    <div className="text-slate-600">{selectedClass.time}</div>
-                  </div>
-                </div>
-
-                {selectedClass.room && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-5 h-5 flex items-center justify-center text-slate-500">
-                      📍
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-700">Phòng học</div>
-                      <div className="text-slate-600">{selectedClass.room}</div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedClass.location && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-5 h-5 flex items-center justify-center text-slate-500">
-                      📍
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-700">Địa điểm</div>
-                      <div className="text-slate-600">{selectedClass.location}</div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedClass.teacher && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-5 h-5 flex items-center justify-center text-slate-500">
-                      👨‍🏫
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-700">Giáo viên</div>
-                      <div className="text-slate-600">{selectedClass.teacher}</div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedClass.description && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-5 h-5 flex items-center justify-center text-slate-500">
-                      📝
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-700">Mô tả</div>
-                      <div className="text-slate-600">{selectedClass.description}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <Button className="w-full" onClick={() => setSelectedClass(null)}>
-                Đóng
-              </Button>
+              <button
+                onClick={() => setSelectedClass(null)}
+                className="p-2 rounded-lg hover:bg-pink-200/60 bg-white/60 border border-pink-200 transition-colors cursor-pointer"
+              >
+                <span className="text-lg">×</span>
+              </button>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <TypeBadge type={selectedClass.type} />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {selectedClass.title}
+                  </h3>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center gap-3">
+                    <Clock3 className="w-4 h-4 text-pink-500" />
+                    <div>
+                      <div className="font-medium text-gray-700">Thời gian</div>
+                      <div className="text-gray-600">{selectedClass.time}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-4 h-4 text-pink-500" />
+                    <div>
+                      <div className="font-medium text-gray-700">
+                        {selectedClass.room ? "Phòng học" : "Địa điểm"}
+                      </div>
+                      <div className="text-gray-600">{selectedClass.room || selectedClass.location}</div>
+                    </div>
+                  </div>
+
+                  {selectedClass.teacher && (
+                    <div className="flex items-center gap-3">
+                      <Users className="w-4 h-4 text-pink-500" />
+                      <div>
+                        <div className="font-medium text-gray-700">Giáo viên</div>
+                        <div className="text-gray-600">{selectedClass.teacher}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedClass.description && (
+                    <div className="mt-4 pt-4 border-t border-pink-100">
+                      <div className="font-medium text-gray-700 mb-2">Mô tả</div>
+                      <div className="text-gray-600 bg-white/50 rounded-lg p-3 text-sm">
+                        {selectedClass.description}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-pink-200 flex justify-end">
+                <button
+                  onClick={() => setSelectedClass(null)}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all cursor-pointer"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Legend */}
+      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+        <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích:</div>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
+            <span className="text-sm text-gray-600">Online</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-sky-500"></div>
+            <span className="text-sm text-gray-600">Offline</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-pink-500 to-rose-500"></div>
+            <span className="text-sm text-gray-600">Lớp học</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-fuchsia-500 to-purple-500"></div>
+            <span className="text-sm text-gray-600">Buổi bù</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-amber-500 to-orange-500"></div>
+            <span className="text-sm text-gray-600">Sự kiện</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
