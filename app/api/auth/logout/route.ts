@@ -1,12 +1,43 @@
 import { NextResponse } from "next/server";
+import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import type { LogoutApiResponse } from "@/types/auth";
 
 export async function POST(req: Request) {
-  const { role = "TEACHER", name, avatar } = await req.json().catch(() => ({}));
-  const res = NextResponse.json({ ok: true, role });
+  try {
+    const authHeader = req.headers.get("authorization");
 
-  res.cookies.set("role", role, { path: "/", httpOnly: false, maxAge: 60 * 60 * 24 * 30 });
-  if (name)   res.cookies.set("user-name", name, { path: "/", httpOnly: false });
-  if (avatar) res.cookies.set("user-avatar", avatar, { path: "/", httpOnly: false });
+    if (!authHeader) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Chưa đăng nhập",
+        },
+        { status: 401 }
+      );
+    }
 
-  return res;
+    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.LOGOUT), {
+      method: "POST",
+      headers: {
+        "Authorization": authHeader,
+      },
+    });
+
+    const data: LogoutApiResponse = await upstream.json();
+
+    return NextResponse.json(data, {
+      status: upstream.status,
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message: "Đã xảy ra lỗi khi đăng xuất",
+      },
+      { status: 500 }
+    );
+  }
 }

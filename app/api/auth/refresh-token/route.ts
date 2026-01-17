@@ -1,18 +1,46 @@
 import { NextResponse } from "next/server";
-import { rotateRefreshToken } from "@/lib/mock/auth";
+import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import type { RefreshTokenApiResponse } from "@/types/auth";
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
-  const refreshToken =
-    typeof body === "string" ? body : typeof body?.refreshToken === "string" ? body.refreshToken : "";
+  try {
+    const body = await req.json().catch(() => null);
+    const refreshToken =
+      typeof body === "string" ? body : typeof body?.refreshToken === "string" ? body.refreshToken : "";
 
-  const tokens = rotateRefreshToken(refreshToken);
-  if (!tokens) {
+    if (!refreshToken) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Refresh token là bắt buộc",
+        },
+        { status: 400 }
+      );
+    }
+
+    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.REFRESH_TOKEN), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(refreshToken),
+    });
+
+    const data: RefreshTokenApiResponse = await upstream.json();
+
+    return NextResponse.json(data, {
+      status: upstream.status,
+    });
+  } catch (error) {
+    console.error("Refresh token error:", error);
     return NextResponse.json(
-      { isSuccess: false, message: "Refresh token không hợp lệ" },
-      { status: 400 }
+      {
+        success: false,
+        data: null,
+        message: "Đã xảy ra lỗi khi làm mới token",
+      },
+      { status: 500 }
     );
   }
-
-  return NextResponse.json({ isSuccess: true, data: tokens });
 }
