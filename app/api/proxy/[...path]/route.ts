@@ -5,8 +5,8 @@ export const runtime = "nodejs";
 const BACKEND_BASE =
   process.env.BACKEND_API_BASE_URL ?? "https://kidzgo-be.onrender.com/api";
 
-async function handler(req: Request, ctx: { params: { path: string[] } }) {
-  const { path } = ctx.params;
+async function handler(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
+  const { path } = await ctx.params;
 
   const url = new URL(req.url);
   const targetUrl = `${BACKEND_BASE}/${path.join("/")}${url.search}`;

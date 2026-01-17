@@ -167,7 +167,9 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
       }
     `;
     document.head.appendChild(style);
-    return () => document.head.removeChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   return (
