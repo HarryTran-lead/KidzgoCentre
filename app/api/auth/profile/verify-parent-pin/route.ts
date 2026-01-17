@@ -1,35 +1,57 @@
 import { NextResponse } from "next/server";
-import { findProfile, getAccessTokenFromHeader, getUserByAccessToken } from "@/lib/mock/auth";
+import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import type { VerifyParentPinRequest, VerifyParentPinApiResponse } from "@/types/auth";
 
 export async function POST(req: Request) {
-  const token = getAccessTokenFromHeader(req.headers.get("authorization"));
-  const user = getUserByAccessToken(token);
+  try {
+    const authHeader = req.headers.get("authorization");
+    const body: VerifyParentPinRequest = await req.json();
 
-  if (!user) {
+    if (!authHeader) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Chưa đăng nhập",
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!body.profileId || !body.pin) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Profile ID và PIN là bắt buộc",
+        },
+        { status: 400 }
+      );
+    }
+
+    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.VERIFY_PARENT_PIN), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": authHeader,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data: VerifyParentPinApiResponse = await upstream.json();
+
+    return NextResponse.json(data, {
+      status: upstream.status,
+    });
+  } catch (error) {
+    console.error("Verify parent PIN error:", error);
     return NextResponse.json(
-      { isSuccess: false, message: "Chưa đăng nhập" },
-      { status: 401 }
+      {
+        success: false,
+        data: null,
+        message: "Đã xảy ra lỗi khi xác thực PIN",
+      },
+      { status: 500 }
     );
   }
-
-  const body = await req.json().catch(() => ({}));
-  const profileId = String(body?.profileId ?? "");
-  const pin = String(body?.pin ?? "");
-
-  const profile = findProfile(user, profileId);
-  if (!profile || profile.profileType !== "Parent") {
-    return NextResponse.json(
-      { isSuccess: false, message: "Profile không tồn tại hoặc không phải Parent" },
-      { status: 404 }
-    );
-  }
-
-  if (pin !== user.parentPin) {
-    return NextResponse.json(
-      { isSuccess: false, message: "PIN không đúng hoặc Profile không hợp lệ" },
-      { status: 400 }
-    );
-  }
-
-  return NextResponse.json({ isSuccess: true, data: null });
 }

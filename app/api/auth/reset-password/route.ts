@@ -1,16 +1,44 @@
 import { NextResponse } from "next/server";
+import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import type { ResetPasswordRequest, ResetPasswordApiResponse } from "@/types/auth";
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
-  const token = String(body?.token ?? "");
-  const newPassword = String(body?.newPassword ?? "");
+  try {
+    const body: ResetPasswordRequest = await req.json();
 
-  if (!token || !newPassword) {
+    if (!body.token || !body.newPassword) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Token và mật khẩu mới là bắt buộc",
+        },
+        { status: 400 }
+      );
+    }
+
+    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.RESET_PASSWORD), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data: ResetPasswordApiResponse = await upstream.json();
+
+    return NextResponse.json(data, {
+      status: upstream.status,
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
     return NextResponse.json(
-      { isSuccess: false, message: "Token không hợp lệ hoặc đã hết hạn" },
-      { status: 400 }
+      {
+        success: false,
+        data: null,
+        message: "Đã xảy ra lỗi khi đặt lại mật khẩu",
+      },
+      { status: 500 }
     );
   }
-
-  return NextResponse.json({ isSuccess: true, data: null });
 }
