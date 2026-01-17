@@ -31,6 +31,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { getMessages } from "@/lib/dict";
+import { toast } from "@/hooks/use-toast";
 
 type Props = {
   action: (formData: FormData) => void;
@@ -101,28 +102,52 @@ useEffect(() => {
   }, [controls]);
 
   const handleSubmit = () => {
+    const name = (document.querySelector('input[name="name"]') as HTMLInputElement)?.value || "";
+    const email = (document.querySelector('input[name="email"]') as HTMLInputElement)?.value || "";
+    const password = (document.querySelector('input[name="password"]') as HTMLInputElement)?.value || "";
+    const confirmPassword = (document.querySelector('input[name="confirmPassword"]') as HTMLInputElement)?.value || "";
+
+    // Validation
+    if (!name || !email || !password || !confirmPassword) {
+      toast.warning({
+        title: "Thiếu thông tin!",
+        description: "Vui lòng điền đầy đủ thông tin đăng ký",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.destructive({
+        title: "Mật khẩu không khớp!",
+        description: "Mật khẩu xác nhận không giống với mật khẩu đã nhập",
+        duration: 4000,
+      });
+      return;
+    }
+
+    if (!agreeTerms) {
+      toast.warning({
+        title: "Chưa đồng ý điều khoản!",
+        description: "Vui lòng đồng ý với điều khoản sử dụng",
+        duration: 3000,
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.append("returnTo", returnTo);
-    formData.append(
-      "name",
-      (document.querySelector('input[name="name"]') as HTMLInputElement)
-        ?.value || ""
-    );
-    formData.append(
-      "email",
-      (document.querySelector('input[name="email"]') as HTMLInputElement)
-        ?.value || ""
-    );
-    formData.append(
-      "password",
-      (document.querySelector('input[name="password"]') as HTMLInputElement)
-        ?.value || ""
-    );
-    formData.append(
-      "confirmPassword",
-      (document.querySelector('input[name="confirmPassword"]') as HTMLInputElement)
-        ?.value || ""
-    );
+    formData.append("name", name);
+    formData.append("email", email);
+    formData.append("password", password);
+    formData.append("confirmPassword", confirmPassword);
+    
+    toast.info({
+      title: "Đang xử lý...",
+      description: "Đang tạo tài khoản của bạn",
+      duration: 2000,
+    });
+    
     action(formData);
   };
 

@@ -1,7 +1,5 @@
 // app/[locale]/layout.tsx
 import type { ReactNode } from "react";
-import Navbar from "@/components/home/Header";
-import Footer from "@/components/home/Footer";
 import { SURFACE_SOFT } from "@/lib/theme/theme";
 import type { Locale } from "@/lib/i18n";
 import { headers } from "next/headers";

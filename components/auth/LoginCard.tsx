@@ -4,13 +4,7 @@ import { motion, useAnimation } from "framer-motion";
 import {
   Mail,
   Lock,
-  ShieldCheck,
-  Sparkles,
-  CheckCircle2,
   TrendingUp,
-  Bell,
-  Award,
-  ArrowRight,
   ArrowLeft,
   Home,
   DollarSign,
@@ -32,6 +26,7 @@ import { DEFAULT_LOCALE, localizePath, type Locale } from "@/lib/i18n";
 import { useLazyGetCurrentUserQuery, useLoginMutation } from "@/lib/store/authApi";
 import { setAccessToken, setRefreshToken } from "@/lib/store/authToken";
 import { normalizeRole, ROLES } from "@/lib/role";
+import { toast } from "@/hooks/use-toast";
 
 type Props = {
   returnTo?: string;
@@ -106,7 +101,13 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
       (document.querySelector('input[name="password"]') as HTMLInputElement)?.value || "";
 
     if (!email || !password) {
-      setLoginError("Vui lòng nhập email và mật khẩu.");
+      const errorMsg = "Vui lòng nhập email và mật khẩu.";
+      setLoginError(errorMsg);
+      toast.warning({
+        title: "Thiếu thông tin!",
+        description: errorMsg,
+        duration: 3000,
+      });
       return;
     }
 
@@ -126,14 +127,31 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
         avatar: "",
       });
 
+      // Show success toast
+      toast.success({
+        title: "Đăng nhập thành công!",
+        description: `Chào mừng ${currentUser.data.fullName || currentUser.data.userName}`,
+        duration: 2000,
+      });
+
       const roleBasePath =
         ["PARENT", "STUDENT"].includes(normalizedRole) ? "/portal" : (ROLES[normalizedRole] ?? "/portal");
 
       const destination = returnTo || localizePath(roleBasePath, resolvedLocale);
 
-      window.location.assign(destination);
-    } catch (error) {
-      setLoginError("Email hoặc mật khẩu không chính xác. Vui lòng thử lại.");
+      // Delay navigation to show toast
+      setTimeout(() => {
+        window.location.assign(destination);
+      }, 500);
+    } catch (error: any) {
+      const errorMsg = "Email hoặc mật khẩu không chính xác. Vui lòng thử lại.";
+      setLoginError(errorMsg);
+      
+      toast.destructive({
+        title: "Đăng nhập thất bại!",
+        description: error?.data?.message || errorMsg,
+        duration: 4000,
+      });
     }
   };
 
@@ -280,12 +298,6 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                     Đăng nhập cho học sinh và phụ huynh
                   </h2>
                 </div>
-
-                {loginError && (
-                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-                    {loginError}
-                  </div>
-                )}
 
                 <div className="space-y-5">
                   <CustomTextInput

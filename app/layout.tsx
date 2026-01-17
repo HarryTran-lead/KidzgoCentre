@@ -5,7 +5,8 @@ import { cookies } from "next/headers";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Toaster } from "react-hot-toast";
+import { Toaster as HotToaster } from "react-hot-toast";
+import { Toaster } from "@/components/lightswind/toaster";
 import ReduxProvider from "@/components/providers/ReduxProvider";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -43,7 +44,8 @@ export default async function RootLayout({
 
 
         <ToastContainer autoClose={3000} />
-        <Toaster position="bottom-right" />
+        <HotToaster position="bottom-right" />
+        <Toaster />
       </body>
     </html>
   );
