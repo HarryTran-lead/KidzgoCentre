@@ -1,8 +1,7 @@
 // @/lib/routes
 export const EndPoint = {
   HOME: "/",
-  LOGIN: "/auth/login/parent",
-  LOGIN_STAFF: "/auth/login/management",
+  LOGIN: "/auth/login",
   FORGOTPASSWORD: "/auth/forgotpass",
   
   // HomePage

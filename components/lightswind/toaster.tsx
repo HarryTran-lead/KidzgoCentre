@@ -1,3 +1,4 @@
+"use client";
 
 import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +17,7 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      <div className="fixed md:top-4 right-0 md:right-4 z-100 flex flex-col gap-2 w-auto max-w-sm">
+      <div className="fixed bottom-4 right-4 z-100 flex flex-col gap-2 w-auto max-w-sm">
         {toasts.map((toast) => {
           const { id, title, description, action, type, variant, duration, ...props } = toast;
           // Map toast type to variant if variant is not provided
