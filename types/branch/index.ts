@@ -4,20 +4,22 @@ import { ApiResponse } from '../apiResponse';
 
 // Create Branch Request
 export interface CreateBranchRequest {
+  code: string;
   name: string;
   address: string;
-  phone: string;
-  email?: string;
+  contactPhone: string;
+  contactEmail: string;
   description?: string;
   isActive?: boolean;
 }
 
 // Update Branch Request
 export interface UpdateBranchRequest {
+  code?: string;
   name?: string;
   address?: string;
-  phone?: string;
-  email?: string;
+  contactPhone?: string;
+  contactEmail?: string;
   description?: string;
   isActive?: boolean;
 }
@@ -42,10 +44,11 @@ export interface GetAllBranchesParams {
 // Branch Entity
 export interface Branch {
   id: string;
+  code: string;
   name: string;
   address: string;
-  phone: string;
-  email?: string;
+  contactPhone: string;
+  contactEmail: string;
   description?: string;
   isActive: boolean;
   createdAt: string;

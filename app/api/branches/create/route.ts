@@ -20,12 +20,12 @@ export async function POST(req: Request) {
     const body: CreateBranchRequest = await req.json();
 
     // Validate required fields
-    if (!body.name || !body.address || !body.phone) {
+    if (!body.code || !body.name || !body.address || !body.contactPhone || !body.contactEmail) {
       return NextResponse.json(
         {
           success: false,
           data: null,
-          message: "Tên, địa chỉ và số điện thoại là bắt buộc",
+          message: "Mã chi nhánh, tên, địa chỉ, số điện thoại và email là bắt buộc",
         },
         { status: 400 }
       );
