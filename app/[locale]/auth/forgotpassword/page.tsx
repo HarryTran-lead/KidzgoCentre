@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import ForgotPasswordCard from "@/components/auth/ForgotPasswordCard";
-import { forgetPasswordWithToast } from "@/lib/api/authActions";
+import { forgetPasswordWithToast } from "@/lib/api/authToast";
 
 export default function ForgotPasswordPage() {
   const [formData, setFormData] = useState({ email: "" });

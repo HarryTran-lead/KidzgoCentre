@@ -1,20 +1,21 @@
 // app/[locale]/portal/student/layout.tsx
 import type { ReactNode } from "react";
 import Image from "next/image";
-import Sidebar from "@/components/portal/sidebar";
-import { normalizeRole, type Role } from "@/lib/role";
+import { normalizeRole, ROLES, type Role } from "@/lib/role";
 import { getSession } from "@/lib/auth";
 import StudentStreakWrapper from "@/components/portal/student/StudentStreakWrapper";
 import StudentHeader from "@/components/portal/student/StudentHeader";
 import StudentFooter from "@/components/portal/student/StudentFooter";
 import NeonContentFrame from "@/components/portal/student/NeonContentFrame";
+import StudentSidebar from "@/components/portal/sidebar/StudentSidebar";
 
 type Props = {
   children: ReactNode;
   params: Promise<{ locale: string }>;
 };
 
-export default async function StudentLayout({ children }: Props) {
+export default async function StudentLayout({ children, params }: Props) {
+  const { locale } = await params;
   const session = await getSession();
 
   if (!session || !session.role) {
@@ -23,6 +24,9 @@ export default async function StudentLayout({ children }: Props) {
 
   const role: Role = normalizeRole(session.role);
   const user = session.user;
+  
+  // Get roleRoot for student portal
+  const roleRoot = ROLES[role];
 
   return (
     <StudentStreakWrapper>
@@ -50,7 +54,7 @@ export default async function StudentLayout({ children }: Props) {
       
         {/* Main content section with sidebar */}
         <div className="relative flex flex-1 min-h-0 px-4 pb-4 pt-2">
-          <Sidebar role={role} />
+          <StudentSidebar roleRoot={roleRoot} version="v1.0.0" />
 
           <section className="flex min-w-0 flex-1 flex-col min-h-0 relative ml-3">
             <NeonContentFrame>

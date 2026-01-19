@@ -19,7 +19,7 @@ import {
   requestPinReset as requestPinResetAPI,
   getUserMe as getUserMeAPI,
   logout as logoutAPI,
-} from './auth';
+} from './authService';
 
 import type {
   LoginRequest,
@@ -39,27 +39,30 @@ import type {
 export async function loginWithToast(credentials: LoginRequest): Promise<LoginApiResponse> {
   try {
     const response = await loginAPI(credentials);
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (response.success) {
-      toast.success({
+    if (isSuccess) {
+      toast({
         title: 'Đăng nhập thành công!',
         description: `Chào mừng ${response.data.user.fullName}`,
         duration: 3000,
       });
     } else {
-      toast.destructive({
+      toast({
         title: 'Đăng nhập thất bại',
         description: response.message || 'Email hoặc mật khẩu không đúng',
         duration: 5000,
+        variant: 'destructive',
       });
     }
 
     return response;
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -69,30 +72,32 @@ export async function loginWithToast(credentials: LoginRequest): Promise<LoginAp
  * Change password with toast notifications
  */
 export async function changePasswordWithToast(
-  data: ChangePasswordRequest,
-  token: string
+  data: ChangePasswordRequest
 ): Promise<void> {
   try {
-    const response = await changePasswordAPI(data, token);
+    const response = await changePasswordAPI(data);
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (response.success) {
-      toast.success({
+    if (isSuccess) {
+      toast({
         title: 'Đổi mật khẩu thành công!',
         description: 'Mật khẩu của bạn đã được cập nhật',
         duration: 3000,
       });
     } else {
-      toast.destructive({
+      toast({
         title: 'Đổi mật khẩu thất bại',
         description: response.message || 'Mật khẩu hiện tại không đúng',
         duration: 5000,
+        variant: 'destructive',
       });
     }
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -101,24 +106,27 @@ export async function changePasswordWithToast(
 /**
  * Get profiles with toast notifications
  */
-export async function getProfilesWithToast(token: string) {
+export async function getProfilesWithToast() {
   try {
-    const response = await getProfilesAPI(token);
+    const response = await getProfilesAPI();
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (!response.success) {
-      toast.destructive({
+    if (!isSuccess) {
+      toast({
         title: 'Không thể tải danh sách profiles',
         description: response.message || 'Đã xảy ra lỗi khi tải danh sách profiles',
         duration: 5000,
+        variant: 'destructive',
       });
     }
 
     return response;
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -130,25 +138,28 @@ export async function getProfilesWithToast(token: string) {
 export async function forgetPasswordWithToast(data: ForgetPasswordRequest): Promise<void> {
   try {
     const response = await forgetPasswordAPI(data);
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (response.success) {
-      toast.success({
+    if (isSuccess) {
+      toast({
         title: 'Email đã được gửi!',
         description: 'Vui lòng kiểm tra email để đặt lại mật khẩu',
         duration: 5000,
       });
     } else {
-      toast.destructive({
+      toast({
         title: 'Gửi email thất bại',
         description: response.message || 'Email không tồn tại trong hệ thống',
         duration: 5000,
+        variant: 'destructive',
       });
     }
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -160,25 +171,28 @@ export async function forgetPasswordWithToast(data: ForgetPasswordRequest): Prom
 export async function resetPasswordWithToast(data: ResetPasswordRequest): Promise<void> {
   try {
     const response = await resetPasswordAPI(data);
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (response.success) {
-      toast.success({
+    if (isSuccess) {
+      toast({
         title: 'Đặt lại mật khẩu thành công!',
         description: 'Bạn có thể đăng nhập với mật khẩu mới',
         duration: 3000,
       });
     } else {
-      toast.destructive({
+      toast({
         title: 'Đặt lại mật khẩu thất bại',
         description: response.message || 'Token không hợp lệ hoặc đã hết hạn',
         duration: 5000,
+        variant: 'destructive',
       });
     }
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -188,32 +202,34 @@ export async function resetPasswordWithToast(data: ResetPasswordRequest): Promis
  * Verify parent PIN with toast notifications
  */
 export async function verifyParentPinWithToast(
-  data: VerifyParentPinRequest,
-  token: string
+  data: VerifyParentPinRequest
 ) {
   try {
-    const response = await verifyParentPinAPI(data, token);
+    const response = await verifyParentPinAPI(data);
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (response.success) {
-      toast.success({
+    if (isSuccess) {
+      toast({
         title: 'Xác thực thành công!',
         description: 'PIN chính xác',
         duration: 2000,
       });
     } else {
-      toast.destructive({
+      toast({
         title: 'Xác thực thất bại',
         description: response.message || 'PIN không đúng',
         duration: 4000,
+        variant: 'destructive',
       });
     }
 
     return response;
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -223,32 +239,34 @@ export async function verifyParentPinWithToast(
  * Select student with toast notifications
  */
 export async function selectStudentWithToast(
-  data: SelectStudentProfileRequest,
-  token: string
+  data: SelectStudentProfileRequest
 ) {
   try {
-    const response = await selectStudentAPI(data, token);
+    const response = await selectStudentAPI(data);
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (response.success) {
-      toast.success({
+    if (isSuccess) {
+      toast({
         title: 'Chuyển đổi profile thành công!',
         description: `Đang chuyển sang profile ${response.data.selectedProfile.displayName}`,
         duration: 2000,
       });
     } else {
-      toast.destructive({
+      toast({
         title: 'Chuyển đổi profile thất bại',
         description: response.message || 'Không thể chọn profile này',
         duration: 5000,
+        variant: 'destructive',
       });
     }
 
     return response;
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -258,30 +276,32 @@ export async function selectStudentWithToast(
  * Change PIN with toast notifications
  */
 export async function changePinWithToast(
-  data: ChangeUserPinRequest,
-  token: string
+  data: ChangeUserPinRequest
 ): Promise<void> {
   try {
-    const response = await changePinAPI(data, token);
+    const response = await changePinAPI(data);
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (response.success) {
-      toast.success({
+    if (isSuccess) {
+      toast({
         title: 'Đổi PIN thành công!',
         description: 'PIN của bạn đã được cập nhật',
         duration: 3000,
       });
     } else {
-      toast.destructive({
+      toast({
         title: 'Đổi PIN thất bại',
         description: response.message || 'PIN hiện tại không đúng',
         duration: 5000,
+        variant: 'destructive',
       });
     }
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -291,30 +311,32 @@ export async function changePinWithToast(
  * Request PIN reset with toast notifications
  */
 export async function requestPinResetWithToast(
-  data: RequestParentPinResetRequest,
-  token: string
+  data: RequestParentPinResetRequest
 ): Promise<void> {
   try {
-    const response = await requestPinResetAPI(data, token);
+    const response = await requestPinResetAPI(data);
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (response.success) {
-      toast.success({
+    if (isSuccess) {
+      toast({
         title: 'Yêu cầu đã được gửi!',
         description: 'Vui lòng kiểm tra email để đặt lại PIN',
         duration: 5000,
       });
     } else {
-      toast.destructive({
+      toast({
         title: 'Gửi yêu cầu thất bại',
         description: response.message || 'Không thể gửi yêu cầu đặt lại PIN',
         duration: 5000,
+        variant: 'destructive',
       });
     }
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -323,24 +345,27 @@ export async function requestPinResetWithToast(
 /**
  * Get user info with toast notifications (silent on success, show error only)
  */
-export async function getUserMeWithToast(token: string) {
+export async function getUserMeWithToast() {
   try {
-    const response = await getUserMeAPI(token);
+    const response = await getUserMeAPI();
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (!response.success) {
-      toast.destructive({
+    if (!isSuccess) {
+      toast({
         title: 'Không thể tải thông tin người dùng',
         description: response.message || 'Vui lòng đăng nhập lại',
         duration: 5000,
+        variant: 'destructive',
       });
     }
 
     return response;
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi kết nối',
       description: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
@@ -349,19 +374,20 @@ export async function getUserMeWithToast(token: string) {
 /**
  * Logout with toast notifications
  */
-export async function logoutWithToast(token: string): Promise<void> {
+export async function logoutWithToast(): Promise<void> {
   try {
-    const response = await logoutAPI(token);
+    const response = await logoutAPI();
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (response.success) {
-      toast.info({
+    if (isSuccess) {
+      toast({
         title: 'Đăng xuất thành công',
         description: 'Hẹn gặp lại bạn!',
         duration: 2000,
       });
     } else {
       // Still show success message even if API fails
-      toast.info({
+      toast({
         title: 'Đăng xuất',
         description: 'Bạn đã được đăng xuất khỏi hệ thống',
         duration: 2000,
@@ -369,7 +395,7 @@ export async function logoutWithToast(token: string): Promise<void> {
     }
   } catch (error) {
     // Still logout locally even if API fails
-    toast.info({
+    toast({
       title: 'Đăng xuất',
       description: 'Bạn đã được đăng xuất khỏi hệ thống',
       duration: 2000,
@@ -383,39 +409,25 @@ export async function logoutWithToast(token: string): Promise<void> {
 export async function refreshTokenWithToast(refreshTokenValue: string) {
   try {
     const response = await refreshTokenAPI(refreshTokenValue);
+    const isSuccess = response.isSuccess ?? response.success ?? false;
 
-    if (!response.success) {
-      toast.warning({
+    if (!isSuccess) {
+      toast({
         title: 'Phiên đăng nhập đã hết hạn',
         description: 'Vui lòng đăng nhập lại',
         duration: 4000,
+        variant: 'default',
       });
     }
 
     return response;
   } catch (error) {
-    toast.destructive({
+    toast({
       title: 'Lỗi xác thực',
       description: 'Không thể làm mới phiên đăng nhập. Vui lòng đăng nhập lại.',
       duration: 5000,
+      variant: 'destructive',
     });
     throw error;
   }
 }
-
-// Export all functions with original names for backward compatibility
-export {
-  loginAPI as login,
-  refreshTokenAPI as refreshToken,
-  changePasswordAPI as changePassword,
-  getProfilesAPI as getProfiles,
-  forgetPasswordAPI as forgetPassword,
-  resetPasswordAPI as resetPassword,
-  verifyParentPinAPI as verifyParentPin,
-  selectStudentAPI as selectStudent,
-  changePinAPI as changePin,
-  requestPinResetAPI as requestPinReset,
-  getUserMeAPI as getUserMe,
-  logoutAPI as logout,
-};
- 

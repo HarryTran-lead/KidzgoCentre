@@ -6,8 +6,8 @@ export type Role =
   | "STAFF_ACCOUNTANT"
   | "STAFF_MANAGER"
   | "TEACHER"
-  | "STUDENT"
-  | "PARENT";
+  | "Student"
+  | "Parent";
 
 
 /** Map role -> base portal path */
@@ -16,8 +16,8 @@ export const ROLES: Record<Role, string> = {
   STAFF_ACCOUNTANT: EndPoint.STAFF_ACCOUNTANT,
   STAFF_MANAGER: EndPoint.STAFF_MANAGER,
   TEACHER: EndPoint.TEACHER,
-  STUDENT: EndPoint.STUDENT,
-  PARENT: EndPoint.PARENT,
+  Student: EndPoint.STUDENT,
+  Parent: EndPoint.PARENT,
 };
 
 export const ALL_ROLES = Object.keys(ROLES) as Role[];
@@ -28,8 +28,8 @@ export const ACCESS_MAP: Record<Role, string[]> = {
   STAFF_ACCOUNTANT: [EndPoint.STAFF_ACCOUNTANT],
   STAFF_MANAGER: [EndPoint.STAFF_MANAGER],
   TEACHER: [EndPoint.TEACHER],
-  STUDENT: [EndPoint.STUDENT],
-  PARENT: [EndPoint.PARENT],
+  Student: [EndPoint.STUDENT],
+  Parent: [EndPoint.PARENT],
 
 };
 
@@ -38,8 +38,8 @@ export const ROLE_LABEL: Record<Role, string> = {
   STAFF_ACCOUNTANT: "Kế toán",
   STAFF_MANAGER: "Quản lý",
   TEACHER: "Giáo viên",
-  STUDENT: "Học viên",
-  PARENT: "Phụ huynh",
+  Student: "Học viên",
+  Parent: "Phụ huynh",
 };
 
 /** Chuẩn hoá chuỗi role từ nhiều biến thể sang union Role */
@@ -51,7 +51,7 @@ export function normalizeRole(input?: string): Role {
   if (["STAFF_MANAGER", "MANAGER", "MANAGEMENT", "STAFF"].includes(v))
     return "STAFF_MANAGER";
   if (["TEACHER"].includes(v)) return "TEACHER";
-  if (["STUDENT", "USER", "CUSTOMER"].includes(v)) return "STUDENT";
-  if (["PARENT", "GUARDIAN"].includes(v)) return "PARENT";
-  return "STUDENT";
+  if (["STUDENT", "USER", "CUSTOMER"].includes(v)) return "Student";
+  if (["PARENT", "GUARDIAN"].includes(v)) return "Parent";
+  return "Student";
 }
