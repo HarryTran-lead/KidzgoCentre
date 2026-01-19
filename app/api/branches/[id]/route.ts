@@ -8,9 +8,9 @@ import type {
 } from "@/types/branch";
 
 type Params = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export async function GET(req: Request, { params }: Params) {
@@ -28,7 +28,9 @@ export async function GET(req: Request, { params }: Params) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(BACKEND_BRANCH_ENDPOINTS.GET_BY_ID(params.id)), {
+    const { id } = await params;
+
+    const upstream = await fetch(buildApiUrl(BACKEND_BRANCH_ENDPOINTS.GET_BY_ID(id)), {
       method: "GET",
       headers: {
         "Authorization": authHeader,
@@ -69,9 +71,10 @@ export async function PUT(req: Request, { params }: Params) {
       );
     }
 
+    const { id } = await params;
     const body: UpdateBranchRequest = await req.json();
 
-    const upstream = await fetch(buildApiUrl(BACKEND_BRANCH_ENDPOINTS.UPDATE(params.id)), {
+    const upstream = await fetch(buildApiUrl(BACKEND_BRANCH_ENDPOINTS.UPDATE(id)), {
       method: "PUT",
       headers: {
         "Authorization": authHeader,
@@ -113,7 +116,9 @@ export async function DELETE(req: Request, { params }: Params) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(BACKEND_BRANCH_ENDPOINTS.DELETE(params.id)), {
+    const { id } = await params;
+
+    const upstream = await fetch(buildApiUrl(BACKEND_BRANCH_ENDPOINTS.DELETE(id)), {
       method: "DELETE",
       headers: {
         "Authorization": authHeader,

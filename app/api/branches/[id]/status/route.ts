@@ -6,9 +6,9 @@ import type {
 } from "@/types/branch";
 
 type Params = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export async function PATCH(req: Request, { params }: Params) {
@@ -26,6 +26,7 @@ export async function PATCH(req: Request, { params }: Params) {
       );
     }
 
+    const { id } = await params;
     const body: UpdateBranchStatusRequest = await req.json();
 
     if (body.isActive === undefined) {
@@ -39,7 +40,7 @@ export async function PATCH(req: Request, { params }: Params) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(BACKEND_BRANCH_ENDPOINTS.UPDATE_STATUS(params.id)), {
+    const upstream = await fetch(buildApiUrl(BACKEND_BRANCH_ENDPOINTS.UPDATE_STATUS(id)), {
       method: "PATCH",
       headers: {
         "Authorization": authHeader,
