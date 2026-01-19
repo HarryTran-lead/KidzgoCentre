@@ -163,9 +163,8 @@ const UserMenu: React.FC<UserMenuProps> = ({
   const popRef = useRef<HTMLDivElement>(null);
 
   // menu items (giữ locale prefix)
-  const BASE = `${localePrefix}/userlayout`;
-  const portalHref = `${localePrefix}${ROLES[user.role]}`;
-
+  const BASE = `${localePrefix}${ROLES[user.role]}`;
+  
   const menuItems = [
     {
       icon: UserIcon,
