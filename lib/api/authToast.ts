@@ -20,6 +20,7 @@ import {
   getUserMe as getUserMeAPI,
   logout as logoutAPI,
 } from './authService';
+import { clearAccessToken, clearRefreshToken } from '@/lib/store/authToken';
 
 import type {
   LoginRequest,
@@ -379,6 +380,17 @@ export async function logoutWithToast(): Promise<void> {
     const response = await logoutAPI();
     const isSuccess = response.isSuccess ?? response.success ?? false;
 
+    // Clear all tokens from storage
+    clearAccessToken();
+    clearRefreshToken();
+    
+    // Clear all localStorage items related to auth
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user');
+      localStorage.removeItem('selectedProfile');
+      sessionStorage.clear();
+    }
+
     if (isSuccess) {
       toast({
         title: 'Đăng xuất thành công',
@@ -394,7 +406,16 @@ export async function logoutWithToast(): Promise<void> {
       });
     }
   } catch (error) {
-    // Still logout locally even if API fails
+    // Still logout locally even if API fails - clear tokens
+    clearAccessToken();
+    clearRefreshToken();
+    
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user');
+      localStorage.removeItem('selectedProfile');
+      sessionStorage.clear();
+    }
+    
     toast({
       title: 'Đăng xuất',
       description: 'Bạn đã được đăng xuất khỏi hệ thống',

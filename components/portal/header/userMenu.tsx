@@ -6,14 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ChevronDown,
-  Calendar,
   LogOut,
-  FileText,
-  MessageSquare,
   User as UserIcon,
   Sparkles,
   ChevronRight,
-  ArrowRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AvatarUserImage from "@/components/ui/Avatar_User_Image";
@@ -45,25 +41,25 @@ interface UserMenuProps {
 /* ===== Helpers ===== */
 const roleBadge = (role: Role) => {
   switch (role) {
-    case "ADMIN":
-      return { label: ROLE_LABEL.ADMIN, grad: "from-rose-500 to-red-600" };
-    case "STAFF_ACCOUNTANT":
+    case "Admin":
+      return { label: ROLE_LABEL.Admin, grad: "from-rose-500 to-red-600" };
+    case "Staff_Accountant":
       return {
-        label: ROLE_LABEL.STAFF_ACCOUNTANT,
+        label: ROLE_LABEL.Staff_Accountant,
         grad: "from-fuchsia-500 to-pink-600",
       };
-    case "STAFF_MANAGER":
+    case "Staff_Manager":
       return {
-        label: ROLE_LABEL.STAFF_MANAGER,
+        label: ROLE_LABEL.Staff_Manager,
         grad: "from-amber-500 to-orange-600",
       };
-    case "TEACHER":
-      return { label: ROLE_LABEL.TEACHER, grad: "from-indigo-500 to-sky-600" };
-      case "PARENT":
-      return { label: ROLE_LABEL.PARENT, grad: "from-emerald-500 to-teal-600" };
+    case "Teacher":
+      return { label: ROLE_LABEL.Teacher, grad: "from-indigo-500 to-sky-600" };
+      case "Parent":
+      return { label: ROLE_LABEL.Parent, grad: "from-emerald-500 to-teal-600" };
     default:
       return {
-        label: ROLE_LABEL.STUDENT,
+        label: ROLE_LABEL.Student,
         grad: "from-teal-500 to-emerald-600",
       };
   }
@@ -88,16 +84,16 @@ function useRoleFromUrl(fallback?: Role): Role {
 
   if (segPortal === "portal") {
     const map: Record<string, Role> = {
-      admin: "ADMIN",
-      "staff-accountant": "STAFF_ACCOUNTANT",
-      "staff-management": "STAFF_MANAGER",
-      teacher: "TEACHER",
-      student: "STUDENT",
-      parent: "PARENT",
+      admin: "Admin",
+      "staff-accountant": "Staff_Accountant",
+      "staff-management": "Staff_Manager",
+      teacher: "Teacher",
+      student: "Student",
+      parent: "Parent",
     };
     if (map[segRole]) return map[segRole];
   }
-  return fallback ?? "STUDENT";
+  return fallback ?? "Student";
 }
 
 /** Giữ nguyên prefix locale hiện tại cho mọi Link */
@@ -112,35 +108,35 @@ const DEFAULT_BY_ROLE: Record<
   Role,
   { fullname: string; email: string; role: Role; avatarUrl?: string }
 > = {
-  ADMIN: {
+  Admin: {
     fullname: "Nguyễn Minh Quân",
     email: "quan.admin@example.com",
-    role: "ADMIN",
+    role: "Admin",
   },
-  STAFF_ACCOUNTANT: {
+  Staff_Accountant: {
     fullname: "Phạm Thu Hà",
     email: "ha.accounting@example.com",
-    role: "STAFF_ACCOUNTANT",
+    role: "Staff_Accountant",
   },
-  STAFF_MANAGER: {
+  Staff_Manager: {
     fullname: "Trần Bảo Anh",
     email: "anh.manager@example.com",
-    role: "STAFF_MANAGER",
+    role: "Staff_Manager",
   },
-  TEACHER: {
+  Teacher: {
     fullname: "Lê Quốc Huy",
     email: "huy.teacher@example.com",
-    role: "TEACHER",
+    role: "Teacher",
   },
-  PARENT: {
+  Parent: {
     fullname: "Bố Khương",
     email: "phuhuynh.khuong@example.com",
-    role: "PARENT",
+    role: "Parent",
   },
-  STUDENT: {
+  Student: {
     fullname: "Võ Thảo My",
     email: "my.student@example.com",
-    role: "STUDENT",
+    role: "Student",
   },
 };
 
@@ -158,7 +154,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
 
   // user mock (không dùng redux)
   const user = {
-    ...(DEFAULT_BY_ROLE[role] ?? DEFAULT_BY_ROLE.STUDENT),
+    ...(DEFAULT_BY_ROLE[role] ?? DEFAULT_BY_ROLE.Student),
     ...(mockUser ?? {}),
     role: (mockUser?.role ?? role) as Role,
   };
@@ -210,6 +206,17 @@ const UserMenu: React.FC<UserMenuProps> = ({
     if (isLoggingOut) return;
     setOpen(false);
     setIsLoggingOut(true);
+    
+    // Clear all tokens and auth data
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      sessionStorage.clear();
+      // Clear all cookies
+      document.cookie.split(';').forEach(c => {
+        document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+      });
+    }
+    
     await sleep(700);
     window.location.replace(homeHref);
   };

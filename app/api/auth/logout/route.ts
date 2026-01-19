@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import { buildApiUrl, BACKEND_AUTH_ENDPOINTS } from "@/constants/apiURL";
 import type { LogoutApiResponse } from "@/types/auth";
 
 export async function POST(req: Request) {
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.LOGOUT), {
+    const upstream = await fetch(buildApiUrl(BACKEND_AUTH_ENDPOINTS.LOGOUT), {
       method: "POST",
       headers: {
         "Authorization": authHeader,
