@@ -112,6 +112,7 @@ export interface SelectStudentResponse {
 export interface UserMeResponse {
   id: string;
   email: string;
+  userName: string;
   fullName: string;
   role: string;
   isActive: boolean;
@@ -120,6 +121,7 @@ export interface UserMeResponse {
   createdAt: string;
   updatedAt?: string;
   profiles?: UserProfile[];
+  permissions?: string[];
   selectedProfile?: UserProfile;
 }
 
