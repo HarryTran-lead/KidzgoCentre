@@ -464,10 +464,10 @@ export default function Sidebar({
   }, []);
 
   /* ===================== STUDENT SIDEBAR ===================== */
-  const isStudent = role === "STUDENT";
+  const isStudent = role === "Student";
 
   if (isStudent) {
-    return <StudentSidebar items={items} roleRoot={roleRoot} version={version} />;
+    return <StudentSidebar roleRoot={roleRoot} version={version} />;
   }
 
   /* ===================== DEFAULT SIDEBAR (OTHER ROLES) ===================== */
@@ -607,7 +607,7 @@ export default function Sidebar({
         </div>
       ) : null}
 
-      {role === "PARENT" && !collapsed && (
+      {role === "Parent" && !collapsed && (
         <div className="px-3 py-2">
           <ChildSelector />
         </div>
