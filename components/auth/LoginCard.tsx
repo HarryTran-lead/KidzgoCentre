@@ -23,10 +23,10 @@ import Image from "next/image";
 import { CustomPasswordInput, CustomTextInput } from "./FormInput";
 import { LOGO } from "@/lib/theme/theme";
 import { DEFAULT_LOCALE, localizePath, type Locale } from "@/lib/i18n";
-import { useLazyGetCurrentUserQuery, useLoginMutation } from "@/lib/store/authApi";
 import { setAccessToken, setRefreshToken } from "@/lib/store/authToken";
 import { normalizeRole, ROLES } from "@/lib/role";
 import { toast } from "@/hooks/use-toast";
+import * as authService from "@/lib/api/authService";
 
 type Props = {
   returnTo?: string;
@@ -38,9 +38,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
   const controls = useAnimation();
   const [remember, setRemember] = useState(false);
   const [loginError, setLoginError] = useState(errorMessage ?? "");
-
-  const [login, { isLoading }] = useLoginMutation();
-  const [getCurrentUser] = useLazyGetCurrentUserQuery();
+  const [isLoading, setIsLoading] = useState(false);
 
   const resolvedLocale = useMemo(
     () => (locale ?? DEFAULT_LOCALE) as Locale,
@@ -103,40 +101,73 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
     if (!email || !password) {
       const errorMsg = "Vui lòng nhập email và mật khẩu.";
       setLoginError(errorMsg);
-      toast.warning({
+      toast({
         title: "Thiếu thông tin!",
         description: errorMsg,
         duration: 3000,
+        variant: 'default',
       });
       return;
     }
 
     try {
       setLoginError("");
+      setIsLoading(true);
 
-      const response = await login({ email, password }).unwrap();
-      setAccessToken(response.data.accessToken);
-      setRefreshToken(response.data.refreshToken);
+      // Use authService instead of RTK Query
+      const response = await authService.login({ email, password });
+      
+      // Handle both response formats: response.data or response directly
+      const loginData = response.data || response;
+      setAccessToken(loginData.accessToken);
+      setRefreshToken(loginData.refreshToken);
 
-      const currentUser = await getCurrentUser().unwrap();
-      const normalizedRole = normalizeRole(currentUser.data.role);
+      const currentUser = await authService.getUserMe();
+      const userData = currentUser.data || currentUser;
+      const normalizedRole = normalizeRole(userData.role);
 
+      // Show success toast
+      toast({
+        title: 'Đăng nhập thành công!',
+        description: `Chào mừng ${userData.fullName}`,
+        duration: 2000,
+        variant: 'success',
+      });
+
+      // Check if user has multiple profiles (Parent/Student accounts)
+      if (["Parent", "Student"].includes(normalizedRole)) {
+        // Get profiles to determine if we need AccountChooser
+        const profilesResponse = await authService.getProfiles();
+        const profilesData = profilesResponse.data || profilesResponse;
+        const profiles = Array.isArray(profilesData) 
+          ? profilesData 
+          : (profilesData?.profiles ?? []);
+
+        if (profiles.length > 1) {
+          // Multiple profiles → set session with Student role first (required for middleware)
+          await setServerSession({
+            role: "Student", // Use Student role to allow access to /portal
+            name: userData.fullName || "",
+            avatar: "",
+          });
+
+          // Redirect to AccountChooser at /portal root
+          const destination = returnTo || localizePath("/portal", resolvedLocale);
+          setTimeout(() => {
+            window.location.assign(destination);
+          }, 500);
+          return;
+        }
+      }
+
+      // Single profile or Admin → redirect directly to their portal
       await setServerSession({
         role: normalizedRole,
-        name: currentUser.data.fullName || currentUser.data.userName || "KidzGo User",
+        name: userData.fullName || "",
         avatar: "",
       });
 
-      // Show success toast
-      toast.success({
-        title: "Đăng nhập thành công!",
-        description: `Chào mừng ${currentUser.data.fullName || currentUser.data.userName}`,
-        duration: 2000,
-      });
-
-      const roleBasePath =
-        ["PARENT", "STUDENT"].includes(normalizedRole) ? "/portal" : (ROLES[normalizedRole] ?? "/portal");
-
+      const roleBasePath = ROLES[normalizedRole] ?? "/portal";
       const destination = returnTo || localizePath(roleBasePath, resolvedLocale);
 
       // Delay navigation to show toast
@@ -147,11 +178,14 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
       const errorMsg = "Email hoặc mật khẩu không chính xác. Vui lòng thử lại.";
       setLoginError(errorMsg);
       
-      toast.destructive({
+      toast({
         title: "Đăng nhập thất bại!",
-        description: error?.data?.message || errorMsg,
+        description: error?.response?.data?.message || error?.message || errorMsg,
         duration: 4000,
+        variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 

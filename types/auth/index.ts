@@ -52,16 +52,15 @@ export interface RequestParentPinResetRequest {
 
 // ==================== Response Interfaces ====================
 
-// User Profile Interface
 export interface UserProfile {
   id: string;
-  userId: string;
-  profileType: 'Parent' | 'Student';
+  userId?: string;
+  profileType: "Parent" | "Student"; 
   displayName: string;
   hasPinSetup?: boolean;
   avatarUrl?: string;
-  isActive: boolean;
-  createdAt: string;
+  isActive?: boolean;
+  createdAt?: string;
   updatedAt?: string;
 }
 

@@ -8,7 +8,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import type { MenuItem } from "../menu/types";
 import { pickLocaleFromPath, DEFAULT_LOCALE, localizePath } from "@/lib/i18n";
-import { LOGO, LOGO_ONLY } from "@/lib/theme/theme";
+
 
 /* ===== Types ===== */
 type FlatItem = {
@@ -108,11 +108,9 @@ function StudentIconButton({
 
 /* ===== Main Student Sidebar Component ===== */
 export default function StudentSidebar({
-  items,
   roleRoot,
   version = "v1.0.0",
 }: {
-  items: MenuItem[];
   roleRoot: string;
   version?: string;
 }) {
@@ -152,33 +150,23 @@ export default function StudentSidebar({
     return () => window.removeEventListener("portal:sidebar-open", open);
   }, []);
 
-  // Flatten and prepare navigation items
-  const flattened = flattenStudentItems(items as any);
-
-  const allLink = flattened[0]; // Tất cả
-  const scheduleLink = flattened[1]; // Lịch học
-  const homeworkLink = flattened[3]; // Bài tập
-  
-  // Tìm các link cho gamification, media, communications
-  const gamificationLink = flattened.find((it) => it.href.includes("/gamification"));
-  const mediaLink = flattened.find((it) => it.href.includes("/media"));
-  const communicationsLink = flattened.find((it) => it.href.includes("/messages") || it.href.includes("/notifications") || it.href.includes("/comunication"));
-
+  // Define main navigation items directly
+  // Define main navigation items directly
   const mainNav = [
     { 
       label: "Tất cả", 
-      href: allLink?.href ?? roleRoot, 
+      href: roleRoot, 
       iconSrc: "/icons/crown.png",
     },
     {
       label: "Lịch học",
-      href: scheduleLink?.href ?? roleRoot,
+      href: `${roleRoot}/schedule`,
       iconSrc: "/icons/schedule.png",
       badge: 2,
     },
     { 
       label: "Bài tập", 
-      href: homeworkLink?.href ?? roleRoot, 
+      href: `${roleRoot}/homework`, 
       iconSrc: "/icons/homework.png",
       badge: 2,
     },

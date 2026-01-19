@@ -1,10 +1,12 @@
 export interface ApiResponse<T> {
-    success: boolean;
+    success?: boolean; 
+    isSuccess?: boolean; 
     data: T;
     message?: string;
   }
   export interface ErrorResponse {
     success?: boolean;
+    isSuccess?: boolean;
     data: {
       message?: string,
     }
