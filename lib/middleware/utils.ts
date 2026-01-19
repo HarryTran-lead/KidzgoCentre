@@ -77,31 +77,31 @@ export function normalizeRole(role: string): string {
   const normalized = role.toUpperCase().trim();
   
   const roleMap: Record<string, string> = {
-    ADMIN: "ADMIN",
-    ADMINISTRATOR: "ADMIN",
+    ADMIN: "Admin",
+    ADMINISTRATOR: "Admin",
     
-    ACCOUNTANT: "STAFF_ACCOUNTANT",
-    ACCOUNTING: "STAFF_ACCOUNTANT",
-    STAFF_ACCOUNTANT: "STAFF_ACCOUNTANT",
+    ACCOUNTANT: "Staff_Accountant",
+    ACCOUNTING: "Staff_Accountant",
+    STAFF_ACCOUNTANT: "Staff_Accountant",
     
-    MANAGER: "STAFF_MANAGER",
-    MANAGEMENT: "STAFF_MANAGER",
-    STAFF_MANAGER: "STAFF_MANAGER",
-    STAFF_MANAGEMENT: "STAFF_MANAGER",
-    STAFF: "STAFF_MANAGER",
+    MANAGER: "Staff_Manager",
+    MANAGEMENT: "Staff_Manager",
+    STAFF_MANAGER: "Staff_Manager",
+    STAFF_MANAGEMENT: "Staff_Manager",
+    STAFF: "Staff_Manager",
     
-    TEACHER: "TEACHER",
-    INSTRUCTOR: "TEACHER",
+    TEACHER: "Teacher",
+    INSTRUCTOR: "Teacher",
     
-    STUDENT: "STUDENT",
-    USER: "STUDENT",
-    LEARNER: "STUDENT",
+    STUDENT: "Student",
+    USER: "Student",
+    LEARNER: "Student",
     
-    PARENT: "PARENT",
-    GUARDIAN: "PARENT",
+    PARENT: "Parent",
+    GUARDIAN: "Parent",
   };
   
-  return roleMap[normalized] || normalized;
+  return roleMap[normalized] || role;
 }
 
 /**
@@ -127,12 +127,12 @@ export function getDefaultPortalPath(role: string): string {
   const normalized = normalizeRole(role);
   
   const pathMap: Record<string, string> = {
-    ADMIN: "/portal/admin",
-    STAFF_ACCOUNTANT: "/portal/staff-accountant",
-    STAFF_MANAGER: "/portal/staff-management",
-    TEACHER: "/portal/teacher",
-    STUDENT: "/portal/student",
-    PARENT: "/portal/parent",
+    Admin: "/portal/admin",
+    Staff_Accountant: "/portal/staff-accountant",
+    Staff_Manager: "/portal/staff-management",
+    Teacher: "/portal/teacher",
+    Student: "/portal/student",
+    Parent: "/portal/parent",
   };
   
   return pathMap[normalized] || "/portal/student";

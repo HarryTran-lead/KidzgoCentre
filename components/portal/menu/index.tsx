@@ -27,17 +27,17 @@ export function buildMenu(
   }
 
   switch (role) {
-    case "ADMIN":
+    case "Admin":
       return adminMenu(root, locale);
-    case "STAFF_ACCOUNTANT":
+    case "Staff_Accountant":
       return staffAccountingMenu(root, locale);
-    case "STAFF_MANAGER":
+    case "Staff_Manager":
       return staffManagerMenu(root, locale);
-    case "TEACHER":
+    case "Teacher":
       return teacherMenu(root, locale);
-    case "STUDENT":
+    case "Student":
       return studentMenu(root, locale);
-       case "PARENT":
+    case "Parent":
       return parentMenu(root, locale);
     default:
       return studentMenu(root, locale);

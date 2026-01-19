@@ -35,24 +35,24 @@ export const API_ROUTES_WHITELIST = [
  * Format: { path: allowedRoles[] }
  */
 export const PROTECTED_ROUTES: Record<string, string[]> = {
-  "/portal/admin": ["ADMIN"],
-  "/portal/staff-accountant": ["STAFF_ACCOUNTANT"],
-  "/portal/staff-management": ["STAFF_MANAGER"],
-  "/portal/teacher": ["TEACHER"],
-  "/portal/student": ["STUDENT"],
-  "/portal/parent": ["PARENT"],
+  "/portal/admin": ["Admin"],
+  "/portal/staff-accountant": ["Staff_Accountant"],
+  "/portal/staff-management": ["Staff_Manager"],
+  "/portal/teacher": ["Teacher"],
+  "/portal/student": ["Student"],
+  "/portal/parent": ["Parent"],
 } as const;
 
 /**
  * Default redirect paths for each role after login
  */
 export const ROLE_DEFAULT_PATHS: Record<string, string> = {
-  ADMIN: "/portal/admin",
-  STAFF_ACCOUNTANT: "/portal/staff-accountant",
-  STAFF_MANAGER: "/portal/staff-management",
-  TEACHER: "/portal/teacher",
-  STUDENT: "/portal/student",
-  PARENT: "/portal/parent",
+  Admin: "/portal/admin",
+  Staff_Accountant: "/portal/staff-accountant",
+  Staff_Manager: "/portal/staff-management",
+  Teacher: "/portal/teacher",
+  Student: "/portal/student",
+  Parent: "/portal/parent",
 } as const;
 
 /**
