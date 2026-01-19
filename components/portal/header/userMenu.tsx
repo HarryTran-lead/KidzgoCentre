@@ -55,12 +55,13 @@ const roleBadge = (role: Role) => {
       };
     case "Teacher":
       return { label: ROLE_LABEL.Teacher, grad: "from-indigo-500 to-sky-600" };
-      case "Parent":
+    case "Parent":
       return { label: ROLE_LABEL.Parent, grad: "from-emerald-500 to-teal-600" };
     default:
+      // Fallback for any unmapped role (Student uses separate header)
       return {
-        label: ROLE_LABEL.Student,
-        grad: "from-teal-500 to-emerald-600",
+        label: ROLE_LABEL.Admin,
+        grad: "from-rose-500 to-red-600",
       };
   }
 };
@@ -83,17 +84,17 @@ function useRoleFromUrl(fallback?: Role): Role {
   const segRole = segs[i + 1];
 
   if (segPortal === "portal") {
+    // Student uses separate StudentHeader, not UserMenu
     const map: Record<string, Role> = {
       admin: "Admin",
       "staff-accountant": "Staff_Accountant",
       "staff-management": "Staff_Manager",
       teacher: "Teacher",
-      student: "Student",
       parent: "Parent",
     };
     if (map[segRole]) return map[segRole];
   }
-  return fallback ?? "Student";
+  return fallback ?? "Admin";
 }
 
 /** Giữ nguyên prefix locale hiện tại cho mọi Link */
@@ -104,10 +105,11 @@ function useLocalePrefix() {
   return hasLocale ? `/${segs[0]}` : "";
 }
 
-const DEFAULT_BY_ROLE: Record<
+// Student uses separate StudentHeader, so not all Role keys are needed here
+const DEFAULT_BY_ROLE: Partial<Record<
   Role,
   { fullname: string; email: string; role: Role; avatarUrl?: string }
-> = {
+>> = {
   Admin: {
     fullname: "Nguyễn Minh Quân",
     email: "quan.admin@example.com",
@@ -133,11 +135,6 @@ const DEFAULT_BY_ROLE: Record<
     email: "phuhuynh.khuong@example.com",
     role: "Parent",
   },
-  Student: {
-    fullname: "Võ Thảo My",
-    email: "my.student@example.com",
-    role: "Student",
-  },
 };
 
 const UserMenu: React.FC<UserMenuProps> = ({
@@ -153,8 +150,9 @@ const UserMenu: React.FC<UserMenuProps> = ({
   const role = useRoleFromUrl(mockRole);
 
   // user mock (không dùng redux)
+  // Student uses separate header, so fallback to Admin if role not found
   const user = {
-    ...(DEFAULT_BY_ROLE[role] ?? DEFAULT_BY_ROLE.Student),
+    ...(DEFAULT_BY_ROLE[role] ?? DEFAULT_BY_ROLE.Admin),
     ...(mockUser ?? {}),
     role: (mockUser?.role ?? role) as Role,
   };
@@ -281,9 +279,9 @@ const UserMenu: React.FC<UserMenuProps> = ({
             } text-[15px] font-medium max-w-[180px] truncate ${
               isLoggingOut ? "text-blue-500" : "text-gray-700"
             }`}
-            title={user.fullname}
+            title={user.fullname || "User"}
           >
-            {isLoggingOut ? "Đang đăng xuất…" : shortenName(user.fullname)}
+            {isLoggingOut ? "Đang đăng xuất…" : shortenName(user.fullname || "User")}
           </span>
 
           {!isLoggingOut && (
