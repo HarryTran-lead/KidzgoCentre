@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import { buildApiUrl, BACKEND_AUTH_ENDPOINTS } from "@/constants/apiURL";
 import type { LoginRequest, LoginApiResponse } from "@/types/auth";
 
 export async function POST(req: Request) {
@@ -18,7 +18,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.LOGIN), {
+    const backendUrl = buildApiUrl(BACKEND_AUTH_ENDPOINTS.LOGIN);
+
+    const upstream = await fetch(backendUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
       status: upstream.status,
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("[Login API] Error:", error);
     return NextResponse.json(
       {
         success: false,

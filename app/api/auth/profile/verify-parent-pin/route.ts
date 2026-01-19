@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import { buildApiUrl, BACKEND_AUTH_ENDPOINTS } from "@/constants/apiURL";
 import type { VerifyParentPinRequest, VerifyParentPinApiResponse } from "@/types/auth";
 
 export async function POST(req: Request) {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.VERIFY_PARENT_PIN), {
+    const upstream = await fetch(buildApiUrl(BACKEND_AUTH_ENDPOINTS.VERIFY_PARENT_PIN), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

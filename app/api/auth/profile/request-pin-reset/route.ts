@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import { buildApiUrl, BACKEND_AUTH_ENDPOINTS } from "@/constants/apiURL";
 import type { RequestParentPinResetRequest, RequestPinResetApiResponse } from "@/types/auth";
 
 export async function POST(req: Request) {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.REQUEST_PIN_RESET), {
+    const upstream = await fetch(buildApiUrl(BACKEND_AUTH_ENDPOINTS.REQUEST_PIN_RESET), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

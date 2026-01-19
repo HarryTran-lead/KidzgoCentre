@@ -231,8 +231,21 @@ export default function AccountChooser({ locale }: Props) {
   };
 
   const handleLogout = () => {
+    // Clear all tokens and auth data
     clearAccessToken();
     clearRefreshToken();
+    
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user');
+      localStorage.removeItem('selectedProfile');
+      sessionStorage.clear();
+      
+      // Clear all cookies
+      document.cookie.split(';').forEach(c => {
+        document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+      });
+    }
+    
     window.location.href = localizePath("/", safeLocale);
   };
 

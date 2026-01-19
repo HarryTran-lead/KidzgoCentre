@@ -2,6 +2,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { ACCESS_MAP, normalizeRole, type Role } from "@/lib/role";
+import {
+  extractToken,
+  decodeJWT,
+  isTokenExpired,
+  extractUserInfo,
+} from "@/lib/middleware/utils";
 
 const LOCALES_ARR = LOCALES as readonly string[];
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -92,12 +98,37 @@ export function proxy(req: NextRequest) {
   }
 
   // ==== AUTHZ CHO CÁC ROUTE CON CỦA /portal ==== 
-  const rawRole = req.cookies.get("role")?.value;
-  const normalized = rawRole ? normalizeRole(rawRole) : undefined;
-  const role: Role | undefined =
-    normalized && (ACCESS_MAP as Record<string, string[]>)[normalized]
+  
+  // Try to get JWT token first
+  const token = extractToken(req);
+  let role: Role | undefined;
+  let userId: string | undefined;
+  
+  if (token) {
+    // Verify JWT token
+    const payload = decodeJWT(token);
+    
+    if (payload && !isTokenExpired(payload)) {
+      const userInfo = extractUserInfo(payload);
+      
+      if (userInfo) {
+        const normalized = normalizeRole(userInfo.role);
+        role = (ACCESS_MAP as Record<string, string[]>)[normalized]
+          ? (normalized as Role)
+          : undefined;
+        userId = userInfo.userId;
+      }
+    }
+  }
+  
+  // Fallback to cookie-based auth (for dev/backward compatibility)
+  if (!role) {
+    const rawRole = req.cookies.get("role")?.value;
+    const normalized = rawRole ? normalizeRole(rawRole) : undefined;
+    role = normalized && (ACCESS_MAP as Record<string, string[]>)[normalized]
       ? (normalized as Role)
       : undefined;
+  }
 
   // Không có role → ép về login
   if (!role) {
@@ -123,17 +154,40 @@ export function proxy(req: NextRequest) {
   }
 
   const res = NextResponse.next();
+  
+  // Add user info to headers for downstream use
+  if (userId) {
+    res.headers.set("x-user-id", userId);
+  }
+  if (role) {
+    res.headers.set("x-user-role", role);
+  }
+  
   return segLocale ? setLocaleCookie(res, segLocale) : res;
 }
 
-// Middleware matcher
+// Proxy matcher - excludes static files and API routes
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except:
+     * - API routes that should bypass proxy
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (images, etc)
+     */
     "/",
     "/(vi|en)/:path*",
-    "/auth/login",
-    "/(vi|en)/auth/login",
+    "/auth/:path*",
+    "/(vi|en)/auth/:path*",
     "/portal/:path*",
     "/(vi|en)/portal/:path*",
+    "/contact",
+    "/faqs",
+    "/blogs",
+    "/(vi|en)/contact",
+    "/(vi|en)/faqs",
+    "/(vi|en)/blogs",
   ],
 };

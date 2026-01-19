@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import { buildApiUrl, BACKEND_AUTH_ENDPOINTS } from "@/constants/apiURL";
 import type { UserMeApiResponse } from "@/types/auth";
 
 export async function GET(req: Request) {
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.ME), {
+    const upstream = await fetch(buildApiUrl(BACKEND_AUTH_ENDPOINTS.ME), {
       method: "GET",
       headers: {
         "Authorization": authHeader,

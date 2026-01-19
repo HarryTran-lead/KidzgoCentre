@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildApiUrl, AUTH_ENDPOINTS } from "@/constants/apiURL";
+import { buildApiUrl, BACKEND_AUTH_ENDPOINTS } from "@/constants/apiURL";
 import type { ChangeUserPinRequest, ChangePinApiResponse } from "@/types/auth";
 
 export async function PUT(req: Request) {
@@ -29,7 +29,7 @@ export async function PUT(req: Request) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(AUTH_ENDPOINTS.CHANGE_PIN), {
+    const upstream = await fetch(buildApiUrl(BACKEND_AUTH_ENDPOINTS.CHANGE_PIN), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

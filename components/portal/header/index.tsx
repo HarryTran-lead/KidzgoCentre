@@ -197,18 +197,18 @@ function useRoleFromPath(fallback?: PortalRole): PortalRole {
   }
 
   // Nếu không match: fallback
-  return fallback ?? "STUDENT";
+  return fallback ?? "Student";
 }
 
 /** I18n đơn giản cho Header (không phụ thuộc dict) */
 function useHeaderI18n(locale: Locale) {
   const ROLE_LABEL_EN: Record<Role, string> = {
-    ADMIN: "Administrator",
-    STAFF_ACCOUNTANT: "Accountant",
-    STAFF_MANAGER: "Manager",
-    TEACHER: "Teacher",
-    STUDENT: "Student",
-    PARENT: "Parent",
+    Admin: "Administrator",
+    Staff_Accountant: "Accountant",
+    Staff_Manager: "Manager",
+    Teacher: "Teacher",
+    Student: "Student",
+    Parent: "Parent",
   };
 
   return {
@@ -232,21 +232,21 @@ function useHeaderI18n(locale: Locale) {
     titleFor(role: Role, userName?: string, pageTitle?: string) {
       if (pageTitle) return pageTitle;
 
-      if (role === "TEACHER" && userName) {
+      if (role === "Teacher" && userName) {
         return locale === "en"
           ? `Welcome back, ${userName}!`
           : `Chào mừng trở lại, ${userName}!`;
       }
 
-      if (role === "STUDENT") {
+      if (role === "Student") {
         return locale === "en" ? "Student Portal" : "Cổng học viên";
       }
 
-      if (role === "PARENT") {
+      if (role === "Parent") {
         return locale === "en" ? "Parent Portal" : "Cổng phụ huynh";
       }
 
-      if (role === "ADMIN") {
+      if (role === "Admin") {
         return locale === "en" ? "Dashboard" : "Bảng điều khiển";
       }
 
@@ -288,9 +288,9 @@ export default function PortalHeader({
     if (typeof showSearch === "boolean") return showSearch;
     // Các role tác nghiệp thường cần search header
     return (
-      currentRole === "ADMIN" ||
-      currentRole === "STAFF_ACCOUNTANT" ||
-      currentRole === "STAFF_MANAGER"
+      currentRole === "Admin" ||
+      currentRole === "Staff_Accountant" ||
+      currentRole === "Staff_Manager"
     );
   }, [currentRole, showSearch]);
 
@@ -336,7 +336,7 @@ export default function PortalHeader({
   };
 
   // ✅ Student uses special header
-  if (currentRole === "STUDENT") {
+  if (currentRole === "Student") {
     return (
       <StudentHeaderBar onMenuClick={handleMenuClick} userName={userName} />
     );

@@ -55,6 +55,17 @@ export default function StudentHeader({
     if (isLoggingOut) return;
     setIsDropdownOpen(false);
     setIsLoggingOut(true);
+    
+    // Clear all tokens and auth data
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      sessionStorage.clear();
+      // Clear all cookies
+      document.cookie.split(';').forEach(c => {
+        document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+      });
+    }
+    
     await new Promise((r) => setTimeout(r, 700));
     window.location.replace("/");
   };

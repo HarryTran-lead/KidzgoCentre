@@ -1,26 +1,71 @@
 // Base URL from environment variable
 export const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Build full API URL
+// Build full API URL for backend calls (from Next.js API Routes to Backend)
 export const buildApiUrl = (endpoint: string): string => {
   return `${BASE_URL}${endpoint}`;
 };
 
-// Authentication Endpoints
+// Build client API URL (from browser to Next.js API Routes)
+export const buildClientApiUrl = (endpoint: string): string => {
+  return endpoint; // Just return the endpoint, will be relative to current domain
+};
+
+// Authentication Endpoints (Client-side → Next.js API Routes)
 export const AUTH_ENDPOINTS = {
   // Authentication
   LOGIN: '/api/auth/login',
   REFRESH_TOKEN: '/api/auth/refresh-token',
   CHANGE_PASSWORD: '/api/auth/change-password',
-  GET_PROFILES: '/api/auth/profiles',
+  GET_PROFILES: '/api/auth/profile',
   FORGET_PASSWORD: '/api/auth/forget-password',
   RESET_PASSWORD: '/api/auth/reset-password',
-  VERIFY_PARENT_PIN: '/api/auth/profiles/verify-parent-pin',
-  SELECT_STUDENT: '/api/auth/profiles/select-student',
+  VERIFY_PARENT_PIN: '/api/auth/profile/verify-parent-pin',
+  SELECT_STUDENT: '/api/auth/profile/select-student',
   CHANGE_PIN: '/api/auth/change-pin',
-  REQUEST_PIN_RESET: '/api/auth/profiles/request-pin-reset',
+  REQUEST_PIN_RESET: '/api/auth/profile/request-pin-reset',
   
   // User
-  ME: '/api/me',
-  LOGOUT: '/api/me/logout',
+  ME: '/api/auth/me',
+  LOGOUT: '/api/auth/logout',
+} as const;
+
+// Backend Auth Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_AUTH_ENDPOINTS = {
+  // Authentication
+  LOGIN: '/auth/login',
+  REFRESH_TOKEN: '/auth/refresh-token',
+  CHANGE_PASSWORD: '/auth/change-password',
+  GET_PROFILES: '/auth/profiles',
+  FORGET_PASSWORD: '/auth/forget-password',
+  RESET_PASSWORD: '/auth/reset-password',
+  VERIFY_PARENT_PIN: '/auth/profiles/verify-parent-pin',
+  SELECT_STUDENT: '/auth/profiles/select-student',
+  CHANGE_PIN: '/auth/change-pin',
+  REQUEST_PIN_RESET: '/auth/profiles/request-pin-reset',
+  
+  // User
+  ME: '/me',
+  LOGOUT: '/me/logout',
+} as const;
+
+// Branch Endpoints (Client-side → Next.js API Routes)
+export const BRANCH_ENDPOINTS = {
+  // CRUD Operations
+  GET_ALL: '/api/branches',
+  GET_BY_ID: (id: string) => `/api/branches/${id}`,
+  CREATE: '/api/branches/create',
+  UPDATE: (id: string) => `/api/branches/${id}`,
+  DELETE: (id: string) => `/api/branches/${id}`,
+  UPDATE_STATUS: (id: string) => `/api/branches/${id}/status`,
+} as const;
+
+// Backend Branch Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_BRANCH_ENDPOINTS = {
+  GET_ALL: '/branches',
+  GET_BY_ID: (id: string) => `/branches/${id}`,
+  CREATE: '/branches',
+  UPDATE: (id: string) => `/branches/${id}`,
+  DELETE: (id: string) => `/branches/${id}`,
+  UPDATE_STATUS: (id: string) => `/branches/${id}/status`,
 } as const;

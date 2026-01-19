@@ -31,8 +31,8 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "admin123",
     name: "Nguyễn Minh Quân",
     avatar: "",
-    role: "ADMIN",
-    redirectPath: ROLES.ADMIN,
+    role: "Admin",
+    redirectPath: ROLES.Admin,
   },
   {
     id: "ACC-MANAGER",
@@ -40,8 +40,8 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "manager123",
     name: "Trần Bảo Anh",
     avatar: "",
-    role: "STAFF_MANAGER",
-    redirectPath: ROLES.STAFF_MANAGER,
+    role: "Staff_Manager",
+    redirectPath: ROLES.Staff_Manager,
   },
   {
     id: "ACC-ACCOUNTANT",
@@ -49,8 +49,8 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "accountant123",
     name: "Phạm Thu Hà",
     avatar: "",
-    role: "STAFF_ACCOUNTANT",
-    redirectPath: ROLES.STAFF_ACCOUNTANT,
+    role: "Staff_Accountant",
+    redirectPath: ROLES.Staff_Accountant,
   },
   {
     id: "ACC-TEACHER",
@@ -58,8 +58,8 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "teacher123",
     name: "Lê Quốc Huy",
     avatar: "",
-    role: "TEACHER",
-    redirectPath: ROLES.TEACHER,
+    role: "Teacher",
+    redirectPath: ROLES.Teacher,
   },
   // 👇 FAMILY: dùng chung cho phụ huynh + học sinh → role = null, redirect /portal
   {
