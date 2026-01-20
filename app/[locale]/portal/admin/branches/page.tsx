@@ -5,7 +5,7 @@ import {
   MapPin, Users, PencilLine, Plus, Building2, 
   Sparkles, MoreVertical, Search, Filter,
   ChevronRight, Globe, CheckCircle,
-  AlertCircle, Loader2, X, Trash2
+  AlertCircle, Loader2, X, Trash2, RefreshCw
 } from 'lucide-react';
 import { 
   getAllBranches, 
@@ -125,6 +125,7 @@ export default function BranchesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showActivateModal, setShowActivateModal] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -345,6 +346,49 @@ export default function BranchesPage() {
     }
   };
 
+  // Handler: Activate Branch
+  const handleOpenActivateModal = (branch: Branch) => {
+    setSelectedBranch(branch);
+    setShowActivateModal(true);
+  };
+
+  const handleActivateBranch = async () => {
+    if (!selectedBranch) return;
+    try {
+      setIsSubmitting(true);
+      const response = await updateBranchStatus(selectedBranch.id, { isActive: true });
+      
+      if ((response.success || response.isSuccess)) {
+        toast({
+          title: "Thành công",
+          description: "Đã kích hoạt chi nhánh",
+          variant: "success",
+        });
+        setShowActivateModal(false);
+        setSelectedBranch(null);
+        // Update local state
+        setBranches(prev => prev.map(b => 
+          b.id === selectedBranch.id ? { ...b, isActive: true } : b
+        ));
+      } else {
+        toast({
+          title: "Lỗi",
+          description: response.message || "Không thể kích hoạt chi nhánh",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error activating branch:', error);
+      toast({
+        title: "Lỗi",
+        description: "Có lỗi xảy ra khi kích hoạt chi nhánh",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Handler: Open Edit Modal
   const handleOpenEditModal = (branch: Branch) => {
     setSelectedBranch(branch);
@@ -533,16 +577,27 @@ export default function BranchesPage() {
                   <PencilLine size={14} />
                   Chỉnh sửa
                 </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenConfirmDeactivate(branch);
-                  }}
-                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-                  disabled={!branch.isActive}
-                >
-                  <Trash2 size={14} />
-                </button>
+                {branch.isActive ? (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenConfirmDeactivate(branch);
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                ) : (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenActivateModal(branch);
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                  >
+                    <RefreshCw size={14} />
+                  </button>
+                )}
               </div>
               <button 
                 onClick={() => handleViewDetail(branch.id)}
@@ -635,6 +690,22 @@ export default function BranchesPage() {
         confirmText="Xóa"
         cancelText="Hủy"
         variant="danger"
+        isLoading={isSubmitting}
+      />
+
+      {/* Confirm Activate Modal */}
+      <ConfirmModal
+        isOpen={showActivateModal}
+        onClose={() => {
+          setShowActivateModal(false);
+          setSelectedBranch(null);
+        }}
+        onConfirm={handleActivateBranch}
+        title="Xác nhận kích hoạt chi nhánh"
+        message={`Bạn có chắc chắn muốn kích hoạt lại chi nhánh "${selectedBranch?.name}"?`}
+        confirmText="Kích hoạt"
+        cancelText="Hủy"
+        variant="success"
         isLoading={isSubmitting}
       />
     </div>

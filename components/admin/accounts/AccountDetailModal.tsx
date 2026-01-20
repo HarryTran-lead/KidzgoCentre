@@ -24,7 +24,7 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4">
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-rose-500 px-6 py-4 flex items-center justify-between">
@@ -43,10 +43,10 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white text-2xl font-bold">
-                {(account.name || account.userName)[0].toUpperCase()}
+                {account.username}
               </div>
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">{account.name || account.userName}</h3>
+                <h3 className="text-2xl font-bold text-gray-900">{account.username}</h3>
                 <p className="text-sm text-gray-500">ID: {account.id}</p>
               </div>
             </div>
@@ -89,7 +89,7 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Username</p>
-                  <p className="text-sm font-medium text-gray-900">{account.userName}</p>
+                  <p className="text-sm font-medium text-gray-900">{account.username}</p>
                 </div>
               </div>
 

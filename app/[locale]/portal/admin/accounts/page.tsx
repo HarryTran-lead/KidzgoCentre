@@ -304,6 +304,7 @@ export default function AccountsPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [activateModalOpen, setActivateModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<User | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
 
@@ -326,7 +327,7 @@ export default function AccountsPage() {
           // Transform API users to Account format
           const transformedAccounts: Account[] = response.data.items.map((user) => ({
             ...user,
-            name: user.name || user.userName || user.email || 'Unknown User', // Multiple fallbacks
+            name: user.name || user.username || user.email || 'Unknown User', // Multiple fallbacks
             phone: user.branchContactPhone || '',
             lastLoginAt: user.updatedAt,
             avatarColor: getAvatarColor(user.id),
@@ -368,8 +369,10 @@ export default function AccountsPage() {
       const response = await getUserById(userId);
       const isSuccessful = response.success || response.isSuccess;
       
-      if (isSuccessful && response.data?.user) {
-        setSelectedAccount(response.data.user);
+      if (isSuccessful && response.data) {
+        // Handle both response.data.user and response.data directly
+        const userData = (response.data as any).user || response.data;
+        setSelectedAccount(userData);
         setDetailModalOpen(true);
       } else {
         toast({
@@ -403,6 +406,11 @@ export default function AccountsPage() {
   const handleOpenDeleteModal = (account: User) => {
     setSelectedAccount(account);
     setDeleteModalOpen(true);
+  };
+
+  const handleOpenActivateModal = (account: User) => {
+    setSelectedAccount(account);
+    setActivateModalOpen(true);
   };
 
   const handleCreateUser = async (data: CreateUserRequest) => {
@@ -494,6 +502,40 @@ export default function AccountsPage() {
         variant: "destructive",
       });
       throw error;
+    }
+  };
+
+  const handleActivateUser = async () => {
+    if (!selectedAccount) return;
+    try {
+      const response = await updateUserStatus(selectedAccount.id, { isActive: true });
+      if (response.success || response.isSuccess) {
+        toast({
+          title: "Thành công",
+          description: "Kích hoạt tài khoản thành công",
+          variant: "success",
+        });
+        setActivateModalOpen(false);
+        // Update local state
+        setAccounts(prev => prev.map(acc => 
+          acc.id === selectedAccount.id 
+            ? { ...acc, isActive: true }
+            : acc
+        ));
+      } else {
+        toast({
+          title: "Lỗi",
+          description: response.message || 'Không thể kích hoạt tài khoản',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error activating user:', error);
+      toast({
+        title: "Lỗi",
+        description: 'Đã xảy ra lỗi khi kích hoạt tài khoản',
+        variant: "destructive",
+      });
     }
   };
 
@@ -954,14 +996,25 @@ export default function AccountsPage() {
                         >
                           <Edit size={14} />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDeleteModal(acc)}
-                          className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600"
-                          title="Xóa tài khoản"
-                        >
-                          <XCircle size={14} />
-                        </button>
+                        {!acc.isActive ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenActivateModal(acc)}
+                            className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600"
+                            title="Kích hoạt tài khoản"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDeleteModal(acc)}
+                            className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600"
+                            title="Xóa tài khoản"
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        )}
                         {acc.isActive ? (
                           <button
                             type="button"
@@ -1204,10 +1257,21 @@ export default function AccountsPage() {
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={handleDeleteUser}
         title="Xác nhận xóa tài khoản"
-        message={`Bạn có chắc chắn muốn xóa tài khoản "${selectedAccount?.name || selectedAccount?.userName}"? Hành động này không thể hoàn tác.`}
+        message={`Bạn có chắc chắn muốn xóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Hành động này không thể hoàn tác.`}
         confirmText="Xóa"
         cancelText="Hủy"
         variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={activateModalOpen}
+        onClose={() => setActivateModalOpen(false)}
+        onConfirm={handleActivateUser}
+        title="Xác nhận kích hoạt tài khoản"
+        message={`Bạn có chắc chắn muốn kích hoạt lại tài khoản "${selectedAccount?.name || selectedAccount?.username}"?`}
+        confirmText="Kích hoạt"
+        cancelText="Hủy"
+        variant="success"
       />
     </div>
   );

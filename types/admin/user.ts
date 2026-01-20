@@ -19,7 +19,7 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   email?: string;
   fullName?: string;
-  userName?: string;
+  username?: string;
   phone?: string;
   branchId?: string;
   dateOfBirth?: string;
@@ -64,7 +64,7 @@ export interface GetAllUsersParams {
 export interface User {
   id: string;
   email: string;
-  userName: string;
+  username: string;
   name: string;
   role: UserRole;
   branchId?: string;

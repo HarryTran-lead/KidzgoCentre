@@ -17,7 +17,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
   const [formData, setFormData] = useState({
     email: '',
     name: '',
-    userName: '',
+    username: '',
     password: '',
     role: 'Parent' as UserRole,
     branchId: '',
@@ -30,18 +30,18 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     if (mode === 'edit' && account) {
       setFormData({
         email: account.email,
-        name: account.name || account.userName,
-        userName: account.userName,
+        name: account.name || account.username,
+        username: account.username,
         password: '',
         role: account.role,
         branchId: account.branchId || '',
       });
     } else if (mode === 'create') {
-      // Reset to empty form for create mode
+      // Reset to completely empty form for create mode
       setFormData({
         email: '',
         name: '',
-        userName: '',
+        username: '',
         password: '',
         role: 'Parent',
         branchId: '',
@@ -64,7 +64,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
       } else {
         const updateData: UpdateUserRequest = {
           email: formData.email,
-          userName: formData.userName,
+          username: formData.username,
           role: formData.role,
           branchId: formData.branchId || undefined,
         };
@@ -140,8 +140,8 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
               </label>
               <input
                 type="text"
-                value={formData.userName}
-                onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
                 placeholder="username"
               />
