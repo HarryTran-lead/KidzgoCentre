@@ -82,7 +82,6 @@ export const USER_ENDPOINTS = {
   // User-specific Operations
   ASSIGN_BRANCH: (id: string) => `/api/admin/users/${id}/assign-branch`,
   CHANGE_PIN: (id: string) => `/api/admin/users/${id}/change-pin`,
-  UPDATE_STATUS: (id: string) => `/api/admin/users/${id}/status`,
 } as const;
 
 // Backend User Management Endpoints (Next.js API Routes → Backend API)
@@ -94,5 +93,4 @@ export const BACKEND_USER_ENDPOINTS = {
   DELETE: (id: string) => `/admin/users/${id}`,
   ASSIGN_BRANCH: (id: string) => `/admin/users/${id}/assign-branch`,
   CHANGE_PIN: (id: string) => `/admin/users/${id}/change-pin`,
-  UPDATE_STATUS: (id: string) => `/admin/users/${id}/status`,
 } as const;

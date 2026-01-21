@@ -108,7 +108,7 @@ export async function updateUserStatus(
   id: string, 
   data: UpdateUserStatusRequest
 ): Promise<UpdateUserStatusApiResponse> {
-  return patch<UpdateUserStatusApiResponse>(USER_ENDPOINTS.UPDATE_STATUS(id), data);
+  return put<UpdateUserStatusApiResponse>(USER_ENDPOINTS.UPDATE(id), data);
 }
 
 // ==================== Additional Utility Functions ====================

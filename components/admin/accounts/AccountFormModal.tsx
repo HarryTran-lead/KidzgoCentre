@@ -64,10 +64,11 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
       } else {
         const updateData: UpdateUserRequest = {
           email: formData.email,
-          username: formData.username,
+          fullName: formData.name,
           role: formData.role,
           branchId: formData.branchId || undefined,
         };
+        console.log("update", updateData);
         await onSubmit(updateData);
       }
       onClose();
@@ -79,7 +80,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
   };
 
   if (!isOpen) return null;
-
+ 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4">

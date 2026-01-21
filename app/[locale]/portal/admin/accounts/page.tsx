@@ -305,6 +305,7 @@ export default function AccountsPage() {
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [activateModalOpen, setActivateModalOpen] = useState(false);
+  const [toggleStatusModalOpen, setToggleStatusModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<User | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
 
@@ -413,6 +414,11 @@ export default function AccountsPage() {
     setActivateModalOpen(true);
   };
 
+  const handleOpenToggleStatusModal = (account: User) => {
+    setSelectedAccount(account);
+    setToggleStatusModalOpen(true);
+  };
+
   const handleCreateUser = async (data: CreateUserRequest) => {
     try {
       const response = await createUser(data);
@@ -455,7 +461,10 @@ export default function AccountsPage() {
         });
         setFormModalOpen(false);
         // Refresh the list
-        window.location.reload();
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+        
       } else {
         toast({
           title: "Lỗi",
@@ -674,20 +683,22 @@ export default function AccountsPage() {
   const inactiveCount = accounts.filter(a => !a.isActive).length;
 
   // Handle status toggle
-  const handleToggleStatus = async (userId: string, currentIsActive: boolean) => {
+  const handleToggleStatus = async () => {
+    if (!selectedAccount) return;
     try {
-      const newStatus = !currentIsActive;
-      const response = await updateUserStatus(userId, { isActive: newStatus });
+      const newStatus = !selectedAccount.isActive;
+      const response = await updateUserStatus(selectedAccount.id, { isActive: newStatus });
       
-      if (response.success) {
+      if (response.success || response.isSuccess) {
         toast({
           title: "Thành công",
           description: `${newStatus ? 'Kích hoạt' : 'Vô hiệu hóa'} tài khoản thành công`,
           variant: "success",
         });
+        setToggleStatusModalOpen(false);
         // Refresh the accounts list
         setAccounts(prev => prev.map(acc => 
-          acc.id === userId 
+          acc.id === selectedAccount.id 
             ? { ...acc, isActive: newStatus }
             : acc
         ));
@@ -1018,7 +1029,7 @@ export default function AccountsPage() {
                         {acc.isActive ? (
                           <button
                             type="button"
-                            onClick={() => handleToggleStatus(acc.id, acc.isActive)}
+                            onClick={() => handleOpenToggleStatusModal(acc)}
                             className="p-1.5 rounded-lg hover:bg-rose-50 transition-colors text-gray-400 hover:text-rose-600"
                             title="Tạm khóa"
                           >
@@ -1027,11 +1038,11 @@ export default function AccountsPage() {
                         ) : (
                           <button
                             type="button"
-                            onClick={() => handleToggleStatus(acc.id, acc.isActive)}
+                            onClick={() => handleOpenToggleStatusModal(acc)}
                             className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600"
                             title="Kích hoạt"
                           >
-                            <RefreshCw size={14} />
+                            <CheckCircle size={14} />
                           </button>
                         )}
                       </div>
@@ -1272,6 +1283,21 @@ export default function AccountsPage() {
         confirmText="Kích hoạt"
         cancelText="Hủy"
         variant="success"
+      />
+
+      <ConfirmModal
+        isOpen={toggleStatusModalOpen}
+        onClose={() => setToggleStatusModalOpen(false)}
+        onConfirm={handleToggleStatus}
+        title={selectedAccount?.isActive ? "Xác nhận khóa tài khoản" : "Xác nhận mở khóa tài khoản"}
+        message={
+          selectedAccount?.isActive
+            ? `Bạn có chắc chắn muốn tạm khóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Người dùng sẽ không thể đăng nhập cho đến khi được mở khóa.`
+            : `Bạn có chắc chắn muốn mở khóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Người dùng sẽ có thể đăng nhập trở lại.`
+        }
+        confirmText={selectedAccount?.isActive ? "Khóa tài khoản" : "Mở khóa"}
+        cancelText="Hủy"
+        variant={selectedAccount?.isActive ? "danger" : "success"}
       />
     </div>
   );

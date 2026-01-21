@@ -84,7 +84,7 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
             onClose?.();
           }, 100);
         }
-      }, 10);
+      }, 50);
 
       return () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
@@ -98,12 +98,13 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
         ref={ref}
         className={cn(
           toastVariants({ variant }), 
-          "relative z-50 pb-2",  // Removed fixed positioning for better stacking
+          "relative z-50 pb-2",
           className
         )}
         style={{ 
-          marginBottom: '8px',  // Add spacing between toasts
-          zIndex: 51  // Ensure proper stacking
+          marginBottom: '8px',
+          zIndex: 51,
+          willChange: 'transform, opacity'
         }}
         {...props}
       >
