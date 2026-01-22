@@ -1,5 +1,5 @@
 // lib/theme.ts
-export const LOGO = "/image/LogoKidzgo.png";
+export const LOGO = "/image/LogoRex.png";
 export const LOGO_FOOTER = "/image/Logo_footer.png";
 export const LOGO_ONLY = "/image/Logo_only.png";
 export const HERO_IMG =
