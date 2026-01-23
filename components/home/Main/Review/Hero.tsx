@@ -19,7 +19,7 @@ import { getMessages } from "@/lib/dict";
 /** ICON & IMAGE giữ ở component (từ ngữ tách ở dict) */
 const ICONS = [Book, Sparkles, Users, Trophy, Heart];
 const IMAGES = [
-  "/image/BannerRex.JPG", // ảnh đầu từ public/image/Banner1.JPG
+  "/image/Banner.png",
   "/image/Banner6.JPG",
   "/image/Banner3.JPG",
   "/image/Banner4.JPG",

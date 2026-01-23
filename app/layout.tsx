@@ -3,9 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { cookies } from "next/headers";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { Toaster as HotToaster } from "react-hot-toast";
 import { Toaster } from "@/components/lightswind/toaster";
 import ReduxProvider from "@/components/providers/ReduxProvider";
 
@@ -40,11 +37,7 @@ export default async function RootLayout({
         suppressHydrationWarning
         data-locale={cookieLocale}
       >
-                        <ReduxProvider>{children}</ReduxProvider>
-
-
-        <ToastContainer autoClose={3000} />
-        <HotToaster position="bottom-right" />
+        <ReduxProvider>{children}</ReduxProvider>
         <Toaster />
       </body>
     </html>

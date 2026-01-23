@@ -185,7 +185,7 @@ export default function Gallery() {
             <span className="text-white drop-shadow-lg">
               Lớp học & CLB{" "}
               <span className={`${ACCENT_TEXT} relative inline-block p-2`}>
-                Tiếng Anh KidzGo
+                Tiếng Anh Rex
                 <Star className="absolute -top-2 -right-4 w-4 h-4 text-yellow-500 animate-spin" />
               </span>
             </span>

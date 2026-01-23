@@ -69,3 +69,30 @@ export const BACKEND_BRANCH_ENDPOINTS = {
   DELETE: (id: string) => `/branches/${id}`,
   UPDATE_STATUS: (id: string) => `/branches/${id}/status`,
 } as const;
+
+// User Management Endpoints (Client-side → Next.js API Routes)
+export const USER_ENDPOINTS = {
+  // CRUD Operations
+  GET_ALL: '/api/admin/users',
+  GET_BY_ID: (id: string) => `/api/admin/users/${id}`,
+  CREATE: '/api/admin/users',
+  UPDATE: (id: string) => `/api/admin/users/${id}`,
+  DELETE: (id: string) => `/api/admin/users/${id}`,
+  UPDATE_STATUS: (id: string) => `/api/admin/users/${id}/status`,
+  
+  // User-specific Operations
+  ASSIGN_BRANCH: (id: string) => `/api/admin/users/${id}/assign-branch`,
+  CHANGE_PIN: (id: string) => `/api/admin/users/${id}/change-pin`,
+} as const;
+
+// Backend User Management Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_USER_ENDPOINTS = {
+  GET_ALL: '/admin/users',
+  GET_BY_ID: (id: string) => `/admin/users/${id}`,
+  CREATE: '/admin/users',
+  UPDATE: (id: string) => `/admin/users/${id}`,
+  DELETE: (id: string) => `/admin/users/${id}`,
+  UPDATE_STATUS: (id: string) => `/admin/users/${id}/status`,
+  ASSIGN_BRANCH: (id: string) => `/admin/users/${id}/assign-branch`,
+  CHANGE_PIN: (id: string) => `/admin/users/${id}/change-pin`,
+} as const;

@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, AlertTriangle, Trash2, CheckCircle, Info } from 'lucide-react';
 
 export type ConfirmModalVariant = 'danger' | 'warning' | 'info' | 'success';
@@ -71,62 +70,72 @@ export default function ConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+    <div 
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in"
+      onClick={handleCancel}
+    >
       <div 
-        className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200"
+        className="relative bg-white rounded-2xl shadow-xl max-w-md w-full animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header with Icon */}
-        <div className="p-6 pb-4">
-          <div className="flex items-start gap-4">
-            <div className={`flex-shrink-0 ${style.iconBg} rounded-full p-3`}>
-              <Icon className={`w-6 h-6 ${style.iconColor}`} />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {title}
-              </h3>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                {message}
-              </p>
-            </div>
-            <button
-              onClick={handleCancel}
-              disabled={isLoading}
-              className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
-              aria-label="Đóng"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Footer with Actions */}
-        <div className="px-6 py-4 bg-gray-50 rounded-b-xl flex gap-3 justify-end">
+        {/* Close Button */}
+        <div className="absolute right-4 top-4 z-10">
           <button
             onClick={handleCancel}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 p-1 rounded-lg hover:bg-gray-100"
+            aria-label="Đóng"
           >
-            {cancelText}
+            <X className="w-5 h-5" />
           </button>
-          <button
-            onClick={handleConfirm}
-            disabled={isLoading}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${style.confirmButton}`}
-          >
-            {isLoading ? (
-              <>
-                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Đang xử lý...</span>
-              </>
-            ) : (
-              confirmText
-            )}
-          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-8 text-center">
+          {/* Icon */}
+          <div className="flex justify-center mb-4">
+            <div className={`${style.iconBg} rounded-full p-4 inline-flex`}>
+              <Icon className={`w-7 h-7 ${style.iconColor}`} />
+            </div>
+          </div>
+
+          {/* Title */}
+          <h3 className="text-xl font-bold text-gray-900 mb-3">
+            {title}
+          </h3>
+
+          {/* Message */}
+          <p className="text-sm text-gray-600 leading-relaxed mb-6">
+            {message}
+          </p>
+
+          {/* Actions */}
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={handleCancel}
+              disabled={isLoading}
+              className="min-w-[120px] px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {cancelText}
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={isLoading}
+              className={`min-w-[120px] px-6 py-2.5 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${style.confirmButton}`}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Đang xử lý...</span>
+                </>
+              ) : (
+                confirmText
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

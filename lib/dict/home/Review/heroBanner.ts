@@ -4,7 +4,7 @@ export const heroBanner = {
     slides: [
       {
         badge: "Ưu đãi khai giảng – đăng ký ngay",
-        title: ["Lộ trình", "Tiếng Anh Kidzgo", "cho bé"],
+        title: ["Lộ trình", "Tiếng Anh Rex", "cho bé"],
         desc: "Không gian dịu mắt – màu sắc vui nhộn. Lớp nhỏ, theo sát từng bé",
         features: ["Phát âm chuẩn", "Giao tiếp tự tin", "Kỹ năng làm bài"],
       },
