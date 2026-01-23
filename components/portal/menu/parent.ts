@@ -1,3 +1,4 @@
+import { LeaveRequest } from './../../../types/student/attendance';
 import {
   Calendar,
   History,
@@ -48,6 +49,12 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     label: t.items.schedule,
     icon: CalendarCheck2,
     href: `${root}/schedule`,
+  };
+    // 🗓️ đơn nghỉ
+  const LeaveRequestItem: MenuItem = {
+    label: t.items.schedule,
+    icon: CalendarCheck2,
+    href: `${root}/attendance`,
   };
 
   // 📚 Bài tập
@@ -108,5 +115,6 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     notificationsItem,
     supportItem,
     accountItem,
+    LeaveRequestItem
   ];
 }

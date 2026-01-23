@@ -69,3 +69,18 @@ export const BACKEND_BRANCH_ENDPOINTS = {
   DELETE: (id: string) => `/branches/${id}`,
   UPDATE_STATUS: (id: string) => `/branches/${id}/status`,
 } as const;
+export const LEAVE_REQUEST_ENDPOINTS = {
+  GET_ALL: "/api/leave-requests",
+  GET_BY_ID: (id: string) => `/api/leave-requests/${id}`,
+  CREATE: "/api/leave-requests",
+  APPROVE: (id: string) => `/api/leave-requests/${id}/approve`,
+  REJECT: (id: string) => `/api/leave-requests/${id}/reject`,
+} as const;
+
+export const BACKEND_LEAVE_REQUEST_ENDPOINTS = {
+  GET_ALL: "/leave-requests",
+  GET_BY_ID: (id: string) => `/leave-requests/${id}`,
+  CREATE: "/leave-requests",
+  APPROVE: (id: string) => `/leave-requests/${id}/approve`,
+  REJECT: (id: string) => `/leave-requests/${id}/reject`,
+} as const;
