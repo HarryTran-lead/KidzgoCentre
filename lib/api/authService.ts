@@ -55,10 +55,11 @@ export async function changePassword(data: ChangePasswordRequest): Promise<Chang
 /**
  * Get user profiles (token auto-injected by axios interceptor)
  */
-export async function getProfiles(): Promise<GetProfilesApiResponse> {
-  return get<GetProfilesApiResponse>(AUTH_ENDPOINTS.GET_PROFILES);
+export async function getProfiles(params?: {
+  profileType?: string;
+}): Promise<GetProfilesApiResponse> {
+  return get<GetProfilesApiResponse>(AUTH_ENDPOINTS.GET_PROFILES, { params });
 }
-
 /**
  * Request password reset email
  */

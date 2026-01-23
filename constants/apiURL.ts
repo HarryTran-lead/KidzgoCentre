@@ -17,7 +17,7 @@ export const AUTH_ENDPOINTS = {
   LOGIN: '/api/auth/login',
   REFRESH_TOKEN: '/api/auth/refresh-token',
   CHANGE_PASSWORD: '/api/auth/change-password',
-  GET_PROFILES: '/api/auth/profile',
+GET_PROFILES: '/api/auth/profiles',
   FORGET_PASSWORD: '/api/auth/forget-password',
   RESET_PASSWORD: '/api/auth/reset-password',
   VERIFY_PARENT_PIN: '/api/auth/profile/verify-parent-pin',
@@ -28,6 +28,13 @@ export const AUTH_ENDPOINTS = {
   // User
   ME: '/api/auth/me',
   LOGOUT: '/api/auth/logout',
+} as const;
+export const STUDENT_ENDPOINTS = {
+  GET_CLASSES: (studentId: string) => `/api/students/${studentId}/classes`,
+} as const;
+
+export const BACKEND_STUDENT_ENDPOINTS = {
+  GET_CLASSES: (studentId: string) => `/students/${studentId}/classes`,
 } as const;
 
 // Backend Auth Endpoints (Next.js API Routes → Backend API)

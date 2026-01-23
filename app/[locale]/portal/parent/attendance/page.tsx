@@ -8,18 +8,27 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+
 import {
   createLeaveRequest,
   getLeaveRequests,
 } from "@/lib/api/leaveRequestService";
+import { getProfiles } from "@/lib/api/authService";
+import { getStudentClasses } from "@/lib/api/studentService";
+
+import type { UserProfile } from "@/types/auth";
+import type { StudentClass } from "@/types/student/class";
 import type {
   LeaveRequestPayload,
   LeaveRequestRecord,
   LeaveRequestStatus,
 } from "@/types/leaveRequest";
-import type { ListData } from "@/types/apiResponse";
+
+/* ===================== Types ===================== */
 
 type FormState = LeaveRequestPayload;
+
+/* ===================== Constants ===================== */
 
 const initialFormState: FormState = {
   studentProfileId: "",
@@ -43,25 +52,39 @@ const statusStyles: Record<LeaveRequestStatus, string> = {
   AUTO_APPROVED: "bg-sky-50 text-sky-700 border border-sky-200",
 };
 
+/* ===================== Page ===================== */
+
 export default function ParentAttendancePage() {
   const [formState, setFormState] = useState<FormState>(initialFormState);
+
   const [requests, setRequests] = useState<LeaveRequestRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const [studentProfiles, setStudentProfiles] = useState<UserProfile[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
+
+  const [classes, setClasses] = useState<StudentClass[]>([]);
+  const [classesLoading, setClassesLoading] = useState(false);
+  const [classesError, setClassesError] = useState<string | null>(null);
+
+  /* ===================== Effects ===================== */
+
+  // Leave requests
   useEffect(() => {
     const fetchLeaveRequests = async () => {
       setLoadingList(true);
       setError(null);
       try {
         const response = await getLeaveRequests();
-     const data = Array.isArray(response.data)
-  ? response.data
-  : response.data.items;
-
-        setRequests(data ?? []);
+        const data = Array.isArray(response.data)
+          ? response.data
+          : response.data.items;
+        setRequests(data);
       } catch (err) {
         console.error("Fetch leave requests error:", err);
         setError("Không thể tải danh sách đơn xin nghỉ.");
@@ -73,7 +96,89 @@ export default function ParentAttendancePage() {
     fetchLeaveRequests();
   }, []);
 
-  const displayRequests = useMemo(() => requests.slice(0, 5), [requests]);
+  // Student profiles
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      setProfilesLoading(true);
+      setProfilesError(null);
+      try {
+        const response = await getProfiles({ profileType: "Student" });
+        const data = Array.isArray(response.data)
+          ? response.data
+          : response.data?.profiles ?? [];
+
+        const students = data.filter(
+          (profile) => profile.profileType === "Student"
+        );
+
+        setStudentProfiles(students);
+
+        if (!formState.studentProfileId && students.length > 0) {
+          setFormState((prev) => ({
+            ...prev,
+            studentProfileId: students[0].id,
+          }));
+        }
+      } catch (err) {
+        console.error("Fetch profiles error:", err);
+        setProfilesError("Không thể tải danh sách học viên.");
+      } finally {
+        setProfilesLoading(false);
+      }
+    };
+
+    fetchProfiles();
+  }, []);
+
+  // Classes by student
+  useEffect(() => {
+    const fetchClasses = async () => {
+      if (!formState.studentProfileId) {
+        setClasses([]);
+        setFormState((prev) => ({ ...prev, classId: "" }));
+        return;
+      }
+
+      setClassesLoading(true);
+      setClassesError(null);
+      try {
+        const response = await getStudentClasses(
+          formState.studentProfileId,
+          { pageNumber: 1, pageSize: 100 }
+        );
+
+        const data = Array.isArray(response.data)
+          ? response.data
+          : response.data?.items ?? [];
+
+        setClasses(data);
+
+        if (!data.length) {
+          setFormState((prev) => ({ ...prev, classId: "" }));
+        }
+      } catch (err) {
+        console.error("Fetch student classes error:", err);
+        setClasses([]);
+        setClassesError("Không thể tải danh sách lớp.");
+      } finally {
+        setClassesLoading(false);
+      }
+    };
+
+    fetchClasses();
+  }, [formState.studentProfileId]);
+
+  /* ===================== Memos ===================== */
+
+  const displayRequests = useMemo(
+    () => requests.slice(0, 5),
+    [requests]
+  );
+
+  const classLabel = (c: StudentClass) =>
+    c.name ?? c.className ?? c.code ?? c.id;
+
+  /* ===================== Actions ===================== */
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -82,7 +187,7 @@ export default function ParentAttendancePage() {
 
     try {
       const response = await createLeaveRequest(formState);
-      if (response?.data) {
+      if (response.data) {
         setRequests((prev) => [response.data, ...prev]);
       }
       setFormState(initialFormState);
@@ -97,8 +202,11 @@ export default function ParentAttendancePage() {
     }
   };
 
+  /* ===================== Render ===================== */
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 grid place-items-center">
           <CalendarCheck size={20} />
@@ -120,39 +228,48 @@ export default function ParentAttendancePage() {
             Tạo đơn xin nghỉ
           </div>
           <p className="text-sm text-slate-600">
-            Đơn nghỉ 1 ngày tạo trước 24h sẽ tự động auto-approve và cấp
-            MakeUpCredit.
-          </p>
-          <p className="text-xs text-slate-500">
-            Đơn tạo sau 24h hoặc dài ngày sẽ chờ staff duyệt. Duyệt thủ công
-            không tự tạo MakeUpCredit.
+            Đơn nghỉ 1 ngày tạo trước 24h sẽ tự động auto-approve.
           </p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
+          {/* Student */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-700">
-              Student Profile ID
+              Học viên
             </label>
-            <input
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+            <select
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={formState.studentProfileId}
               onChange={(e) =>
                 setFormState((p) => ({
                   ...p,
                   studentProfileId: e.target.value,
+                  classId: "",
                 }))
               }
-              placeholder="3fa85f64-..."
-            />
+            >
+              <option value="" disabled>
+                {profilesLoading ? "Đang tải học viên..." : "Chọn học viên"}
+              </option>
+              {studentProfiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.displayName}
+                </option>
+              ))}
+            </select>
+            {profilesError && (
+              <p className="text-xs text-rose-500">{profilesError}</p>
+            )}
           </div>
 
+          {/* Class */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-700">
-              Class ID
+              Lớp học
             </label>
-            <input
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+            <select
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
               value={formState.classId}
               onChange={(e) =>
                 setFormState((p) => ({
@@ -160,59 +277,59 @@ export default function ParentAttendancePage() {
                   classId: e.target.value,
                 }))
               }
-              placeholder="3fa85f64-..."
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">
-              Ngày nghỉ
-            </label>
-            <input
-              type="date"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-              value={formState.sessionDate}
-              onChange={(e) =>
-                setFormState((p) => ({
-                  ...p,
-                  sessionDate: e.target.value,
-                }))
+              disabled={
+                !formState.studentProfileId ||
+                classesLoading ||
+                classes.length === 0
               }
-            />
+            >
+              <option value="" disabled>
+                {classesLoading
+                  ? "Đang tải lớp..."
+                  : classes.length === 0
+                  ? "Chưa có lớp"
+                  : "Chọn lớp"}
+              </option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {classLabel(c)}
+                </option>
+              ))}
+            </select>
+            {classesError && (
+              <p className="text-xs text-rose-500">{classesError}</p>
+            )}
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">
-              Ngày kết thúc
-            </label>
-            <input
-              type="date"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-              value={formState.endDate}
-              onChange={(e) =>
-                setFormState((p) => ({
-                  ...p,
-                  endDate: e.target.value,
-                }))
-              }
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-700">
-            Lý do
-          </label>
-          <textarea
-            rows={3}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-            value={formState.reason}
+          {/* Dates */}
+          <input
+            type="date"
+            className="rounded-lg border px-3 py-2 text-sm"
+            value={formState.sessionDate}
             onChange={(e) =>
-              setFormState((p) => ({ ...p, reason: e.target.value }))
+              setFormState((p) => ({ ...p, sessionDate: e.target.value }))
             }
-            placeholder="Nhập lý do..."
+          />
+          <input
+            type="date"
+            className="rounded-lg border px-3 py-2 text-sm"
+            value={formState.endDate}
+            onChange={(e) =>
+              setFormState((p) => ({ ...p, endDate: e.target.value }))
+            }
           />
         </div>
+
+        {/* Reason */}
+        <textarea
+          rows={3}
+          className="w-full rounded-lg border px-3 py-2 text-sm"
+          value={formState.reason}
+          onChange={(e) =>
+            setFormState((p) => ({ ...p, reason: e.target.value }))
+          }
+          placeholder="Nhập lý do..."
+        />
 
         {error && (
           <div className="text-sm text-rose-600 flex items-center gap-2">
@@ -231,30 +348,17 @@ export default function ParentAttendancePage() {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
         >
           <Send size={16} />
           {loading ? "Đang gửi..." : "Gửi đơn xin nghỉ"}
         </button>
       </div>
 
-      {/* Today attendance */}
-      <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/60">
-        <div className="font-semibold text-slate-900">Hôm nay</div>
-        <div className="text-sm text-slate-600">
-          Học viên đã điểm danh lúc 18:55. Không có ghi chú bất thường.
-        </div>
-      </div>
-
       {/* Recent requests */}
-      <div className="rounded-xl border border-slate-200 p-4 bg-white space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="font-semibold text-slate-900">
-            Đơn xin nghỉ gần đây
-          </div>
-          {loadingList && (
-            <span className="text-xs text-slate-500">Đang tải...</span>
-          )}
+      <div className="rounded-xl border p-4 space-y-3">
+        <div className="font-semibold text-slate-900">
+          Đơn xin nghỉ gần đây
         </div>
 
         {displayRequests.length === 0 ? (
@@ -262,44 +366,39 @@ export default function ParentAttendancePage() {
             Chưa có đơn xin nghỉ.
           </div>
         ) : (
-          <div className="space-y-2">
-            {displayRequests.map((request) => {
-              const status = request.status ?? "PENDING";
-              return (
-                <div
-                  key={request.id}
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm flex flex-wrap items-center justify-between gap-2"
-                >
-                  <div>
-                    <div className="font-semibold text-slate-800">
-                      {request.studentName ??
-                        request.studentProfileId}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {request.sessionDate} → {request.endDate}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      Lý do: {request.reason}
-                    </div>
+          displayRequests.map((r) => {
+            const status = r.status ?? "PENDING";
+            return (
+              <div
+                key={r.id}
+                className="flex justify-between items-center border rounded-lg px-3 py-2 text-sm"
+              >
+                <div>
+                  <div className="font-semibold">
+                    {r.studentName ?? r.studentProfileId}
                   </div>
-                  <span
-                    className={`text-xs font-semibold rounded-full px-2 py-1 ${statusStyles[status]}`}
-                  >
-                    {statusLabels[status]}
-                  </span>
+                  <div className="text-xs text-slate-500">
+                    {r.sessionDate} → {r.endDate}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+                <span
+                  className={`text-xs font-semibold rounded-full px-2 py-1 ${statusStyles[status]}`}
+                >
+                  {statusLabels[status]}
+                </span>
+              </div>
+            );
+          })
         )}
       </div>
 
-      <div className="rounded-xl border border-slate-200 p-4 bg-white flex items-start gap-3">
+      {/* Info */}
+      <div className="rounded-xl border p-4 bg-white flex gap-3">
         <MessageSquare className="text-amber-600 mt-1" size={18} />
-        <div className="flex-1 text-sm text-slate-700">
-          Nếu học viên vắng, hệ thống sẽ gửi tin nhắn cho phụ huynh để xác
-          nhận lý do và hỗ trợ bù buổi.
-        </div>
+        <p className="text-sm text-slate-700">
+          Nếu học viên vắng, hệ thống sẽ gửi tin nhắn cho phụ huynh để
+          xác nhận lý do và hỗ trợ bù buổi.
+        </p>
       </div>
     </div>
   );
