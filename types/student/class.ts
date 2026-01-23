@@ -4,6 +4,7 @@ export interface StudentClass {
   id: string;
   name?: string;
   className?: string;
+    title?: string;
   code?: string;
 }
 

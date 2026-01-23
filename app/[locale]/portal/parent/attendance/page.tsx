@@ -149,8 +149,7 @@ export default function ParentAttendancePage() {
 
         const data = Array.isArray(response.data)
           ? response.data
-          : response.data?.items ?? [];
-
+  : response.data?.classes?.items ?? response.data?.items ?? [];
         setClasses(data);
 
         if (!data.length) {
@@ -176,8 +175,7 @@ export default function ParentAttendancePage() {
   );
 
   const classLabel = (c: StudentClass) =>
-    c.name ?? c.className ?? c.code ?? c.id;
-
+ c.name ?? c.className ?? c.title ?? c.code ?? c.id;
   /* ===================== Actions ===================== */
 
   const handleSubmit = async () => {
