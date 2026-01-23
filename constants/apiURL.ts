@@ -78,6 +78,7 @@ export const USER_ENDPOINTS = {
   CREATE: '/api/admin/users',
   UPDATE: (id: string) => `/api/admin/users/${id}`,
   DELETE: (id: string) => `/api/admin/users/${id}`,
+  UPDATE_STATUS: (id: string) => `/api/admin/users/${id}/status`,
   
   // User-specific Operations
   ASSIGN_BRANCH: (id: string) => `/api/admin/users/${id}/assign-branch`,
@@ -91,6 +92,7 @@ export const BACKEND_USER_ENDPOINTS = {
   CREATE: '/admin/users',
   UPDATE: (id: string) => `/admin/users/${id}`,
   DELETE: (id: string) => `/admin/users/${id}`,
+  UPDATE_STATUS: (id: string) => `/admin/users/${id}/status`,
   ASSIGN_BRANCH: (id: string) => `/admin/users/${id}/assign-branch`,
   CHANGE_PIN: (id: string) => `/admin/users/${id}/change-pin`,
 } as const;
