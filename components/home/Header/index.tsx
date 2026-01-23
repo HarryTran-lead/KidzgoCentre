@@ -296,10 +296,10 @@ export default function Navbar() {
               <Image
                 src={LOGO}
                 alt="KidzGo logo"
-                  width={160}
-                  height={48}
+                  width={200}
+                  height={70}
                 priority
-                  className="h-12 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
+                  className="h-20 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
               />
 
             </a>
