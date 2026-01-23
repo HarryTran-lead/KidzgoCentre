@@ -52,7 +52,7 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   };
     // 🗓️ đơn nghỉ
   const LeaveRequestItem: MenuItem = {
-    label: t.items.schedule,
+    label: t.items.LeaveRequest,
     icon: CalendarCheck2,
     href: `${root}/attendance`,
   };
@@ -114,7 +114,8 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     mediaItem,
     notificationsItem,
     supportItem,
+     LeaveRequestItem,
     accountItem,
-    LeaveRequestItem
+    
   ];
 }
