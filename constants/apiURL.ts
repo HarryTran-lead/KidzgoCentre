@@ -24,3 +24,12 @@ export const AUTH_ENDPOINTS = {
   ME: '/api/me',
   LOGOUT: '/api/me/logout',
 } as const;
+
+// Teacher Endpoints
+export const TEACHER_ENDPOINTS = {
+  ENROLLMENTS: '/api/enrollments',
+  TIMETABLE: '/api/teacher/timetable',
+  ATTENDANCE: '/api/attendance',
+  ATTENDANCE_STUDENTS: '/api/attendance/students',
+  SESSIONS: '/api/sessions',
+} as const;
