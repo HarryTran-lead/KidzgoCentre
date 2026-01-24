@@ -5,7 +5,7 @@ import {
   MapPin, Users, PencilLine, Plus, Building2, 
   Sparkles, MoreVertical, Search, Filter,
   ChevronRight, Globe, CheckCircle,
-  AlertCircle, Loader2, X, Trash2
+  AlertCircle, Loader2, X, Trash2, RefreshCw
 } from 'lucide-react';
 import { 
   getAllBranches, 
@@ -17,6 +17,7 @@ import {
 import type { Branch, CreateBranchRequest, UpdateBranchRequest } from '@/types/branch';
 import { toast } from '@/hooks/use-toast';
 import BranchFormModal from '@/components/portal/branches/BranchFormModal';
+import BranchDetailModal from '@/components/admin/branches/BranchDetailModal';
 import ConfirmModal from '@/components/ConfirmModal';
 
 function Badge({
@@ -124,6 +125,7 @@ export default function BranchesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showActivateModal, setShowActivateModal] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -174,12 +176,18 @@ export default function BranchesPage() {
   // Handler: View Details
   const handleViewDetail = async (branchId: string) => {
     try {
+      console.log('Fetching branch details for ID:', branchId);
       const response = await getBranchById(branchId);
+      console.log('Branch detail response:', response);
+      
       if ((response.success || response.isSuccess) && response.data) {
+        // Try to extract branch data from different possible structures
         const branchData = response.data.branch || response.data;
+        console.log('Branch data to display:', branchData);
         setSelectedBranch(branchData);
         setShowDetailModal(true);
       } else {
+        console.error('Failed to load branch details:', response);
         toast({
           title: "Lỗi",
           description: "Không thể tải chi tiết chi nhánh",
@@ -293,6 +301,8 @@ export default function BranchesPage() {
 
   // Handler: Open Confirm Modal for Deactivate
   const handleOpenConfirmDeactivate = (branch: Branch) => {
+    // Close detail modal if it's open
+    setShowDetailModal(false);
     setSelectedBranch(branch);
     setShowConfirmModal(true);
   };
@@ -329,6 +339,49 @@ export default function BranchesPage() {
       toast({
         title: "Lỗi",
         description: "Có lỗi xảy ra khi vô hiệu hóa chi nhánh",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler: Activate Branch
+  const handleOpenActivateModal = (branch: Branch) => {
+    setSelectedBranch(branch);
+    setShowActivateModal(true);
+  };
+
+  const handleActivateBranch = async () => {
+    if (!selectedBranch) return;
+    try {
+      setIsSubmitting(true);
+      const response = await updateBranchStatus(selectedBranch.id, { isActive: true });
+      
+      if ((response.success || response.isSuccess)) {
+        toast({
+          title: "Thành công",
+          description: "Đã kích hoạt chi nhánh",
+          variant: "success",
+        });
+        setShowActivateModal(false);
+        setSelectedBranch(null);
+        // Update local state
+        setBranches(prev => prev.map(b => 
+          b.id === selectedBranch.id ? { ...b, isActive: true } : b
+        ));
+      } else {
+        toast({
+          title: "Lỗi",
+          description: response.message || "Không thể kích hoạt chi nhánh",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error activating branch:', error);
+      toast({
+        title: "Lỗi",
+        description: "Có lỗi xảy ra khi kích hoạt chi nhánh",
         variant: "destructive",
       });
     } finally {
@@ -515,19 +568,36 @@ export default function BranchesPage() {
             <div className="flex items-center justify-between pt-4 border-t border-pink-100">
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => handleOpenEditModal(branch)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEditModal(branch);
+                  }}
                   className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors"
                 >
                   <PencilLine size={14} />
                   Chỉnh sửa
                 </button>
-                <button 
-                  onClick={() => handleOpenConfirmDeactivate(branch)}
-                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-                  disabled={!branch.isActive}
-                >
-                  <Trash2 size={14} />
-                </button>
+                {branch.isActive ? (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenConfirmDeactivate(branch);
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                ) : (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenActivateModal(branch);
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                  >
+                    <RefreshCw size={14} />
+                  </button>
+                )}
               </div>
               <button 
                 onClick={() => handleViewDetail(branch.id)}
@@ -578,15 +648,14 @@ export default function BranchesPage() {
       )}
 
       {/* Modal: View Detail */}
-      {showDetailModal && selectedBranch && (
-        <DetailModal 
-          branch={selectedBranch} 
-          onClose={() => {
-            setShowDetailModal(false);
-            setSelectedBranch(null);
-          }} 
-        />
-      )}
+      <BranchDetailModal 
+        isOpen={showDetailModal && !!selectedBranch}
+        branch={selectedBranch} 
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedBranch(null);
+        }} 
+      />
 
       {/* Modal: Add/Edit Branch - Using unified component */}
       <BranchFormModal
@@ -616,11 +685,27 @@ export default function BranchesPage() {
           setSelectedBranch(null);
         }}
         onConfirm={handleDeactivateBranch}
-        title="Xác nhận vô hiệu hóa chi nhánh"
-        message={`Bạn có chắc chắn muốn vô hiệu hóa chi nhánh "${selectedBranch?.name}"? Chi nhánh sẽ không thể sử dụng sau khi vô hiệu hóa.`}
-        confirmText="Vô hiệu hóa"
+        title="Xác nhận xóa chi nhánh"
+        message={`Bạn có chắc chắn muốn xóa chi nhánh "${selectedBranch?.name}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
         cancelText="Hủy"
         variant="danger"
+        isLoading={isSubmitting}
+      />
+
+      {/* Confirm Activate Modal */}
+      <ConfirmModal
+        isOpen={showActivateModal}
+        onClose={() => {
+          setShowActivateModal(false);
+          setSelectedBranch(null);
+        }}
+        onConfirm={handleActivateBranch}
+        title="Xác nhận kích hoạt chi nhánh"
+        message={`Bạn có chắc chắn muốn kích hoạt lại chi nhánh "${selectedBranch?.name}"?`}
+        confirmText="Kích hoạt"
+        cancelText="Hủy"
+        variant="success"
         isLoading={isSubmitting}
       />
     </div>
@@ -628,75 +713,3 @@ export default function BranchesPage() {
 }
 
 /* ==================== Modal Components ==================== */
-
-// Detail Modal
-function DetailModal({ branch, onClose }: { branch: Branch; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-rose-500 p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Building2 className="w-6 h-6 text-white" />
-            <h2 className="text-xl font-bold text-white">Chi tiết chi nhánh</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-white" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-pink-50 text-pink-700 text-sm font-medium rounded-full border border-pink-200">
-                  {branch.code}
-                </span>
-                <StatusIndicator isActive={branch.isActive} />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900">{branch.name}</h3>
-            </div>
-          </div>
-
-          <div className="grid gap-4">
-            <InfoRow label="Địa chỉ" value={branch.address} icon={<MapPin size={16} />} />
-            <InfoRow label="Số liên hệ" value={branch.contactPhone} icon="📞" />
-            <InfoRow label="Email liên hệ" value={branch.contactEmail} icon="📧" />
-            {branch.description && <InfoRow label="Mô tả" value={branch.description} icon="📝" />}
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-            <div className="text-center p-4 bg-blue-50 rounded-xl">
-              <div className="text-2xl font-bold text-blue-600">{branch.totalStudents || 0}</div>
-              <div className="text-xs text-gray-600 mt-1">Học viên</div>
-            </div>
-            <div className="text-center p-4 bg-purple-50 rounded-xl">
-              <div className="text-2xl font-bold text-purple-600">{branch.totalClasses || 0}</div>
-              <div className="text-xs text-gray-600 mt-1">Lớp học</div>
-            </div>
-            <div className="text-center p-4 bg-pink-50 rounded-xl">
-              <div className="text-2xl font-bold text-pink-600">{branch.totalTeachers || 0}</div>
-              <div className="text-xs text-gray-600 mt-1">Giáo viên</div>
-            </div>
-          </div>
-
-          <div className="text-xs text-gray-500 space-y-1 pt-4 border-t">
-            <div>Ngày tạo: {new Date(branch.createdAt).toLocaleString('vi-VN')}</div>
-            {branch.updatedAt && <div>Cập nhật: {new Date(branch.updatedAt).toLocaleString('vi-VN')}</div>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-      <div className="text-pink-500 mt-0.5">{icon}</div>
-      <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-gray-500 mb-1">{label}</div>
-        <div className="text-sm text-gray-900">{value}</div>
-      </div>
-    </div>
-  );
-}

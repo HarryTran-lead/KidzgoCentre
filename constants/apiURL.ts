@@ -17,18 +17,19 @@ export const AUTH_ENDPOINTS = {
   LOGIN: '/api/auth/login',
   REFRESH_TOKEN: '/api/auth/refresh-token',
   CHANGE_PASSWORD: '/api/auth/change-password',
-GET_PROFILES: '/api/auth/profiles',
+  GET_PROFILES: '/api/auth/profiles',
   FORGET_PASSWORD: '/api/auth/forget-password',
   RESET_PASSWORD: '/api/auth/reset-password',
   VERIFY_PARENT_PIN: '/api/auth/profile/verify-parent-pin',
   SELECT_STUDENT: '/api/auth/profile/select-student',
   CHANGE_PIN: '/api/auth/change-pin',
   REQUEST_PIN_RESET: '/api/auth/profile/request-pin-reset',
-  
+
   // User
   ME: '/api/auth/me',
   LOGOUT: '/api/auth/logout',
 } as const;
+
 export const STUDENT_ENDPOINTS = {
   GET_CLASSES: (studentId: string) => `/api/students/${studentId}/classes`,
 } as const;
@@ -50,7 +51,7 @@ export const BACKEND_AUTH_ENDPOINTS = {
   SELECT_STUDENT: '/auth/profiles/select-student',
   CHANGE_PIN: '/auth/change-pin',
   REQUEST_PIN_RESET: '/auth/profiles/request-pin-reset',
-  
+
   // User
   ME: '/me',
   LOGOUT: '/me/logout',
@@ -76,18 +77,56 @@ export const BACKEND_BRANCH_ENDPOINTS = {
   DELETE: (id: string) => `/branches/${id}`,
   UPDATE_STATUS: (id: string) => `/branches/${id}/status`,
 } as const;
+
+// Leave Request Endpoints (Client-side → Next.js API Routes)
 export const LEAVE_REQUEST_ENDPOINTS = {
-  GET_ALL: "/api/leave-requests",
+  GET_ALL: '/api/leave-requests',
   GET_BY_ID: (id: string) => `/api/leave-requests/${id}`,
-  CREATE: "/api/leave-requests",
+  CREATE: '/api/leave-requests',
   APPROVE: (id: string) => `/api/leave-requests/${id}/approve`,
   REJECT: (id: string) => `/api/leave-requests/${id}/reject`,
 } as const;
 
 export const BACKEND_LEAVE_REQUEST_ENDPOINTS = {
-  GET_ALL: "/leave-requests",
+  GET_ALL: '/leave-requests',
   GET_BY_ID: (id: string) => `/leave-requests/${id}`,
-  CREATE: "/leave-requests",
+  CREATE: '/leave-requests',
   APPROVE: (id: string) => `/leave-requests/${id}/approve`,
   REJECT: (id: string) => `/leave-requests/${id}/reject`,
+} as const;
+
+// User Management Endpoints (Client-side → Next.js API Routes)
+export const USER_ENDPOINTS = {
+  // CRUD Operations
+  GET_ALL: '/api/admin/users',
+  GET_BY_ID: (id: string) => `/api/admin/users/${id}`,
+  CREATE: '/api/admin/users',
+  UPDATE: (id: string) => `/api/admin/users/${id}`,
+  DELETE: (id: string) => `/api/admin/users/${id}`,
+  UPDATE_STATUS: (id: string) => `/api/admin/users/${id}/status`,
+
+  // User-specific Operations
+  ASSIGN_BRANCH: (id: string) => `/api/admin/users/${id}/assign-branch`,
+  CHANGE_PIN: (id: string) => `/api/admin/users/${id}/change-pin`,
+} as const;
+
+// Backend User Management Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_USER_ENDPOINTS = {
+  GET_ALL: '/admin/users',
+  GET_BY_ID: (id: string) => `/admin/users/${id}`,
+  CREATE: '/admin/users',
+  UPDATE: (id: string) => `/admin/users/${id}`,
+  DELETE: (id: string) => `/admin/users/${id}`,
+  UPDATE_STATUS: (id: string) => `/admin/users/${id}/status`,
+  ASSIGN_BRANCH: (id: string) => `/admin/users/${id}/assign-branch`,
+  CHANGE_PIN: (id: string) => `/admin/users/${id}/change-pin`,
+} as const;
+
+// Teacher Endpoints
+export const TEACHER_ENDPOINTS = {
+  ENROLLMENTS: '/api/enrollments',
+  TIMETABLE: '/api/teacher/timetable',
+  ATTENDANCE: '/api/attendance',
+  ATTENDANCE_STUDENTS: '/api/attendance/students',
+  SESSIONS: '/api/sessions',
 } as const;

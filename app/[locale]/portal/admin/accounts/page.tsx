@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { getAllUsers, updateUserStatus, createUser, updateUser, deleteUser, getUserById } from "@/lib/api/userService";
+import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
+import AccountDetailModal from "@/components/admin/accounts/AccountDetailModal";
+import AccountFormModal from "@/components/admin/accounts/AccountFormModal";
+import ConfirmModal from "@/components/ConfirmModal";
+import { toast } from "@/hooks/use-toast";
 
 type SortDirection = "asc" | "desc";
 
@@ -70,132 +76,60 @@ import {
   ChevronsLeft,
   ChevronsRight,
   AlertCircle,
-  User,
-  Calendar
+  Calendar,
+  Loader2,
+  User as UserIcon,
 } from "lucide-react";
 
-type Role = "ADMIN" | "TEACHER" | "PARENT" | "STAFF";
+// Map UserRole from API to local Role type
+type Role = "Admin" | "Teacher" | "Parent" | "Staff";
 
-type Account = {
-  id: string;
+type Account = User & {
   name: string;
-  email: string;
-  phone: string;
-  role: Role;
-  status: "ACTIVE" | "SUSPENDED" | "PENDING";
-  lastLogin: string;
-  createdAt: string;
+  phone?: string;
+  lastLoginAt?: string;
   avatarColor: string;
   twoFactor: boolean;
   department?: string;
 };
 
-const ACCOUNTS: Account[] = [
-  {
-    id: "ACC001",
-    name: "Nguyễn Minh Anh",
-    email: "admin@kidzgo.vn",
-    phone: "0901 111 222",
-    role: "ADMIN",
-    status: "ACTIVE",
-    lastLogin: "05/12/2024 08:00",
-    createdAt: "15/08/2024",
-    avatarColor: "from-pink-400 to-rose-500",
-    twoFactor: true,
-    department: "Administration"
-  },
-  {
-    id: "ACC045",
-    name: "Phạm Thu Hằng",
-    email: "hang.teacher@kidzgo.vn",
-    phone: "0903 456 789",
-    role: "TEACHER",
-    status: "ACTIVE",
-    lastLogin: "04/12/2024 21:30",
-    createdAt: "20/09/2024",
-    avatarColor: "from-blue-400 to-cyan-500",
-    twoFactor: true,
-    department: "Academic"
-  },
-  {
-    id: "ACC102",
-    name: "Trần Văn Bình",
-    email: "parent.binh@gmail.com",
-    phone: "0987 654 321",
-    role: "PARENT",
-    status: "SUSPENDED",
-    lastLogin: "29/11/2024 10:15",
-    createdAt: "05/11/2024",
-    avatarColor: "from-emerald-400 to-teal-500",
-    twoFactor: false,
-    department: "Parents"
-  },
-  {
-    id: "ACC103",
-    name: "Lê Thị Mai",
-    email: "mai.teacher@kidzgo.vn",
-    phone: "0902 333 444",
-    role: "TEACHER",
-    status: "ACTIVE",
-    lastLogin: "05/12/2024 14:20",
-    createdAt: "12/10/2024",
-    avatarColor: "from-violet-400 to-purple-500",
-    twoFactor: false,
-    department: "Academic"
-  },
-  {
-    id: "ACC104",
-    name: "Hoàng Văn Tùng",
-    email: "tung.staff@kidzgo.vn",
-    phone: "0904 555 666",
-    role: "STAFF",
-    status: "ACTIVE",
-    lastLogin: "04/12/2024 16:45",
-    createdAt: "01/11/2024",
-    avatarColor: "from-amber-400 to-orange-500",
-    twoFactor: true,
-    department: "Operations"
-  },
-  {
-    id: "ACC105",
-    name: "Nguyễn Thị Lan",
-    email: "lan.parent@gmail.com",
-    phone: "0988 777 888",
-    role: "PARENT",
-    status: "PENDING",
-    lastLogin: "Chưa đăng nhập",
-    createdAt: "30/11/2024",
-    avatarColor: "from-indigo-400 to-blue-500",
-    twoFactor: false,
-    department: "Parents"
-  },
-  {
-    id: "ACC106",
-    name: "Trần Quang Huy",
-    email: "huy.admin@kidzgo.vn",
-    phone: "0905 999 000",
-    role: "ADMIN",
-    status: "ACTIVE",
-    lastLogin: "05/12/2024 09:30",
-    createdAt: "25/09/2024",
-    avatarColor: "from-rose-400 to-pink-500",
-    twoFactor: true,
-    department: "Administration"
-  },
-  {
-    id: "ACC107",
-    name: "Phạm Quốc Việt",
-    email: "viet.teacher@kidzgo.vn",
-    phone: "0906 111 222",
-    role: "TEACHER",
-    status: "ACTIVE",
-    lastLogin: "03/12/2024 18:15",
-    createdAt: "15/10/2024",
-    avatarColor: "from-emerald-400 to-teal-500",
-    twoFactor: false,
-    department: "Academic"
-  },
-];
+// Helper function to map API role to display role
+const mapRoleToDisplay = (apiRole: UserRole): Role => {
+  const roleMap: Record<UserRole, Role> = {
+    'Admin': 'Admin',
+    'Teacher': 'Teacher',
+    'Parent': 'Parent',
+    'Staff': 'Staff'
+  };
+  return roleMap[apiRole];
+};
+
+// Helper to generate random avatar color
+const getAvatarColor = (id: string): string => {
+  const colors = [
+    "from-pink-400 to-rose-500",
+    "from-blue-400 to-cyan-500",
+    "from-emerald-400 to-teal-500",
+    "from-violet-400 to-purple-500",
+    "from-amber-400 to-orange-500",
+    "from-indigo-400 to-blue-500",
+    "from-rose-400 to-pink-500",
+  ];
+  const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return colors[hash % colors.length];
+};
+
+// Helper to get department based on role
+const getDepartment = (role: UserRole): string => {
+  const departments: Record<UserRole, string> = {
+    'Admin': 'Administration',
+    'Teacher': 'Academic',
+    'Parent': 'Parents',
+    'Staff': 'Operations'
+  };
+  return departments[role];
+};
+
 
 const ROLE_INFO: Record<Role, {
   label: string;
@@ -203,53 +137,44 @@ const ROLE_INFO: Record<Role, {
   bg: string;
   icon: React.ReactNode;
 }> = {
-  ADMIN: {
+  Admin: {
     label: "Quản trị",
     cls: "bg-gradient-to-r from-pink-50 to-rose-50 text-pink-700 border border-pink-200",
     bg: "from-pink-400 to-rose-500",
     icon: <ShieldCheck size={12} />
   },
-  TEACHER: {
+  Teacher: {
     label: "Giáo viên",
     cls: "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200",
     bg: "from-blue-400 to-cyan-500",
-    icon: <User size={12} />
+    icon: <UserIcon size={12} />
   },
-  PARENT: {
+  Parent: {
     label: "Phụ huynh",
     cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
     bg: "from-emerald-400 to-teal-500",
     icon: <Users size={12} />
   },
-  STAFF: {
+  Staff: {
     label: "Nhân viên",
     cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
     bg: "from-amber-400 to-orange-500",
-    icon: <User size={12} />
+    icon: <UserIcon size={12} />
   },
 };
 
-const STATUS_INFO: Record<Account['status'], {
-  label: string;
-  cls: string;
-  icon: React.ReactNode;
-}> = {
-  ACTIVE: {
+const STATUS_INFO = {
+  active: {
     label: "Đang hoạt động",
     cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
     icon: <CheckCircle size={12} />
   },
-  SUSPENDED: {
+  inactive: {
     label: "Tạm khóa",
     cls: "bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border border-rose-200",
     icon: <XCircle size={12} />
   },
-  PENDING: {
-    label: "Chờ kích hoạt",
-    cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
-    icon: <AlertCircle size={12} />
-  },
-};
+} as const;
 
 function StatCard({
   title,
@@ -282,12 +207,14 @@ function StatCard({
 }
 
 function Avatar({ name, color }: { name: string; color: string }) {
-  const initials = name
+  const safeName = name || 'User';
+  const initials = safeName
     .split(' ')
     .map(word => word[0])
+    .filter(char => char)
     .join('')
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || 'U';
 
   return (
     <div className="flex h-8 w-8 items-center justify-center rounded-lg text-white font-semibold text-xs bg-gradient-to-r from-pink-500 to-rose-500 shadow-sm">
@@ -306,8 +233,8 @@ function RoleBadge({ role }: { role: Role }) {
   );
 }
 
-function StatusBadge({ status }: { status: Account['status'] }) {
-  const { label, cls, icon } = STATUS_INFO[status];
+function StatusBadge({ isActive }: { isActive: boolean }) {
+  const { label, cls, icon } = isActive ? STATUS_INFO.active : STATUS_INFO.inactive;
   return (
     <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
       {icon}
@@ -328,22 +255,310 @@ function TwoFactorBadge({ enabled }: { enabled: boolean }) {
   );
 }
 
+// Helper to format date from API
+const formatDate = (dateString?: string): string => {
+  if (!dateString) return "Chưa có";
+  const date = new Date(dateString);
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatDateTime = (dateString?: string): string => {
+  if (!dateString) return "Chưa đăng nhập";
+  const date = new Date(dateString);
+  return date.toLocaleString('vi-VN', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
 export default function AccountsPage() {
   const [role, setRole] = useState<Role | "ALL">("ALL");
-  const [status, setStatus] = useState<Account['status'] | "ALL">("ALL");
+  const [status, setStatus] = useState<boolean | null>(null); // null = ALL, true = ACTIVE, false = INACTIVE
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState<Account>>({ key: null, direction: "asc" });
+  
+  // API State
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  
+  // Fixed counts from initial fetch (won't change with filters)
+  const [fixedCounts, setFixedCounts] = useState({
+    total: 0,
+    admin: 0,
+    teacher: 0,
+    parent: 0,
+    staff: 0,
+    active: 0,
+    inactive: 0,
+  });
+
+  // Modal states
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [activateModalOpen, setActivateModalOpen] = useState(false);
+  const [toggleStatusModalOpen, setToggleStatusModalOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<User | null>(null);
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+
+  // Fetch users from API once (no server-side filtering for smooth UX)
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await getAllUsers({
+          pageNumber: 1,
+          pageSize: 1000, // Get all users for client-side filtering
+        });
+
+        // Check both success and isSuccess for compatibility
+        const isSuccessful = response.success || response.isSuccess;
+        
+        if (isSuccessful && response.data) {
+          // Transform API users to Account format
+          const transformedAccounts: Account[] = response.data.items.map((user) => ({
+            ...user,
+            name: user.name || user.username || user.email || 'Unknown User', // Multiple fallbacks
+            phone: user.branchContactPhone || '',
+            lastLoginAt: user.updatedAt,
+            avatarColor: getAvatarColor(user.id),
+            twoFactor: false, // TODO: This should come from API
+            department: getDepartment(user.role),
+          }));
+          
+          setAccounts(transformedAccounts);
+          setTotalCount(transformedAccounts.length);
+          
+          // Calculate fixed counts (these won't change with filters)
+          const counts = {
+            total: transformedAccounts.length,
+            admin: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Admin').length,
+            teacher: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Teacher').length,
+            parent: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Parent').length,
+            staff: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Staff').length,
+            active: transformedAccounts.filter(a => a.isActive).length,
+            inactive: transformedAccounts.filter(a => !a.isActive).length,
+          };
+          setFixedCounts(counts);
+        } else {
+          setError(response.message || 'Không thể tải danh sách người dùng');
+        }
+      } catch (err) {
+        console.error('Error fetching users:', err);
+        setError('Đã xảy ra lỗi khi tải danh sách người dùng');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchUsers();
+  }, []); // Only fetch once on mount
+
+  // Modal handlers
+  const handleViewDetail = async (userId: string) => {
+    try {
+      const response = await getUserById(userId);
+      const isSuccessful = response.success || response.isSuccess;
+      
+      if (isSuccessful && response.data) {
+        // Handle both response.data.user and response.data directly
+        const userData = (response.data as any).user || response.data;
+        setSelectedAccount(userData);
+        setDetailModalOpen(true);
+      } else {
+        toast({
+          title: "Lỗi",
+          description: response.message || 'Không thể tải thông tin chi tiết',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      toast({
+        title: "Lỗi",
+        description: 'Đã xảy ra lỗi khi tải thông tin chi tiết',
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenCreateModal = () => {
+    setSelectedAccount(null);
+    setFormMode('create');
+    setFormModalOpen(true);
+  };
+
+  const handleOpenEditModal = (account: User) => {
+    setSelectedAccount(account);
+    setFormMode('edit');
+    setFormModalOpen(true);
+  };
+
+  const handleOpenDeleteModal = (account: User) => {
+    setSelectedAccount(account);
+    setDeleteModalOpen(true);
+  };
+
+  const handleOpenActivateModal = (account: User) => {
+    setSelectedAccount(account);
+    setActivateModalOpen(true);
+  };
+
+  const handleOpenToggleStatusModal = (account: User) => {
+    setSelectedAccount(account);
+    setToggleStatusModalOpen(true);
+  };
+
+  const handleCreateUser = async (data: CreateUserRequest) => {
+    try {
+      const response = await createUser(data);
+      if (response.success || response.isSuccess) {
+        toast({
+          title: "Thành công",
+          description: "Tạo tài khoản thành công",
+          variant: "success",
+        });
+        setFormModalOpen(false);
+        // Refresh the list
+        window.location.reload();
+      } else {
+        toast({
+          title: "Lỗi",
+          description: response.message || 'Không thể tạo tài khoản',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Lỗi",
+        description: 'Đã xảy ra lỗi khi tạo tài khoản',
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleUpdateUser = async (data: UpdateUserRequest) => {
+    if (!selectedAccount) return;
+    try {
+      const response = await updateUser(selectedAccount.id, data);
+      if (response.success || response.isSuccess) {
+        toast({
+          title: "Thành công",
+          description: "Cập nhật tài khoản thành công",
+          variant: "success",
+        });
+        setFormModalOpen(false);
+        // Refresh the list
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+        
+      } else {
+        toast({
+          title: "Lỗi",
+          description: response.message || 'Không thể cập nhật tài khoản',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Lỗi",
+        description: 'Đã xảy ra lỗi khi cập nhật tài khoản',
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedAccount) return;
+    try {
+      const response = await deleteUser(selectedAccount.id);
+      if (response.success || response.isSuccess) {
+        toast({
+          title: "Thành công",
+          description: "Xóa tài khoản thành công",
+          variant: "success",
+        });
+        setDeleteModalOpen(false);
+        // Refresh the list
+        window.location.reload();
+      } else {
+        toast({
+          title: "Lỗi",
+          description: response.message || 'Không thể xóa tài khoản',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Lỗi",
+        description: 'Đã xảy ra lỗi khi xóa tài khoản',
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleActivateUser = async () => {
+    if (!selectedAccount) return;
+    try {
+      const response = await updateUserStatus(selectedAccount.id, { isActive: true });
+      if (response.success || response.isSuccess) {
+        toast({
+          title: "Thành công",
+          description: "Kích hoạt tài khoản thành công",
+          variant: "success",
+        });
+        setActivateModalOpen(false);
+        // Update local state
+        setAccounts(prev => prev.map(acc => 
+          acc.id === selectedAccount.id 
+            ? { ...acc, isActive: true }
+            : acc
+        ));
+      } else {
+        toast({
+          title: "Lỗi",
+          description: response.message || 'Không thể kích hoạt tài khoản',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error activating user:', error);
+      toast({
+        title: "Lỗi",
+        description: 'Đã xảy ra lỗi khi kích hoạt tài khoản',
+        variant: "destructive",
+      });
+    }
+  };
 
   const toggleSort = (key: keyof Account) => {
     setSort(prev => {
       if (prev.key !== key) return { key, direction: "asc" };
       return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
     });
-    setCurrentPage(1);
   };
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [role, status, search]);
 
   const SortHeader = ({
     label,
@@ -378,29 +593,30 @@ export default function AccountsPage() {
   const stats = [
     {
       title: 'Tổng tài khoản',
-      value: `${ACCOUNTS.length}`,
+      value: `${fixedCounts.total}`,
       icon: <Users size={20} />,
       color: 'from-pink-500 to-rose-500',
       subtitle: 'Toàn hệ thống'
     },
     {
       title: 'Đang hoạt động',
-      value: `${ACCOUNTS.filter(a => a.status === 'ACTIVE').length}`,
+      value: `${fixedCounts.active}`,
       icon: <CheckCircle size={20} />,
       color: 'from-emerald-500 to-teal-500',
       subtitle: 'Truy cập thường xuyên'
     },
     {
       title: 'Bật xác thực 2 lớp',
-      value: `${ACCOUNTS.filter(a => a.twoFactor).length}`,
+      value: `${accounts.filter(a => a.twoFactor).length}`,
       icon: <ShieldCheck size={20} />,
       color: 'from-blue-500 to-cyan-500',
       subtitle: 'Bảo mật cao'
     },
     {
       title: 'Tài khoản mới',
-      value: `+${ACCOUNTS.filter(a => {
-        const createdDate = new Date(a.createdAt.split('/').reverse().join('-'));
+      value: `+${accounts.filter(a => {
+        if (!a.createdAt) return false;
+        const createdDate = new Date(a.createdAt);
         const today = new Date();
         const diffDays = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
         return diffDays <= 30;
@@ -412,14 +628,15 @@ export default function AccountsPage() {
   ];
 
   const list = useMemo(() => {
-    let result = ACCOUNTS;
+    let result = accounts;
 
+    // Client-side filtering
     if (role !== "ALL") {
-      result = result.filter(acc => acc.role === role);
+      result = result.filter(acc => mapRoleToDisplay(acc.role) === role);
     }
 
-    if (status !== "ALL") {
-      result = result.filter(acc => acc.status === status);
+    if (status !== null) {
+      result = result.filter(acc => acc.isActive === status);
     }
 
     if (search) {
@@ -427,19 +644,20 @@ export default function AccountsPage() {
       result = result.filter(acc =>
         acc.name.toLowerCase().includes(searchLower) ||
         acc.email.toLowerCase().includes(searchLower) ||
-        acc.phone.toLowerCase().includes(searchLower) ||
+        (acc.phone && acc.phone.toLowerCase().includes(searchLower)) ||
         acc.id.toLowerCase().includes(searchLower)
       );
     }
 
+    // Client-side sorting
     if (sort.key) {
       result = quickSort([...result], buildComparator(sort.key, sort.direction));
     }
 
     return result;
-  }, [role, status, search, sort.key, sort.direction]);
+  }, [accounts, role, status, search, sort.key, sort.direction]);
 
-  // Pagination
+  // Client-side pagination
   const totalPages = Math.ceil(list.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -461,9 +679,78 @@ export default function AccountsPage() {
     }
   };
 
-  const activeCount = ACCOUNTS.filter(a => a.status === 'ACTIVE').length;
-  const pendingCount = ACCOUNTS.filter(a => a.status === 'PENDING').length;
-  const suspendedCount = ACCOUNTS.filter(a => a.status === 'SUSPENDED').length;
+  const activeCount = accounts.filter(a => a.isActive).length;
+  const inactiveCount = accounts.filter(a => !a.isActive).length;
+
+  // Handle status toggle
+  const handleToggleStatus = async () => {
+    if (!selectedAccount) return;
+    try {
+      const newStatus = !selectedAccount.isActive;
+      const response = await updateUserStatus(selectedAccount.id, { isActive: newStatus });
+      
+      if (response.success || response.isSuccess) {
+        toast({
+          title: "Thành công",
+          description: `${newStatus ? 'Kích hoạt' : 'Vô hiệu hóa'} tài khoản thành công`,
+          variant: "success",
+        });
+        setToggleStatusModalOpen(false);
+        // Refresh the accounts list
+        setAccounts(prev => prev.map(acc => 
+          acc.id === selectedAccount.id 
+            ? { ...acc, isActive: newStatus }
+            : acc
+        ));
+      } else {
+        toast({
+          title: "Lỗi",
+          description: response.message || 'Không thể cập nhật trạng thái',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      toast({
+        title: "Lỗi",
+        description: 'Đã xảy ra lỗi khi cập nhật trạng thái',
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-pink-500 mx-auto mb-4" />
+          <p className="text-gray-600">Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-rose-100 to-pink-100 flex items-center justify-center">
+            <AlertCircle className="h-8 w-8 text-rose-500" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Không thể tải dữ liệu</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+          >
+            <RefreshCw size={16} /> Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
@@ -474,7 +761,7 @@ export default function AccountsPage() {
             <Users size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
               Quản lý Tài khoản
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -486,7 +773,10 @@ export default function AccountsPage() {
           <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
             <Key size={16} /> Đặt lại mật khẩu
           </button>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+          <button 
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+          >
             <UserPlus size={16} /> Tạo tài khoản mới
           </button>
         </div>
@@ -506,11 +796,11 @@ export default function AccountsPage() {
             {/* Role Filter */}
             <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1">
               {[
-                { k: 'ALL', label: 'Tất cả', count: ACCOUNTS.length },
-                { k: 'ADMIN', label: 'Quản trị', count: ACCOUNTS.filter(a => a.role === 'ADMIN').length },
-                { k: 'TEACHER', label: 'Giáo viên', count: ACCOUNTS.filter(a => a.role === 'TEACHER').length },
-                { k: 'PARENT', label: 'Phụ huynh', count: ACCOUNTS.filter(a => a.role === 'PARENT').length },
-                { k: 'STAFF', label: 'Nhân viên', count: ACCOUNTS.filter(a => a.role === 'STAFF').length },
+                { k: 'ALL', label: 'Tất cả', count: fixedCounts.total },
+                { k: 'Admin', label: 'Quản trị', count: fixedCounts.admin },
+                { k: 'Teacher', label: 'Giáo viên', count: fixedCounts.teacher },
+                { k: 'Parent', label: 'Phụ huynh', count: fixedCounts.parent },
+                { k: 'Staff', label: 'Nhân viên', count: fixedCounts.staff },
               ].map((item) => (
                 <button
                   key={item.k}
@@ -533,14 +823,16 @@ export default function AccountsPage() {
             <div className="flex items-center gap-2">
               <Filter size={16} className="text-gray-500" />
               <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as typeof status)}
+                value={status === null ? 'ALL' : status ? 'ACTIVE' : 'INACTIVE'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStatus(val === 'ALL' ? null : val === 'ACTIVE');
+                }}
                 className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
               >
-                <option value="ALL">Tất cả trạng thái ({ACCOUNTS.length})</option>
-                <option value="ACTIVE">Đang hoạt động ({activeCount})</option>
-                <option value="PENDING">Chờ kích hoạt ({pendingCount})</option>
-                <option value="SUSPENDED">Tạm khóa ({suspendedCount})</option>
+                <option value="ALL">Tất cả trạng thái ({fixedCounts.total})</option>
+                <option value="ACTIVE">Đang hoạt động ({fixedCounts.active})</option>
+                <option value="INACTIVE">Không hoạt động ({fixedCounts.inactive})</option>
               </select>
             </div>
           </div>
@@ -604,10 +896,10 @@ export default function AccountsPage() {
                   <SortHeader label="Bảo mật" sortKey="twoFactor" />
                 </th>
                 <th className="py-3 px-6 text-left">
-                  <SortHeader label="Hoạt động" sortKey="lastLogin" />
+                  <SortHeader label="Hoạt động" sortKey="lastLoginAt" />
                 </th>
                 <th className="py-3 px-6 text-left">
-                  <SortHeader label="Trạng thái" sortKey="status" />
+                  <SortHeader label="Trạng thái" sortKey="isActive" />
                 </th>
                 <th className="py-3 px-6 text-left">
                   <span className="text-sm font-semibold text-gray-700">Thao tác</span>
@@ -649,32 +941,32 @@ export default function AccountsPage() {
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-700">
                           <Phone size={12} className="text-gray-400" />
-                          <span>{acc.phone}</span>
+                          <span>{acc.phone || 'Chưa cập nhật'}</span>
                         </div>
                         <div className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar size={10} />
-                          Tạo ngày: {acc.createdAt}
+                          Tạo ngày: {formatDate(acc.createdAt)}
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <RoleBadge role={acc.role} />
+                      <RoleBadge role={mapRoleToDisplay(acc.role)} />
                     </td>
                     <td className="py-4 px-6">
                       <div className="space-y-1">
                         <TwoFactorBadge enabled={acc.twoFactor} />
                         <div className="text-xs text-gray-500">
-                          {acc.lastLogin === "Chưa đăng nhập" ? "Chưa đăng nhập" : `Đăng nhập: ${acc.lastLogin}`}
+                          {!acc.lastLoginAt ? "Chưa đăng nhập" : `Đăng nhập: ${formatDateTime(acc.lastLoginAt)}`}
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-6">
                       <div className="space-y-1">
-                        <div className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${acc.lastLogin === "Chưa đăng nhập"
+                        <div className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${!acc.lastLoginAt
                           ? 'bg-gray-100 text-gray-600'
                           : 'bg-blue-50 text-blue-600'
                           }`}>
-                          {acc.lastLogin === "Chưa đăng nhập" ? (
+                          {!acc.lastLoginAt ? (
                             <>
                               <AlertCircle size={10} />
                               Chưa kích hoạt
@@ -687,7 +979,7 @@ export default function AccountsPage() {
                           )}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {acc.lastLogin === "Chưa đăng nhập"
+                          {!acc.lastLoginAt
                             ? "Đang chờ kích hoạt"
                             : "Hoạt động gần nhất"
                           }
@@ -695,41 +987,62 @@ export default function AccountsPage() {
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <StatusBadge status={acc.status} />
+                      <StatusBadge isActive={acc.isActive} />
                     </td>
                     <td className="py-4 px-6">
-                      <div className="flex items-center gap-1  transition-opacity duration-200">
+                      <div className="flex items-center gap-1 transition-opacity duration-200">
                         <button
-                          className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer"
+                          type="button"
+                          onClick={() => handleViewDetail(acc.id)}
+                          className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600"
                           title="Xem chi tiết"
                         >
                           <Eye size={14} />
                         </button>
                         <button
-                          className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                          type="button"
+                          onClick={() => handleOpenEditModal(acc)}
+                          className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600"
                           title="Chỉnh sửa"
                         >
                           <Edit size={14} />
                         </button>
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
-                          title="Đặt lại mật khẩu"
-                        >
-                          <Key size={14} />
-                        </button>
-                        {acc.status === 'ACTIVE' ? (
+                        {!acc.isActive ? (
                           <button
-                            className="p-1.5 rounded-lg hover:bg-rose-50 transition-colors text-gray-400 hover:text-rose-600 cursor-pointer"
+                            type="button"
+                            onClick={() => handleOpenActivateModal(acc)}
+                            className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600"
+                            title="Kích hoạt tài khoản"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDeleteModal(acc)}
+                            className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600"
+                            title="Xóa tài khoản"
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        )}
+                        {acc.isActive ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenToggleStatusModal(acc)}
+                            className="p-1.5 rounded-lg hover:bg-rose-50 transition-colors text-gray-400 hover:text-rose-600"
                             title="Tạm khóa"
                           >
                             <Lock size={14} />
                           </button>
                         ) : (
                           <button
-                            className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
+                            type="button"
+                            onClick={() => handleOpenToggleStatusModal(acc)}
+                            className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600"
                             title="Kích hoạt"
                           >
-                            <RefreshCw size={14} />
+                            <CheckCircle size={14} />
                           </button>
                         )}
                       </div>
@@ -909,9 +1222,9 @@ export default function AccountsPage() {
           <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
             <h4 className="font-semibold text-gray-900 mb-3">Phân bố vai trò</h4>
             <div className="space-y-3">
-              {(['ADMIN', 'TEACHER', 'PARENT', 'STAFF'] as Role[]).map(role => {
-                const count = ACCOUNTS.filter(a => a.role === role).length;
-                const percentage = Math.round((count / ACCOUNTS.length) * 100);
+              {(['Admin', 'Teacher', 'Parent', 'Staff'] as Role[]).map(role => {
+                const count = accounts.filter(a => mapRoleToDisplay(a.role) === role).length;
+                const percentage = accounts.length > 0 ? Math.round((count / accounts.length) * 100) : 0;
                 const info = ROLE_INFO[role];
 
                 return (
@@ -934,6 +1247,58 @@ export default function AccountsPage() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <AccountDetailModal
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        account={selectedAccount}
+      />
+
+      <AccountFormModal
+        isOpen={formModalOpen}
+        onClose={() => setFormModalOpen(false)}
+        onSubmit={(data) => formMode === 'create' ? handleCreateUser(data as CreateUserRequest) : handleUpdateUser(data as UpdateUserRequest)}
+        account={selectedAccount}
+        mode={formMode}
+      />
+
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDeleteUser}
+        title="Xác nhận xóa tài khoản"
+        message={`Bạn có chắc chắn muốn xóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={activateModalOpen}
+        onClose={() => setActivateModalOpen(false)}
+        onConfirm={handleActivateUser}
+        title="Xác nhận kích hoạt tài khoản"
+        message={`Bạn có chắc chắn muốn kích hoạt lại tài khoản "${selectedAccount?.name || selectedAccount?.username}"?`}
+        confirmText="Kích hoạt"
+        cancelText="Hủy"
+        variant="success"
+      />
+
+      <ConfirmModal
+        isOpen={toggleStatusModalOpen}
+        onClose={() => setToggleStatusModalOpen(false)}
+        onConfirm={handleToggleStatus}
+        title={selectedAccount?.isActive ? "Xác nhận khóa tài khoản" : "Xác nhận mở khóa tài khoản"}
+        message={
+          selectedAccount?.isActive
+            ? `Bạn có chắc chắn muốn tạm khóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Người dùng sẽ không thể đăng nhập cho đến khi được mở khóa.`
+            : `Bạn có chắc chắn muốn mở khóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Người dùng sẽ có thể đăng nhập trở lại.`
+        }
+        confirmText={selectedAccount?.isActive ? "Khóa tài khoản" : "Mở khóa"}
+        cancelText="Hủy"
+        variant={selectedAccount?.isActive ? "danger" : "success"}
+      />
     </div>
   );
 }

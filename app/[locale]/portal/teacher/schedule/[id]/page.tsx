@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -10,81 +10,23 @@ import {
   MapPin,
   CheckCircle,
   Clock,
-  XCircle,
-  UserRound,
   Download,
-  Share2,
-  MoreVertical,
   Search,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-
-type AttendanceStatus = "present" | "late" | "absent";
-
-type Student = {
-  id: string;
-  name: string;
-  email: string;
-  status: AttendanceStatus;
-  absenceRate: number; // % vắng trong kỳ
-  note?: string;
-};
-
-type LessonDetail = {
-  id: string;
-  course: string;
-  lesson: string;
-  date: string;
-  time: string;
-  room: string;
-  teacher: string;
-  students: number;
-};
-
-// Mock data theo id
-const LESSONS: Record<string, LessonDetail> = {
-  L1: {
-    id: "L1",
-    course: "IELTS Foundation - A1",
-    lesson: "Unit 5 - Speaking: Daily routine",
-    date: "Thứ 2, 06/10/2025",
-    time: "08:00 - 10:00",
-    room: "Phòng 301",
-    teacher: "Nguyễn Văn A",
-    students: 18,
-  },
-};
-
-const ATTENDANCE: Record<string, Student[]> = {
-  L1: [
-    { id: "ST001", name: "Nguyễn Văn An", email: "an.nguyen@email.com", status: "present", absenceRate: 5 },
-    { id: "ST002", name: "Trần Thị Bình", email: "binh.tran@email.com", status: "late", note: "Đến 08:15", absenceRate: 12 },
-    { id: "ST003", name: "Lê Văn Cường", email: "cuong.le@email.com", status: "present", absenceRate: 8 },
-    { id: "ST004", name: "Phạm Thị Dung", email: "dung.pham@email.com", status: "absent", note: "Nghỉ phép", absenceRate: 20 },
-    { id: "ST005", name: "Hoàng Văn Em", email: "em.hoang@email.com", status: "present", absenceRate: 3 },
-    { id: "ST006", name: "Vũ Thị Lan", email: "lan.vu@email.com", status: "present", absenceRate: 7 },
-    { id: "ST007", name: "Nguyễn Thị Hoa", email: "hoa.nguyen@email.com", status: "late", note: "Đến 08:20", absenceRate: 15 },
-    { id: "ST008", name: "Trần Văn Hùng", email: "hung.tran@email.com", status: "present", absenceRate: 4 },
-    { id: "ST009", name: "Lê Thị Mai", email: "mai.le@email.com", status: "absent", note: "Xin phép", absenceRate: 18 },
-    { id: "ST010", name: "Phạm Văn Nam", email: "nam.pham@email.com", status: "present", absenceRate: 6 },
-    { id: "ST011", name: "Hoàng Thị Linh", email: "linh.hoang@email.com", status: "present", absenceRate: 2 },
-    { id: "ST012", name: "Vũ Văn Long", email: "long.vu@email.com", status: "late", note: "Đến 08:10", absenceRate: 10 },
-    { id: "ST013", name: "Nguyễn Thị Nga", email: "nga.nguyen@email.com", status: "present", absenceRate: 5 },
-    { id: "ST014", name: "Trần Văn Oanh", email: "oanh.tran@email.com", status: "absent", note: "Nghỉ ốm", absenceRate: 25 },
-    { id: "ST015", name: "Lê Thị Phương", email: "phuong.le@email.com", status: "present", absenceRate: 3 },
-    { id: "ST016", name: "Phạm Văn Quang", email: "quang.pham@email.com", status: "present", absenceRate: 8 },
-    { id: "ST017", name: "Hoàng Thị Quỳnh", email: "quynh.hoang@email.com", status: "late", note: "Đến 08:25", absenceRate: 14 },
-    { id: "ST018", name: "Vũ Văn Sơn", email: "son.vu@email.com", status: "present", absenceRate: 6 },
-    { id: "ST019", name: "Nguyễn Thị Tâm", email: "tam.nguyen@email.com", status: "present", absenceRate: 4 },
-    { id: "ST020", name: "Trần Văn Tuấn", email: "tuan.tran@email.com", status: "absent", note: "Nghỉ phép", absenceRate: 22 },
-    { id: "ST021", name: "Lê Thị Uyên", email: "uyen.le@email.com", status: "present", absenceRate: 7 },
-    { id: "ST022", name: "Phạm Văn Vinh", email: "vinh.pham@email.com", status: "present", absenceRate: 5 },
-    { id: "ST023", name: "Hoàng Thị Xuân", email: "xuan.hoang@email.com", status: "late", note: "Đến 08:18", absenceRate: 11 },
-    { id: "ST024", name: "Vũ Văn Yên", email: "yen.vu@email.com", status: "present", absenceRate: 3 },
-    { id: "ST025", name: "Nguyễn Thị Ánh", email: "anh.nguyen@email.com", status: "present", absenceRate: 9 },
-  ],
-};
+import {
+  fetchSessionDetail,
+  fetchAttendance,
+  saveAttendance,
+  statusToApi,
+} from "@/app/api/teacher/attendance";
+import type {
+  AttendanceStatus,
+  Student,
+  LessonDetail,
+  AttendanceSummaryApi,
+} from "@/types/teacher/attendance";
 
 function StatusBadge({ status }: { status: AttendanceStatus }) {
   const map = {
@@ -240,24 +182,93 @@ export default function LessonAttendancePage() {
   const params = useParams();
   const router = useRouter();
   const locale = params.locale as string;
-  const lessonId = (params.id as string) || "L1";
+  const lessonId = (params.id as string) || "";
 
-  const lesson = LESSONS[lessonId];
-  const students = ATTENDANCE[lessonId] || [];
-
-  const [list, setList] = useState<Student[]>(students);
+  const [lesson, setLesson] = useState<LessonDetail | null>(null);
+  const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummaryApi>(null);
+  const [list, setList] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(true);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const itemsPerPage = 10;
   const selectAllRef = useRef<HTMLInputElement>(null);
+
+  const loadAttendance = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        if (!lessonId) return;
+
+        const result = await fetchAttendance(lessonId, signal);
+        
+        if (signal?.aborted) return;
+
+        setList(result.students);
+        setAttendanceSummary(result.attendanceSummary);
+        setIsEditing(!result.hasAnyMarked);
+        if (!result.hasAnyMarked) setLastSavedAt(null);
+      } catch (err) {
+        if (signal?.aborted) return;
+        console.error("Unexpected error when fetching attendance:", err);
+      }
+    },
+    [lessonId]
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchLesson() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        if (!lessonId) {
+          setError("Thiếu mã buổi dạy.");
+          setLoading(false);
+          return;
+        }
+
+        const result = await fetchSessionDetail(lessonId, controller.signal);
+        
+        if (!controller.signal.aborted) {
+          setLesson(result.lesson);
+          setAttendanceSummary(result.attendance);
+          setSelected(new Set());
+          setCurrentPage(1);
+        }
+      } catch (err: any) {
+        if (controller.signal.aborted) return;
+        console.error("Unexpected error when fetching session detail:", err);
+        setError(err.message || "Đã xảy ra lỗi khi tải dữ liệu buổi dạy.");
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    if (lessonId) {
+      fetchLesson();
+      loadAttendance(controller.signal);
+    } else {
+      setLoading(false);
+      setError("Thiếu mã buổi dạy.");
+    }
+
+    return () => controller.abort();
+  }, [lessonId, loadAttendance]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return list;
     return list.filter(
       (s) =>
         s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.email.toLowerCase().includes(search.toLowerCase()) ||
         s.id.toLowerCase().includes(search.toLowerCase())
     );
   }, [list, search]);
@@ -273,11 +284,19 @@ export default function LessonAttendancePage() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedStudents = filtered.slice(startIndex, endIndex);
 
+  const totalStudentsCount = attendanceSummary?.totalStudents ?? list.length;
+  const checkedCount =
+    attendanceSummary?.totalStudents != null && attendanceSummary?.notMarkedCount != null
+      ? Math.max(0, attendanceSummary.totalStudents - attendanceSummary.notMarkedCount)
+      : list.filter((s) => s.status === "present" || s.status === "late" || s.status === "absent").length;
+
   const updateStatus = (id: string, status: AttendanceStatus) => {
+    if (!isEditing) return;
     setList((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
   };
 
   const updateNote = (id: string, note: string) => {
+    if (!isEditing) return;
     setList((prev) => prev.map((s) => (s.id === id ? { ...s, note } : s)));
   };
 
@@ -318,6 +337,59 @@ export default function LessonAttendancePage() {
       selectAllRef.current.indeterminate = !allSelected && someSelected;
     }
   }, [allSelected, someSelected]);
+
+  const handleSaveAttendance = useCallback(async () => {
+    try {
+      setSaving(true);
+      setSaveError(null);
+
+      await saveAttendance(lessonId, list, isEditing);
+      await loadAttendance();
+      setLastSavedAt(new Date());
+      setIsEditing(false);
+    } catch (err: any) {
+      console.error("Unexpected error when saving attendance:", err);
+      setSaveError(err.message || "Đã xảy ra lỗi khi lưu điểm danh.");
+    } finally {
+      setSaving(false);
+    }
+  }, [lessonId, list, loadAttendance, isEditing]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <h2 className="text-2xl font-bold text-gray-900">Đang tải thông tin buổi dạy...</h2>
+          <p className="text-gray-600">Vui lòng chờ trong giây lát.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <h2 className="text-2xl font-bold text-gray-900">Có lỗi xảy ra</h2>
+          <p className="text-gray-600">{error}</p>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => router.refresh()}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition cursor-pointer"
+            >
+              Thử lại
+            </button>
+            <button
+              onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
+              className="px-5 py-2.5 rounded-xl bg-white border border-pink-200 text-gray-800 hover:border-pink-300 transition cursor-pointer"
+            >
+              Quay lại lịch dạy
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!lesson) {
     return (
@@ -378,7 +450,41 @@ export default function LessonAttendancePage() {
                   <Users size={16} className="text-pink-500" /> {lesson.students} HV
                 </span>
               </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {lesson.status && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    {lesson.status}
+                  </span>
+                )}
+                {lesson.participationType && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                    {lesson.participationType}
+                  </span>
+                )}
+                {lesson.branch && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-pink-50 text-pink-700 border border-pink-200">
+                    {lesson.branch}
+                  </span>
+                )}
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="rounded-2xl border border-pink-200 bg-white p-4 shadow-sm">
+          <div className="text-sm text-gray-500">Tổng sĩ số</div>
+          <div className="text-2xl font-bold text-gray-900 mt-1">{totalStudentsCount ?? 0}</div>
+        </div>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-sm">
+          <div className="text-sm text-emerald-700">Đã điểm danh</div>
+          <div className="text-2xl font-bold text-emerald-800 mt-1">{checkedCount}</div>
+        </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm">
+          <div className="text-sm text-amber-700">Chưa điểm danh</div>
+          <div className="text-2xl font-bold text-amber-800 mt-1">
+            {attendanceSummary ? attendanceSummary.notMarkedCount ?? 0 : Math.max(0, totalStudentsCount - checkedCount)}
           </div>
         </div>
       </div>
@@ -388,7 +494,10 @@ export default function LessonAttendancePage() {
         <div className="p-5 border-b border-pink-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Điểm danh</h2>
-            <p className="text-sm text-gray-600">{filtered.length} / {list.length} học viên</p>
+            <p className="text-sm text-gray-600">
+              {totalStudentsCount ? `${checkedCount} / ${totalStudentsCount} học viên đã điểm danh` : "Chưa có dữ liệu điểm danh"}
+              {saveError && <span className="text-rose-600 ml-3">{saveError}</span>}
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 justify-end">
@@ -401,13 +510,31 @@ export default function LessonAttendancePage() {
                 className="pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition text-sm"
               />
             </div>
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-medium shadow-sm hover:shadow-lg transition-all cursor-pointer"
-            >
-              <CheckCircle size={16} />
-              Lưu điểm danh
-            </button>
+            {!isEditing ? (
+              <>
+                <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold">
+                  <CheckCircle size={16} />
+                  Đã lưu điểm danh{lastSavedAt ? ` • ${lastSavedAt.toLocaleTimeString()}` : ""}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-pink-200 text-gray-800 text-sm font-medium hover:border-pink-300 transition cursor-pointer"
+                >
+                  Chỉnh sửa
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSaveAttendance}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-medium shadow-sm hover:shadow-lg transition-all cursor-pointer"
+              >
+                <CheckCircle size={16} />
+                {saving ? "Đang lưu..." : "Lưu điểm danh"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -427,96 +554,96 @@ export default function LessonAttendancePage() {
                   </div>
                 </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Học viên</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Email</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Đã vắng</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Trạng thái</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Ghi chú</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedStudents.map((student, idx) => (
-                <tr
-                  key={student.id}
-                  className={`border-b border-pink-100 transition hover:bg-pink-50/50 ${
-                    idx % 2 === 0 ? "bg-white" : "bg-pink-50/30"
-                  }`}
-                >
-                  <td className="px-4 py-4">
-                    <div className="flex items-center justify-center">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(student.id)}
-                        onChange={() => toggleSelect(student.id)}
-                        className="w-4 h-4 text-pink-600 border-pink-300 rounded focus:ring-pink-500 cursor-pointer"
-                      />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white flex items-center justify-center font-bold text-sm">
-                        {student.name
-                          .split(" ")
-                          .map((w) => w[0])
-                          .slice(-2)
-                          .join("")
-                          .toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-900">{student.name}</div>
-                        <div className="text-xs text-gray-500">ID: {student.id}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{student.email}</td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center">
-                      <AbsencePie value={student.absenceRate} />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="inline-flex gap-2">
-                      <button
-                        onClick={() => updateStatus(student.id, "present")}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                          student.status === "present"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "border-gray-200 text-gray-600 hover:bg-emerald-50"
-                        }`}
-                      >
-                        Có mặt
-                      </button>
-                      <button
-                        onClick={() => updateStatus(student.id, "late")}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                          student.status === "late"
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : "border-gray-200 text-gray-600 hover:bg-amber-50"
-                        }`}
-                      >
-                        Đi muộn
-                      </button>
-                      <button
-                        onClick={() => updateStatus(student.id, "absent")}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                          student.status === "absent"
-                            ? "bg-rose-50 text-rose-700 border-rose-200"
-                            : "border-gray-200 text-gray-600 hover:bg-rose-50"
-                        }`}
-                      >
-                        Vắng
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    <input
-                      value={student.note || ""}
-                      onChange={(e) => updateNote(student.id, e.target.value)}
-                      placeholder="Thêm ghi chú..."
-                      className="w-full px-3 py-2 rounded-lg border border-pink-200 bg-white text-sm text-gray-800 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent"
-                    />
+              {paginatedStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-6 text-center text-gray-500">
+                    Chưa có danh sách học viên cho buổi dạy này.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                paginatedStudents.map((student, idx) => (
+                  <tr
+                    key={student.id}
+                    className={`border-b border-pink-100 transition hover:bg-pink-50/50 ${
+                      idx % 2 === 0 ? "bg-white" : "bg-pink-50/30"
+                    }`}
+                  >
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(student.id)}
+                          onChange={() => toggleSelect(student.id)}
+                          className="w-4 h-4 text-pink-600 border-pink-300 rounded focus:ring-pink-500 cursor-pointer"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white flex items-center justify-center font-bold text-sm">
+                          {student.name
+                            .split(" ")
+                            .map((w) => w[0])
+                            .filter(Boolean)
+                            .slice(-2)
+                            .join("")
+                            .toUpperCase() || "HV"}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">{student.name}</div>
+                          <div className="text-xs text-gray-500">ID: {student.id}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center">
+                        <AbsencePie value={student.absenceRate} />
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="inline-flex gap-2">
+                        <button
+                          onClick={() => updateStatus(student.id, "present")}
+                          disabled={!isEditing}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer disabled:cursor-default ${
+                            student.status === "present"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "border-gray-200 text-gray-600 hover:bg-emerald-50"
+                          }`}
+                        >
+                          Có mặt
+                        </button>
+                        <button
+                          onClick={() => updateStatus(student.id, "absent")}
+                          disabled={!isEditing}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer disabled:cursor-default ${
+                            student.status === "absent"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "border-gray-200 text-gray-600 hover:bg-rose-50"
+                          }`}
+                        >
+                          Vắng
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      <input
+                        value={student.note || ""}
+                        onChange={(e) => updateNote(student.id, e.target.value)}
+                        disabled={!isEditing}
+                        placeholder="Thêm ghi chú..."
+                        className="w-full px-3 py-2 rounded-lg border border-pink-200 bg-white text-sm text-gray-800 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-default"
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
