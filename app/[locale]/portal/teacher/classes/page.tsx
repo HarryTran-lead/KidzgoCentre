@@ -7,97 +7,14 @@ import {
   Search,
   Users,
   CalendarClock,
-  MapPin,
   Eye,
   ChevronRight,
   BookOpen,
   Filter,
   Sparkles,
 } from "lucide-react";
-
-/* ----------------------------- Mock data ----------------------------- */
-type Track = "IELTS" | "TOEIC" | "Business";
-
-type ClassItem = {
-  id: string;
-  name: string;
-  code: string;
-  track: Track;
-  students: number;
-  schedule: string;
-  room: string;
-  progress?: number; // Thêm progress bar
-  teacher?: string; // Thêm giáo viên
-};
-
-const CLASSES: ClassItem[] = [
-  {
-    id: "CLS001",
-    name: "IELTS Foundation - A1",
-    code: "CLS001",
-    track: "IELTS",
-    students: 18,
-    schedule: "T2, T4, T6: 08:00–10:00",
-    room: "Phòng 301",
-    progress: 65,
-    teacher: "Nguyễn Văn A",
-  },
-  {
-    id: "CLS002",
-    name: "TOEIC Intermediate",
-    code: "CLS002",
-    track: "TOEIC",
-    students: 15,
-    schedule: "T3, T5: 14:00–16:00",
-    room: "Phòng 205",
-    progress: 42,
-    teacher: "Trần Thị B",
-  },
-  {
-    id: "CLS003",
-    name: "Business English",
-    code: "CLS003",
-    track: "Business",
-    students: 12,
-    schedule: "T6, T7: 09:00–11:00",
-    room: "Phòng 102",
-    progress: 88,
-    teacher: "Lê Văn C",
-  },
-  {
-    id: "CLS004",
-    name: "IELTS Advanced - C1",
-    code: "CLS004",
-    track: "IELTS",
-    students: 22,
-    schedule: "T3, T5, T7: 18:00–20:00",
-    room: "Phòng 401",
-    progress: 30,
-    teacher: "Nguyễn Thị D",
-  },
-  {
-    id: "CLS005",
-    name: "TOEIC Advanced",
-    code: "CLS005",
-    track: "TOEIC",
-    students: 16,
-    schedule: "T2, T6: 10:00–12:00",
-    room: "Phòng 305",
-    progress: 75,
-    teacher: "Phạm Văn E",
-  },
-  {
-    id: "CLS006",
-    name: "Business Communication",
-    code: "CLS006",
-    track: "Business",
-    students: 14,
-    schedule: "T4, T7: 15:00–17:00",
-    room: "Phòng 208",
-    progress: 50,
-    teacher: "Hoàng Thị F",
-  },
-];
+import { fetchTeacherClasses } from "@/app/api/teacher/classes";
+import type { ClassItem, Track } from "@/types/teacher/classes";
 
 /* ----------------------------- UI pieces ----------------------------- */
 function TrackBadge({ track }: { track: Track }) {
@@ -244,24 +161,53 @@ export default function Page() {
   const [q, setQ] = useState("");
   const [track, setTrack] = useState<Track | "ALL">("ALL");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize] = useState(100); // Lấy nhiều để hiển thị tất cả
+
+  // Fetch classes from API
+  useEffect(() => {
+    async function fetchClasses() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const result = await fetchTeacherClasses({
+          pageNumber,
+          pageSize,
+        });
+
+        setClasses(result.classes);
+      } catch (err: any) {
+        console.error('Unexpected error when fetching classes:', err);
+        setError(err.message || 'Đã xảy ra lỗi khi tải danh sách lớp học.');
+        setClasses([]);
+      } finally {
+        setLoading(false);
+        setIsLoaded(true);
+      }
+    }
+
+    fetchClasses();
+  }, [pageNumber, pageSize]);
 
   const filtered = useMemo(() => {
-    return CLASSES.filter((c) => {
+    return classes.filter((c) => {
       const okTrack = track === "ALL" || c.track === track;
       const okQuery = q.trim()
-        ? (c.name + c.code + c.teacher).toLowerCase().includes(q.toLowerCase())
+        ? (c.name + c.code + (c.teacher || '')).toLowerCase().includes(q.toLowerCase())
         : true;
       return okTrack && okQuery;
     });
-  }, [q, track]);
+  }, [q, track, classes]);
 
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
-
-  const totalClasses = CLASSES.length;
-  const totalStudents = CLASSES.reduce((sum, c) => sum + c.students, 0);
-  const averageProgress = Math.round(CLASSES.reduce((sum, c) => sum + (c.progress || 0), 0) / CLASSES.length);
+  const totalClasses = classes.length;
+  const totalStudents = classes.reduce((sum, c) => sum + c.students, 0);
+  const averageProgress = classes.length > 0
+    ? Math.round(classes.reduce((sum, c) => sum + (c.progress || 0), 0) / classes.length)
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
@@ -331,25 +277,25 @@ export default function Page() {
           
           <div className="flex flex-wrap gap-3">
             <FilterChip active={track === "ALL"} onClick={() => setTrack("ALL")}>
-              Tất cả ({CLASSES.length})
+              Tất cả ({classes.length})
             </FilterChip>
             <FilterChip
               active={track === "IELTS"}
               onClick={() => setTrack("IELTS")}
             >
-              IELTS ({CLASSES.filter(c => c.track === "IELTS").length})
+              IELTS ({classes.filter(c => c.track === "IELTS").length})
             </FilterChip>
             <FilterChip
               active={track === "TOEIC"}
               onClick={() => setTrack("TOEIC")}
             >
-              TOEIC ({CLASSES.filter(c => c.track === "TOEIC").length})
+              TOEIC ({classes.filter(c => c.track === "TOEIC").length})
             </FilterChip>
             <FilterChip
               active={track === "Business"}
               onClick={() => setTrack("Business")}
             >
-              Business ({CLASSES.filter(c => c.track === "Business").length})
+              Business ({classes.filter(c => c.track === "Business").length})
             </FilterChip>
           </div>
         </div>
@@ -368,20 +314,55 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Cards grid với stagger animation */}
-      <div className="grid xl:grid-cols-3 lg:grid-cols-2 grid-cols-1 gap-6">
-        {filtered.map((c, index) => (
-          <div
-            key={c.id}
-            className={`transition-all duration-700 delay-${index * 100} ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-          >
-            <ClassCard item={c} index={index} />
+      {/* Loading state */}
+      {loading && (
+        <div className="text-center py-16">
+          <div className="inline-flex p-4 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl mb-4 animate-pulse">
+            <BookOpen size={32} className="text-pink-500" />
           </div>
-        ))}
-      </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Đang tải danh sách lớp học...
+          </h3>
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && !loading && (
+        <div className="text-center py-16">
+          <div className="inline-flex p-4 bg-gradient-to-r from-red-100 to-pink-100 rounded-2xl mb-4">
+            <BookOpen size={32} className="text-red-500" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            {error}
+          </h3>
+          <button
+            onClick={() => {
+              setPageNumber(1);
+              setError(null);
+            }}
+            className="mt-6 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-300"
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
+
+      {/* Cards grid với stagger animation */}
+      {!loading && !error && (
+        <div className="grid xl:grid-cols-3 lg:grid-cols-2 grid-cols-1 gap-6">
+          {filtered.map((c, index) => (
+            <div
+              key={c.id}
+              className={`transition-all duration-700 delay-${index * 100} ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+            >
+              <ClassCard item={c} index={index} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Empty state */}
-      {filtered.length === 0 && (
+      {!loading && !error && filtered.length === 0 && (
         <div className={`text-center py-16 transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
           <div className="inline-flex p-4 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl mb-4">
             <Search size={32} className="text-pink-500" />

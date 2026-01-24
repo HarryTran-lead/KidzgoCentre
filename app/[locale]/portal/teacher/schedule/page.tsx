@@ -2,92 +2,45 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { CalendarDays, Calendar as CalendarIcon, Clock, MapPin, Users, Eye, Download, ChevronLeft, ChevronRight, Sparkles, BookOpen, Bell, Palette } from 'lucide-react';
+import { CalendarDays, Calendar as CalendarIcon, MapPin, Users, Download, ChevronLeft, ChevronRight, Sparkles, BookOpen, Palette } from 'lucide-react';
+import { fetchTeacherTimetable, getVietnameseDow, formatDateISO } from '@/app/api/teacher/schedule';
+import type { Lesson, DaySchedule } from '@/types/teacher/schedule';
 
-/** --------- DATA MẪU (có thể thay bằng dữ liệu thật) --------- */
-type Lesson = {
-  id: string;
-  course: string;
-  time: string;
-  room: string;
-  students: number;
-  track: 'IELTS' | 'TOEIC' | 'Business';
-  color: string;
-  duration: number; // minutes
-  teacher?: string;
-};
+// Utility functions are imported from @/app/api/teacher/schedule
 
-type DaySchedule = {
-  date: string; // yyyy-mm-dd
-  dow: string;  // Thứ 2, Thứ 3, ...
-  day: number;
-  month: string;
-  lessons: Lesson[];
-};
+/** Tính ngày đầu tuần (Thứ 2) và cuối tuần (Thứ 7) chứa today */
+function getCurrentWeekRange(today: Date): { start: Date; end: Date } {
+  const day = today.getDay(); // 0-6
+  // Chuyển về Thứ 2
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const start = new Date(today);
+  start.setDate(today.getDate() + diffToMonday);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6); // đến Chủ nhật
+  return { start, end };
+}
 
-// Tạo dữ liệu mẫu phong phú hơn
-const WEEK_DATA: DaySchedule[] = [
-  {
-    date: '2025-10-06',
-    dow: 'Thứ 2',
-    day: 6,
-    month: 'Tháng 10',
-    lessons: [
-      { id: 'L1', course: 'IELTS Foundation - A1', time: '08:00 - 10:00', room: 'Phòng 301', students: 18, track: 'IELTS', color: 'bg-gradient-to-r from-pink-500 to-rose-500', duration: 120, teacher: 'Nguyễn Văn A' },
-      { id: 'L2', course: 'Business Communication', time: '14:00 - 16:00', room: 'Phòng 205', students: 12, track: 'Business', color: 'bg-gradient-to-r from-fuchsia-500 to-purple-500', duration: 120, teacher: 'Trần Thị B' },
-    ],
-  },
-  {
-    date: '2025-10-07',
-    dow: 'Thứ 3',
-    day: 7,
-    month: 'Tháng 10',
-    lessons: [
-      { id: 'L3', course: 'TOEIC Intermediate', time: '09:00 - 11:30', room: 'Phòng 102', students: 15, track: 'TOEIC', color: 'bg-gradient-to-r from-rose-500 to-pink-600', duration: 150, teacher: 'Lê Văn C' },
-      { id: 'L4', course: 'IELTS Speaking', time: '14:00 - 16:00', room: 'Phòng 305', students: 10, track: 'IELTS', color: 'bg-gradient-to-r from-pink-500 to-rose-500', duration: 120, teacher: 'Nguyễn Thị D' },
-    ],
-  },
-  {
-    date: '2025-10-08',
-    dow: 'Thứ 4',
-    day: 8,
-    month: 'Tháng 10',
-    lessons: [
-      { id: 'L5', course: 'Business Writing', time: '10:00 - 12:00', room: 'Phòng 208', students: 14, track: 'Business', color: 'bg-gradient-to-r from-fuchsia-500 to-purple-500', duration: 120, teacher: 'Phạm Văn E' },
-    ],
-  },
-  {
-    date: '2025-10-09',
-    dow: 'Thứ 5',
-    day: 9,
-    month: 'Tháng 10',
-    lessons: [
-      { id: 'L6', course: 'TOEIC Listening', time: '08:30 - 10:30', room: 'Phòng 401', students: 20, track: 'TOEIC', color: 'bg-gradient-to-r from-rose-500 to-pink-600', duration: 120, teacher: 'Hoàng Thị F' },
-      { id: 'L7', course: 'IELTS Writing', time: '13:00 - 15:00', room: 'Phòng 301', students: 16, track: 'IELTS', color: 'bg-gradient-to-r from-pink-500 to-rose-500', duration: 120, teacher: 'Nguyễn Văn A' },
-    ],
-  },
-  {
-    date: '2025-10-10',
-    dow: 'Thứ 6',
-    day: 10,
-    month: 'Tháng 10',
-    lessons: [
-      { id: 'L8', course: 'IELTS Foundation - A1', time: '08:00 - 10:00', room: 'Phòng 301', students: 18, track: 'IELTS', color: 'bg-gradient-to-r from-pink-500 to-rose-500', duration: 120, teacher: 'Nguyễn Văn A' },
-      { id: 'L9', course: 'Business English', time: '09:00 - 11:00', room: 'Phòng 102', students: 12, track: 'Business', color: 'bg-gradient-to-r from-fuchsia-500 to-purple-500', duration: 120, teacher: 'Trần Thị B' },
-      { id: 'L10', course: 'TOEIC Reading', time: '15:00 - 17:00', room: 'Phòng 205', students: 22, track: 'TOEIC', color: 'bg-gradient-to-r from-rose-500 to-pink-600', duration: 120, teacher: 'Lê Văn C' },
-    ],
-  },
-  {
-    date: '2025-10-11',
-    dow: 'Thứ 7',
-    day: 11,
-    month: 'Tháng 10',
-    lessons: [
-      { id: 'L11', course: 'Business English', time: '09:00 - 11:00', room: 'Phòng 102', students: 12, track: 'Business', color: 'bg-gradient-to-r from-fuchsia-500 to-purple-500', duration: 120, teacher: 'Trần Thị B' },
-      { id: 'L12', course: 'IELTS Mock Test', time: '13:00 - 16:00', room: 'Phòng 305', students: 25, track: 'IELTS', color: 'bg-gradient-to-r from-pink-500 to-rose-500', duration: 180, teacher: 'Nguyễn Thị D' },
-    ],
-  },
-];
+/** Lấy tuần theo offset (0 = tuần hiện tại, -1 = tuần trước, 1 = tuần sau, ...) */
+function getWeekRangeByOffset(base: Date, weekOffset: number): { start: Date; end: Date } {
+  const shifted = new Date(base);
+  shifted.setDate(base.getDate() + weekOffset * 7);
+  return getCurrentWeekRange(shifted);
+}
+
+function formatVNShort(date: Date): string {
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  return `${d}/${m}`;
+}
+
+function formatVNShortWithYear(date: Date): string {
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;
+}
+
+// mapApiLessonToLesson is now in @/app/api/teacher/schedule
 
 /** Format yyyy-mm-dd -> dd/mm/yyyy */
 function formatVNDate(d: string) {
@@ -667,7 +620,21 @@ function GridLessonCard({
 }
 
 /** Week Calendar View - Grid format với 3 ca */
-function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]; onColorChange?: (lessonId: string, color: string) => void }) {
+function WeekCalendarView({
+  weekData,
+  onColorChange,
+  weekOffset,
+  onPrevWeek,
+  onNextWeek,
+  onGoThisWeek,
+}: {
+  weekData: DaySchedule[];
+  onColorChange?: (lessonId: string, color: string) => void;
+  weekOffset: number;
+  onPrevWeek: () => void;
+  onNextWeek: () => void;
+  onGoThisWeek: () => void;
+}) {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
@@ -686,16 +653,28 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
     return currentHour >= shift.start && currentHour < shift.end;
   };
 
-  // Tạo mảng 6 ngày (bỏ Chủ nhật)
-  const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-  const calendarDays = daysOfWeek.map((dow, index) => {
-    return weekData.find(day => day.dow === dow) || {
-      date: '',
-      dow,
-      day: 0,
-      month: '',
-      lessons: []
-    };
+  // Dựng đủ 7 ngày của tuần đang xem (Thứ 2 -> Chủ nhật), dù có/không có buổi học
+  const { start: weekStart, end: weekEnd } = getWeekRangeByOffset(now, weekOffset);
+  
+  // Tính năm từ tuần đang xem
+  const year = weekStart.getFullYear();
+  const monthLabel =
+    weekData.find((d) => d.date)?.month ?? `Tháng ${now.getMonth() + 1}`;
+  const monthLabelWithYear = `${monthLabel}/${year}`;
+  const calendarDays: DaySchedule[] = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    const date = formatDateISO(d);
+    const found = weekData.find((x) => x.date === date);
+    return (
+      found ?? {
+        date,
+        dow: getVietnameseDow(d),
+        day: d.getDate(),
+        month: `Tháng ${d.getMonth() + 1}`,
+        lessons: [],
+      }
+    );
   });
 
   // Hàm kiểm tra buổi học thuộc ca nào
@@ -722,23 +701,41 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
           <div className="flex items-center gap-3">
             <CalendarDays size={20} className="text-pink-500" />
             <h3 className="font-bold text-gray-900">Lịch tuần</h3>
-            <span className="text-sm text-gray-600">({weekData[0]?.month || 'Tháng 10'})</span>
+            <span className="text-sm text-gray-600">({monthLabelWithYear})</span>
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
+            <button
+              onClick={onPrevWeek}
+              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer"
+              aria-label="Tuần trước"
+              title="Tuần trước"
+            >
               <ChevronLeft size={18} />
             </button>
-            <span className="text-sm text-gray-700 px-3">Tuần này</span>
-            <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
+            <span className="text-sm text-gray-700 px-3 whitespace-nowrap">
+              {formatVNShortWithYear(weekStart)} - {formatVNShortWithYear(weekEnd)}
+            </span>
+            <button
+              onClick={onNextWeek}
+              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer"
+              aria-label="Tuần sau"
+              title="Tuần sau"
+            >
               <ChevronRight size={18} />
+            </button>
+            <button
+              onClick={onGoThisWeek}
+              className="ml-2 px-3 py-2 rounded-lg border border-pink-200 bg-white hover:bg-pink-50 text-sm text-gray-700 cursor-pointer whitespace-nowrap"
+            >
+              Tuần này
             </button>
           </div>
         </div>
       </div>
 
-      {/* Calendar Grid - 3 ca x 6 ngày */}
+      {/* Calendar Grid - 3 ca x 7 ngày */}
       <div className="relative overflow-x-auto">
-        <div className="min-w-[900px]">
+        <div className="min-w-[1050px]">
           <table className="w-full border-collapse table-fixed">
             {/* Header row */}
             <thead>
@@ -749,11 +746,12 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
                 {calendarDays.map((day, index) => {
                   const isToday = day.date === todayStr;
                   return (
-                    <th key={index} className="w-[calc((100%-96px)/6)] px-4 py-3 text-center border-r border-pink-200 last:border-r-0 whitespace-nowrap">
+                    <th key={index} className="w-[calc((100%-96px)/7)] px-4 py-3 text-center border-r border-pink-200 last:border-r-0 whitespace-nowrap">
                       <div className="text-xs text-gray-600 mb-1 whitespace-nowrap flex items-center justify-center gap-1">
-                        <span>{day.dow.replace('Thứ ', 'Th ')}</span>
-                        {isToday && <span className="text-[10px] font-semibold text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full">Hôm nay</span>}
+                        <span>{day.dow === 'Chủ nhật' ? 'CN' : day.dow.replace('Thứ ', 'Th ')}</span>
+                        
                       </div>
+                      <div className="text-[10px] text-gray-500 -mt-1">{day.month}</div>
                       <div className={`text-lg font-bold whitespace-nowrap ${day.day ? 'text-gray-900' : 'text-gray-400'} ${isToday ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white inline-flex px-3 py-1 rounded-lg shadow-sm' : ''}`}>
                         {day.day || ''}
                       </div>
@@ -787,13 +785,8 @@ function WeekCalendarView({ weekData, onColorChange }: { weekData: DaySchedule[]
                     return (
                       <td
                         key={dayIndex}
-                        className={`w-[calc((100%-96px)/6)] px-3 py-4 border-r border-pink-200 last:border-r-0 align-top min-h-[200px] bg-white relative ${isNow ? 'ring-2 ring-pink-400 ring-offset-1' : ''}`}
+                        className={`w-[calc((100%-96px)/7)] px-3 py-4 border-r border-pink-200 last:border-r-0 align-top min-h-[200px] bg-white relative ${isNow ? 'ring-2 ring-pink-400 ring-offset-1' : ''}`}
                       >
-                        {isToday && (
-                          <div className="absolute top-2 left-3 text-[10px] text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-200">
-                            Hôm nay
-                          </div>
-                        )}
                         {lessons.length === 0 ? (
                           <div className="text-center text-gray-400 text-sm py-8 whitespace-nowrap">Trống</div>
                         ) : (
@@ -961,7 +954,9 @@ export default function Page() {
   const [tab, setTab] = useState<'week' | 'month' | 'timeline'>('week');
   const [currentWeek, setCurrentWeek] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [weekData, setWeekData] = useState<DaySchedule[]>(WEEK_DATA);
+  const [weekData, setWeekData] = useState<DaySchedule[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const today = useMemo(() => {
     const now = new Date();
@@ -970,11 +965,70 @@ export default function Page() {
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const current = useMemo(() => new Date(WEEK_DATA[0].date), []);
-  const monthTitle = useMemo(
-    () => `Tháng ${current.getMonth() + 1}/${current.getFullYear()}`,
-    [current]
+  const current = useMemo(
+    () => (weekData[0] ? new Date(weekData[0].date) : new Date()),
+    [weekData]
   );
+  const weekMonthLabel = useMemo(() => {
+    const now = new Date();
+    const { start } = getWeekRangeByOffset(now, currentWeek);
+    return `Tháng ${start.getMonth() + 1}`;
+  }, [currentWeek]);
+
+  const monthBaseDate = useMemo(() => {
+    const now = new Date();
+    const { start } = getWeekRangeByOffset(now, currentWeek);
+    return start; // dùng ngày đầu tuần của tuần đang xem làm mốc tháng
+  }, [currentWeek]);
+
+  const monthTitle = useMemo(
+    () => `Tháng ${monthBaseDate.getMonth() + 1}/${monthBaseDate.getFullYear()}`,
+    [monthBaseDate]
+  );
+
+  const monthCells = useMemo(() => {
+    const y = monthBaseDate.getFullYear();
+    const m = monthBaseDate.getMonth(); // 0-11
+    const first = new Date(y, m, 1);
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+    // Convert JS getDay() (0=CN..6=T7) -> Monday index (0=T2..6=CN)
+    const firstDowMonIdx = (first.getDay() + 6) % 7;
+    const totalCells = 42; // 6 rows x 7 cols
+
+    return Array.from({ length: totalCells }, (_, idx) => {
+      const dayNum = idx - firstDowMonIdx + 1;
+      if (dayNum < 1 || dayNum > daysInMonth) {
+        return null;
+      }
+      const d = new Date(y, m, dayNum);
+      return {
+        dayNum,
+        date: formatDateISO(d),
+      };
+    });
+  }, [monthBaseDate]);
+
+  // Dựng đủ 7 ngày của tuần đang xem (Thứ 2 -> Chủ nhật) cho timeline selector
+  const weekDaysForSelector = useMemo((): DaySchedule[] => {
+    const now = new Date();
+    const { start } = getWeekRangeByOffset(now, currentWeek);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const date = formatDateISO(d);
+      const found = weekData.find((x) => x.date === date);
+      return (
+        found ?? {
+          date,
+          dow: getVietnameseDow(d),
+          day: d.getDate(),
+          month: `Tháng ${d.getMonth() + 1}`,
+          lessons: [],
+        }
+      );
+    });
+  }, [weekData, currentWeek]);
 
   // Lấy tuần hiện tại với offset
   const displayedWeek = useMemo(() => {
@@ -982,8 +1036,11 @@ export default function Page() {
   }, [weekData, currentWeek]);
 
   const selectedDay = useMemo(() => {
-    return weekData.find(day => day.date === selectedDate) || weekData[0];
-  }, [selectedDate, weekData]);
+    return (
+      weekDaysForSelector.find((day) => day.date === selectedDate) ??
+      weekDaysForSelector[0]
+    );
+  }, [selectedDate, weekDaysForSelector]);
 
   // Handle color change - đổi màu cho tất cả lesson cùng course
   const handleColorChange = (lessonId: string, newColor: string) => {
@@ -1014,17 +1071,51 @@ export default function Page() {
 
   // Tổng số buổi học
   const totalLessons = useMemo(() => {
-    return WEEK_DATA.reduce((sum, day) => sum + day.lessons.length, 0);
-  }, []);
+    return weekData.reduce((sum, day) => sum + day.lessons.length, 0);
+  }, [weekData]);
 
   // Tổng số học viên
   const totalStudents = useMemo(() => {
-    return WEEK_DATA.reduce((sum, day) => 
-      sum + day.lessons.reduce((daySum, lesson) => daySum + lesson.students, 0), 0);
-  }, []);
+    return weekData.reduce(
+      (sum, day) =>
+        sum +
+        day.lessons.reduce((daySum, lesson) => daySum + lesson.students, 0),
+      0
+    );
+  }, [weekData]);
 
   useEffect(() => {
-    setIsLoaded(true);
+    async function fetchWeekData() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const now = new Date();
+        const { start, end } = getWeekRangeByOffset(now, currentWeek);
+        const fromDate = formatDateISO(start);
+        const toDate = formatDateISO(end);
+
+        // Backend expects date-time (Swagger: string($date-time))
+        // Use full-day range in UTC to avoid timezone edge cases
+        const from = `${fromDate}T00:00:00.000Z`;
+        const to = `${toDate}T23:59:59.999Z`;
+
+        const result = await fetchTeacherTimetable({ from, to });
+        setWeekData(result.weekData);
+      } catch (err: any) {
+        console.error('Unexpected error when fetching timetable:', err);
+        setError(err.message || 'Đã xảy ra lỗi khi tải lịch dạy.');
+        setWeekData([]);
+      } finally {
+        setLoading(false);
+        setIsLoaded(true);
+      }
+    }
+
+    fetchWeekData();
+  }, [today, currentWeek]);
+
+  useEffect(() => {
     // ưu tiên chọn ngày hôm nay nếu có trong dữ liệu, nếu không chọn ngày đầu
     const hasToday = weekData.find((d) => d.date === today);
     setSelectedDate(hasToday ? hasToday.date : weekData[0]?.date ?? null);
@@ -1096,22 +1187,24 @@ export default function Page() {
                   <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
                     <ChevronLeft size={18} />
                   </button>
-                  <span className="text-sm text-gray-700">Tuần 1, Tháng 10</span>
+                    <span className="text-sm text-gray-700">{weekMonthLabel}</span>
                   <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
                     <ChevronRight size={18} />
                   </button>
                 </div>
               </div>
               
-              <div className="grid grid-cols-6 gap-2">
-                {weekData.map(day => (
+              <div className="grid grid-cols-7 gap-2">
+                {weekDaysForSelector.map(day => (
                   <button
                     key={day.date}
                     onClick={() => setSelectedDate(day.date)}
                     className={`w-full rounded-lg p-2 transition-all duration-300 cursor-pointer ${selectedDate === day.date ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg' : 'bg-white border border-pink-200 hover:border-pink-300'}`}
                   >
                     <div className="text-center">
-                      <div className={`text-xs ${selectedDate === day.date ? 'text-white/90' : 'text-gray-500'}`}>{day.dow.replace('Thứ ', 'Th ')}</div>
+                      <div className={`text-xs ${selectedDate === day.date ? 'text-white/90' : 'text-gray-500'}`}>
+                        {day.dow === 'Chủ nhật' ? 'CN' : day.dow.replace('Thứ ', 'Th ')}
+                      </div>
                       <div className={`text-lg font-bold mt-0.5 ${selectedDate === day.date ? 'text-white' : 'text-gray-900'}`}>{day.day}</div>
                       <div className={`text-[10px] mt-0.5 ${selectedDate === day.date ? 'text-white/80' : 'text-gray-600'}`}>{day.month}</div>
                       {day.lessons.length > 0 && (
@@ -1131,7 +1224,14 @@ export default function Page() {
         )}
 
         {tab === 'week' && (
-          <WeekCalendarView weekData={displayedWeek} onColorChange={handleColorChange} />
+          <WeekCalendarView
+            weekData={displayedWeek}
+            onColorChange={handleColorChange}
+            weekOffset={currentWeek}
+            onPrevWeek={() => setCurrentWeek((w) => w - 1)}
+            onNextWeek={() => setCurrentWeek((w) => w + 1)}
+            onGoThisWeek={() => setCurrentWeek(0)}
+          />
         )}
 
         {tab === 'month' && (
@@ -1162,31 +1262,42 @@ export default function Page() {
               </div>
 
               <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: 35 }, (_, i) => {
-                  const day = i + 1;
-                  const hasLessons = weekData.some(d => d.day === day);
-                  const dayData = weekData.find(d => d.day === day);
-                  
+                {monthCells.map((cell, i) => {
+                  if (!cell) {
+                    return (
+                      <div
+                        key={`empty-${i}`}
+                        className="h-32 rounded-xl bg-pink-50/30 border border-dashed border-pink-100"
+                      />
+                    );
+                  }
+
+                  const dayData = weekData.find((d) => d.date === cell.date);
+                  const hasLessons = Boolean(dayData && dayData.lessons.length > 0);
+                  const isToday = cell.date === today;
+
                   return (
                     <button
-                      key={i}
+                      key={cell.date}
                       onClick={() => {
                         if (dayData) {
                           setSelectedDate(dayData.date);
                           setTab('timeline');
                         }
                       }}
-                      className={`h-32 rounded-xl p-3 text-left transition-all duration-300 cursor-pointer ${dayData ? 'bg-white border border-pink-200 hover:border-pink-300 hover:shadow-lg hover:shadow-pink-100/30' : 'bg-pink-50/50 border border-dashed border-pink-100'} ${selectedDate === dayData?.date ? 'ring-2 ring-pink-500 ring-offset-2' : ''}`}
+                      className={`h-32 rounded-xl p-3 text-left transition-all duration-300 cursor-pointer bg-white border border-pink-200 hover:border-pink-300 hover:shadow-lg hover:shadow-pink-100/30 ${
+                        selectedDate === cell.date ? 'ring-2 ring-pink-500 ring-offset-2' : ''
+                      } ${isToday ? 'ring-1 ring-rose-300' : ''}`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className={`text-lg font-bold ${dayData ? 'text-gray-900' : 'text-gray-400'}`}>
-                          {dayData ? day : ''}
+                        <span className={`text-lg font-bold ${isToday ? 'text-rose-600' : 'text-gray-900'}`}>
+                          {cell.dayNum}
                         </span>
                         {hasLessons && (
-                          <div className="h-2 w-2 rounded-full bg-gradient-to-r from-pink-500 to-rose-500"></div>
+                          <div className="h-2 w-2 rounded-full bg-gradient-to-r from-pink-500 to-rose-500" />
                         )}
                       </div>
-                      
+
                       {dayData && (
                         <div className="mt-2 space-y-1">
                           {dayData.lessons.slice(0, 2).map((lesson, idx) => {
@@ -1200,8 +1311,8 @@ export default function Page() {
                               .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
                               .replace('from-purple-500 to-indigo-500', 'from-purple-100 to-indigo-100');
                             return (
-                              <div 
-                                key={idx} 
+                              <div
+                                key={idx}
                                 className={`text-xs p-1.5 rounded-lg text-gray-900 border border-pink-200 ${lightColor}`}
                               >
                                 {lesson.time.split(' - ')[0]}

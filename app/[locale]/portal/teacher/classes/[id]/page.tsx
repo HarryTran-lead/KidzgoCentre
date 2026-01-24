@@ -10,14 +10,11 @@ import {
   MapPin,
   Mail,
   Phone,
-  UserRound,
   Search,
-  Filter,
   Download,
   Share2,
   MoreVertical,
   CheckCircle,
-  Clock,
   Award,
   TrendingUp,
   FileText,
@@ -27,121 +24,8 @@ import {
   ChevronRight,
   Star,
 } from "lucide-react";
-
-type Track = "IELTS" | "TOEIC" | "Business";
-
-type Student = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  avatar?: string;
-  attendance: number;
-  progress: number;
-  stars: number;
-  lastActive: string;
-  status: "active" | "inactive";
-};
-
-type ClassDetail = {
-  id: string;
-  name: string;
-  code: string;
-  track: Track;
-  students: number;
-  schedule: string;
-  room: string;
-  progress: number;
-  teacher: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  totalLessons: number;
-  completedLessons: number;
-};
-
-// Mock data
-const CLASS_DETAILS: Record<string, ClassDetail> = {
-  CLS001: {
-    id: "CLS001",
-    name: "IELTS Foundation - A1",
-    code: "CLS001",
-    track: "IELTS",
-    students: 18,
-    schedule: "T2, T4, T6: 08:00–10:00",
-    room: "Phòng 301",
-    progress: 65,
-    teacher: "Nguyễn Văn A",
-    description: "Khóa học IELTS Foundation dành cho người mới bắt đầu, tập trung vào 4 kỹ năng: Nghe, Nói, Đọc, Viết. Chương trình được thiết kế để học viên có nền tảng vững chắc trước khi nâng cao.",
-    startDate: "01/09/2024",
-    endDate: "31/12/2024",
-    totalLessons: 48,
-    completedLessons: 31,
-  },
-  CLS002: {
-    id: "CLS002",
-    name: "TOEIC Intermediate",
-    code: "CLS002",
-    track: "TOEIC",
-    students: 15,
-    schedule: "T3, T5: 14:00–16:00",
-    room: "Phòng 205",
-    progress: 42,
-    teacher: "Trần Thị B",
-    description: "Khóa học TOEIC Intermediate giúp học viên đạt điểm số 600-750. Tập trung vào kỹ năng nghe và đọc hiểu, luyện tập với đề thi thực tế.",
-    startDate: "15/09/2024",
-    endDate: "15/12/2024",
-    totalLessons: 36,
-    completedLessons: 15,
-  },
-  CLS003: {
-    id: "CLS003",
-    name: "Business English",
-    code: "CLS003",
-    track: "Business",
-    students: 12,
-    schedule: "T6, T7: 09:00–11:00",
-    room: "Phòng 102",
-    progress: 88,
-    teacher: "Lê Văn C",
-    description: "Khóa học Business English chuyên về giao tiếp trong môi trường công sở, thuyết trình, đàm phán và viết email chuyên nghiệp.",
-    startDate: "01/08/2024",
-    endDate: "30/11/2024",
-    totalLessons: 32,
-    completedLessons: 28,
-  },
-};
-
-const STUDENTS_DATA: Record<string, Student[]> = {
-  CLS001: [
-    { id: "ST001", name: "Nguyễn Văn An", email: "an.nguyen@email.com", phone: "0901 234 567", attendance: 95, progress: 78, stars: 245, lastActive: "2 ngày trước", status: "active" },
-    { id: "ST002", name: "Trần Thị Bình", email: "binh.tran@email.com", phone: "0902 345 678", attendance: 88, progress: 82, stars: 312, lastActive: "1 ngày trước", status: "active" },
-    { id: "ST003", name: "Lê Văn Cường", email: "cuong.le@email.com", phone: "0903 456 789", attendance: 92, progress: 75, stars: 198, lastActive: "3 ngày trước", status: "active" },
-    { id: "ST004", name: "Phạm Thị Dung", email: "dung.pham@email.com", phone: "0904 567 890", attendance: 100, progress: 88, stars: 456, lastActive: "Hôm nay", status: "active" },
-    { id: "ST005", name: "Hoàng Văn Em", email: "em.hoang@email.com", phone: "0905 678 901", attendance: 85, progress: 70, stars: 167, lastActive: "5 ngày trước", status: "active" },
-    { id: "ST006", name: "Vũ Thị Phương", email: "phuong.vu@email.com", phone: "0906 789 012", attendance: 90, progress: 80, stars: 289, lastActive: "1 ngày trước", status: "active" },
-    { id: "ST007", name: "Đặng Văn Giang", email: "giang.dang@email.com", phone: "0907 890 123", attendance: 78, progress: 65, stars: 134, lastActive: "1 tuần trước", status: "active" },
-    { id: "ST008", name: "Bùi Thị Hoa", email: "hoa.bui@email.com", phone: "0908 901 234", attendance: 95, progress: 85, stars: 378, lastActive: "2 ngày trước", status: "active" },
-    { id: "ST009", name: "Ngô Văn Ích", email: "ich.ngo@email.com", phone: "0909 012 345", attendance: 82, progress: 72, stars: 201, lastActive: "4 ngày trước", status: "active" },
-    { id: "ST010", name: "Đỗ Thị Kim", email: "kim.do@email.com", phone: "0910 123 456", attendance: 88, progress: 79, stars: 267, lastActive: "1 ngày trước", status: "active" },
-    { id: "ST011", name: "Lý Văn Long", email: "long.ly@email.com", phone: "0911 234 567", attendance: 75, progress: 68, stars: 112, lastActive: "2 tuần trước", status: "inactive" },
-    { id: "ST012", name: "Võ Thị Mai", email: "mai.vo@email.com", phone: "0912 345 678", attendance: 92, progress: 81, stars: 334, lastActive: "Hôm nay", status: "active" },
-    { id: "ST013", name: "Phan Văn Nam", email: "nam.phan@email.com", phone: "0913 456 789", attendance: 90, progress: 77, stars: 256, lastActive: "3 ngày trước", status: "active" },
-    { id: "ST014", name: "Trương Thị Oanh", email: "oanh.truong@email.com", phone: "0914 567 890", attendance: 85, progress: 73, stars: 189, lastActive: "1 tuần trước", status: "active" },
-    { id: "ST015", name: "Đinh Văn Phúc", email: "phuc.dinh@email.com", phone: "0915 678 901", attendance: 88, progress: 76, stars: 223, lastActive: "2 ngày trước", status: "active" },
-    { id: "ST016", name: "Lương Thị Quỳnh", email: "quynh.luong@email.com", phone: "0916 789 012", attendance: 93, progress: 84, stars: 401, lastActive: "Hôm nay", status: "active" },
-    { id: "ST017", name: "Hồ Văn Sơn", email: "son.ho@email.com", phone: "0917 890 123", attendance: 80, progress: 71, stars: 156, lastActive: "5 ngày trước", status: "active" },
-    { id: "ST018", name: "Nguyễn Thị Tuyết", email: "tuyet.nguyen@email.com", phone: "0918 901 234", attendance: 96, progress: 86, stars: 423, lastActive: "1 ngày trước", status: "active" },
-  ],
-  CLS002: [
-    { id: "ST019", name: "Trần Văn Anh", email: "anh.tran@email.com", phone: "0919 012 345", attendance: 90, progress: 75, stars: 278, lastActive: "2 ngày trước", status: "active" },
-    { id: "ST020", name: "Lê Thị Bảo", email: "bao.le@email.com", phone: "0920 123 456", attendance: 85, progress: 70, stars: 192, lastActive: "1 tuần trước", status: "active" },
-  ],
-  CLS003: [
-    { id: "ST021", name: "Phạm Văn Cường", email: "cuong.pham@email.com", phone: "0921 234 567", attendance: 95, progress: 88, stars: 445, lastActive: "Hôm nay", status: "active" },
-    { id: "ST022", name: "Hoàng Thị Dung", email: "dung.hoang@email.com", phone: "0922 345 678", attendance: 92, progress: 85, stars: 367, lastActive: "1 ngày trước", status: "active" },
-  ],
-};
+import { fetchClassDetail } from "@/app/api/teacher/classes";
+import type { Student, ClassDetail, Track } from "@/types/teacher/classes";
 
 function TrackBadge({ track }: { track: Track }) {
   const trackColors = {
@@ -325,6 +209,10 @@ export default function ClassDetailPage() {
   const router = useRouter();
   const classId = params.id as string;
   const locale = params.locale as string;
+  const [classData, setClassData] = useState<ClassDetail | null>(null);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -332,13 +220,42 @@ export default function ClassDetailPage() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
-
-  const classData = CLASS_DETAILS[classId];
-  const allStudents = STUDENTS_DATA[classId] || [];
-
   useEffect(() => {
-    setIsPageLoaded(true);
-  }, []);
+    const controller = new AbortController();
+
+    async function loadClassDetail() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const result = await fetchClassDetail(
+          {
+            classId,
+            pageNumber: 1,
+            pageSize: 100,
+          },
+          controller.signal
+        );
+
+        setClassData(result.classDetail);
+        setAllStudents(result.students);
+      } catch (err: any) {
+        if (controller.signal.aborted) return;
+        console.error("Unexpected error when fetching class detail:", err);
+        setError(err.message || "Đã xảy ra lỗi khi tải thông tin lớp học.");
+        setClassData(null);
+        setAllStudents([]);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setIsPageLoaded(true);
+        }
+      }
+    }
+
+    loadClassDetail();
+    return () => controller.abort();
+  }, [classId]);
 
   const filteredStudents = allStudents.filter((student) => {
     const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -402,25 +319,34 @@ export default function ClassDetailPage() {
     }
   }, [isIndeterminate]);
 
-  if (!classData) {
+  if (loading || !classData) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Không tìm thấy lớp học</h2>
-          <p className="text-gray-600 mb-4">Lớp học không tồn tại hoặc đã bị xóa.</p>
-          <button
-            onClick={() => router.push(`/${locale}/portal/teacher/classes`)}
-            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl hover:shadow-lg transition-all cursor-pointer"
-          >
-            Quay lại
-          </button>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Đang tải thông tin lớp học...</h2>
+          {error && <p className="text-gray-600 mb-4">{error}</p>}
+          {!error && <p className="text-gray-600 mb-4">Vui lòng chờ trong giây lát.</p>}
+          {error && (
+            <button
+              onClick={() => router.push(`/${locale}/portal/teacher/classes`)}
+              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl hover:shadow-lg transition-all cursor-pointer"
+            >
+              Quay lại danh sách lớp
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
-  const avgAttendance = Math.round(allStudents.reduce((sum, s) => sum + s.attendance, 0) / allStudents.length);
-  const avgProgress = Math.round(allStudents.reduce((sum, s) => sum + s.progress, 0) / allStudents.length);
+  const avgAttendance =
+    allStudents.length > 0
+      ? Math.round(allStudents.reduce((sum, s) => sum + s.attendance, 0) / allStudents.length)
+      : 0;
+  const avgProgress =
+    allStudents.length > 0
+      ? Math.round(allStudents.reduce((sum, s) => sum + s.progress, 0) / allStudents.length)
+      : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">

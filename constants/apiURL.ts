@@ -96,3 +96,12 @@ export const BACKEND_USER_ENDPOINTS = {
   ASSIGN_BRANCH: (id: string) => `/admin/users/${id}/assign-branch`,
   CHANGE_PIN: (id: string) => `/admin/users/${id}/change-pin`,
 } as const;
+
+// Teacher Endpoints
+export const TEACHER_ENDPOINTS = {
+  ENROLLMENTS: '/api/enrollments',
+  TIMETABLE: '/api/teacher/timetable',
+  ATTENDANCE: '/api/attendance',
+  ATTENDANCE_STUDENTS: '/api/attendance/students',
+  SESSIONS: '/api/sessions',
+} as const;
