@@ -46,9 +46,9 @@ export const ROLE_LABEL: Record<Role, string> = {
 export function normalizeRole(input?: string): Role {
   const v = (input || "").toUpperCase().trim();
   if (["ADMIN"].includes(v)) return "Admin";
-  if (["STAFF_ACCOUNTANT", "ACCOUNTANT", "ACCOUNTING"].includes(v))
+  if (["STAFF_ACCOUNTANT", "ACCOUNTANT", "ACCOUNTING", "ACCOUNTANTSTAFF"].includes(v))
     return "Staff_Accountant";
-  if (["STAFF_MANAGER", "MANAGER", "MANAGEMENT", "STAFF"].includes(v))
+  if (["STAFF_MANAGER", "MANAGER", "MANAGEMENT", "STAFF", "MANAGEMENTSTAFF"].includes(v))
     return "Staff_Manager";
   if (["TEACHER"].includes(v)) return "Teacher";
   if (["STUDENT", "USER", "CUSTOMER"].includes(v)) return "Student";
