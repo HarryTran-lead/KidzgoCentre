@@ -7,7 +7,7 @@ import type { Locale } from "@/lib/i18n";
 import { localizePath } from "@/lib/i18n";
 import { ROLES } from "@/lib/role";
 import type { UserProfile } from "@/types/auth";
-import { clearAccessToken, clearRefreshToken } from "@/lib/store/authToken";
+import { clearAccessToken, clearRefreshToken, setAccessToken } from "@/lib/store/authToken";
 import * as authService from "@/lib/api/authService";
 import {
   Avatar,
@@ -154,7 +154,9 @@ export default function AccountChooser({ locale }: Props) {
         console.error("Select student failed:", response);
         return;
       }
-
+ if (response.data?.accessToken) {
+        setAccessToken(response.data.accessToken);
+      }
       // Update server-side role cookie to allow portal access
       await setServerSession({
         role: "STUDENT",

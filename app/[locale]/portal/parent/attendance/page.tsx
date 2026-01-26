@@ -15,7 +15,7 @@ import {
 } from "@/lib/api/leaveRequestService";
 import { getProfiles } from "@/lib/api/authService";
 import { getStudentClasses } from "@/lib/api/studentService";
-
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import type { UserProfile } from "@/types/auth";
 import type { StudentClass } from "@/types/student/class";
 import type {
@@ -55,6 +55,7 @@ const statusStyles: Record<LeaveRequestStatus, string> = {
 /* ===================== Page ===================== */
 
 export default function ParentAttendancePage() {
+    const { selectedProfile } = useSelectedStudentProfile();
   const [formState, setFormState] = useState<FormState>(initialFormState);
 
   const [requests, setRequests] = useState<LeaveRequestRecord[]>([]);
@@ -113,12 +114,7 @@ export default function ParentAttendancePage() {
 
         setStudentProfiles(students);
 
-        if (!formState.studentProfileId && students.length > 0) {
-          setFormState((prev) => ({
-            ...prev,
-            studentProfileId: students[0].id,
-          }));
-        }
+  
       } catch (err) {
         console.error("Fetch profiles error:", err);
         setProfilesError("Không thể tải danh sách học viên.");
@@ -129,7 +125,22 @@ export default function ParentAttendancePage() {
 
     fetchProfiles();
   }, []);
+useEffect(() => {
+    if (!studentProfiles.length) return;
 
+    const defaultProfile =
+      (selectedProfile &&
+        studentProfiles.find((profile) => profile.id === selectedProfile.id)) ||
+      studentProfiles[0];
+
+    if (defaultProfile && formState.studentProfileId !== defaultProfile.id) {
+      setFormState((prev) => ({
+        ...prev,
+        studentProfileId: defaultProfile.id,
+        classId: "",
+      }));
+    }
+  }, [formState.studentProfileId, selectedProfile, studentProfiles]);
   // Classes by student
   useEffect(() => {
     const fetchClasses = async () => {
@@ -142,14 +153,11 @@ export default function ParentAttendancePage() {
       setClassesLoading(true);
       setClassesError(null);
       try {
-        const response = await getStudentClasses(
-          formState.studentProfileId,
-          { pageNumber: 1, pageSize: 100 }
-        );
+const response = await getStudentClasses({ pageNumber: 1, pageSize: 100 });
 
         const data = Array.isArray(response.data)
           ? response.data
-  : response.data?.classes?.items ?? response.data?.items ?? [];
+          : response.data?.items ?? [];
         setClasses(data);
 
         if (!data.length) {
@@ -246,6 +254,7 @@ export default function ParentAttendancePage() {
                   classId: "",
                 }))
               }
+              disabled
             >
               <option value="" disabled>
                 {profilesLoading ? "Đang tải học viên..." : "Chọn học viên"}

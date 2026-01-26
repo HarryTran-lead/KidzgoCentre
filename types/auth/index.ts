@@ -104,8 +104,9 @@ export interface VerifyParentPinResponse {
 // Select Student Response
 export interface SelectStudentResponse {
   success: boolean;
-  selectedProfile: UserProfile;
-  message?: string;
+selectedProfile?: UserProfile;
+  accessToken?: string;
+  studentId?: string;  message?: string;
 }
 
 // User/Me Response

@@ -247,10 +247,12 @@ export async function selectStudentWithToast(
     const isSuccess = response.isSuccess ?? response.success ?? false;
 
     if (isSuccess) {
+            const selectedName =
+        response.data?.selectedProfile?.displayName ?? "học viên đã chọn";
       toast({
         title: 'Chuyển đổi profile thành công!',
-        description: `Đang chuyển sang profile ${response.data.selectedProfile.displayName}`,
-        duration: 2000,
+description: `Đang chuyển sang profile ${selectedName}`,   
+     duration: 2000,
       });
     } else {
       toast({

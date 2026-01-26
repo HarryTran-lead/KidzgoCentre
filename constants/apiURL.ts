@@ -31,11 +31,11 @@ export const AUTH_ENDPOINTS = {
 } as const;
 
 export const STUDENT_ENDPOINTS = {
-  GET_CLASSES: (studentId: string) => `/api/students/${studentId}/classes`,
+  GET_CLASSES: (_studentId?: string) => `/api/students/classes`,
 } as const;
 
 export const BACKEND_STUDENT_ENDPOINTS = {
-  GET_CLASSES: (studentId: string) => `/students/${studentId}/classes`,
+GET_CLASSES: (_studentId?: string) => `/students/classes`,
 } as const;
 
 // Backend Auth Endpoints (Next.js API Routes → Backend API)
