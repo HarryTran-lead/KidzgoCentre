@@ -8,11 +8,17 @@
 import { STUDENT_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
 import type { StudentClassesResponse } from "@/types/student/class";
+type StudentClassesParams = { pageNumber?: number; pageSize?: number };
 
 export async function getStudentClasses(
-  params?: { pageNumber?: number; pageSize?: number }
+  params?: StudentClassesParams
 ): Promise<StudentClassesResponse> {
-   return get<StudentClassesResponse>(STUDENT_ENDPOINTS.GET_CLASSES(), {
-    params,
+ const endpoint =
+    typeof STUDENT_ENDPOINTS.GET_CLASSES === "function"
+      ? STUDENT_ENDPOINTS.GET_CLASSES()
+      : "/api/students/classes";
+
+  return get<StudentClassesResponse>(endpoint, {
+    params: params ?? {},
   });
 }

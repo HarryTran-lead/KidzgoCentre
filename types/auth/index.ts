@@ -55,6 +55,8 @@ export interface RequestParentPinResetRequest {
 export interface UserProfile {
   id: string;
   userId?: string;
+    studentId?: string;
+
   profileType: "Parent" | "Student"; 
   displayName: string;
   hasPinSetup?: boolean;

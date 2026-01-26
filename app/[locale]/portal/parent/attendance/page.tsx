@@ -141,11 +141,13 @@ useEffect(() => {
       }));
     }
   }, [formState.studentProfileId, selectedProfile, studentProfiles]);
+    const selectedStudentId =
+    selectedProfile?.studentId ?? formState.studentProfileId;
   // Classes by student
   useEffect(() => {
     const fetchClasses = async () => {
-      if (!formState.studentProfileId) {
-        setClasses([]);
+ if (!selectedStudentId) {    
+      setClasses([]);
         setFormState((prev) => ({ ...prev, classId: "" }));
         return;
       }
@@ -153,12 +155,15 @@ useEffect(() => {
       setClassesLoading(true);
       setClassesError(null);
       try {
-const response = await getStudentClasses({ pageNumber: 1, pageSize: 100 });
-
+ const response = await getStudentClasses({
+          pageNumber: 1,
+          pageSize: 100,
+        });
         const data = Array.isArray(response.data)
           ? response.data
-          : response.data?.items ?? [];
-        setClasses(data);
+: response.data?.items ??
+            response.data?.classes?.items ??
+            [];        setClasses(data);
 
         if (!data.length) {
           setFormState((prev) => ({ ...prev, classId: "" }));
@@ -173,7 +178,7 @@ const response = await getStudentClasses({ pageNumber: 1, pageSize: 100 });
     };
 
     fetchClasses();
-  }, [formState.studentProfileId]);
+  }, [formState.studentProfileId, selectedStudentId]);
 
   /* ===================== Memos ===================== */
 
@@ -183,8 +188,11 @@ const response = await getStudentClasses({ pageNumber: 1, pageSize: 100 });
   );
 
   const classLabel = (c: StudentClass) =>
- c.name ?? c.className ?? c.title ?? c.code ?? c.id;
-  /* ===================== Actions ===================== */
+c.name ?? c.className ?? c.title ?? c.code ?? c.id;
+  const classNameById = (classId: string) => {
+    const match = classes.find((item) => item.id === classId);
+    return match ? classLabel(match) : classId;
+  };  /* ===================== Actions ===================== */
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -375,17 +383,20 @@ const response = await getStudentClasses({ pageNumber: 1, pageSize: 100 });
         ) : (
           displayRequests.map((r) => {
             const status = r.status ?? "PENDING";
+            const className = r.className ?? classNameById(r.classId);
+            const approvalLabel = r.approvedAt ? "Đã duyệt" : "Chưa duyệt";
             return (
               <div
                 key={r.id}
                 className="flex justify-between items-center border rounded-lg px-3 py-2 text-sm"
               >
                 <div>
-                  <div className="font-semibold">
-                    {r.studentName ?? r.studentProfileId}
-                  </div>
+                                 <div className="font-semibold">{className}</div>
                   <div className="text-xs text-slate-500">
                     {r.sessionDate} → {r.endDate}
+                  </div>
+                   <div className="text-xs text-slate-500">
+                    {r.studentName ?? r.studentProfileId} • {approvalLabel}
                   </div>
                 </div>
                 <span

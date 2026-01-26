@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/lightswind/ava
 import { Badge } from "@/components/lightswind/badge";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getProfiles, selectStudent } from "@/lib/api/authService";
+import { setAccessToken } from "@/lib/store/authToken";
+
 import type { UserProfile } from "@/types/auth";
 
 type Child = UserProfile;
@@ -73,9 +75,15 @@ export default function ChildSelector() {
       const isSuccess = response.isSuccess ?? response.success ?? false;
 
       if (isSuccess) {
+         if (response.data?.accessToken) {
+          setAccessToken(response.data.accessToken);
+        }
         const selected = response.data?.selectedProfile ?? child;
-        setSelectedProfile(selected);
-      } else {
+const selectedWithStudentId = {
+          ...selected,
+          studentId: response.data?.studentId ?? selected.studentId,
+        };
+        setSelectedProfile(selectedWithStudentId);      } else {
         setSelectedProfile(child);
       }
     } catch (error) {
