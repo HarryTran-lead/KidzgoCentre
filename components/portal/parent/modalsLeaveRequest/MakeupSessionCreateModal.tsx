@@ -134,7 +134,8 @@ export default function MakeupSessionCreateModal({
       setClassesLoading(true);
       setError(null);
       try {
-        const res = await getStudentClasses(payload.studentProfileId, {
+        const res = await getStudentClasses({
+          studentProfileId: payload.studentProfileId,
           pageNumber: 1,
           pageSize: 100,
         });

@@ -9,3 +9,4 @@ export interface StudentClass {
 }
 
 export type StudentClassesResponse = ApiResponse<ListData<StudentClass>>;
+export type StudentClassResponse = ApiResponse<StudentClass>;

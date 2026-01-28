@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { BACKEND_CLASS_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";import type { StudentClassesResponse } from "@/types/student/class";
+import { BACKEND_CLASS_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
+import type { StudentClassResponse } from "@/types/student/class";
 
-export async function GET(req: Request) {
+export async function GET(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
   try {
     const authHeader = req.headers.get("authorization");
 
@@ -16,11 +20,10 @@ export async function GET(req: Request) {
       );
     }
 
-    const { searchParams } = new URL(req.url);
-    const queryString = searchParams.toString();
-const url = buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_ALL());    const fullUrl = queryString ? `${url}?${queryString}` : url;
+    const { id } = await ctx.params;
+    const url = buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_BY_ID(id));
 
-    const upstream = await fetch(fullUrl, {
+    const upstream = await fetch(url, {
       method: "GET",
       headers: {
         Authorization: authHeader,
@@ -28,16 +31,16 @@ const url = buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_ALL());    const fullUrl = q
       },
     });
 
-    const data: StudentClassesResponse = await upstream.json();
+    const data: StudentClassResponse = await upstream.json();
 
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
-    console.error("Get student classes error:", error);
+    console.error("Get class detail error:", error);
     return NextResponse.json(
       {
         success: false,
         data: null,
-        message: "Đã xảy ra lỗi khi lấy danh sách lớp học",
+        message: "Đã xảy ra lỗi khi lấy thông tin lớp học",
       },
       { status: 500 }
     );

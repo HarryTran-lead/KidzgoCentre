@@ -1,10 +1,22 @@
 // Base URL from environment variable
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+export const BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+
+// (Optional) root base nếu BASE_URL đang là .../api
+const ROOT_BASE_URL = BASE_URL.replace(/\/api\/?$/, "");
 
 // Build full API URL for backend calls (from Next.js API Routes to Backend)
 export const buildApiUrl = (endpoint: string): string => {
-  return `${BASE_URL}${endpoint}`;
+  // endpoint là absolute url thì return luôn
+  if (/^https?:\/\//i.test(endpoint)) return endpoint;
+
+  const ep = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  // Các endpoint dạng /GetAll/... nằm ở root, không có /api
+  const base = ep.startsWith("/GetAll/") ? ROOT_BASE_URL : BASE_URL;
+
+  return `${base}${ep}`;
 };
+
 
 // Build client API URL (from browser to Next.js API Routes)
 export const buildClientApiUrl = (endpoint: string): string => {
@@ -31,12 +43,23 @@ export const AUTH_ENDPOINTS = {
 } as const;
 
 export const STUDENT_ENDPOINTS = {
- GET_CLASSES: () => `/api/students/classes`,
+  GET_ALL: "/api/students",
+
 } as const;
 
 export const BACKEND_STUDENT_ENDPOINTS = {
-GET_CLASSES: () => `/students/classes`,} as const;
+GET_ALL: () => `/GetAll/Students`,
+} as const;
 
+export const CLASS_ENDPOINTS = {
+  GET_ALL: "/api/classes",
+  GET_BY_ID: (id: string) => `/api/classes/${id}`,
+} as const;
+
+export const BACKEND_CLASS_ENDPOINTS = {
+  GET_ALL: () => "/classes",
+  GET_BY_ID: (id: string) => `/classes/${id}`,
+} as const;
 // Backend Auth Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_AUTH_ENDPOINTS = {
   // Authentication

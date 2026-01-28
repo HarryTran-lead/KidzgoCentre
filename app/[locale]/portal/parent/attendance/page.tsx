@@ -156,6 +156,7 @@ useEffect(() => {
       setClassesError(null);
       try {
  const response = await getStudentClasses({
+          studentId: selectedStudentId,
           pageNumber: 1,
           pageSize: 100,
         });

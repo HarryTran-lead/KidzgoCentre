@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { BACKEND_CLASS_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";import type { StudentClassesResponse } from "@/types/student/class";
+import { BACKEND_CLASS_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
+import type { StudentClassesResponse } from "@/types/student/class";
 
 export async function GET(req: Request) {
   try {
@@ -18,7 +19,8 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const queryString = searchParams.toString();
-const url = buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_ALL());    const fullUrl = queryString ? `${url}?${queryString}` : url;
+    const url = buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_ALL());
+    const fullUrl = queryString ? `${url}?${queryString}` : url;
 
     const upstream = await fetch(fullUrl, {
       method: "GET",
@@ -32,7 +34,7 @@ const url = buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_ALL());    const fullUrl = q
 
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
-    console.error("Get student classes error:", error);
+    console.error("Get classes error:", error);
     return NextResponse.json(
       {
         success: false,
