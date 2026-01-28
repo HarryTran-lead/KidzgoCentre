@@ -4,8 +4,7 @@ import type { LeaveRequestActionResponse, LeaveRequestRecord } from "@/types/lea
 
 type RouteParams = { params: { id: string } };
 
-export async function POST(req: Request, { params }: RouteParams) {
-  try {
+export async function PUT(req: Request, { params }: RouteParams) {  try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return NextResponse.json(
@@ -18,7 +17,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const fullUrl = buildApiUrl(BACKEND_LEAVE_REQUEST_ENDPOINTS.APPROVE(params.id));
 
     const upstream = await fetch(fullUrl, {
-      method: "POST",
+      method: "PUT",
       headers: {
         Authorization: authHeader,
         "Content-Type": "application/json",

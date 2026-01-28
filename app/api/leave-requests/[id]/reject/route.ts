@@ -8,8 +8,7 @@ type RouteParams = {
   };
 };
 
-export async function POST(req: Request, { params }: RouteParams) {
-  try {
+export async function PUT(req: Request, { params }: RouteParams) {  try {
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
@@ -22,13 +21,16 @@ export async function POST(req: Request, { params }: RouteParams) {
         { status: 401 }
       );
     }
+    const bodyText = await req.text();
 
     const upstream = await fetch(buildApiUrl(BACKEND_LEAVE_REQUEST_ENDPOINTS.REJECT(params.id)), {
-      method: "POST",
+      method: "PUT",
       headers: {
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
+            body: bodyText.trim().length > 0 ? bodyText : "{}",
+
     });
 
     const data: LeaveRequestActionResponse = await upstream.json();
