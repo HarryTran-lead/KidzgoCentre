@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Plus,
   Search,
@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { fetchAdminPrograms } from "@/app/api/admin/programs";
+import type { CourseRow } from "@/types/admin/programs";
 
 /* -------------------------- helpers -------------------------- */
 function cn(...a: Array<string | false | null | undefined>) {
@@ -53,91 +55,11 @@ function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng"
   );
 }
 
-/* -------------------------- mock data ------------------------ */
-type CourseRow = {
-  id: string;
-  name: string;
-  desc: string;
-  level: "A1" | "A2" | "B1" | "B2" | "C1";
-  duration: string;
-  fee: string;
-  classes: string; // "2 lớp"
-  students: string; // "45 học viên"
-  status: "Đang hoạt động" | "Tạm dừng" | "Đã kết thúc";
-};
-
-const COURSES: CourseRow[] = [
-  {
-    id: "KH001",
-    name: "General English A1",
-    desc: "Khóa học tiếng Anh cơ bản dành cho người mới bắt đầu",
-    level: "A1",
-    duration: "12 tuần (72h)",
-    fee: "2.000.000 VND",
-    classes: "2 lớp",
-    students: "45 học viên",
-    status: "Đang hoạt động",
-  },
-  {
-    id: "KH002",
-    name: "General English A2",
-    desc: "Khóa học tiếng Anh sơ cấp, phát triển từ A1",
-    level: "A2",
-    duration: "12 tuần (72h)",
-    fee: "2.200.000 VND",
-    classes: "1 lớp",
-    students: "25 học viên",
-    status: "Đang hoạt động",
-  },
-  {
-    id: "KH003",
-    name: "General English B1",
-    desc: "Khóa học tiếng Anh trung cấp",
-    level: "B1",
-    duration: "16 tuần (96h)",
-    fee: "2.500.000 VND",
-    classes: "3 lớp",
-    students: "72 học viên",
-    status: "Đang hoạt động",
-  },
-  {
-    id: "KH004",
-    name: "General English B2",
-    desc: "Khóa học tiếng Anh tiền cao cấp",
-    level: "B2",
-    duration: "16 tuần (96h)",
-    fee: "2.800.000 VND",
-    classes: "1 lớp",
-    students: "28 học viên",
-    status: "Tạm dừng",
-  },
-  {
-    id: "KH005",
-    name: "IELTS Preparation",
-    desc: "Luyện thi IELTS tổng quát 5.0–6.5",
-    level: "B1",
-    duration: "12 tuần (72h)",
-    fee: "3.200.000 VND",
-    classes: "2 lớp",
-    students: "38 học viên",
-    status: "Đang hoạt động",
-  },
-  {
-    id: "KH006",
-    name: "TOEIC Advanced",
-    desc: "Luyện thi TOEIC 750+",
-    level: "B1",
-    duration: "10 tuần (60h)",
-    fee: "2.600.000 VND",
-    classes: "1 lớp",
-    students: "22 học viên",
-    status: "Đã kết thúc",
-  },
-];
-
 type SortField = "id" | "name" | "level" | "duration" | "fee" | "classes" | "status";
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 5;
+
+/* --------------------------- API helpers --------------------------- */
 
 function SortableHeader({
   field,
@@ -174,24 +96,56 @@ function SortableHeader({
 /* ------------------------------ page ------------------------------- */
 export default function Page() {
   const [q, setQ] = useState("");
+  const [courses, setCourses] = useState<CourseRow[]>([]);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [page, setPage] = useState(1);
   const [levelFilter, setLevelFilter] = useState<"ALL" | "A1" | "A2" | "B1" | "B2" | "C1">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "Đang hoạt động" | "Tạm dừng" | "Đã kết thúc">("ALL");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const stats = {
-    total: 8,
-    active: 7,
-    students: 248,
-    revenue: "125M",
-  };
+  // Gọi API để lấy danh sách chương trình
+  useEffect(() => {
+    async function fetchPrograms() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const mapped = await fetchAdminPrograms();
+        setCourses(mapped);
+      } catch (err) {
+        console.error("Unexpected error when fetching admin programs:", err);
+        setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách khóa học.");
+        setCourses([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPrograms();
+  }, []);
+
+  const stats = useMemo(() => {
+    const total = courses.length;
+    const active = courses.filter(c => c.status === "Đang hoạt động").length;
+    // Hiện backend chưa trả số học viên & doanh thu -> tạm thời dùng mock
+    const students = 0;
+    const revenue = "0";
+
+    return {
+      total,
+      active,
+      students,
+      revenue,
+    };
+  }, [courses]);
 
   const rows = useMemo(() => {
     const kw = q.trim().toLowerCase();
     let filtered = !kw
-      ? COURSES
-      : COURSES.filter((c) =>
+      ? courses
+      : courses.filter((c) =>
           [c.id, c.name, c.desc, c.level, c.fee].some((x) => x.toLowerCase().includes(kw))
         );
 
@@ -224,7 +178,7 @@ export default function Page() {
       });
     }
     return filtered;
-  }, [q, sortField, sortDirection]);
+  }, [q, sortField, sortDirection, courses, levelFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
