@@ -1,7 +1,9 @@
 "use client";
 
 import { Search, Eye, Pencil, Clock, Users, Building2, AlertTriangle, Plus, Filter, Calendar, ChevronRight, MoreVertical, CheckCircle, XCircle, ChevronLeft, ChevronsLeft, ChevronsRight } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { fetchAdminRooms } from "@/app/api/admin/rooms";
+import type { Room, Status as RoomStatus } from "@/types/admin/rooms";
 
 type SortDirection = "asc" | "desc";
 
@@ -197,90 +199,6 @@ function ModernStatCard({
   );
 }
 
-/* ----------------------------- Mock dữ liệu ----------------------------- */
-
-type Room = {
-  id: string;
-  floor: number;
-  area: number;
-  capacity: number;
-  equipment: string[];
-  utilization: number;
-  status: Status;
-  course?: string;
-  teacher?: string;
-  schedule?: string;
-};
-
-const ROOMS: Room[] = [
-  {
-    id: "P101",
-    floor: 1,
-    area: 45,
-    capacity: 30,
-    equipment: ["Projector", "Whiteboard", "Air Conditioner", "WiFi"],
-    utilization: 85,
-    status: "using",
-    course: "IELTS Advanced",
-    teacher: "Ms. Sarah",
-    schedule: "08:00 - 10:00",
-  },
-  {
-    id: "P102",
-    floor: 1,
-    area: 35,
-    capacity: 25,
-    equipment: ["Smart Board", "Sound System", "Camera"],
-    utilization: 20,
-    status: "free",
-    schedule: "Trống cả ngày",
-  },
-  {
-    id: "P103",
-    floor: 1,
-    area: 38,
-    capacity: 25,
-    equipment: ["Projector", "Whiteboard", "Tablet"],
-    utilization: 92,
-    status: "using",
-    course: "TOEIC 800+",
-    teacher: "Mr. David",
-    schedule: "10:30 - 12:30",
-  },
-  {
-    id: "P201",
-    floor: 2,
-    area: 30,
-    capacity: 20,
-    equipment: ["Smart TV", "Whiteboard", "Speaker"],
-    utilization: 78,
-    status: "using",
-    course: "Business English",
-    teacher: "Ms. Lisa",
-    schedule: "14:00 - 16:00",
-  },
-  {
-    id: "P202",
-    floor: 2,
-    area: 50,
-    capacity: 35,
-    equipment: ["Projector", "Smart Board", "Sound System", "Recording"],
-    utilization: 45,
-    status: "free",
-    schedule: "Trống cả ngày",
-  },
-  {
-    id: "P301",
-    floor: 3,
-    area: 25,
-    capacity: 15,
-    equipment: ["TV", "Whiteboard"],
-    utilization: 0,
-    status: "maintenance",
-    schedule: "Đang bảo trì",
-  },
-];
-
 /* --------------------------------- Page --------------------------------- */
 
 export default function Page() {
@@ -289,6 +207,30 @@ export default function Page() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
   const [sort, setSort] = useState<SortState<Room>>({ key: null, direction: "asc" });
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Gọi API để lấy danh sách phòng học
+  useEffect(() => {
+    async function fetchClassrooms() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const mapped = await fetchAdminRooms();
+        setRooms(mapped);
+      } catch (err) {
+        console.error("Unexpected error when fetching admin classrooms:", err);
+        setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách phòng học.");
+        setRooms([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchClassrooms();
+  }, []);
 
   const toggleSort = (key: keyof Room) => {
     setSort(prev => {
@@ -329,7 +271,7 @@ export default function Page() {
   };
 
   const filteredRooms = useMemo(() => {
-    let result = ROOMS;
+    let result = rooms;
 
     if (search) {
       const searchLower = search.toLowerCase();
@@ -350,7 +292,7 @@ export default function Page() {
     }
 
     return result;
-  }, [search, statusFilter, sort.key, sort.direction]);
+  }, [rooms, search, statusFilter, sort.key, sort.direction]);
 
   const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -391,15 +333,15 @@ export default function Page() {
         <ModernStatCard
           icon={<Building2 size={20} />}
           title="Tổng phòng học"
-          value={`${ROOMS.length}`}
-          subtitle={`${ROOMS.filter(r => r.status === "free").length} phòng trống`}
+          value={`${rooms.length}`}
+          subtitle={`${rooms.filter(r => r.status === "free").length} phòng trống`}
           color="blue"
         />
 
         <ModernStatCard
           icon={<Users size={20} />}
           title="Đang sử dụng"
-          value={`${ROOMS.filter(r => r.status === "using").length}`}
+          value={`${rooms.filter(r => r.status === "using").length}`}
           subtitle="Hoạt động hiện tại"
           trend={{ value: 12, isPositive: true }}
           color="emerald"
@@ -408,7 +350,7 @@ export default function Page() {
         <ModernStatCard
           icon={<CheckCircle size={20} />}
           title="Sẵn sàng"
-          value={`${ROOMS.filter(r => r.status === "free").length}`}
+          value={`${rooms.filter(r => r.status === "free").length}`}
           subtitle="Có thể đặt lịch ngay"
           color="pink"
         />
@@ -416,7 +358,7 @@ export default function Page() {
         <ModernStatCard
           icon={<AlertTriangle size={20} />}
           title="Bảo trì"
-          value={`${ROOMS.filter(r => r.status === "maintenance").length}`}
+          value={`${rooms.filter(r => r.status === "maintenance").length}`}
           subtitle="Đang sửa chữa"
           color="amber"
         />

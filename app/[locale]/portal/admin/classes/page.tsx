@@ -1,94 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Plus, Search, MapPin, Users, Clock, Eye, Pencil,
   ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight,
   BookOpen
 } from "lucide-react";
 import clsx from "clsx";
-
-/* ----------------------------- MOCKED DATA ----------------------------- */
-type ClassRow = {
-  id: string;
-  name: string;
-  sub: string;
-  teacher: string;
-  room: string;
-  current: number;
-  capacity: number;
-  schedule: string;
-  status: "Đang học" | "Sắp khai giảng" | "Đã kết thúc";
-};
-
-const CLASSES: ClassRow[] = [
-  {
-    id: "LH001",
-    name: "English B1-01",
-    sub: "General English B1",
-    teacher: "Ms. Sarah Johnson",
-    room: "P101",
-    current: 25,
-    capacity: 30,
-    schedule: "Thứ 2, 4, 6 - 08:00-10:00",
-    status: "Đang học",
-  },
-  {
-    id: "LH002",
-    name: "IELTS Prep-02",
-    sub: "IELTS Preparation",
-    teacher: "Mr. John Smith",
-    room: "P102",
-    current: 20,
-    capacity: 25,
-    schedule: "Thứ 3, 5, 7 - 14:00-16:00",
-    status: "Đang học",
-  },
-  {
-    id: "LH003",
-    name: "Business English",
-    sub: "Business English",
-    teacher: "Ms. Emily Davis",
-    room: "P201",
-    current: 18,
-    capacity: 20,
-    schedule: "Thứ 2, 4 - 19:00-21:00",
-    status: "Đang học",
-  },
-  {
-    id: "LH004",
-    name: "TOEIC Advanced",
-    sub: "TOEIC Preparation",
-    teacher: "Mr. David Wilson",
-    room: "P103",
-    current: 22,
-    capacity: 25,
-    schedule: "Thứ 7, CN - 08:00-10:00",
-    status: "Đang học",
-  },
-  {
-    id: "LH005",
-    name: "English A2-03",
-    sub: "General English A2",
-    teacher: "Ms. Lisa Anderson",
-    room: "P104",
-    current: 0,
-    capacity: 25,
-    schedule: "Thứ 2, 4, 6 - 10:30-12:30",
-    status: "Sắp khai giảng",
-  },
-  {
-    id: "LH006",
-    name: "English B2-01",
-    sub: "General English B2",
-    teacher: "Ms. Sarah Johnson",
-    room: "P105",
-    current: 28,
-    capacity: 30,
-    schedule: "Thứ 3, 5 - 18:30-20:30",
-    status: "Đã kết thúc",
-  },
-];
+import { fetchAdminClasses } from "@/app/api/admin/classes";
+import type { ClassRow } from "@/types/admin/classes";
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -115,6 +35,52 @@ function occupancyTint(curr: number, cap: number) {
 type SortField = "id" | "name" | "teacher" | "room" | "capacity" | "schedule" | "status";
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 5;
+
+/* ----------------------------- API HELPERS ------------------------------ */
+
+function mapApiClassToRow(item: any): ClassRow {
+  // Code lớp (TS12, TS19, ...)
+  const id = String(item?.code ?? item?.id ?? "");
+
+  // Tên lớp
+  const name = item?.title ?? "Lớp học";
+
+  // Mô tả/thuộc chương trình
+  const sub = item?.programName ?? "";
+
+  // Giáo viên chính
+  const teacher = item?.mainTeacherName ?? "Chưa phân công";
+
+  // Phòng học (API classes hiện chưa trả phòng -> để mặc định)
+  const room = item?.roomName ?? "Chưa có phòng";
+
+  // Sĩ số
+  const current = item?.currentEnrollmentCount ?? 0;
+  const capacity = item?.capacity ?? 0;
+
+  // Lịch học: từ schedulePattern nếu có, else text mặc định
+  const schedulePattern = (item?.schedulePattern as string | undefined) ?? "";
+  const schedule = schedulePattern.trim() || "Chưa có lịch";
+
+  // Trạng thái: Planned / Active / Closed -> map sang tiếng Việt
+  const rawStatus: string = (item?.status as string | undefined) ?? "";
+  let status: ClassRow["status"] = "Sắp khai giảng";
+  const normalized = rawStatus.toLowerCase();
+  if (normalized === "active") status = "Đang học";
+  else if (normalized === "closed") status = "Đã kết thúc";
+
+  return {
+    id,
+    name,
+    sub,
+    teacher,
+    room,
+    current,
+    capacity,
+    schedule,
+    status,
+  };
+}
 
 function SortableHeader({
   field,
@@ -149,17 +115,41 @@ function SortableHeader({
 /* -------------------------------- PAGE --------------------------------- */
 export default function Page() {
   const [q, setQ] = useState("");
+  const [classes, setClasses] = useState<ClassRow[]>([]);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<"ALL" | ClassRow["status"]>("ALL");
   const [teacherFilter, setTeacherFilter] = useState<"ALL" | string>("ALL");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Gọi API để lấy danh sách lớp từ backend
+  useEffect(() => {
+    async function fetchClasses() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const mapped = await fetchAdminClasses();
+        setClasses(mapped);
+      } catch (err) {
+        console.error("Unexpected error when fetching admin classes:", err);
+        setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách lớp học.");
+        setClasses([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchClasses();
+  }, []);
 
   const stats = useMemo(() => {
-    const total = CLASSES.length;
-    const active = CLASSES.filter(c => c.status === "Đang học").length;
-    const students = CLASSES.reduce((sum, c) => sum + c.current, 0);
-    const occupancy = CLASSES.reduce((sum, c) => sum + c.capacity, 0);
+    const total = classes.length;
+    const active = classes.filter(c => c.status === "Đang học").length;
+    const students = classes.reduce((sum, c) => sum + c.current, 0);
+    const occupancy = classes.reduce((sum, c) => sum + c.capacity, 0);
 
     return {
       total,
@@ -167,13 +157,13 @@ export default function Page() {
       students,
       occupancy: occupancy > 0 ? `${Math.round((students / occupancy) * 100)}%` : "0%",
     };
-  }, []);
+  }, [classes]);
 
   const rows = useMemo(() => {
     const kw = q.trim().toLowerCase();
     let filtered = !kw
-      ? CLASSES
-      : CLASSES.filter((c) =>
+      ? classes
+      : classes.filter((c) =>
           [c.id, c.name, c.sub, c.teacher, c.room].some((x) =>
             x.toLowerCase().includes(kw)
           )
@@ -208,7 +198,7 @@ export default function Page() {
       });
     }
     return filtered;
-  }, [q, sortField, sortDirection]);
+  }, [q, sortField, sortDirection, classes, statusFilter, teacherFilter]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -330,7 +320,7 @@ export default function Page() {
               className="h-10 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
             >
               <option value="ALL">Tất cả giáo viên</option>
-              {[...new Set(CLASSES.map(c => c.teacher))].map((teacher) => (
+              {[...new Set(classes.map(c => c.teacher))].map((teacher) => (
                 <option key={teacher} value={teacher}>{teacher}</option>
               ))}
             </select>

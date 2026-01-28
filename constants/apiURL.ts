@@ -105,3 +105,10 @@ export const TEACHER_ENDPOINTS = {
   ATTENDANCE_STUDENTS: '/api/attendance/students',
   SESSIONS: '/api/sessions',
 } as const;
+
+// Admin Endpoints (client-side -> Next.js API Routes)
+export const ADMIN_ENDPOINTS = {
+  CLASSES: '/api/classes',
+  PROGRAMS: '/api/programs',
+  CLASSROOMS: '/api/classrooms',
+} as const;
