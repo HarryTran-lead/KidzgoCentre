@@ -27,9 +27,9 @@ export async function createLeaveRequest(data: LeaveRequestPayload): Promise<Lea
 }
 
 export async function approveLeaveRequest(id: string): Promise<LeaveRequestActionResponse> {
-  return post<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.APPROVE(id));
+  return post<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.APPROVE(id), {});
 }
 
 export async function rejectLeaveRequest(id: string): Promise<LeaveRequestActionResponse> {
-  return post<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.REJECT(id));
+  return post<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.REJECT(id), {});
 }
