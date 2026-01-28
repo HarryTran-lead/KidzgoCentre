@@ -1,20 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   CalendarDays,
-  CheckCircle2,
-  Clock,
-  Download,
-  FileText,
-  PlusCircle,
   Search,
   ShieldCheck,
   XCircle,
+  Plus,
+  Clock3,
+  CheckCircle2,
   AlertCircle,
-  Filter,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 
 import {
   approveLeaveRequest,
@@ -22,7 +19,7 @@ import {
   rejectLeaveRequest,
 } from "@/lib/api/leaveRequestService";
 
-import type { LeaveRequestRecord, LeaveRequestStatus } from "@/types/leaveRequest";
+import type { LeaveRequestRecord } from "@/types/leaveRequest";
 
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
 import MakeupSessionCreateModal, {
@@ -40,7 +37,8 @@ type LeaveRequestStatusLabel =
 type LeaveRequest = {
   id: string;
   student: string;
-  course: string;
+  parentName: string;
+  className: string;
   type: string;
   requestTime: string;
   sessionTime: string;
@@ -52,12 +50,14 @@ type LeaveRequest = {
 
 /* ===================== Constants ===================== */
 
-const statusMap: Record<LeaveRequestStatus, LeaveRequestStatusLabel> = {
+const statusMap = {
   PENDING: "Chờ duyệt",
   APPROVED: "Đã duyệt",
   REJECTED: "Từ chối",
   AUTO_APPROVED: "Auto-approve",
-};
+} as const;
+
+type NormalizedStatusKey = keyof typeof statusMap;
 
 const statusOptions: (LeaveRequestStatusLabel | "Tất cả")[] = [
   "Tất cả",
@@ -69,28 +69,49 @@ const statusOptions: (LeaveRequestStatusLabel | "Tất cả")[] = [
 
 /* ===================== Helpers ===================== */
 
+function normalizeStatus(input: unknown): NormalizedStatusKey {
+  if (!input) return "PENDING";
+
+  const raw = String(input).trim();
+  const s = raw.replace(/\s+/g, "_").replace(/-+/g, "_").toUpperCase();
+
+  // backend hay trả: Approved / Rejected / Pending
+  if (s === "APPROVED") return "APPROVED";
+  if (s === "REJECTED") return "REJECTED";
+  if (s === "PENDING") return "PENDING";
+
+  // vài biến thể hay gặp
+  if (s === "AUTOAPPROVED" || s === "AUTO_APPROVED" || s === "AUTO_APPROVE")
+    return "AUTO_APPROVED";
+
+  return "PENDING";
+}
+
 const mapLeaveRequests = (items: LeaveRequestRecord[]): LeaveRequest[] => {
   if (!items?.length) return [];
 
   return items.map((item) => {
-    const statusKey = item.status ?? "PENDING";
-    const statusLabel = statusMap[statusKey] ?? "Chờ duyệt";
+    const statusKey = normalizeStatus((item as any).status);
+    const statusLabel = statusMap[statusKey];
 
-    const start = item.sessionDate ?? "";
-    const end = item.endDate ?? item.sessionDate ?? ""; // tránh undefined
+    const start = (item as any).sessionDate ?? "";
+    const end = (item as any).endDate ?? (item as any).sessionDate ?? "";
     const isSingleDay = !!start && !!end && start === end;
 
     return {
-      id: item.id,
+      id: (item as any).id,
       student:
-        item.studentName ?? item.requesterName ?? item.studentProfileId,
-      course: item.className ?? item.classId,
+        (item as any).studentName ??
+        (item as any).studentProfileId ??
+        "Chưa có học viên",
+      parentName: (item as any).requesterName ?? "Chưa có phụ huynh",
+      className: (item as any).className ?? (item as any).classId ?? "Chưa có lớp",
       type: isSingleDay ? "Nghỉ 1 ngày" : "Nghỉ dài ngày",
-      requestTime: item.createdAt ?? item.submittedAt ?? "-",
+      requestTime: (item as any).createdAt ?? (item as any).requestedAt ?? (item as any).submittedAt ?? "-",
       sessionTime: start ? (end ? `${start} → ${end}` : start) : "-",
       status: statusLabel,
       credit: statusLabel === "Auto-approve" && isSingleDay ? 1 : 0,
-      note: item.reason ?? "-",
+      note: (item as any).reason ?? "-",
       raw: item,
     };
   });
@@ -108,32 +129,19 @@ function StatCard({
   title: string;
   value: string;
   subtitle?: string;
-  icon: any;
+  icon: LucideIcon;
   color: string; // ex: "from-pink-500 to-rose-500"
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-      <div
-        className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}
-      />
-      <div className="relative flex items-center justify-between gap-3">
-        <div
-          className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}
-        >
-          <Icon size={20} />
+    <div className="rounded-2xl border border-pink-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm font-semibold text-gray-700">{title}</div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">{value}</div>
+          {subtitle && <div className="mt-1 text-xs text-gray-500">{subtitle}</div>}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-600 truncate">
-            {title}
-          </div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">
-            {value}
-          </div>
-          {subtitle && (
-            <div className="text-[11px] text-gray-500 truncate">
-              {subtitle}
-            </div>
-          )}
+        <div className={`h-12 w-12 rounded-2xl bg-gradient-to-r ${color} flex items-center justify-center shadow-lg`}>
+          <Icon size={20} className="text-white" />
         </div>
       </div>
     </div>
@@ -141,37 +149,18 @@ function StatCard({
 }
 
 function StatusBadge({ status }: { status: LeaveRequestStatusLabel }) {
-  const map: Record<
-    LeaveRequestStatusLabel,
-    { cls: string; icon: LucideIcon }
-  > = {
-    "Chờ duyệt": {
-      cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
-      icon: Clock,
-    },
-    "Đã duyệt": {
-      cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
-      icon: CheckCircle2,
-    },
-    "Từ chối": {
-      cls: "bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border border-rose-200",
-      icon: XCircle,
-    },
-    "Auto-approve": {
-      cls: "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200",
-      icon: CheckCircle2,
-    },
-  };
-
-  const cfg = map[status];
-  const Icon = cfg.icon;
+  const cls =
+    status === "Đã duyệt"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : status === "Từ chối"
+        ? "bg-rose-50 text-rose-700 border-rose-200"
+        : status === "Auto-approve"
+          ? "bg-blue-50 text-blue-700 border-blue-200"
+          : "bg-amber-50 text-amber-700 border-amber-200";
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cfg.cls}`}
-    >
-      <Icon size={12} />
-      <span>{status}</span>
+    <span className={`inline-flex items-center rounded-xl border px-2.5 py-1 text-xs font-semibold ${cls}`}>
+      {status}
     </span>
   );
 }
@@ -187,7 +176,6 @@ function Banner({
     kind === "error"
       ? "border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700"
       : "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700";
-
   const Icon = kind === "error" ? AlertCircle : CheckCircle2;
 
   return (
@@ -195,6 +183,53 @@ function Banner({
       <div className="flex items-start gap-2">
         <Icon size={16} className="mt-0.5" />
         <div className="text-sm font-medium">{text}</div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({
+  open,
+  title,
+  description,
+  confirmText,
+  onClose,
+  onConfirm,
+  disabled,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  confirmText: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  disabled?: boolean;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl border border-pink-100">
+        <div className="p-5 space-y-3">
+          <div className="text-base font-semibold text-gray-900">{title}</div>
+          <p className="text-sm text-gray-600 whitespace-pre-line">{description}</p>
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-pink-100 px-5 py-3">
+          <button
+            onClick={onClose}
+            disabled={disabled}
+            className="rounded-xl border border-pink-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-pink-50 disabled:opacity-50"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={disabled}
+            className="rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg disabled:opacity-50"
+          >
+            {confirmText}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -210,12 +245,17 @@ export default function Page() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    LeaveRequestStatusLabel | "Tất cả"
-  >("Tất cả");
+  const [statusFilter, setStatusFilter] = useState<LeaveRequestStatusLabel | "Tất cả">("Tất cả");
 
   const [openLeaveModal, setOpenLeaveModal] = useState(false);
   const [openMakeupModal, setOpenMakeupModal] = useState(false);
+
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "approve" | "reject";
+    request: LeaveRequest;
+  } | null>(null);
+
+  const [processingAction, setProcessingAction] = useState(false);
 
   useEffect(() => {
     const fetchLeaveRequests = async () => {
@@ -223,9 +263,9 @@ export default function Page() {
       setActionError(null);
       try {
         const response = await getLeaveRequests();
-        const data = Array.isArray(response.data)
-          ? response.data
-          : response.data?.items ?? [];
+        const data = Array.isArray((response as any).data)
+          ? (response as any).data
+          : (response as any).data?.items ?? [];
         setRequestItems(mapLeaveRequests(data));
       } catch {
         setActionError("Không thể tải danh sách đơn xin nghỉ.");
@@ -250,14 +290,14 @@ export default function Page() {
     const q = searchQuery.trim().toLowerCase();
 
     return requestItems.filter((r) => {
-      const matchesStatus =
-        statusFilter === "Tất cả" || r.status === statusFilter;
+      const matchesStatus = statusFilter === "Tất cả" || r.status === statusFilter;
 
       const matchesSearch =
         !q ||
         r.student.toLowerCase().includes(q) ||
-        r.id.toLowerCase().includes(q) ||
-        (r.course ?? "").toLowerCase().includes(q);
+        r.parentName.toLowerCase().includes(q) ||
+        (r.className ?? "").toLowerCase().includes(q) ||
+        r.id.toLowerCase().includes(q);
 
       return matchesStatus && matchesSearch;
     });
@@ -279,11 +319,11 @@ export default function Page() {
     try {
       await approveLeaveRequest(id);
       updateRequestStatus(id, "Đã duyệt");
-      setActionMessage(
-        "Đã duyệt đơn. Duyệt thủ công không tự tạo MakeUpCredit."
-      );
+      setActionMessage("Đã duyệt đơn. Duyệt thủ công không tự tạo MakeUpCredit.");
+      return true;
     } catch {
       setActionError("Duyệt đơn thất bại.");
+      return false;
     }
   };
 
@@ -294,9 +334,27 @@ export default function Page() {
       await rejectLeaveRequest(id);
       updateRequestStatus(id, "Từ chối");
       setActionMessage("Đã từ chối đơn xin nghỉ.");
+      return true;
     } catch {
       setActionError("Từ chối đơn thất bại.");
+      return false;
     }
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    setProcessingAction(true);
+
+    const ok =
+      confirmAction.type === "approve"
+        ? await handleApprove(confirmAction.request.id)
+        : await handleReject(confirmAction.request.id);
+
+    // đóng modal dù ok hay fail (vì đã show banner)
+    setConfirmAction(null);
+    setProcessingAction(false);
+
+    return ok;
   };
 
   // TODO: nối API tạo lịch bù
@@ -317,118 +375,72 @@ export default function Page() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
               Học bù & MakeUpCredit
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Duyệt đơn nghỉ và xếp lịch học bù.
-            </p>
+            <p className="text-sm text-gray-600 mt-1">Duyệt đơn nghỉ và xếp lịch học bù.</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
-            <Download size={16} /> Xuất DS
-          </button>
-
           <button
             onClick={() => setOpenLeaveModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg"
           >
-            <FileText size={16} /> Tạo đơn nghỉ
+            <Plus size={16} />
+            Tạo đơn nghỉ
           </button>
 
           <button
             onClick={() => setOpenMakeupModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-pink-50"
           >
-            <PlusCircle size={16} /> Tạo lịch bù
+            <Clock3 size={16} />
+            Tạo lịch bù
           </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <StatCard
-          title="Tổng đơn"
-          value={String(stats.total)}
-          subtitle="Trong danh sách"
-          icon={FileText}
-          color="from-pink-500 to-rose-500"
-        />
-        <StatCard
-          title="Chờ duyệt"
-          value={String(stats.pending)}
-          subtitle="Cần xử lý"
-          icon={Clock}
-          color="from-amber-500 to-orange-500"
-        />
-        <StatCard
-          title="Đã duyệt"
-          value={String(stats.approved)}
-          subtitle="Duyệt thủ công"
-          icon={CheckCircle2}
-          color="from-emerald-500 to-teal-500"
-        />
-        <StatCard
-          title="Từ chối"
-          value={String(stats.rejected)}
-          subtitle="Không hợp lệ"
-          icon={XCircle}
-          color="from-rose-500 to-pink-500"
-        />
-        <StatCard
-          title="Auto-approve"
-          value={String(stats.auto)}
-          subtitle="Đủ điều kiện"
-          icon={CheckCircle2}
-          color="from-blue-500 to-cyan-500"
-        />
-      </div>
-
       {/* Alerts */}
-      <div className="space-y-3">
-        {actionError && <Banner kind="error" text={actionError} />}
-        {actionMessage && <Banner kind="success" text={actionMessage} />}
+      {(actionError || actionMessage) && (
+        <div className="space-y-3">
+          {actionError && <Banner kind="error" text={actionError} />}
+          {actionMessage && <Banner kind="success" text={actionMessage} />}
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <StatCard title="Tổng" value={String(stats.total)} icon={CalendarDays} color="from-pink-500 to-rose-500" />
+        <StatCard title="Chờ duyệt" value={String(stats.pending)} icon={Clock3} color="from-amber-500 to-orange-500" />
+        <StatCard title="Đã duyệt" value={String(stats.approved)} icon={ShieldCheck} color="from-emerald-500 to-teal-500" />
+        <StatCard title="Từ chối" value={String(stats.rejected)} icon={XCircle} color="from-rose-500 to-pink-500" />
+        <StatCard title="Auto" value={String(stats.auto)} icon={CheckCircle2} color="from-blue-500 to-indigo-500" />
       </div>
 
-      {/* Filter Bar */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-500" />
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as any)
-                }
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              >
-                {statusOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+          >
+            {statusOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
 
-            {loadingRequests && (
-              <div className="text-sm text-gray-500">
-                Đang tải danh sách...
-              </div>
-            )}
-          </div>
+          {loadingRequests && <div className="text-sm text-gray-500">Đang tải danh sách...</div>}
+        </div>
 
-          <div className="relative">
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo mã đơn, học viên, khóa..."
-              className="h-10 w-80 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
-            />
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-          </div>
+        <div className="relative">
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tìm theo học viên, phụ huynh, lớp, mã đơn..."
+            className="h-10 w-80 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+          />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -436,12 +448,8 @@ export default function Page() {
       <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
         <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Danh sách đơn nghỉ
-            </h2>
-            <div className="text-sm text-gray-600 font-medium">
-              {filtered.length} đơn
-            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Danh sách đơn nghỉ</h2>
+            <div className="text-sm text-gray-600 font-medium">{filtered.length} đơn</div>
           </div>
         </div>
 
@@ -449,24 +457,13 @@ export default function Page() {
           <table className="w-full">
             <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
               <tr>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Học viên
-                </th>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Khóa
-                </th>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Thời gian
-                </th>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Trạng thái
-                </th>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Credit
-                </th>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Thao tác
-                </th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Phụ huynh</th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Học viên</th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lớp</th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Thời gian</th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Credit</th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Thao tác</th>
               </tr>
             </thead>
 
@@ -481,41 +478,37 @@ export default function Page() {
                       className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
                     >
                       <td className="py-4 px-6">
-                        <div className="space-y-1">
-                          <div className="font-medium text-gray-900">
-                            {r.student}
-                          </div>
-                          <div className="text-xs text-gray-500 font-mono">
-                            {r.id}
-                          </div>
-                        </div>
+                        <div className="text-sm font-medium text-gray-900">{r.parentName}</div>
+                        <div className="text-xs text-gray-500 font-mono">{r.id}</div>
                       </td>
+
                       <td className="py-4 px-6">
-                        <div className="text-sm text-gray-900">
-                          {r.course}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {r.type}
-                        </div>
+                        <div className="text-sm text-gray-900">{r.student}</div>
                       </td>
+
                       <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">
-                          {r.sessionTime}
-                        </div>
+                        <div className="text-sm text-gray-900">{r.className}</div>
+                        <div className="text-xs text-gray-500">{r.type}</div>
                       </td>
+
+                      <td className="py-4 px-6">
+                        <div className="text-sm text-gray-700">{r.sessionTime}</div>
+                        <div className="text-xs text-gray-500">{r.requestTime}</div>
+                      </td>
+
                       <td className="py-4 px-6">
                         <StatusBadge status={r.status} />
                       </td>
+
                       <td className="py-4 px-6">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {r.credit}
-                        </div>
+                        <div className="text-sm font-semibold text-gray-900">{r.credit}</div>
                       </td>
+
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-1.5">
                           <button
                             disabled={disabled}
-                            onClick={() => handleApprove(r.id)}
+                            onClick={() => setConfirmAction({ type: "approve", request: r })}
                             className={`p-1.5 rounded-lg border border-pink-200 bg-white transition-colors ${
                               disabled
                                 ? "opacity-40 cursor-not-allowed text-gray-400"
@@ -528,7 +521,7 @@ export default function Page() {
 
                           <button
                             disabled={disabled}
-                            onClick={() => handleReject(r.id)}
+                            onClick={() => setConfirmAction({ type: "reject", request: r })}
                             className={`p-1.5 rounded-lg border border-pink-200 bg-white transition-colors ${
                               disabled
                                 ? "opacity-40 cursor-not-allowed text-gray-400"
@@ -545,16 +538,12 @@ export default function Page() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center">
+                  <td colSpan={7} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
                       <Search size={24} className="text-pink-400" />
                     </div>
-                    <div className="text-gray-600 font-medium">
-                      Không có đơn phù hợp
-                    </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      Thử thay đổi bộ lọc hoặc từ khóa
-                    </div>
+                    <div className="text-gray-600 font-medium">Không có đơn phù hợp</div>
+                    <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa</div>
                   </td>
                 </tr>
               )}
@@ -562,6 +551,20 @@ export default function Page() {
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.type === "approve" ? "Xác nhận duyệt đơn" : "Xác nhận từ chối"}
+        description={
+          confirmAction
+            ? `Phụ huynh: ${confirmAction.request.parentName}\nHọc viên: ${confirmAction.request.student}\nLớp: ${confirmAction.request.className}\nThời gian: ${confirmAction.request.sessionTime}`
+            : ""
+        }
+        confirmText={confirmAction?.type === "approve" ? "Duyệt đơn" : "Từ chối"}
+        disabled={processingAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleConfirmAction}
+      />
 
       {/* Modals */}
       <LeaveRequestCreateModal
