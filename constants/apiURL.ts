@@ -56,9 +56,20 @@ export const CLASS_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/api/classes/${id}`,
 } as const;
 
+export const MAKEUP_CREDIT_ENDPOINTS = {
+  GET_ALL: "/api/makeup-credits/all",
+  SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
+  USE: (id: string) => `/api/makeup-credits/${id}/use`,
+} as const;
+
 export const BACKEND_CLASS_ENDPOINTS = {
   GET_ALL: () => "/classes",
   GET_BY_ID: (id: string) => `/classes/${id}`,
+} as const;
+export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
+  GET_ALL: "/makeup-credits/all",
+  SUGGESTIONS: (id: string) => `/makeup-credits/${id}/suggestions`,
+  USE: (id: string) => `/makeup-credits/${id}/use`,
 } as const;
 // Backend Auth Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_AUTH_ENDPOINTS = {

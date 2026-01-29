@@ -20,7 +20,7 @@ import {
 } from "@/lib/api/leaveRequestService";
 
 import type { LeaveRequestRecord } from "@/types/leaveRequest";
-
+import { useMakeupCredit } from "@/lib/api/makeupCreditService";
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
 import MakeupSessionCreateModal, {
   type CreateMakeupPayload,
@@ -359,8 +359,20 @@ export default function Page() {
 
   // TODO: nối API tạo lịch bù
   const handleCreateMakeup = async (payload: CreateMakeupPayload) => {
-    console.log("Create makeup payload:", payload);
-    setActionMessage("Đã tạo lịch bù (demo). Nối API create makeup ở đây.");
+     setActionError(null);
+    setActionMessage(null);
+    try {
+      await useMakeupCredit(payload.makeupCreditId, {
+        classId: payload.targetClassId,
+        targetSessionId: payload.targetSessionId,
+        date: payload.date,
+        time: payload.time,
+        note: payload.note,
+      });
+      setActionMessage("Đã tạo lịch bù thành công.");
+    } catch {
+      setActionError("Tạo lịch bù thất bại.");
+    }
   };
 
   return (
