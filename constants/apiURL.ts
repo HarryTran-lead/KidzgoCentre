@@ -111,4 +111,5 @@ export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
   PROGRAMS: '/api/programs',
   CLASSROOMS: '/api/classrooms',
+  SESSIONS: '/api/sessions',
 } as const;

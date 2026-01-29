@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   Plus,
   Search,
@@ -16,9 +16,16 @@ import {
   ArrowDown,
   ChevronLeft,
   ChevronRight,
+  X,
+  Tag,
+  BarChart,
+  AlertCircle,
+  FileText,
+  Building2
 } from "lucide-react";
-import { fetchAdminPrograms } from "@/app/api/admin/programs";
-import type { CourseRow } from "@/types/admin/programs";
+import { fetchAdminPrograms, createAdminProgram } from "@/app/api/admin/programs";
+import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
+import { getAllBranches } from "@/lib/api/branchService";
 
 /* -------------------------- helpers -------------------------- */
 function cn(...a: Array<string | false | null | undefined>) {
@@ -93,6 +100,527 @@ function SortableHeader({
   );
 }
 
+/* ----------------------------- CREATE COURSE MODAL ------------------------------ */
+interface CreateCourseModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: CourseFormData) => void;
+}
+
+interface CourseFormData {
+  code: string;
+  name: string;
+  description: string;
+  level: "A1" | "A2" | "B1" | "B2" | "C1";
+  duration: string;
+  fee: string;
+  status: "Đang hoạt động" | "Tạm dừng" | "Đã kết thúc";
+  branchId: string;
+  totalSessions: string;
+  defaultTuitionAmount: string;
+  unitPriceSession: string;
+}
+
+const initialFormData: CourseFormData = {
+  code: "",
+  name: "",
+  description: "",
+  level: "A1",
+  duration: "12 tuần",
+  fee: "",
+  status: "Đang hoạt động",
+  branchId: "",
+  totalSessions: "",
+  defaultTuitionAmount: "",
+  unitPriceSession: "",
+};
+
+function CreateCourseModal({ isOpen, onClose, onSubmit }: CreateCourseModalProps) {
+  const [formData, setFormData] = useState<CourseFormData>(initialFormData);
+  const [errors, setErrors] = useState<Partial<Record<keyof CourseFormData, string>>>({});
+  const [branchOptions, setBranchOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(initialFormData);
+      setErrors({});
+      loadBranches();
+    }
+  }, [isOpen]);
+
+  const loadBranches = async () => {
+    try {
+      setLoadingBranches(true);
+      const res = await getAllBranches({ page: 1, limit: 100 });
+      const items = res?.data?.branches ?? res?.data ?? [];
+      setBranchOptions(
+        items.map((b: any) => ({
+          id: String(b?.id ?? ""),
+          name: String(b?.name ?? b?.code ?? "Chi nhánh"),
+        })).filter((b: { id: string }) => b.id)
+      );
+    } catch (err) {
+      console.error("Failed to load branches:", err);
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Partial<Record<keyof CourseFormData, string>> = {};
+    
+    if (!formData.code.trim()) newErrors.code = "Mã khóa học là bắt buộc";
+    if (!formData.name.trim()) newErrors.name = "Tên khóa học là bắt buộc";
+    if (!formData.description.trim()) newErrors.description = "Mô tả là bắt buộc";
+    if (!formData.duration.trim()) newErrors.duration = "Thời lượng là bắt buộc";
+    if (!formData.fee.trim()) newErrors.fee = "Học phí là bắt buộc";
+    if (!formData.branchId) newErrors.branchId = "Chi nhánh là bắt buộc";
+    if (!formData.totalSessions.trim() || Number(formData.totalSessions) <= 0) {
+      newErrors.totalSessions = "Số buổi học phải lớn hơn 0";
+    }
+    if (!formData.defaultTuitionAmount.trim() || Number(formData.defaultTuitionAmount.replace(/,/g, "")) <= 0) {
+      newErrors.defaultTuitionAmount = "Học phí mặc định phải lớn hơn 0";
+    }
+    if (!formData.unitPriceSession.trim() || Number(formData.unitPriceSession.replace(/,/g, "")) <= 0) {
+      newErrors.unitPriceSession = "Giá mỗi buổi phải lớn hơn 0";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSubmit(formData);
+      onClose();
+    }
+  };
+
+  const handleChange = (field: keyof CourseFormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div 
+        ref={modalRef}
+        className="relative w-full max-w-5xl bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 shadow-2xl overflow-hidden"
+      >
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <BookOpen size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">Tạo khóa học mới</h2>
+                <p className="text-sm text-pink-100">Nhập thông tin chi tiết về khóa học mới</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label="Đóng"
+            >
+              <X size={24} className="text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 max-h-[75vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Row 0: Chi nhánh */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Building2 size={16} className="text-pink-500" />
+                Chi nhánh *
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.branchId}
+                  onChange={(e) => handleChange("branchId", e.target.value)}
+                  disabled={loadingBranches}
+                  className={cn(
+                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                    errors.branchId ? "border-rose-500" : "border-pink-200",
+                    loadingBranches ? "opacity-50 cursor-not-allowed" : ""
+                  )}
+                >
+                  <option value="">Chọn chi nhánh</option>
+                  {branchOptions.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.branchId && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-rose-500" />
+                  </div>
+                )}
+              </div>
+              {errors.branchId && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
+            </div>
+
+            {/* Row 1: Mã khóa & Tên khóa */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Tag size={16} className="text-pink-500" />
+                  Mã khóa học *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.code}
+                    onChange={(e) => handleChange("code", e.target.value)}
+                    className={cn(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                      errors.code ? "border-rose-500" : "border-pink-200"
+                    )}
+                    placeholder="VD: ENG101, MATH202..."
+                  />
+                  {errors.code && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-rose-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.code && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.code}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <BookOpen size={16} className="text-pink-500" />
+                  Tên khóa học *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => handleChange("name", e.target.value)}
+                    className={cn(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                      errors.name ? "border-rose-500" : "border-pink-200"
+                    )}
+                    placeholder="VD: Tiếng Anh giao tiếp cơ bản"
+                  />
+                  {errors.name && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-rose-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.name && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
+              </div>
+            </div>
+
+            {/* Row 2: Mô tả */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <FileText size={16} className="text-pink-500" />
+                Mô tả khóa học *
+              </label>
+              <div className="relative">
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleChange("description", e.target.value)}
+                  rows={3}
+                  className={cn(
+                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                    errors.description ? "border-rose-500" : "border-pink-200"
+                  )}
+                  placeholder="Mô tả chi tiết về khóa học..."
+                />
+                {errors.description && (
+                  <div className="absolute right-3 top-3">
+                    <AlertCircle size={18} className="text-rose-500" />
+                  </div>
+                )}
+              </div>
+              {errors.description && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.description}</p>}
+            </div>
+
+            {/* Row 3: Trình độ & Thời lượng */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <BarChart size={16} className="text-pink-500" />
+                  Trình độ
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {(["A1", "A2", "B1", "B2", "C1"] as const).map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => handleChange("level", level)}
+                      className={cn(
+                        "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
+                        formData.level === level
+                          ? level === "A1"
+                            ? "bg-blue-100 border-blue-300 text-blue-700"
+                            : level === "A2"
+                            ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                            : level === "B1"
+                            ? "bg-amber-100 border-amber-300 text-amber-700"
+                            : level === "B2"
+                            ? "bg-violet-100 border-violet-300 text-violet-700"
+                            : "bg-rose-100 border-rose-300 text-rose-700"
+                          : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
+                      )}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Clock size={16} className="text-pink-500" />
+                  Thời lượng *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.duration}
+                    onChange={(e) => handleChange("duration", e.target.value)}
+                    className={cn(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                      errors.duration ? "border-rose-500" : "border-pink-200"
+                    )}
+                    placeholder="VD: 12 tuần, 3 tháng..."
+                  />
+                  {errors.duration && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-rose-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.duration && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.duration}</p>}
+              </div>
+            </div>
+
+            {/* Row 3.5: Số buổi học, Học phí mặc định, Giá mỗi buổi */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Clock size={16} className="text-pink-500" />
+                  Số buổi học *
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.totalSessions}
+                    onChange={(e) => handleChange("totalSessions", e.target.value)}
+                    className={cn(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                      errors.totalSessions ? "border-rose-500" : "border-pink-200"
+                    )}
+                    placeholder="VD: 24"
+                  />
+                  {errors.totalSessions && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-rose-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.totalSessions && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.totalSessions}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <DollarSign size={16} className="text-pink-500" />
+                  Học phí mặc định (VND) *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.defaultTuitionAmount}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9,]/g, "");
+                      handleChange("defaultTuitionAmount", val);
+                    }}
+                    className={cn(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                      errors.defaultTuitionAmount ? "border-rose-500" : "border-pink-200"
+                    )}
+                    placeholder="VD: 3000000"
+                  />
+                  {errors.defaultTuitionAmount && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-rose-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.defaultTuitionAmount && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.defaultTuitionAmount}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <DollarSign size={16} className="text-pink-500" />
+                  Giá mỗi buổi (VND) *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.unitPriceSession}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9,]/g, "");
+                      handleChange("unitPriceSession", val);
+                    }}
+                    className={cn(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                      errors.unitPriceSession ? "border-rose-500" : "border-pink-200"
+                    )}
+                    placeholder="VD: 125000"
+                  />
+                  {errors.unitPriceSession && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-rose-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.unitPriceSession && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.unitPriceSession}</p>}
+              </div>
+            </div>
+
+            {/* Row 4: Học phí & Trạng thái */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <DollarSign size={16} className="text-pink-500" />
+                  Học phí *
+                </label>
+                <div className="relative">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.fee}
+                      onChange={(e) => handleChange("fee", e.target.value)}
+                      className={cn(
+                        "w-full pl-10 pr-4 py-3 rounded-xl border bg-white text-gray-900",
+                        "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                        errors.fee ? "border-rose-500" : "border-pink-200"
+                      )}
+                      placeholder="VD: 3,000,000 VNĐ"
+                    />
+                    <DollarSign size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  </div>
+                  {errors.fee && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-rose-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.fee && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.fee}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <BookOpen size={16} className="text-pink-500" />
+                  Trạng thái
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["Đang hoạt động", "Tạm dừng", "Đã kết thúc"] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => handleChange("status", status)}
+                      className={cn(
+                        "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
+                        formData.status === status
+                          ? status === "Đang hoạt động"
+                            ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                            : status === "Tạm dừng"
+                            ? "bg-amber-100 border-amber-300 text-amber-700"
+                            : "bg-sky-100 border-sky-300 text-sky-700"
+                          : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
+                      )}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+          </form>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 p-6">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2.5 rounded-xl border border-pink-300 text-pink-600 font-semibold hover:bg-pink-50 transition-colors cursor-pointer"
+            >
+              Hủy bỏ
+            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData(initialFormData);
+                  setErrors({});
+                }}
+                className="px-6 py-2.5 rounded-xl border border-pink-300 text-pink-600 font-semibold hover:bg-pink-50 transition-colors cursor-pointer"
+              >
+                Đặt lại
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer"
+              >
+                Tạo khóa học
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------ page ------------------------------- */
 export default function Page() {
   const [q, setQ] = useState("");
@@ -104,6 +632,7 @@ export default function Page() {
   const [statusFilter, setStatusFilter] = useState<"ALL" | "Đang hoạt động" | "Tạm dừng" | "Đã kết thúc">("ALL");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Gọi API để lấy danh sách chương trình
   useEffect(() => {
@@ -129,7 +658,6 @@ export default function Page() {
   const stats = useMemo(() => {
     const total = courses.length;
     const active = courses.filter(c => c.status === "Đang hoạt động").length;
-    // Hiện backend chưa trả số học viên & doanh thu -> tạm thời dùng mock
     const students = 0;
     const revenue = "0";
 
@@ -198,244 +726,298 @@ export default function Page() {
 
   const goPage = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
+  const handleCreateCourse = async (data: CourseFormData) => {
+    try {
+      const totalSessions = Number(data.totalSessions);
+      const defaultTuitionAmount = Number(data.defaultTuitionAmount.replace(/,/g, ""));
+      const unitPriceSession = Number(data.unitPriceSession.replace(/,/g, ""));
+
+      if (!data.branchId) {
+        alert("Vui lòng chọn chi nhánh");
+        return;
+      }
+
+      const payload: CreateProgramRequest = {
+        branchId: data.branchId,
+        name: data.name,
+        level: data.level,
+        totalSessions,
+        defaultTuitionAmount,
+        unitPriceSession,
+        description: data.description,
+      };
+
+      const created = await createAdminProgram(payload);
+
+      // Map response về CourseRow để thêm vào danh sách
+      const newCourse: CourseRow = {
+        id: created.code ?? created.id,
+        name: created.name,
+        desc: created.description ?? "",
+        level: created.level,
+        duration: `${created.totalSessions} buổi`,
+        fee: `${created.defaultTuitionAmount.toLocaleString("vi-VN")} VND`,
+        classes: "0 lớp",
+        students: "0 học viên",
+        status: created.isActive ? "Đang hoạt động" : "Tạm dừng",
+      };
+
+      setCourses(prev => [newCourse, ...prev]);
+      alert(`Đã tạo khóa học ${data.name} thành công!`);
+    } catch (err: any) {
+      console.error("Failed to create program:", err);
+      alert(err?.message || "Không thể tạo khóa học. Vui lòng thử lại.");
+    }
+  };
+
   return (
-    <div className="space-y-6 bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6 rounded-3xl">
-      {/* Title */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 shadow-lg">
-            <BookOpen className="text-white" size={24} />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-              Quản lý môn học
-            </h1>
-            <p className="text-sm text-gray-600">Quản lý chương trình học và khóa học</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:shadow-lg text-white font-semibold cursor-pointer"
-        >
-          <Plus size={18} /> Tạo khóa học mới
-        </button>
-      </div>
-
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+    <>
+      <div className="space-y-6 bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6 rounded-3xl">
+        {/* Title */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-pink-100 grid place-items-center">
-              <BookOpen className="text-pink-600" size={18} />
-            </span>
+            <div className="p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 shadow-lg">
+              <BookOpen className="text-white" size={24} />
+            </div>
             <div>
-              <div className="text-sm text-gray-600">Tổng khóa học</div>
-              <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
+              <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                Quản lý môn học
+              </h1>
+              <p className="text-sm text-gray-600">Quản lý chương trình học và khóa học</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            type="button"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+          >
+            <Plus size={18} /> Tạo khóa học mới
+          </button>
+        </div>
+
+        {/* Stats cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-pink-100 grid place-items-center">
+                <BookOpen className="text-pink-600" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Tổng khóa học</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-emerald-100 grid place-items-center">
+                <GraduationCap className="text-emerald-600" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Đang hoạt động</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.active}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-amber-100 grid place-items-center">
+                <Users className="text-amber-600" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Tổng học viên</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.students}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-sky-100 grid place-items-center">
+                <DollarSign className="text-sky-600" size={18} />
+              </span>
+              <div>
+                <div className="text-sm text-gray-600">Doanh thu/tháng</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.revenue}</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-emerald-100 grid place-items-center">
-              <GraduationCap className="text-emerald-600" size={18} />
-            </span>
-            <div>
-              <div className="text-sm text-gray-600">Đang hoạt động</div>
-              <div className="text-2xl font-extrabold text-gray-900">{stats.active}</div>
+        {/* Search & Filters */}
+        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-3xl min-w-[280px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-500" size={18} />
+              <input
+                value={q}
+                onChange={(e) => { setQ(e.target.value); setPage(1); }}
+                placeholder="Tìm kiếm khóa học..."
+                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-pink-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-300"
+              />
             </div>
-          </div>
-        </div>
 
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-amber-100 grid place-items-center">
-              <Users className="text-amber-600" size={18} />
-            </span>
-            <div>
-              <div className="text-sm text-gray-600">Tổng học viên</div>
-              <div className="text-2xl font-extrabold text-gray-900">{stats.students}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-sky-100 grid place-items-center">
-              <DollarSign className="text-sky-600" size={18} />
-            </span>
-            <div>
-              <div className="text-sm text-gray-600">Doanh thu/tháng</div>
-              <div className="text-2xl font-extrabold text-gray-900">{stats.revenue}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search & Filters */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-3xl min-w-[280px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-500" size={18} />
-            <input
-              value={q}
-              onChange={(e) => { setQ(e.target.value); setPage(1); }}
-              placeholder="Tìm kiếm khóa học..."
-              className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-pink-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-300"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4">
-            <select
-              value={levelFilter}
-              onChange={(e) => { setLevelFilter(e.target.value as typeof levelFilter); setPage(1); }}
-              className="h-10 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
-            >
-              <option value="ALL">Tất cả trình độ</option>
-              <option value="A1">A1</option>
-              <option value="A2">A2</option>
-              <option value="B1">B1</option>
-              <option value="B2">B2</option>
-              <option value="C1">C1</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
-              className="h-10 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
-            >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="Đang hoạt động">Đang hoạt động</option>
-              <option value="Tạm dừng">Tạm dừng</option>
-              <option value="Đã kết thúc">Đã kết thúc</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
-        {/* Table Header */}
-        <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách khóa học</h2>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="font-medium">{rows.length} khóa học</span>
+            <div className="flex flex-wrap items-center gap-4">
+              <select
+                value={levelFilter}
+                onChange={(e) => { setLevelFilter(e.target.value as typeof levelFilter); setPage(1); }}
+                className="h-10 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              >
+                <option value="ALL">Tất cả trình độ</option>
+                <option value="A1">A1</option>
+                <option value="A2">A2</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+                <option value="C1">C1</option>
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
+                className="h-10 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              >
+                <option value="ALL">Tất cả trạng thái</option>
+                <option value="Đang hoạt động">Đang hoạt động</option>
+                <option value="Tạm dừng">Tạm dừng</option>
+                <option value="Đã kết thúc">Đã kết thúc</option>
+              </select>
             </div>
           </div>
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
-              <tr>
-                <SortableHeader field="id" currentField={sortField} direction={sortDirection} onSort={handleSort}>Mã khóa</SortableHeader>
-                <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên khóa học</SortableHeader>
-                <SortableHeader field="level" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trình độ</SortableHeader>
-                <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời lượng</SortableHeader>
-                <SortableHeader field="fee" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
-                <SortableHeader field="classes" currentField={sortField} direction={sortDirection} onSort={handleSort}>Lớp học</SortableHeader>
-                <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
-                <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-pink-100">
-              {pagedRows.length > 0 ? (
-                pagedRows.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
-                  >
-                    <td className="py-3 px-6 text-sm text-gray-900 whitespace-nowrap">{c.id}</td>
-
-                    <td className="py-3 px-6">
-                      <div className="text-sm text-gray-900 truncate">{c.name}</div>
-                      <div className="text-xs text-gray-500 truncate">{c.desc}</div>
-                    </td>
-
-                    <td className="py-3 px-6 text-center whitespace-nowrap">
-                      <LevelBadge level={c.level} />
-                    </td>
-
-                    <td className="py-3 px-6 whitespace-nowrap">
-                      <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
-                        <Clock size={16} className="text-gray-400" />
-                        <span className="truncate">{c.duration}</span>
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-6 text-gray-900 text-sm whitespace-nowrap">{c.fee}</td>
-
-                    <td className="py-3 px-6 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{c.classes}</div>
-                      <div className="text-xs text-gray-500">{c.students}</div>
-                    </td>
-
-                    <td className="py-3 px-6 text-center whitespace-nowrap">
-                      <StatusBadge value={c.status} />
-                    </td>
-
-                    <td className="py-3 px-6">
-                      <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
-                        <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" title="Xem">
-                          <Eye size={14} />
-                        </button>
-                        <button className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer" title="Sửa">
-                          <Pencil size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center">
-                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                      <Search size={24} className="text-pink-400" />
-                    </div>
-                    <div className="text-gray-600 font-medium">Không tìm thấy khóa học</div>
-                    <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo khóa học mới</div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Table Footer - Pagination */}
-        {rows.length > 0 && (
-          <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-gray-600">
-                Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, rows.length)}</span>
-                {' '}trong tổng số <span className="font-semibold text-gray-900">{rows.length}</span> khóa học
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
-                  onClick={() => goPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  aria-label="Trang trước"
-                >
-                  <ChevronLeft size={16} className="text-gray-600" />
-                </button>
-                <div className="text-sm font-semibold text-gray-900 px-3">
-                  {currentPage} / {totalPages}
-                </div>
-                <button
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
-                  onClick={() => goPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  aria-label="Trang sau"
-                >
-                  <ChevronRight size={16} className="text-gray-600" />
-                </button>
+        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
+          {/* Table Header */}
+          <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Danh sách khóa học</h2>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium">{rows.length} khóa học</span>
               </div>
             </div>
           </div>
-        )}
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+                <tr>
+                  <SortableHeader field="id" currentField={sortField} direction={sortDirection} onSort={handleSort}>Mã khóa</SortableHeader>
+                  <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên khóa học</SortableHeader>
+                  <SortableHeader field="level" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trình độ</SortableHeader>
+                  <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời lượng</SortableHeader>
+                  <SortableHeader field="fee" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
+                  <SortableHeader field="classes" currentField={sortField} direction={sortDirection} onSort={handleSort}>Lớp học</SortableHeader>
+                  <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
+                  <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-pink-100">
+                {pagedRows.length > 0 ? (
+                  pagedRows.map((c) => (
+                    <tr
+                      key={c.id}
+                      className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+                    >
+                      <td className="py-3 px-6 text-sm text-gray-900 whitespace-nowrap">{c.id}</td>
+
+                      <td className="py-3 px-6">
+                        <div className="text-sm text-gray-900 truncate">{c.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{c.desc}</div>
+                      </td>
+
+                      <td className="py-3 px-6 text-center whitespace-nowrap">
+                        <LevelBadge level={c.level} />
+                      </td>
+
+                      <td className="py-3 px-6 whitespace-nowrap">
+                        <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
+                          <Clock size={16} className="text-gray-400" />
+                          <span className="truncate">{c.duration}</span>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-6 text-gray-900 text-sm whitespace-nowrap">{c.fee}</td>
+
+                      <td className="py-3 px-6 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{c.classes}</div>
+                        <div className="text-xs text-gray-500">{c.students}</div>
+                      </td>
+
+                      <td className="py-3 px-6 text-center whitespace-nowrap">
+                        <StatusBadge value={c.status} />
+                      </td>
+
+                      <td className="py-3 px-6">
+                        <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
+                          <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" title="Xem">
+                            <Eye size={14} />
+                          </button>
+                          <button className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer" title="Sửa">
+                            <Pencil size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center">
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
+                        <Search size={24} className="text-pink-400" />
+                      </div>
+                      <div className="text-gray-600 font-medium">Không tìm thấy khóa học</div>
+                      <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo khóa học mới</div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Table Footer - Pagination */}
+          {rows.length > 0 && (
+            <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-gray-600">
+                  Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, rows.length)}</span>
+                  {' '}trong tổng số <span className="font-semibold text-gray-900">{rows.length}</span> khóa học
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                    onClick={() => goPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    aria-label="Trang trước"
+                  >
+                    <ChevronLeft size={16} className="text-gray-600" />
+                  </button>
+                  <div className="text-sm font-semibold text-gray-900 px-3">
+                    {currentPage} / {totalPages}
+                  </div>
+                  <button
+                    className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                    onClick={() => goPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    aria-label="Trang sau"
+                  >
+                    <ChevronRight size={16} className="text-gray-600" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Create Course Modal */}
+      <CreateCourseModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={handleCreateCourse}
+      />
+    </>
   );
 }
