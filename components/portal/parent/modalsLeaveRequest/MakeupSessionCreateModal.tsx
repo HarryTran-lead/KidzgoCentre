@@ -1,30 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  AlertCircle,
-  CalendarDays,
-  CheckCircle2,
-  Loader2,
-  Send,
-  X,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Send, X } from "lucide-react";
+
+import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
+import { get } from "@/lib/axios";
 
 import {
-  getAllMakeupCredits,
+  getMakeupCreditStudents,
+  getMakeupCreditsByStudent,
   getMakeupCreditSuggestions,
 } from "@/lib/api/makeupCreditService";
 
-import type { MakeupCredit, MakeupSuggestion } from "@/types/makeupCredit";
+import type { MakeupCredit, MakeupCreditStudent, MakeupSuggestion } from "@/types/makeupCredit";
 
 export type CreateMakeupPayload = {
   studentProfileId: string;
   makeupCreditId: string;
+
   fromClassId: string;
   targetClassId: string;
   targetSessionId: string;
-  date: string; // yyyy-mm-dd
-  time: string; // hh:mm
+
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
   note?: string;
 };
 
@@ -34,116 +33,46 @@ type Props = {
   onCreate: (payload: CreateMakeupPayload) => Promise<void> | void;
 };
 
-const getValueByPath = (obj: Record<string, any> | null, path: string) => {
-  if (!obj) return undefined;
-  return path.split(".").reduce<any>((acc, key) => acc?.[key], obj);
-};
+/* ================= utils ================= */
 
-const pickValue = (obj: Record<string, any> | null, paths: string[]) => {
-  for (const path of paths) {
-    const value = getValueByPath(obj, path);
-    if (value !== undefined && value !== null && value !== "") return value;
+const pickValue = (obj: any, paths: string[]) => {
+  for (const p of paths) {
+    const v = p.split(".").reduce((acc, k) => acc?.[k], obj);
+    if (v !== undefined && v !== null && v !== "") return v;
   }
   return undefined;
 };
 
-const formatScheduleInfo = (data: Record<string, any> | null) => {
-  if (!data) return "";
-  const day = pickValue(data, [
-    "dayOfWeek",
-    "weekday",
-    "day",
-    "sessionDay",
-    "sessionDate",
-    "date",
-  ]);
-  const session = pickValue(data, ["session", "shift", "period", "slot"]);
-  const start = pickValue(data, ["startTime", "startAt", "timeStart"]);
-  const end = pickValue(data, ["endTime", "endAt", "timeEnd"]);
-  const time = start && end ? `${start} - ${end}` : start ?? end;
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const toDateInputValue = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const toTimeInputValue = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
-  return [session, day, time].filter(Boolean).join(" • ");
+const formatDateTimeVN = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
-const getStudentIdFromCredit = (credit: MakeupCredit) =>
-  (pickValue(credit as Record<string, any>, [
-    "studentProfileId",
-    "studentId",
-    "student.id",
-    "studentProfile.id",
-  ]) as string | undefined) ?? "";
+// ✅ derive timeOfDay theo HH:mm
+// Nếu backend dùng value khác (AM/PM, MORNING/AFTERNOON/EVENING) bạn đổi ở đây 1 chỗ là xong.
+const deriveTimeOfDay = (time: string) => {
+  const [hhStr] = (time || "").split(":");
+  const hh = Number(hhStr);
+  if (!Number.isFinite(hh)) return undefined;
 
-const getStudentNameFromCredit = (credit: MakeupCredit) =>
-  (pickValue(credit as Record<string, any>, [
-    "studentName",
-    "studentFullName",
-    "student.name",
-    "student.fullName",
-    "studentProfile.fullName",
-    "studentProfile.name",
-  ]) as string | undefined) ?? "Chưa rõ học viên";
-
-const getClassIdFromCredit = (credit: MakeupCredit) =>
-  (pickValue(credit as Record<string, any>, [
-    "classId",
-    "class.id",
-    "sourceClassId",
-  ]) as string | undefined) ?? "";
-
-const getClassNameFromCredit = (credit: MakeupCredit) =>
-  (pickValue(credit as Record<string, any>, [
-    "className",
-    "class.name",
-    "class.className",
-    "class.title",
-    "class.code",
-  ]) as string | undefined) ?? "Chưa rõ lớp";
-
-const getCreditStatus = (credit: MakeupCredit) =>
-  String(
-    pickValue(credit as Record<string, any>, ["status", "state", "creditStatus"]) ??
-      ""
-  ).toUpperCase();
-
-const getCreditRemaining = (credit: MakeupCredit) => {
-  const raw = pickValue(credit as Record<string, any>, [
-    "remainingCredits",
-    "remaining",
-    "credit",
-    "creditCount",
-    "totalCredits",
-    "balance",
-  ]);
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : undefined;
+  // giả định backend nhận Morning/Afternoon/Evening
+  if (hh < 12) return "Morning";
+  if (hh < 18) return "Afternoon";
+  return "Evening";
 };
 
-const isApprovedCredit = (credit: MakeupCredit) => {
-  const status = getCreditStatus(credit);
-  const remaining = getCreditRemaining(credit);
-
-  const isBlocked = ["USED", "EXPIRED", "REJECT", "CANCEL"].some((s) =>
-    status.includes(s)
-  );
-
-  const isApproved =
-    !status ||
-    ["APPROVED", "AUTO_APPROVED", "ACTIVE", "AVAILABLE"].some((s) =>
-      status.includes(s)
-    );
-
-  const hasCredit = remaining === undefined ? true : remaining > 0;
-
-  return isApproved && !isBlocked && hasCredit;
-};
-
-function Banner({
-  kind,
-  text,
-}: {
-  kind: "error" | "success";
-  text: string;
-}) {
+function Banner({ kind, text }: { kind: "error" | "success"; text: string }) {
   const cls =
     kind === "error"
       ? "border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700"
@@ -154,17 +83,122 @@ function Banner({
     <div className={`rounded-2xl border p-3 ${cls}`}>
       <div className="flex items-start gap-2">
         <Icon size={16} className="mt-0.5" />
-        <div className="text-sm font-medium">{text}</div>
+        <div className="text-sm font-medium whitespace-pre-line">{text}</div>
       </div>
     </div>
   );
 }
 
+/* ================= session detail ================= */
+
+type SessionDetail = {
+  id: string;
+  classId: string;
+  classCode?: string | null;
+  classTitle?: string | null;
+  plannedDatetime?: string | null;
+  plannedRoomName?: string | null;
+  branchName?: string | null;
+};
+
+const unwrap = (res: any) => {
+  const root = res?.data ?? res;
+  return root?.data ?? root; // hỗ trợ {isSuccess,data:{...}} hoặc raw
+};
+
+async function getSessionById(sessionId: string): Promise<SessionDetail | null> {
+  if (!sessionId) return null;
+
+  const res = await get<any>(`${TEACHER_ENDPOINTS.SESSIONS}/${sessionId}`);
+  const api = unwrap(res);
+  const s = api?.session ?? api;
+
+  if (!s?.id) return null;
+
+  return {
+    id: s.id,
+    classId: s.classId,
+    classCode: s.classCode ?? null,
+    classTitle: s.classTitle ?? null,
+    plannedDatetime: s.plannedDatetime ?? null,
+    plannedRoomName: s.plannedRoomName ?? null,
+    branchName: s.branchName ?? null,
+  };
+}
+
+const sourceClassDisplay = (s: SessionDetail | null) => {
+  if (!s) return "";
+  const classPart = [s.classCode, s.classTitle].filter(Boolean).join(" - ");
+  const timePart = s.plannedDatetime ? formatDateTimeVN(s.plannedDatetime) : "";
+  const meta = [s.branchName, s.plannedRoomName].filter(Boolean).join(" • ");
+  return [classPart, timePart].filter(Boolean).join(" • ") + (meta ? ` • ${meta}` : "");
+};
+
+/* ================= domain helpers ================= */
+
+const getStudentId = (st: MakeupCreditStudent) =>
+  (pickValue(st, ["studentProfileId", "studentId", "id"]) as string | undefined) ?? "";
+
+const getStudentName = (st: MakeupCreditStudent) =>
+  (pickValue(st, ["displayName", "name", "fullName", "studentName", "studentFullName"]) as string | undefined) ??
+  "Chưa rõ học viên";
+
+const creditId = (c: MakeupCredit) => (pickValue(c, ["id"]) as string | undefined) ?? "";
+const creditStatus = (c: MakeupCredit) => String(pickValue(c, ["status"]) ?? "").toUpperCase();
+const creditSourceSessionId = (c: MakeupCredit) => (pickValue(c, ["sourceSessionId"]) as string | undefined) ?? "";
+
+const isUsableCredit = (c: MakeupCredit) => {
+  const st = creditStatus(c);
+  return !st || st.includes("AVAILABLE") || st.includes("ACTIVE");
+};
+
+const normalizeSuggestions = (raw: any[]): MakeupSuggestion[] => {
+  const normalized: any[] = [];
+  raw.forEach((item) => {
+    if (Array.isArray(item?.sessions)) {
+      item.sessions.forEach((sess: any) => {
+        normalized.push({
+          ...sess,
+          classId: item.classId ?? sess.classId ?? sess.class?.id,
+          className:
+            item.classTitle ??
+            item.className ??
+            sess.classTitle ??
+            sess.className ??
+            sess.class?.name,
+          classCode: item.classCode ?? sess.classCode ?? sess.class?.code,
+        });
+      });
+      return;
+    }
+    normalized.push(item);
+  });
+  return normalized as MakeupSuggestion[];
+};
+
+const suggestionClassId = (s: any) => (pickValue(s, ["classId", "class.id"]) as string | undefined) ?? "";
+const suggestionClassName = (s: any) =>
+  (pickValue(s, ["classTitle", "className", "class.name", "class.code"]) as string | undefined) ?? "Chưa rõ lớp";
+const suggestionClassCode = (s: any) =>
+  (pickValue(s, ["classCode", "class.code"]) as string | undefined) ?? "";
+const suggestionSessionId = (s: any) => (pickValue(s, ["id", "sessionId"]) as string | undefined) ?? "";
+const suggestionPlannedDatetime = (s: any) =>
+  (pickValue(s, ["plannedDatetime", "plannedDateTime", "datetime", "dateTime"]) as string | undefined) ?? "";
+
+/* ================= component ================= */
+
 export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Props) {
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [makeupCredits, setMakeupCredits] = useState<MakeupCredit[]>([]);
+  const [students, setStudents] = useState<MakeupCreditStudent[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+
+  const [credits, setCredits] = useState<MakeupCredit[]>([]);
   const [creditsLoading, setCreditsLoading] = useState(false);
+
+  const [sourceSession, setSourceSession] = useState<SessionDetail | null>(null);
+  const [sourceSessionLoading, setSourceSessionLoading] = useState(false);
 
   const [suggestions, setSuggestions] = useState<MakeupSuggestion[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -180,168 +214,206 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     note: "",
   });
 
-  const [error, setError] = useState<string | null>(null);
-
+  // reset when close
   useEffect(() => {
-    if (!open) {
-      setSubmitting(false);
+    if (open) return;
+    setSubmitting(false);
+    setError(null);
+    setStudents([]);
+    setCredits([]);
+    setSourceSession(null);
+    setSuggestions([]);
+    setPayload({
+      studentProfileId: "",
+      makeupCreditId: "",
+      fromClassId: "",
+      targetClassId: "",
+      targetSessionId: "",
+      date: "",
+      time: "",
+      note: "",
+    });
+  }, [open]);
+
+  // esc close
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  // load students
+  useEffect(() => {
+    if (!open) return;
+
+    const run = async () => {
+      setStudentsLoading(true);
       setError(null);
+      try {
+        const res = await getMakeupCreditStudents();
+        const api = unwrap(res);
+        const list = (api?.items ?? api?.students ?? api) as any[];
+        setStudents(Array.isArray(list) ? list : []);
+      } catch {
+        setError("Không thể tải danh sách học viên có makeup credit.");
+      } finally {
+        setStudentsLoading(false);
+      }
+    };
+
+    run();
+  }, [open]);
+
+  // load credits by student
+  useEffect(() => {
+    if (!open) return;
+    if (!payload.studentProfileId) return;
+
+    const run = async () => {
+      setCreditsLoading(true);
+      setError(null);
+
+      // reset downstream
+      setCredits([]);
+      setSourceSession(null);
       setSuggestions([]);
-      setPayload({
-        studentProfileId: "",
+      setPayload((p) => ({
+        ...p,
         makeupCreditId: "",
         fromClassId: "",
         targetClassId: "",
         targetSessionId: "",
         date: "",
         time: "",
-        note: "",
-      });
-    }
-  }, [open]);
+      }));
 
-  // Load credits when open
-  useEffect(() => {
-    if (!open) return;
-
-    const fetchCredits = async () => {
-      setCreditsLoading(true);
-      setError(null);
       try {
-        const res = await getAllMakeupCredits();
-        const data = Array.isArray(res.data)
-          ? res.data
-          : res.data?.items ?? res.data?.credits ?? [];
-
-        const filtered = data.filter((item: MakeupCredit) => isApprovedCredit(item));
-        setMakeupCredits(filtered);
+        const res = await getMakeupCreditsByStudent(payload.studentProfileId);
+        const api = unwrap(res);
+        const list = (api?.items ?? api?.credits ?? api) as any[];
+        const arr = Array.isArray(list) ? (list as MakeupCredit[]) : [];
+        setCredits(arr.filter(isUsableCredit));
       } catch {
-        setError("Không thể tải danh sách makeup credit.");
+        setError("Không thể tải danh sách makeup credit theo học viên.");
       } finally {
         setCreditsLoading(false);
       }
     };
 
-    if (!makeupCredits.length) fetchCredits();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    run();
+  }, [open, payload.studentProfileId]);
 
-  // Load suggestions when choose credit
+  // when select credit -> fetch source session detail (để hiện lớp nguồn)
   useEffect(() => {
     if (!open) return;
     if (!payload.makeupCreditId) return;
 
-    const fetchSuggestions = async () => {
+    const credit = credits.find((c) => creditId(c) === payload.makeupCreditId);
+    const sourceId = credit ? creditSourceSessionId(credit) : "";
+
+    const run = async () => {
+      setSourceSessionLoading(true);
+      setError(null);
+      setSourceSession(null);
+      setSuggestions([]);
+
+      // reset target
+      setPayload((p) => ({
+        ...p,
+        fromClassId: "",
+        targetClassId: "",
+        targetSessionId: "",
+      }));
+
+      try {
+        const s = await getSessionById(sourceId);
+        setSourceSession(s);
+        setPayload((p) => ({
+          ...p,
+          fromClassId: s?.classId ?? "",
+          // nếu user chưa chọn date/time thì set default theo plannedDatetime để suggestions có input
+          date: p.date || (s?.plannedDatetime ? toDateInputValue(new Date(s.plannedDatetime)) : ""),
+          time: p.time || (s?.plannedDatetime ? toTimeInputValue(new Date(s.plannedDatetime)) : ""),
+        }));
+      } catch {
+        // ignore
+      } finally {
+        setSourceSessionLoading(false);
+      }
+    };
+
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, payload.makeupCreditId]);
+
+  // ✅ fetch suggestions khi có credit + makeupDate (và timeOfDay optional)
+  useEffect(() => {
+    if (!open) return;
+    if (!payload.makeupCreditId) return;
+    if (!payload.date) return; // swagger có makeupDate => nên bắt buộc để có gợi ý
+
+    const timeOfDay = deriveTimeOfDay(payload.time);
+
+    const run = async () => {
       setSuggestionsLoading(true);
       setError(null);
       try {
-        const res = await getMakeupCreditSuggestions(payload.makeupCreditId);
-        const data = Array.isArray(res.data)
-          ? res.data
-          : res.data?.items ?? res.data?.suggestions ?? [];
-
-        const normalized: MakeupSuggestion[] = [];
-        data.forEach((item: any) => {
-          if (Array.isArray(item?.sessions)) {
-            item.sessions.forEach((session: any) => {
-              normalized.push({
-                ...session,
-                classId:
-                  item.classId ?? item.class?.id ?? session.classId ?? session.class?.id,
-                className:
-                  item.className ??
-                  item.class?.name ??
-                  item.class?.className ??
-                  session.className ??
-                  session.class?.name,
-              });
-            });
-            return;
-          }
-          normalized.push(item);
+        const res = await getMakeupCreditSuggestions(payload.makeupCreditId, {
+          makeupDate: payload.date,
+          timeOfDay: timeOfDay,
         });
 
-        setSuggestions(normalized);
+        const api = unwrap(res);
+        const list = (api?.items ?? api?.suggestions ?? api) as any[];
+        setSuggestions(normalizeSuggestions(Array.isArray(list) ? list : []));
       } catch {
-        setError("Không thể tải gợi ý lớp bù.");
+        setError("Không thể tải gợi ý lớp/buổi học bù (suggestions).");
       } finally {
         setSuggestionsLoading(false);
       }
     };
 
-    fetchSuggestions();
-  }, [open, payload.makeupCreditId]);
+    run();
+  }, [open, payload.makeupCreditId, payload.date, payload.time]);
 
   const studentOptions = useMemo(() => {
     const map = new Map<string, string>();
-    makeupCredits.forEach((credit) => {
-      const studentId = getStudentIdFromCredit(credit);
-      if (!studentId) return;
-      if (!map.has(studentId)) map.set(studentId, getStudentNameFromCredit(credit));
+    students.forEach((s) => {
+      const id = getStudentId(s);
+      if (!id) return;
+      if (!map.has(id)) map.set(id, getStudentName(s));
     });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [makeupCredits]);
+  }, [students]);
 
-  const studentCredits = useMemo(() => {
-    if (!payload.studentProfileId) return [];
-    return makeupCredits.filter(
-      (credit) => getStudentIdFromCredit(credit) === payload.studentProfileId
-    );
-  }, [makeupCredits, payload.studentProfileId]);
+  const creditOptions = useMemo(() => {
+    return credits.map((c) => {
+      const id = creditId(c);
+      const status = creditStatus(c) || "AVAILABLE";
+      const src = creditSourceSessionId(c);
+      // label gọn: Available • 605b340e...
+      return { id, label: `${status} • ${src?.slice(0, 8)}…`, raw: c };
+    });
+  }, [credits]);
 
   const targetClassOptions = useMemo(() => {
     const map = new Map<string, string>();
-    suggestions.forEach((item) => {
-      const classId =
-        (pickValue(item as Record<string, any>, ["classId", "class.id"]) as
-          | string
-          | undefined) ?? "";
-      if (!classId) return;
-
-      if (!map.has(classId)) {
-        const className =
-          (pickValue(item as Record<string, any>, [
-            "className",
-            "class.name",
-            "class.className",
-            "class.title",
-            "class.code",
-          ]) as string | undefined) ?? "Chưa rõ lớp";
-        map.set(classId, className);
-      }
+    suggestions.forEach((s: any) => {
+      const id = suggestionClassId(s);
+      if (!id) return;
+      if (map.has(id)) return;
+      const code = suggestionClassCode(s);
+      const name = suggestionClassName(s);
+      map.set(id, [code, name].filter(Boolean).join(" - "));
     });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+    return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
   }, [suggestions]);
 
   const filteredSessions = useMemo(() => {
-    if (!payload.targetClassId) return suggestions;
-
-    return suggestions.filter((item) => {
-      const classId =
-        (pickValue(item as Record<string, any>, ["classId", "class.id"]) as
-          | string
-          | undefined) ?? "";
-      return classId === payload.targetClassId;
-    });
-  }, [payload.targetClassId, suggestions]);
-
-  const sourceClassInfo = useMemo(() => {
-    const credit = studentCredits.find((item) => (item as any).id === payload.makeupCreditId);
-    if (!credit) return "";
-    return formatScheduleInfo(credit as Record<string, any>);
-  }, [payload.makeupCreditId, studentCredits]);
-
-  const targetClassInfo = useMemo(() => {
-    if (!payload.targetClassId) return "";
-    const candidate = suggestions.find((item) => {
-      const classId =
-        (pickValue(item as Record<string, any>, ["classId", "class.id"]) as
-          | string
-          | undefined) ?? "";
-      return classId === payload.targetClassId;
-    });
-    return candidate ? formatScheduleInfo(candidate as Record<string, any>) : "";
-  }, [payload.targetClassId, suggestions]);
+    if (!payload.targetClassId) return [];
+    return suggestions.filter((s: any) => suggestionClassId(s) === payload.targetClassId);
+  }, [suggestions, payload.targetClassId]);
 
   const canSubmit = useMemo(() => {
     return (
@@ -368,35 +440,18 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     }
   };
 
-  // ESC đóng
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4">
-      <div className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl border border-pink-100 overflow-hidden">
+      <div className="w-full max-w-3xl rounded-3xl bg-white shadow-xl border border-pink-100 overflow-hidden">
         {/* header */}
-        <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-100 px-5 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow">
-                <CalendarDays size={18} />
-              </div>
-              <div>
-                <div className="text-base font-semibold text-gray-900">
-                  Tạo lịch học bù
-                </div>
-                <div className="text-xs text-gray-500">
-                  Chọn MakeupCredit và buổi học bù phù hợp
-                </div>
+        <div className="px-5 py-4 bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-100">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-lg font-bold text-gray-900">Tạo lịch học bù</div>
+              <div className="text-xs text-gray-600 mt-1">
+                Chọn học viên → chọn makeup credit → hiện lớp nguồn → suggestions theo makeupDate/timeOfDay → chọn lớp & buổi học bù.
               </div>
             </div>
 
@@ -433,29 +488,25 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                     date: "",
                     time: "",
                   }));
-                  setSuggestions([]);
                 }}
               >
-                <option value="">
-                  {creditsLoading ? "Đang tải học viên..." : "Chọn học viên"}
-                </option>
-                {studentOptions.map((student) => (
-                  <option key={student.id} value={student.id}>
-                    {student.name}
+                <option value="">{studentsLoading ? "Đang tải học viên..." : "Chọn học viên"}</option>
+                {studentOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
                   </option>
                 ))}
               </select>
-
               <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                {creditsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
+                {studentsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
               </div>
             </div>
           </div>
 
-          {/* Classes */}
+          {/* Credit + Target class */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-gray-800">Lớp nguồn</div>
+              <div className="text-sm font-semibold text-gray-800">Makeup credit</div>
               <div className="relative">
                 <select
                   className="h-11 w-full appearance-none rounded-xl border border-pink-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-60"
@@ -463,52 +514,38 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                   disabled={!payload.studentProfileId || creditsLoading}
                   onChange={(e) => {
                     const creditId = e.target.value;
-                    const credit = studentCredits.find(
-                      (item) => (item as any).id === creditId
-                    );
-
                     setPayload((p) => ({
                       ...p,
                       makeupCreditId: creditId,
-                      fromClassId: credit ? getClassIdFromCredit(credit) : "",
+                      fromClassId: "",
                       targetClassId: "",
                       targetSessionId: "",
-                      date: "",
-                      time: "",
+                      // giữ date/time nếu user đã chọn; nếu chưa thì effect credit sẽ set default theo sourceSession
+                      date: p.date,
+                      time: p.time,
                     }));
-                    setSuggestions([]);
                   }}
                 >
                   <option value="">
                     {!payload.studentProfileId
                       ? "Chọn học viên trước"
                       : creditsLoading
-                        ? "Đang tải lớp..."
-                        : "Chọn lớp nguồn"}
+                        ? "Đang tải makeup credit..."
+                        : creditOptions.length
+                          ? "Chọn makeup credit"
+                          : "Không có credit"}
                   </option>
-
-                  {studentCredits.map((credit) => {
-                    const creditId = (credit as any).id as string;
-                    const className = getClassNameFromCredit(credit);
-                    const info = formatScheduleInfo(credit as Record<string, any>);
-                    return (
-                      <option key={creditId} value={creditId}>
-                        {info ? `${className} • ${info}` : className}
-                      </option>
-                    );
-                  })}
+                  {creditOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
                 </select>
-
                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                   {creditsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
                 </div>
               </div>
-
-              {sourceClassInfo && (
-                <div className="text-xs text-gray-500">
-                  Thông tin lớp nguồn: {sourceClassInfo}
-                </div>
-              )}
+              <div className="text-xs text-gray-500">Chọn makeup credit để hiện lớp nguồn & gọi suggestions.</div>
             </div>
 
             <div className="space-y-1">
@@ -523,232 +560,148 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                       ...p,
                       targetClassId: e.target.value,
                       targetSessionId: "",
-                      date: "",
-                      time: "",
                     }))
                   }
                 >
                   <option value="">
                     {!payload.makeupCreditId
-                      ? "Chọn lớp nguồn trước"
+                      ? "Chọn makeup credit trước"
                       : suggestionsLoading
                         ? "Đang tải gợi ý..."
                         : targetClassOptions.length
                           ? "Chọn lớp bù"
                           : "Chưa có gợi ý"}
                   </option>
-
-                  {targetClassOptions.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
+                  {targetClassOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
                     </option>
                   ))}
+                </select>
+                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  {suggestionsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
+                </div>
+              </div>
+              <div className="text-xs text-gray-500">
+                Suggestions đang filter theo: <b>makeupDate={payload.date || "(chưa chọn)"}</b>,{" "}
+                <b>timeOfDay={deriveTimeOfDay(payload.time) || "(n/a)"}</b>
+              </div>
+            </div>
+          </div>
+
+          {/* Source class + session */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-gray-800">Lớp nguồn</div>
+              <input
+                className="h-11 w-full rounded-xl border border-pink-200 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-60"
+                value={
+                  payload.makeupCreditId
+                    ? sourceClassDisplay(sourceSession) || (sourceSessionLoading ? "Đang lấy lớp nguồn..." : "Không có dữ liệu lớp nguồn")
+                    : ""
+                }
+                placeholder="Chọn makeup credit để hiện lớp nguồn"
+                disabled
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-gray-800">Buổi học bù</div>
+              <div className="relative">
+                <select
+                  className="h-11 w-full appearance-none rounded-xl border border-pink-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-60"
+                  value={payload.targetSessionId}
+                  disabled={!payload.targetClassId || suggestionsLoading}
+                  onChange={(e) => {
+                    const sid = e.target.value;
+                    const chosen = filteredSessions.find((s: any) => suggestionSessionId(s) === sid);
+
+                    const planned = chosen ? suggestionPlannedDatetime(chosen) : "";
+                    let nextDate = payload.date;
+                    let nextTime = payload.time;
+
+                    if (planned) {
+                      const d = new Date(planned);
+                      if (!Number.isNaN(d.getTime())) {
+                        nextDate = toDateInputValue(d);
+                        nextTime = toTimeInputValue(d);
+                      }
+                    }
+
+                    setPayload((p) => ({
+                      ...p,
+                      targetSessionId: sid,
+                      date: nextDate,
+                      time: nextTime,
+                    }));
+                  }}
+                >
+                  <option value="">
+                    {!payload.targetClassId
+                      ? "Chọn lớp bù trước"
+                      : suggestionsLoading
+                        ? "Đang tải buổi học..."
+                        : filteredSessions.length
+                          ? "Chọn buổi học bù"
+                          : "Không có buổi học"}
+                  </option>
+
+                  {filteredSessions.map((s: any) => {
+                    const id = suggestionSessionId(s);
+                    const code = suggestionClassCode(s);
+                    const name = suggestionClassName(s);
+                    const planned = suggestionPlannedDatetime(s);
+                    const label = [[code, name].filter(Boolean).join(" - "), planned ? formatDateTimeVN(planned) : ""]
+                      .filter(Boolean)
+                      .join(" • ");
+                    return (
+                      <option key={id} value={id}>
+                        {label || id}
+                      </option>
+                    );
+                  })}
                 </select>
 
                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                   {suggestionsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
                 </div>
               </div>
-
-              {targetClassInfo && (
-                <div className="text-xs text-gray-500">
-                  Thông tin lớp bù: {targetClassInfo}
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Session */}
-          <div className="space-y-1">
-            <div className="text-sm font-semibold text-gray-800">Buổi học bù</div>
-            <div className="relative">
-              <select
-                className="h-11 w-full appearance-none rounded-xl border border-pink-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-60"
-                value={payload.targetSessionId}
-                disabled={!payload.targetClassId || suggestionsLoading}
-                onChange={(e) => {
-                  const sessionId = e.target.value;
-                  const chosen = filteredSessions.find((item) => {
-                    const id =
-                      (pickValue(item as Record<string, any>, [
-                        "id",
-                        "sessionId",
-                        "targetSessionId",
-                      ]) as string | undefined) ?? "";
-                    return id === sessionId;
-                  });
-
-                  const date =
-                    (pickValue(chosen as Record<string, any>, [
-                      "sessionDate",
-                      "date",
-                      "startDate",
-                    ]) as string | undefined) ?? "";
-
-                  const startTime =
-                    (pickValue(chosen as Record<string, any>, [
-                      "startTime",
-                      "time",
-                      "startAt",
-                    ]) as string | undefined) ?? "";
-
-                  setPayload((p) => ({
-                    ...p,
-                    targetSessionId: sessionId,
-                    date: date || p.date,
-                    time: startTime || p.time,
-                  }));
-                }}
-              >
-                <option value="">
-                  {!payload.targetClassId
-                    ? "Chọn lớp bù trước"
-                    : suggestionsLoading
-                      ? "Đang tải buổi học..."
-                      : filteredSessions.length
-                        ? "Chọn buổi học bù"
-                        : "Chưa có buổi học gợi ý"}
-                </option>
-
-                {filteredSessions.map((item) => {
-                  const sessionId =
-                    (pickValue(item as Record<string, any>, [
-                      "id",
-                      "sessionId",
-                      "targetSessionId",
-                    ]) as string | undefined) ?? "";
-
-                  const className =
-                    (pickValue(item as Record<string, any>, [
-                      "className",
-                      "class.name",
-                      "class.className",
-                      "class.title",
-                      "class.code",
-                    ]) as string | undefined) ?? "";
-
-                  const date =
-                    (pickValue(item as Record<string, any>, [
-                      "sessionDate",
-                      "date",
-                      "startDate",
-                    ]) as string | undefined) ?? "";
-
-                  const info = formatScheduleInfo(item as Record<string, any>);
-                  const label = [className, date, info].filter(Boolean).join(" • ");
-
-                  return (
-                    <option key={sessionId} value={sessionId}>
-                      {label || sessionId}
-                    </option>
-                  );
-                })}
-              </select>
-
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                {suggestionsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
-              </div>
-            </div>
-          </div>
-
-          {/* Suggestion quick pick */}
-          {suggestions.length > 0 && (
-            <div className="rounded-2xl border border-pink-100 bg-white/70 p-4 space-y-2">
-              <div className="text-sm font-semibold text-gray-800">
-                Gợi ý lớp & buổi học bù
-              </div>
-
-              <div className="grid gap-2">
-                {filteredSessions.map((item, idx) => {
-                  const sessionId =
-                    (pickValue(item as Record<string, any>, [
-                      "id",
-                      "sessionId",
-                      "targetSessionId",
-                    ]) as string | undefined) ?? "";
-
-                  const className =
-                    (pickValue(item as Record<string, any>, [
-                      "className",
-                      "class.name",
-                      "class.className",
-                      "class.title",
-                      "class.code",
-                    ]) as string | undefined) ?? "Lớp bù";
-
-                  const date =
-                    (pickValue(item as Record<string, any>, [
-                      "sessionDate",
-                      "date",
-                      "startDate",
-                    ]) as string | undefined) ?? "";
-
-                  const info = formatScheduleInfo(item as Record<string, any>);
-                  const label = [className, date, info].filter(Boolean).join(" • ");
-
-                  return (
-                    <button
-                      key={`${sessionId}-${idx}`}
-                      type="button"
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${
-                        payload.targetSessionId === sessionId
-                          ? "border-pink-300 bg-pink-50 text-pink-700"
-                          : "border-pink-100 bg-white hover:border-pink-200"
-                      }`}
-                      onClick={() =>
-                        setPayload((p) => ({
-                          ...p,
-                          targetClassId:
-                            (pickValue(item as Record<string, any>, [
-                              "classId",
-                              "class.id",
-                            ]) as string | undefined) ?? p.targetClassId,
-                          targetSessionId: sessionId,
-                          date:
-                            (pickValue(item as Record<string, any>, [
-                              "sessionDate",
-                              "date",
-                              "startDate",
-                            ]) as string | undefined) ?? p.date,
-                          time:
-                            (pickValue(item as Record<string, any>, [
-                              "startTime",
-                              "time",
-                              "startAt",
-                            ]) as string | undefined) ?? p.time,
-                        }))
-                      }
-                    >
-                      <span>{label || "Buổi học bù gợi ý"}</span>
-                      {payload.targetSessionId === sessionId && (
-                        <span className="text-xs font-semibold">Đã chọn</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Date + time */}
+          {/* Date & time (đổi date/time sẽ refetch suggestions vì useEffect) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-gray-800">Ngày học bù</div>
+              <div className="text-sm font-semibold text-gray-800">Ngày học bù (makeupDate)</div>
               <input
                 type="date"
                 className="h-11 w-full rounded-xl border border-pink-200 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
                 value={payload.date}
-                onChange={(e) => setPayload((p) => ({ ...p, date: e.target.value }))}
+                onChange={(e) =>
+                  setPayload((p) => ({
+                    ...p,
+                    date: e.target.value,
+                    targetClassId: "",
+                    targetSessionId: "",
+                  }))
+                }
               />
             </div>
 
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-gray-800">Giờ</div>
+              <div className="text-sm font-semibold text-gray-800">Giờ (derive timeOfDay)</div>
               <input
                 type="time"
                 className="h-11 w-full rounded-xl border border-pink-200 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
                 value={payload.time}
-                onChange={(e) => setPayload((p) => ({ ...p, time: e.target.value }))}
+                onChange={(e) =>
+                  setPayload((p) => ({
+                    ...p,
+                    time: e.target.value,
+                    targetClassId: "",
+                    targetSessionId: "",
+                  }))
+                }
               />
             </div>
           </div>
@@ -761,11 +714,11 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
               className="w-full rounded-xl border border-pink-200 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
               value={payload.note ?? ""}
               onChange={(e) => setPayload((p) => ({ ...p, note: e.target.value }))}
-              placeholder="Ví dụ: Học bù do nghỉ ốm..."
+              placeholder="Nhập ghi chú..."
             />
           </div>
 
-          {/* actions */}
+          {/* footer */}
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
               onClick={onClose}
@@ -792,6 +745,10 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                 </>
               )}
             </button>
+          </div>
+
+          <div className="text-xs text-gray-500">
+            *Gợi ý lớp/buổi học bù (suggestions) phụ thuộc <b>makeupDate</b> + <b>timeOfDay</b>.
           </div>
         </div>
       </div>

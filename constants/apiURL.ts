@@ -57,17 +57,31 @@ export const CLASS_ENDPOINTS = {
 } as const;
 
 export const MAKEUP_CREDIT_ENDPOINTS = {
+    STUDENTS: "/api/makeup-credits/students",
   GET_ALL: "/api/makeup-credits/all",
+    GET_BY_ID: (id: string) => `/api/makeup-credits/${id}`,
   SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
   USE: (id: string) => `/api/makeup-credits/${id}/use`,
 } as const;
+export const SESSION_ENDPOINTS = {
+  GET_BY_ID: (id: string) => `/api/sessions/${id}`,
+} as const;
 
+// Next API → Backend
+export const BACKEND_SESSION_ENDPOINTS = {
+  GET_BY_ID: (id: string) => `/sessions/${id}`, // nếu backend bạn khác path thì sửa chỗ này
+} as const;
 export const BACKEND_CLASS_ENDPOINTS = {
+  
   GET_ALL: () => "/classes",
   GET_BY_ID: (id: string) => `/classes/${id}`,
 } as const;
 export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
+    STUDENTS: "/makeup-credits/students",
+
   GET_ALL: "/makeup-credits/all",
+    GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
+
   SUGGESTIONS: (id: string) => `/makeup-credits/${id}/suggestions`,
   USE: (id: string) => `/makeup-credits/${id}/use`,
 } as const;
