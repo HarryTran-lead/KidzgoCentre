@@ -12,29 +12,26 @@ import {
   Facebook,
   Twitter,
   PhoneCall,
+  Clock,
+  ChevronRight,
+  CheckCircle,
+  Building,
   MapPin,
   Send,
   User,
-  Building,
   MessageCircle,
-  ChevronRight,
-  Sparkles,
-  Globe,
-  Clock,
-  CheckCircle,
   Users,
-  Heart
 } from "lucide-react";
+import { createLeadPublic } from "@/lib/api/leadService";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Contact() {
+  const { toast } = useToast();
   const [form, setForm] = useState({
-    name: "",
+    contactName: "",
     email: "",
     phone: "",
-    company: "",
-    subject: "",
-    message: "",
-    inquiryType: "general"
+    zaloId: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,20 +40,39 @@ export default function Contact() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Mô phỏng gọi API
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    alert("Cảm ơn bạn! Tin nhắn của bạn đã được gửi.");
-    setForm({
-      name: "",
-      email: "",
-      phone: "",
-      company: "",
-      subject: "",
-      message: "",
-      inquiryType: "general"
-    });
-    setIsSubmitting(false);
+    try {
+      const response = await createLeadPublic({
+        contactName: form.contactName,
+        email: form.email,
+        phone: form.phone,
+        zaloId: form.zaloId || undefined,
+      });
+
+      if (response.success) {
+        toast({
+          title: "Thành công!",
+          description: "Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi sớm nhất có thể.",
+          variant: "success",
+        });
+        
+        // Reset form
+        setForm({
+          contactName: "",
+          email: "",
+          phone: "",
+          zaloId: "",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error submitting lead:", error);
+      toast({
+        title: "Lỗi",
+        description: error.response?.data?.message || "Không thể gửi thông tin. Vui lòng thử lại sau.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const fadeInUp = {
@@ -281,8 +297,8 @@ export default function Contact() {
                         required
                         className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="Nguyễn Văn A"
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        value={form.contactName}
+                        onChange={(e) => setForm({ ...form, contactName: e.target.value })}
                       />
                     </div>
 
@@ -309,13 +325,14 @@ export default function Contact() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4" />
-                          Số điện thoại
+                          Số điện thoại *
                         </div>
                       </label>
                       <input
                         type="tel"
+                        required
                         className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
-                        placeholder="+84 999 888 777"
+                        placeholder="0999888777"
                         value={form.phone}
                         onChange={(e) => setForm({ ...form, phone: e.target.value })}
                       />
@@ -324,46 +341,18 @@ export default function Contact() {
                     <div className="group">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
-                          <Building className="w-4 h-4" />
-                          Công ty / Trường học
+                          <MessageCircle className="w-4 h-4" />
+                          Zalo ID
                         </div>
                       </label>
                       <input
                         type="text"
                         className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
-                        placeholder="Tổ chức của bạn"
-                        value={form.company}
-                        onChange={(e) => setForm({ ...form, company: e.target.value })}
+                        placeholder="Số Zalo của bạn"
+                        value={form.zaloId}
+                        onChange={(e) => setForm({ ...form, zaloId: e.target.value })}
                       />
                     </div>
-                  </div>
-
-                  <div className="group">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tiêu đề *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
-                      placeholder="Chúng tôi có thể giúp gì cho bạn?"
-                      value={form.subject}
-                      onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="group">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tin nhắn của bạn *
-                    </label>
-                    <textarea
-                      required
-                      rows={4}
-                      className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300 resize-none"
-                      placeholder="Hãy cho chúng tôi biết thêm về yêu cầu của bạn..."
-                      value={form.message}
-                      onChange={(e) => setForm({ ...form, message: e.target.value })}
-                    />
                   </div>
 
                   <div className="flex items-center justify-between pt-6 border-t border-gray-100">

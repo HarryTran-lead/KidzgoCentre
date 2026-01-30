@@ -113,3 +113,34 @@ export const ADMIN_ENDPOINTS = {
   CLASSROOMS: '/api/classrooms',
   SESSIONS: '/api/sessions',
 } as const;
+
+// Lead Endpoints (Client-side → Next.js API Routes)
+export const LEAD_ENDPOINTS = {
+  // Public endpoint - no authentication required
+  CREATE_PUBLIC: '/api/leads/public',
+  
+  // Authenticated endpoints
+  GET_ALL: '/api/leads',
+  GET_BY_ID: (id: string) => `/api/leads/${id}`,
+  CREATE: '/api/leads',
+  UPDATE: (id: string) => `/api/leads/${id}`,
+  ASSIGN: (id: string) => `/api/leads/${id}/assign`,
+  UPDATE_STATUS: (id: string) => `/api/leads/${id}/status`,
+  ADD_NOTE: (id: string) => `/api/leads/${id}/notes`,
+  GET_ACTIVITIES: (id: string) => `/api/leads/${id}/activities`,
+  GET_SLA: (id: string) => `/api/leads/${id}/sla`,
+} as const;
+
+// Backend Lead Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_LEAD_ENDPOINTS = {
+  CREATE_PUBLIC: '/leads/public',
+  GET_ALL: '/leads',
+  GET_BY_ID: (id: string) => `/leads/${id}`,
+  CREATE: '/leads',
+  UPDATE: (id: string) => `/leads/${id}`,
+  ASSIGN: (id: string) => `/leads/${id}/assign`,
+  UPDATE_STATUS: (id: string) => `/leads/${id}/status`,
+  ADD_NOTE: (id: string) => `/leads/${id}/notes`,
+  GET_ACTIVITIES: (id: string) => `/leads/${id}/activities`,
+  GET_SLA: (id: string) => `/leads/${id}/sla`,
+} as const;
