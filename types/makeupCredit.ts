@@ -8,8 +8,13 @@ export type MakeupCredit = {
   studentFullName?: string;
   classId?: string;
   className?: string;
+  sourceSessionId?: string;
+  usedSessionId?: string;
   status?: string;
   remainingCredits?: number;
+  createdReason?: string;
+  createdAt?: string;
+  expiresAt?: string | null;
   [key: string]: unknown;
 };
 

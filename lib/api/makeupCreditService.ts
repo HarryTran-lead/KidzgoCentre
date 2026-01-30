@@ -28,6 +28,23 @@ export async function getAllMakeupCredits(): Promise<MakeupCreditsResponse> {
   const endpoint = MAKEUP_CREDIT_ENDPOINTS.GET_ALL ?? "/api/makeup-credits/all";
   return get<MakeupCreditsResponse>(endpoint);
 }
+export async function getMakeupCredits(params?: {
+  studentProfileId?: string;
+  status?: string;
+  branchId?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}): Promise<MakeupCreditsResponse> {
+  const endpoint = MAKEUP_CREDIT_ENDPOINTS.GET_ALL ?? "/api/makeup-credits/all";
+  const qs = new URLSearchParams();
+  if (params?.studentProfileId) qs.set("studentProfileId", params.studentProfileId);
+  if (params?.status) qs.set("status", params.status);
+  if (params?.branchId) qs.set("branchId", params.branchId);
+  if (params?.pageNumber) qs.set("pageNumber", String(params.pageNumber));
+  if (params?.pageSize) qs.set("pageSize", String(params.pageSize));
+  const url = qs.toString() ? `${endpoint}?${qs.toString()}` : endpoint;
+  return get<MakeupCreditsResponse>(url);
+}
 export async function getMakeupCreditStudents(): Promise<MakeupCreditStudentsResponse> {
   const endpoint =
     MAKEUP_CREDIT_ENDPOINTS.STUDENTS ?? "/api/makeup-credits/students";
