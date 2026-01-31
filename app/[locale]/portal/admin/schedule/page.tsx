@@ -127,9 +127,9 @@ const initialFormData: ScheduleFormData = {
   roomId: "",
   assistantId: "",
   date: "",
-  time: "",
+    time: "",
   period: "EVENING",
-  color: "bg-gradient-to-r from-pink-500 to-rose-500",
+    color: "bg-gradient-to-r from-pink-500 to-rose-500",
   note: "",
   repeat: "NONE",
   repeatEndDate: "",
@@ -242,7 +242,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        onClose();
+    onClose();
       }
     };
 
@@ -349,22 +349,22 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
                 <CalendarDays size={24} className="text-white" />
-              </div>
-              <div>
+            </div>
+            <div>
                 <h2 className="text-2xl font-bold text-white">Tạo lịch mới</h2>
                 <p className="text-sm text-pink-100">Thêm lịch học, buổi bù hoặc sự kiện mới</p>
-              </div>
             </div>
-            <button
-              onClick={onClose}
+          </div>
+          <button
+            onClick={onClose}
               className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
               aria-label="Đóng"
-            >
+          >
               <X size={24} className="text-white" />
-            </button>
+          </button>
           </div>
         </div>
 
@@ -402,9 +402,9 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   {errors.classId && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <AlertCircle size={18} className="text-rose-500" />
-                    </div>
+            </div>
                   )}
-                </div>
+              </div>
                 {errors.classId && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.classId}</p>}
               </div>
 
@@ -433,8 +433,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                     </button>
                   ))}
                 </div>
-              </div>
             </div>
+          </div>
 
             {/* Row 2: Giáo viên & Phòng học */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -465,7 +465,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   )}
                 </div>
                 {errors.teacherId && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.teacherId}</p>}
-              </div>
+          </div>
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -473,29 +473,29 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   Phòng học *
                 </label>
                 <div className="relative">
-                  <select
+              <select
                     value={formData.roomId}
                     onChange={(e) => handleChange("roomId", e.target.value)}
                     className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
                       errors.roomId ? "border-rose-500" : "border-pink-200"
                     }`}
-                  >
+              >
                     <option value="">Chọn phòng học</option>
                     {roomOptions.map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.label}
                       </option>
                     ))}
-                  </select>
+              </select>
                   {errors.roomId && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <AlertCircle size={18} className="text-rose-500" />
-                    </div>
+            </div>
                   )}
                 </div>
                 {errors.roomId && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.roomId}</p>}
-              </div>
             </div>
+          </div>
 
             {/* Row 3: Ngày & Ca học */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -505,7 +505,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   Ngày *
                 </label>
                 <div className="relative">
-                  <input
+              <input
                     type="date"
                     value={formData.date}
                     onChange={(e) => handleChange("date", e.target.value)}
@@ -516,7 +516,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   {errors.date && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <AlertCircle size={18} className="text-rose-500" />
-                    </div>
+            </div>
                   )}
                 </div>
                 {errors.date && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.date}</p>}
@@ -561,24 +561,24 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 Thời gian chi tiết *
               </label>
               <div className="relative">
-                <input
-                  type="text"
-                  value={formData.time}
+              <input
+                type="text"
+                value={formData.time}
                   onChange={(e) => handleChange("time", e.target.value)}
                   className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
                     errors.time ? "border-rose-500" : "border-pink-200"
                   }`}
-                  placeholder="VD: 18:30 - 20:00"
-                />
+                placeholder="VD: 18:30 - 20:00"
+              />
                 {errors.time && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <AlertCircle size={18} className="text-rose-500" />
-                  </div>
+            </div>
                 )}
               </div>
               {errors.time && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.time}</p>}
               <p className="text-xs text-gray-500">Nhập theo định dạng HH:MM - HH:MM</p>
-            </div>
+          </div>
 
             {/* Row 5: Màu sắc */}
             <div className="space-y-2">
@@ -586,20 +586,20 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 <Palette size={16} className="text-pink-500" />
                 Màu sắc hiển thị
               </label>
-              <div className="grid grid-cols-8">
-                {COLOR_OPTIONS.map((color) => (
-                  <button
-                    key={color.value}
-                    type="button"
+            <div className="grid grid-cols-8">
+              {COLOR_OPTIONS.map((color) => (
+                <button
+                  key={color.value}
+                  type="button"
                     onClick={() => handleChange("color", color.value)}
-                    className={`h-8 w-8 rounded-lg cursor-pointer ${color.value} border-2 ${
-                      formData.color === color.value ? 'border-white ring-2 ring-pink-500' : 'border-transparent'
-                    } hover:scale-110 transition-all`}
-                    title={color.name}
-                  />
-                ))}
-              </div>
+                  className={`h-8 w-8 rounded-lg cursor-pointer ${color.value} border-2 ${
+                    formData.color === color.value ? 'border-white ring-2 ring-pink-500' : 'border-transparent'
+                  } hover:scale-110 transition-all`}
+                  title={color.name}
+                />
+              ))}
             </div>
+          </div>
 
             {/* Row 6: Lặp lại */}
             <div className="space-y-2">
@@ -651,14 +651,14 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 <FileText size={16} className="text-pink-500" />
                 Ghi chú
               </label>
-              <textarea
-                value={formData.note}
+            <textarea
+              value={formData.note}
                 onChange={(e) => handleChange("note", e.target.value)}
                 rows={3}
                 className="w-full px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none"
                 placeholder="VD: Bù cho 03/12, Mang theo tài liệu, Chủ đề hôm nay..."
-              />
-            </div>
+            />
+          </div>
 
             {/* Row 8: Gửi thông báo */}
             <div className="flex items-center justify-between p-3 rounded-xl border border-pink-200 bg-gradient-to-r from-pink-50/50 to-rose-50/50">
@@ -699,7 +699,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
               Hủy bỏ
             </button>
             <div className="flex items-center gap-3">
-              <button
+            <button
                 type="button"
                 onClick={() => {
                   setFormData(initialFormData);
@@ -723,8 +723,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
               >
                 <Save size={16} />
                 {isSubmitting ? "Đang tạo..." : "Tạo lịch"}
-              </button>
-            </div>
+            </button>
+          </div>
           </div>
         </div>
       </div>
@@ -1194,188 +1194,188 @@ export default function AdminSchedulePage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
-              <CalendarDays size={28} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-                Lịch chung toàn hệ thống
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Quản lý và theo dõi lịch học theo tuần với 3 ca Sáng – Chiều – Tối
-              </p>
-            </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+            <CalendarDays size={28} className="text-white" />
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <div className="flex gap-2">
-              <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors cursor-pointer">
-                <Download size={16} /> Xuất lịch
-              </button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              Lịch chung toàn hệ thống
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Quản lý và theo dõi lịch học theo tuần với 3 ca Sáng – Chiều – Tối
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex gap-2">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors cursor-pointer">
+              <Download size={16} /> Xuất lịch
+            </button>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
               >
-                <PlusCircle size={16} /> Tạo lịch mới
-              </button>
-            </div>
+              <PlusCircle size={16} /> Tạo lịch mới
+            </button>
           </div>
-        </div>
-
-        {/* Bộ lọc */}
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 flex flex-wrap gap-2">
-          {["ALL", "CLASS", "MAKEUP", "EVENT"].map((item) => {
-            const isActive = filter === item;
-            const meta = item === "ALL" 
-              ? { text: "Tất cả", badge: "bg-gradient-to-r from-pink-500 to-rose-500" }
-              : TYPE_META[item as SlotType];
-            
-            return (
-              <button
-                key={item}
-                onClick={() => setFilter(item as typeof filter)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
-                  isActive 
-                    ? `${meta.badge} text-white shadow-md` 
-                    : "bg-white border border-pink-200 text-gray-600 hover:bg-pink-50"
-                }`}
-              >
-                <span>{item === "ALL" ? "Tất cả" : meta.text}</span>
-                {item !== "ALL" && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    isActive ? "bg-white/20" : "bg-gray-100"
-                  }`}>
-                    {stats.byType[item as SlotType]}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Thời khoá biểu theo tuần */}
-        <WeekTimetable 
-          items={sortedList} 
-          weekCursor={weekCursor} 
-          setWeekCursor={setWeekCursor}
-          onColorChange={handleColorChange}
-          onCellClick={handleCellClick}
-          onSlotClick={handleSlotClick}
-        />
-
-        {/* Legend (Chú thích) */}
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
-          <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích:</div>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
-              <span className="text-sm text-gray-600">Online</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-sky-500"></div>
-              <span className="text-sm text-gray-600">Offline</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-6 rounded bg-gradient-to-r from-pink-500 to-rose-500"></div>
-              <span className="text-sm text-gray-600">PRE-IELTS</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-6 rounded bg-gradient-to-r from-blue-500 to-sky-500"></div>
-              <span className="text-sm text-gray-600">TOEFL/General</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-6 rounded bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-              <span className="text-sm text-gray-600">IELTS Foundation</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Danh sách thẻ chi tiết */}
-        <div className="space-y-4">
-          <div className="text-lg font-semibold text-gray-900">Chi tiết lịch tháng 12</div>
-          {sortedList.map((slot) => {
-            const lightColor = slot.color 
-              ? slot.color
-                .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
-                .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
-                .replace('from-fuchsia-500 to-purple-500', 'from-fuchsia-100 to-purple-100')
-                .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
-                .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
-                .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
-                .replace('from-indigo-500 to-blue-500', 'from-indigo-100 to-blue-100')
-                .replace('from-violet-500 to-purple-600', 'from-violet-100 to-purple-100')
-                .replace('from-gray-500 to-slate-500', 'from-gray-100 to-slate-100')
-              : "bg-gradient-to-br from-pink-50 to-rose-50";
-            
-            return (
-              <div
-                key={slot.id}
-                onClick={() => handleSlotClick(slot.id)}
-                className={`rounded-2xl border border-pink-200 p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between hover:shadow-md transition-all cursor-pointer ${lightColor}`}
-              >
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-3">
-                    <TypeBadge type={slot.type} />
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-semibold text-gray-900">{slot.title}</span>
-                      <ColorPicker 
-                        lessonId={slot.id} 
-                        currentColor={slot.color || TYPE_META[slot.type].defaultColor}
-                        onColorChange={handleColorChange}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="text-sm text-gray-600 inline-flex items-center gap-2">
-                      <CalendarRange size={16} className="text-pink-500" /> {slot.date}
-                    </div>
-                    <div className="text-sm text-gray-600 inline-flex items-center gap-2">
-                      <Clock3 size={16} className="text-pink-500" /> {slot.time}
-                    </div>
-                    <div className="text-sm text-gray-600 inline-flex items-center gap-2">
-                      <Users size={16} className="text-pink-500" /> {slot.teacher}
-                    </div>
-                    <div className="text-sm text-gray-600 inline-flex items-center gap-2">
-                      <MapPin size={16} className="text-pink-500" /> {slot.room}
-                    </div>
-                  </div>
-                  {slot.note && (
-                    <div className="text-xs text-gray-500 bg-white/50 rounded-lg p-2 inline-block">
-                      📝 {slot.note}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {slot.type === "MAKEUP" ? (
-                    <button className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer">
-                      <ArrowLeftRight size={16} /> Phân bổ buổi bù
-                    </button>
-                  ) : null}
-                  <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2 text-sm font-medium text-white hover:shadow-md transition-colors cursor-pointer">
-                    <Send size={16} /> Gửi thông báo
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer note */}
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-pink-50 to-white p-5 space-y-3">
-          <div className="font-semibold text-gray-900 flex items-center gap-2">
-            <div className="h-6 w-1 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full"></div>
-            Ghi chú quản lý
-          </div>
-          <p className="text-sm text-gray-600">
-            • Các buổi bù sẽ được tổng hợp và gửi báo cáo cuối tháng cho bộ phận tài chính<br/>
-            • Nhấn vào biểu tượng <Palette size={12} className="inline ml-1" /> để đổi màu phân biệt các khóa học<br/>
-            • Lịch học có thể xuất file Excel/PDF bằng nút "Xuất lịch"
-          </p>
         </div>
       </div>
+
+        {/* Bộ lọc */}
+      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 flex flex-wrap gap-2">
+        {["ALL", "CLASS", "MAKEUP", "EVENT"].map((item) => {
+          const isActive = filter === item;
+          const meta = item === "ALL" 
+            ? { text: "Tất cả", badge: "bg-gradient-to-r from-pink-500 to-rose-500" }
+            : TYPE_META[item as SlotType];
+          
+          return (
+            <button
+              key={item}
+              onClick={() => setFilter(item as typeof filter)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+                isActive 
+                  ? `${meta.badge} text-white shadow-md` 
+                  : "bg-white border border-pink-200 text-gray-600 hover:bg-pink-50"
+              }`}
+            >
+              <span>{item === "ALL" ? "Tất cả" : meta.text}</span>
+              {item !== "ALL" && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  isActive ? "bg-white/20" : "bg-gray-100"
+                }`}>
+                  {stats.byType[item as SlotType]}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+        {/* Thời khoá biểu theo tuần */}
+      <WeekTimetable 
+        items={sortedList} 
+        weekCursor={weekCursor} 
+        setWeekCursor={setWeekCursor}
+        onColorChange={handleColorChange}
+        onCellClick={handleCellClick}
+          onSlotClick={handleSlotClick}
+      />
+
+      {/* Legend (Chú thích) */}
+      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+        <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích:</div>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
+            <span className="text-sm text-gray-600">Online</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-sky-500"></div>
+            <span className="text-sm text-gray-600">Offline</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-pink-500 to-rose-500"></div>
+            <span className="text-sm text-gray-600">PRE-IELTS</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-blue-500 to-sky-500"></div>
+            <span className="text-sm text-gray-600">TOEFL/General</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            <span className="text-sm text-gray-600">IELTS Foundation</span>
+          </div>
+        </div>
+      </div>
+
+        {/* Danh sách thẻ chi tiết */}
+      <div className="space-y-4">
+        <div className="text-lg font-semibold text-gray-900">Chi tiết lịch tháng 12</div>
+        {sortedList.map((slot) => {
+          const lightColor = slot.color 
+            ? slot.color
+              .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
+              .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
+              .replace('from-fuchsia-500 to-purple-500', 'from-fuchsia-100 to-purple-100')
+              .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
+              .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
+              .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
+              .replace('from-indigo-500 to-blue-500', 'from-indigo-100 to-blue-100')
+              .replace('from-violet-500 to-purple-600', 'from-violet-100 to-purple-100')
+              .replace('from-gray-500 to-slate-500', 'from-gray-100 to-slate-100')
+            : "bg-gradient-to-br from-pink-50 to-rose-50";
+          
+          return (
+            <div
+              key={slot.id}
+                onClick={() => handleSlotClick(slot.id)}
+                className={`rounded-2xl border border-pink-200 p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between hover:shadow-md transition-all cursor-pointer ${lightColor}`}
+            >
+              <div className="space-y-2 flex-1">
+                <div className="flex items-center gap-3">
+                  <TypeBadge type={slot.type} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-semibold text-gray-900">{slot.title}</span>
+                    <ColorPicker 
+                      lessonId={slot.id} 
+                      currentColor={slot.color || TYPE_META[slot.type].defaultColor}
+                      onColorChange={handleColorChange}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="text-sm text-gray-600 inline-flex items-center gap-2">
+                    <CalendarRange size={16} className="text-pink-500" /> {slot.date}
+                  </div>
+                  <div className="text-sm text-gray-600 inline-flex items-center gap-2">
+                    <Clock3 size={16} className="text-pink-500" /> {slot.time}
+                  </div>
+                  <div className="text-sm text-gray-600 inline-flex items-center gap-2">
+                    <Users size={16} className="text-pink-500" /> {slot.teacher}
+                  </div>
+                  <div className="text-sm text-gray-600 inline-flex items-center gap-2">
+                    <MapPin size={16} className="text-pink-500" /> {slot.room}
+                  </div>
+                </div>
+                {slot.note && (
+                  <div className="text-xs text-gray-500 bg-white/50 rounded-lg p-2 inline-block">
+                    📝 {slot.note}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {slot.type === "MAKEUP" ? (
+                  <button className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer">
+                    <ArrowLeftRight size={16} /> Phân bổ buổi bù
+                  </button>
+                ) : null}
+                <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2 text-sm font-medium text-white hover:shadow-md transition-colors cursor-pointer">
+                  <Send size={16} /> Gửi thông báo
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer note */}
+      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-pink-50 to-white p-5 space-y-3">
+        <div className="font-semibold text-gray-900 flex items-center gap-2">
+          <div className="h-6 w-1 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full"></div>
+          Ghi chú quản lý
+        </div>
+        <p className="text-sm text-gray-600">
+          • Các buổi bù sẽ được tổng hợp và gửi báo cáo cuối tháng cho bộ phận tài chính<br/>
+          • Nhấn vào biểu tượng <Palette size={12} className="inline ml-1" /> để đổi màu phân biệt các khóa học<br/>
+          • Lịch học có thể xuất file Excel/PDF bằng nút "Xuất lịch"
+        </p>
+      </div>
+    </div>
 
       {/* Create Schedule Modal */}
       <CreateScheduleModal
