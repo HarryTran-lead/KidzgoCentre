@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, User, Mail, Phone, MessageSquare, Building, Tag } from "lucide-react";
 import { createLead, updateLead } from "@/lib/api/leadService";
-import { getAllBranches } from "@/lib/api/branchService";
+import { getAllBranchesPublic } from "@/lib/api/branchService";
 import { useToast } from "@/hooks/use-toast";
 import type { Lead } from "@/types/lead";
 import type { Branch } from "@/types/branch";
@@ -36,10 +36,10 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
   });
 
   useEffect(() => {
-    // Fetch branches
+    // Fetch branches using public API (accessible by all roles)
     const fetchBranches = async () => {
       try {
-        const response = await getAllBranches({ isActive: true });
+        const response = await getAllBranchesPublic({ isActive: true });
         console.log("Branches API response:", response);
         if (response.isSuccess && response.data?.branches) {
           console.log("Branches loaded:", response.data.branches);
@@ -110,6 +110,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
         toast({
           title: "Thành công",
           description: "Đã cập nhật lead thành công",
+          variant: "success"
         });
       } else {
         // Create new lead
@@ -117,6 +118,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
         toast({
           title: "Thành công",
           description: "Đã tạo lead mới thành công",
+          variant: "success"
         });
       }
       

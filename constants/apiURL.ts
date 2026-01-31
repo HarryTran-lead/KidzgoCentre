@@ -53,6 +53,7 @@ export const BACKEND_AUTH_ENDPOINTS = {
 export const BRANCH_ENDPOINTS = {
   // CRUD Operations
   GET_ALL: '/api/branches',
+  GET_ALL_PUBLIC: '/api/branches/all', // For all roles (staff, teacher, etc.)
   GET_BY_ID: (id: string) => `/api/branches/${id}`,
   CREATE: '/api/branches/create',
   UPDATE: (id: string) => `/api/branches/${id}`,

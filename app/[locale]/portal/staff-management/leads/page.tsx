@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Target, UserPlus, Download } from "lucide-react";
 import { getAllLeads, updateLeadStatus } from "@/lib/api/leadService";
 import { useToast } from "@/hooks/use-toast";
@@ -28,7 +28,8 @@ export default function Page() {
   const { toast } = useToast();
   
   // Data state
-  const [leads, setLeads] = useState<LeadType[]>([]);
+  const [leads, setLeads] = useState<LeadType[]>([]); // Filtered leads for table
+  const [allLeads, setAllLeads] = useState<LeadType[]>([]); // All leads for stats (load once)
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -45,6 +46,9 @@ export default function Page() {
   const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
   const [selectedSource, setSelectedSource] = useState<string>("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [availableSources, setAvailableSources] = useState<string[]>([]);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   
   // Table state
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
@@ -58,19 +62,69 @@ export default function Page() {
 
   useEffect(() => {
     setIsPageLoaded(true);
+    // Fetch initial data for stats and filters (only once)
+    fetchInitialData();
   }, []);
+
+  // Debounce search query (2 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchInitialData = async () => {
+    try {
+      // Fetch all leads without filters for stats and filter options
+      const response = await getAllLeads({ pageSize: 1000 });
+      if (response.isSuccess && response.data.leads) {
+        const allLeadsData = response.data.leads;
+        setAllLeads(allLeadsData);
+        
+        // Extract available sources
+        const sources = new Set(allLeadsData.map(l => l.source).filter(Boolean));
+        setAvailableSources(Array.from(sources));
+        
+        // Calculate status counts
+        const counts: Record<string, number> = {
+          "Tất cả": allLeadsData.length,
+        };
+        
+        Object.entries(STATUS_MAPPING).forEach(([engStatus, vnStatus]) => {
+          counts[vnStatus] = allLeadsData.filter(l => l.status === engStatus).length;
+        });
+        
+        setStatusCounts(counts);
+      }
+    } catch (error) {
+      console.error("Error fetching initial data:", error);
+    }
+  };
 
   useEffect(() => {
     fetchLeads();
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource]);
 
   const fetchLeads = async () => {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Map Vietnamese status to English status
+      const getEnglishStatus = (vietnameseStatus: string): string | undefined => {
+        if (vietnameseStatus === "Tất cả") return undefined;
+        const entry = Object.entries(STATUS_MAPPING).find(([_, vn]) => vn === vietnameseStatus);
+        return entry ? entry[0] : undefined;
+      };
+      
       const response = await getAllLeads({
         page: currentPage,
         pageSize: pageSize,
+        searchTerm: debouncedSearchQuery || undefined,
+        status: getEnglishStatus(selectedStatus),
+        source: selectedSource !== "Tất cả" ? selectedSource : undefined,
       });
       
       if (response.isSuccess && response.data.leads) {
@@ -225,6 +279,13 @@ export default function Page() {
     setPageSize(size);
     setCurrentPage(1); // Reset to first page when changing page size
   };
+  
+  // Reset to first page when filters change
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearchQuery, selectedStatus, selectedSource]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
@@ -263,7 +324,7 @@ export default function Page() {
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
-        <LeadStats leads={leads} isLoading={isLoading} />
+        <LeadStats leads={allLeads} isLoading={false} />
       </div>
 
       {/* Filter Bar */}
@@ -274,6 +335,9 @@ export default function Page() {
       >
         <LeadFilters
           leads={leads}
+          totalCount={totalCount}
+          statusCounts={statusCounts}
+          availableSources={availableSources}
           searchQuery={searchQuery}
           selectedStatus={selectedStatus}
           selectedSource={selectedSource}

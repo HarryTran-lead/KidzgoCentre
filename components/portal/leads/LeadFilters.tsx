@@ -17,6 +17,9 @@ const STATUS_MAPPING: Record<StatusType, string> = {
 
 interface LeadFiltersProps {
   leads: Lead[];
+  totalCount: number;
+  statusCounts?: Record<string, number>;
+  availableSources?: string[];
   searchQuery: string;
   selectedStatus: string;
   selectedSource: string;
@@ -27,6 +30,9 @@ interface LeadFiltersProps {
 
 export default function LeadFilters({
   leads,
+  totalCount,
+  statusCounts = {},
+  availableSources = [],
   searchQuery,
   selectedStatus,
   selectedSource,
@@ -37,14 +43,13 @@ export default function LeadFilters({
   const statusOptions = ["Tất cả", ...Object.values(STATUS_MAPPING)];
   
   const sourceOptions = useMemo(() => {
+    if (availableSources.length > 0) {
+      return ["Tất cả", ...availableSources];
+    }
+    // Fallback: extract from current leads if not provided
     const sources = new Set(leads.map(l => l.source).filter(Boolean));
     return ["Tất cả", ...Array.from(sources)];
-  }, [leads]);
-
-  const getStatusCount = (status: string) => {
-    if (status === "Tất cả") return leads.length;
-    return leads.filter((l) => l.status && STATUS_MAPPING[l.status as StatusType] === status).length;
-  };
+  }, [availableSources, leads]);
 
   return (
     <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5 space-y-4">
@@ -81,7 +86,8 @@ export default function LeadFilters({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1 overflow-x-auto">
           {statusOptions.map((status) => {
-            const count = getStatusCount(status);
+            // Get count from statusCounts (from initial load, doesn't change)
+            const count = statusCounts[status] ?? 0;
             return (
               <button
                 key={status}
