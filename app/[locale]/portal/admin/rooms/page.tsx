@@ -4,12 +4,14 @@ import {
   Search, Eye, Pencil, Clock, Users, Building2, AlertTriangle, 
   Plus, Filter, Calendar, ChevronRight, MoreVertical, CheckCircle, 
   XCircle, ChevronLeft, ChevronsLeft, ChevronsRight, X, Tag, 
-  MapPin, Cpu, Monitor, Wifi, Volume2, Thermometer, Square,
+  MapPin,
   AlertCircle, Save, RotateCcw
 } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { fetchAdminRooms } from "@/app/api/admin/rooms";
-import type { Room, Status as RoomStatus } from "@/types/admin/rooms";
+import { fetchAdminRooms, createAdminRoom } from "@/app/api/admin/rooms";
+import { fetchClassFormSelectData } from "@/app/api/admin/classFormData";
+import type { Room, Status as RoomStatus, CreateRoomRequest } from "@/types/admin/rooms";
+import type { SelectOption } from "@/types/admin/classFormData";
 
 type SortDirection = "asc" | "desc";
 
@@ -209,42 +211,25 @@ interface CreateRoomModalProps {
 }
 
 interface RoomFormData {
-  id: string;
+  branchId: string;
   name: string;
-  floor: number;
   capacity: number;
-  area: number;
-  equipment: string[];
-  status: Status;
-  description: string;
+  note: string;
 }
 
 const initialFormData: RoomFormData = {
-  id: "",
+  branchId: "",
   name: "",
-  floor: 1,
   capacity: 30,
-  area: 50,
-  equipment: [],
-  status: "free",
-  description: "",
+  note: "",
 };
 
-const equipmentOptions = [
-  { id: "projector", label: "Máy chiếu", icon: <Monitor size={16} /> },
-  { id: "aircon", label: "Điều hòa", icon: <Thermometer size={16} /> },
-  { id: "sound", label: "Hệ thống âm thanh", icon: <Volume2 size={16} /> },
-  { id: "wifi", label: "Wi-Fi tốc độ cao", icon: <Wifi size={16} /> },
-  { id: "computer", label: "Máy tính", icon: <Cpu size={16} /> },
-  { id: "whiteboard", label: "Bảng trắng", icon: <Square size={16} /> },
-  { id: "camera", label: "Camera giám sát", icon: <Eye size={16} /> },
-  { id: "tablets", label: "Máy tính bảng", icon: <Monitor size={16} /> },
-];
 
 function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
   const [formData, setFormData] = useState<RoomFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof RoomFormData, string>>>({});
-  const [selectedEquipment, setSelectedEquipment] = useState<string[]>(initialFormData.equipment);
+  const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -265,22 +250,32 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
     };
   }, [isOpen, onClose]);
 
+  const fetchSelectData = async () => {
+    try {
+      setLoadingOptions(true);
+      const data = await fetchClassFormSelectData();
+      setBranchOptions(data.branches);
+    } catch (err) {
+      console.error("Failed to fetch select data:", err);
+    } finally {
+      setLoadingOptions(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setFormData(initialFormData);
-      setSelectedEquipment([]);
       setErrors({});
+      fetchSelectData();
     }
   }, [isOpen]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof RoomFormData, string>> = {};
     
-    if (!formData.id.trim()) newErrors.id = "Mã phòng là bắt buộc";
+    if (!formData.branchId) newErrors.branchId = "Chi nhánh là bắt buộc";
     if (!formData.name.trim()) newErrors.name = "Tên phòng là bắt buộc";
-    if (formData.floor <= 0) newErrors.floor = "Số tầng phải lớn hơn 0";
     if (formData.capacity <= 0) newErrors.capacity = "Sức chứa phải lớn hơn 0";
-    if (formData.area <= 0) newErrors.area = "Diện tích phải lớn hơn 0";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -289,7 +284,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      onSubmit({ ...formData, equipment: selectedEquipment });
+      onSubmit(formData);
       onClose();
     }
   };
@@ -301,13 +296,6 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
     }
   };
 
-  const toggleEquipment = (equipment: string) => {
-    setSelectedEquipment(prev => 
-      prev.includes(equipment)
-        ? prev.filter(item => item !== equipment)
-        : [...prev, equipment]
-    );
-  };
 
   if (!isOpen) return null;
 
@@ -342,35 +330,39 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
         {/* Modal Body */}
         <div className="p-6 max-h-[70vh] overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Row 1: Mã phòng & Tên phòng */}
+            {/* Row 1: Chi nhánh & Tên phòng */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Tag size={16} className="text-pink-500" />
-                  Mã phòng *
+                  <Building2 size={16} className="text-pink-500" />
+                  Chi nhánh *
                 </label>
                 <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.id}
-                    onChange={(e) => handleChange("id", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
-                      errors.id ? "border-rose-500" : "border-pink-200"
+                  <select
+                    value={formData.branchId}
+                    onChange={(e) => handleChange("branchId", e.target.value)}
+                    disabled={loadingOptions}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      errors.branchId ? "border-rose-500" : "border-pink-200"
                     }`}
-                    placeholder="VD: P101, P201..."
-                  />
-                  {errors.id && (
+                  >
+                    <option value="">{loadingOptions ? "Đang tải..." : "Chọn chi nhánh"}</option>
+                    {branchOptions.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                  {errors.branchId && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <AlertCircle size={18} className="text-rose-500" />
                     </div>
                   )}
                 </div>
-                {errors.id && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.id}</p>}
+                {errors.branchId && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
               </div>
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Building2 size={16} className="text-pink-500" />
+                  <Tag size={16} className="text-pink-500" />
                   Tên phòng *
                 </label>
                 <div className="relative">
@@ -393,33 +385,8 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
               </div>
             </div>
 
-            {/* Row 2: Tầng & Sức chứa */}
+            {/* Row 2: Sức chứa */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <MapPin size={16} className="text-pink-500" />
-                  Tầng *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={formData.floor}
-                    onChange={(e) => handleChange("floor", parseInt(e.target.value) || 0)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
-                      errors.floor ? "border-rose-500" : "border-pink-200"
-                    }`}
-                  />
-                  {errors.floor && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.floor && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.floor}</p>}
-              </div>
-
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Users size={16} className="text-pink-500" />
@@ -446,130 +413,18 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
               </div>
             </div>
 
-            {/* Row 3: Diện tích */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Square size={16} className="text-pink-500" />
-                  Diện tích (m²) *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="10"
-                    max="500"
-                    step="0.5"
-                    value={formData.area}
-                    onChange={(e) => handleChange("area", parseFloat(e.target.value) || 0)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
-                      errors.area ? "border-rose-500" : "border-pink-200"
-                    }`}
-                  />
-                  {errors.area && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.area && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.area}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Building2 size={16} className="text-pink-500" />
-                  Trạng thái
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { value: "free" as const, label: "Trống", color: "bg-emerald-100 text-emerald-700 border-emerald-300" },
-                    { value: "using" as const, label: "Đang sử dụng", color: "bg-rose-100 text-rose-700 border-rose-300" },
-                    { value: "maintenance" as const, label: "Bảo trì", color: "bg-amber-100 text-amber-700 border-amber-300" },
-                  ]).map((status) => (
-                    <button
-                      key={status.value}
-                      type="button"
-                      onClick={() => handleChange("status", status.value)}
-                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
-                        formData.status === status.value
-                          ? `${status.color}`
-                          : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
-                      }`}
-                    >
-                      {status.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Row 4: Thiết bị */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Cpu size={16} className="text-pink-500" />
-                Thiết bị trong phòng
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {equipmentOptions.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => toggleEquipment(item.label)}
-                    className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
-                      selectedEquipment.includes(item.label)
-                        ? "bg-gradient-to-r from-pink-50 to-rose-50 border-pink-300 text-pink-700"
-                        : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
-                    }`}
-                  >
-                    <div className={`p-2 rounded-lg ${
-                      selectedEquipment.includes(item.label)
-                        ? "bg-pink-100 text-pink-600"
-                        : "bg-gray-100 text-gray-500"
-                    }`}>
-                      {item.icon}
-                    </div>
-                    <span className="text-xs font-medium text-center">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="mt-3">
-                <p className="text-xs text-gray-500 mb-2">Thiết bị đã chọn:</p>
-                {selectedEquipment.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedEquipment.map((item) => (
-                      <span
-                        key={item}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-pink-50 to-rose-50 text-gray-700 text-xs font-medium border border-pink-200"
-                      >
-                        {equipmentOptions.find(eq => eq.label === item)?.icon}
-                        {item}
-                        <button
-                          type="button"
-                          onClick={() => toggleEquipment(item)}
-                          className="ml-1 hover:text-rose-600"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">Chưa có thiết bị nào được chọn</p>
-                )}
-              </div>
-            </div>
-
-            {/* Row 5: Mô tả */}
+            {/* Row 3: Ghi chú */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Building2 size={16} className="text-pink-500" />
-                Mô tả phòng học
+                Ghi chú
               </label>
               <textarea
-                value={formData.description}
-                onChange={(e) => handleChange("description", e.target.value)}
+                value={formData.note}
+                onChange={(e) => handleChange("note", e.target.value)}
                 rows={3}
                 className="w-full px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none"
-                placeholder="Mô tả chi tiết về phòng học, vị trí, đặc điểm..."
+                placeholder="Ghi chú về phòng học, thiết bị, đặc điểm..."
               />
             </div>
           </form>
@@ -590,7 +445,6 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
                 type="button"
                 onClick={() => {
                   setFormData(initialFormData);
-                  setSelectedEquipment([]);
                   setErrors({});
                 }}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-pink-300 text-pink-600 font-semibold hover:bg-pink-50 transition-colors cursor-pointer"
@@ -715,25 +569,27 @@ export default function Page() {
   const endIndex = startIndex + itemsPerPage;
   const currentRows = filteredRooms.slice(startIndex, endIndex);
 
-  const handleCreateRoom = (data: RoomFormData) => {
-    // TODO: Gọi API để tạo phòng học mới
-    console.log("Creating new room:", data);
-    
-    // Tạm thời thêm phòng học mới vào danh sách
-    const newRoom: Room = {
-      id: data.id,
-      floor: data.floor,
-      capacity: data.capacity,
-      area: data.area,
-      equipment: data.equipment,
-      status: data.status,
-      utilization: 0,
-    };
-    
-    setRooms(prev => [newRoom, ...prev]);
-    
-    // Hiển thị thông báo thành công
-    alert(`Đã tạo phòng học ${data.name} thành công!`);
+  const handleCreateRoom = async (data: RoomFormData) => {
+    try {
+      const payload: CreateRoomRequest = {
+        branchId: data.branchId,
+        name: data.name,
+        capacity: data.capacity,
+        note: data.note || undefined,
+      };
+
+      const created = await createAdminRoom(payload);
+
+      // 重新获取教室列表以显示新创建的教室
+      const updatedRooms = await fetchAdminRooms();
+      setRooms(updatedRooms);
+
+      alert(`Đã tạo phòng học ${data.name} thành công!`);
+    } catch (err: any) {
+      console.error("Failed to create room:", err);
+      const errorMessage = err?.message || "Không thể tạo phòng học. Vui lòng thử lại.";
+      alert(errorMessage);
+    }
   };
 
   return (
@@ -856,6 +712,7 @@ export default function Page() {
                 <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
                   <tr>
                     <th className="py-3 px-6 text-left"><SortHeader label="Phòng học" sortKey="id" /></th>
+                    <th className="py-3 px-6 text-left"><SortHeader label="Chi nhánh" sortKey="branch" /></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Sức chứa" sortKey="capacity" /></th>
                     <th className="py-3 px-6 text-left"><span className="text-sm font-semibold text-gray-700">Thiết bị</span></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Sử dụng" sortKey="utilization" /></th>
@@ -879,6 +736,12 @@ export default function Page() {
                               <div className="font-bold text-gray-900">{room.id}</div>
                               <div className="text-xs text-gray-500">Tầng {room.floor} • {room.area}m²</div>
                             </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
+                            <MapPin size={16} className="text-gray-400" />
+                            <span className="truncate">{room.branch}</span>
                           </div>
                         </td>
                         <td className="py-4 px-6">
@@ -939,7 +802,7 @@ export default function Page() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center">
+                      <td colSpan={7} className="py-12 text-center">
                         <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
                           <Search size={24} className="text-pink-400" />
                         </div>
