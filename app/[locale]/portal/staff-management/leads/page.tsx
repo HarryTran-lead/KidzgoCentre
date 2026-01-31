@@ -11,6 +11,7 @@ import {
   LeadTable,
   LeadFormModal,
   LeadDetailModal,
+  AssignStaffModal,
 } from "@/components/portal/leads";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
@@ -58,6 +59,7 @@ export default function Page() {
   // Modal state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadType | null>(null);
 
   useEffect(() => {
@@ -238,7 +240,13 @@ export default function Page() {
   };
 
   const handleLeadAction = (lead: LeadType, action: string) => {
-    // TODO: Implement actions (assign, add notes, etc.)
+    if (action === "assign") {
+      setSelectedLead(lead);
+      setIsAssignModalOpen(true);
+      return;
+    }
+    
+    // TODO: Implement other actions (add notes, etc.)
     console.log("Action:", action, "Lead:", lead.id);
     toast({
       title: "Thông báo",
@@ -267,6 +275,11 @@ export default function Page() {
 
   const handleFormSuccess = () => {
     fetchLeads();
+    fetchInitialData(); // Refresh stats
+  };
+
+  const handleAssignSuccess = () => {
+    fetchLeads(); // Only reload table data, no full page refresh
   };
 
   // Pagination handlers
@@ -388,6 +401,13 @@ export default function Page() {
         lead={selectedLead}
         onClose={() => setIsDetailModalOpen(false)}
         onEdit={handleEditLead}
+      />
+
+      <AssignStaffModal
+        isOpen={isAssignModalOpen}
+        lead={selectedLead}
+        onClose={() => setIsAssignModalOpen(false)}
+        onAssigned={handleAssignSuccess}
       />
     </div>
   );

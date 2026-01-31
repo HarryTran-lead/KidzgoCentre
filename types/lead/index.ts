@@ -80,7 +80,7 @@ export interface UpdateLeadStatusRequest {
 }
 
 export interface AssignLeadRequest {
-  userId: string;
+  ownerStaffId: string;
 }
 
 export interface AddLeadNoteRequest {
@@ -144,9 +144,10 @@ export interface UpdateLeadStatusApiResponse {
 }
 
 export interface AssignLeadApiResponse {
-  success: boolean;
+  isSuccess: boolean;
   data: Lead;
   message?: string;
+  status?: number;
 }
 
 export interface AddLeadNoteApiResponse {

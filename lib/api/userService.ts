@@ -117,7 +117,7 @@ export async function updateUserStatus(
  * Get users by role
  */
 export async function getUsersByRole(
-  role: 'Admin' | 'Parent' | 'Staff' | 'Teacher',
+  role: 'Admin' | 'Parent' | 'ManagementStaff' | 'Teacher',
   params?: Omit<GetAllUsersParams, 'role'>
 ): Promise<GetAllUsersApiResponse> {
   return getAllUsers({ ...params, role });
@@ -154,4 +154,14 @@ export async function activateUser(id: string): Promise<UpdateUserStatusApiRespo
  */
 export async function deactivateUser(id: string): Promise<UpdateUserStatusApiResponse> {
   return updateUserStatus(id, { isActive: false });
+}
+
+/**
+ * Get management staff (active only)
+ * Used for assigning leads to staff members
+ */
+export async function getManagementStaff(
+  params?: Omit<GetAllUsersParams, 'role' | 'isActive'>
+): Promise<GetAllUsersApiResponse> {
+  return getAllUsers({ ...params, role: 'ManagementStaff', isActive: true });
 }
