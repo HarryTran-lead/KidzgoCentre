@@ -54,7 +54,7 @@ export const BRANCH_ENDPOINTS = {
   // CRUD Operations
   GET_ALL: '/api/branches',
   GET_BY_ID: (id: string) => `/api/branches/${id}`,
-  CREATE: '/api/branches/create',
+  CREATE: '/api/branches',
   UPDATE: (id: string) => `/api/branches/${id}`,
   DELETE: (id: string) => `/api/branches/${id}`,
   UPDATE_STATUS: (id: string) => `/api/branches/${id}/status`,
