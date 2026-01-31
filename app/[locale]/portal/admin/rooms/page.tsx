@@ -10,8 +10,10 @@ import {
 import { useState, useMemo, useEffect, useRef } from "react";
 import { fetchAdminRooms, createAdminRoom } from "@/app/api/admin/rooms";
 import { fetchClassFormSelectData } from "@/app/api/admin/classFormData";
+import { fetchAdminSessions } from "@/app/api/admin/sessions";
 import type { Room, Status as RoomStatus, CreateRoomRequest } from "@/types/admin/rooms";
 import type { SelectOption } from "@/types/admin/classFormData";
+import type { Session } from "@/types/admin/sessions";
 
 type SortDirection = "asc" | "desc";
 
@@ -480,6 +482,7 @@ export default function Page() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [todaySessions, setTodaySessions] = useState<Session[]>([]);
 
   // Gọi API để lấy danh sách phòng học
   useEffect(() => {
@@ -500,6 +503,47 @@ export default function Page() {
     }
 
     fetchClassrooms();
+  }, []);
+
+  // Fetch today's sessions
+  useEffect(() => {
+    async function fetchTodaySessions() {
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const sessions = await fetchAdminSessions({
+          from: today.toISOString(),
+          to: tomorrow.toISOString(),
+          pageNumber: 1,
+          pageSize: 100,
+        });
+
+        // Filter sessions for today only
+        const todayKey = today.toISOString().split('T')[0];
+        const todayOnly = sessions.filter((s: Session) => {
+          const sessionDate = new Date(s.plannedDatetime);
+          const sessionKey = sessionDate.toISOString().split('T')[0];
+          return sessionKey === todayKey;
+        });
+
+        // Sort by time
+        todayOnly.sort((a, b) => {
+          const timeA = new Date(a.plannedDatetime).getTime();
+          const timeB = new Date(b.plannedDatetime).getTime();
+          return timeA - timeB;
+        });
+
+        setTodaySessions(todayOnly);
+      } catch (err) {
+        console.error("Failed to fetch today's sessions:", err);
+        setTodaySessions([]);
+      }
+    }
+
+    fetchTodaySessions();
   }, []);
 
   const toggleSort = (key: keyof Room) => {
@@ -580,7 +624,6 @@ export default function Page() {
 
       const created = await createAdminRoom(payload);
 
-      // 重新获取教室列表以显示新创建的教室
       const updatedRooms = await fetchAdminRooms();
       setRooms(updatedRooms);
 
@@ -590,6 +633,45 @@ export default function Page() {
       const errorMessage = err?.message || "Không thể tạo phòng học. Vui lòng thử lại.";
       alert(errorMessage);
     }
+  };
+
+  // Helper functions for today's schedule
+  const formatTimeRange = (plannedDatetime: string, durationMinutes: number): string => {
+    const start = new Date(plannedDatetime);
+    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+    const sh = String(start.getHours()).padStart(2, "0");
+    const sm = String(start.getMinutes()).padStart(2, "0");
+    const eh = String(end.getHours()).padStart(2, "0");
+    const em = String(end.getMinutes()).padStart(2, "0");
+    return `${sh}:${sm} – ${eh}:${em}`;
+  };
+
+  const getSessionStatus = (session: Session): { status: string; statusColor: string } => {
+    const now = new Date();
+    const start = new Date(session.plannedDatetime);
+    const end = new Date(start.getTime() + session.durationMinutes * 60 * 1000);
+
+    if (now >= start && now <= end) {
+      return { status: "Đang diễn ra", statusColor: "bg-emerald-100 text-emerald-700" };
+    } else if (now < start) {
+      const minutesUntilStart = Math.floor((start.getTime() - now.getTime()) / (1000 * 60));
+      if (minutesUntilStart <= 30) {
+        return { status: "Sắp diễn ra", statusColor: "bg-blue-100 text-blue-700" };
+      }
+      return { status: "Đã lên lịch", statusColor: "bg-gray-100 text-gray-700" };
+    } else {
+      return { status: "Đã kết thúc", statusColor: "bg-gray-100 text-gray-500" };
+    }
+  };
+
+  const formatTodayDate = (): string => {
+    const today = new Date();
+    const days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+    const dayName = days[today.getDay()];
+    const dd = String(today.getDate()).padStart(2, "0");
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const yyyy = today.getFullYear();
+    return `${dayName}, ${dd}/${mm}/${yyyy}`;
   };
 
   return (
@@ -898,7 +980,7 @@ export default function Page() {
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 text-sm">Lịch hôm nay</h3>
-                    <p className="text-xs text-gray-600">Thứ 4, 15/01/2025</p>
+                    <p className="text-xs text-gray-600">{formatTodayDate()}</p>
                   </div>
                 </div>
                 <button className="text-xs text-pink-600 font-medium hover:text-pink-700 cursor-pointer">
@@ -907,81 +989,62 @@ export default function Page() {
               </div>
 
               <div className="space-y-2">
-                {[
-                  {
-                    time: "08:00 – 10:00",
-                    room: "P101",
-                    course: "IELTS Advanced",
-                    teacher: "Ms. Sarah",
-                    students: 28,
-                    status: "Đang diễn ra",
-                    statusColor: "bg-emerald-100 text-emerald-700"
-                  },
-                  {
-                    time: "10:30 – 12:30",
-                    room: "P103",
-                    course: "TOEIC 800+",
-                    teacher: "Mr. David",
-                    students: 22,
-                    status: "Sắp diễn ra",
-                    statusColor: "bg-blue-100 text-blue-700"
-                  },
-                  {
-                    time: "14:00 – 16:00",
-                    room: "P201",
-                    course: "Business English",
-                    teacher: "Ms. Lisa",
-                    students: 18,
-                    status: "Sắp diễn ra",
-                    statusColor: "bg-blue-100 text-blue-700"
-                  },
-                  {
-                    time: "17:00 – 19:00",
-                    room: "P202",
-                    course: "Conversation Class",
-                    teacher: "Mr. John",
-                    students: 25,
-                    status: "Đã lên lịch",
-                    statusColor: "bg-gray-100 text-gray-700"
-                  },
-                ].map((event, index) => (
-                  <div
-                    key={index}
-                    className="p-3 rounded-xl border border-pink-200 hover:border-pink-300 hover:shadow-sm transition-all group cursor-pointer bg-white"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-1.5">
-                        <div className="p-1 bg-gradient-to-r from-pink-50 to-rose-50 rounded-lg">
-                          <Clock size={12} className="text-pink-600" />
-                        </div>
-                        <div className="font-medium text-gray-900 text-xs">{event.time}</div>
-                      </div>
-                      <span className={`text-[10px] px-2 py-1 rounded-full ${event.statusColor}`}>
-                        {event.status}
-                      </span>
-                    </div>
+                {todaySessions.length > 0 ? (
+                  todaySessions.map((session) => {
+                    const timeRange = formatTimeRange(session.plannedDatetime, session.durationMinutes);
+                    const { status, statusColor } = getSessionStatus(session);
+                    const roomName = session.plannedRoomName ?? session.roomName ?? "Chưa có phòng";
+                    const courseName = session.classTitle ?? session.className ?? "Buổi học";
+                    const teacherName = session.plannedTeacherName ?? session.teacherName ?? "Chưa phân công";
 
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center">
-                          <span className="text-[10px] font-bold text-white">{event.room}</span>
+                    return (
+                      <div
+                        key={session.id}
+                        className="p-3 rounded-xl border border-pink-200 hover:border-pink-300 hover:shadow-sm transition-all group cursor-pointer bg-white"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <div className="p-1 bg-gradient-to-r from-pink-50 to-rose-50 rounded-lg">
+                              <Clock size={12} className="text-pink-600" />
+                            </div>
+                            <div className="font-medium text-gray-900 text-xs">{timeRange}</div>
+                          </div>
+                          <span className={`text-[10px] px-2 py-1 rounded-full ${statusColor}`}>
+                            {status}
+                          </span>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-gray-900 text-xs truncate">{event.course}</div>
-                          <div className="text-[10px] text-gray-600 truncate">{event.teacher}</div>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center justify-between pt-1.5 border-t border-pink-100">
-                        <div className="flex items-center gap-1.5 text-[10px] text-gray-600">
-                          <Users size={12} />
-                          <span>{event.students} học viên</span>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center">
+                              <span className="text-[10px] font-bold text-white">{roomName.substring(0, 4)}</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-semibold text-gray-900 text-xs truncate">{courseName}</div>
+                              <div className="text-[10px] text-gray-600 truncate">{teacherName}</div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1.5 border-t border-pink-100">
+                            <div className="flex items-center gap-1.5 text-[10px] text-gray-600">
+                              <MapPin size={12} />
+                              <span className="truncate">{roomName}</span>
+                            </div>
+                            <ChevronRight size={12} className="text-gray-400 group-hover:text-pink-600 transition-colors" />
+                          </div>
                         </div>
-                        <ChevronRight size={12} className="text-gray-400 group-hover:text-pink-600 transition-colors" />
                       </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="inline-flex p-3 bg-gradient-to-r from-pink-100 to-rose-100 rounded-xl mb-2">
+                      <Calendar size={20} className="text-pink-500" />
                     </div>
+                    <div className="text-sm text-gray-600 font-medium">Không có lịch học hôm nay</div>
+                    <div className="text-xs text-gray-500 mt-1">Tất cả phòng học đều trống</div>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
