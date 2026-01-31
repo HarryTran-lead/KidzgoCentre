@@ -55,7 +55,7 @@ export const BRANCH_ENDPOINTS = {
   GET_ALL: '/api/branches',
   GET_ALL_PUBLIC: '/api/branches/all', // For all roles (staff, teacher, etc.)
   GET_BY_ID: (id: string) => `/api/branches/${id}`,
-  CREATE: '/api/branches/create',
+  CREATE: '/api/branches',
   UPDATE: (id: string) => `/api/branches/${id}`,
   DELETE: (id: string) => `/api/branches/${id}`,
   UPDATE_STATUS: (id: string) => `/api/branches/${id}/status`,

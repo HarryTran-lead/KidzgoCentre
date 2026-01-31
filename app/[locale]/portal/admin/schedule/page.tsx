@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
 import { createAdminSession, fetchAdminSessions } from "@/app/api/admin/sessions";
+import { fetchAdminUsersByIds } from "@/app/api/admin/classes";
 import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
 import {
   CalendarRange,
@@ -249,7 +250,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       document.body.style.overflow = "hidden";
-      
+
       setSubmitError(null);
       fetchSelectData();
     }
@@ -276,7 +277,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ScheduleFormData, string>> = {};
-    
+
     if (!formData.classId) newErrors.classId = "Lớp học là bắt buộc";
     if (!formData.teacherId) newErrors.teacherId = "Giáo viên là bắt buộc";
     if (!formData.roomId) newErrors.roomId = "Phòng học là bắt buộc";
@@ -342,7 +343,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div 
+      <div
         ref={modalRef}
         className="relative w-full max-w-4xl bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 shadow-2xl overflow-hidden"
       >
@@ -388,9 +389,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   <select
                     value={formData.classId}
                     onChange={(e) => handleChange("classId", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
-                      errors.classId ? "border-rose-500" : "border-pink-200"
-                    }`}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${errors.classId ? "border-rose-500" : "border-pink-200"
+                      }`}
                   >
                     <option value="">Chọn lớp học</option>
                     {classOptions.map((c) => (
@@ -423,11 +423,10 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                       key={type.value}
                       type="button"
                       onClick={() => handleChange("type", type.value)}
-                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
-                        formData.type === type.value
-                          ? `${type.color}`
-                          : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
-                      }`}
+                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${formData.type === type.value
+                        ? `${type.color}`
+                        : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
+                        }`}
                     >
                       {type.label}
                     </button>
@@ -447,9 +446,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   <select
                     value={formData.teacherId}
                     onChange={(e) => handleChange("teacherId", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
-                      errors.teacherId ? "border-rose-500" : "border-pink-200"
-                    }`}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${errors.teacherId ? "border-rose-500" : "border-pink-200"
+                      }`}
                   >
                     <option value="">Chọn giáo viên</option>
                     {teacherOptions.map((t) => (
@@ -476,9 +474,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   <select
                     value={formData.roomId}
                     onChange={(e) => handleChange("roomId", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
-                      errors.roomId ? "border-rose-500" : "border-pink-200"
-                    }`}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 ${errors.roomId ? "border-rose-500" : "border-pink-200"
+                      }`}
                   >
                     <option value="">Chọn phòng học</option>
                     {roomOptions.map((r) => (
@@ -509,9 +506,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                     type="date"
                     value={formData.date}
                     onChange={(e) => handleChange("date", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
-                      errors.date ? "border-rose-500" : "border-pink-200"
-                    }`}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${errors.date ? "border-rose-500" : "border-pink-200"
+                      }`}
                   />
                   {errors.date && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -540,11 +536,10 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                         handleChange("period", period.value);
                         handleChange("time", period.time);
                       }}
-                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all flex flex-col items-center ${
-                        formData.period === period.value
-                          ? "bg-gradient-to-r from-pink-50 to-rose-50 border-pink-300 text-pink-700"
-                          : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
-                      }`}
+                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all flex flex-col items-center ${formData.period === period.value
+                        ? "bg-gradient-to-r from-pink-50 to-rose-50 border-pink-300 text-pink-700"
+                        : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
+                        }`}
                     >
                       <span>{period.label}</span>
                       <span className="text-xs font-normal mt-0.5">{period.time}</span>
@@ -565,9 +560,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   type="text"
                   value={formData.time}
                   onChange={(e) => handleChange("time", e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
-                    errors.time ? "border-rose-500" : "border-pink-200"
-                  }`}
+                  className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${errors.time ? "border-rose-500" : "border-pink-200"
+                    }`}
                   placeholder="VD: 18:30 - 20:00"
                 />
                 {errors.time && (
@@ -592,9 +586,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                     key={color.value}
                     type="button"
                     onClick={() => handleChange("color", color.value)}
-                    className={`h-8 w-8 rounded-lg cursor-pointer ${color.value} border-2 ${
-                      formData.color === color.value ? 'border-white ring-2 ring-pink-500' : 'border-transparent'
-                    } hover:scale-110 transition-all`}
+                    className={`h-8 w-8 rounded-lg cursor-pointer ${color.value} border-2 ${formData.color === color.value ? 'border-white ring-2 ring-pink-500' : 'border-transparent'
+                      } hover:scale-110 transition-all`}
                     title={color.name}
                   />
                 ))}
@@ -618,17 +611,16 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                     key={repeat.value}
                     type="button"
                     onClick={() => handleChange("repeat", repeat.value)}
-                    className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
-                      formData.repeat === repeat.value
-                        ? "bg-gradient-to-r from-pink-50 to-rose-50 border-pink-300 text-pink-700"
-                        : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
-                    }`}
+                    className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${formData.repeat === repeat.value
+                      ? "bg-gradient-to-r from-pink-50 to-rose-50 border-pink-300 text-pink-700"
+                      : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
+                      }`}
                   >
                     {repeat.label}
                   </button>
                 ))}
               </div>
-              
+
               {formData.repeat !== "NONE" && (
                 <div className="mt-3">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -674,14 +666,12 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
               <button
                 type="button"
                 onClick={() => handleChange("sendNotification", !formData.sendNotification)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  formData.sendNotification ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gray-300'
-                }`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.sendNotification ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gray-300'
+                  }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    formData.sendNotification ? 'translate-x-6' : 'translate-x-1'
-                  }`}
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.sendNotification ? 'translate-x-6' : 'translate-x-1'
+                    }`}
                 />
               </button>
             </div>
@@ -717,9 +707,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 type="button"
                 onClick={(e) => handleSubmit(e as any)}
                 disabled={isSubmitting}
-                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer ${
-                  isSubmitting ? "opacity-60 cursor-not-allowed" : ""
-                }`}
+                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer ${isSubmitting ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
               >
                 <Save size={16} />
                 {isSubmitting ? "Đang tạo..." : "Tạo lịch"}
@@ -732,13 +721,13 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   );
 }
 
-function ColorPicker({ 
-  lessonId, 
-  currentColor, 
-  onColorChange 
-}: { 
-  lessonId: string; 
-  currentColor: string; 
+function ColorPicker({
+  lessonId,
+  currentColor,
+  onColorChange
+}: {
+  lessonId: string;
+  currentColor: string;
   onColorChange: (lessonId: string, color: string) => void;
 }) {
   const [showPicker, setShowPicker] = useState(false);
@@ -874,7 +863,7 @@ function WeekTimetable({
   const getLightColor = (colorClass: string | undefined) => {
     const defaultLight = "bg-gradient-to-br from-pink-100 to-rose-100";
     if (!colorClass) return defaultLight;
-    
+
     return colorClass
       .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
       .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
@@ -915,7 +904,7 @@ function WeekTimetable({
             <ChevronLeft size={18} className="text-gray-600" />
           </button>
           <div className="min-w-[220px] text-center text-sm font-semibold text-gray-700">
-            Tuần từ {days[0].getDate()}/{days[0].getMonth()+1} đến {days[6].getDate()}/{days[6].getMonth()+1}
+            Tuần từ {days[0].getDate()}/{days[0].getMonth() + 1} đến {days[6].getDate()}/{days[6].getMonth() + 1}
           </div>
           <button
             className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 transition-colors cursor-pointer"
@@ -945,11 +934,10 @@ function WeekTimetable({
             >
               <div className="flex flex-col items-center gap-1">
                 <span className="capitalize">{dow}</span>
-                <span className={`h-8 w-8 flex items-center justify-center rounded-full text-sm font-bold ${
-                  isToday 
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md" 
-                    : "bg-white text-gray-700 border border-pink-200"
-                }`}>
+                <span className={`h-8 w-8 flex items-center justify-center rounded-full text-sm font-bold ${isToday
+                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                  : "bg-white text-gray-700 border border-pink-200"
+                  }`}>
                   {d.getDate()}
                 </span>
               </div>
@@ -973,20 +961,19 @@ function WeekTimetable({
             const k = `${keyYMD(d)}|${p.key}`;
             const evts = grouped[k] || [];
             return (
-              <div 
-                key={k} 
-                className={`min-h-[130px] p-3 ${
-                  rowIdx % 2 
-                    ? "bg-white" 
-                    : "bg-pink-50/30"
-                } border-l border-pink-100`}
+              <div
+                key={k}
+                className={`min-h-[130px] p-3 ${rowIdx % 2
+                  ? "bg-white"
+                  : "bg-pink-50/30"
+                  } border-l border-pink-100`}
               >
                 <div className="space-y-2">
                   {evts.map((s) => {
                     const lightColor = getLightColor(s.color);
                     return (
-                      <div 
-                        key={s.id} 
+                      <div
+                        key={s.id}
                         className={`rounded-xl p-2.5 text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-pink-200 ${lightColor}`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -999,20 +986,23 @@ function WeekTimetable({
                               <span className={`h-2 w-2 rounded-full ${modeDot(s.room)}`} />
                               <span className="font-semibold text-gray-900 truncate">{s.title}</span>
                             </div>
+                            
                             <div className="text-[11px] text-gray-600 mb-1">{s.time}</div>
                             <div className="text-[11px] text-gray-500 flex items-center gap-1">
                               <MapPin size={10} />
                               <span className="truncate">{s.room}</span>
                             </div>
-                            <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                              <Users size={10} />
-                              <span>{s.teacher}</span>
-                            </div>
+                            {s.teacher && s.teacher.trim() && (
+                              <div className="text-[10px] text-gray-600 mb-1 flex items-center gap-1">
+                                <User size={9} className="text-gray-500 flex-shrink-0" />
+                                <span className="truncate font-medium">{s.teacher}</span>
+                              </div>
+                            )}
                           </div>
                           {onColorChange && (
                             <div onClick={(e) => e.stopPropagation()}>
-                              <ColorPicker 
-                                lessonId={s.id} 
+                              <ColorPicker
+                                lessonId={s.id}
                                 currentColor={s.color || TYPE_META[s.type].defaultColor}
                                 onColorChange={onColorChange}
                               />
@@ -1023,7 +1013,7 @@ function WeekTimetable({
                     );
                   })}
                   {evts.length === 0 && (
-                    <div 
+                    <div
                       className="text-[13px] text-gray-400 italic text-center py-4 hover:bg-pink-50 rounded-lg cursor-pointer transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1032,7 +1022,7 @@ function WeekTimetable({
                         }
                       }}
                     >
-                      Trống 
+                      Trống
                     </div>
                   )}
                 </div>
@@ -1075,8 +1065,8 @@ export default function AdminSchedulePage() {
   }, [list]);
 
   const handleColorChange = (lessonId: string, newColor: string) => {
-    setSlots(prev => prev.map(slot => 
-      slot.id === lessonId 
+    setSlots(prev => prev.map(slot =>
+      slot.id === lessonId
         ? { ...slot, color: newColor }
         : slot
     ));
@@ -1150,17 +1140,54 @@ export default function AdminSchedulePage() {
           pageSize: 200,
         });
 
+        // Collect ALL teacher IDs (both with and without names) to ensure we get all teacher names
+        const teacherIdsToFetch = new Set<string>();
+        sessions.forEach((s: Session) => {
+          const teacherId = s.plannedTeacherId ?? s.actualTeacherId;
+          if (teacherId) {
+            teacherIdsToFetch.add(String(teacherId));
+          }
+        });
+
+        // Fetch teacher names for all teacher IDs
+        let teacherNameMap = new Map<string, string>();
+        if (teacherIdsToFetch.size > 0) {
+          try {
+            teacherNameMap = await fetchAdminUsersByIds(Array.from(teacherIdsToFetch));
+          } catch (err) {
+            console.error("Failed to fetch teacher names:", err);
+          }
+        }
+
         const mappedSlots: Slot[] = sessions.map((s: Session): Slot => {
           const planned = new Date(s.plannedDatetime);
           const durationMinutes =
             typeof s.durationMinutes === "number" && s.durationMinutes > 0
               ? s.durationMinutes
               : 60;
+          
+          // Get teacher name: prioritize API response, then fetched map, then empty
+          let teacherName = (s.plannedTeacherName ?? s.teacherName ?? "").trim();
+          const teacherId = s.plannedTeacherId ?? s.actualTeacherId;
+          
+          // If no teacher name from API, try to get from fetched map
+          if (!teacherName && teacherId) {
+            const fetchedName = teacherNameMap.get(String(teacherId));
+            if (fetchedName && fetchedName.trim()) {
+              teacherName = fetchedName.trim();
+            }
+          }
+          
+          // Debug log for missing teacher names
+          if (!teacherName && teacherId) {
+            console.warn(`Missing teacher name for session ${s.id}, teacherId: ${teacherId}`);
+          }
+
           return {
             id: s.id,
             title: String(s.classTitle ?? s.className ?? "Buổi học"),
             type: "CLASS",
-            teacher: String(s.plannedTeacherName ?? s.teacherName ?? ""),
+            teacher: teacherName.trim(),
             room: String(s.plannedRoomName ?? s.roomName ?? ""),
             date: formatVNDate(planned),
             time: formatTimeRangeFromISO(planned.toISOString(), durationMinutes),
@@ -1229,25 +1256,23 @@ export default function AdminSchedulePage() {
         <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 flex flex-wrap gap-2">
           {["ALL", "CLASS", "MAKEUP", "EVENT"].map((item) => {
             const isActive = filter === item;
-            const meta = item === "ALL" 
+            const meta = item === "ALL"
               ? { text: "Tất cả", badge: "bg-gradient-to-r from-pink-500 to-rose-500" }
               : TYPE_META[item as SlotType];
-            
+
             return (
               <button
                 key={item}
                 onClick={() => setFilter(item as typeof filter)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
-                  isActive 
-                    ? `${meta.badge} text-white shadow-md` 
-                    : "bg-white border border-pink-200 text-gray-600 hover:bg-pink-50"
-                }`}
+                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${isActive
+                  ? `${meta.badge} text-white shadow-md`
+                  : "bg-white border border-pink-200 text-gray-600 hover:bg-pink-50"
+                  }`}
               >
                 <span>{item === "ALL" ? "Tất cả" : meta.text}</span>
                 {item !== "ALL" && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    isActive ? "bg-white/20" : "bg-gray-100"
-                  }`}>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${isActive ? "bg-white/20" : "bg-gray-100"
+                    }`}>
                     {stats.byType[item as SlotType]}
                   </span>
                 )}
@@ -1257,9 +1282,9 @@ export default function AdminSchedulePage() {
         </div>
 
         {/* Thời khoá biểu theo tuần */}
-        <WeekTimetable 
-          items={sortedList} 
-          weekCursor={weekCursor} 
+        <WeekTimetable
+          items={sortedList}
+          weekCursor={weekCursor}
           setWeekCursor={setWeekCursor}
           onColorChange={handleColorChange}
           onCellClick={handleCellClick}
@@ -1297,7 +1322,7 @@ export default function AdminSchedulePage() {
         <div className="space-y-4">
           <div className="text-lg font-semibold text-gray-900">Chi tiết lịch tháng 12</div>
           {sortedList.map((slot) => {
-            const lightColor = slot.color 
+            const lightColor = slot.color
               ? slot.color
                 .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
                 .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
@@ -1309,7 +1334,7 @@ export default function AdminSchedulePage() {
                 .replace('from-violet-500 to-purple-600', 'from-violet-100 to-purple-100')
                 .replace('from-gray-500 to-slate-500', 'from-gray-100 to-slate-100')
               : "bg-gradient-to-br from-pink-50 to-rose-50";
-            
+
             return (
               <div
                 key={slot.id}
@@ -1321,8 +1346,8 @@ export default function AdminSchedulePage() {
                     <TypeBadge type={slot.type} />
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-semibold text-gray-900">{slot.title}</span>
-                      <ColorPicker 
-                        lessonId={slot.id} 
+                      <ColorPicker
+                        lessonId={slot.id}
                         currentColor={slot.color || TYPE_META[slot.type].defaultColor}
                         onColorChange={handleColorChange}
                       />
@@ -1370,8 +1395,8 @@ export default function AdminSchedulePage() {
             Ghi chú quản lý
           </div>
           <p className="text-sm text-gray-600">
-            • Các buổi bù sẽ được tổng hợp và gửi báo cáo cuối tháng cho bộ phận tài chính<br/>
-            • Nhấn vào biểu tượng <Palette size={12} className="inline ml-1" /> để đổi màu phân biệt các khóa học<br/>
+            • Các buổi bù sẽ được tổng hợp và gửi báo cáo cuối tháng cho bộ phận tài chính<br />
+            • Nhấn vào biểu tượng <Palette size={12} className="inline ml-1" /> để đổi màu phân biệt các khóa học<br />
             • Lịch học có thể xuất file Excel/PDF bằng nút "Xuất lịch"
           </p>
         </div>
@@ -1392,8 +1417,8 @@ export default function AdminSchedulePage() {
             ? selectedPeriod === "MORNING"
               ? "08:00 - 11:00"
               : selectedPeriod === "AFTERNOON"
-              ? "14:00 - 17:00"
-              : "18:30 - 21:00"
+                ? "14:00 - 17:00"
+                : "18:30 - 21:00"
             : undefined
         }
       />

@@ -5,10 +5,11 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
-import type { Room, Status } from "@/types/admin/rooms";
+import type { Room, Status, CreateRoomRequest, CreateRoomResponse } from "@/types/admin/rooms";
 
 function mapApiRoom(item: any, index: number): Room {
   const id = String(item?.name ?? item?.id ?? `ROOM-${index + 1}`);
+  const branch = String(item?.branchName ?? item?.branch?.name ?? "").trim() || "Chưa có chi nhánh";
   const capacity = item?.capacity ?? 0;
   const note = (item?.note as string | undefined) ?? "";
 
@@ -22,6 +23,7 @@ function mapApiRoom(item: any, index: number): Room {
 
   return {
     id,
+    branch,
     floor,
     area,
     capacity,
@@ -68,4 +70,62 @@ export async function fetchAdminRooms(): Promise<Room[]> {
   }
 
   return items.map(mapApiRoom).filter((r: Room) => r.id);
+}
+
+export async function createAdminRoom(
+  payload: CreateRoomRequest
+): Promise<CreateRoomResponse> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để tạo phòng học.");
+  }
+
+  const res = await fetch(ADMIN_ENDPOINTS.CLASSROOMS, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const detail = json?.detail || json?.message || json?.error;
+    const title = json?.title;
+    
+    let msg = "Không thể tạo phòng học từ máy chủ.";
+    if (detail) {
+      msg = detail;
+    } else if (title) {
+      msg = title;
+    } else if (typeof text === "string" && text.trim()) {
+      msg = text;
+    }
+    
+    throw new Error(msg);
+  }
+
+  const data = json?.data ?? json?.classroom ?? json;
+  const roomData: CreateRoomResponse = {
+    id: String(data?.id ?? ""),
+    branchId: data?.branchId ?? payload.branchId ?? "",
+    name: data?.name ?? payload.name ?? "",
+    capacity: typeof data?.capacity === "number" ? data.capacity : payload.capacity ?? 0,
+    note: data?.note ?? payload.note ?? undefined,
+    isActive: data?.isActive ?? true,
+  };
+
+  if (!roomData.id) {
+    roomData.id = `ROOM-${Date.now()}`;
+  }
+
+  return roomData;
 }
