@@ -224,7 +224,19 @@ function Avatar({ name, color }: { name: string; color: string }) {
 }
 
 function RoleBadge({ role }: { role: Role }) {
-  const { label, cls, icon } = ROLE_INFO[role];
+  const roleInfo = ROLE_INFO[role];
+  
+  // Safety check: if role is not found, use a default
+  if (!roleInfo) {
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+        <UserIcon size={12} />
+        <span>{role || 'Unknown'}</span>
+      </div>
+    );
+  }
+  
+  const { label, cls, icon } = roleInfo;
   return (
     <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
       {icon}
