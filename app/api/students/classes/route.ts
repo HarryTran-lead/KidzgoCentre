@@ -27,6 +27,22 @@ const url = buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_ALL());    const fullUrl = q
         "Content-Type": "application/json",
       },
     });
+  if (upstream.status === 403) {
+      const studentClassesUrl = buildApiUrl("/students/classes");
+      const fallbackUrl = queryString
+        ? `${studentClassesUrl}?${queryString}`
+        : studentClassesUrl;
+      const fallback = await fetch(fallbackUrl, {
+        method: "GET",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const fallbackData: StudentClassesResponse = await fallback.json();
+      return NextResponse.json(fallbackData, { status: fallback.status });
+    }
 
     const data: StudentClassesResponse = await upstream.json();
 

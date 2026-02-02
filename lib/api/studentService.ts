@@ -5,7 +5,9 @@
  * Token is automatically injected via axios interceptors.
  */
 
-import { CLASS_ENDPOINTS, STUDENT_ENDPOINTS } from "@/constants/apiURL";import { get } from "@/lib/axios";
+import { CLASS_ENDPOINTS, STUDENT_ENDPOINTS, STUDENT_CLASS_ENDPOINTS,
+ } from "@/constants/apiURL";
+import { get } from "@/lib/axios";
 import type { StudentClassesResponse } from "@/types/student/class";
 import type { StudentsResponse } from "@/types/student/student";
 
@@ -25,11 +27,10 @@ type StudentListParams = {
   pageSize?: number;
 };
 
-export async function getStudentClasses(
-  params?: StudentClassesParams
+export async function getStudentClassesByToken(
+  params?: Omit<StudentClassesParams, "studentId">
 ): Promise<StudentClassesResponse> {
-  const endpoint =
-    CLASS_ENDPOINTS.GET_ALL ?? "/api/classes";
+  const endpoint = STUDENT_CLASS_ENDPOINTS.GET_BY_TOKEN ?? "/api/students/classes";
 
   return get<StudentClassesResponse>(endpoint, {
     params: params ?? {},
@@ -45,4 +46,3 @@ export async function getAllStudents(
     params: params ?? {},
   });
 }
-

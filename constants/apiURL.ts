@@ -46,7 +46,9 @@ export const STUDENT_ENDPOINTS = {
   GET_ALL: "/api/students",
 
 } as const;
-
+export const STUDENT_CLASS_ENDPOINTS = {
+  GET_BY_TOKEN: "/api/students/classes",
+} as const;
 export const BACKEND_STUDENT_ENDPOINTS = {
 GET_ALL: () => `/GetAll/Students`,
 } as const;
@@ -76,6 +78,7 @@ export const BACKEND_CLASS_ENDPOINTS = {
   GET_ALL: () => "/classes",
   GET_BY_ID: (id: string) => `/classes/${id}`,
 } as const;
+
 export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
     STUDENTS: "/makeup-credits/students",
 
