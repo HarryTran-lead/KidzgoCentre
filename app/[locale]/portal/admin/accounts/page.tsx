@@ -82,7 +82,7 @@ import {
 } from "lucide-react";
 
 // Map UserRole from API to local Role type
-type Role = "Admin" | "Teacher" | "Parent" | "Staff";
+type Role = "Admin" | "Teacher" | "Parent" | "ManagementStaff";
 
 type Account = User & {
   name: string;
@@ -99,7 +99,7 @@ const mapRoleToDisplay = (apiRole: UserRole): Role => {
     'Admin': 'Admin',
     'Teacher': 'Teacher',
     'Parent': 'Parent',
-    'Staff': 'Staff'
+    'ManagementStaff': 'ManagementStaff'
   };
   return roleMap[apiRole];
 };
@@ -125,7 +125,7 @@ const getDepartment = (role: UserRole): string => {
     'Admin': 'Administration',
     'Teacher': 'Academic',
     'Parent': 'Parents',
-    'Staff': 'Operations'
+    'ManagementStaff': 'Management'
   };
   return departments[role];
 };
@@ -155,8 +155,8 @@ const ROLE_INFO: Record<Role, {
     bg: "from-emerald-400 to-teal-500",
     icon: <Users size={12} />
   },
-  Staff: {
-    label: "Nhân viên",
+  ManagementStaff: {
+    label: "Nhân viên quản lý",
     cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
     bg: "from-amber-400 to-orange-500",
     icon: <UserIcon size={12} />
@@ -224,7 +224,19 @@ function Avatar({ name, color }: { name: string; color: string }) {
 }
 
 function RoleBadge({ role }: { role: Role }) {
-  const { label, cls, icon } = ROLE_INFO[role];
+  const roleInfo = ROLE_INFO[role];
+  
+  // Safety check: if role is not found, use a default
+  if (!roleInfo) {
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+        <UserIcon size={12} />
+        <span>{role || 'Unknown'}</span>
+      </div>
+    );
+  }
+  
+  const { label, cls, icon } = roleInfo;
   return (
     <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
       {icon}
@@ -295,7 +307,7 @@ export default function AccountsPage() {
     admin: 0,
     teacher: 0,
     parent: 0,
-    staff: 0,
+    managementStaff: 0,
     active: 0,
     inactive: 0,
   });
@@ -345,7 +357,7 @@ export default function AccountsPage() {
             admin: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Admin').length,
             teacher: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Teacher').length,
             parent: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Parent').length,
-            staff: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Staff').length,
+            managementStaff: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'ManagementStaff').length,
             active: transformedAccounts.filter(a => a.isActive).length,
             inactive: transformedAccounts.filter(a => !a.isActive).length,
           };
@@ -355,7 +367,7 @@ export default function AccountsPage() {
         }
       } catch (err) {
         console.error('Error fetching users:', err);
-        setError('Đã xảy ra lỗi khi tải danh sách người dùng');
+        setError('Đã xảy ra lỗi khi tải danh sách người dùng'); 
       } finally {
         setLoading(false);
       }
@@ -481,7 +493,7 @@ export default function AccountsPage() {
       });
       throw error;
     }
-  };
+  };  
 
   const handleDeleteUser = async () => {
     if (!selectedAccount) return;
@@ -800,7 +812,7 @@ export default function AccountsPage() {
                 { k: 'Admin', label: 'Quản trị', count: fixedCounts.admin },
                 { k: 'Teacher', label: 'Giáo viên', count: fixedCounts.teacher },
                 { k: 'Parent', label: 'Phụ huynh', count: fixedCounts.parent },
-                { k: 'Staff', label: 'Nhân viên', count: fixedCounts.staff },
+                { k: 'ManagementStaff', label: 'Nhân viên', count: fixedCounts.managementStaff },
               ].map((item) => (
                 <button
                   key={item.k}
@@ -1222,10 +1234,13 @@ export default function AccountsPage() {
           <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
             <h4 className="font-semibold text-gray-900 mb-3">Phân bố vai trò</h4>
             <div className="space-y-3">
-              {(['Admin', 'Teacher', 'Parent', 'Staff'] as Role[]).map(role => {
+              {(['Admin', 'Teacher', 'Parent', 'ManagementStaff'] as Role[]).map(role => {
                 const count = accounts.filter(a => mapRoleToDisplay(a.role) === role).length;
                 const percentage = accounts.length > 0 ? Math.round((count / accounts.length) * 100) : 0;
                 const info = ROLE_INFO[role];
+                
+                // Skip if role info is not found
+                if (!info) return null;
 
                 return (
                   <div key={role} className="space-y-1">
