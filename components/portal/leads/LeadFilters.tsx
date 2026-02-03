@@ -23,9 +23,12 @@ interface LeadFiltersProps {
   searchQuery: string;
   selectedStatus: string;
   selectedSource: string;
+  myLeadsOnly?: boolean;
+  currentUserName?: string;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onSourceChange: (value: string) => void;
+  onMyLeadsOnlyChange?: (value: boolean) => void;
 }
 
 export default function LeadFilters({
@@ -36,9 +39,12 @@ export default function LeadFilters({
   searchQuery,
   selectedStatus,
   selectedSource,
+  myLeadsOnly = false,
+  currentUserName,
   onSearchChange,
   onStatusChange,
   onSourceChange,
+  onMyLeadsOnlyChange,
 }: LeadFiltersProps) {
   const statusOptions = ["Tất cả", ...Object.values(STATUS_MAPPING)];
   
@@ -80,6 +86,21 @@ export default function LeadFilters({
               ))}
             </select>
           </div>
+          
+          {/* Filter chỉ lead của tôi */}
+          {onMyLeadsOnlyChange && currentUserName && (
+            <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-pink-200 bg-white cursor-pointer hover:bg-pink-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={myLeadsOnly}
+                onChange={(e) => onMyLeadsOnlyChange(e.target.checked)}
+                className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+              />
+              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                Chỉ lead của tôi
+              </span>
+            </label>
+          )}
         </div>
       </div>
 

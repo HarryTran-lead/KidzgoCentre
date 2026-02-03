@@ -43,6 +43,7 @@ interface LeadTableProps {
   onView: (lead: Lead) => void;
   onAction: (lead: Lead, action: string) => void;
   onStatusChange?: (lead: Lead, newStatus: StatusType) => void;
+  currentUserId?: string; // ID của staff hiện tại để kiểm tra quyền
   // Pagination props
   currentPage?: number;
   totalPages?: number;
@@ -65,6 +66,7 @@ export default function LeadTable({
   onView,
   onAction,
   onStatusChange,
+  currentUserId,
   currentPage = 1,
   totalPages = 1,
   pageSize = 10,
@@ -267,8 +269,14 @@ export default function LeadTable({
                   <select
                     value={lead.status || "New"}
                     onChange={(e) => onStatusChange?.(lead, e.target.value as StatusType)}
-                    className="text-xs font-medium px-2 py-1 rounded-lg border border-pink-200 bg-white focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none cursor-pointer"
+                    disabled={!lead.ownerStaffId || lead.ownerStaffId !== currentUserId}
+                    className={`text-xs font-medium px-2 py-1 rounded-lg border border-pink-200 bg-white focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none ${
+                      !lead.ownerStaffId || lead.ownerStaffId !== currentUserId
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'cursor-pointer'
+                    }`}
                     onClick={(e) => e.stopPropagation()}
+                    title={!lead.ownerStaffId ? "Lead chưa được phân công" : lead.ownerStaffId !== currentUserId ? "Chỉ nhân viên phụ trách mới có thể thay đổi trạng thái" : ""}
                   >
                     <option value="New">🌟 Mới</option>
                     <option value="Contacted">📞 Đang tư vấn</option>
@@ -295,13 +303,16 @@ export default function LeadTable({
                     >
                       <Edit size={14} />
                     </button>
-                    <button
-                      onClick={() => onAction(lead, "assign")}
-                      className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-gray-400 hover:text-green-600 cursor-pointer"
-                      title="Phân công"
-                    >
-                      <UserCheck size={14} />
-                    </button>
+                    {/* Chỉ hiển thị nút nhận lead nếu chưa có owner */}
+                    {!lead.ownerStaffId && (
+                      <button
+                        onClick={() => onAction(lead, "self-assign")}
+                        className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-gray-400 hover:text-green-600 cursor-pointer"
+                        title="Nhận lead"
+                      >
+                        <UserCheck size={14} />
+                      </button>
+                    )}
                     <button
                       className="p-1.5 rounded-lg hover:bg-gray-50 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
                       title="Thêm"

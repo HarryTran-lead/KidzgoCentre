@@ -12,7 +12,7 @@ import {
   LeadTable,
   LeadFormModal,
   LeadDetailModal,
-  AssignStaffModal,
+  SelfAssignModal,
 } from "@/components/portal/leads";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
@@ -48,6 +48,7 @@ export default function Page() {
   // Filter state
   const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
   const [selectedSource, setSelectedSource] = useState<string>("Tất cả");
+  const [myLeadsOnly, setMyLeadsOnly] = useState<boolean>(false); // Filter chỉ lead của tôi
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [availableSources, setAvailableSources] = useState<string[]>([]);
@@ -61,7 +62,7 @@ export default function Page() {
   // Modal state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isSelfAssignModalOpen, setIsSelfAssignModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadType | null>(null);
 
   useEffect(() => {
@@ -120,7 +121,7 @@ export default function Page() {
     if (currentUser && !isLoadingUser) {
       fetchLeads();
     }
-  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource, currentUser, isLoadingUser]);
+  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource, myLeadsOnly, currentUser, isLoadingUser]);
 
   const fetchLeads = async () => {
     try {
@@ -144,6 +145,7 @@ export default function Page() {
         status: getEnglishStatus(selectedStatus),
         source: selectedSource !== "Tất cả" ? selectedSource : undefined,
         branchId: currentUser.branchId, // Filter by staff's branch
+        ownerStaffId: myLeadsOnly ? currentUser.id : undefined, // Filter chỉ lead của tôi
       });
       
       if (response.isSuccess && response.data.leads) {
@@ -257,9 +259,18 @@ export default function Page() {
   };
 
   const handleLeadAction = (lead: LeadType, action: string) => {
-    if (action === "assign") {
-      setSelectedLead(lead);
-      setIsAssignModalOpen(true);
+    if (action === "self-assign") {
+      // Kiểm tra nếu lead chưa có owner
+      if (!lead.ownerStaffId) {
+        setSelectedLead(lead);
+        setIsSelfAssignModalOpen(true);
+      } else {
+        toast({
+          title: "Thông báo",
+          description: "Lead này đã được phân công",
+          variant: "destructive",
+        });
+      }
       return;
     }
     
@@ -315,7 +326,7 @@ export default function Page() {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [debouncedSearchQuery, selectedStatus, selectedSource]);
+  }, [debouncedSearchQuery, selectedStatus, selectedSource, myLeadsOnly]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
@@ -376,9 +387,12 @@ export default function Page() {
           searchQuery={searchQuery}
           selectedStatus={selectedStatus}
           selectedSource={selectedSource}
+          myLeadsOnly={myLeadsOnly}
+          currentUserName={currentUser?.fullName}
           onSearchChange={setSearchQuery}
           onStatusChange={setSelectedStatus}
           onSourceChange={setSelectedSource}
+          onMyLeadsOnlyChange={setMyLeadsOnly}
         />
       </div>
 
@@ -401,6 +415,7 @@ export default function Page() {
           onView={handleViewLead}
           onAction={handleLeadAction}
           onStatusChange={handleStatusChange}
+          currentUserId={currentUser?.id}
           currentPage={currentPage}
           totalPages={totalPages}
           pageSize={pageSize}
@@ -425,10 +440,10 @@ export default function Page() {
         onEdit={handleEditLead}
       />
 
-      <AssignStaffModal
-        isOpen={isAssignModalOpen}
+      <SelfAssignModal
+        isOpen={isSelfAssignModalOpen}
         lead={selectedLead}
-        onClose={() => setIsAssignModalOpen(false)}
+        onClose={() => setIsSelfAssignModalOpen(false)}
         onAssigned={handleAssignSuccess}
       />
     </div>

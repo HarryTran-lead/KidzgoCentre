@@ -96,6 +96,13 @@ export async function assignLead(id: string, data: AssignLeadRequest): Promise<A
 }
 
 /**
+ * Self-assign a lead to the current logged-in staff
+ */
+export async function selfAssignLead(id: string): Promise<AssignLeadApiResponse> {
+  return post<AssignLeadApiResponse>(LEAD_ENDPOINTS.SELF_ASSIGN(id), {});
+}
+
+/**
  * Update lead status
  */
 export async function updateLeadStatus(id: string, data: UpdateLeadStatusRequest): Promise<UpdateLeadStatusApiResponse> {
