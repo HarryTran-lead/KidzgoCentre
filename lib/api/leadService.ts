@@ -7,7 +7,7 @@
  */
 
 import { LEAD_ENDPOINTS } from '@/constants/apiURL';
-import { get, post, put, patch } from '@/lib/axios';
+import { get, post, put, patch, del } from '@/lib/axios';
 import type {
   CreateLeadPublicRequest,
   CreateLeadPublicApiResponse,
@@ -26,6 +26,13 @@ import type {
   AddLeadNoteApiResponse,
   GetLeadActivitiesApiResponse,
   GetLeadSLAApiResponse,
+  // Children types
+  GetLeadChildrenApiResponse,
+  CreateLeadChildRequest,
+  CreateLeadChildApiResponse,
+  UpdateLeadChildRequest,
+  UpdateLeadChildApiResponse,
+  DeleteLeadChildApiResponse,
 } from '@/types/lead';
 
 /**
@@ -58,6 +65,7 @@ export async function getAllLeads(params?: GetAllLeadsParams): Promise<GetAllLea
     if (params.source) queryParams.append('source', params.source);
     if (params.ownerStaffId) queryParams.append('ownerStaffId', params.ownerStaffId);
     if (params.branchPreference) queryParams.append('branchPreference', params.branchPreference);
+    if (params.branchId) queryParams.append('branchId', params.branchId);
   }
 
   const url = LEAD_ENDPOINTS.GET_ALL;
@@ -113,4 +121,38 @@ export async function getLeadActivities(id: string): Promise<GetLeadActivitiesAp
  */
 export async function getLeadSLA(id: string): Promise<GetLeadSLAApiResponse> {
   return get<GetLeadSLAApiResponse>(LEAD_ENDPOINTS.GET_SLA(id));
+}
+
+// ==================== Children Management ====================
+
+/**
+ * Get all children for a specific lead
+ */
+export async function getLeadChildren(leadId: string): Promise<GetLeadChildrenApiResponse> {
+  return get<GetLeadChildrenApiResponse>(LEAD_ENDPOINTS.GET_CHILDREN(leadId));
+}
+
+/**
+ * Add a child to a lead
+ */
+export async function createLeadChild(leadId: string, data: CreateLeadChildRequest): Promise<CreateLeadChildApiResponse> {
+  return post<CreateLeadChildApiResponse>(LEAD_ENDPOINTS.CREATE_CHILD(leadId), data);
+}
+
+/**
+ * Update a child's information
+ */
+export async function updateLeadChild(
+  leadId: string, 
+  childId: string, 
+  data: UpdateLeadChildRequest
+): Promise<UpdateLeadChildApiResponse> {
+  return put<UpdateLeadChildApiResponse>(LEAD_ENDPOINTS.UPDATE_CHILD(leadId, childId), data);
+}
+
+/**
+ * Delete a child from a lead
+ */
+export async function deleteLeadChild(leadId: string, childId: string): Promise<DeleteLeadChildApiResponse> {
+  return del<DeleteLeadChildApiResponse>(LEAD_ENDPOINTS.DELETE_CHILD(leadId, childId));
 }

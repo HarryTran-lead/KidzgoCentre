@@ -1,7 +1,9 @@
 "use client";
 
-import { X, User, Phone, Mail, MessageSquare, Calendar, Tag, Activity, Clock, Building, FileText } from "lucide-react";
+import { useState } from "react";
+import { X, User, Phone, Mail, MessageSquare, Calendar, Tag, Activity, Clock, Building, FileText, Users } from "lucide-react";
 import type { Lead } from "@/types/lead";
+import LeadChildrenManager from "./LeadChildrenManager";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
 
@@ -22,6 +24,8 @@ interface LeadDetailModalProps {
 }
 
 export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadDetailModalProps) {
+  const [activeTab, setActiveTab] = useState<'info' | 'children'>('info');
+  
   if (!isOpen || !lead) return null;
 
   return (
@@ -50,9 +54,38 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
               <X size={20} />
             </button>
           </div>
+          
+          {/* Tabs */}
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={() => setActiveTab('info')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === 'info'
+                  ? 'bg-white text-pink-600'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              <User size={16} />
+              Thông tin Lead
+            </button>
+            <button
+              onClick={() => setActiveTab('children')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === 'children'
+                  ? 'bg-white text-pink-600'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              <Users size={16} />
+              Thông tin bé
+            </button>
+          </div>
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Tab: Lead Info */}
+          {activeTab === 'info' && (
+            <>
           {/* Basic Info */}
           <div className="rounded-xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5 custom-scrollbar">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
@@ -230,7 +263,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Actions - Only show in info tab */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t">
             <button
               onClick={onClose}
@@ -248,6 +281,15 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
               Chỉnh sửa
             </button>
           </div>
+            </>
+          )}
+
+          {/* Tab: Children */}
+          {activeTab === 'children' && (
+            <div className="rounded-xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+              <LeadChildrenManager leadId={lead.id} isEditable={true} />
+            </div>
+          )}
         </div>
       </div>
     </div>

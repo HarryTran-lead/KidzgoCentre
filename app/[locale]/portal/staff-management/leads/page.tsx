@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { Target, UserPlus, Download } from "lucide-react";
 import { getAllLeads, updateLeadStatus } from "@/lib/api/leadService";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Lead as LeadType } from "@/types/lead";
 import {
   LeadStats,
@@ -27,6 +28,7 @@ const STATUS_MAPPING: Record<StatusType, string> = {
 
 export default function Page() {
   const { toast } = useToast();
+  const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
   
   // Data state
   const [leads, setLeads] = useState<LeadType[]>([]); // Filtered leads for table
@@ -64,9 +66,11 @@ export default function Page() {
 
   useEffect(() => {
     setIsPageLoaded(true);
-    // Fetch initial data for stats and filters (only once)
-    fetchInitialData();
-  }, []);
+    // Fetch initial data for stats and filters when user data is available
+    if (currentUser && !isLoadingUser) {
+      fetchInitialData();
+    }
+  }, [currentUser, isLoadingUser]);
 
   // Debounce search query (2 seconds)
   useEffect(() => {
@@ -79,8 +83,15 @@ export default function Page() {
 
   const fetchInitialData = async () => {
     try {
-      // Fetch all leads without filters for stats and filter options
-      const response = await getAllLeads({ pageSize: 1000 });
+      // Only fetch if user data is loaded and has branchId
+      if (!currentUser || isLoadingUser) return;
+      
+      // Fetch all leads without filters for stats and filter options, but filtered by branch
+      const response = await getAllLeads({ 
+        pageSize: 1000,
+        branchId: currentUser.branchId // Filter by staff's branch
+      });
+      
       if (response.isSuccess && response.data.leads) {
         const allLeadsData = response.data.leads;
         setAllLeads(allLeadsData);
@@ -106,11 +117,16 @@ export default function Page() {
   };
 
   useEffect(() => {
-    fetchLeads();
-  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource]);
+    if (currentUser && !isLoadingUser) {
+      fetchLeads();
+    }
+  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource, currentUser, isLoadingUser]);
 
   const fetchLeads = async () => {
     try {
+      // Don't fetch if user data is not ready
+      if (!currentUser || isLoadingUser) return;
+      
       setIsLoading(true);
       setError(null);
       
@@ -127,6 +143,7 @@ export default function Page() {
         searchTerm: debouncedSearchQuery || undefined,
         status: getEnglishStatus(selectedStatus),
         source: selectedSource !== "Tất cả" ? selectedSource : undefined,
+        branchId: currentUser.branchId, // Filter by staff's branch
       });
       
       if (response.isSuccess && response.data.leads) {
@@ -318,6 +335,11 @@ export default function Page() {
             </h1>
             <p className="text-sm text-gray-600 mt-1">
               Nhận lead, phân công tư vấn, đặt lịch test và chuyển đổi ghi danh
+              {currentUser?.branchName && (
+                <span className="ml-2 text-pink-600 font-medium">
+                  • Chi nhánh: {currentUser.branchName}
+                </span>
+              )}
             </p>
           </div>
         </div>

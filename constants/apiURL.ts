@@ -130,6 +130,12 @@ export const LEAD_ENDPOINTS = {
   ADD_NOTE: (id: string) => `/api/leads/${id}/notes`,
   GET_ACTIVITIES: (id: string) => `/api/leads/${id}/activities`,
   GET_SLA: (id: string) => `/api/leads/${id}/sla`,
+  
+  // Children endpoints
+  GET_CHILDREN: (leadId: string) => `/api/leads/${leadId}/children`,
+  CREATE_CHILD: (leadId: string) => `/api/leads/${leadId}/children`,
+  UPDATE_CHILD: (leadId: string, childId: string) => `/api/leads/${leadId}/children/${childId}`,
+  DELETE_CHILD: (leadId: string, childId: string) => `/api/leads/${leadId}/children/${childId}`,
 } as const;
 
 // Backend Lead Endpoints (Next.js API Routes → Backend API)
@@ -144,4 +150,10 @@ export const BACKEND_LEAD_ENDPOINTS = {
   ADD_NOTE: (id: string) => `/leads/${id}/notes`,
   GET_ACTIVITIES: (id: string) => `/leads/${id}/activities`,
   GET_SLA: (id: string) => `/leads/${id}/sla`,
+  
+  // Children endpoints
+  GET_CHILDREN: (leadId: string) => `/leads/${leadId}/children`,
+  CREATE_CHILD: (leadId: string) => `/leads/${leadId}/children`,
+  UPDATE_CHILD: (leadId: string, childId: string) => `/leads/${leadId}/children/${childId}`,
+  DELETE_CHILD: (leadId: string, childId: string) => `/leads/${leadId}/children/${childId}`,
 } as const;

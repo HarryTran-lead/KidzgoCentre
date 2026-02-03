@@ -46,6 +46,19 @@ export interface LeadActivity {
   createdAt: string;
 }
 
+// Child Types
+export interface LeadChild {
+  id: string;
+  leadId: string;
+  childName: string;
+  dob?: string; // Date of birth in ISO format
+  gender?: string;
+  programInterest?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // Request Types
 export interface CreateLeadPublicRequest {
   contactName: string;
@@ -58,6 +71,7 @@ export interface CreateLeadRequest extends CreateLeadPublicRequest {
   status?: string;
   source?: string;
   assignedTo?: string;
+  children?: CreateLeadChildRequest[];
 }
 
 export interface UpdateLeadRequest {
@@ -88,6 +102,23 @@ export interface AddLeadNoteRequest {
   activityType: string;
   nextActionAt?: string;
 }
+// Child Request Types
+export interface CreateLeadChildRequest {
+  childName: string;
+  dob?: string; // Date of birth in ISO format (e.g., "2026-03-24T22:22:24+07:00")
+  gender?: string;
+  programInterest?: string;
+  notes?: string;
+}
+
+export interface UpdateLeadChildRequest {
+  childName?: string;
+  dob?: string;
+  gender?: string;
+  programInterest?: string;
+  notes?: string;
+}
+
 
 export interface GetAllLeadsParams {
   page?: number;
@@ -97,6 +128,7 @@ export interface GetAllLeadsParams {
   source?: string;
   ownerStaffId?: string;
   branchPreference?: string;
+  branchId?: string; // Filter by branch ID
 }
 
 // Response Types
@@ -170,5 +202,31 @@ export interface GetLeadSLAApiResponse {
     resolutionTime?: number;
     slaStatus: string;
   };
+  message?: string;
+}
+
+// Child Response Types
+export interface GetLeadChildrenApiResponse {
+  isSuccess: boolean;
+  data: {
+    children: LeadChild[];
+  };
+  message?: string;
+}
+
+export interface CreateLeadChildApiResponse {
+  isSuccess: boolean;
+  data: LeadChild;
+  message?: string;
+}
+
+export interface UpdateLeadChildApiResponse {
+  isSuccess: boolean;
+  data: LeadChild;
+  message?: string;
+}
+
+export interface DeleteLeadChildApiResponse {
+  isSuccess: boolean;
   message?: string;
 }

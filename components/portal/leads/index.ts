@@ -5,3 +5,4 @@ export { default as LeadFormModal } from './LeadFormModal';
 export { default as LeadDetailModal } from './LeadDetailModal';
 export { default as LeadPagination } from "./LeadPagination";
 export { default as AssignStaffModal } from "./AssignStaffModal";
+export { default as LeadChildrenManager } from "./LeadChildrenManager";
