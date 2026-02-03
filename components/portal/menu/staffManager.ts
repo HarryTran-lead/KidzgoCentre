@@ -27,6 +27,7 @@ export function staffManagerMenu(
     [t.dashboard, LayoutDashboard, ""],
     [t.accounts, UserCog, "/accounts"],
     [t.crm, Users, "/leads"],
+    [t.placementTests, Users, "/placement-tests"],
     [t.allocation, CalendarRange, "/schedule"],
     [t.makeup, RefreshCw, "/makeup"],
     [t.lessonPlans, BookOpenCheck, "/lesson-plans"],

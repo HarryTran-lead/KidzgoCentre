@@ -159,3 +159,29 @@ export const BACKEND_LEAD_ENDPOINTS = {
   UPDATE_CHILD: (leadId: string, childId: string) => `/leads/${leadId}/children/${childId}`,
   DELETE_CHILD: (leadId: string, childId: string) => `/leads/${leadId}/children/${childId}`,
 } as const;
+
+// Placement Test Endpoints (Client-side → Next.js API Routes)
+export const PLACEMENT_TEST_ENDPOINTS = {
+  GET_ALL: '/api/placement-tests',
+  GET_BY_ID: (id: string) => `/api/placement-tests/${id}`,
+  CREATE: '/api/placement-tests',
+  UPDATE: (id: string) => `/api/placement-tests/${id}`,
+  CANCEL: (id: string) => `/api/placement-tests/${id}/cancel`,
+  NO_SHOW: (id: string) => `/api/placement-tests/${id}/no-show`,
+  UPDATE_RESULTS: (id: string) => `/api/placement-tests/${id}/results`,
+  ADD_NOTE: (id: string) => `/api/placement-tests/${id}/notes`,
+  CONVERT_TO_ENROLLED: (id: string) => `/api/placement-tests/${id}/convert-to-enrolled`,
+} as const;
+
+// Backend Placement Test Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_PLACEMENT_TEST_ENDPOINTS = {
+  GET_ALL: '/placement-tests',
+  GET_BY_ID: (id: string) => `/placement-tests/${id}`,
+  CREATE: '/placement-tests',
+  UPDATE: (id: string) => `/placement-tests/${id}`,
+  CANCEL: (id: string) => `/placement-tests/${id}/cancel`,
+  NO_SHOW: (id: string) => `/placement-tests/${id}/no-show`,
+  UPDATE_RESULTS: (id: string) => `/placement-tests/${id}/results`,
+  ADD_NOTE: (id: string) => `/placement-tests/${id}/notes`,
+  CONVERT_TO_ENROLLED: (id: string) => `/placement-tests/${id}/convert-to-enrolled`,
+} as const;
