@@ -5,8 +5,11 @@
  * Token is automatically injected via axios interceptors.
  */
 
-import { CLASS_ENDPOINTS, STUDENT_ENDPOINTS, STUDENT_CLASS_ENDPOINTS,
- } from "@/constants/apiURL";
+import {
+  CLASS_ENDPOINTS,
+  STUDENT_CLASS_ENDPOINTS,
+  STUDENT_ENDPOINTS,
+} from "@/constants/apiURL";
 import { get } from "@/lib/axios";
 import type { StudentClassesResponse } from "@/types/student/class";
 import type { StudentsResponse } from "@/types/student/student";
