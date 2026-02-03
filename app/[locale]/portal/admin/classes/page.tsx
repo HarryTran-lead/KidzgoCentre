@@ -8,7 +8,13 @@ import {
   BookOpen, X, Calendar, Tag, User, GraduationCap, AlertCircle, Building2
 } from "lucide-react";
 import clsx from "clsx";
-import { fetchAdminClasses, createAdminClass, fetchAdminUsersByIds } from "@/app/api/admin/classes";
+import { 
+  fetchAdminClasses, 
+  createAdminClass, 
+  fetchAdminUsersByIds,
+  fetchAdminClassDetail,
+  updateAdminClass
+} from "@/app/api/admin/classes";
 import { fetchClassFormSelectData, fetchTeacherOptionsByBranch, fetchProgramOptionsByBranch } from "@/app/api/admin/classFormData";
 import type { ClassRow, CreateClassRequest } from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
@@ -35,7 +41,7 @@ function occupancyTint(curr: number, cap: number) {
   return "text-emerald-600";
 }
 
-type SortField = "id" | "name" | "teacher" | "branch" | "capacity" | "schedule" | "status";
+type SortField = "id" | "name" | "program" | "teacher" | "branch" | "capacity" | "schedule" | "status";
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 5;
 
@@ -220,6 +226,8 @@ interface CreateClassModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: ClassFormData) => void;
+  mode?: "create" | "edit";
+  initialData?: ClassFormData | null;
 }
 
 interface ClassFormData {
@@ -229,7 +237,6 @@ interface ClassFormData {
   branchId: string;
   mainTeacherId: string;
   assistantTeacherId: string;
-  roomId: string;
   capacity: number;
   schedule: string;
   status: "Đang học" | "Sắp khai giảng" | "Đã kết thúc";
@@ -245,7 +252,6 @@ const initialFormData: ClassFormData = {
   branchId: "",
   mainTeacherId: "",
   assistantTeacherId: "",
-  roomId: "",
   capacity: 30,
   schedule: "",
   status: "Sắp khai giảng",
@@ -254,14 +260,13 @@ const initialFormData: ClassFormData = {
   description: "",
 };
 
-function CreateClassModal({ isOpen, onClose, onSubmit }: CreateClassModalProps) {
+function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateClassModalProps) {
   const [formData, setFormData] = useState<ClassFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof ClassFormData, string>>>({});
   const modalRef = useRef<HTMLDivElement>(null);
   const [programOptions, setProgramOptions] = useState<SelectOption[]>([]);
   const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
-  const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
 
   const fetchSelectData = async () => {
@@ -272,7 +277,6 @@ function CreateClassModal({ isOpen, onClose, onSubmit }: CreateClassModalProps) 
       setProgramOptions([]);
       setBranchOptions(data.branches);
       setTeacherOptions([]);
-      setRoomOptions(data.classrooms);
     } catch (err) {
       console.error("Failed to fetch select data:", err);
     } finally {
@@ -301,7 +305,6 @@ function CreateClassModal({ isOpen, onClose, onSubmit }: CreateClassModalProps) 
     (async () => {
       try {
         setLoadingOptions(true);
-        // 并行加载 programs 和 teachers
         const [programs, teachers] = await Promise.all([
           fetchProgramOptionsByBranch(branchId),
           fetchTeacherOptionsByBranch(branchId),
@@ -358,10 +361,14 @@ function CreateClassModal({ isOpen, onClose, onSubmit }: CreateClassModalProps) 
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(initialFormData);
+      if (mode === "edit" && initialData) {
+        setFormData(initialData);
+      } else {
+        setFormData(initialFormData);
+      }
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, mode, initialData]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ClassFormData, string>> = {};
@@ -413,8 +420,12 @@ function CreateClassModal({ isOpen, onClose, onSubmit }: CreateClassModalProps) 
                 <GraduationCap size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Tạo lớp học mới</h2>
-                <p className="text-sm text-pink-100">Nhập thông tin chi tiết về lớp học mới</p>
+                <h2 className="text-2xl font-bold text-white">
+                  {mode === "edit" ? "Cập nhật lớp học" : "Tạo lớp học mới"}
+                </h2>
+                <p className="text-sm text-pink-100">
+                  {mode === "edit" ? "Chỉnh sửa thông tin lớp học" : "Nhập thông tin chi tiết về lớp học mới"}
+                </p>
               </div>
             </div>
             <button
@@ -607,56 +618,32 @@ function CreateClassModal({ isOpen, onClose, onSubmit }: CreateClassModalProps) 
               </div>
             </div>
 
-            {/* Row 3: Phòng học & Sĩ số */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <MapPin size={16} className="text-pink-500" />
-                  Phòng học
-                </label>
-                <select
-                  value={formData.roomId}
-                  onChange={(e) => handleChange("roomId", e.target.value)}
-                  disabled={loadingOptions}
+            {/* Row 3: Sĩ số */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Users size={16} className="text-pink-500" />
+                Sĩ số tối đa *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={formData.capacity}
+                  onChange={(e) => handleChange("capacity", parseInt(e.target.value) || 0)}
                   className={clsx(
-                    "w-full px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900",
-                    "focus:outline-none focus:ring-2 focus:ring-pink-300",
-                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                    errors.capacity ? "border-rose-500" : "border-pink-200"
                   )}
-                >
-                  <option value="">{loadingOptions ? "Đang tải..." : "Chọn phòng học"}</option>
-                  {roomOptions.map((r) => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
+                />
+                {errors.capacity && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-rose-500" />
+                  </div>
+                )}
               </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Users size={16} className="text-pink-500" />
-                  Sĩ số tối đa *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={formData.capacity}
-                    onChange={(e) => handleChange("capacity", parseInt(e.target.value) || 0)}
-                    className={clsx(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                      errors.capacity ? "border-rose-500" : "border-pink-200"
-                    )}
-                  />
-                  {errors.capacity && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.capacity && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.capacity}</p>}
-              </div>
+              {errors.capacity && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.capacity}</p>}
             </div>
 
             {/* Row 4: Ngày bắt đầu & Kết thúc */}
@@ -792,19 +779,23 @@ function CreateClassModal({ isOpen, onClose, onSubmit }: CreateClassModalProps) 
               <button
                 type="button"
                 onClick={() => {
-                  setFormData(initialFormData);
+                  if (mode === "edit" && initialData) {
+                    setFormData(initialData);
+                  } else {
+                    setFormData(initialFormData);
+                  }
                   setErrors({});
                 }}
                 className="px-6 py-2.5 rounded-xl border border-pink-300 text-pink-600 font-semibold hover:bg-pink-50 transition-colors cursor-pointer"
               >
-                Đặt lại
+                {mode === "edit" ? "Khôi phục" : "Đặt lại"}
               </button>
               <button
                 type="button"
                 onClick={handleSubmit}
                 className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer"
               >
-                Tạo lớp học
+                {mode === "edit" ? "Lưu thay đổi" : "Tạo lớp học"}
               </button>
             </div>
           </div>
@@ -829,6 +820,9 @@ export default function Page() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingClassId, setEditingClassId] = useState<string | null>(null);
+  const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
 
   // Gọi API để lấy danh sách lớp từ backend
   useEffect(() => {
@@ -889,6 +883,7 @@ export default function Page() {
           switch (sortField) {
             case "id": return c.id;
             case "name": return c.name;
+            case "program": return c.sub;
             case "teacher": return c.teacher;
             case "branch": return c.branch;
             case "capacity": return `${c.current}/${c.capacity}`;
@@ -926,13 +921,10 @@ export default function Page() {
 
   const handleCreateClass = async (data: ClassFormData) => {
     try {
-      // 验证 programId
       if (!data.programId || data.programId.trim() === "") {
         alert("Vui lòng chọn chương trình học.");
         return;
       }
-
-      // 转换 schedule 为 RRULE 格式
       const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
 
       const payload: CreateClassRequest = {
@@ -952,7 +944,7 @@ export default function Page() {
 
       const created = await createAdminClass(payload);
 
-      // 重新获取班级列表以显示新创建的班级
+
       const updatedClasses = await fetchAdminClasses();
       setClasses(updatedClasses);
 
@@ -961,6 +953,88 @@ export default function Page() {
       console.error("Failed to create class:", err);
       const errorMessage = err?.message || "Không thể tạo lớp học. Vui lòng thử lại.";
       alert(errorMessage);
+    }
+  };
+
+  const handleOpenEditClass = async (row: ClassRow) => {
+    try {
+      setIsEditModalOpen(true);
+      setEditingClassId(row.id);
+      setEditingInitialData(null);
+
+      const detail: any = await fetchAdminClassDetail(row.id);
+
+      const schedulePattern = (detail?.schedulePattern as string | undefined) ?? "";
+      const schedule = schedulePattern ? parseRRULEToSchedule(schedulePattern) : "";
+
+      const rawStatus: string = (detail?.status as string | undefined) ?? "";
+      const normalized = rawStatus.toLowerCase();
+      let status: ClassFormData["status"] = "Sắp khai giảng";
+      if (normalized === "active" || normalized === "ongoing") status = "Đang học";
+      else if (normalized === "closed" || normalized === "completed") status = "Đã kết thúc";
+
+      const formData: ClassFormData = {
+        code: detail?.code ?? row.code ?? "",
+        name: detail?.title ?? row.name ?? "",
+        programId: String(detail?.programId ?? ""),
+        branchId: String(detail?.branchId ?? ""),
+        mainTeacherId: String(detail?.mainTeacherId ?? ""),
+        assistantTeacherId: detail?.assistantTeacherId ? String(detail.assistantTeacherId) : "",
+        capacity: typeof detail?.capacity === "number" ? detail.capacity : row.capacity,
+        schedule,
+        status,
+        startDate: (detail?.startDate as string | undefined)?.slice(0, 10) ?? "",
+        endDate: (detail?.endDate as string | undefined)?.slice(0, 10) ?? "",
+        description: detail?.description ?? "",
+      };
+
+      setEditingInitialData(formData);
+    } catch (err: any) {
+      console.error("Failed to load class detail for edit:", err);
+      alert(err?.message || "Không thể tải thông tin lớp học để chỉnh sửa.");
+      setIsEditModalOpen(false);
+      setEditingClassId(null);
+      setEditingInitialData(null);
+    }
+  };
+
+  const handleUpdateClass = async (data: ClassFormData) => {
+    if (!editingClassId) return;
+    try {
+      if (!data.programId || data.programId.trim() === "") {
+        alert("Vui lòng chọn chương trình học.");
+        return;
+      }
+
+      const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
+
+      const payload: CreateClassRequest = {
+        branchId: data.branchId,
+        programId: data.programId.trim(),
+        code: data.code,
+        title: data.name,
+        mainTeacherId: data.mainTeacherId,
+        assistantTeacherId: data.assistantTeacherId || undefined,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        capacity: data.capacity,
+        schedulePattern,
+      };
+
+      console.log("Updating class with payload:", payload);
+
+      await updateAdminClass(editingClassId, payload);
+
+      const updatedClasses = await fetchAdminClasses();
+      setClasses(updatedClasses);
+      alert(`Đã cập nhật lớp học ${data.name} thành công!`);
+    } catch (err: any) {
+      console.error("Failed to update class:", err);
+      const errorMessage = err?.message || "Không thể cập nhật lớp học. Vui lòng thử lại.";
+      alert(errorMessage);
+    } finally {
+      setEditingClassId(null);
+      setEditingInitialData(null);
     }
   };
 
@@ -1093,8 +1167,8 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
                 <tr>
-                  <SortableHeader field="id" currentField={sortField} direction={sortDirection} onSort={handleSort}>Mã lớp</SortableHeader>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên lớp</SortableHeader>
+                  <SortableHeader field="program" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình</SortableHeader>
                   <SortableHeader field="teacher" currentField={sortField} direction={sortDirection} onSort={handleSort}>Giáo viên</SortableHeader>
                   <SortableHeader field="branch" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chi nhánh</SortableHeader>
                   <SortableHeader field="capacity" currentField={sortField} direction={sortDirection} onSort={handleSort}>Sĩ số</SortableHeader>
@@ -1110,11 +1184,13 @@ export default function Page() {
                       key={c.id}
                       className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
                     >
-                      <td className="py-4 px-6 text-sm text-gray-900 whitespace-nowrap">{c.code || c.id}</td>
-
                       <td className="py-4 px-6">
                         <div className="text-sm text-gray-900 truncate">{c.name}</div>
-                        <div className="text-xs text-gray-500 truncate">{c.sub}</div>
+                        <div className="text-xs text-gray-500 truncate">Mã lớp: {c.code || c.id}</div>
+                      </td>
+
+                      <td className="py-4 px-6">
+                        <div className="text-sm text-gray-900 truncate">{c.sub}</div>
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
@@ -1160,7 +1236,11 @@ export default function Page() {
                           >
                             <Eye size={14} />
                           </button>
-                          <button className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer" title="Sửa">
+                          <button 
+                            onClick={() => handleOpenEditClass(c)}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer" 
+                            title="Sửa"
+                          >
                             <Pencil size={14} />
                           </button>
                         </div>
@@ -1222,6 +1302,18 @@ export default function Page() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateClass}
+      />
+      {/* Edit Class Modal */}
+      <CreateClassModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingClassId(null);
+          setEditingInitialData(null);
+        }}
+        onSubmit={handleUpdateClass}
+        mode="edit"
+        initialData={editingInitialData}
       />
     </>
   );
