@@ -7,3 +7,4 @@ export { default as LeadPagination } from "./LeadPagination";
 export { default as AssignStaffModal } from "./AssignStaffModal";
 export { default as SelfAssignModal } from "./SelfAssignModal";
 export { default as LeadChildrenManager } from "./LeadChildrenManager";
+export { default as StatusSelect } from "./StatusSelect";

@@ -15,9 +15,13 @@ import {
   Edit,
   Eye,
   Trash2,
+  ChevronDown,
 } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
 import type { Lead } from "@/types/lead";
 import LeadPagination from "./LeadPagination";
+import StatusSelect from "./StatusSelect";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
 
@@ -266,25 +270,12 @@ export default function LeadTable({
                 </td>
                 
                 <td className="py-4 px-6">
-                  <select
+                  <StatusSelect
                     value={lead.status || "New"}
-                    onChange={(e) => onStatusChange?.(lead, e.target.value as StatusType)}
+                    onChange={(newStatus) => onStatusChange?.(lead, newStatus)}
                     disabled={!lead.ownerStaffId || lead.ownerStaffId !== currentUserId}
-                    className={`text-xs font-medium px-2 py-1 rounded-lg border border-pink-200 bg-white focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none ${
-                      !lead.ownerStaffId || lead.ownerStaffId !== currentUserId
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'cursor-pointer'
-                    }`}
-                    onClick={(e) => e.stopPropagation()}
                     title={!lead.ownerStaffId ? "Lead chưa được phân công" : lead.ownerStaffId !== currentUserId ? "Chỉ nhân viên phụ trách mới có thể thay đổi trạng thái" : ""}
-                  >
-                    <option value="New">🌟 Mới</option>
-                    <option value="Contacted">📞 Đang tư vấn</option>
-                    <option value="BookedTest">📅 Đã đặt lịch test</option>
-                    <option value="TestDone">📝 Đã test</option>
-                    <option value="Enrolled">✅ Đã ghi danh</option>
-                    <option value="Lost">❌ Đã hủy</option>
-                  </select>
+                  />
                 </td>
                 
                 <td className="py-4 px-6">
