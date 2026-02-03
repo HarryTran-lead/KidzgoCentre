@@ -23,7 +23,7 @@ import {
   FileText,
   Building2
 } from "lucide-react";
-import { fetchAdminPrograms, createAdminProgram } from "@/app/api/admin/programs";
+import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram } from "@/app/api/admin/programs";
 import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
 import { getAllBranches } from "@/lib/api/branchService";
 
@@ -100,11 +100,13 @@ function SortableHeader({
   );
 }
 
-/* ----------------------------- CREATE COURSE MODAL ------------------------------ */
+/* ----------------------------- CREATE / EDIT COURSE MODAL ------------------------------ */
 interface CreateCourseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: CourseFormData) => void;
+  mode?: "create" | "edit";
+  initialData?: CourseFormData | null;
 }
 
 interface CourseFormData {
@@ -135,7 +137,7 @@ const initialFormData: CourseFormData = {
   unitPriceSession: "",
 };
 
-function CreateCourseModal({ isOpen, onClose, onSubmit }: CreateCourseModalProps) {
+function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateCourseModalProps) {
   const [formData, setFormData] = useState<CourseFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof CourseFormData, string>>>({});
   const [branchOptions, setBranchOptions] = useState<Array<{ id: string; name: string }>>([]);
@@ -162,11 +164,15 @@ function CreateCourseModal({ isOpen, onClose, onSubmit }: CreateCourseModalProps
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(initialFormData);
+      if (mode === "edit" && initialData) {
+        setFormData(initialData);
+      } else {
+        setFormData(initialFormData);
+      }
       setErrors({});
       loadBranches();
     }
-  }, [isOpen]);
+  }, [isOpen, mode, initialData]);
 
   const loadBranches = async () => {
     try {
@@ -240,8 +246,12 @@ function CreateCourseModal({ isOpen, onClose, onSubmit }: CreateCourseModalProps
                 <BookOpen size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Tạo khóa học mới</h2>
-                <p className="text-sm text-pink-100">Nhập thông tin chi tiết về khóa học mới</p>
+                <h2 className="text-2xl font-bold text-white">
+                  {mode === "edit" ? "Cập nhật chương trình" : "Tạo khóa học mới"}
+                </h2>
+                <p className="text-sm text-pink-100">
+                  {mode === "edit" ? "Chỉnh sửa thông tin chương trình học" : "Nhập thông tin chi tiết về khóa học mới"}
+                </p>
               </div>
             </div>
             <button
@@ -599,19 +609,23 @@ function CreateCourseModal({ isOpen, onClose, onSubmit }: CreateCourseModalProps
               <button
                 type="button"
                 onClick={() => {
-                  setFormData(initialFormData);
+                  if (mode === "edit" && initialData) {
+                    setFormData(initialData);
+                  } else {
+                    setFormData(initialFormData);
+                  }
                   setErrors({});
                 }}
                 className="px-6 py-2.5 rounded-xl border border-pink-300 text-pink-600 font-semibold hover:bg-pink-50 transition-colors cursor-pointer"
               >
-                Đặt lại
+                {mode === "edit" ? "Khôi phục" : "Đặt lại"}
               </button>
               <button
                 type="button"
                 onClick={handleSubmit}
                 className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer"
               >
-                Tạo khóa học
+                {mode === "edit" ? "Lưu thay đổi" : "Tạo khóa học"}
               </button>
             </div>
           </div>
@@ -633,6 +647,9 @@ export default function Page() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
+  const [editingInitialData, setEditingInitialData] = useState<CourseFormData | null>(null);
 
   // Gọi API để lấy danh sách chương trình
   useEffect(() => {
@@ -770,6 +787,82 @@ export default function Page() {
     }
   };
 
+  const handleOpenEditCourse = async (row: CourseRow) => {
+    try {
+      setIsEditModalOpen(true);
+      setEditingProgramId(row.id);
+      setEditingInitialData(null);
+
+      const detail: any = await fetchAdminProgramDetail(row.id);
+
+      const totalSessionsNum: number = detail?.totalSessions ?? 0;
+      const defaultTuitionAmountNum: number = detail?.defaultTuitionAmount ?? 0;
+      const unitPriceSessionNum: number = detail?.unitPriceSession ?? 0;
+
+      const isActive: boolean | null = detail?.isActive ?? null;
+      let status: CourseFormData["status"] = "Tạm dừng";
+      if (isActive === true) status = "Đang hoạt động";
+
+      const formData: CourseFormData = {
+        code: String(detail?.code ?? row.id ?? ""),
+        name: String(detail?.name ?? row.name ?? ""),
+        description: String(detail?.description ?? row.desc ?? ""),
+        level: (String(detail?.level ?? row.level ?? "A1") as CourseFormData["level"]) || "A1",
+        duration: totalSessionsNum > 0 ? `${totalSessionsNum} buổi` : row.duration || "12 tuần",
+        fee: defaultTuitionAmountNum > 0 ? `${defaultTuitionAmountNum.toLocaleString("vi-VN")} VND` : row.fee,
+        status,
+        branchId: String(detail?.branchId ?? ""),
+        totalSessions: totalSessionsNum ? String(totalSessionsNum) : "",
+        defaultTuitionAmount: defaultTuitionAmountNum ? String(defaultTuitionAmountNum) : "",
+        unitPriceSession: unitPriceSessionNum ? String(unitPriceSessionNum) : "",
+      };
+
+      setEditingInitialData(formData);
+    } catch (err: any) {
+      console.error("Failed to load program detail for edit:", err);
+      alert(err?.message || "Không thể tải thông tin chương trình để chỉnh sửa.");
+      setIsEditModalOpen(false);
+      setEditingProgramId(null);
+      setEditingInitialData(null);
+    }
+  };
+
+  const handleUpdateCourse = async (data: CourseFormData) => {
+    if (!editingProgramId) return;
+    try {
+      const totalSessions = Number(data.totalSessions);
+      const defaultTuitionAmount = Number(data.defaultTuitionAmount.replace(/,/g, ""));
+      const unitPriceSession = Number(data.unitPriceSession.replace(/,/g, ""));
+
+      if (!data.branchId) {
+        alert("Vui lòng chọn chi nhánh");
+        return;
+      }
+
+      const payload: CreateProgramRequest = {
+        branchId: data.branchId,
+        name: data.name,
+        level: data.level,
+        totalSessions,
+        defaultTuitionAmount,
+        unitPriceSession,
+        description: data.description,
+      };
+
+      await updateAdminProgram(editingProgramId, payload);
+
+      const mapped = await fetchAdminPrograms();
+      setCourses(mapped);
+      alert(`Đã cập nhật khóa học ${data.name} thành công!`);
+    } catch (err: any) {
+      console.error("Failed to update program:", err);
+      alert(err?.message || "Không thể cập nhật khóa học. Vui lòng thử lại.");
+    } finally {
+      setEditingProgramId(null);
+      setEditingInitialData(null);
+    }
+  };
+
   return (
     <>
       <div className="space-y-6 bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6 rounded-3xl">
@@ -903,7 +996,6 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
                 <tr>
-                  <SortableHeader field="id" currentField={sortField} direction={sortDirection} onSort={handleSort}>Mã khóa</SortableHeader>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên khóa học</SortableHeader>
                   <SortableHeader field="level" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trình độ</SortableHeader>
                   <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời lượng</SortableHeader>
@@ -921,8 +1013,6 @@ export default function Page() {
                       key={c.id}
                       className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
                     >
-                      <td className="py-3 px-6 text-sm text-gray-900 whitespace-nowrap">{c.id}</td>
-
                       <td className="py-3 px-6">
                         <div className="text-sm text-gray-900 truncate">{c.name}</div>
                         <div className="text-xs text-gray-500 truncate">{c.desc}</div>
@@ -955,7 +1045,11 @@ export default function Page() {
                           <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" title="Xem">
                             <Eye size={14} />
                           </button>
-                          <button className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer" title="Sửa">
+                          <button
+                            onClick={() => handleOpenEditCourse(c)}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                            title="Sửa"
+                          >
                             <Pencil size={14} />
                           </button>
                         </div>
@@ -1017,6 +1111,20 @@ export default function Page() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateCourse}
+        mode="create"
+        initialData={null}
+      />
+      {/* Edit Course Modal */}
+      <CreateCourseModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingProgramId(null);
+          setEditingInitialData(null);
+        }}
+        onSubmit={handleUpdateCourse}
+        mode="edit"
+        initialData={editingInitialData}
       />
     </>
   );

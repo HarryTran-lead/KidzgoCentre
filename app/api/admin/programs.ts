@@ -8,7 +8,7 @@ import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
 import type { CourseRow, CreateProgramRequest, Program } from "@/types/admin/programs";
 
 function mapApiProgramToRow(item: any): CourseRow {
-  const id = String(item?.code ?? item?.id ?? "");
+  const id = String(item?.id ?? item?.code ?? "");
   const name = item?.name ?? "Chương trình";
   const desc = item?.description ?? "";
 
@@ -143,6 +143,103 @@ export async function createAdminProgram(
     description: data?.description ?? payload.description ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
     isActive: data?.isActive ?? true,
+  };
+
+  if (!program.id) {
+    program.id = `PROG-${Date.now()}`;
+  }
+
+  return program;
+}
+
+export async function fetchAdminProgramDetail(programId: string): Promise<any> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem chi tiết khóa học.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    let errorMessage = "Không thể tải chi tiết khóa học từ máy chủ.";
+    try {
+      const errorJson = JSON.parse(text);
+      errorMessage = errorJson?.detail || errorJson?.message || errorMessage;
+    } catch {
+      // ignore parse error
+    }
+    console.error("Fetch admin program detail error:", res.status, text);
+    throw new Error(errorMessage);
+  }
+
+  const json: any = await res.json();
+  if (json?.isSuccess && json?.data) {
+    return json.data;
+  }
+  return json?.data ?? json?.program ?? json;
+}
+
+export async function updateAdminProgram(
+  programId: string,
+  payload: CreateProgramRequest
+): Promise<Program> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cập nhật khóa học.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg =
+      json?.message ||
+      json?.error ||
+      (typeof text === "string" && text.trim() ? text : null) ||
+      "Không thể cập nhật khóa học từ máy chủ.";
+    throw new Error(msg);
+  }
+
+  const data = json?.data ?? json?.program ?? json;
+  const program: Program = {
+    id: String(data?.id ?? programId),
+    code: data?.code ?? null,
+    name: String(data?.name ?? payload.name),
+    level: String(data?.level ?? payload.level),
+    totalSessions:
+      typeof data?.totalSessions === "number" && data.totalSessions > 0
+        ? data.totalSessions
+        : payload.totalSessions,
+    defaultTuitionAmount:
+      typeof data?.defaultTuitionAmount === "number" && data.defaultTuitionAmount > 0
+        ? data.defaultTuitionAmount
+        : payload.defaultTuitionAmount,
+    unitPriceSession:
+      typeof data?.unitPriceSession === "number" && data.unitPriceSession > 0
+        ? data.unitPriceSession
+        : payload.unitPriceSession,
+    description: data?.description ?? payload.description ?? null,
+    branchId: data?.branchId ?? payload.branchId ?? null,
+    isActive: data?.isActive ?? null,
   };
 
   if (!program.id) {
