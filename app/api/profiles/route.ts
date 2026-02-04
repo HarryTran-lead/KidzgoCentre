@@ -19,10 +19,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const queryString = searchParams.toString();
-
     const url = buildApiUrl(BACKEND_STUDENT_ENDPOINTS.GET_ALL());
-
-    // Guard: thiếu NEXT_PUBLIC_API_URL hoặc buildApiUrl trả về path tương đối
     if (!/^https?:\/\//i.test(url)) {
       return NextResponse.json(
         {
@@ -33,12 +30,9 @@ export async function GET(req: Request) {
         { status: 500 }
       );
     }
-
     const fullUrl = queryString ? `${url}?${queryString}` : url;
-
     const fallbackUrl = buildApiUrl("/students");
-
-    const requestInit: RequestInit = {
+    const requestInit = {
       method: "GET",
       headers: {
         Authorization: authHeader,
@@ -47,12 +41,8 @@ export async function GET(req: Request) {
     };
 
     let upstream = await fetch(fullUrl, requestInit);
-
-    // Fallback khi endpoint chính 404
     if (upstream.status === 404 && /^https?:\/\//i.test(fallbackUrl)) {
-      const fallbackFullUrl = queryString
-        ? `${fallbackUrl}?${queryString}`
-        : fallbackUrl;
+      const fallbackFullUrl = queryString ? `${fallbackUrl}?${queryString}` : fallbackUrl;
       upstream = await fetch(fallbackFullUrl, requestInit);
     }
 
@@ -63,15 +53,11 @@ export async function GET(req: Request) {
       data = (await upstream.json()) as StudentsResponse;
     } else {
       const text = await upstream.text();
-      const statusLabel = upstream.status
-        ? ` (status ${upstream.status})`
-        : "";
-
+      const statusLabel = upstream.status ? ` (status ${upstream.status})` : "";
       data = {
         success: false,
         data: { items: [] },
-        message:
-          text || `Backend trả về dữ liệu không hợp lệ${statusLabel}.`,
+        message: text || `Backend trả về dữ liệu không hợp lệ${statusLabel}.`,
       };
     }
 
