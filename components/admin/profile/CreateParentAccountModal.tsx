@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, User as UserIcon, Lock, Loader2, Mail } from "lucide-react";
-import type { CreateUserRequest } from "@/types/admin/user";
+import { X, User as UserIcon, Lock, Loader2 } from "lucide-react";
 import type { CreateParentAccountRequest } from "@/types/profile";
 
 interface CreateParentAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (userData: CreateUserRequest, profileData: CreateParentAccountRequest) => Promise<void>;
+  onSubmit: (profileData: CreateParentAccountRequest) => Promise<void>;
 }
 
 export default function CreateParentAccountModal({ 
@@ -18,9 +17,7 @@ export default function CreateParentAccountModal({
 }: CreateParentAccountModalProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
-    name: '',
-    password: '',
+    userId: '',
     displayName: '',
     pinHash: '',
   });
@@ -30,9 +27,7 @@ export default function CreateParentAccountModal({
     
     // Reset form when modal opens
     setFormData({
-      email: '',
-      name: '',
-      password: '',
+      userId: '',
       displayName: '',
       pinHash: '',
     });
@@ -49,23 +44,15 @@ export default function CreateParentAccountModal({
     
     setLoading(true);
     try {
-      // Prepare user account data
-      const userData: CreateUserRequest = {
-        email: formData.email,
-        name: formData.name,
-        password: formData.password,
-        role: 'Parent',
-      };
-
-      // Prepare profile data (will be created after user)
+      // Prepare profile data
       const profileData: CreateParentAccountRequest = {
-        userId: '', // Will be filled by the API after user creation
+        userId: formData.userId,
         profileType: 'Parent',
         displayName: formData.displayName,
         pinHash: formData.pinHash,
       };
 
-      await onSubmit(userData, profileData);
+      await onSubmit(profileData);
       onClose();
     } catch (error) {
       console.error('Form submission error:', error);
@@ -95,66 +82,29 @@ export default function CreateParentAccountModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Lưu ý:</strong> Tạo tài khoản cho Parent bao gồm User account và Profile. 
-              Parent có thể đăng nhập vào hệ thống.
-            </p>
-          </div>
-
-          {/* User Account Section */}
+          {/* Profile Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
               Thông tin tài khoản
             </h3>
 
-            {/* Email */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Mail size={16} />
-                Email <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                placeholder="parent@example.com"
-              />
-            </div>
-
-            {/* Name */}
+            {/* User ID */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                 <UserIcon size={16} />
-                Tên đầy đủ <span className="text-red-500">*</span>
+                User ID (Account ID) <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={formData.userId}
+                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                placeholder="Nguyễn Văn A"
+                placeholder="3fa85f64-5717-4562-b3fc-2c963f66afa6"
               />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Lock size={16} />
-                Mật khẩu <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                placeholder="Tối thiểu 6 ký tự"
-              />
+              <p className="text-xs text-gray-500 mt-1">
+                ID của tài khoản dùng để đăng nhập vào hệ thống
+              </p>
             </div>
           </div>
 
@@ -176,7 +126,7 @@ export default function CreateParentAccountModal({
                 value={formData.displayName}
                 onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                placeholder="Ba/Mẹ của bé..."
+                placeholder="Harry Style"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Tên này sẽ hiển thị trong profile của Parent

@@ -37,25 +37,25 @@ export interface StudentProfile extends Profile {
 // ==================== Request Interfaces ====================
 
 /**
- * Create Parent Account Request
- * Admin creates a new Parent user account first
+ * Create Parent Profile Request
+ * Creates a Parent profile linked to an existing user account
  */
 export interface CreateParentAccountRequest {
-  userId: string; // The user account ID (created first)
+  userId: string; // The user account ID used for login
   profileType: "Parent";
   displayName: string;
-  pinHash: string;
+  pinHash: string; // PIN required for Parent
 }
 
 /**
  * Create Student Profile Request
- * Admin creates a Student profile (no user account)
+ * Creates a Student profile linked to parent's user account
  */
 export interface CreateStudentProfileRequest {
-  userId: string; // Will be empty GUID or special value since student has no account
+  userId: string; // Parent's user account ID (same as parent's userId)
   profileType: "Student";
   displayName: string;
-  pinHash: string;
+  // No pinHash required for Student
 }
 
 /**

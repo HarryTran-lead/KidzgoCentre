@@ -13,13 +13,13 @@ import {
   getAllStudents, 
   createParentAccount, 
   createStudentProfile,
-  linkStudentToParent,
   deleteProfile
 } from "@/lib/api/profileService";
 import type { CreateParentAccountRequest, CreateStudentProfileRequest } from "@/types/profile";
 import CreateParentAccountModal from "@/components/admin/profile/CreateParentAccountModal";
 import CreateStudentProfileModal from "@/components/admin/profile/CreateStudentProfileModal";
-import LinkStudentToParentModal from "@/components/admin/profile/LinkStudentToParentModal";
+import ViewLinkedStudentsModal from "@/components/admin/profile/ViewLinkedStudentsModal";
+import ProfileDetailModal from "@/components/admin/profile/ProfileDetailModal";
 
 type SortDirection = "asc" | "desc";
 
@@ -92,7 +92,6 @@ import {
   Calendar,
   Loader2,
   User as UserIcon,
-  Link as LinkIcon,
   UserCircle,
   Shield,
   Trash2,
@@ -311,7 +310,7 @@ export default function AccountsPage() {
   const [status, setStatus] = useState<boolean | null>(null); // null = ALL, true = ACTIVE, false = INACTIVE
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState<Account>>({ key: null, direction: "asc" });
   
@@ -347,12 +346,18 @@ export default function AccountsPage() {
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profileSearchTerm, setProfileSearchTerm] = useState("");
   const [profileFilterType, setProfileFilterType] = useState<"all" | "Parent" | "Student">("all");
+  const [profileCurrentPage, setProfileCurrentPage] = useState(1);
+  const [profileItemsPerPage, setProfileItemsPerPage] = useState(10);
   
   // Profile Modal states
   const [showCreateParentModal, setShowCreateParentModal] = useState(false);
   const [showCreateStudentModal, setShowCreateStudentModal] = useState(false);
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [selectedParentForLink, setSelectedParentForLink] = useState<{ id: string; name: string } | null>(null);
+  const [showViewLinkedModal, setShowViewLinkedModal] = useState(false);
+  const [showProfileDetailModal, setShowProfileDetailModal] = useState(false);
+  const [showProfileDeleteModal, setShowProfileDeleteModal] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [selectedParentForView, setSelectedParentForView] = useState<{ id: string; name: string } | null>(null);
+  const [selectedProfileForDelete, setSelectedProfileForDelete] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch users from API once (no server-side filtering for smooth UX)
   useEffect(() => {
@@ -644,29 +649,18 @@ export default function AccountsPage() {
     }
 
     setFilteredProfiles(filtered);
+    setProfileCurrentPage(1); // Reset to page 1 when filters change
   }, [profiles, profileFilterType, profileSearchTerm]);
 
   // Handle create parent account
-  const handleCreateParent = async (
-    userData: CreateUserRequest, 
-    profileData: CreateParentAccountRequest
-  ) => {
+  const handleCreateParent = async (profileData: CreateParentAccountRequest) => {
     try {
-      // Step 1: Create User account
-      const userResponse = await createUser(userData);
-      
-      if (!userResponse.data?.id) {
-        throw new Error("Failed to create user account");
-      }
-
-      // Step 2: Create Parent profile
-      profileData.userId = userResponse.data.id;
       await createParentAccount(profileData);
 
       toast({
         title: "Thành công",
         description: "Tạo tài khoản Parent thành công",
-        variant: "default",
+        variant: "success",
       });
 
       fetchProfiles();
@@ -689,7 +683,7 @@ export default function AccountsPage() {
       toast({
         title: "Thành công",
         description: "Tạo profile Student thành công",
-        variant: "default",
+        variant: "success",
       });
 
       fetchProfiles();
@@ -704,44 +698,26 @@ export default function AccountsPage() {
     }
   };
 
-  // Handle link student to parent
-  const handleLinkProfiles = async (data: any) => {
-    try {
-      await linkStudentToParent(data);
-
-      toast({
-        title: "Thành công",
-        description: "Link Student với Parent thành công",
-        variant: "default",
-      });
-
-      fetchProfiles();
-    } catch (error: any) {
-      console.error("Error linking profiles:", error);
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể link profiles",
-        variant: "destructive",
-      });
-      throw error;
-    }
+  // Handle delete profile
+  const handleOpenDeleteProfileModal = (id: string, displayName: string) => {
+    setSelectedProfileForDelete({ id, name: displayName });
+    setShowProfileDeleteModal(true);
   };
 
-  // Handle delete profile
-  const handleDeleteProfile = async (id: string, displayName: string) => {
-    if (!confirm(`Bạn có chắc muốn xóa profile "${displayName}"?`)) {
-      return;
-    }
+  const handleConfirmDeleteProfile = async () => {
+    if (!selectedProfileForDelete) return;
 
     try {
-      await deleteProfile(id);
+      await deleteProfile(selectedProfileForDelete.id);
 
       toast({
         title: "Thành công",
         description: "Xóa profile thành công",
-        variant: "default",
+        variant: "success",
       });
 
+      setShowProfileDeleteModal(false);
+      setSelectedProfileForDelete(null);
       fetchProfiles();
     } catch (error: any) {
       console.error("Error deleting profile:", error);
@@ -753,16 +729,34 @@ export default function AccountsPage() {
     }
   };
 
-  // Open link modal with parent pre-selected
-  const handleOpenLinkModal = (parentId: string, parentName: string) => {
-    setSelectedParentForLink({ id: parentId, name: parentName });
-    setShowLinkModal(true);
+  // Open view linked students modal
+  const handleOpenViewLinkedModal = (userId: string, parentName: string) => {
+    setSelectedParentForView({ id: userId, name: parentName });
+    setShowViewLinkedModal(true);
   };
 
-  // Close link modal
-  const handleCloseLinkModal = () => {
-    setShowLinkModal(false);
-    setSelectedParentForLink(null);
+  // Close view linked students modal
+  const handleCloseViewLinkedModal = () => {
+    setShowViewLinkedModal(false);
+    setSelectedParentForView(null);
+  };
+
+  // Open profile detail modal
+  const handleViewProfileDetail = (profileId: string) => {
+    setSelectedProfileId(profileId);
+    setShowProfileDetailModal(true);
+  };
+
+  // Close profile detail modal
+  const handleCloseProfileDetailModal = () => {
+    setShowProfileDetailModal(false);
+    setSelectedProfileId(null);
+  };
+
+  // View student detail from linked students modal
+  const handleViewStudentDetail = (studentId: string) => {
+    setSelectedProfileId(studentId);
+    setShowProfileDetailModal(true);
   };
 
   // ============= END PROFILE MANAGEMENT FUNCTIONS =============
@@ -1014,15 +1008,6 @@ export default function AccountsPage() {
             >
               <UserCircle size={16} /> Tạo profile Student
             </button>
-            <button
-              onClick={() => {
-                setSelectedParentForLink(null);
-                setShowLinkModal(true);
-              }}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
-            >
-              <LinkIcon size={16} /> Link Student với Parent
-            </button>
           </div>
         )}
       </div>
@@ -1125,15 +1110,30 @@ export default function AccountsPage() {
             </div>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm kiếm tên, email, số điện thoại..."
-              className="h-10 w-72 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
-            />
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          {/* Search and Items Per Page */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm kiếm tên, email, số điện thoại..."
+                className="h-10 w-72 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            </div>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+            >
+              <option value={5}>5 / trang</option>
+              <option value={10}>10 / trang</option>
+              <option value={20}>20 / trang</option>
+              <option value={50}>50 / trang</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1506,6 +1506,19 @@ export default function AccountsPage() {
                     className="w-full rounded-xl border border-pink-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
                   />
                 </div>
+                <select
+                  value={profileItemsPerPage}
+                  onChange={(e) => {
+                    setProfileItemsPerPage(Number(e.target.value));
+                    setProfileCurrentPage(1);
+                  }}
+                  className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                >
+                  <option value={5}>5 / trang</option>
+                  <option value={10}>10 / trang</option>
+                  <option value={20}>20 / trang</option>
+                  <option value={50}>50 / trang</option>
+                </select>
               </div>
             </div>
           </div>
@@ -1523,21 +1536,28 @@ export default function AccountsPage() {
                 <p className="text-sm text-gray-400 mt-2">Hãy tạo profile mới để bắt đầu</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gradient-to-r from-pink-100 to-rose-100">
-                    <tr className="border-b border-pink-200">
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">User ID</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Ngày tạo</th>
-                      <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-pink-100">
-                    {filteredProfiles.map((profile: any) => (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gradient-to-r from-pink-100 to-rose-100">
+                      <tr className="border-b border-pink-200">
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">User ID</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Ngày tạo</th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-pink-100">
+                      {(() => {
+                        const profileTotalPages = Math.ceil(filteredProfiles.length / profileItemsPerPage);
+                        const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
+                        const profileEndIndex = profileStartIndex + profileItemsPerPage;
+                        const currentProfiles = filteredProfiles.slice(profileStartIndex, profileEndIndex);
+                        
+                        return currentProfiles.map((profile: any) => (
                       <tr key={profile.id} className="hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-transparent transition-all duration-200">
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
@@ -1584,17 +1604,24 @@ export default function AccountsPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleViewProfileDetail(profile.id)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group"
+                              title="Xem chi tiết"
+                            >
+                              <Eye size={18} className="group-hover:scale-110 transition-transform" />
+                            </button>
                             {profile.profileType === "Parent" && (
                               <button
-                                onClick={() => handleOpenLinkModal(profile.id, profile.displayName)}
+                                onClick={() => handleOpenViewLinkedModal(profile.userId, profile.displayName)}
                                 className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group"
-                                title="Link với Student"
+                                title="Xem học sinh đã liên kết"
                               >
-                                <LinkIcon size={18} className="group-hover:scale-110 transition-transform" />
+                                <Users size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
                             )}
                             <button
-                              onClick={() => handleDeleteProfile(profile.id, profile.displayName)}
+                              onClick={() => handleOpenDeleteProfileModal(profile.id, profile.displayName)}
                               className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors group"
                               title="Xóa"
                             >
@@ -1603,10 +1630,90 @@ export default function AccountsPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Pagination */}
+                {filteredProfiles.length > 0 && (() => {
+                  const profileTotalPages = Math.ceil(filteredProfiles.length / profileItemsPerPage);
+                  const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
+                  const profileEndIndex = profileStartIndex + profileItemsPerPage;
+                  
+                  return (
+                    <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="text-sm text-gray-600">
+                          Hiển thị <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span>
+                          {' '}trong tổng số <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> profiles
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setProfileCurrentPage(1)}
+                            disabled={profileCurrentPage === 1}
+                            className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                          >
+                            <ChevronsLeft size={16} className="text-gray-600" />
+                          </button>
+                          <button
+                            onClick={() => setProfileCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={profileCurrentPage === 1}
+                            className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                          >
+                            <ChevronLeft size={16} className="text-gray-600" />
+                          </button>
+
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, profileTotalPages) }, (_, i) => {
+                              let pageNum;
+                              if (profileTotalPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (profileCurrentPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (profileCurrentPage >= profileTotalPages - 2) {
+                                pageNum = profileTotalPages - 4 + i;
+                              } else {
+                                pageNum = profileCurrentPage - 2 + i;
+                              }
+
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => setProfileCurrentPage(pageNum)}
+                                  className={`h-8 w-8 rounded-lg text-sm font-medium transition-all ${
+                                    profileCurrentPage === pageNum
+                                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
+                                      : 'border border-pink-200 bg-white text-gray-700 hover:bg-pink-50'
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            onClick={() => setProfileCurrentPage(prev => Math.min(profileTotalPages, prev + 1))}
+                            disabled={profileCurrentPage === profileTotalPages}
+                            className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                          >
+                            <ChevronRight size={16} className="text-gray-600" />
+                          </button>
+                          <button
+                            onClick={() => setProfileCurrentPage(profileTotalPages)}
+                            disabled={profileCurrentPage === profileTotalPages}
+                            className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                          >
+                            <ChevronsRight size={16} className="text-gray-600" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
             )}
           </div>
 
@@ -1623,12 +1730,33 @@ export default function AccountsPage() {
             onSubmit={handleCreateStudent}
           />
 
-          <LinkStudentToParentModal
-            isOpen={showLinkModal}
-            onClose={handleCloseLinkModal}
-            onSubmit={handleLinkProfiles}
-            parentProfileId={selectedParentForLink?.id}
-            parentName={selectedParentForLink?.name}
+          <ViewLinkedStudentsModal
+            isOpen={showViewLinkedModal}
+            onClose={handleCloseViewLinkedModal}
+            userId={selectedParentForView?.id || null}
+            parentName={selectedParentForView?.name || null}
+            onRefresh={fetchProfiles}
+            onViewStudentDetail={handleViewStudentDetail}
+          />
+
+          <ProfileDetailModal
+            isOpen={showProfileDetailModal}
+            onClose={handleCloseProfileDetailModal}
+            profileId={selectedProfileId}
+          />
+
+          <ConfirmModal
+            isOpen={showProfileDeleteModal}
+            onClose={() => {
+              setShowProfileDeleteModal(false);
+              setSelectedProfileForDelete(null);
+            }}
+            onConfirm={handleConfirmDeleteProfile}
+            title="Xác nhận xóa profile"
+            message={`Bạn có chắc chắn muốn xóa profile "${selectedProfileForDelete?.name}"? Hành động này không thể hoàn tác.`}
+            confirmText="Xóa"
+            cancelText="Hủy"
+            variant="danger"
           />
         </>
       )}

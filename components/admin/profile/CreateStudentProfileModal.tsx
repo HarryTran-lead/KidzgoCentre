@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, User as UserIcon, Lock, Loader2 } from "lucide-react";
+import { X, User as UserIcon, Loader2, Mail } from "lucide-react";
 import type { CreateStudentProfileRequest } from "@/types/profile";
 
 interface CreateStudentProfileModalProps {
@@ -17,8 +17,8 @@ export default function CreateStudentProfileModal({
 }: CreateStudentProfileModalProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    userId: '',
     displayName: '',
-    pinHash: '',
   });
 
   useEffect(() => {
@@ -26,28 +26,21 @@ export default function CreateStudentProfileModal({
     
     // Reset form when modal opens
     setFormData({
+      userId: '',
       displayName: '',
-      pinHash: '',
     });
   }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate PIN (must be 4 digits)
-    if (!/^\d{4}$/.test(formData.pinHash)) {
-      alert('Mã PIN phải là 4 chữ số');
-      return;
-    }
-    
     setLoading(true);
     try {
-      // Prepare profile data (Student has no user account)
+      // Prepare profile data (Student uses parent's userId)
       const profileData: CreateStudentProfileRequest = {
-        userId: '00000000-0000-0000-0000-000000000000', // Empty GUID for students
+        userId: formData.userId,
         profileType: 'Student',
         displayName: formData.displayName,
-        pinHash: formData.pinHash,
       };
 
       await onSubmit(profileData);
@@ -82,8 +75,8 @@ export default function CreateStudentProfileModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
             <p className="text-sm text-yellow-800">
-              <strong>Lưu ý:</strong> Student chỉ có Profile, không có tài khoản đăng nhập. 
-              Student cần được link với Parent để sử dụng hệ thống.
+              <strong>Lưu ý:</strong> Student profile được tạo dựa trên User ID của Parent. 
+              Student không cần mã PIN để đăng nhập.
             </p>
           </div>
 
@@ -92,6 +85,25 @@ export default function CreateStudentProfileModal({
             <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
               Thông tin Profile
             </h3>
+
+            {/* User ID */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <Mail size={16} />
+                User ID (Account của Parent) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.userId}
+                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                ID của tài khoản Parent dùng để đăng nhập hệ thống
+              </p>
+            </div>
 
             {/* Display Name */}
             <div>
@@ -105,38 +117,17 @@ export default function CreateStudentProfileModal({
                 value={formData.displayName}
                 onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="Nguyễn Văn B"
+                placeholder="Test"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Tên này sẽ hiển thị trong profile của Student
-              </p>
-            </div>
-
-            {/* PIN */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Lock size={16} />
-                Mã PIN (4 chữ số) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                pattern="\d{4}"
-                maxLength={4}
-                value={formData.pinHash}
-                onChange={(e) => setFormData({ ...formData, pinHash: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="1234"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Mã PIN để học sinh truy cập nhanh vào profile của mình
               </p>
             </div>
           </div>
 
           <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
             <p className="text-sm text-blue-800">
-              💡 Sau khi tạo profile, bạn cần link Student này với Parent trong bước tiếp theo.
+              💡 Student profile sẽ được tạo với cùng User ID như Parent để quản lý.
             </p>
           </div>
 

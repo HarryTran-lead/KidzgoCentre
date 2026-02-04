@@ -188,18 +188,18 @@ export const BACKEND_PLACEMENT_TEST_ENDPOINTS = {
 
 // Profile Management Endpoints (Client-side → Next.js API Routes)
 export const PROFILE_ENDPOINTS = {
-  GET_ALL: '/api/admin/profiles',
-  GET_BY_ID: (id: string) => `/api/admin/profiles/${id}`,
-  CREATE: '/api/admin/profiles',
-  UPDATE: (id: string) => `/api/admin/profiles/${id}`,
-  DELETE: (id: string) => `/api/admin/profiles/${id}`,
-  LINK: '/api/admin/profiles/link',
-  UNLINK: '/api/admin/profiles/unlink',
+  GET_ALL: '/api/profiles',
+  GET_BY_ID: (id: string) => `/api/profiles/${id}`,
+  CREATE: '/api/profiles',
+  UPDATE: (id: string) => `/api/profiles/${id}`,
+  DELETE: (id: string) => `/api/profiles/${id}`,
+  LINK: '/api/profiles/link',
+  UNLINK: '/api/profiles/unlink',
 } as const;
 
 // Backend Profile Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_PROFILE_ENDPOINTS = {
-  GET_ALL: '/GetAll/Students',
+  GET_ALL: '/profiles',
   GET_BY_ID: (id: string) => `/profiles/${id}`,
   CREATE: '/profiles',
   UPDATE: (id: string) => `/profiles/${id}`,
