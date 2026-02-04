@@ -44,7 +44,7 @@ export async function getStudentClassesByToken(
 export async function getAllStudents(
   params?: StudentListParams
 ): Promise<StudentsResponse> {
-  const endpoint = STUDENT_ENDPOINTS.GET_ALL ?? "/api/students";
+  const endpoint = STUDENT_ENDPOINTS.GET_ALL ?? "/api/profiles";
 
   return get<StudentsResponse>(endpoint, {
     params: params ?? {},
