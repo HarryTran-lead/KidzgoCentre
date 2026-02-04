@@ -1,7 +1,9 @@
 export type Status = "using" | "free" | "maintenance";
 
 export type Room = {
-  id: string;
+  id: string;      // UUID nội bộ
+  name: string;    // Tên phòng hiển thị
+  branchId?: string; // Id chi nhánh (dùng cho update)
   branch: string;
   floor: number;
   area: number;

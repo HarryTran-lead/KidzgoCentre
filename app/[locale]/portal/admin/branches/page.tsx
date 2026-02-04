@@ -2,11 +2,27 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { 
-  MapPin, Users, PencilLine, Plus, Building2, 
-  Sparkles, MoreVertical, Search, Filter,
-  ChevronRight, Globe, CheckCircle,
-  AlertCircle, Loader2, X, Trash2, RefreshCw,
-  EyeIcon
+  MapPin,
+  Users,
+  PencilLine,
+  Plus,
+  Building2,
+  Sparkles,
+  MoreVertical,
+  Search,
+  Filter,
+  ChevronRight,
+  Globe,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  X,
+  Trash2,
+  RefreshCw,
+  EyeIcon,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { 
   getAllBranches, 
@@ -113,9 +129,51 @@ function StatCard({
   );
 }
 
+type BranchSortField = 'code' | 'name' | 'address' | 'totalStudents' | 'totalClasses' | 'totalTeachers';
+type BranchSortDirection = 'asc' | 'desc' | null;
+
+function SortableHeader({
+  field,
+  currentField,
+  direction,
+  onSort,
+  children,
+  align = 'left',
+}: {
+  field: BranchSortField;
+  currentField: BranchSortField | null;
+  direction: BranchSortDirection;
+  onSort: (f: BranchSortField) => void;
+  children: React.ReactNode;
+  align?: 'left' | 'center' | 'right';
+}) {
+  const isActive = currentField === field;
+  const icon = isActive ? (
+    direction === 'asc' ? <ArrowUp size={14} className="text-pink-500" /> : <ArrowDown size={14} className="text-pink-500" />
+  ) : (
+    <ArrowUpDown size={14} className="text-gray-400" />
+  );
+  const alignClass =
+    align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left';
+
+  return (
+    <th
+      onClick={() => onSort(field)}
+      className={`py-3 px-6 ${alignClass} text-sm font-semibold text-gray-700 whitespace-nowrap cursor-pointer select-none hover:bg-pink-50 transition-colors`}
+    >
+      <span className="inline-flex items-center gap-2">
+        {children}
+        {icon}
+      </span>
+    </th>
+  );
+}
+
 export default function BranchesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [sortField, setSortField] = useState<BranchSortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<BranchSortDirection>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -414,6 +472,60 @@ export default function BranchesPage() {
     
     return result;
   }, [branches, filterStatus]);
+  const sortedBranches = useMemo(() => {
+    let result = [...filteredBranches];
+
+    if (sortField && sortDirection) {
+      result.sort((a, b) => {
+        const getVal = (branch: Branch) => {
+          switch (sortField) {
+            case 'code':
+              return branch.code ?? '';
+            case 'name':
+              return branch.name ?? '';
+            case 'address':
+              return branch.address ?? '';
+            case 'totalStudents':
+              return branch.totalStudents ?? 0;
+            case 'totalClasses':
+              return branch.totalClasses ?? 0;
+            case 'totalTeachers':
+              return branch.totalTeachers ?? 0;
+          }
+        };
+
+        const av = getVal(a);
+        const bv = getVal(b);
+
+        if (typeof av === 'number' && typeof bv === 'number') {
+          return sortDirection === 'asc' ? av - bv : bv - av;
+        }
+
+        const aStr = (av ?? '').toString();
+        const bStr = (bv ?? '').toString();
+
+        return sortDirection === 'asc'
+          ? aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' })
+          : bStr.localeCompare(aStr, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+
+    return result;
+  }, [filteredBranches, sortField, sortDirection]);
+
+  const handleSort = (field: BranchSortField) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') {
+        setSortField(null);
+        setSortDirection(null);
+      } else setSortDirection('asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
 
   const stats = useMemo(() => {
     const total = branches.length;
@@ -540,20 +652,65 @@ export default function BranchesPage() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
                 <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Mã chi nhánh</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Tên chi nhánh</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Địa chỉ</th>
+                  <SortableHeader
+                    field="code"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Mã chi nhánh
+                  </SortableHeader>
+                  <SortableHeader
+                    field="name"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Tên chi nhánh
+                  </SortableHeader>
+                  <SortableHeader
+                    field="address"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Địa chỉ
+                  </SortableHeader>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Liên hệ</th>
-                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">Học viên</th>
-                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">Lớp học</th>
-                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">Giáo viên</th>
+                  <SortableHeader
+                    field="totalStudents"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    align="center"
+                  >
+                    Học viên
+                  </SortableHeader>
+                  <SortableHeader
+                    field="totalClasses"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    align="center"
+                  >
+                    Lớp học
+                  </SortableHeader>
+                  <SortableHeader
+                    field="totalTeachers"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    align="center"
+                  >
+                    Giáo viên
+                  </SortableHeader>
                   <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">Trạng thái</th>
                   <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-pink-100">
-                {filteredBranches.length > 0 ? (
-                  filteredBranches.map((branch) => (
+                {sortedBranches.length > 0 ? (
+                  sortedBranches.map((branch) => (
                     <tr
                       key={branch.id}
                       className="group hover:bg-pink-50/50 transition-colors"

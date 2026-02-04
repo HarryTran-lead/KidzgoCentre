@@ -8,7 +8,7 @@ import {
   AlertCircle, Save, RotateCcw
 } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { fetchAdminRooms, createAdminRoom } from "@/app/api/admin/rooms";
+import { fetchAdminRooms, createAdminRoom, updateAdminRoom } from "@/app/api/admin/rooms";
 import { fetchClassFormSelectData } from "@/app/api/admin/classFormData";
 import { fetchAdminSessions } from "@/app/api/admin/sessions";
 import type { Room, Status as RoomStatus, CreateRoomRequest } from "@/types/admin/rooms";
@@ -210,6 +210,8 @@ interface CreateRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: RoomFormData) => void;
+  mode?: "create" | "edit";
+  initialData?: RoomFormData | null;
 }
 
 interface RoomFormData {
@@ -226,8 +228,7 @@ const initialFormData: RoomFormData = {
   note: "",
 };
 
-
-function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
+function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateRoomModalProps) {
   const [formData, setFormData] = useState<RoomFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof RoomFormData, string>>>({});
   const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
@@ -266,11 +267,15 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
 
   useEffect(() => {
     if (isOpen) {
+      if (mode === "edit" && initialData) {
+        setFormData(initialData);
+      } else {
       setFormData(initialFormData);
+      }
       setErrors({});
       fetchSelectData();
     }
-  }, [isOpen]);
+  }, [isOpen, mode, initialData]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof RoomFormData, string>> = {};
@@ -315,8 +320,12 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
                 <Building2 size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Thêm phòng học mới</h2>
-                <p className="text-sm text-pink-100">Nhập thông tin chi tiết về phòng học</p>
+                <h2 className="text-2xl font-bold text-white">
+                  {mode === "edit" ? "Cập nhật phòng học" : "Thêm phòng học mới"}
+                </h2>
+                <p className="text-sm text-pink-100">
+                  {mode === "edit" ? "Chỉnh sửa thông tin phòng học" : "Nhập thông tin chi tiết về phòng học"}
+                </p>
               </div>
             </div>
             <button
@@ -446,13 +455,17 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
               <button
                 type="button"
                 onClick={() => {
+                  if (mode === "edit" && initialData) {
+                    setFormData(initialData);
+                  } else {
                   setFormData(initialFormData);
+                  }
                   setErrors({});
                 }}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-pink-300 text-pink-600 font-semibold hover:bg-pink-50 transition-colors cursor-pointer"
               >
                 <RotateCcw size={16} />
-                Đặt lại
+                {mode === "edit" ? "Khôi phục" : "Đặt lại"}
               </button>
               <button
                 type="button"
@@ -460,7 +473,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoomModalProps) {
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer"
               >
                 <Save size={16} />
-                Tạo phòng học
+                {mode === "edit" ? "Lưu thay đổi" : "Tạo phòng học"}
               </button>
             </div>
           </div>
@@ -482,6 +495,9 @@ export default function Page() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [editingInitialData, setEditingInitialData] = useState<RoomFormData | null>(null);
   const [todaySessions, setTodaySessions] = useState<Session[]>([]);
 
   // Gọi API để lấy danh sách phòng học
@@ -590,6 +606,7 @@ export default function Page() {
     if (search) {
       const searchLower = search.toLowerCase();
       result = result.filter((room) =>
+        room.name.toLowerCase().includes(searchLower) ||
         room.id.toLowerCase().includes(searchLower) ||
         room.equipment.some((eq) => eq.toLowerCase().includes(searchLower)) ||
         room.course?.toLowerCase().includes(searchLower) ||
@@ -632,6 +649,46 @@ export default function Page() {
       console.error("Failed to create room:", err);
       const errorMessage = err?.message || "Không thể tạo phòng học. Vui lòng thử lại.";
       alert(errorMessage);
+    }
+  };
+
+  const handleOpenEditRoom = (room: Room) => {
+    setIsEditModalOpen(true);
+    setEditingRoomId(room.id);
+
+    const formData: RoomFormData = {
+      branchId: room.branchId ?? "",
+      name: room.name,
+      capacity: room.capacity,
+      note: room.equipment.join(", "),
+    };
+
+    setEditingInitialData(formData);
+  };
+
+  const handleUpdateRoom = async (data: RoomFormData) => {
+    if (!editingRoomId) return;
+    try {
+      const payload: CreateRoomRequest = {
+        branchId: data.branchId,
+        name: data.name,
+        capacity: data.capacity,
+        note: data.note || undefined,
+      };
+
+      await updateAdminRoom(editingRoomId, payload);
+
+      const updatedRooms = await fetchAdminRooms();
+      setRooms(updatedRooms);
+
+      alert(`Đã cập nhật phòng học ${data.name} thành công!`);
+    } catch (err: any) {
+      console.error("Failed to update room:", err);
+      const errorMessage = err?.message || "Không thể cập nhật phòng học. Vui lòng thử lại.";
+      alert(errorMessage);
+    } finally {
+      setEditingRoomId(null);
+      setEditingInitialData(null);
     }
   };
 
@@ -797,7 +854,6 @@ export default function Page() {
                     <th className="py-3 px-6 text-left"><SortHeader label="Chi nhánh" sortKey="branch" /></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Sức chứa" sortKey="capacity" /></th>
                     <th className="py-3 px-6 text-left"><span className="text-sm font-semibold text-gray-700">Thiết bị</span></th>
-                    <th className="py-3 px-6 text-left"><SortHeader label="Sử dụng" sortKey="utilization" /></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Trạng thái" sortKey="status" /></th>
                     <th className="py-3 px-6 text-right"><span className="text-sm font-semibold text-gray-700">Thao tác</span></th>
                   </tr>
@@ -815,8 +871,7 @@ export default function Page() {
                               <Building2 size={18} className="text-white" />
                             </div>
                             <div>
-                              <div className="font-bold text-gray-900">{room.id}</div>
-                              <div className="text-xs text-gray-500">Tầng {room.floor} • {room.area}m²</div>
+                              <div className="font-bold text-gray-900">{room.name}</div>
                             </div>
                           </div>
                         </td>
@@ -849,9 +904,6 @@ export default function Page() {
                           </div>
                         </td>
                         <td className="py-4 px-6">
-                          <UtilizationRing value={room.utilization} />
-                        </td>
-                        <td className="py-4 px-6">
                           <div className="space-y-2">
                             <StatusPill status={room.status} />
                             {room.course && (
@@ -872,7 +924,11 @@ export default function Page() {
                             <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" title="Xem chi tiết">
                               <Eye size={14} />
                             </button>
-                            <button className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer" title="Chỉnh sửa">
+                            <button
+                              onClick={() => handleOpenEditRoom(room)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                              title="Chỉnh sửa"
+                            >
                               <Pencil size={14} />
                             </button>
                             <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer " title="Thêm">
@@ -884,7 +940,7 @@ export default function Page() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center">
+                      <td colSpan={6} className="py-12 text-center">
                         <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
                           <Search size={24} className="text-pink-400" />
                         </div>
@@ -1087,6 +1143,21 @@ export default function Page() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateRoom}
+        mode="create"
+        initialData={null}
+      />
+
+      {/* Edit Room Modal */}
+      <CreateRoomModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingRoomId(null);
+          setEditingInitialData(null);
+        }}
+        onSubmit={handleUpdateRoom}
+        mode="edit"
+        initialData={editingInitialData}
       />
     </>
   );

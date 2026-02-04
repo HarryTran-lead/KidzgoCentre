@@ -196,6 +196,71 @@ export async function createAdminClass(
   return classData;
 }
 
+export async function updateAdminClass(
+  classId: string,
+  payload: CreateClassRequest
+): Promise<Class> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cập nhật lớp học.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSES}/${classId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const detail = json?.detail || json?.message || json?.error;
+    const title = json?.title;
+
+    let msg = "Không thể cập nhật lớp học từ máy chủ.";
+    if (detail) {
+      msg = detail;
+    } else if (title) {
+      msg = title;
+    } else if (typeof text === "string" && text.trim()) {
+      msg = text;
+    }
+
+    throw new Error(msg);
+  }
+
+  const data = json?.data ?? json?.class ?? json;
+  const classData: Class = {
+    id: String(data?.id ?? classId),
+    code: data?.code ?? payload.code ?? null,
+    title: data?.title ?? payload.title ?? null,
+    programId: data?.programId ?? payload.programId ?? null,
+    branchId: data?.branchId ?? payload.branchId ?? null,
+    mainTeacherId: data?.mainTeacherId ?? payload.mainTeacherId ?? null,
+    assistantTeacherId: data?.assistantTeacherId ?? payload.assistantTeacherId ?? null,
+    startDate: data?.startDate ?? payload.startDate ?? null,
+    endDate: data?.endDate ?? payload.endDate ?? null,
+    capacity: typeof data?.capacity === "number" ? data.capacity : payload.capacity ?? null,
+    schedulePattern: data?.schedulePattern ?? payload.schedulePattern ?? null,
+    status: data?.status ?? null,
+  };
+
+  if (!classData.id) {
+    classData.id = `CLASS-${Date.now()}`;
+  }
+
+  return classData;
+}
+
 export async function fetchAdminClassDetail(
   classId: string
 ): Promise<any> {
