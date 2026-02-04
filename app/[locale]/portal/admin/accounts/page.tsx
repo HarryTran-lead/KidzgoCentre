@@ -8,6 +8,19 @@ import AccountFormModal from "@/components/admin/accounts/AccountFormModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { toast } from "@/hooks/use-toast";
 
+// Import Profile Management Components
+import {  
+  getAllStudents, 
+  createParentAccount, 
+  createStudentProfile,
+  linkStudentToParent,
+  deleteProfile
+} from "@/lib/api/profileService";
+import type { CreateParentAccountRequest, CreateStudentProfileRequest } from "@/types/profile";
+import CreateParentAccountModal from "@/components/admin/profile/CreateParentAccountModal";
+import CreateStudentProfileModal from "@/components/admin/profile/CreateStudentProfileModal";
+import LinkStudentToParentModal from "@/components/admin/profile/LinkStudentToParentModal";
+
 type SortDirection = "asc" | "desc";
 
 type SortState<T> = {
@@ -79,6 +92,10 @@ import {
   Calendar,
   Loader2,
   User as UserIcon,
+  Link as LinkIcon,
+  UserCircle,
+  Shield,
+  Trash2,
 } from "lucide-react";
 
 // Map UserRole from API to local Role type
@@ -287,6 +304,9 @@ const formatDateTime = (dateString?: string): string => {
 };
 
 export default function AccountsPage() {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"accounts" | "profiles">("accounts");
+  
   const [role, setRole] = useState<Role | "ALL">("ALL");
   const [status, setStatus] = useState<boolean | null>(null); // null = ALL, true = ACTIVE, false = INACTIVE
   const [search, setSearch] = useState("");
@@ -312,7 +332,7 @@ export default function AccountsPage() {
     inactive: 0,
   });
 
-  // Modal states
+  // Modal states - Accounts
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -320,6 +340,19 @@ export default function AccountsPage() {
   const [toggleStatusModalOpen, setToggleStatusModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<User | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+
+  // Profile Management States
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [filteredProfiles, setFilteredProfiles] = useState<any[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profileSearchTerm, setProfileSearchTerm] = useState("");
+  const [profileFilterType, setProfileFilterType] = useState<"all" | "Parent" | "Student">("all");
+  
+  // Profile Modal states
+  const [showCreateParentModal, setShowCreateParentModal] = useState(false);
+  const [showCreateStudentModal, setShowCreateStudentModal] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [selectedParentForLink, setSelectedParentForLink] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch users from API once (no server-side filtering for smooth UX)
   useEffect(() => {
@@ -560,6 +593,180 @@ export default function AccountsPage() {
     }
   };
 
+  // ============= PROFILE MANAGEMENT FUNCTIONS =============
+  
+  // Fetch all profiles
+  const fetchProfiles = async () => {
+    try {
+      setProfilesLoading(true);
+      const response = await getAllStudents({
+        pageSize: 100,
+      });
+
+      if (response.data?.items) {
+        setProfiles(response.data.items);
+        setFilteredProfiles(response.data.items);
+      }
+    } catch (error) {
+      console.error("Error fetching profiles:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải danh sách profiles",
+        variant: "destructive",
+      });
+    } finally {
+      setProfilesLoading(false);
+    }
+  };
+
+  // Load profiles when switching to profiles tab
+  useEffect(() => {
+    if (activeTab === "profiles") {
+      fetchProfiles();
+    }
+  }, [activeTab]);
+
+  // Filter profiles
+  useEffect(() => {
+    let filtered = profiles;
+
+    // Filter by type
+    if (profileFilterType !== "all") {
+      filtered = filtered.filter(p => p.profileType === profileFilterType);
+    }
+
+    // Filter by search term
+    if (profileSearchTerm) {
+      filtered = filtered.filter(p => 
+        p.displayName.toLowerCase().includes(profileSearchTerm.toLowerCase()) ||
+        (p.userEmail && p.userEmail.toLowerCase().includes(profileSearchTerm.toLowerCase()))
+      );
+    }
+
+    setFilteredProfiles(filtered);
+  }, [profiles, profileFilterType, profileSearchTerm]);
+
+  // Handle create parent account
+  const handleCreateParent = async (
+    userData: CreateUserRequest, 
+    profileData: CreateParentAccountRequest
+  ) => {
+    try {
+      // Step 1: Create User account
+      const userResponse = await createUser(userData);
+      
+      if (!userResponse.data?.id) {
+        throw new Error("Failed to create user account");
+      }
+
+      // Step 2: Create Parent profile
+      profileData.userId = userResponse.data.id;
+      await createParentAccount(profileData);
+
+      toast({
+        title: "Thành công",
+        description: "Tạo tài khoản Parent thành công",
+        variant: "default",
+      });
+
+      fetchProfiles();
+    } catch (error: any) {
+      console.error("Error creating parent:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể tạo tài khoản Parent",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  // Handle create student profile
+  const handleCreateStudent = async (profileData: CreateStudentProfileRequest) => {
+    try {
+      await createStudentProfile(profileData);
+
+      toast({
+        title: "Thành công",
+        description: "Tạo profile Student thành công",
+        variant: "default",
+      });
+
+      fetchProfiles();
+    } catch (error: any) {
+      console.error("Error creating student:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể tạo profile Student",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  // Handle link student to parent
+  const handleLinkProfiles = async (data: any) => {
+    try {
+      await linkStudentToParent(data);
+
+      toast({
+        title: "Thành công",
+        description: "Link Student với Parent thành công",
+        variant: "default",
+      });
+
+      fetchProfiles();
+    } catch (error: any) {
+      console.error("Error linking profiles:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể link profiles",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  // Handle delete profile
+  const handleDeleteProfile = async (id: string, displayName: string) => {
+    if (!confirm(`Bạn có chắc muốn xóa profile "${displayName}"?`)) {
+      return;
+    }
+
+    try {
+      await deleteProfile(id);
+
+      toast({
+        title: "Thành công",
+        description: "Xóa profile thành công",
+        variant: "default",
+      });
+
+      fetchProfiles();
+    } catch (error: any) {
+      console.error("Error deleting profile:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể xóa profile",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Open link modal with parent pre-selected
+  const handleOpenLinkModal = (parentId: string, parentName: string) => {
+    setSelectedParentForLink({ id: parentId, name: parentName });
+    setShowLinkModal(true);
+  };
+
+  // Close link modal
+  const handleCloseLinkModal = () => {
+    setShowLinkModal(false);
+    setSelectedParentForLink(null);
+  };
+
+  // ============= END PROFILE MANAGEMENT FUNCTIONS =============
+
   const toggleSort = (key: keyof Account) => {
     setSort(prev => {
       if (prev.key !== key) return { key, direction: "asc" };
@@ -774,32 +981,101 @@ export default function AccountsPage() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-              Quản lý Tài khoản
+              Quản lý Tài khoản & Profiles
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Phân quyền truy cập, quản lý bảo mật và theo dõi hoạt động người dùng
+              Phân quyền truy cập, quản lý profiles và theo dõi hoạt động người dùng
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
-            <Key size={16} /> Đặt lại mật khẩu
-          </button>
-          <button 
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
-          >
-            <UserPlus size={16} /> Tạo tài khoản mới
-          </button>
-        </div>
+        {activeTab === "accounts" ? (
+          <div className="flex flex-wrap gap-2">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+              <Key size={16} /> Đặt lại mật khẩu
+            </button>
+            <button 
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            >
+              <UserPlus size={16} /> Tạo tài khoản mới
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowCreateParentModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            >
+              <UserPlus size={16} /> Tạo tài khoản Parent
+            </button>
+            <button
+              onClick={() => setShowCreateStudentModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            >
+              <UserCircle size={16} /> Tạo profile Student
+            </button>
+            <button
+              onClick={() => {
+                setSelectedParentForLink(null);
+                setShowLinkModal(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            >
+              <LinkIcon size={16} /> Link Student với Parent
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, idx) => (
-          <StatCard key={idx} {...stat} />
-        ))}
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-2xl border border-pink-200 p-1 inline-flex gap-1">
+        <button
+          onClick={() => setActiveTab("accounts")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "accounts"
+              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+              : "text-gray-600 hover:bg-pink-50"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={16} />
+            <span>Tài khoản</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${
+              activeTab === "accounts" ? "bg-white/20" : "bg-gray-100"
+            }`}>
+              {fixedCounts.total}
+            </span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("profiles")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "profiles"
+              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+              : "text-gray-600 hover:bg-pink-50"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <UserCircle size={16} />
+            <span>Profiles</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${
+              activeTab === "profiles" ? "bg-white/20" : "bg-gray-100"
+            }`}>
+              {profiles.length}
+            </span>
+          </div>
+        </button>
       </div>
+
+      {/* Content based on active tab */}
+      {activeTab === "accounts" ? (
+        <>
+          {/* Stats Overview */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {stats.map((stat, idx) => (
+              <StatCard key={idx} {...stat} />
+            ))}
+          </div>
 
       {/* Filter Bar */}
       <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
@@ -1152,7 +1428,213 @@ export default function AccountsPage() {
           </div>
         )}
       </div>
+        </>
+      ) : (
+        <>
+          {/* Profiles Statistics */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Tổng Profiles"
+              value={`${profiles.length}`}
+              icon={<Users size={20} />}
+              color="from-pink-500 to-rose-500"
+              subtitle="Toàn hệ thống"
+            />
+            <StatCard
+              title="Parents"
+              value={`${profiles.filter(p => p.profileType === "Parent").length}`}
+              icon={<Shield size={20} />}
+              color="from-emerald-500 to-teal-500"
+              subtitle="Có tài khoản đăng nhập"
+            />
+            <StatCard
+              title="Students"
+              value={`${profiles.filter(p => p.profileType === "Student").length}`}
+              icon={<UserCircle size={20} />}
+              color="from-blue-500 to-cyan-500"
+              subtitle="Link với Parent"
+            />
+            <StatCard
+              title="Profiles Active"
+              value={`${profiles.filter(p => p.isActive).length}`}
+              icon={<CheckCircle size={20} />}
+              color="from-amber-500 to-orange-500"
+              subtitle="Đang hoạt động"
+            />
+          </div>
 
+          {/* Filter Bar */}
+          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Type Filter */}
+                <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1">
+                  {[
+                    { k: 'all', label: 'Tất cả', count: profiles.length },
+                    { k: 'Parent', label: 'Parents', count: profiles.filter(p => p.profileType === "Parent").length },
+                    { k: 'Student', label: 'Students', count: profiles.filter(p => p.profileType === "Student").length },
+                  ].map((item) => (
+                    <button
+                      key={item.k}
+                      onClick={() => setProfileFilterType(item.k as typeof profileFilterType)}
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                        profileFilterType === item.k
+                          ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
+                          : 'text-gray-700 hover:bg-pink-50'
+                      }`}
+                    >
+                      {item.label}
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                        profileFilterType === item.k ? 'bg-white/20' : 'bg-gray-100'
+                      }`}>
+                        {item.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm theo tên, email..."
+                    value={profileSearchTerm}
+                    onChange={(e) => setProfileSearchTerm(e.target.value)}
+                    className="w-full rounded-xl border border-pink-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Profiles Table */}
+          <div className="rounded-2xl border border-pink-200 bg-white overflow-hidden shadow-sm">
+            {profilesLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-12 h-12 animate-spin text-pink-500" />
+              </div>
+            ) : filteredProfiles.length === 0 ? (
+              <div className="text-center py-16">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">Không có profile nào</p>
+                <p className="text-sm text-gray-400 mt-2">Hãy tạo profile mới để bắt đầu</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-pink-100 to-rose-100">
+                    <tr className="border-b border-pink-200">
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">User ID</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Ngày tạo</th>
+                      <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-pink-100">
+                    {filteredProfiles.map((profile: any) => (
+                      <tr key={profile.id} className="hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-transparent transition-all duration-200">
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
+                            profile.profileType === "Parent"
+                              ? "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200"
+                              : "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200"
+                          }`}>
+                            {profile.profileType === "Parent" ? <Shield size={12} /> : <UserCircle size={12} />}
+                            {profile.profileType}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">{profile.displayName}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-gray-600 text-sm">
+                            <Mail size={14} />
+                            {profile.userEmail || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs text-gray-500 font-mono">
+                            {profile.userId?.substring(0, 8)}...
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {profile.isActive ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
+                              <CheckCircle size={12} />
+                              Đang hoạt động
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border border-rose-200 rounded-full text-xs font-medium">
+                              <XCircle size={12} />
+                              Tạm khóa
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Calendar size={14} />
+                            {new Date(profile.createdAt).toLocaleDateString('vi-VN')}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            {profile.profileType === "Parent" && (
+                              <button
+                                onClick={() => handleOpenLinkModal(profile.id, profile.displayName)}
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group"
+                                title="Link với Student"
+                              >
+                                <LinkIcon size={18} className="group-hover:scale-110 transition-transform" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteProfile(profile.id, profile.displayName)}
+                              className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors group"
+                              title="Xóa"
+                            >
+                              <Trash2 size={18} className="group-hover:scale-110 transition-transform" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Profile Modals */}
+          <CreateParentAccountModal
+            isOpen={showCreateParentModal}
+            onClose={() => setShowCreateParentModal(false)}
+            onSubmit={handleCreateParent}
+          />
+
+          <CreateStudentProfileModal
+            isOpen={showCreateStudentModal}
+            onClose={() => setShowCreateStudentModal(false)}
+            onSubmit={handleCreateStudent}
+          />
+
+          <LinkStudentToParentModal
+            isOpen={showLinkModal}
+            onClose={handleCloseLinkModal}
+            onSubmit={handleLinkProfiles}
+            parentProfileId={selectedParentForLink?.id}
+            parentName={selectedParentForLink?.name}
+          />
+        </>
+      )}
+
+      {activeTab === "accounts" && (
+        <>
       {/* Security Configuration Panel */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Security Settings */}
@@ -1262,8 +1744,12 @@ export default function AccountsPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
-      {/* Modals */}
+      {/* Modals - Accounts */}
+      {activeTab === "accounts" && (
+        <>
       <AccountDetailModal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
@@ -1314,6 +1800,8 @@ export default function AccountsPage() {
         cancelText="Hủy"
         variant={selectedAccount?.isActive ? "danger" : "success"}
       />
+        </>
+      )}
     </div>
   );
 }

@@ -185,3 +185,25 @@ export const BACKEND_PLACEMENT_TEST_ENDPOINTS = {
   ADD_NOTE: (id: string) => `/placement-tests/${id}/notes`,
   CONVERT_TO_ENROLLED: (id: string) => `/placement-tests/${id}/convert-to-enrolled`,
 } as const;
+
+// Profile Management Endpoints (Client-side → Next.js API Routes)
+export const PROFILE_ENDPOINTS = {
+  GET_ALL: '/api/admin/profiles',
+  GET_BY_ID: (id: string) => `/api/admin/profiles/${id}`,
+  CREATE: '/api/admin/profiles',
+  UPDATE: (id: string) => `/api/admin/profiles/${id}`,
+  DELETE: (id: string) => `/api/admin/profiles/${id}`,
+  LINK: '/api/admin/profiles/link',
+  UNLINK: '/api/admin/profiles/unlink',
+} as const;
+
+// Backend Profile Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_PROFILE_ENDPOINTS = {
+  GET_ALL: '/GetAll/Students',
+  GET_BY_ID: (id: string) => `/profiles/${id}`,
+  CREATE: '/profiles',
+  UPDATE: (id: string) => `/profiles/${id}`,
+  DELETE: (id: string) => `/profiles/${id}`,
+  LINK: '/profiles/link',
+  UNLINK: '/profiles/unlink',
+} as const;
