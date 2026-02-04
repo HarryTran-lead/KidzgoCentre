@@ -86,8 +86,6 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   AlertCircle,
   Calendar,
   Loader2,
@@ -1356,72 +1354,81 @@ export default function AccountsPage() {
         {list.length > 0 && (
           <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Left: Info */}
               <div className="text-sm text-gray-600">
-                Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, list.length)}</span>
-                {' '}trong tổng số <span className="font-semibold text-gray-900">{list.length}</span> tài khoản
+                Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, list.length)}</span> trong tổng số{" "}
+                <span className="font-semibold text-gray-900">{list.length}</span> tài khoản
                 {selectedRows.length > 0 && (
                   <span className="ml-3 text-pink-600 font-medium">
-                    Đã chọn {selectedRows.length} tài khoản
+                    • Đã chọn {selectedRows.length}
                   </span>
                 )}
               </div>
+
+              {/* Right: Pagination Buttons */}
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
-                >
-                  <ChevronsLeft size={16} className="text-gray-600" />
-                </button>
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Previous page"
                 >
-                  <ChevronLeft size={16} className="text-gray-600" />
+                  <ChevronLeft size={18} />
                 </button>
 
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
+                  {(() => {
+                    const pages: (number | string)[] = [];
+                    const maxVisible = 7;
+
+                    if (totalPages <= maxVisible) {
+                      for (let i = 1; i <= totalPages; i++) {
+                        pages.push(i);
+                      }
                     } else {
-                      pageNum = currentPage - 2 + i;
+                      if (currentPage <= 3) {
+                        for (let i = 1; i <= 5; i++) pages.push(i);
+                        pages.push("...");
+                        pages.push(totalPages);
+                      } else if (currentPage >= totalPages - 2) {
+                        pages.push(1);
+                        pages.push("...");
+                        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                      } else {
+                        pages.push(1);
+                        pages.push("...");
+                        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                        pages.push("...");
+                        pages.push(totalPages);
+                      }
                     }
 
-                    return (
+                    return pages.map((page, idx) => (
                       <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`h-8 w-8 rounded-lg text-sm font-medium transition-all ${currentPage === pageNum
-                          ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
-                          : 'border border-pink-200 bg-white text-gray-700 hover:bg-pink-50'
-                          }`}
+                        key={idx}
+                        onClick={() => typeof page === "number" && setCurrentPage(page)}
+                        disabled={page === "..."}
+                        className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all ${
+                          page === currentPage
+                            ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                            : page === "..."
+                            ? "cursor-default text-gray-400"
+                            : "border border-pink-200 hover:bg-pink-50 text-gray-700"
+                        }`}
                       >
-                        {pageNum}
+                        {page}
                       </button>
-                    );
-                  })}
+                    ));
+                  })()}
                 </div>
 
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Next page"
                 >
-                  <ChevronRight size={16} className="text-gray-600" />
-                </button>
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
-                >
-                  <ChevronsRight size={16} className="text-gray-600" />
+                  <ChevronRight size={18} />
                 </button>
               </div>
             </div>
@@ -1494,7 +1501,7 @@ export default function AccountsPage() {
                 </div>
               </div>
 
-              {/* Search */}
+              {/* Search and Items Per Page */}
               <div className="flex items-center gap-2 flex-1 min-w-[300px]">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -1645,68 +1652,76 @@ export default function AccountsPage() {
                   return (
                     <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        {/* Left: Info */}
                         <div className="text-sm text-gray-600">
-                          Hiển thị <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span>
-                          {' '}trong tổng số <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> profiles
+                          Hiển thị <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span> trong tổng số{" "}
+                          <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> profiles
                         </div>
+
+                        {/* Right: Pagination Buttons */}
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setProfileCurrentPage(1)}
-                            disabled={profileCurrentPage === 1}
-                            className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
-                          >
-                            <ChevronsLeft size={16} className="text-gray-600" />
-                          </button>
                           <button
                             onClick={() => setProfileCurrentPage(prev => Math.max(1, prev - 1))}
                             disabled={profileCurrentPage === 1}
-                            className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                            className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            aria-label="Previous page"
                           >
-                            <ChevronLeft size={16} className="text-gray-600" />
+                            <ChevronLeft size={18} />
                           </button>
 
                           <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.min(5, profileTotalPages) }, (_, i) => {
-                              let pageNum;
-                              if (profileTotalPages <= 5) {
-                                pageNum = i + 1;
-                              } else if (profileCurrentPage <= 3) {
-                                pageNum = i + 1;
-                              } else if (profileCurrentPage >= profileTotalPages - 2) {
-                                pageNum = profileTotalPages - 4 + i;
+                            {(() => {
+                              const pages: (number | string)[] = [];
+                              const maxVisible = 7;
+
+                              if (profileTotalPages <= maxVisible) {
+                                for (let i = 1; i <= profileTotalPages; i++) {
+                                  pages.push(i);
+                                }
                               } else {
-                                pageNum = profileCurrentPage - 2 + i;
+                                if (profileCurrentPage <= 3) {
+                                  for (let i = 1; i <= 5; i++) pages.push(i);
+                                  pages.push("...");
+                                  pages.push(profileTotalPages);
+                                } else if (profileCurrentPage >= profileTotalPages - 2) {
+                                  pages.push(1);
+                                  pages.push("...");
+                                  for (let i = profileTotalPages - 4; i <= profileTotalPages; i++) pages.push(i);
+                                } else {
+                                  pages.push(1);
+                                  pages.push("...");
+                                  for (let i = profileCurrentPage - 1; i <= profileCurrentPage + 1; i++) pages.push(i);
+                                  pages.push("...");
+                                  pages.push(profileTotalPages);
+                                }
                               }
 
-                              return (
+                              return pages.map((page, idx) => (
                                 <button
-                                  key={pageNum}
-                                  onClick={() => setProfileCurrentPage(pageNum)}
-                                  className={`h-8 w-8 rounded-lg text-sm font-medium transition-all ${
-                                    profileCurrentPage === pageNum
-                                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
-                                      : 'border border-pink-200 bg-white text-gray-700 hover:bg-pink-50'
+                                  key={idx}
+                                  onClick={() => typeof page === "number" && setProfileCurrentPage(page)}
+                                  disabled={page === "..."}
+                                  className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all ${
+                                    page === profileCurrentPage
+                                      ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                                      : page === "..."
+                                      ? "cursor-default text-gray-400"
+                                      : "border border-pink-200 hover:bg-pink-50 text-gray-700"
                                   }`}
                                 >
-                                  {pageNum}
+                                  {page}
                                 </button>
-                              );
-                            })}
+                              ));
+                            })()}
                           </div>
 
                           <button
                             onClick={() => setProfileCurrentPage(prev => Math.min(profileTotalPages, prev + 1))}
                             disabled={profileCurrentPage === profileTotalPages}
-                            className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                            className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            aria-label="Next page"
                           >
-                            <ChevronRight size={16} className="text-gray-600" />
-                          </button>
-                          <button
-                            onClick={() => setProfileCurrentPage(profileTotalPages)}
-                            disabled={profileCurrentPage === profileTotalPages}
-                            className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
-                          >
-                            <ChevronsRight size={16} className="text-gray-600" />
+                            <ChevronRight size={18} />
                           </button>
                         </div>
                       </div>

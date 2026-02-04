@@ -54,26 +54,10 @@ export default function LeadPagination({
   return (
     <div className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* Left: Info & Page Size */}
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-600">
-              Hiển thị <span className="font-semibold text-gray-900">{startIndex}-{endIndex}</span> trong tổng số{" "}
-              <span className="font-semibold text-gray-900">{totalCount}</span> lead
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600">Hiển thị:</label>
-              <select
-                value={pageSize}
-                onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                className="px-3 py-1.5 rounded-lg border border-pink-200 bg-white text-sm focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none cursor-pointer"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
+          {/* Left: Info */}
+          <div className="text-sm text-gray-600">
+            Hiển thị <span className="font-semibold text-gray-900">{startIndex}-{endIndex}</span> trong tổng số{" "}
+            <span className="font-semibold text-gray-900">{totalCount}</span> lead
           </div>
 
           {/* Right: Pagination Buttons */}

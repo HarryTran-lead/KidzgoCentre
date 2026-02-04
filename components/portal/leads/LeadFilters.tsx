@@ -25,10 +25,12 @@ interface LeadFiltersProps {
   selectedSource: string;
   myLeadsOnly?: boolean;
   currentUserName?: string;
+  pageSize?: number;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onSourceChange: (value: string) => void;
   onMyLeadsOnlyChange?: (value: boolean) => void;
+  onPageSizeChange?: (size: number) => void;
 }
 
 export default function LeadFilters({
@@ -41,10 +43,12 @@ export default function LeadFilters({
   selectedSource,
   myLeadsOnly = false,
   currentUserName,
+  pageSize = 10,
   onSearchChange,
   onStatusChange,
   onSourceChange,
   onMyLeadsOnlyChange,
+  onPageSizeChange,
 }: LeadFiltersProps) {
   const statusOptions = ["Tất cả", ...Object.values(STATUS_MAPPING)];
   
@@ -60,15 +64,29 @@ export default function LeadFilters({
   return (
     <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5 space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Tìm kiếm tên, SĐT, email, mã lead..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
-          />
+        <div className="flex items-center gap-2 flex-1">
+          <div className="flex-1 relative">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Tìm kiếm tên, SĐT, email, mã lead..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
+            />
+          </div>
+          {onPageSizeChange && (
+            <select
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+            >
+              <option value={5}>5 / trang</option>
+              <option value={10}>10 / trang</option>
+              <option value={20}>20 / trang</option>
+              <option value={50}>50 / trang</option>
+            </select>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
