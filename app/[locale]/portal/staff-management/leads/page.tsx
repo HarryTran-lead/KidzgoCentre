@@ -389,10 +389,12 @@ export default function Page() {
           selectedSource={selectedSource}
           myLeadsOnly={myLeadsOnly}
           currentUserName={currentUser?.fullName}
+          pageSize={pageSize}
           onSearchChange={setSearchQuery}
           onStatusChange={setSelectedStatus}
           onSourceChange={setSelectedSource}
           onMyLeadsOnlyChange={setMyLeadsOnly}
+          onPageSizeChange={handlePageSizeChange}
         />
       </div>
 

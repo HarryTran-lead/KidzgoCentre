@@ -6,7 +6,7 @@ import {
   Clock, Filter, MoreVertical, Plus, Eye, User, 
   BookOpen, TrendingUp, ChevronRight, Phone, Mail as MailIcon,
   Calendar, UserCheck, CheckCircle, AlertCircle, ArrowUpDown,
-  ArrowUp, ArrowDown, UserPlus
+  ArrowUp, ArrowDown, UserPlus, ChevronLeft
 } from "lucide-react";
 
 type Status = "NEW" | "CONTACTED" | "ENROLLED" | "LOST";
@@ -184,6 +184,8 @@ export default function LeadsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -260,6 +262,17 @@ export default function LeadsPage() {
     
     return filtered;
   }, [status, searchQuery, sortField, sortDirection]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentLeads = filteredLeads.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [status, searchQuery]);
 
   const stats = {
     total: LEADS.length,
@@ -392,16 +405,31 @@ export default function LeadsPage() {
               ))}
             </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder="Tìm kiếm phụ huynh, học viên, khóa học..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2.5 border border-pink-200 rounded-xl text-sm w-full md:w-80 bg-white focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-              />
+            {/* Search and Items Per Page */}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm phụ huynh, học viên, khóa học..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-4 py-2.5 border border-pink-200 rounded-xl text-sm w-full md:w-80 bg-white focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                />
+              </div>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              >
+                <option value={5}>5 / trang</option>
+                <option value={10}>10 / trang</option>
+                <option value={20}>20 / trang</option>
+                <option value={50}>50 / trang</option>
+              </select>
             </div>
           </div>
         </div>
@@ -471,7 +499,7 @@ export default function LeadsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-pink-100">
-              {filteredLeads.map((lead) => (
+              {currentLeads.map((lead) => (
                 <tr key={lead.id} className="hover:bg-pink-50/50 transition-colors">
                   <td className="px-6 py-4 align-top">
                     <div className="flex items-start gap-3">
@@ -530,12 +558,92 @@ export default function LeadsPage() {
             </tbody>
           </table>
           
-          {filteredLeads.length === 0 && (
+          {currentLeads.length === 0 && (
             <div className="text-center py-12 text-gray-500">
               Không tìm thấy khách hàng tiềm năng nào
             </div>
           )}
         </div>
+
+        {/* Pagination Footer */}
+        {filteredLeads.length > 0 && (
+          <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Left: Info */}
+              <div className="text-sm text-gray-600">
+                Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, filteredLeads.length)}</span> trong tổng số{" "}
+                <span className="font-semibold text-gray-900">{filteredLeads.length}</span> lead
+              </div>
+
+              {/* Right: Pagination Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const pages: (number | string)[] = [];
+                    const maxVisible = 7;
+
+                    if (totalPages <= maxVisible) {
+                      for (let i = 1; i <= totalPages; i++) {
+                        pages.push(i);
+                      }
+                    } else {
+                      if (currentPage <= 3) {
+                        for (let i = 1; i <= 5; i++) pages.push(i);
+                        pages.push("...");
+                        pages.push(totalPages);
+                      } else if (currentPage >= totalPages - 2) {
+                        pages.push(1);
+                        pages.push("...");
+                        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                      } else {
+                        pages.push(1);
+                        pages.push("...");
+                        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                        pages.push("...");
+                        pages.push(totalPages);
+                      }
+                    }
+
+                    return pages.map((page, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => typeof page === "number" && setCurrentPage(page)}
+                        disabled={page === "..."}
+                        className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all ${
+                          page === currentPage
+                            ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                            : page === "..."
+                            ? "cursor-default text-gray-400"
+                            : "border border-pink-200 hover:bg-pink-50 text-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ));
+                  })()}
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Next page"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
