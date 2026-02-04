@@ -6,6 +6,7 @@
  */
 
 import {
+
   CLASS_ENDPOINTS,
   STUDENT_CLASS_ENDPOINTS,
   STUDENT_ENDPOINTS,
@@ -46,6 +47,18 @@ export async function getAllStudents(
   const endpoint = STUDENT_ENDPOINTS.GET_ALL ?? "/api/students";
 
   return get<StudentsResponse>(endpoint, {
+    params: params ?? {},
+  });
+}
+export async function getStudentClasses(
+  params?: StudentClassesParams
+): Promise<StudentClassesResponse> {
+ const endpoint =
+    typeof STUDENT_ENDPOINTS.GET_CLASSES === "function"
+      ? STUDENT_ENDPOINTS.GET_CLASSES()
+      : "/api/students/classes";
+
+  return get<StudentClassesResponse>(endpoint, {
     params: params ?? {},
   });
 }

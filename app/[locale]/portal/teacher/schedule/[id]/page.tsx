@@ -205,7 +205,7 @@ export default function LessonAttendancePage() {
         if (!lessonId) return;
 
         const result = await fetchAttendance(lessonId, signal);
-        
+
         if (signal?.aborted) return;
 
         setList(result.students);

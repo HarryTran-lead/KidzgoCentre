@@ -2,10 +2,27 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { 
-  MapPin, Users, PencilLine, Plus, Building2, 
-  Sparkles, MoreVertical, Search, Filter,
-  ChevronRight, Globe, CheckCircle,
-  AlertCircle, Loader2, X, Trash2, RefreshCw
+  MapPin,
+  Users,
+  PencilLine,
+  Plus,
+  Building2,
+  Sparkles,
+  MoreVertical,
+  Search,
+  Filter,
+  ChevronRight,
+  Globe,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  X,
+  Trash2,
+  RefreshCw,
+  EyeIcon,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { 
   getAllBranches, 
@@ -112,9 +129,51 @@ function StatCard({
   );
 }
 
+type BranchSortField = 'code' | 'name' | 'address' | 'totalStudents' | 'totalClasses' | 'totalTeachers';
+type BranchSortDirection = 'asc' | 'desc' | null;
+
+function SortableHeader({
+  field,
+  currentField,
+  direction,
+  onSort,
+  children,
+  align = 'left',
+}: {
+  field: BranchSortField;
+  currentField: BranchSortField | null;
+  direction: BranchSortDirection;
+  onSort: (f: BranchSortField) => void;
+  children: React.ReactNode;
+  align?: 'left' | 'center' | 'right';
+}) {
+  const isActive = currentField === field;
+  const icon = isActive ? (
+    direction === 'asc' ? <ArrowUp size={14} className="text-pink-500" /> : <ArrowDown size={14} className="text-pink-500" />
+  ) : (
+    <ArrowUpDown size={14} className="text-gray-400" />
+  );
+  const alignClass =
+    align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left';
+
+  return (
+    <th
+      onClick={() => onSort(field)}
+      className={`py-3 px-6 ${alignClass} text-sm font-semibold text-gray-700 whitespace-nowrap cursor-pointer select-none hover:bg-pink-50 transition-colors`}
+    >
+      <span className="inline-flex items-center gap-2">
+        {children}
+        {icon}
+      </span>
+    </th>
+  );
+}
+
 export default function BranchesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [sortField, setSortField] = useState<BranchSortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<BranchSortDirection>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -181,24 +240,26 @@ export default function BranchesPage() {
       console.log('Branch detail response:', response);
       
       if ((response.success || response.isSuccess) && response.data) {
-        // Try to extract branch data from different possible structures
+        // API returns: { isSuccess: true, data: { id, code, name, ... } }
         const branchData = response.data.branch || response.data;
         console.log('Branch data to display:', branchData);
         setSelectedBranch(branchData);
         setShowDetailModal(true);
       } else {
+        const errorMsg = response.message || "Không thể tải chi tiết chi nhánh";
         console.error('Failed to load branch details:', response);
         toast({
           title: "Lỗi",
-          description: "Không thể tải chi tiết chi nhánh",
+          description: errorMsg,
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching branch details:', error);
+      const errorMsg = error?.response?.data?.message || error?.message || "Có lỗi xảy ra khi tải chi tiết";
       toast({
         title: "Lỗi",
-        description: "Có lỗi xảy ra khi tải chi tiết",
+        description: errorMsg,
         variant: "destructive",
       });
     }
@@ -257,7 +318,9 @@ export default function BranchesPage() {
   const handleEditBranch = async (id: string, data: UpdateBranchRequest) => {
     try {
       setIsSubmitting(true);
+      console.log('Updating branch with ID:', id, 'Data:', data);
       const response = await updateBranch(id, data);
+      console.log('Update branch response:', response);
       
       if ((response.success || response.isSuccess)) {
         toast({
@@ -281,17 +344,19 @@ export default function BranchesPage() {
           setBranches(responseData.branches || []);
         }
       } else {
+        const errorMsg = response.message || response.data?.message || "Không thể cập nhật chi nhánh";
         toast({
           title: "Lỗi",
-          description: response.message || "Không thể cập nhật chi nhánh",
+          description: errorMsg,
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating branch:', error);
+      const errorMsg = error?.response?.data?.message || error?.message || "Có lỗi xảy ra khi cập nhật chi nhánh";
       toast({
         title: "Lỗi",
-        description: "Có lỗi xảy ra khi cập nhật chi nhánh",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -396,8 +461,71 @@ export default function BranchesPage() {
   };
 
   const filteredBranches = useMemo(() => {
-    return branches;
-  }, [branches]);
+    let result = branches;
+    
+    // Apply status filter
+    if (filterStatus === 'active') {
+      result = result.filter(b => b.isActive);
+    } else if (filterStatus === 'inactive') {
+      result = result.filter(b => !b.isActive);
+    }
+    
+    return result;
+  }, [branches, filterStatus]);
+  const sortedBranches = useMemo(() => {
+    let result = [...filteredBranches];
+
+    if (sortField && sortDirection) {
+      result.sort((a, b) => {
+        const getVal = (branch: Branch) => {
+          switch (sortField) {
+            case 'code':
+              return branch.code ?? '';
+            case 'name':
+              return branch.name ?? '';
+            case 'address':
+              return branch.address ?? '';
+            case 'totalStudents':
+              return branch.totalStudents ?? 0;
+            case 'totalClasses':
+              return branch.totalClasses ?? 0;
+            case 'totalTeachers':
+              return branch.totalTeachers ?? 0;
+          }
+        };
+
+        const av = getVal(a);
+        const bv = getVal(b);
+
+        if (typeof av === 'number' && typeof bv === 'number') {
+          return sortDirection === 'asc' ? av - bv : bv - av;
+        }
+
+        const aStr = (av ?? '').toString();
+        const bStr = (bv ?? '').toString();
+
+        return sortDirection === 'asc'
+          ? aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' })
+          : bStr.localeCompare(aStr, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+
+    return result;
+  }, [filteredBranches, sortField, sortDirection]);
+
+  const handleSort = (field: BranchSortField) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') {
+        setSortField(null);
+        setSortDirection(null);
+      } else setSortDirection('asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
 
   const stats = useMemo(() => {
     const total = branches.length;
@@ -506,146 +634,228 @@ export default function BranchesPage() {
         </div>
       )}
 
-      {/* Branches Grid */}
+      {/* Branches Table */}
       {!isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredBranches.map((branch) => (
-          <div 
-            key={branch.id}
-            className="group rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-pink-100/50"
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="px-2.5 py-1 bg-pink-50 text-pink-700 text-xs font-medium rounded-full border border-pink-200">
-                    {branch.code}
-                  </span>
-                  <StatusIndicator isActive={branch.isActive} />
-                </div>
-                <h3 className="font-semibold text-gray-900 text-lg mb-2 group-hover:text-pink-600 transition-colors">
-                  {branch.name}
-                </h3>
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <MapPin size={14} className="mt-0.5 text-pink-500 flex-shrink-0" />
-                  <span className="line-clamp-2">{branch.address}</span>
-                </div>
-                {branch.contactPhone && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                    <span className="text-xs">📱 {branch.contactPhone}</span>
-                  </div>
-                )}
-                {branch.contactEmail && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                    <span className="text-xs">📧 {branch.contactEmail}</span>
-                  </div>
-                )}
-              </div>
-              <button className="p-2 rounded-lg hover:bg-pink-50 transition-colors opacity-0 group-hover:opacity-100">
-                <MoreVertical size={16} className="text-gray-400" />
-              </button>
-            </div>
-
-            {/* Stats */}
-            <div className="space-y-3 mb-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white rounded-xl p-3 border border-pink-100">
-                  <div className="text-xs text-gray-500 mb-1">Học viên</div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-lg font-bold text-gray-900">{branch.totalStudents || 0}</span>
-                  </div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-3 border border-pink-100">
-                  <div className="text-xs text-gray-500 mb-1">Lớp học</div>
-                  <div className="text-lg font-bold text-gray-900">{branch.totalClasses || 0}</div>
-                  <div className="text-xs text-gray-500 mt-1">{branch.totalTeachers || 0} giáo viên</div>
-                </div>
+        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
+          {/* Table Header */}
+          <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Danh sách chi nhánh</h2>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium">{filteredBranches.length} chi nhánh</span>
               </div>
             </div>
+          </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-pink-100">
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenEditModal(branch);
-                  }}
-                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors"
-                >
-                  <PencilLine size={14} />
-                  Chỉnh sửa
-                </button>
-                {branch.isActive ? (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenConfirmDeactivate(branch);
-                    }}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+                <tr>
+                  <SortableHeader
+                    field="code"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
                   >
-                    <Trash2 size={14} />
-                  </button>
+                    Mã chi nhánh
+                  </SortableHeader>
+                  <SortableHeader
+                    field="name"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Tên chi nhánh
+                  </SortableHeader>
+                  <SortableHeader
+                    field="address"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    Địa chỉ
+                  </SortableHeader>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Liên hệ</th>
+                  <SortableHeader
+                    field="totalStudents"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    align="center"
+                  >
+                    Học viên
+                  </SortableHeader>
+                  <SortableHeader
+                    field="totalClasses"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    align="center"
+                  >
+                    Lớp học
+                  </SortableHeader>
+                  <SortableHeader
+                    field="totalTeachers"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    align="center"
+                  >
+                    Giáo viên
+                  </SortableHeader>
+                  <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700">Trạng thái</th>
+                  <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-pink-100">
+                {sortedBranches.length > 0 ? (
+                  sortedBranches.map((branch) => (
+                    <tr
+                      key={branch.id}
+                      className="group hover:bg-pink-50/50 transition-colors"
+                    >
+                      <td className="py-4 px-6">
+                        <span className="px-2.5 py-1 bg-pink-50 text-pink-700 text-xs font-medium rounded-full border border-pink-200">
+                          {branch.code}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className=" text-gray-900">{branch.name}</div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-start gap-2 text-sm text-gray-600 max-w-xs">
+                          <MapPin size={14} className="mt-0.5 text-pink-500 flex-shrink-0" />
+                          <span className="line-clamp-2">{branch.address}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="space-y-1 text-sm text-gray-600">
+                          {branch.contactPhone && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs">{branch.contactPhone}</span>
+                            </div>
+                          )}
+                          {branch.contactEmail && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs truncate max-w-[200px]">{branch.contactEmail}</span>
+                            </div>
+                          )}
+                          {!branch.contactPhone && !branch.contactEmail && (
+                            <span className="text-xs text-gray-400">Chưa có</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-lg text-gray-900">{branch.totalStudents || 0}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-lg text-gray-900">{branch.totalClasses || 0}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-lg text-gray-900">{branch.totalTeachers || 0}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <StatusIndicator isActive={branch.isActive} />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleViewDetail(branch.id)}
+                            className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer"
+                            title="Xem chi tiết"
+                          >
+                            <EyeIcon size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditModal(branch);
+                            }}
+                            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            title="Chỉnh sửa"
+                          >
+                            <PencilLine size={16} />
+                          </button>
+                          {branch.isActive ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenConfirmDeactivate(branch);
+                              }}
+                              className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Vô hiệu hóa"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenActivateModal(branch);
+                              }}
+                              className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                              title="Kích hoạt"
+                            >
+                              <RefreshCw size={16} />
+                            </button>
+                          )}
+                        </div> 
+                      </td>
+                    </tr>
+                  ))
                 ) : (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenActivateModal(branch);
-                    }}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                  >
-                    <RefreshCw size={14} />
-                  </button>
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center">
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
+                        <Building2 size={24} className="text-pink-400" />
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">Không tìm thấy chi nhánh</h3>
+                      <p className="text-sm text-gray-600">
+                        Không có chi nhánh nào phù hợp với tiêu chí tìm kiếm của bạn
+                      </p>
+                    </td>
+                  </tr>
                 )}
-              </div>
-              <button 
-                onClick={() => handleViewDetail(branch.id)}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-pink-700 hover:text-pink-800 hover:bg-pink-50 rounded-lg transition-colors"
-              >
-                Xem chi tiết
-                <ChevronRight size={14} />
-              </button>
-            </div>
+              </tbody>
+            </table>
           </div>
-        ))}
-      </div>
-      )}
 
-      {/* Empty State */}
-      {!isLoading && filteredBranches.length === 0 && (
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-12 text-center">
-          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-            <Building2 size={24} className="text-pink-400" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900 mb-2">Không tìm thấy chi nhánh</h3>
-          <p className="text-sm text-gray-600 max-w-md mx-auto">
-            Không có chi nhánh nào phù hợp với tiêu chí tìm kiếm của bạn
-          </p>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  Trang <span className="font-semibold text-gray-900">{currentPage}</span> / <span className="font-semibold text-gray-900">{totalPages}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-pink-200 rounded-lg hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Trước
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-pink-200 rounded-lg hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Sau
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Footer */}
-      {!isLoading && (
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Sparkles size={16} className="text-pink-500" />
-              <span>Hiển thị {filteredBranches.length} chi nhánh</span>
-            </div>
-            <div className="flex items-center gap-4 text-gray-600">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span>Đang hoạt động</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-gray-500"></div>
-                <span>Không hoạt động</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal: View Detail */}
       <BranchDetailModal 

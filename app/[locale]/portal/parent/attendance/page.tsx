@@ -16,6 +16,7 @@ import { createLeaveRequest, getLeaveRequests } from "@/lib/api/leaveRequestServ
 import { getProfiles } from "@/lib/api/authService";
 import { getStudentClassesByToken } from "@/lib/api/studentService";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
+import { getStudentClasses } from "@/lib/api/studentService";
 
 import type { UserProfile } from "@/types/auth";
 import type { StudentClass } from "@/types/student/class";
@@ -43,6 +44,8 @@ const statusLabels: Record<LeaveRequestStatus, string> = {
   PENDING: "Chờ duyệt",
   APPROVED: "Đã duyệt",
   REJECTED: "Từ chối",
+  AUTO_APPROVED: "Tự duyệt",
+
 };
 
 // giữ màu trạng thái, nhưng “shape” + style giống trang trên
@@ -50,6 +53,23 @@ const statusStyles: Record<LeaveRequestStatus, string> = {
   PENDING: "border border-amber-200 bg-amber-50 text-amber-700",
   APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
   REJECTED: "border border-rose-200 bg-rose-50 text-rose-700",
+   AUTO_APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+};
+
+const normalizeStatus = (value?: string | null): LeaveRequestStatus => {
+  if (!value) return "PENDING";
+
+  const normalized = value
+    .replace(/\s+/g, "_")
+    .replace(/-+/g, "_")
+    .toUpperCase();
+
+  if (normalized === "APPROVED") return "APPROVED";
+  if (normalized === "REJECTED") return "REJECTED";
+  if (normalized === "AUTO_APPROVED" || normalized === "AUTOAPPROVED") return "AUTO_APPROVED";
+  if (normalized === "PENDING") return "PENDING";
+
+  return "PENDING";
 };
 
 function toVNDateLabel(value?: string | null) {
@@ -169,7 +189,7 @@ export default function ParentAttendancePage() {
       setClassesError(null);
 
       try {
-        const response = await getStudentClassesByToken({
+        const response = await getStudentClasses({
           pageNumber: 1,
           pageSize: 100,
         });
@@ -368,6 +388,9 @@ export default function ParentAttendancePage() {
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                     Thời gian nghỉ
                   </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Ngày tạo
+                  </th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lớp</th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lý do</th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
@@ -378,9 +401,13 @@ export default function ParentAttendancePage() {
 
               <tbody className="divide-y divide-pink-50">
                 {displayRequests.map((r) => {
-                  const status = (r.status ?? "PENDING") as LeaveRequestStatus;
-                  const start = (r as any).sessionDate ?? r.sessionDate;
+ const status = normalizeStatus(r.status as string | undefined);                  const start = (r as any).sessionDate ?? r.sessionDate;
                   const end = (r as any).endDate ?? r.endDate;
+ const created =
+                    (r as any).createdAt ??
+                    (r as any).submittedAt ??
+                    (r as any).requestedAt ??
+                    (r as any).requestedDate;
 
                   return (
                     <tr
@@ -392,7 +419,9 @@ export default function ParentAttendancePage() {
                         {end ? <span className="text-gray-400">→</span> : null}{" "}
                         {end ? toVNDateLabel(end) : null}
                       </td>
-
+  <td className="py-4 px-6 whitespace-nowrap text-sm text-gray-700">
+                        {toVNDateLabel(created) || "—"}
+                      </td>
                       <td className="py-4 px-6 text-sm text-gray-700">
                         {(r as any).className ??
                           (r as any).classTitle ??

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/lightswind/avatar";
 import { Badge } from "@/components/lightswind/badge";
@@ -18,14 +18,44 @@ export default function ChildSelector() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { selectedProfile, setSelectedProfile } = useSelectedStudentProfile();
-
+ const lastSyncedProfileId = useRef<string | null>(null);
   const selectedChild = useMemo(
     () =>
       profiles.find((profile) => profile.id === selectedProfile?.id) ??
       selectedProfile,
-    [profiles, selectedProfile]
-  );
+);
+const syncSelectedProfile = useCallback(
+    async (child: Child) => {
+      if (!child?.id) return;
+      if (lastSyncedProfileId.current === child.id) return;
+      lastSyncedProfileId.current = child.id;
 
+      try {
+        const response = await selectStudent({ profileId: child.id });
+        const isSuccess = response.isSuccess ?? response.success ?? false;
+
+        if (isSuccess) {
+          if (response.data?.accessToken) {
+            setAccessToken(response.data.accessToken);
+          }
+
+          const selected = response.data?.selectedProfile ?? child;
+          const selectedWithStudentId = {
+            ...selected,
+            studentId: response.data?.studentId ?? selected.studentId,
+          };
+          setSelectedProfile(selectedWithStudentId);
+          return;
+        }
+
+        setSelectedProfile(child);
+      } catch (error) {
+        console.error("Select student profile error:", error);
+        setSelectedProfile(child);
+      }
+    },
+    [setSelectedProfile]
+  );  
   useEffect(() => {
     const fetchProfiles = async () => {
       setLoading(true);
@@ -53,9 +83,13 @@ export default function ChildSelector() {
           const hasSelected = storedSelected
             ? students.some((profile) => profile.id === storedSelected.id)
             : false;
+const targetProfile = hasSelected ? storedSelected : students[0];
 
-          if (!hasSelected) {
-            setSelectedProfile(students[0]);
+          if (targetProfile) {
+            if (!hasSelected) {
+              setSelectedProfile(targetProfile);
+            }
+            await syncSelectedProfile(targetProfile);
           }
         }
       } catch (error) {
@@ -67,8 +101,7 @@ export default function ChildSelector() {
     };
 
     fetchProfiles();
-  }, [selectedProfile, setSelectedProfile]);
-
+}, [selectedProfile, setSelectedProfile, syncSelectedProfile]);
   const handleSelectChild = async (child: Child) => {
     try {
       const response = await selectStudent({ profileId: child.id });

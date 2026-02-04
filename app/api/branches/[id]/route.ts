@@ -74,13 +74,34 @@ export async function PUT(req: Request, { params }: Params) {
     const { id } = await params;
     const body: UpdateBranchRequest = await req.json();
 
+    // Validate required fields according to API spec
+    if (!body.code || !body.name || !body.address || !body.contactPhone || !body.contactEmail) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Mã chi nhánh, tên, địa chỉ, số điện thoại và email là bắt buộc",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Prepare payload with only required fields for API
+    const payload: UpdateBranchRequest = {
+      code: body.code,
+      name: body.name,
+      address: body.address,
+      contactPhone: body.contactPhone,
+      contactEmail: body.contactEmail,
+    };
+
     const upstream = await fetch(buildApiUrl(BACKEND_BRANCH_ENDPOINTS.UPDATE(id)), {
       method: "PUT",
       headers: {
         "Authorization": authHeader,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
 
     const data: UpdateBranchApiResponse = await upstream.json();
