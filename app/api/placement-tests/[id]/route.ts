@@ -9,7 +9,7 @@ import { BACKEND_PLACEMENT_TEST_ENDPOINTS, buildApiUrl } from '@/constants/apiUR
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization");
@@ -24,7 +24,7 @@ export async function GET(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Forward to backend API
     const backendUrl = buildApiUrl(BACKEND_PLACEMENT_TEST_ENDPOINTS.GET_BY_ID(id));
@@ -64,7 +64,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization");
@@ -79,7 +79,7 @@ export async function PUT(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     // Forward to backend API

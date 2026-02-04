@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { X, User as UserIcon, Lock, Loader2 } from "lucide-react";
-import type { CreateParentAccountRequest } from "@/types/profile";
+import type { CreateParentProfileRequest } from "@/types/profile";
 
 interface CreateParentAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (profileData: CreateParentAccountRequest) => Promise<void>;
+  onSubmit: (profileData: CreateParentProfileRequest) => Promise<void>;
 }
 
 export default function CreateParentAccountModal({ 
@@ -36,6 +36,12 @@ export default function CreateParentAccountModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate userId
+    if (!formData.userId) {
+      alert('Vui lòng nhập User ID');
+      return;
+    }
+    
     // Validate PIN (must be 4 digits)
     if (!/^\d{4}$/.test(formData.pinHash)) {
       alert('Mã PIN phải là 4 chữ số');
@@ -45,7 +51,7 @@ export default function CreateParentAccountModal({
     setLoading(true);
     try {
       // Prepare profile data
-      const profileData: CreateParentAccountRequest = {
+      const profileData: CreateParentProfileRequest = {
         userId: formData.userId,
         profileType: 'Parent',
         displayName: formData.displayName,
@@ -69,7 +75,7 @@ export default function CreateParentAccountModal({
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">
-            Tạo tài khoản Parent
+            Tạo profile Parent
           </h2>
           <button
             onClick={onClose}
@@ -84,15 +90,11 @@ export default function CreateParentAccountModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Profile Section */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
-              Thông tin tài khoản
-            </h3>
-
             {/* User ID */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                 <UserIcon size={16} />
-                User ID (Account ID) <span className="text-red-500">*</span>
+                User ID <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -103,13 +105,10 @@ export default function CreateParentAccountModal({
                 placeholder="3fa85f64-5717-4562-b3fc-2c963f66afa6"
               />
               <p className="text-xs text-gray-500 mt-1">
-                ID của tài khoản dùng để đăng nhập vào hệ thống
+                ID của user (Parent) đã tồn tại trong hệ thống
               </p>
             </div>
-          </div>
 
-          {/* Profile Section */}
-          <div className="space-y-4 pt-4 border-t">
             <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
               Thông tin Profile
             </h3>

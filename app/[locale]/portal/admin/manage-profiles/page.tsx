@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { 
-  Users, UserPlus, Link as LinkIcon, Search, 
+  Users, UserPlus, Search, 
   Loader2, UserCircle, Mail, Calendar, 
   CheckCircle, XCircle, Edit, Trash2, Shield
 } from "lucide-react";
@@ -11,15 +11,13 @@ import {
   getAllStudents, 
   createParentAccount, 
   createStudentProfile,
-  linkStudentToParent,
   deleteProfile
 } from "@/lib/api/profileService";
 import { createUser } from "@/lib/api/userService";
 import type { CreateUserRequest } from "@/types/admin/user";
-import type { CreateParentAccountRequest, CreateStudentProfileRequest } from "@/types/profile";
-import CreateParentAccountModal from "@/components/admin/profile/CreateParentAccountModal";
+import type { CreateParentProfileRequest, CreateStudentProfileRequest } from "@/types/profile";
+import CreateParentProfileModal from "@/components/admin/profile/CreateParentProfileModal";
 import CreateStudentProfileModal from "@/components/admin/profile/CreateStudentProfileModal";
-import LinkStudentToParentModal from "@/components/admin/profile/LinkStudentToParentModal";
 
 interface ProfileItem {
   id: string;
@@ -42,8 +40,6 @@ export default function ProfileManagementPage() {
   // Modal states
   const [showCreateParentModal, setShowCreateParentModal] = useState(false);
   const [showCreateStudentModal, setShowCreateStudentModal] = useState(false);
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [selectedParentForLink, setSelectedParentForLink] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch all profiles
   const fetchProfiles = async () => {
@@ -93,26 +89,14 @@ export default function ProfileManagementPage() {
     setFilteredProfiles(filtered);
   }, [profiles, filterType, searchTerm]);
 
-  // Handle create parent account
-  const handleCreateParent = async (
-    userData: CreateUserRequest, 
-    profileData: CreateParentAccountRequest
-  ) => {
+  // Handle create parent profile
+  const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
     try {
-      // Step 1: Create User account
-      const userResponse = await createUser(userData);
-      
-      if (!userResponse.data?.id) {
-        throw new Error("Failed to create user account");
-      }
-
-      // Step 2: Create Parent profile
-      profileData.userId = userResponse.data.id;
       await createParentAccount(profileData);
 
       toast({
         title: "Thành công",
-        description: "Tạo tài khoản Parent thành công",
+        description: "Tạo profile Parent thành công",
         variant: "default",
       });
 
@@ -121,7 +105,7 @@ export default function ProfileManagementPage() {
       console.error("Error creating parent:", error);
       toast({
         title: "Lỗi",
-        description: error.message || "Không thể tạo tài khoản Parent",
+        description: error.message || "Không thể tạo profile Parent",
         variant: "destructive",
       });
       throw error;
@@ -145,29 +129,6 @@ export default function ProfileManagementPage() {
       toast({
         title: "Lỗi",
         description: error.message || "Không thể tạo profile Student",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  // Handle link student to parent
-  const handleLinkProfiles = async (data: any) => {
-    try {
-      await linkStudentToParent(data);
-
-      toast({
-        title: "Thành công",
-        description: "Link Student với Parent thành công",
-        variant: "default",
-      });
-
-      fetchProfiles();
-    } catch (error: any) {
-      console.error("Error linking profiles:", error);
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể link profiles",
         variant: "destructive",
       });
       throw error;
@@ -200,18 +161,6 @@ export default function ProfileManagementPage() {
     }
   };
 
-  // Open link modal with parent pre-selected
-  const handleOpenLinkModal = (parentId: string, parentName: string) => {
-    setSelectedParentForLink({ id: parentId, name: parentName });
-    setShowLinkModal(true);
-  };
-
-  // Close link modal
-  const handleCloseLinkModal = () => {
-    setShowLinkModal(false);
-    setSelectedParentForLink(null);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -222,7 +171,7 @@ export default function ProfileManagementPage() {
             Quản lý Profiles
           </h1>
           <p className="text-gray-600">
-            Quản lý tài khoản Parent và profile Student
+            Quản lý profile Parent và profile Student
           </p>
         </div>
 
@@ -234,7 +183,7 @@ export default function ProfileManagementPage() {
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-xl hover:shadow-lg transform hover:scale-105 transition-all"
             >
               <UserPlus size={20} />
-              Tạo tài khoản Parent
+              Tạo profile Parent
             </button>
 
             <button
@@ -243,17 +192,6 @@ export default function ProfileManagementPage() {
             >
               <UserCircle size={20} />
               Tạo profile Student
-            </button>
-
-            <button
-              onClick={() => {
-                setSelectedParentForLink(null);
-                setShowLinkModal(true);
-              }}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-xl hover:shadow-lg transform hover:scale-105 transition-all"
-            >
-              <LinkIcon size={20} />
-              Link Student với Parent
             </button>
           </div>
         </div>
@@ -382,15 +320,6 @@ export default function ProfileManagementPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          {profile.profileType === "Parent" && (
-                            <button
-                              onClick={() => handleOpenLinkModal(profile.id, profile.displayName)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Link với Student"
-                            >
-                              <LinkIcon size={18} />
-                            </button>
-                          )}
                           <button
                             onClick={() => handleDeleteProfile(profile.id, profile.displayName)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -447,7 +376,7 @@ export default function ProfileManagementPage() {
       </div>
 
       {/* Modals */}
-      <CreateParentAccountModal
+      <CreateParentProfileModal
         isOpen={showCreateParentModal}
         onClose={() => setShowCreateParentModal(false)}
         onSubmit={handleCreateParent}
@@ -457,14 +386,6 @@ export default function ProfileManagementPage() {
         isOpen={showCreateStudentModal}
         onClose={() => setShowCreateStudentModal(false)}
         onSubmit={handleCreateStudent}
-      />
-
-      <LinkStudentToParentModal
-        isOpen={showLinkModal}
-        onClose={handleCloseLinkModal}
-        onSubmit={handleLinkProfiles}
-        parentProfileId={selectedParentForLink?.id}
-        parentName={selectedParentForLink?.name}
       />
     </div>
   );

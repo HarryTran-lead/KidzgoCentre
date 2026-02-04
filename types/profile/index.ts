@@ -40,7 +40,7 @@ export interface StudentProfile extends Profile {
  * Create Parent Profile Request
  * Creates a Parent profile linked to an existing user account
  */
-export interface CreateParentAccountRequest {
+export interface CreateParentProfileRequest {
   userId: string; // The user account ID used for login
   profileType: "Parent";
   displayName: string;

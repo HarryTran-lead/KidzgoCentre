@@ -15,8 +15,8 @@ import {
   createStudentProfile,
   deleteProfile
 } from "@/lib/api/profileService";
-import type { CreateParentAccountRequest, CreateStudentProfileRequest } from "@/types/profile";
-import CreateParentAccountModal from "@/components/admin/profile/CreateParentAccountModal";
+import type { CreateParentProfileRequest, CreateStudentProfileRequest } from "@/types/profile";
+import CreateParentProfileModal from "@/components/admin/profile/CreateParentProfileModal";
 import CreateStudentProfileModal from "@/components/admin/profile/CreateStudentProfileModal";
 import ViewLinkedStudentsModal from "@/components/admin/profile/ViewLinkedStudentsModal";
 import ProfileDetailModal from "@/components/admin/profile/ProfileDetailModal";
@@ -650,14 +650,14 @@ export default function AccountsPage() {
     setProfileCurrentPage(1); // Reset to page 1 when filters change
   }, [profiles, profileFilterType, profileSearchTerm]);
 
-  // Handle create parent account
-  const handleCreateParent = async (profileData: CreateParentAccountRequest) => {
+  // Handle create parent profile
+  const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
     try {
       await createParentAccount(profileData);
 
       toast({
         title: "Thành công",
-        description: "Tạo tài khoản Parent thành công",
+        description: "Tạo profile Parent thành công",
         variant: "success",
       });
 
@@ -666,7 +666,7 @@ export default function AccountsPage() {
       console.error("Error creating parent:", error);
       toast({
         title: "Lỗi",
-        description: error.message || "Không thể tạo tài khoản Parent",
+        description: error.message || "Không thể tạo profile Parent",
         variant: "destructive",
       });
       throw error;
@@ -1733,7 +1733,7 @@ export default function AccountsPage() {
           </div>
 
           {/* Profile Modals */}
-          <CreateParentAccountModal
+          <CreateParentProfileModal
             isOpen={showCreateParentModal}
             onClose={() => setShowCreateParentModal(false)}
             onSubmit={handleCreateParent}

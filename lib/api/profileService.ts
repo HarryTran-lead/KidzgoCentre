@@ -9,7 +9,7 @@
 import { get, post, put, del } from '@/lib/axios';
 import { PROFILE_ENDPOINTS } from '@/constants/apiURL';
 import type {
-  CreateParentAccountRequest,
+  CreateParentProfileRequest,
   CreateStudentProfileRequest,
   CreateProfileApiResponse,
   GetProfileByIdApiResponse,
@@ -31,7 +31,7 @@ import type {
  * Step 1: Admin creates a Parent user account
  */
 export async function createParentAccount(
-  data: CreateParentAccountRequest
+  data: CreateParentProfileRequest
 ): Promise<CreateProfileApiResponse> {
   return post<CreateProfileApiResponse>(PROFILE_ENDPOINTS.CREATE, data);
 }
