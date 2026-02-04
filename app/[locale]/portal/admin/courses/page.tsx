@@ -17,13 +17,14 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Tag,
   BarChart,
   AlertCircle,
   FileText,
-  Building2
+  Building2,
+  Power,
+  PowerOff
 } from "lucide-react";
-import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram } from "@/app/api/admin/programs";
+import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram, toggleProgramStatus } from "@/app/api/admin/programs";
 import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
 import { getAllBranches } from "@/lib/api/branchService";
 
@@ -49,11 +50,10 @@ function LevelBadge({ level }: { level: string }) {
 }
 
 /* Trạng thái khoá học */
-function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng" | "Đã kết thúc" }) {
+function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng" }) {
   const map: Record<string, string> = {
     "Đang hoạt động": "bg-emerald-100 text-emerald-700",
     "Tạm dừng": "bg-amber-100 text-amber-700",
-    "Đã kết thúc": "bg-sky-100 text-sky-700",
   };
   return (
     <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>
@@ -62,7 +62,7 @@ function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng"
   );
 }
 
-type SortField = "id" | "name" | "level" | "duration" | "fee" | "classes" | "status";
+type SortField = "id" | "name" | "level" | "duration" | "fee" | "status" | "branch";
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 5;
 
@@ -110,13 +110,10 @@ interface CreateCourseModalProps {
 }
 
 interface CourseFormData {
-  code: string;
   name: string;
   description: string;
   level: "A1" | "A2" | "B1" | "B2" | "C1";
-  duration: string;
-  fee: string;
-  status: "Đang hoạt động" | "Tạm dừng" | "Đã kết thúc";
+  status: "Đang hoạt động" | "Tạm dừng";
   branchId: string;
   totalSessions: string;
   defaultTuitionAmount: string;
@@ -124,12 +121,9 @@ interface CourseFormData {
 }
 
 const initialFormData: CourseFormData = {
-  code: "",
   name: "",
   description: "",
   level: "A1",
-  duration: "12 tuần",
-  fee: "",
   status: "Đang hoạt động",
   branchId: "",
   totalSessions: "",
@@ -174,6 +168,25 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     }
   }, [isOpen, mode, initialData]);
 
+  // Tự động tính giá mỗi buổi khi số buổi học hoặc học phí mặc định thay đổi
+  useEffect(() => {
+    const sessions = Number(formData.totalSessions);
+    const tuition = Number(formData.defaultTuitionAmount.replace(/,/g, ""));
+    
+    if (sessions > 0 && tuition > 0) {
+      const pricePerSession = Math.round(tuition / sessions);
+      setFormData(prev => ({
+        ...prev,
+        unitPriceSession: pricePerSession.toLocaleString("vi-VN")
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        unitPriceSession: ""
+      }));
+    }
+  }, [formData.totalSessions, formData.defaultTuitionAmount]);
+
   const loadBranches = async () => {
     try {
       setLoadingBranches(true);
@@ -195,11 +208,8 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof CourseFormData, string>> = {};
     
-    if (!formData.code.trim()) newErrors.code = "Mã khóa học là bắt buộc";
     if (!formData.name.trim()) newErrors.name = "Tên khóa học là bắt buộc";
     if (!formData.description.trim()) newErrors.description = "Mô tả là bắt buộc";
-    if (!formData.duration.trim()) newErrors.duration = "Thời lượng là bắt buộc";
-    if (!formData.fee.trim()) newErrors.fee = "Học phí là bắt buộc";
     if (!formData.branchId) newErrors.branchId = "Chi nhánh là bắt buộc";
     if (!formData.totalSessions.trim() || Number(formData.totalSessions) <= 0) {
       newErrors.totalSessions = "Số buổi học phải lớn hơn 0";
@@ -301,59 +311,31 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               {errors.branchId && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
             </div>
 
-            {/* Row 1: Mã khóa & Tên khóa */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Tag size={16} className="text-pink-500" />
-                  Mã khóa học *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.code}
-                    onChange={(e) => handleChange("code", e.target.value)}
-                    className={cn(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                      errors.code ? "border-rose-500" : "border-pink-200"
-                    )}
-                    placeholder="VD: ENG101, MATH202..."
-                  />
-                  {errors.code && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
-                    </div>
+            {/* Row 1: Tên khóa */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <BookOpen size={16} className="text-pink-500" />
+                Tên khóa học *
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  className={cn(
+                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                    errors.name ? "border-rose-500" : "border-pink-200"
                   )}
-                </div>
-                {errors.code && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.code}</p>}
+                  placeholder="VD: Tiếng Anh giao tiếp cơ bản"
+                />
+                {errors.name && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-rose-500" />
+                  </div>
+                )}
               </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <BookOpen size={16} className="text-pink-500" />
-                  Tên khóa học *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => handleChange("name", e.target.value)}
-                    className={cn(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                      errors.name ? "border-rose-500" : "border-pink-200"
-                    )}
-                    placeholder="VD: Tiếng Anh giao tiếp cơ bản"
-                  />
-                  {errors.name && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.name && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
-              </div>
+              {errors.name && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
             </div>
 
             {/* Row 2: Mô tả */}
@@ -383,64 +365,36 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               {errors.description && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.description}</p>}
             </div>
 
-            {/* Row 3: Trình độ & Thời lượng */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <BarChart size={16} className="text-pink-500" />
-                  Trình độ
-                </label>
-                <div className="grid grid-cols-5 gap-2">
-                  {(["A1", "A2", "B1", "B2", "C1"] as const).map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => handleChange("level", level)}
-                      className={cn(
-                        "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
-                        formData.level === level
-                          ? level === "A1"
-                            ? "bg-blue-100 border-blue-300 text-blue-700"
-                            : level === "A2"
-                            ? "bg-emerald-100 border-emerald-300 text-emerald-700"
-                            : level === "B1"
-                            ? "bg-amber-100 border-amber-300 text-amber-700"
-                            : level === "B2"
-                            ? "bg-violet-100 border-violet-300 text-violet-700"
-                            : "bg-rose-100 border-rose-300 text-rose-700"
-                          : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
-                      )}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Clock size={16} className="text-pink-500" />
-                  Thời lượng *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.duration}
-                    onChange={(e) => handleChange("duration", e.target.value)}
+            {/* Row 3: Trình độ */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <BarChart size={16} className="text-pink-500" />
+                Trình độ
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {(["A1", "A2", "B1", "B2", "C1"] as const).map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => handleChange("level", level)}
                     className={cn(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                      errors.duration ? "border-rose-500" : "border-pink-200"
+                      "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
+                      formData.level === level
+                        ? level === "A1"
+                          ? "bg-blue-100 border-blue-300 text-blue-700"
+                          : level === "A2"
+                          ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                          : level === "B1"
+                          ? "bg-amber-100 border-amber-300 text-amber-700"
+                          : level === "B2"
+                          ? "bg-violet-100 border-violet-300 text-violet-700"
+                          : "bg-rose-100 border-rose-300 text-rose-700"
+                        : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
                     )}
-                    placeholder="VD: 12 tuần, 3 tháng..."
-                  />
-                  {errors.duration && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.duration && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.duration}</p>}
+                  >
+                    {level}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -511,16 +465,13 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   <input
                     type="text"
                     value={formData.unitPriceSession}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9,]/g, "");
-                      handleChange("unitPriceSession", val);
-                    }}
+                    readOnly
                     className={cn(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
+                      "w-full px-4 py-3 rounded-xl border bg-gray-50 text-gray-700",
+                      "cursor-not-allowed",
                       errors.unitPriceSession ? "border-rose-500" : "border-pink-200"
                     )}
-                    placeholder="VD: 125000"
+                    placeholder="Tự động tính từ học phí mặc định / số buổi học"
                   />
                   {errors.unitPriceSession && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -529,66 +480,34 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   )}
                 </div>
                 {errors.unitPriceSession && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.unitPriceSession}</p>}
+                <p className="text-xs text-gray-500">Tự động tính từ học phí mặc định chia cho số buổi học</p>
               </div>
             </div>
 
-            {/* Row 4: Học phí & Trạng thái */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <DollarSign size={16} className="text-pink-500" />
-                  Học phí *
-                </label>
-                <div className="relative">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={formData.fee}
-                      onChange={(e) => handleChange("fee", e.target.value)}
-                      className={cn(
-                        "w-full pl-10 pr-4 py-3 rounded-xl border bg-white text-gray-900",
-                        "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                        errors.fee ? "border-rose-500" : "border-pink-200"
-                      )}
-                      placeholder="VD: 3,000,000 VNĐ"
-                    />
-                    <DollarSign size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  </div>
-                  {errors.fee && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.fee && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.fee}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <BookOpen size={16} className="text-pink-500" />
-                  Trạng thái
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["Đang hoạt động", "Tạm dừng", "Đã kết thúc"] as const).map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => handleChange("status", status)}
-                      className={cn(
-                        "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
-                        formData.status === status
-                          ? status === "Đang hoạt động"
-                            ? "bg-emerald-100 border-emerald-300 text-emerald-700"
-                            : status === "Tạm dừng"
-                            ? "bg-amber-100 border-amber-300 text-amber-700"
-                            : "bg-sky-100 border-sky-300 text-sky-700"
-                          : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
-                      )}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
+            {/* Row 4: Trạng thái */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <BookOpen size={16} className="text-pink-500" />
+                Trạng thái
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["Đang hoạt động", "Tạm dừng"] as const).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => handleChange("status", status)}
+                    className={cn(
+                      "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
+                      formData.status === status
+                        ? status === "Đang hoạt động"
+                          ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                          : "bg-amber-100 border-amber-300 text-amber-700"
+                        : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -643,15 +562,15 @@ export default function Page() {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [page, setPage] = useState(1);
   const [levelFilter, setLevelFilter] = useState<"ALL" | "A1" | "A2" | "B1" | "B2" | "C1">("ALL");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "Đang hoạt động" | "Tạm dừng" | "Đã kết thúc">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "Đang hoạt động" | "Tạm dừng">("ALL");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<CourseFormData | null>(null);
+  const [originalStatus, setOriginalStatus] = useState<"Đang hoạt động" | "Tạm dừng" | null>(null);
 
-  // Gọi API để lấy danh sách chương trình
   useEffect(() => {
     async function fetchPrograms() {
       try {
@@ -691,7 +610,7 @@ export default function Page() {
     let filtered = !kw
       ? courses
       : courses.filter((c) =>
-          [c.id, c.name, c.desc, c.level, c.fee].some((x) => x.toLowerCase().includes(kw))
+          [c.id, c.name, c.desc, c.level, c.fee, c.branch].some((x) => x?.toLowerCase().includes(kw))
         );
 
     if (levelFilter !== "ALL") {
@@ -711,8 +630,8 @@ export default function Page() {
             case "level": return c.level;
             case "duration": return c.duration;
             case "fee": return c.fee;
-            case "classes": return c.classes;
             case "status": return c.status;
+            case "branch": return c.branch ?? "";
           }
         };
         const av = getVal(a);
@@ -767,6 +686,7 @@ export default function Page() {
       const created = await createAdminProgram(payload);
 
       // Map response về CourseRow để thêm vào danh sách
+      // Tạo mới luôn là "Đang hoạt động"
       const newCourse: CourseRow = {
         id: created.code ?? created.id,
         name: created.name,
@@ -776,7 +696,8 @@ export default function Page() {
         fee: `${created.defaultTuitionAmount.toLocaleString("vi-VN")} VND`,
         classes: "0 lớp",
         students: "0 học viên",
-        status: created.isActive ? "Đang hoạt động" : "Tạm dừng",
+        status: "Đang hoạt động",
+        branch: "",
       };
 
       setCourses(prev => [newCourse, ...prev]);
@@ -804,12 +725,9 @@ export default function Page() {
       if (isActive === true) status = "Đang hoạt động";
 
       const formData: CourseFormData = {
-        code: String(detail?.code ?? row.id ?? ""),
         name: String(detail?.name ?? row.name ?? ""),
         description: String(detail?.description ?? row.desc ?? ""),
         level: (String(detail?.level ?? row.level ?? "A1") as CourseFormData["level"]) || "A1",
-        duration: totalSessionsNum > 0 ? `${totalSessionsNum} buổi` : row.duration || "12 tuần",
-        fee: defaultTuitionAmountNum > 0 ? `${defaultTuitionAmountNum.toLocaleString("vi-VN")} VND` : row.fee,
         status,
         branchId: String(detail?.branchId ?? ""),
         totalSessions: totalSessionsNum ? String(totalSessionsNum) : "",
@@ -818,6 +736,7 @@ export default function Page() {
       };
 
       setEditingInitialData(formData);
+      setOriginalStatus(status);
     } catch (err: any) {
       console.error("Failed to load program detail for edit:", err);
       alert(err?.message || "Không thể tải thông tin chương trình để chỉnh sửa.");
@@ -849,8 +768,15 @@ export default function Page() {
         description: data.description,
       };
 
+      // Cập nhật thông tin khóa học
       await updateAdminProgram(editingProgramId, payload);
 
+      // Nếu trạng thái thay đổi, gọi toggle-status API
+      if (originalStatus && data.status !== originalStatus) {
+        await toggleProgramStatus(editingProgramId);
+      }
+
+      // Refresh danh sách
       const mapped = await fetchAdminPrograms();
       setCourses(mapped);
       alert(`Đã cập nhật khóa học ${data.name} thành công!`);
@@ -860,6 +786,23 @@ export default function Page() {
     } finally {
       setEditingProgramId(null);
       setEditingInitialData(null);
+      setOriginalStatus(null);
+    }
+  };
+
+  const handleToggleStatus = async (row: CourseRow) => {
+    try {
+      const result = await toggleProgramStatus(row.id);
+      
+      // Cập nhật danh sách
+      const mapped = await fetchAdminPrograms();
+      setCourses(mapped);
+      
+      const newStatus = result?.data?.isActive ? "Đang hoạt động" : "Tạm dừng";
+      alert(`Đã ${newStatus === "Đang hoạt động" ? "kích hoạt" : "tạm dừng"} khóa học ${row.name} thành công!`);
+    } catch (err: any) {
+      console.error("Failed to toggle program status:", err);
+      alert(err?.message || "Không thể thay đổi trạng thái khóa học. Vui lòng thử lại.");
     }
   };
 
@@ -973,7 +916,6 @@ export default function Page() {
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="Đang hoạt động">Đang hoạt động</option>
                 <option value="Tạm dừng">Tạm dừng</option>
-                <option value="Đã kết thúc">Đã kết thúc</option>
               </select>
             </div>
           </div>
@@ -1000,7 +942,7 @@ export default function Page() {
                   <SortableHeader field="level" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trình độ</SortableHeader>
                   <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời lượng</SortableHeader>
                   <SortableHeader field="fee" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
-                  <SortableHeader field="classes" currentField={sortField} direction={sortDirection} onSort={handleSort}>Lớp học</SortableHeader>
+                  <SortableHeader field="branch" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chi nhánh</SortableHeader>
                   <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
                   <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
                 </tr>
@@ -1032,8 +974,10 @@ export default function Page() {
                       <td className="py-3 px-6 text-gray-900 text-sm whitespace-nowrap">{c.fee}</td>
 
                       <td className="py-3 px-6 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{c.classes}</div>
-                        <div className="text-xs text-gray-500">{c.students}</div>
+                        <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
+                          <Building2 size={16} className="text-gray-400" />
+                          <span className="truncate">{c.branch || "Chưa có"}</span>
+                        </div>
                       </td>
 
                       <td className="py-3 px-6 text-center whitespace-nowrap">
@@ -1051,6 +995,18 @@ export default function Page() {
                             title="Sửa"
                           >
                             <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(c)}
+                            className={cn(
+                              "p-1.5 rounded-lg transition-colors cursor-pointer",
+                              c.status === "Đang hoạt động"
+                                ? "hover:bg-amber-50 text-gray-400 hover:text-amber-600"
+                                : "hover:bg-emerald-50 text-gray-400 hover:text-emerald-600"
+                            )}
+                            title={c.status === "Đang hoạt động" ? "Tạm dừng" : "Kích hoạt"}
+                          >
+                            {c.status === "Đang hoạt động" ? <PowerOff size={14} /> : <Power size={14} />}
                           </button>
                         </div>
                       </td>
@@ -1121,6 +1077,7 @@ export default function Page() {
           setIsEditModalOpen(false);
           setEditingProgramId(null);
           setEditingInitialData(null);
+          setOriginalStatus(null);
         }}
         onSubmit={handleUpdateCourse}
         mode="edit"

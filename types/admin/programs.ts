@@ -7,7 +7,8 @@ export type CourseRow = {
   fee: string;
   classes: string;
   students: string;
-  status: "Đang hoạt động" | "Tạm dừng" | "Đã kết thúc";
+  status: "Đang hoạt động" | "Tạm dừng";
+  branch?: string;
 };
 
 export interface CreateProgramRequest {
