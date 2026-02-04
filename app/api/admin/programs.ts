@@ -36,6 +36,8 @@ function mapApiProgramToRow(item: any): CourseRow {
   let status: CourseRow["status"] = "Tạm dừng";
   if (item?.isActive === true) status = "Đang hoạt động";
 
+  const branch = item?.branchName ?? item?.branch?.name ?? item?.branch ?? "";
+
   return {
     id,
     name,
@@ -46,6 +48,7 @@ function mapApiProgramToRow(item: any): CourseRow {
     classes,
     students,
     status,
+    branch,
   };
 }
 
@@ -247,4 +250,37 @@ export async function updateAdminProgram(
   }
 
   return program;
+}
+
+export async function toggleProgramStatus(programId: string): Promise<{ isSuccess: boolean; data: { id: string; isActive: boolean } }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để thay đổi trạng thái khóa học.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}/${programId}/toggle-status`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg =
+      json?.message ||
+      json?.error ||
+      (typeof text === "string" && text.trim() ? text : null) ||
+      "Không thể thay đổi trạng thái khóa học từ máy chủ.";
+    throw new Error(msg);
+  }
+
+  return json?.data ?? json;
 }

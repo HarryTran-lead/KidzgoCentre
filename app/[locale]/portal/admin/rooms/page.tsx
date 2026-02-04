@@ -270,7 +270,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
       if (mode === "edit" && initialData) {
         setFormData(initialData);
       } else {
-        setFormData(initialFormData);
+      setFormData(initialFormData);
       }
       setErrors({});
       fetchSelectData();
@@ -458,7 +458,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                   if (mode === "edit" && initialData) {
                     setFormData(initialData);
                   } else {
-                    setFormData(initialFormData);
+                  setFormData(initialFormData);
                   }
                   setErrors({});
                 }}

@@ -1186,7 +1186,7 @@ export default function Page() {
                     >
                       <td className="py-4 px-6">
                         <div className="text-sm text-gray-900 truncate">{c.name}</div>
-                        <div className="text-xs text-gray-500 truncate">Mã lớp: {c.code || c.id}</div>
+                        <div className="text-xs text-gray-500 truncate">{c.code || c.id}</div>
                       </td>
 
                       <td className="py-4 px-6">
