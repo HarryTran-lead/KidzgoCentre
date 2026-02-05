@@ -392,7 +392,12 @@ export default function AccountChooser({ locale }: Props) {
                     </AvatarFallback>
                   </Avatar>
                   <div className="absolute -top-2 -right-2 bg-amber-500 rounded-full p-1.5 shadow-lg">
-                    <UserCircle className="w-5 h-5 text-white" />
+                     <Image
+                        src="/icons/white_family.png"
+                        alt="Family"
+                        width={20}
+                        height={20}
+                      />
                   </div>
                 </div>
                 <div className="flex flex-col items-center gap-1">
