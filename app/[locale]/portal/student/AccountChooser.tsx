@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LogOut, X } from "lucide-react";
+import { LogOut, X, UserCircle, GraduationCap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/i18n";
 import { localizePath } from "@/lib/i18n";
@@ -14,9 +14,11 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/lightswind/avatar";
+import { Badge } from "@/components/lightswind/badge";
 import { Button } from "@/components/lightswind/button";
 import { Card, CardContent } from "@/components/lightswind/card";
 import { Input } from "@/components/lightswind/input";
+import Image from "next/image";
 
 /* ================= TYPES ================= */
 
@@ -29,7 +31,7 @@ type Props = {
 type Profile = UserProfile;
 
 /* ================= CONST ================= */
- 
+
 const DEFAULT_ERROR_MESSAGE =
   "Không thể tải danh sách profiles. Vui lòng thử lại.";
 
@@ -59,14 +61,14 @@ export default function AccountChooser({ locale }: Props) {
   const router = useRouter();
 
   const safeLocale = useMemo<Locale>(() => locale ?? "vi", [locale]);
-  
+
   const studentPath = useMemo(
     () => localizePath(ROLES.Student, safeLocale),
-    [safeLocale]
+    [safeLocale],
   );
   const parentPath = useMemo(
     () => localizePath(ROLES.Parent, safeLocale),
-    [safeLocale]
+    [safeLocale],
   );
 
   /* ================= FETCH PROFILES ================= */
@@ -76,7 +78,7 @@ export default function AccountChooser({ locale }: Props) {
       try {
         const response = await authService.getProfiles();
         console.log("Full API Response:", response);
-        
+
         // BE returns isSuccess (not success)
         const isSuccess = response.isSuccess ?? false;
 
@@ -87,20 +89,22 @@ export default function AccountChooser({ locale }: Props) {
         }
 
         // BE returns data as array directly or nested in profiles
-        const fetchedProfiles = Array.isArray(response.data) 
-          ? response.data 
+        const fetchedProfiles = Array.isArray(response.data)
+          ? response.data
           : (response.data?.profiles ?? []);
-        
+
         console.log("Fetched profiles:", fetchedProfiles);
         setProfiles(fetchedProfiles);
       } catch (error: any) {
         console.error("Fetch error:", error);
-        
+
         // Handle 401 - token expired
         if (error?.response?.status === 401) {
           setErrorMessage("Phiên đăng nhập đã hết hạn.");
         } else {
-          setErrorMessage(error?.response?.data?.message || DEFAULT_ERROR_MESSAGE);
+          setErrorMessage(
+            error?.response?.data?.message || DEFAULT_ERROR_MESSAGE,
+          );
         }
       } finally {
         setLoading(false);
@@ -114,12 +118,12 @@ export default function AccountChooser({ locale }: Props) {
 
   const studentProfiles = useMemo(
     () => profiles.filter((p) => p.profileType === "Student"),
-    [profiles]
+    [profiles],
   );
 
   const parentProfiles = useMemo(
     () => profiles.filter((p) => p.profileType === "Parent"),
-    [profiles]
+    [profiles],
   );
 
   /* ================= EFFECT ================= */
@@ -132,7 +136,11 @@ export default function AccountChooser({ locale }: Props) {
 
   /* ================= ACTIONS ================= */
 
-  const setServerSession = async (payload: { role: string; name: string; avatar: string }) => {
+  const setServerSession = async (payload: {
+    role: string;
+    name: string;
+    avatar: string;
+  }) => {
     try {
       await fetch("/api/session", {
         method: "POST",
@@ -147,9 +155,11 @@ export default function AccountChooser({ locale }: Props) {
 
     setIsSubmitting(true);
     try {
-      const response = await authService.selectStudent({ profileId: profile.id });
+      const response = await authService.selectStudent({
+        profileId: profile.id,
+      });
       const isSuccess = response.isSuccess ?? response.success ?? false;
-      
+
       if (!isSuccess) {
         console.error("Select student failed:", response);
         return;
@@ -234,18 +244,20 @@ export default function AccountChooser({ locale }: Props) {
     // Clear all tokens and auth data
     clearAccessToken();
     clearRefreshToken();
-    
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('user');
-      localStorage.removeItem('selectedProfile');
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user");
+      localStorage.removeItem("selectedProfile");
       sessionStorage.clear();
-      
+
       // Clear all cookies
-      document.cookie.split(';').forEach(c => {
-        document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+      document.cookie.split(";").forEach((c) => {
+        document.cookie =
+          c.trim().split("=")[0] +
+          "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/";
       });
     }
-    
+
     window.location.href = localizePath("/", safeLocale);
   };
 
@@ -274,7 +286,7 @@ export default function AccountChooser({ locale }: Props) {
               <p>Đang tải...</p>
             </div>
           )}
-          
+
           {!loading && errorMessage && (
             <div className="text-white text-center bg-white/10 backdrop-blur-sm rounded-lg p-6 max-w-md">
               <p className="text-lg font-medium">{errorMessage}</p>
@@ -295,17 +307,30 @@ export default function AccountChooser({ locale }: Props) {
                   key={student.id}
                   onClick={() => handleStudentSelect(student)}
                   disabled={isSubmitting}
-                  className="flex flex-col items-center gap-3 group"
+                  className="flex flex-col items-center gap-3 group relative"
                 >
-                  <Avatar className="w-35 h-35 border-4 border-white shadow-xl group-hover:scale-110 transition-transform">
-                    <AvatarImage src={student.avatarUrl || undefined} alt={student.displayName} />
-                    <AvatarFallback className="bg-slate-200 text-slate-700 text-3xl font-bold">
-                      {initialAvatar(student.displayName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-white font-medium max-w-[120px] truncate">
-                    {student.displayName}
-                  </span>
+                  <div className="relative">
+                    <Avatar className="w-35 h-35 border-4 border-blue-300 shadow-xl group-hover:scale-110 transition-transform">
+                      <AvatarImage
+                        src={student.avatarUrl || undefined}
+                        alt={student.displayName}
+                      />
+                      <AvatarFallback className="bg-blue-100 text-blue-700 text-3xl font-bold">
+                        {initialAvatar(student.displayName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute -top-2 -right-2 bg-blue-500 rounded-full p-1.5 shadow-lg">
+                      <GraduationCap className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-white font-medium max-w-[120px] truncate">
+                      {student.displayName}
+                    </span>
+                    <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-0.5">
+                      Học sinh
+                    </Badge>
+                  </div>
                 </button>
               ))}
 
@@ -314,17 +339,35 @@ export default function AccountChooser({ locale }: Props) {
                   key={parent.id}
                   onClick={() => handleParentClick(parent)}
                   disabled={isAnimating || showPinForm || isSubmitting}
-                  className="flex flex-col items-center gap-3 group"
+                  className="flex flex-col items-center gap-3 group relative"
                 >
-                  <Avatar className="w-35 h-35 border-4 border-white shadow-xl group-hover:scale-110 transition-transform">
-                    <AvatarImage src={parent.avatarUrl || undefined} alt={parent.displayName} />
-                    <AvatarFallback className="bg-slate-200 text-slate-700 text-3xl font-bold">
-                      {initialAvatar(parent.displayName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-white font-medium max-w-[120px] truncate">
-                    {parent.displayName}
-                  </span>
+                  <div className="relative">
+                    <Avatar className="w-35 h-35 border-4 border-amber-300 shadow-xl group-hover:scale-110 transition-transform">
+                      <AvatarImage
+                        src={parent.avatarUrl || undefined}
+                        alt={parent.displayName}
+                      />
+                      <AvatarFallback className="bg-amber-100 text-amber-700 text-3xl font-bold">
+                        {initialAvatar(parent.displayName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute -top-2 -right-2 bg-amber-500 rounded-full p-1.5 shadow-lg">
+                      <Image
+                        src="/icons/white_family.png"
+                        alt="Family"
+                        width={20}
+                        height={20}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-white font-medium max-w-[120px] truncate">
+                      {parent.displayName}
+                    </span>
+                    <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2 py-0.5">
+                      Phụ huynh
+                    </Badge>
+                  </div>
                 </button>
               ))}
             </div>
@@ -338,13 +381,28 @@ export default function AccountChooser({ locale }: Props) {
               }`}
             >
               <div className="flex flex-col items-center gap-3">
-                <Avatar className="w-35 h-35 border-4 border-white shadow-xl">
-                  <AvatarImage src={selectedParent.avatarUrl || undefined} alt={selectedParent.displayName} />
-                  <AvatarFallback className="bg-slate-200 text-slate-700 text-3xl font-bold">
-                    {initialAvatar(selectedParent.displayName)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-white font-medium">{selectedParent.displayName}</span>
+                <div className="relative">
+                  <Avatar className="w-35 h-35 border-4 border-amber-300 shadow-xl">
+                    <AvatarImage
+                      src={selectedParent.avatarUrl || undefined}
+                      alt={selectedParent.displayName}
+                    />
+                    <AvatarFallback className="bg-amber-100 text-amber-700 text-3xl font-bold">
+                      {initialAvatar(selectedParent.displayName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -top-2 -right-2 bg-amber-500 rounded-full p-1.5 shadow-lg">
+                    <UserCircle className="w-5 h-5 text-white" />
+                  </div>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-white font-medium">
+                    {selectedParent.displayName}
+                  </span>
+                  <Badge className="bg-amber-500 text-white text-xs px-2 py-0.5">
+                    Phụ huynh
+                  </Badge>
+                </div>
               </div>
             </div>
           )}
@@ -368,7 +426,11 @@ export default function AccountChooser({ locale }: Props) {
               </button>
 
               <CardContent className="p-6 pt-8">
-                <form ref={formRef} onSubmit={handleParentSubmit} className="space-y-4">
+                <form
+                  ref={formRef}
+                  onSubmit={handleParentSubmit}
+                  className="space-y-4"
+                >
                   <div>
                     <label
                       htmlFor="parent-pin"
@@ -396,7 +458,7 @@ export default function AccountChooser({ locale }: Props) {
                       {pinError}
                     </p>
                   )}
-                  
+
                   {isSubmitting && (
                     <p className="text-sm text-slate-600 text-center">
                       Đang xác thực...
@@ -424,5 +486,3 @@ export default function AccountChooser({ locale }: Props) {
     </div>
   );
 }
-
-      
