@@ -5,7 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import {
   Plus, Search, MapPin, Users, Clock, Eye, Pencil,
   ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight,
-  BookOpen, X, Calendar, Tag, User, GraduationCap, AlertCircle, Building2
+  BookOpen, X, Calendar, Tag, User, GraduationCap, AlertCircle, Building2,
+  Power, PowerOff
 } from "lucide-react";
 import clsx from "clsx";
 import { 
@@ -13,7 +14,8 @@ import {
   createAdminClass, 
   fetchAdminUsersByIds,
   fetchAdminClassDetail,
-  updateAdminClass
+  updateAdminClass,
+  updateClassStatus
 } from "@/app/api/admin/classes";
 import { fetchClassFormSelectData, fetchTeacherOptionsByBranch, fetchProgramOptionsByBranch } from "@/app/api/admin/classFormData";
 import type { ClassRow, CreateClassRequest } from "@/types/admin/classes";
@@ -823,6 +825,7 @@ export default function Page() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
+  const [originalStatus, setOriginalStatus] = useState<ClassFormData["status"] | null>(null);
 
   // Gọi API để lấy danh sách lớp từ backend
   useEffect(() => {
@@ -989,6 +992,7 @@ export default function Page() {
       };
 
       setEditingInitialData(formData);
+      setOriginalStatus(status);
     } catch (err: any) {
       console.error("Failed to load class detail for edit:", err);
       alert(err?.message || "Không thể tải thông tin lớp học để chỉnh sửa.");
@@ -1023,8 +1027,22 @@ export default function Page() {
 
       console.log("Updating class with payload:", payload);
 
+      // Cập nhật thông tin lớp học
       await updateAdminClass(editingClassId, payload);
 
+      // Nếu trạng thái thay đổi, gọi updateClassStatus API
+      if (originalStatus && data.status !== originalStatus) {
+        // Map UI status to API status
+        const statusMap: Record<ClassFormData["status"], string> = {
+          "Đang học": "Active",
+          "Sắp khai giảng": "Planned",
+          "Đã kết thúc": "Closed",
+        };
+        const apiStatus = statusMap[data.status] || "Planned";
+        await updateClassStatus(editingClassId, apiStatus);
+      }
+
+      // Refresh danh sách
       const updatedClasses = await fetchAdminClasses();
       setClasses(updatedClasses);
       alert(`Đã cập nhật lớp học ${data.name} thành công!`);
@@ -1035,6 +1053,41 @@ export default function Page() {
     } finally {
       setEditingClassId(null);
       setEditingInitialData(null);
+      setOriginalStatus(null);
+    }
+  };
+
+  const handleToggleStatus = async (row: ClassRow) => {
+    try {
+      // Xác định trạng thái mới dựa trên trạng thái hiện tại
+      let newStatus: string;
+      if (row.status === "Đang học") {
+        // Nếu đang học -> chuyển sang đã kết thúc
+        newStatus = "Closed";
+      } else if (row.status === "Đã kết thúc") {
+        // Nếu đã kết thúc -> chuyển sang sắp khai giảng
+        newStatus = "Planned";
+      } else {
+        // Nếu sắp khai giảng -> chuyển sang đang học
+        newStatus = "Active";
+      }
+
+      await updateClassStatus(row.id, newStatus);
+
+      // Refresh danh sách
+      const updatedClasses = await fetchAdminClasses();
+      setClasses(updatedClasses);
+
+      const statusMap: Record<string, string> = {
+        "Active": "Đang học",
+        "Planned": "Sắp khai giảng",
+        "Closed": "Đã kết thúc",
+      };
+      const newStatusText = statusMap[newStatus] || newStatus;
+      alert(`Đã cập nhật trạng thái lớp học ${row.name} thành "${newStatusText}" thành công!`);
+    } catch (err: any) {
+      console.error("Failed to toggle class status:", err);
+      alert(err?.message || "Không thể cập nhật trạng thái lớp học. Vui lòng thử lại.");
     }
   };
 
@@ -1243,6 +1296,18 @@ export default function Page() {
                           >
                             <Pencil size={14} />
                           </button>
+                          <button 
+                            onClick={() => handleToggleStatus(c)}
+                            className={clsx(
+                              "p-1.5 rounded-lg transition-colors cursor-pointer",
+                              c.status === "Đang học"
+                                ? "hover:bg-rose-50 text-gray-400 hover:text-rose-600"
+                                : "hover:bg-emerald-50 text-gray-400 hover:text-emerald-600"
+                            )}
+                            title={c.status === "Đang học" ? "Kết thúc lớp học" : c.status === "Đã kết thúc" ? "Chuyển sang sắp khai giảng" : "Bắt đầu lớp học"}
+                          >
+                            {c.status === "Đang học" ? <PowerOff size={14} /> : <Power size={14} />}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1310,6 +1375,7 @@ export default function Page() {
           setIsEditModalOpen(false);
           setEditingClassId(null);
           setEditingInitialData(null);
+          setOriginalStatus(null);
         }}
         onSubmit={handleUpdateClass}
         mode="edit"

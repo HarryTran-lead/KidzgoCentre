@@ -17,27 +17,27 @@ export interface ConfirmModalProps {
 const variantStyles = {
   danger: {
     icon: Trash2,
-    iconBg: 'bg-red-100',
-    iconColor: 'text-red-600',
-    confirmButton: 'bg-red-600 hover:bg-red-700 text-white',
+    iconBg: 'bg-rose-100',
+    iconColor: 'text-rose-600',
+    confirmButton: 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-lg shadow-rose-500/25',
   },
   warning: {
     icon: AlertTriangle,
-    iconBg: 'bg-yellow-100',
-    iconColor: 'text-yellow-600',
-    confirmButton: 'bg-yellow-600 hover:bg-yellow-700 text-white',
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-600',
+    confirmButton: 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25',
   },
   info: {
     icon: Info,
-    iconBg: 'bg-blue-100',
-    iconColor: 'text-blue-600',
-    confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white',
+    iconBg: 'bg-pink-100',
+    iconColor: 'text-pink-600',
+    confirmButton: 'bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white shadow-lg shadow-pink-500/25',
   },
   success: {
     icon: CheckCircle,
-    iconBg: 'bg-green-100',
-    iconColor: 'text-green-600',
-    confirmButton: 'bg-green-600 hover:bg-green-700 text-white',
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-600',
+    confirmButton: 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-lg shadow-emerald-500/25',
   },
 };
 
@@ -71,19 +71,22 @@ export default function ConfirmModal({
 
   return (
     <div 
-      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in"
       onClick={handleCancel}
     >
       <div 
-        className="relative bg-white rounded-2xl shadow-xl max-w-md w-full animate-in zoom-in-95 duration-200"
+        className="relative bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Decorative Header */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-500 via-rose-500 to-pink-500"></div>
+
         {/* Close Button */}
         <div className="absolute right-4 top-4 z-10">
           <button
             onClick={handleCancel}
             disabled={isLoading}
-            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 p-1 rounded-lg hover:bg-gray-100"
+            className="text-gray-400 hover:text-pink-600 transition-colors disabled:opacity-50 p-1.5 rounded-lg hover:bg-pink-50"
             aria-label="Đóng"
           >
             <X className="w-5 h-5" />
@@ -93,9 +96,9 @@ export default function ConfirmModal({
         {/* Content */}
         <div className="p-8 text-center">
           {/* Icon */}
-          <div className="flex justify-center mb-4">
-            <div className={`${style.iconBg} rounded-full p-4 inline-flex`}>
-              <Icon className={`w-7 h-7 ${style.iconColor}`} />
+          <div className="flex justify-center mb-5">
+            <div className={`${style.iconBg} rounded-full p-4 inline-flex shadow-lg`}>
+              <Icon className={`w-8 h-8 ${style.iconColor}`} />
             </div>
           </div>
 
@@ -105,7 +108,7 @@ export default function ConfirmModal({
           </h3>
 
           {/* Message */}
-          <p className="text-sm text-gray-600 leading-relaxed mb-6">
+          <p className="text-sm text-gray-600 leading-relaxed mb-7">
             {message}
           </p>
 
@@ -114,14 +117,14 @@ export default function ConfirmModal({
             <button
               onClick={handleCancel}
               disabled={isLoading}
-              className="min-w-[120px] px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-w-[120px] px-6 py-2.5 text-sm font-semibold text-gray-700 bg-white border-2 border-pink-200 rounded-xl hover:bg-pink-50 hover:border-pink-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {cancelText}
             </button>
             <button
               onClick={handleConfirm}
               disabled={isLoading}
-              className={`min-w-[120px] px-6 py-2.5 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${style.confirmButton}`}
+              className={`min-w-[120px] px-6 py-2.5 text-sm font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:shadow-lg ${style.confirmButton}`}
             >
               {isLoading ? (
                 <>

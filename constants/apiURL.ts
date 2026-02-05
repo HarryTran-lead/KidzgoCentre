@@ -3,7 +3,10 @@ export const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Build full API URL for backend calls (from Next.js API Routes to Backend)
 export const buildApiUrl = (endpoint: string): string => {
-  return `${BASE_URL}${endpoint}`;
+  // Ensure BASE_URL ends with /api if it doesn't already
+  const baseUrl = BASE_URL || '';
+  const apiBase = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
+  return `${apiBase}${endpoint}`;
 };
 
 // Build client API URL (from browser to Next.js API Routes)
@@ -109,7 +112,24 @@ export const TEACHER_ENDPOINTS = {
 // Admin Endpoints (client-side -> Next.js API Routes)
 export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
+  CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
   PROGRAMS: '/api/programs',
   CLASSROOMS: '/api/classrooms',
+  CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
   SESSIONS: '/api/sessions',
+} as const;
+
+// Backend Admin Endpoints (Next.js API Routes → Backend API)
+// Note: buildApiUrl automatically adds /api prefix, so endpoints here should NOT include /api
+export const BACKEND_ADMIN_ENDPOINTS = {
+  CLASSES: '/classes',
+  CLASSES_BY_ID: (id: string) => `/classes/${id}`,
+  CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
+  PROGRAMS: '/programs',
+  PROGRAMS_BY_ID: (id: string) => `/programs/${id}`,
+  PROGRAMS_TOGGLE_STATUS: (id: string) => `/programs/${id}/toggle-status`,
+  CLASSROOMS: '/classrooms',
+  CLASSROOMS_BY_ID: (id: string) => `/classrooms/${id}`,
+  CLASSROOMS_TOGGLE_STATUS: (id: string) => `/classrooms/${id}/toggle-status`,
+  SESSIONS: '/sessions',
 } as const;
