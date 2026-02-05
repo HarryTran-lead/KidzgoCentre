@@ -27,6 +27,7 @@ import {
 import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram, toggleProgramStatus } from "@/app/api/admin/programs";
 import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
 import { getAllBranches } from "@/lib/api/branchService";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 /* -------------------------- helpers -------------------------- */
 function cn(...a: Array<string | false | null | undefined>) {
@@ -556,6 +557,9 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 
 /* ------------------------------ page ------------------------------- */
 export default function Page() {
+  // Branch filter hook
+  const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+  
   const [q, setQ] = useState("");
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [sortField, setSortField] = useState<SortField | null>(null);
@@ -571,14 +575,22 @@ export default function Page() {
   const [editingInitialData, setEditingInitialData] = useState<CourseFormData | null>(null);
   const [originalStatus, setOriginalStatus] = useState<"Đang hoạt động" | "Tạm dừng" | null>(null);
 
+  // Fetch programs with branch filter
   useEffect(() => {
+    // Wait for localStorage to be loaded
+    if (!isLoaded) return;
+
     async function fetchPrograms() {
       try {
         setLoading(true);
         setError(null);
 
-        const mapped = await fetchAdminPrograms();
+        const branchId = getBranchQueryParam();
+        console.log("📚 Fetching programs for branch:", branchId || "All branches");
+
+        const mapped = await fetchAdminPrograms({ branchId });
         setCourses(mapped);
+        console.log("✅ Loaded", mapped.length, "programs");
       } catch (err) {
         console.error("Unexpected error when fetching admin programs:", err);
         setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách khóa học.");
@@ -589,7 +601,10 @@ export default function Page() {
     }
 
     fetchPrograms();
-  }, []);
+    
+    // Reset page về 1 khi branch thay đổi
+    setPage(1);
+  }, [selectedBranchId, isLoaded]); // Chỉ depend vào selectedBranchId và isLoaded
 
   const stats = useMemo(() => {
     const total = courses.length;
@@ -685,22 +700,11 @@ export default function Page() {
 
       const created = await createAdminProgram(payload);
 
-      // Map response về CourseRow để thêm vào danh sách
-      // Tạo mới luôn là "Đang hoạt động"
-      const newCourse: CourseRow = {
-        id: created.code ?? created.id,
-        name: created.name,
-        desc: created.description ?? "",
-        level: created.level,
-        duration: `${created.totalSessions} buổi`,
-        fee: `${created.defaultTuitionAmount.toLocaleString("vi-VN")} VND`,
-        classes: "0 lớp",
-        students: "0 học viên",
-        status: "Đang hoạt động",
-        branch: "",
-      };
-
-      setCourses(prev => [newCourse, ...prev]);
+      // Refresh lại toàn bộ danh sách để có branch name đầy đủ
+      const branchId = getBranchQueryParam();
+      const updatedCourses = await fetchAdminPrograms({ branchId });
+      setCourses(updatedCourses);
+      
       alert(`Đã tạo khóa học ${data.name} thành công!`);
     } catch (err: any) {
       console.error("Failed to create program:", err);
@@ -776,8 +780,9 @@ export default function Page() {
         await toggleProgramStatus(editingProgramId);
       }
 
-      // Refresh danh sách
-      const mapped = await fetchAdminPrograms();
+      // Refresh danh sách với branch filter hiện tại
+      const branchId = getBranchQueryParam();
+      const mapped = await fetchAdminPrograms({ branchId });
       setCourses(mapped);
       alert(`Đã cập nhật khóa học ${data.name} thành công!`);
     } catch (err: any) {
@@ -794,8 +799,9 @@ export default function Page() {
     try {
       const result = await toggleProgramStatus(row.id);
       
-      // Cập nhật danh sách
-      const mapped = await fetchAdminPrograms();
+      // Cập nhật danh sách với branch filter hiện tại
+      const branchId = getBranchQueryParam();
+      const mapped = await fetchAdminPrograms({ branchId });
       setCourses(mapped);
       
       const newStatus = result?.data?.isActive ? "Đang hoạt động" : "Tạm dừng";
@@ -881,6 +887,16 @@ export default function Page() {
             </div>
           </div>
         </div>
+
+        {/* Branch Filter Indicator */}
+        {selectedBranchId && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+            <Building2 size={16} className="text-pink-600" />
+            <span className="text-sm text-pink-700 font-medium">
+              Đang lọc theo chi nhánh đã chọn
+            </span>
+          </div>
+        )}
 
         {/* Search & Filters */}
         <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">

@@ -30,6 +30,7 @@ import {
   User,
   Bell
 } from "lucide-react";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
 
@@ -1041,6 +1042,9 @@ export default function AdminSchedulePage() {
   const router = useRouter();
   const locale = params.locale as string;
 
+  // Branch filter hook
+  const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+
   const [filter, setFilter] = useState<SlotType | "ALL">("ALL");
   const [slots, setSlots] = useState<Slot[]>(SLOTS);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -1133,12 +1137,20 @@ export default function AdminSchedulePage() {
 
   // Load lịch dạy thực tế từ API sessions khi mở trang (admin xem lịch giáo viên)
   useEffect(() => {
+    if (!isLoaded) return;
+
     const loadInitialSchedule = async () => {
       try {
+        const branchId = getBranchQueryParam();
+        console.log("📅 Fetching schedule for branch:", branchId || "All branches");
+
         const sessions = await fetchAdminSessions({
+          branchId,
           pageNumber: 1,
           pageSize: 200,
         });
+
+        console.log("✅ Loaded", sessions.length, "sessions");
 
         // Collect ALL teacher IDs (both with and without names) to ensure we get all teacher names
         const teacherIdsToFetch = new Set<string>();
@@ -1207,7 +1219,7 @@ export default function AdminSchedulePage() {
     };
 
     loadInitialSchedule();
-  }, []);
+  }, [selectedBranchId, isLoaded]);
 
   const stats = useMemo(() => {
     const total = slots.length;
@@ -1251,6 +1263,16 @@ export default function AdminSchedulePage() {
             </div>
           </div>
         </div>
+
+        {/* Branch Filter Indicator */}
+        {selectedBranchId && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+            <Building2 size={16} className="text-pink-600" />
+            <span className="text-sm text-pink-700 font-medium">
+              Đang lọc theo chi nhánh đã chọn
+            </span>
+          </div>
+        )}
 
         {/* Bộ lọc */}
         <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 flex flex-wrap gap-2">

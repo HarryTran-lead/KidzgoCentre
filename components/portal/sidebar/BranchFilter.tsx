@@ -53,6 +53,16 @@ export default function BranchFilter({
       localStorage.setItem(STORAGE_KEY, ALL_BRANCHES_VALUE);
       onBranchChange?.(null);
     }
+
+    // Dispatch custom event for same-tab updates
+    window.dispatchEvent(
+      new CustomEvent("localStorageChange", {
+        detail: { 
+          key: STORAGE_KEY, 
+          newValue: selectedBranchId || ALL_BRANCHES_VALUE 
+        },
+      })
+    );
   }, [selectedBranchId, mounted, onBranchChange]);
 
   const selectedBranch = branches.find((b) => b.id === selectedBranchId);

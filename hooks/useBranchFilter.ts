@@ -26,6 +26,41 @@ export function useBranchFilter() {
     setIsLoaded(true);
   }, []);
 
+  // Listen for storage changes (when BranchFilter updates localStorage)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) {
+        const newValue = e.newValue;
+        if (newValue && newValue !== ALL_BRANCHES_VALUE) {
+          setSelectedBranchId(newValue);
+        } else {
+          setSelectedBranchId(null);
+        }
+      }
+    };
+
+    // Also listen for custom events (for same-tab updates)
+    const handleCustomStorageChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.key === STORAGE_KEY) {
+        const newValue = customEvent.detail.newValue;
+        if (newValue && newValue !== ALL_BRANCHES_VALUE) {
+          setSelectedBranchId(newValue);
+        } else {
+          setSelectedBranchId(null);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("localStorageChange", handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("localStorageChange", handleCustomStorageChange);
+    };
+  }, []);
+
   // Update localStorage when selection changes
   const updateBranchId = useCallback((branchId: string | null) => {
     setSelectedBranchId(branchId);
@@ -35,6 +70,13 @@ export function useBranchFilter() {
     } else {
       localStorage.setItem(STORAGE_KEY, ALL_BRANCHES_VALUE);
     }
+
+    // Dispatch custom event for same-tab updates
+    window.dispatchEvent(
+      new CustomEvent("localStorageChange", {
+        detail: { key: STORAGE_KEY, newValue: branchId || ALL_BRANCHES_VALUE },
+      })
+    );
   }, []);
 
   // Clear selection (set to all branches)

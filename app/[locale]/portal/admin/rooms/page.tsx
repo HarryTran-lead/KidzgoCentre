@@ -14,6 +14,7 @@ import { fetchAdminSessions } from "@/app/api/admin/sessions";
 import type { Room, Status as RoomStatus, CreateRoomRequest } from "@/types/admin/rooms";
 import type { SelectOption } from "@/types/admin/classFormData";
 import type { Session } from "@/types/admin/sessions";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 type SortDirection = "asc" | "desc";
 
@@ -486,6 +487,9 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
 /* --------------------------------- Page --------------------------------- */
 
 export default function Page() {
+  // Branch filter hook
+  const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+  
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -500,15 +504,21 @@ export default function Page() {
   const [editingInitialData, setEditingInitialData] = useState<RoomFormData | null>(null);
   const [todaySessions, setTodaySessions] = useState<Session[]>([]);
 
-  // Gọi API để lấy danh sách phòng học
+  // Fetch rooms with branch filter
   useEffect(() => {
+    if (!isLoaded) return;
+
     async function fetchClassrooms() {
       try {
         setLoading(true);
         setError(null);
 
-        const mapped = await fetchAdminRooms();
+        const branchId = getBranchQueryParam();
+        console.log("🏫 Fetching rooms for branch:", branchId || "All branches");
+
+        const mapped = await fetchAdminRooms({ branchId });
         setRooms(mapped);
+        console.log("✅ Loaded", mapped.length, "rooms");
       } catch (err) {
         console.error("Unexpected error when fetching admin classrooms:", err);
         setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách phòng học.");
@@ -519,7 +529,8 @@ export default function Page() {
     }
 
     fetchClassrooms();
-  }, []);
+    setCurrentPage(1);
+  }, [selectedBranchId, isLoaded]);
 
   // Fetch today's sessions
   useEffect(() => {
@@ -641,7 +652,8 @@ export default function Page() {
 
       const created = await createAdminRoom(payload);
 
-      const updatedRooms = await fetchAdminRooms();
+      const branchId = getBranchQueryParam();
+      const updatedRooms = await fetchAdminRooms({ branchId });
       setRooms(updatedRooms);
 
       alert(`Đã tạo phòng học ${data.name} thành công!`);
@@ -678,7 +690,8 @@ export default function Page() {
 
       await updateAdminRoom(editingRoomId, payload);
 
-      const updatedRooms = await fetchAdminRooms();
+      const branchId = getBranchQueryParam();
+      const updatedRooms = await fetchAdminRooms({ branchId });
       setRooms(updatedRooms);
 
       alert(`Đã cập nhật phòng học ${data.name} thành công!`);
@@ -799,6 +812,16 @@ export default function Page() {
             color="amber"
           />
         </div>
+
+        {/* Branch Filter Indicator */}
+        {selectedBranchId && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+            <Building2 size={16} className="text-pink-600" />
+            <span className="text-sm text-pink-700 font-medium">
+              Đang lọc theo chi nhánh đã chọn
+            </span>
+          </div>
+        )}
 
         {/* Search and Filter */}
         <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
