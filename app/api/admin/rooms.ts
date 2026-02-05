@@ -37,7 +37,7 @@ function mapApiRoom(item: any, index: number): Room {
   };
 }
 
-export async function fetchAdminRooms(): Promise<Room[]> {
+export async function fetchAdminRooms(options?: { branchId?: string }): Promise<Room[]> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập để xem danh sách phòng học.");
@@ -47,6 +47,11 @@ export async function fetchAdminRooms(): Promise<Room[]> {
     pageNumber: "1",
     pageSize: "100",
   });
+
+  // Thêm branchId vào query params nếu có
+  if (options?.branchId) {
+    params.append("branchId", options.branchId);
+  }
 
   const res = await fetch(`${ADMIN_ENDPOINTS.CLASSROOMS}?${params.toString()}`, {
     headers: {

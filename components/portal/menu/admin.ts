@@ -8,11 +8,8 @@ import {
   CalendarRange,
   CalendarClock,
   ClipboardCheck,
-  CreditCard,
   Inbox,
   Settings,
-  Wallet,
-  Banknote,
   Building,
   BarChart3,
 } from "lucide-react";
@@ -42,14 +39,8 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const OPS: RawItem[] = [
     [t.groups.ops.rooms, Building2, "/rooms"],
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
-    [t.groups.ops.fees, CreditCard, "/fees"],
     [t.groups.ops.feedback, ClipboardCheck, "/feedback"],
     [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
-  ];
-
-  const FINANCE: RawItem[] = [
-    [t.groups.finance.cashbook, Wallet, "/cashbook"],
-    [t.groups.finance.payroll, Banknote, "/payroll"],
   ];
 
   const SYSTEM: RawItem[] = [
@@ -65,7 +56,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     makeGroup(root, t.groups.leads.title, Inbox, LEADS),
     makeGroup(root, t.groups.learning.title, GraduationCap, LEARNING),
     makeGroup(root, t.groups.ops.title, Building2, OPS),
-    makeGroup(root, t.groups.finance.title, CreditCard, FINANCE),
     makeGroup(root, t.groups.system.title, Settings, SYSTEM),
   ];
 }

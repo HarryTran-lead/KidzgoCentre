@@ -1,184 +1,186 @@
 "use client";
 
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { Target, UserPlus, Download } from "lucide-react";
+import { getAllLeads, updateLeadStatus } from "@/lib/api/leadService";
+import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import type { Lead as LeadType } from "@/types/lead";
 import {
-  Users,
-  UserPlus,
-  Filter,
-  Search,
-  ArrowUpDown,
-  Phone,
-  Mail,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  FileText,
-  TrendingUp,
-  Target,
-  UserCheck,
-  CalendarCheck,
-  ArrowRight,
-  MoreVertical,
-  Download,
-  Sparkles,
-  XCircle
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+  LeadStats,
+  LeadFilters,
+  LeadTable,
+  LeadFormModal,
+  LeadDetailModal,
+  SelfAssignModal,
+} from "@/components/portal/leads";
 
-type Lead = {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
-  source: string;
-  owner: string;
-  status: "Mới" | "Đang tư vấn" | "Đã test" | "Đã ghi danh" | "Đã hủy";
-  next: string;
-  placement: string;
-  createdAt?: string;
+type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
+
+const STATUS_MAPPING: Record<StatusType, string> = {
+  New: "Mới",
+  Contacted: "Đang tư vấn",
+  BookedTest: "Đã đặt lịch test",
+  TestDone: "Đã test",
+  Enrolled: "Đã ghi danh",
+  Lost: "Đã hủy",
 };
 
-const LEADS: Lead[] = [
-  {
-    id: "L-001",
-    name: "Phạm Gia Huy",
-    phone: "0903 111 222",
-    email: "huy.pham@example.com",
-    source: "Web form",
-    owner: "NV. Lan",
-    status: "Mới",
-    next: "Hẹn gọi 10/10 14:00",
-    placement: "Chưa đặt lịch",
-    createdAt: "09/10/2024",
-  },
-  {
-    id: "L-002",
-    name: "Ngô Khánh An",
-    phone: "0907 333 444",
-    email: "an.ngo@example.com",
-    source: "Zalo OA",
-    owner: "NV. Hoa",
-    status: "Đang tư vấn",
-    next: "Demo buổi 12/10",
-    placement: "11/10 18:00",
-    createdAt: "08/10/2024",
-  },
-  {
-    id: "L-003",
-    name: "Trần Minh Tuấn",
-    phone: "0911 555 666",
-    email: "tuan.tran@example.com",
-    source: "Facebook",
-    owner: "NV. Lan",
-    status: "Đã test",
-    next: "Chờ kết quả test",
-    placement: "15/10 10:00",
-    createdAt: "05/10/2024",
-  },
-  {
-    id: "L-004",
-    name: "Lê Thị Mai",
-    phone: "0988 777 888",
-    email: "mai.le@example.com",
-    source: "Web form",
-    owner: "NV. Hoa",
-    status: "Đã ghi danh",
-    next: "Hoàn tất thủ tục",
-    placement: "20/10 14:00",
-    createdAt: "01/10/2024",
-  },
-];
-
-const funnel = [
-  { title: "Lead mới", value: "24", icon: Sparkles, color: "from-amber-500 to-orange-500", subtitle: "Chưa xử lý" },
-  { title: "Đang tư vấn", value: "13", icon: Phone, color: "from-blue-500 to-cyan-500", subtitle: "Đang liên hệ" },
-  { title: "Đã test", value: "8", icon: FileText, color: "from-purple-500 to-violet-500", subtitle: "Đã kiểm tra" },
-  { title: "Đã ghi danh", value: "6", icon: CheckCircle2, color: "from-emerald-500 to-teal-500", subtitle: "Thành công" },
-];
-
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-  color,
-  subtitle
-}: {
-  title: string;
-  value: string;
-  icon: any;
-  color: string;
-  subtitle?: string;
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}></div>
-      <div className="relative flex items-center justify-between gap-3">
-        <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
-          <Icon size={20} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
-          {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Page() {
+  const { toast } = useToast();
+  const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
+  
+  // Data state
+  const [leads, setLeads] = useState<LeadType[]>([]); // Filtered leads for table
+  const [allLeads, setAllLeads] = useState<LeadType[]>([]); // All leads for stats (load once)
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  
+  // UI state
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  
+  // Filter state
   const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
   const [selectedSource, setSelectedSource] = useState<string>("Tất cả");
+  const [myLeadsOnly, setMyLeadsOnly] = useState<boolean>(false); // Filter chỉ lead của tôi
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [availableSources, setAvailableSources] = useState<string[]>([]);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+  
+  // Table state
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
-  const [sortKey, setSortKey] = useState<
-    "id" | "name" | "source" | "owner" | "status" | "placement" | "next" | "createdAt" | null
-  >(null);
+  const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  
+  // Modal state
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isSelfAssignModalOpen, setIsSelfAssignModalOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<LeadType | null>(null);
 
   useEffect(() => {
     setIsPageLoaded(true);
-  }, []);
+    // Fetch initial data for stats and filters when user data is available
+    if (currentUser && !isLoadingUser) {
+      fetchInitialData();
+    }
+  }, [currentUser, isLoadingUser]);
 
-  const statusOptions = ["Tất cả", "Mới", "Đang tư vấn", "Đã test", "Đã ghi danh", "Đã hủy"];
-  const sourceOptions = ["Tất cả", "Web form", "Zalo OA", "Facebook", "Referral"];
+  // Debounce search query (2 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 2000);
 
-  const filteredLeads = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return LEADS.filter((lead) => {
-      const matchesStatus = selectedStatus === "Tất cả" || lead.status === selectedStatus;
-      const matchesSource = selectedSource === "Tất cả" || lead.source === selectedSource;
-      const matchesSearch =
-        !q ||
-        lead.name.toLowerCase().includes(q) ||
-        lead.phone.includes(searchQuery) ||
-        lead.email?.toLowerCase().includes(q) ||
-        lead.id.toLowerCase().includes(q);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-      return matchesStatus && matchesSource && matchesSearch;
-    });
-  }, [selectedStatus, selectedSource, searchQuery]);
+  const fetchInitialData = async () => {
+    try {
+      // Only fetch if user data is loaded and has branchId
+      if (!currentUser || isLoadingUser) return;
+      
+      // Fetch all leads without filters for stats and filter options, but filtered by branch
+      const response = await getAllLeads({ 
+        pageSize: 1000,
+        branchId: currentUser.branchId // Filter by staff's branch
+      });
+      
+      if (response.isSuccess && response.data.leads) {
+        const allLeadsData = response.data.leads;
+        setAllLeads(allLeadsData);
+        
+        // Extract available sources
+        const sources = new Set(allLeadsData.map(l => l.source).filter(Boolean));
+        setAvailableSources(Array.from(sources));
+        
+        // Calculate status counts
+        const counts: Record<string, number> = {
+          "Tất cả": allLeadsData.length,
+        };
+        
+        Object.entries(STATUS_MAPPING).forEach(([engStatus, vnStatus]) => {
+          counts[vnStatus] = allLeadsData.filter(l => l.status === engStatus).length;
+        });
+        
+        setStatusCounts(counts);
+      }
+    } catch (error) {
+      console.error("Error fetching initial data:", error);
+    }
+  };
 
+  useEffect(() => {
+    if (currentUser && !isLoadingUser) {
+      fetchLeads();
+    }
+  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource, myLeadsOnly, currentUser, isLoadingUser]);
+
+  const fetchLeads = async () => {
+    try {
+      // Don't fetch if user data is not ready
+      if (!currentUser || isLoadingUser) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      // Map Vietnamese status to English status
+      const getEnglishStatus = (vietnameseStatus: string): string | undefined => {
+        if (vietnameseStatus === "Tất cả") return undefined;
+        const entry = Object.entries(STATUS_MAPPING).find(([_, vn]) => vn === vietnameseStatus);
+        return entry ? entry[0] : undefined;
+      };
+      
+      const response = await getAllLeads({
+        page: currentPage,
+        pageSize: pageSize,
+        searchTerm: debouncedSearchQuery || undefined,
+        status: getEnglishStatus(selectedStatus),
+        source: selectedSource !== "Tất cả" ? selectedSource : undefined,
+        branchId: currentUser.branchId, // Filter by staff's branch
+        ownerStaffId: myLeadsOnly ? currentUser.id : undefined, // Filter chỉ lead của tôi
+      });
+      
+      if (response.isSuccess && response.data.leads) {
+        setLeads(response.data.leads);
+        setTotalCount(response.data.totalCount);
+        setTotalPages(response.data.totalPages);
+      }
+    } catch (err: any) {
+      console.error("Error fetching leads:", err);
+      setError(err.response?.data?.message || "Không thể tải danh sách lead");
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải danh sách lead. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Sorted leads (no more client-side filtering, use backend pagination)
   const filteredAndSortedLeads = useMemo(() => {
-    const copy = [...filteredLeads];
+    const copy = [...leads];
     if (!sortKey) return copy;
 
-    const getValue = (l: Lead) => {
+    const getValue = (l: LeadType) => {
       switch (sortKey) {
-        case "id":
-          return l.id;
-        case "name":
-          return l.name;
+        case "contactName":
+          return l.contactName ?? "";
         case "source":
-          return l.source;
-        case "owner":
-          return l.owner;
+          return l.source ?? "";
+        case "ownerStaffName":
+          return l.ownerStaffName ?? "";
         case "status":
-          return l.status;
-        case "placement":
-          return l.placement;
-        case "next":
-          return l.next;
+          return l.status ?? "";
         case "createdAt":
           return l.createdAt ?? "";
         default:
@@ -197,9 +199,9 @@ export default function Page() {
     });
 
     return copy;
-  }, [filteredLeads, sortKey, sortDir]);
+  }, [leads, sortKey, sortDir]);
 
-  const toggleSort = (key: NonNullable<typeof sortKey>) => {
+  const toggleSort = (key: string) => {
     setSortKey((prev) => {
       if (prev !== key) {
         setSortDir("asc");
@@ -210,11 +212,9 @@ export default function Page() {
     });
   };
 
+  // Selection handlers
   const allVisibleIds = useMemo(() => filteredAndSortedLeads.map((l) => l.id), [filteredAndSortedLeads]);
-  const selectedVisibleCount = useMemo(
-    () => allVisibleIds.filter((id) => selectedIds[id]).length,
-    [allVisibleIds, selectedIds]
-  );
+  const selectedVisibleCount = useMemo(() => allVisibleIds.filter(id => selectedIds[id]).length, [allVisibleIds, selectedIds]);
   const allVisibleSelected = allVisibleIds.length > 0 && selectedVisibleCount === allVisibleIds.length;
 
   const toggleSelectAllVisible = () => {
@@ -242,23 +242,91 @@ export default function Page() {
     });
   };
 
-  const getStatusBadge = (status: Lead['status']) => {
-    const statusMap = {
-      "Mới": { bg: "from-amber-50 to-orange-50", text: "text-amber-700", border: "border-amber-200", icon: Sparkles },
-      "Đang tư vấn": { bg: "from-blue-50 to-cyan-50", text: "text-blue-700", border: "border-blue-200", icon: Phone },
-      "Đã test": { bg: "from-purple-50 to-violet-50", text: "text-purple-700", border: "border-purple-200", icon: FileText },
-      "Đã ghi danh": { bg: "from-emerald-50 to-teal-50", text: "text-emerald-700", border: "border-emerald-200", icon: CheckCircle2 },
-      "Đã hủy": { bg: "from-rose-50 to-pink-50", text: "text-rose-700", border: "border-rose-200", icon: XCircle },
-    };
-    const config = statusMap[status] || statusMap["Mới"];
-    const Icon = config.icon;
-    return (
-      <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gradient-to-r ${config.bg} ${config.text} border ${config.border}`}>
-        <Icon size={12} />
-        <span>{status}</span>
-      </div>
-    );
+  // Modal handlers
+  const handleCreateLead = () => {
+    setSelectedLead(null);
+    setIsFormModalOpen(true);
   };
+
+  const handleEditLead = (lead: LeadType) => {
+    setSelectedLead(lead);
+    setIsFormModalOpen(true);
+  };
+
+  const handleViewLead = (lead: LeadType) => {
+    setSelectedLead(lead);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleLeadAction = (lead: LeadType, action: string) => {
+    if (action === "self-assign") {
+      // Kiểm tra nếu lead chưa có owner
+      if (!lead.ownerStaffId) {
+        setSelectedLead(lead);
+        setIsSelfAssignModalOpen(true);
+      } else {
+        toast({
+          title: "Thông báo",
+          description: "Lead này đã được phân công",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+    
+    // TODO: Implement other actions (add notes, etc.)
+    console.log("Action:", action, "Lead:", lead.id);
+    toast({
+      title: "Thông báo",
+      description: `Tính năng ${action} đang được phát triển`,
+    });
+  };
+
+  const handleStatusChange = async (lead: LeadType, newStatus: string) => {
+    try {
+      await updateLeadStatus(lead.id, { status: newStatus });
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật trạng thái lead thành công",
+        variant: "success",
+      });
+      fetchLeads();
+    } catch (error: any) {
+      console.error("Error updating lead status:", error);
+      toast({
+        title: "Lỗi",
+        description: error.response?.data?.message || "Không thể cập nhật trạng thái",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFormSuccess = () => {
+    fetchLeads();
+    fetchInitialData(); // Refresh stats
+  };
+
+  const handleAssignSuccess = () => {
+    fetchLeads(); // Only reload table data, no full page refresh
+  };
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+  
+  // Reset to first page when filters change
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearchQuery, selectedStatus, selectedSource, myLeadsOnly]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
@@ -278,6 +346,11 @@ export default function Page() {
             </h1>
             <p className="text-sm text-gray-600 mt-1">
               Nhận lead, phân công tư vấn, đặt lịch test và chuyển đổi ghi danh
+              {currentUser?.branchName && (
+                <span className="ml-2 text-pink-600 font-medium">
+                  • Chi nhánh: {currentUser.branchName}
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -285,346 +358,96 @@ export default function Page() {
           <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
             <Download size={16} /> Xuất DS
           </button>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+          <button 
+            onClick={handleCreateLead}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+          >
             <UserPlus size={16} /> Nhập lead mới
           </button>
         </div>
       </div>
-
-      {/* Stats Overview */}
-      <div
-        className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${
+      <div className={` transition-all duration-700 delay-100 ${
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
-        {funnel.map((item, idx) => (
-          <StatCard key={`stat-${idx}`} {...item} />
-        ))}
+        <LeadStats leads={allLeads} isLoading={false} />
       </div>
 
       {/* Filter Bar */}
       <div
-        className={`rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5 transition-all duration-700 delay-150 ${
+        className={`transition-all duration-700 delay-150 ${
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
         }`}
       >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
-          <div className="flex-1">
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm tên, SĐT, email, mã lead..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-500" />
-              <select
-                value={selectedSource}
-                onChange={(e) => setSelectedSource(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-100 cursor-pointer"
-              >
-                {sourceOptions.map((source) => (
-                  <option key={source} value={source}>
-                    {source}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1">
-            {statusOptions.map((status) => {
-              const count =
-                status === "Tất cả"
-                  ? LEADS.length
-                  : LEADS.filter((l) => l.status === status).length;
-              return (
-                <button
-                  key={status}
-                  onClick={() => setSelectedStatus(status)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${
-                    selectedStatus === status
-                      ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm"
-                      : "text-gray-700 hover:bg-pink-50"
-                  }`}
-                >
-                  {status}
-                  <span
-                    className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      selectedStatus === status ? "bg-white/20" : "bg-gray-100"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Nếu cần thêm chip/filter khác, có thể đặt bên phải */}
-        </div>
+        <LeadFilters
+          leads={leads}
+          totalCount={totalCount}
+          statusCounts={statusCounts}
+          availableSources={availableSources}
+          searchQuery={searchQuery}
+          selectedStatus={selectedStatus}
+          selectedSource={selectedSource}
+          myLeadsOnly={myLeadsOnly}
+          currentUserName={currentUser?.fullName}
+          pageSize={pageSize}
+          onSearchChange={setSearchQuery}
+          onStatusChange={setSelectedStatus}
+          onSourceChange={setSelectedSource}
+          onMyLeadsOnlyChange={setMyLeadsOnly}
+          onPageSizeChange={handlePageSizeChange}
+        />
       </div>
 
-      {/* Main Table */}
+      {/* Lead Table */}
       <div
-        className={`rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${
+        className={`transition-all duration-700 delay-200 ${
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
-        {/* Table Header */}
-        <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách Lead</h2>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="font-medium">{filteredAndSortedLeads.length} lead</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
-              <tr>
-                <th className="py-3 px-4 text-left w-12">
-                  <input
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    onChange={toggleSelectAllVisible}
-                    className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
-                    aria-label="Chọn tất cả"
-                  />
-                </th>
-
-                <th className="py-3 px-6 text-left">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("name")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
-                  >
-                    Mã & Thông tin
-                    <ArrowUpDown size={14} className={sortKey === "name" ? "text-pink-600" : "text-gray-400"} />
-                  </button>
-                </th>
-
-                <th className="py-3 px-6 text-left">
-                  <span className="text-sm font-semibold text-gray-700">Thông tin liên hệ</span>
-                </th>
-
-                <th className="py-3 px-6 text-left">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("source")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
-                  >
-                    Nguồn
-                    <ArrowUpDown size={14} className={sortKey === "source" ? "text-pink-600" : "text-gray-400"} />
-                  </button>
-                </th>
-
-                <th className="py-3 px-6 text-left">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("owner")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
-                  >
-                    Phụ trách
-                    <ArrowUpDown size={14} className={sortKey === "owner" ? "text-pink-600" : "text-gray-400"} />
-                  </button>
-                </th>
-
-                <th className="py-3 px-6 text-left">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("status")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
-                  >
-                    Trạng thái
-                    <ArrowUpDown size={14} className={sortKey === "status" ? "text-pink-600" : "text-gray-400"} />
-                  </button>
-                </th>
-
-                <th className="py-3 px-6 text-left">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("placement")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
-                  >
-                    Placement Test
-                    <ArrowUpDown size={14} className={sortKey === "placement" ? "text-pink-600" : "text-gray-400"} />
-                  </button>
-                </th>
-
-                <th className="py-3 px-6 text-left">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("next")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
-                  >
-                    Tiếp theo
-                    <ArrowUpDown size={14} className={sortKey === "next" ? "text-pink-600" : "text-gray-400"} />
-                  </button>
-                </th>
-
-                <th className="py-3 px-6 text-left">
-                  <span className="text-sm font-semibold text-gray-700">Thao tác</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-pink-100">
-              {filteredAndSortedLeads.length > 0 ? (
-                filteredAndSortedLeads.map((lead) => (
-                  <tr
-                    key={lead.id}
-                    className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
-                  >
-                    <td className="py-4 px-4 align-top">
-                      <input
-                        type="checkbox"
-                        checked={!!selectedIds[lead.id]}
-                        onChange={() => toggleSelectOne(lead.id)}
-                        className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
-                        aria-label={`Chọn ${lead.name}`}
-                      />
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="space-y-1 min-w-[220px]">
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white font-semibold text-xs">
-                            {lead.name.split(" ").map(word => word[0]).join("").toUpperCase().slice(0, 2)}
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900">{lead.name}</div>
-                            <div className="text-xs text-gray-500 font-mono">{lead.id}</div>
-                          </div>
-                        </div>
-                        {lead.createdAt && (
-                          <div className="text-xs text-gray-400 flex items-center gap-1">
-                            <Calendar size={10} />
-                            Tạo: {lead.createdAt}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6 align-top min-w-[220px]">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Phone size={14} className="text-gray-400" />
-                          <span className="font-medium">{lead.phone}</span>
-                        </div>
-                        {lead.email ? (
-                          <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <Mail size={14} className="text-gray-400" />
-                            <span className="truncate max-w-[260px]">{lead.email}</span>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-400">Không có email</div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200">
-                        {lead.source}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 flex items-center justify-center text-white text-xs font-semibold">
-                          {lead.owner.split(" ").pop()?.[0] || "N"}
-                        </div>
-                        <span className="font-medium text-gray-900">{lead.owner}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      {getStatusBadge(lead.status)}
-                    </td>
-                    <td className="py-4 px-6">
-                      {lead.placement === "Chưa đặt lịch" ? (
-                        <span className="text-sm text-gray-500">{lead.placement}</span>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <CalendarCheck size={14} className="text-emerald-500" />
-                          <span className="text-sm font-medium text-gray-900">{lead.placement}</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Clock size={14} className="text-gray-400" />
-                        <span>{lead.next}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-1 transition-opacity duration-200">
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
-                          title="Phân công"
-                        >
-                          <UserCheck size={14} />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer"
-                          title="Đặt lịch test"
-                        >
-                          <CalendarCheck size={14} />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
-                          title="Chuyển ghi danh"
-                        >
-                          <CheckCircle2 size={14} />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
-                          title="Xem thêm"
-                        >
-                          <MoreVertical size={14} className="text-gray-400" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={9} className="py-12 text-center">
-                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                      <Search size={24} className="text-pink-400" />
-                    </div>
-                    <div className="text-gray-600 font-medium">Không tìm thấy lead</div>
-                    <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo lead mới</div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Table Footer */}
-        {filteredAndSortedLeads.length > 0 && (
-          <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-gray-600">
-                Hiển thị <span className="font-semibold text-gray-900">1-{filteredAndSortedLeads.length}</span>
-                {" "}trong tổng số <span className="font-semibold text-gray-900">{filteredAndSortedLeads.length}</span> lead
-              </div>
-            </div>
-          </div>
-        )}
+        <LeadTable
+          leads={filteredAndSortedLeads}
+          isLoading={isLoading}
+          selectedIds={selectedIds}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSelectAll={toggleSelectAllVisible}
+          onSelectOne={toggleSelectOne}
+          onSort={toggleSort}
+          onEdit={handleEditLead}
+          onView={handleViewLead}
+          onAction={handleLeadAction}
+          onStatusChange={handleStatusChange}
+          currentUserId={currentUser?.id}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
       </div>
+
+      {/* Modals */}
+      <LeadFormModal
+        isOpen={isFormModalOpen}
+        lead={selectedLead}
+        onClose={() => setIsFormModalOpen(false)}
+        onSuccess={handleFormSuccess}
+      />
+
+      <LeadDetailModal
+        isOpen={isDetailModalOpen}
+        lead={selectedLead}
+        onClose={() => setIsDetailModalOpen(false)}
+        onEdit={handleEditLead}
+      />
+
+      <SelfAssignModal
+        isOpen={isSelfAssignModalOpen}
+        lead={selectedLead}
+        onClose={() => setIsSelfAssignModalOpen(false)}
+        onAssigned={handleAssignSuccess}
+      />
     </div>
   );
 }

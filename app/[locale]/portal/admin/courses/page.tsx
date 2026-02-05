@@ -605,14 +605,22 @@ export default function Page() {
   const [selectedCourseDetail, setSelectedCourseDetail] = useState<any | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  // Fetch programs with branch filter
   useEffect(() => {
+    // Wait for localStorage to be loaded
+    if (!isLoaded) return;
+
     async function fetchPrograms() {
       try {
         setLoading(true);
         setError(null);
 
-        const mapped = await fetchAdminPrograms();
+        const branchId = getBranchQueryParam();
+        console.log("📚 Fetching programs for branch:", branchId || "All branches");
+
+        const mapped = await fetchAdminPrograms({ branchId });
         setCourses(mapped);
+        console.log("✅ Loaded", mapped.length, "programs");
       } catch (err) {
         console.error("Unexpected error when fetching admin programs:", err);
         setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách khóa học.");
@@ -623,7 +631,10 @@ export default function Page() {
     }
 
     fetchPrograms();
-  }, []);
+    
+    // Reset page về 1 khi branch thay đổi
+    setPage(1);
+  }, [selectedBranchId, isLoaded]); // Chỉ depend vào selectedBranchId và isLoaded
 
   const stats = useMemo(() => {
     const total = courses.length;
@@ -843,8 +854,9 @@ export default function Page() {
         await toggleProgramStatus(editingProgramId);
       }
 
-      // Refresh danh sách
-      const mapped = await fetchAdminPrograms();
+      // Refresh danh sách với branch filter hiện tại
+      const branchId = getBranchQueryParam();
+      const mapped = await fetchAdminPrograms({ branchId });
       setCourses(mapped);
       toast({
         title: "Thành công",
@@ -903,8 +915,9 @@ export default function Page() {
       setIsTogglingStatus(true);
       await toggleProgramStatus(selectedCourse.id);
       
-      // Cập nhật danh sách
-      const mapped = await fetchAdminPrograms();
+      // Cập nhật danh sách với branch filter hiện tại
+      const branchId = getBranchQueryParam();
+      const mapped = await fetchAdminPrograms({ branchId });
       setCourses(mapped);
       
       toast({
@@ -1002,6 +1015,16 @@ export default function Page() {
             </div>
           </div>
         </div>
+
+        {/* Branch Filter Indicator */}
+        {selectedBranchId && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+            <Building2 size={16} className="text-pink-600" />
+            <span className="text-sm text-pink-700 font-medium">
+              Đang lọc theo chi nhánh đã chọn
+            </span>
+          </div>
+        )}
 
         {/* Search & Filters */}
         <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">

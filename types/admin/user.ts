@@ -2,7 +2,7 @@ import { ApiResponse } from "../apiResponse";
 
 // ==================== Enums ====================
 
-export type UserRole = "Admin" | "Parent" | "Staff" | "Teacher";
+export type UserRole = "Admin" | "Parent" | "ManagementStaff" | "Teacher";
 
 // ==================== Request Interfaces ====================
 

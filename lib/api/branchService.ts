@@ -43,6 +43,28 @@ export async function getAllBranches(params?: GetAllBranchesParams): Promise<Get
 }
 
 /**
+ * Get all branches (public endpoint - accessible by all roles including staff)
+ * Use this for dropdowns and selections where non-admin users need to select branches
+ */
+export async function getAllBranchesPublic(params?: GetAllBranchesParams): Promise<GetAllBranchesApiResponse> {
+  const queryParams = new URLSearchParams();
+  
+  if (params) {
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    if (params.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
+    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+  }
+
+  const url = BRANCH_ENDPOINTS.GET_ALL_PUBLIC;
+  const fullUrl = queryParams.toString() ? `${url}?${queryParams.toString()}` : url;
+  
+  return get<GetAllBranchesApiResponse>(fullUrl);
+}
+
+/**
  * Get branch by ID
  */
 export async function getBranchById(id: string): Promise<GetBranchByIdApiResponse> {

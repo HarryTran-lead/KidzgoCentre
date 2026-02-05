@@ -8,6 +8,19 @@ import AccountFormModal from "@/components/admin/accounts/AccountFormModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { toast } from "@/hooks/use-toast";
 
+// Import Profile Management Components
+import {  
+  getAllStudents, 
+  createParentAccount, 
+  createStudentProfile,
+  deleteProfile
+} from "@/lib/api/profileService";
+import type { CreateParentProfileRequest, CreateStudentProfileRequest } from "@/types/profile";
+import CreateParentProfileModal from "@/components/admin/profile/CreateParentProfileModal";
+import CreateStudentProfileModal from "@/components/admin/profile/CreateStudentProfileModal";
+import ViewLinkedStudentsModal from "@/components/admin/profile/ViewLinkedStudentsModal";
+import ProfileDetailModal from "@/components/admin/profile/ProfileDetailModal";
+
 type SortDirection = "asc" | "desc";
 
 type SortState<T> = {
@@ -73,16 +86,17 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   AlertCircle,
   Calendar,
   Loader2,
   User as UserIcon,
+  UserCircle,
+  Shield,
+  Trash2,
 } from "lucide-react";
 
 // Map UserRole from API to local Role type
-type Role = "Admin" | "Teacher" | "Parent" | "Staff";
+type Role = "Admin" | "Teacher" | "Parent" | "ManagementStaff";
 
 type Account = User & {
   name: string;
@@ -99,7 +113,7 @@ const mapRoleToDisplay = (apiRole: UserRole): Role => {
     'Admin': 'Admin',
     'Teacher': 'Teacher',
     'Parent': 'Parent',
-    'Staff': 'Staff'
+    'ManagementStaff': 'ManagementStaff'
   };
   return roleMap[apiRole];
 };
@@ -125,7 +139,7 @@ const getDepartment = (role: UserRole): string => {
     'Admin': 'Administration',
     'Teacher': 'Academic',
     'Parent': 'Parents',
-    'Staff': 'Operations'
+    'ManagementStaff': 'Management'
   };
   return departments[role];
 };
@@ -155,8 +169,8 @@ const ROLE_INFO: Record<Role, {
     bg: "from-emerald-400 to-teal-500",
     icon: <Users size={12} />
   },
-  Staff: {
-    label: "Nhân viên",
+  ManagementStaff: {
+    label: "Nhân viên quản lý",
     cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
     bg: "from-amber-400 to-orange-500",
     icon: <UserIcon size={12} />
@@ -224,7 +238,19 @@ function Avatar({ name, color }: { name: string; color: string }) {
 }
 
 function RoleBadge({ role }: { role: Role }) {
-  const { label, cls, icon } = ROLE_INFO[role];
+  const roleInfo = ROLE_INFO[role];
+  
+  // Safety check: if role is not found, use a default
+  if (!roleInfo) {
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+        <UserIcon size={12} />
+        <span>{role || 'Unknown'}</span>
+      </div>
+    );
+  }
+  
+  const { label, cls, icon } = roleInfo;
   return (
     <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
       {icon}
@@ -275,11 +301,15 @@ const formatDateTime = (dateString?: string): string => {
 };
 
 export default function AccountsPage() {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"accounts" | "profiles">("accounts");
+  
   const [role, setRole] = useState<Role | "ALL">("ALL");
   const [status, setStatus] = useState<boolean | null>(null); // null = ALL, true = ACTIVE, false = INACTIVE
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState<Account>>({ key: null, direction: "asc" });
   
@@ -295,12 +325,12 @@ export default function AccountsPage() {
     admin: 0,
     teacher: 0,
     parent: 0,
-    staff: 0,
+    managementStaff: 0,
     active: 0,
     inactive: 0,
   });
 
-  // Modal states
+  // Modal states - Accounts
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -308,6 +338,25 @@ export default function AccountsPage() {
   const [toggleStatusModalOpen, setToggleStatusModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<User | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+
+  // Profile Management States
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [filteredProfiles, setFilteredProfiles] = useState<any[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profileSearchTerm, setProfileSearchTerm] = useState("");
+  const [profileFilterType, setProfileFilterType] = useState<"all" | "Parent" | "Student">("all");
+  const [profileCurrentPage, setProfileCurrentPage] = useState(1);
+  const [profileItemsPerPage, setProfileItemsPerPage] = useState(10);
+  
+  // Profile Modal states
+  const [showCreateParentModal, setShowCreateParentModal] = useState(false);
+  const [showCreateStudentModal, setShowCreateStudentModal] = useState(false);
+  const [showViewLinkedModal, setShowViewLinkedModal] = useState(false);
+  const [showProfileDetailModal, setShowProfileDetailModal] = useState(false);
+  const [showProfileDeleteModal, setShowProfileDeleteModal] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [selectedParentForView, setSelectedParentForView] = useState<{ id: string; name: string } | null>(null);
+  const [selectedProfileForDelete, setSelectedProfileForDelete] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch users from API once (no server-side filtering for smooth UX)
   useEffect(() => {
@@ -345,7 +394,7 @@ export default function AccountsPage() {
             admin: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Admin').length,
             teacher: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Teacher').length,
             parent: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Parent').length,
-            staff: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Staff').length,
+            managementStaff: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'ManagementStaff').length,
             active: transformedAccounts.filter(a => a.isActive).length,
             inactive: transformedAccounts.filter(a => !a.isActive).length,
           };
@@ -355,7 +404,7 @@ export default function AccountsPage() {
         }
       } catch (err) {
         console.error('Error fetching users:', err);
-        setError('Đã xảy ra lỗi khi tải danh sách người dùng');
+        setError('Đã xảy ra lỗi khi tải danh sách người dùng'); 
       } finally {
         setLoading(false);
       }
@@ -363,6 +412,15 @@ export default function AccountsPage() {
 
     fetchUsers();
   }, []); // Only fetch once on mount
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Modal handlers
   const handleViewDetail = async (userId: string) => {
@@ -481,7 +539,7 @@ export default function AccountsPage() {
       });
       throw error;
     }
-  };
+  };  
 
   const handleDeleteUser = async () => {
     if (!selectedAccount) return;
@@ -547,6 +605,169 @@ export default function AccountsPage() {
       });
     }
   };
+
+  // ============= PROFILE MANAGEMENT FUNCTIONS =============
+  
+  // Fetch all profiles
+  const fetchProfiles = async () => {
+    try {
+      setProfilesLoading(true);
+      const response = await getAllStudents({
+        pageSize: 100,
+      });
+
+      if (response.data?.items) {
+        setProfiles(response.data.items);
+        setFilteredProfiles(response.data.items);
+      }
+    } catch (error) {
+      console.error("Error fetching profiles:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải danh sách profiles",
+        variant: "destructive",
+      });
+    } finally {
+      setProfilesLoading(false);
+    }
+  };
+
+  // Load profiles when switching to profiles tab
+  useEffect(() => {
+    if (activeTab === "profiles") {
+      fetchProfiles();
+    }
+  }, [activeTab]);
+
+  // Filter profiles
+  useEffect(() => {
+    let filtered = profiles;
+
+    // Filter by type
+    if (profileFilterType !== "all") {
+      filtered = filtered.filter(p => p.profileType === profileFilterType);
+    }
+
+    // Filter by search term
+    if (profileSearchTerm) {
+      filtered = filtered.filter(p => 
+        p.displayName.toLowerCase().includes(profileSearchTerm.toLowerCase()) ||
+        (p.userEmail && p.userEmail.toLowerCase().includes(profileSearchTerm.toLowerCase()))
+      );
+    }
+
+    setFilteredProfiles(filtered);
+    setProfileCurrentPage(1); // Reset to page 1 when filters change
+  }, [profiles, profileFilterType, profileSearchTerm]);
+
+  // Handle create parent profile
+  const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
+    try {
+      await createParentAccount(profileData);
+
+      toast({
+        title: "Thành công",
+        description: "Tạo profile Parent thành công",
+        variant: "success",
+      });
+
+      fetchProfiles();
+    } catch (error: any) {
+      console.error("Error creating parent:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể tạo profile Parent",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  // Handle create student profile
+  const handleCreateStudent = async (profileData: CreateStudentProfileRequest) => {
+    try {
+      await createStudentProfile(profileData);
+
+      toast({
+        title: "Thành công",
+        description: "Tạo profile Student thành công",
+        variant: "success",
+      });
+
+      fetchProfiles();
+    } catch (error: any) {
+      console.error("Error creating student:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể tạo profile Student",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  // Handle delete profile
+  const handleOpenDeleteProfileModal = (id: string, displayName: string) => {
+    setSelectedProfileForDelete({ id, name: displayName });
+    setShowProfileDeleteModal(true);
+  };
+
+  const handleConfirmDeleteProfile = async () => {
+    if (!selectedProfileForDelete) return;
+
+    try {
+      await deleteProfile(selectedProfileForDelete.id);
+
+      toast({
+        title: "Thành công",
+        description: "Xóa profile thành công",
+        variant: "success",
+      });
+
+      setShowProfileDeleteModal(false);
+      setSelectedProfileForDelete(null);
+      fetchProfiles();
+    } catch (error: any) {
+      console.error("Error deleting profile:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể xóa profile",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Open view linked students modal
+  const handleOpenViewLinkedModal = (userId: string, parentName: string) => {
+    setSelectedParentForView({ id: userId, name: parentName });
+    setShowViewLinkedModal(true);
+  };
+
+  // Close view linked students modal
+  const handleCloseViewLinkedModal = () => {
+    setShowViewLinkedModal(false);
+    setSelectedParentForView(null);
+  };
+
+  // Open profile detail modal
+  const handleViewProfileDetail = (profileId: string) => {
+    setSelectedProfileId(profileId);
+    setShowProfileDetailModal(true);
+  };
+
+  // Close profile detail modal
+  const handleCloseProfileDetailModal = () => {
+    setShowProfileDetailModal(false);
+    setSelectedProfileId(null);
+  };
+
+  // View student detail from linked students modal
+  const handleViewStudentDetail = (studentId: string) => {
+    setSelectedProfileId(studentId);
+    setShowProfileDetailModal(true);
+  };
+
+  // ============= END PROFILE MANAGEMENT FUNCTIONS =============
 
   const toggleSort = (key: keyof Account) => {
     setSort(prev => {
@@ -639,8 +860,8 @@ export default function AccountsPage() {
       result = result.filter(acc => acc.isActive === status);
     }
 
-    if (search) {
-      const searchLower = search.toLowerCase();
+    if (debouncedSearch) {
+      const searchLower = debouncedSearch.toLowerCase();
       result = result.filter(acc =>
         acc.name.toLowerCase().includes(searchLower) ||
         acc.email.toLowerCase().includes(searchLower) ||
@@ -655,7 +876,7 @@ export default function AccountsPage() {
     }
 
     return result;
-  }, [accounts, role, status, search, sort.key, sort.direction]);
+  }, [accounts, role, status, debouncedSearch, sort.key, sort.direction]);
 
   // Client-side pagination
   const totalPages = Math.ceil(list.length / itemsPerPage);
@@ -762,32 +983,92 @@ export default function AccountsPage() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-              Quản lý Tài khoản
+              Quản lý Tài khoản & Profiles
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Phân quyền truy cập, quản lý bảo mật và theo dõi hoạt động người dùng
+              Phân quyền truy cập, quản lý profiles và theo dõi hoạt động người dùng
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
-            <Key size={16} /> Đặt lại mật khẩu
-          </button>
-          <button 
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
-          >
-            <UserPlus size={16} /> Tạo tài khoản mới
-          </button>
-        </div>
+        {activeTab === "accounts" ? (
+          <div className="flex flex-wrap gap-2">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+              <Key size={16} /> Đặt lại mật khẩu
+            </button>
+            <button 
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            >
+              <UserPlus size={16} /> Tạo tài khoản mới
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowCreateParentModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            >
+              <UserPlus size={16} /> Tạo tài khoản Parent
+            </button>
+            <button
+              onClick={() => setShowCreateStudentModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            >
+              <UserCircle size={16} /> Tạo profile Student
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, idx) => (
-          <StatCard key={idx} {...stat} />
-        ))}
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-2xl border border-pink-200 p-1 inline-flex gap-1">
+        <button
+          onClick={() => setActiveTab("accounts")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "accounts"
+              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+              : "text-gray-600 hover:bg-pink-50"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={16} />
+            <span>Tài khoản</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${
+              activeTab === "accounts" ? "bg-white/20" : "bg-gray-100"
+            }`}>
+              {fixedCounts.total}
+            </span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("profiles")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "profiles"
+              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+              : "text-gray-600 hover:bg-pink-50"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <UserCircle size={16} />
+            <span>Profiles</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${
+              activeTab === "profiles" ? "bg-white/20" : "bg-gray-100"
+            }`}>
+              {profiles.length}
+            </span>
+          </div>
+        </button>
       </div>
+
+      {/* Content based on active tab */}
+      {activeTab === "accounts" ? (
+        <>
+          {/* Stats Overview */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {stats.map((stat, idx) => (
+              <StatCard key={idx} {...stat} />
+            ))}
+          </div>
 
       {/* Filter Bar */}
       <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
@@ -800,7 +1081,7 @@ export default function AccountsPage() {
                 { k: 'Admin', label: 'Quản trị', count: fixedCounts.admin },
                 { k: 'Teacher', label: 'Giáo viên', count: fixedCounts.teacher },
                 { k: 'Parent', label: 'Phụ huynh', count: fixedCounts.parent },
-                { k: 'Staff', label: 'Nhân viên', count: fixedCounts.staff },
+                { k: 'ManagementStaff', label: 'Nhân viên', count: fixedCounts.managementStaff },
               ].map((item) => (
                 <button
                   key={item.k}
@@ -837,15 +1118,30 @@ export default function AccountsPage() {
             </div>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm kiếm tên, email, số điện thoại..."
-              className="h-10 w-72 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
-            />
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          {/* Search and Items Per Page */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm kiếm tên, email, số điện thoại..."
+                className="h-10 w-72 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            </div>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+            >
+              <option value={5}>5 / trang</option>
+              <option value={10}>10 / trang</option>
+              <option value={20}>20 / trang</option>
+              <option value={50}>50 / trang</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1068,79 +1364,430 @@ export default function AccountsPage() {
         {list.length > 0 && (
           <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Left: Info */}
               <div className="text-sm text-gray-600">
-                Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, list.length)}</span>
-                {' '}trong tổng số <span className="font-semibold text-gray-900">{list.length}</span> tài khoản
+                Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, list.length)}</span> trong tổng số{" "}
+                <span className="font-semibold text-gray-900">{list.length}</span> tài khoản
                 {selectedRows.length > 0 && (
                   <span className="ml-3 text-pink-600 font-medium">
-                    Đã chọn {selectedRows.length} tài khoản
+                    • Đã chọn {selectedRows.length}
                   </span>
                 )}
               </div>
+
+              {/* Right: Pagination Buttons */}
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
-                >
-                  <ChevronsLeft size={16} className="text-gray-600" />
-                </button>
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Previous page"
                 >
-                  <ChevronLeft size={16} className="text-gray-600" />
+                  <ChevronLeft size={18} />
                 </button>
 
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
+                  {(() => {
+                    const pages: (number | string)[] = [];
+                    const maxVisible = 7;
+
+                    if (totalPages <= maxVisible) {
+                      for (let i = 1; i <= totalPages; i++) {
+                        pages.push(i);
+                      }
                     } else {
-                      pageNum = currentPage - 2 + i;
+                      if (currentPage <= 3) {
+                        for (let i = 1; i <= 5; i++) pages.push(i);
+                        pages.push("...");
+                        pages.push(totalPages);
+                      } else if (currentPage >= totalPages - 2) {
+                        pages.push(1);
+                        pages.push("...");
+                        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                      } else {
+                        pages.push(1);
+                        pages.push("...");
+                        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                        pages.push("...");
+                        pages.push(totalPages);
+                      }
                     }
 
-                    return (
+                    return pages.map((page, idx) => (
                       <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`h-8 w-8 rounded-lg text-sm font-medium transition-all ${currentPage === pageNum
-                          ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
-                          : 'border border-pink-200 bg-white text-gray-700 hover:bg-pink-50'
-                          }`}
+                        key={idx}
+                        onClick={() => typeof page === "number" && setCurrentPage(page)}
+                        disabled={page === "..."}
+                        className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all ${
+                          page === currentPage
+                            ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                            : page === "..."
+                            ? "cursor-default text-gray-400"
+                            : "border border-pink-200 hover:bg-pink-50 text-gray-700"
+                        }`}
                       >
-                        {pageNum}
+                        {page}
                       </button>
-                    );
-                  })}
+                    ));
+                  })()}
                 </div>
 
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Next page"
                 >
-                  <ChevronRight size={16} className="text-gray-600" />
-                </button>
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
-                >
-                  <ChevronsRight size={16} className="text-gray-600" />
+                  <ChevronRight size={18} />
                 </button>
               </div>
             </div>
           </div>
         )}
       </div>
+        </>
+      ) : (
+        <>
+          {/* Profiles Statistics */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Tổng Profiles"
+              value={`${profiles.length}`}
+              icon={<Users size={20} />}
+              color="from-pink-500 to-rose-500"
+              subtitle="Toàn hệ thống"
+            />
+            <StatCard
+              title="Parents"
+              value={`${profiles.filter(p => p.profileType === "Parent").length}`}
+              icon={<Shield size={20} />}
+              color="from-emerald-500 to-teal-500"
+              subtitle="Có tài khoản đăng nhập"
+            />
+            <StatCard
+              title="Students"
+              value={`${profiles.filter(p => p.profileType === "Student").length}`}
+              icon={<UserCircle size={20} />}
+              color="from-blue-500 to-cyan-500"
+              subtitle="Link với Parent"
+            />
+            <StatCard
+              title="Profiles Active"
+              value={`${profiles.filter(p => p.isActive).length}`}
+              icon={<CheckCircle size={20} />}
+              color="from-amber-500 to-orange-500"
+              subtitle="Đang hoạt động"
+            />
+          </div>
 
+          {/* Filter Bar */}
+          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Type Filter */}
+                <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1">
+                  {[
+                    { k: 'all', label: 'Tất cả', count: profiles.length },
+                    { k: 'Parent', label: 'Parents', count: profiles.filter(p => p.profileType === "Parent").length },
+                    { k: 'Student', label: 'Students', count: profiles.filter(p => p.profileType === "Student").length },
+                  ].map((item) => (
+                    <button
+                      key={item.k}
+                      onClick={() => setProfileFilterType(item.k as typeof profileFilterType)}
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                        profileFilterType === item.k
+                          ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
+                          : 'text-gray-700 hover:bg-pink-50'
+                      }`}
+                    >
+                      {item.label}
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                        profileFilterType === item.k ? 'bg-white/20' : 'bg-gray-100'
+                      }`}>
+                        {item.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Search and Items Per Page */}
+              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm theo tên, email..."
+                    value={profileSearchTerm}
+                    onChange={(e) => setProfileSearchTerm(e.target.value)}
+                    className="w-full rounded-xl border border-pink-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </div>
+                <select
+                  value={profileItemsPerPage}
+                  onChange={(e) => {
+                    setProfileItemsPerPage(Number(e.target.value));
+                    setProfileCurrentPage(1);
+                  }}
+                  className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                >
+                  <option value={5}>5 / trang</option>
+                  <option value={10}>10 / trang</option>
+                  <option value={20}>20 / trang</option>
+                  <option value={50}>50 / trang</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Profiles Table */}
+          <div className="rounded-2xl border border-pink-200 bg-white overflow-hidden shadow-sm">
+            {profilesLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-12 h-12 animate-spin text-pink-500" />
+              </div>
+            ) : filteredProfiles.length === 0 ? (
+              <div className="text-center py-16">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">Không có profile nào</p>
+                <p className="text-sm text-gray-400 mt-2">Hãy tạo profile mới để bắt đầu</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gradient-to-r from-pink-100 to-rose-100">
+                      <tr className="border-b border-pink-200">
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">User ID</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Ngày tạo</th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-pink-100">
+                      {(() => {
+                        const profileTotalPages = Math.ceil(filteredProfiles.length / profileItemsPerPage);
+                        const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
+                        const profileEndIndex = profileStartIndex + profileItemsPerPage;
+                        const currentProfiles = filteredProfiles.slice(profileStartIndex, profileEndIndex);
+                        
+                        return currentProfiles.map((profile: any) => (
+                      <tr key={profile.id} className="hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-transparent transition-all duration-200">
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
+                            profile.profileType === "Parent"
+                              ? "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200"
+                              : "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200"
+                          }`}>
+                            {profile.profileType === "Parent" ? <Shield size={12} /> : <UserCircle size={12} />}
+                            {profile.profileType}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">{profile.displayName}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-gray-600 text-sm">
+                            <Mail size={14} />
+                            {profile.userEmail || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs text-gray-500 font-mono">
+                            {profile.userId?.substring(0, 8)}...
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {profile.isActive ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
+                              <CheckCircle size={12} />
+                              Đang hoạt động
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border border-rose-200 rounded-full text-xs font-medium">
+                              <XCircle size={12} />
+                              Tạm khóa
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Calendar size={14} />
+                            {new Date(profile.createdAt).toLocaleDateString('vi-VN')}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleViewProfileDetail(profile.id)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group"
+                              title="Xem chi tiết"
+                            >
+                              <Eye size={18} className="group-hover:scale-110 transition-transform" />
+                            </button>
+                            {profile.profileType === "Parent" && (
+                              <button
+                                onClick={() => handleOpenViewLinkedModal(profile.userId, profile.displayName)}
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group"
+                                title="Xem học sinh đã liên kết"
+                              >
+                                <Users size={18} className="group-hover:scale-110 transition-transform" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleOpenDeleteProfileModal(profile.id, profile.displayName)}
+                              className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors group"
+                              title="Xóa"
+                            >
+                              <Trash2 size={18} className="group-hover:scale-110 transition-transform" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Pagination */}
+                {filteredProfiles.length > 0 && (() => {
+                  const profileTotalPages = Math.ceil(filteredProfiles.length / profileItemsPerPage);
+                  const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
+                  const profileEndIndex = profileStartIndex + profileItemsPerPage;
+                  
+                  return (
+                    <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        {/* Left: Info */}
+                        <div className="text-sm text-gray-600">
+                          Hiển thị <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span> trong tổng số{" "}
+                          <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> profiles
+                        </div>
+
+                        {/* Right: Pagination Buttons */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setProfileCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={profileCurrentPage === 1}
+                            className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            aria-label="Previous page"
+                          >
+                            <ChevronLeft size={18} />
+                          </button>
+
+                          <div className="flex items-center gap-1">
+                            {(() => {
+                              const pages: (number | string)[] = [];
+                              const maxVisible = 7;
+
+                              if (profileTotalPages <= maxVisible) {
+                                for (let i = 1; i <= profileTotalPages; i++) {
+                                  pages.push(i);
+                                }
+                              } else {
+                                if (profileCurrentPage <= 3) {
+                                  for (let i = 1; i <= 5; i++) pages.push(i);
+                                  pages.push("...");
+                                  pages.push(profileTotalPages);
+                                } else if (profileCurrentPage >= profileTotalPages - 2) {
+                                  pages.push(1);
+                                  pages.push("...");
+                                  for (let i = profileTotalPages - 4; i <= profileTotalPages; i++) pages.push(i);
+                                } else {
+                                  pages.push(1);
+                                  pages.push("...");
+                                  for (let i = profileCurrentPage - 1; i <= profileCurrentPage + 1; i++) pages.push(i);
+                                  pages.push("...");
+                                  pages.push(profileTotalPages);
+                                }
+                              }
+
+                              return pages.map((page, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => typeof page === "number" && setProfileCurrentPage(page)}
+                                  disabled={page === "..."}
+                                  className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all ${
+                                    page === profileCurrentPage
+                                      ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                                      : page === "..."
+                                      ? "cursor-default text-gray-400"
+                                      : "border border-pink-200 hover:bg-pink-50 text-gray-700"
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              ));
+                            })()}
+                          </div>
+
+                          <button
+                            onClick={() => setProfileCurrentPage(prev => Math.min(profileTotalPages, prev + 1))}
+                            disabled={profileCurrentPage === profileTotalPages}
+                            className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            aria-label="Next page"
+                          >
+                            <ChevronRight size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+
+          {/* Profile Modals */}
+          <CreateParentProfileModal
+            isOpen={showCreateParentModal}
+            onClose={() => setShowCreateParentModal(false)}
+            onSubmit={handleCreateParent}
+          />
+
+          <CreateStudentProfileModal
+            isOpen={showCreateStudentModal}
+            onClose={() => setShowCreateStudentModal(false)}
+            onSubmit={handleCreateStudent}
+          />
+
+          <ViewLinkedStudentsModal
+            isOpen={showViewLinkedModal}
+            onClose={handleCloseViewLinkedModal}
+            userId={selectedParentForView?.id || null}
+            parentName={selectedParentForView?.name || null}
+            onRefresh={fetchProfiles}
+            onViewStudentDetail={handleViewStudentDetail}
+          />
+
+          <ProfileDetailModal
+            isOpen={showProfileDetailModal}
+            onClose={handleCloseProfileDetailModal}
+            profileId={selectedProfileId}
+          />
+
+          <ConfirmModal
+            isOpen={showProfileDeleteModal}
+            onClose={() => {
+              setShowProfileDeleteModal(false);
+              setSelectedProfileForDelete(null);
+            }}
+            onConfirm={handleConfirmDeleteProfile}
+            title="Xác nhận xóa profile"
+            message={`Bạn có chắc chắn muốn xóa profile "${selectedProfileForDelete?.name}"? Hành động này không thể hoàn tác.`}
+            confirmText="Xóa"
+            cancelText="Hủy"
+            variant="danger"
+          />
+        </>
+      )}
+
+      {activeTab === "accounts" && (
+        <>
       {/* Security Configuration Panel */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Security Settings */}
@@ -1222,10 +1869,13 @@ export default function AccountsPage() {
           <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
             <h4 className="font-semibold text-gray-900 mb-3">Phân bố vai trò</h4>
             <div className="space-y-3">
-              {(['Admin', 'Teacher', 'Parent', 'Staff'] as Role[]).map(role => {
+              {(['Admin', 'Teacher', 'Parent', 'ManagementStaff'] as Role[]).map(role => {
                 const count = accounts.filter(a => mapRoleToDisplay(a.role) === role).length;
                 const percentage = accounts.length > 0 ? Math.round((count / accounts.length) * 100) : 0;
                 const info = ROLE_INFO[role];
+                
+                // Skip if role info is not found
+                if (!info) return null;
 
                 return (
                   <div key={role} className="space-y-1">
@@ -1247,8 +1897,12 @@ export default function AccountsPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
-      {/* Modals */}
+      {/* Modals - Accounts */}
+      {activeTab === "accounts" && (
+        <>
       <AccountDetailModal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
@@ -1299,6 +1953,8 @@ export default function AccountsPage() {
         cancelText="Hủy"
         variant={selectedAccount?.isActive ? "danger" : "success"}
       />
+        </>
+      )}
     </div>
   );
 }

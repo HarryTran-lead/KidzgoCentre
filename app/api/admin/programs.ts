@@ -52,7 +52,7 @@ function mapApiProgramToRow(item: any): CourseRow {
   };
 }
 
-export async function fetchAdminPrograms(): Promise<CourseRow[]> {
+export async function fetchAdminPrograms(options?: { branchId?: string }): Promise<CourseRow[]> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập để xem danh sách khóa học.");
@@ -62,6 +62,11 @@ export async function fetchAdminPrograms(): Promise<CourseRow[]> {
     pageNumber: "1",
     pageSize: "100",
   });
+
+  // Thêm branchId vào query params nếu có
+  if (options?.branchId) {
+    params.append("branchId", options.branchId);
+  }
 
   const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}?${params.toString()}`, {
     headers: {
