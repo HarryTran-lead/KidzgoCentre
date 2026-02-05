@@ -13,8 +13,6 @@ import {
   createStudentProfile,
   deleteProfile
 } from "@/lib/api/profileService";
-import { createUser } from "@/lib/api/userService";
-import type { CreateUserRequest } from "@/types/admin/user";
 import type { CreateParentProfileRequest, CreateStudentProfileRequest } from "@/types/profile";
 import CreateParentProfileModal from "@/components/admin/profile/CreateParentProfileModal";
 import CreateStudentProfileModal from "@/components/admin/profile/CreateStudentProfileModal";
@@ -35,6 +33,7 @@ export default function ProfileManagementPage() {
   const [filteredProfiles, setFilteredProfiles] = useState<ProfileItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "Parent" | "Student">("all");
   
   // Modal states
@@ -51,7 +50,7 @@ export default function ProfileManagementPage() {
 
       if (response.data?.items) {
         setProfiles(response.data.items as ProfileItem[]);
-        setFilteredProfiles(response.data.items as ProfileItem[]);
+        // Don't set filteredProfiles here - let the filter useEffect handle it
       }
     } catch (error) {
       console.error("Error fetching profiles:", error);
@@ -69,6 +68,15 @@ export default function ProfileManagementPage() {
     fetchProfiles();
   }, []);
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Filter profiles
   useEffect(() => {
     let filtered = profiles;
@@ -79,15 +87,15 @@ export default function ProfileManagementPage() {
     }
 
     // Filter by search term
-    if (searchTerm) {
+    if (debouncedSearchTerm) {
       filtered = filtered.filter(p => 
-        p.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.userEmail.toLowerCase().includes(searchTerm.toLowerCase())
+        p.displayName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        p.userEmail.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
       );
     }
 
     setFilteredProfiles(filtered);
-  }, [profiles, filterType, searchTerm]);
+  }, [profiles, filterType, debouncedSearchTerm]);
 
   // Handle create parent profile
   const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
