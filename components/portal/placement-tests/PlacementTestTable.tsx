@@ -37,30 +37,42 @@ const STATUS_MAPPING: Record<StatusType, string> = {
 interface PlacementTestTableProps {
   tests: PlacementTest[];
   isLoading?: boolean;
-  sortKey: string | null;
-  sortDir: "asc" | "desc";
-  onSort: (key: string) => void;
-  onEdit: (test: PlacementTest) => void;
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  totalCount: number;
   onView: (test: PlacementTest) => void;
-  onAddResult: (test: PlacementTest) => void;
-  onCancel: (test: PlacementTest) => void;
-  onNoShow: (test: PlacementTest) => void;
-  onConvertToEnrolled: (test: PlacementTest) => void;
+  onPageChange: (page: number) => void;
+  sortKey?: string | null;
+  sortDir?: "asc" | "desc";
+  onSort?: (key: string) => void;
+  onEdit?: (test: PlacementTest) => void;
+  onAddResult?: (test: PlacementTest) => void;
+  onCancel?: (test: PlacementTest) => void;
+  onNoShow?: (test: PlacementTest) => void;
+  onConvertToEnrolled?: (test: PlacementTest) => void;
 }
 
 export default function PlacementTestTable({
   tests,
   isLoading,
+  currentPage,
+  totalPages,
+  pageSize,
+  totalCount,
+  onView,
+  onPageChange,
   sortKey,
   sortDir,
   onSort,
   onEdit,
-  onView,
   onAddResult,
   onCancel,
   onNoShow,
   onConvertToEnrolled,
 }: PlacementTestTableProps) {
+  const testsArray = Array.isArray(tests) ? tests : [];
+  
   const getStatusBadge = (statusText: string) => {
     const statusMap: Record<string, { bg: string; text: string; border: string; icon: any }> = {
       "Đã lên lịch": { bg: "from-blue-50 to-cyan-50", text: "text-blue-700", border: "border-blue-200", icon: Clock },
@@ -80,7 +92,7 @@ export default function PlacementTestTable({
 
   const SortHeader = ({ column, label }: { column: string; label: string }) => (
     <button
-      onClick={() => onSort(column)}
+      onClick={() => onSort?.(column)}
       className="flex items-center gap-1 font-semibold text-slate-700 hover:text-slate-900 transition-colors"
     >
       {label}
@@ -99,7 +111,7 @@ export default function PlacementTestTable({
     );
   }
 
-  if (!tests || tests.length === 0) {
+  if (!testsArray || testsArray.length === 0) {
     return (
       <div className="text-center py-12">
         <FileText className="mx-auto h-12 w-12 text-gray-400" />
@@ -109,6 +121,7 @@ export default function PlacementTestTable({
   }
 
   return (
+    <>
     <div className="overflow-x-auto rounded-xl border border-pink-200 bg-white shadow-sm">
       <table className="w-full">
         <thead>
@@ -140,7 +153,7 @@ export default function PlacementTestTable({
           </tr>
         </thead>
         <tbody>
-          {tests.map((test, idx) => (
+          {testsArray.map((test, idx) => (
             <tr
               key={test.id}
               className={`border-b border-pink-100 hover:bg-pink-50/30 transition-colors ${
@@ -190,22 +203,30 @@ export default function PlacementTestTable({
                     <DropdownMenuContent align="end" className="w-48">
                       {test.status === 'Scheduled' && (
                         <>
-                          <DropdownMenuItem onClick={() => onEdit(test)}>
-                            <Edit size={16} className="mr-2" />
-                            Chỉnh sửa
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onAddResult(test)}>
-                            <FileText size={16} className="mr-2" />
-                            Nhập kết quả
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onNoShow(test)}>
-                            <AlertCircle size={16} className="mr-2" />
-                            Đánh dấu không đến
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onCancel(test)}>
-                            <Ban size={16} className="mr-2" />
-                            Hủy lịch test
-                          </DropdownMenuItem>
+                          {onEdit && (
+                            <DropdownMenuItem onClick={() => onEdit(test)}>
+                              <Edit size={16} className="mr-2" />
+                              Chỉnh sửa
+                            </DropdownMenuItem>
+                          )}
+                          {onAddResult && (
+                            <DropdownMenuItem onClick={() => onAddResult(test)}>
+                              <FileText size={16} className="mr-2" />
+                              Nhập kết quả
+                            </DropdownMenuItem>
+                          )}
+                          {onNoShow && (
+                            <DropdownMenuItem onClick={() => onNoShow(test)}>
+                              <AlertCircle size={16} className="mr-2" />
+                              Đánh dấu không đến
+                            </DropdownMenuItem>
+                          )}
+                          {onCancel && (
+                            <DropdownMenuItem onClick={() => onCancel(test)}>
+                              <Ban size={16} className="mr-2" />
+                              Hủy lịch test
+                            </DropdownMenuItem>
+                          )}
                         </>
                       )}
                       {test.status === 'Completed' && (
@@ -214,10 +235,12 @@ export default function PlacementTestTable({
                             <Eye size={16} className="mr-2" />
                             Xem kết quả
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onConvertToEnrolled(test)}>
-                            <UserCheck size={16} className="mr-2" />
-                            Chuyển thành học viên
-                          </DropdownMenuItem>
+                          {onConvertToEnrolled && (
+                            <DropdownMenuItem onClick={() => onConvertToEnrolled(test)}>
+                              <UserCheck size={16} className="mr-2" />
+                              Chuyển thành học viên
+                            </DropdownMenuItem>
+                          )}
                         </>
                       )}
                       {(test.status === 'Cancelled' || test.status === 'NoShow') && (
@@ -235,5 +258,59 @@ export default function PlacementTestTable({
         </tbody>
       </table>
     </div>
+    
+    {/* Pagination */}
+    {totalPages > 1 && (
+      <div className="flex items-center justify-between px-6 py-4 bg-white rounded-xl border border-pink-200 mt-4">
+        <div className="text-sm text-gray-600">
+          Hiển thị {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalCount)} trong tổng số {totalCount} placement test
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            Trước
+          </Button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+
+              return (
+                <Button
+                  key={pageNum}
+                  variant={currentPage === pageNum ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onPageChange(pageNum)}
+                  className={currentPage === pageNum ? "bg-gradient-to-r from-pink-500 to-rose-500" : ""}
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Sau
+          </Button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

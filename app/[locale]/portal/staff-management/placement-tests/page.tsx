@@ -26,6 +26,10 @@ export default function PlacementTestsPage() {
   const [sortKey, setSortKey] = useState<string | null>("scheduledAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
   const { toast } = useToast();
 
   // Modals state
@@ -79,7 +83,9 @@ export default function PlacementTestsPage() {
       if (!response.ok) throw new Error("Failed to fetch placement tests");
 
       const data = await response.json();
-      setTests(data.data || []);
+      setTests(data.data?.items || data.data || []);
+      setTotalCount(data.data?.totalCount || 0);
+      setTotalPages(data.data?.totalPages || 0);
     } catch (error) {
       console.error("Error fetching placement tests:", error);
       toast({
@@ -407,11 +413,16 @@ export default function PlacementTestsPage() {
         <PlacementTestTable
           tests={tests}
           isLoading={isLoading}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onView={handleView}
+          onPageChange={(page) => setCurrentPage(page)}
           sortKey={sortKey}
           sortDir={sortDir}
           onSort={handleSort}
           onEdit={handleEdit}
-          onView={handleView}
           onAddResult={handleAddResult}
           onCancel={handleCancel}
           onNoShow={handleNoShow}
@@ -422,9 +433,10 @@ export default function PlacementTestsPage() {
         <PlacementTestFormModal
           isOpen={isFormModalOpen}
           onClose={() => setIsFormModalOpen(false)}
-          onSubmit={handleFormSubmit}
-          test={selectedTest}
-          leads={leads}
+        onSuccess={() => {
+          fetchPlacementTests();
+          setIsFormModalOpen(false);
+        }}
           branches={branches}
           teachers={teachers}
         />

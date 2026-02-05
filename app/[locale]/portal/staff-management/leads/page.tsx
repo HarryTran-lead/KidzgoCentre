@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Target, UserPlus, Download } from "lucide-react";
+import { Target, UserPlus, Download, CalendarClock } from "lucide-react";
 import { getAllLeads, updateLeadStatus } from "@/lib/api/leadService";
+import { getAllPlacementTests } from "@/lib/api/placementTestService";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Lead as LeadType } from "@/types/lead";
+import type { PlacementTest } from "@/types/placement-test";
 import {
   LeadStats,
   LeadFilters,
@@ -14,6 +16,13 @@ import {
   LeadDetailModal,
   SelfAssignModal,
 } from "@/components/portal/leads";
+import {
+  PlacementTestStats,
+  PlacementTestFilters,
+  PlacementTestTable,
+  PlacementTestFormModal,
+  PlacementTestDetailModal,
+} from "@/components/portal/placement-tests";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
 
@@ -29,6 +38,9 @@ const STATUS_MAPPING: Record<StatusType, string> = {
 export default function Page() {
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"leads" | "placement_tests">("leads");
   
   // Data state
   const [leads, setLeads] = useState<LeadType[]>([]); // Filtered leads for table
@@ -65,13 +77,34 @@ export default function Page() {
   const [isSelfAssignModalOpen, setIsSelfAssignModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadType | null>(null);
 
+  // Placement Test state
+  const [placementTests, setPlacementTests] = useState<PlacementTest[]>([]);
+  const [allPlacementTests, setAllPlacementTests] = useState<PlacementTest[]>([]);
+  const [isLoadingTests, setIsLoadingTests] = useState(false);
+  const [testCurrentPage, setTestCurrentPage] = useState(1);
+  const [testPageSize, setTestPageSize] = useState(10);
+  const [testTotalCount, setTestTotalCount] = useState(0);
+  const [testTotalPages, setTestTotalPages] = useState(0);
+  const [testSearchQuery, setTestSearchQuery] = useState("");
+  const [debouncedTestSearchQuery, setDebouncedTestSearchQuery] = useState("");
+  const [testSelectedStatus, setTestSelectedStatus] = useState<string>("Tất cả");
+  const [testFromDate, setTestFromDate] = useState("");
+  const [testToDate, setTestToDate] = useState("");
+  const [testStatusCounts, setTestStatusCounts] = useState<Record<string, number>>({});
+  const [isTestFormModalOpen, setIsTestFormModalOpen] = useState(false);
+  const [isTestDetailModalOpen, setIsTestDetailModalOpen] = useState(false);
+  const [selectedTest, setSelectedTest] = useState<PlacementTest | null>(null);
+
   useEffect(() => {
     setIsPageLoaded(true);
     // Fetch initial data for stats and filters when user data is available
     if (currentUser && !isLoadingUser) {
       fetchInitialData();
+      if (activeTab === "placement_tests") {
+        fetchInitialTestData();
+      }
     }
-  }, [currentUser, isLoadingUser]);
+  }, [currentUser, isLoadingUser, activeTab]);
 
   // Debounce search query (2 seconds)
   useEffect(() => {
@@ -81,6 +114,15 @@ export default function Page() {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Debounce test search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedTestSearchQuery(testSearchQuery);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [testSearchQuery]);
 
   const fetchInitialData = async () => {
     try {
@@ -114,6 +156,77 @@ export default function Page() {
       }
     } catch (error) {
       console.error("Error fetching initial data:", error);
+    }
+  };
+
+  // Fetch initial placement test data for stats
+  const fetchInitialTestData = async () => {
+    try {
+      if (!currentUser || isLoadingUser) return;
+      
+      const response = await getAllPlacementTests({
+        pageSize: 1000,
+        branchId: currentUser.branchId,
+      });
+      
+      if (response.isSuccess && response.data) {
+        const allTestsData = Array.isArray(response.data.items) ? response.data.items : [];
+        setAllPlacementTests(allTestsData);
+        
+        // Calculate status counts
+        const counts: Record<string, number> = {
+          "Tất cả": allTestsData.length,
+          "Scheduled": allTestsData.filter(t => t.status === "Scheduled").length,
+          "Completed": allTestsData.filter(t => t.status === "Completed").length,
+          "Cancelled": allTestsData.filter(t => t.status === "Cancelled").length,
+          "NoShow": allTestsData.filter(t => t.status === "NoShow").length,
+        };
+        
+        setTestStatusCounts(counts);
+        setTestTotalCount(allTestsData.length);
+      }
+    } catch (error) {
+      console.error("Error fetching initial test data:", error);
+    }
+  };
+
+  // Fetch placement tests with filters
+  useEffect(() => {
+    if (currentUser && !isLoadingUser && activeTab === "placement_tests") {
+      fetchPlacementTests();
+    }
+  }, [testCurrentPage, testPageSize, debouncedTestSearchQuery, testSelectedStatus, testFromDate, testToDate, currentUser, isLoadingUser, activeTab]);
+
+  const fetchPlacementTests = async () => {
+    try {
+      if (!currentUser || isLoadingUser) return;
+      
+      setIsLoadingTests(true);
+      
+      const response = await getAllPlacementTests({
+        page: testCurrentPage,
+        pageSize: testPageSize,
+        searchTerm: debouncedTestSearchQuery || undefined,
+        status: testSelectedStatus !== "Tất cả" ? testSelectedStatus : undefined,
+        branchId: currentUser.branchId,
+        fromDate: testFromDate || undefined,
+        toDate: testToDate || undefined,
+      });
+      
+      if (response.isSuccess && response.data.items) {
+        setPlacementTests(response.data.items);
+        setTestTotalCount(response.data.totalCount);
+        setTestTotalPages(response.data.totalPages);
+      }
+    } catch (err: any) {
+      console.error("Error fetching placement tests:", err);
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải danh sách placement test. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingTests(false);
     }
   };
 
@@ -328,6 +441,39 @@ export default function Page() {
     }
   }, [debouncedSearchQuery, selectedStatus, selectedSource, myLeadsOnly]);
 
+  // Reset to first page when test filters change
+  useEffect(() => {
+    if (testCurrentPage !== 1) {
+      setTestCurrentPage(1);
+    }
+  }, [debouncedTestSearchQuery, testSelectedStatus, testFromDate, testToDate]);
+
+  // Placement Test handlers
+  const handleCreateTest = () => {
+    setSelectedTest(null);
+    setIsTestFormModalOpen(true);
+  };
+
+  const handleViewTest = (test: PlacementTest) => {
+    setSelectedTest(test);
+    setIsTestDetailModalOpen(true);
+  };
+
+  const handleTestFormSuccess = () => {
+    fetchPlacementTests();
+    fetchInitialTestData();
+  };
+
+  const handleTestPageChange = (page: number) => {
+    setTestCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleTestPageSizeChange = (size: number) => {
+    setTestPageSize(size);
+    setTestCurrentPage(1);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
       {/* Header */}
@@ -342,7 +488,7 @@ export default function Page() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-              Lead & Placement Test
+              Quản lý Lead & Placement Test
             </h1>
             <p className="text-sm text-gray-600 mt-1">
               Nhận lead, phân công tư vấn, đặt lịch test và chuyển đổi ghi danh
@@ -354,78 +500,188 @@ export default function Page() {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
-            <Download size={16} /> Xuất DS
-          </button>
-          <button 
-            onClick={handleCreateLead}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+        {activeTab === "leads" ? (
+          <div className="flex flex-wrap gap-2">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+              <Download size={16} /> Xuất DS
+            </button>
+            <button 
+              onClick={handleCreateLead}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            >
+              <UserPlus size={16} /> Nhập lead mới
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+              <Download size={16} /> Xuất DS Test
+            </button>
+            <button 
+              onClick={handleCreateTest}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+            >
+              <CalendarClock size={16} /> Đặt lịch test mới
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-2xl border border-pink-200 p-1 inline-flex gap-1">
+        <button
+          onClick={() => setActiveTab("leads")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "leads"
+              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+              : "text-gray-600 hover:bg-pink-50"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Target size={16} />
+            <span>Lead</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${
+              activeTab === "leads" ? "bg-white/20" : "bg-gray-100"
+            }`}>
+              {totalCount}
+            </span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("placement_tests")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "placement_tests"
+              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+              : "text-gray-600 hover:bg-pink-50"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <CalendarClock size={16} />
+            <span>Placement Test</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${
+              activeTab === "placement_tests" ? "bg-white/20" : "bg-gray-100"
+            }`}>
+              {allPlacementTests.length}
+            </span>
+          </div>
+        </button>
+      </div>
+
+      {/* Content based on active tab */}
+      {activeTab === "leads" ? (
+        <>
+          <div className={` transition-all duration-700 delay-100 ${
+              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            }`}
           >
-            <UserPlus size={16} /> Nhập lead mới
-          </button>
-        </div>
-      </div>
-      <div className={` transition-all duration-700 delay-100 ${
-          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-      >
-        <LeadStats leads={allLeads} isLoading={false} />
-      </div>
+            <LeadStats leads={allLeads} isLoading={false} />
+          </div>
 
-      {/* Filter Bar */}
-      <div
-        className={`transition-all duration-700 delay-150 ${
-          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
-        }`}
-      >
-        <LeadFilters
-          leads={leads}
-          totalCount={totalCount}
-          statusCounts={statusCounts}
-          availableSources={availableSources}
-          searchQuery={searchQuery}
-          selectedStatus={selectedStatus}
-          selectedSource={selectedSource}
-          myLeadsOnly={myLeadsOnly}
-          currentUserName={currentUser?.fullName}
-          pageSize={pageSize}
-          onSearchChange={setSearchQuery}
-          onStatusChange={setSelectedStatus}
-          onSourceChange={setSelectedSource}
-          onMyLeadsOnlyChange={setMyLeadsOnly}
-          onPageSizeChange={handlePageSizeChange}
-        />
-      </div>
+          {/* Filter Bar */}
+          <div
+            className={`transition-all duration-700 delay-150 ${
+              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
+            }`}
+          >
+            <LeadFilters
+              leads={leads}
+              totalCount={totalCount}
+              statusCounts={statusCounts}
+              availableSources={availableSources}
+              searchQuery={searchQuery}
+              selectedStatus={selectedStatus}
+              selectedSource={selectedSource}
+              myLeadsOnly={myLeadsOnly}
+              currentUserName={currentUser?.fullName}
+              pageSize={pageSize}
+              onSearchChange={setSearchQuery}
+              onStatusChange={setSelectedStatus}
+              onSourceChange={setSelectedSource}
+              onMyLeadsOnlyChange={setMyLeadsOnly}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          </div>
 
-      {/* Lead Table */}
-      <div
-        className={`transition-all duration-700 delay-200 ${
-          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-      >
-        <LeadTable
-          leads={filteredAndSortedLeads}
-          isLoading={isLoading}
-          selectedIds={selectedIds}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onSelectAll={toggleSelectAllVisible}
-          onSelectOne={toggleSelectOne}
-          onSort={toggleSort}
-          onEdit={handleEditLead}
-          onView={handleViewLead}
-          onAction={handleLeadAction}
-          onStatusChange={handleStatusChange}
-          currentUserId={currentUser?.id}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          pageSize={pageSize}
-          totalCount={totalCount}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-        />
-      </div>
+          {/* Lead Table */}
+          <div
+            className={`transition-all duration-700 delay-200 ${
+              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            }`}
+          >
+            <LeadTable
+              leads={filteredAndSortedLeads}
+              isLoading={isLoading}
+              selectedIds={selectedIds}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSelectAll={toggleSelectAllVisible}
+              onSelectOne={toggleSelectOne}
+              onSort={toggleSort}
+              onEdit={handleEditLead}
+              onView={handleViewLead}
+              onAction={handleLeadAction}
+              onStatusChange={handleStatusChange}
+              currentUserId={currentUser?.id}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalCount={totalCount}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          </div>
+        </>
+      ) : (
+        // Placement Test Content
+        <>
+          <div className={`transition-all duration-700 delay-100 ${
+              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            }`}
+          >
+            <PlacementTestStats tests={allPlacementTests} isLoading={false} />
+          </div>
+
+          {/* Filter Bar */}
+          <div
+            className={`transition-all duration-700 delay-150 ${
+              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
+            }`}
+          >
+            <PlacementTestFilters
+              searchQuery={testSearchQuery}
+              selectedStatus={testSelectedStatus}
+              fromDate={testFromDate}
+              toDate={testToDate}
+              pageSize={testPageSize}
+              totalCount={testTotalCount}
+              statusCounts={testStatusCounts}
+              onSearchChange={setTestSearchQuery}
+              onStatusChange={setTestSelectedStatus}
+              onFromDateChange={setTestFromDate}
+              onToDateChange={setTestToDate}
+              onPageSizeChange={handleTestPageSizeChange}
+            />
+          </div>
+
+          {/* Placement Test Table */}
+          <div
+            className={`transition-all duration-700 delay-200 ${
+              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            }`}
+          >
+            <PlacementTestTable
+              tests={placementTests}
+              isLoading={isLoadingTests}
+              currentPage={testCurrentPage}
+              totalPages={testTotalPages}
+              pageSize={testPageSize}
+              totalCount={testTotalCount}
+              onView={handleViewTest}
+              onPageChange={handleTestPageChange}
+            />
+          </div>
+        </>
+      )}
 
       {/* Modals */}
       <LeadFormModal
@@ -447,6 +703,20 @@ export default function Page() {
         lead={selectedLead}
         onClose={() => setIsSelfAssignModalOpen(false)}
         onAssigned={handleAssignSuccess}
+      />
+
+      {/* Placement Test Modals */}
+      <PlacementTestFormModal
+        isOpen={isTestFormModalOpen}
+        test={selectedTest}
+        onClose={() => setIsTestFormModalOpen(false)}
+        onSuccess={handleTestFormSuccess}
+      />
+
+      <PlacementTestDetailModal
+        isOpen={isTestDetailModalOpen}
+        test={selectedTest}
+        onClose={() => setIsTestDetailModalOpen(false)}
       />
     </div>
   );
