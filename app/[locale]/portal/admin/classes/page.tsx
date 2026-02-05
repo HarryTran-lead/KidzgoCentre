@@ -18,6 +18,7 @@ import {
 import { fetchClassFormSelectData, fetchTeacherOptionsByBranch, fetchProgramOptionsByBranch } from "@/app/api/admin/classFormData";
 import type { ClassRow, CreateClassRequest } from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -810,6 +811,10 @@ export default function Page() {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
+  
+  // Branch filter hook
+  const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+  
   const [q, setQ] = useState("");
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [sortField, setSortField] = useState<SortField | null>(null);
@@ -824,15 +829,21 @@ export default function Page() {
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
 
-  // Gọi API để lấy danh sách lớp từ backend
+  // Fetch classes with branch filter
   useEffect(() => {
+    if (!isLoaded) return;
+
     async function fetchClasses() {
       try {
         setLoading(true);
         setError(null);
 
-        const mapped = await fetchAdminClasses();
+        const branchId = getBranchQueryParam();
+        console.log("🎓 Fetching classes for branch:", branchId || "All branches");
+
+        const mapped = await fetchAdminClasses({ branchId });
         setClasses(mapped);
+        console.log("✅ Loaded", mapped.length, "classes");
       } catch (err) {
         console.error("Unexpected error when fetching admin classes:", err);
         setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách lớp học.");
@@ -843,7 +854,8 @@ export default function Page() {
     }
 
     fetchClasses();
-  }, []);
+    setPage(1);
+  }, [selectedBranchId, isLoaded]);
 
   const stats = useMemo(() => {
     const total = classes.length;
@@ -1025,7 +1037,8 @@ export default function Page() {
 
       await updateAdminClass(editingClassId, payload);
 
-      const updatedClasses = await fetchAdminClasses();
+      const branchId = getBranchQueryParam();
+      const updatedClasses = await fetchAdminClasses({ branchId });
       setClasses(updatedClasses);
       alert(`Đã cập nhật lớp học ${data.name} thành công!`);
     } catch (err: any) {
@@ -1111,6 +1124,16 @@ export default function Page() {
             </div>
           </div>
         </div>
+
+        {/* Branch Filter Indicator */}
+        {selectedBranchId && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+            <Building2 size={16} className="text-pink-600" />
+            <span className="text-sm text-pink-700 font-medium">
+              Đang lọc theo chi nhánh đã chọn
+            </span>
+          </div>
+        )}
 
         {/* Search & Filters */}
         <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">

@@ -40,7 +40,7 @@ function mapApiClassToRow(item: any): ClassRow {
   };
 }
 
-export async function fetchAdminClasses(): Promise<ClassRow[]> {
+export async function fetchAdminClasses(options?: { branchId?: string }): Promise<ClassRow[]> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem danh sách lớp.");
@@ -50,6 +50,11 @@ export async function fetchAdminClasses(): Promise<ClassRow[]> {
     pageNumber: "1",
     pageSize: "100",
   });
+
+  // Thêm branchId vào query params nếu có
+  if (options?.branchId) {
+    params.append("branchId", options.branchId);
+  }
 
   const res = await fetch(`${ADMIN_ENDPOINTS.CLASSES}?${params.toString()}`, {
     headers: {

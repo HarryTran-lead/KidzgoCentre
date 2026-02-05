@@ -307,6 +307,7 @@ export default function AccountsPage() {
   const [role, setRole] = useState<Role | "ALL">("ALL");
   const [status, setStatus] = useState<boolean | null>(null); // null = ALL, true = ACTIVE, false = INACTIVE
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -411,6 +412,15 @@ export default function AccountsPage() {
 
     fetchUsers();
   }, []); // Only fetch once on mount
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Modal handlers
   const handleViewDetail = async (userId: string) => {
@@ -850,8 +860,8 @@ export default function AccountsPage() {
       result = result.filter(acc => acc.isActive === status);
     }
 
-    if (search) {
-      const searchLower = search.toLowerCase();
+    if (debouncedSearch) {
+      const searchLower = debouncedSearch.toLowerCase();
       result = result.filter(acc =>
         acc.name.toLowerCase().includes(searchLower) ||
         acc.email.toLowerCase().includes(searchLower) ||
@@ -866,7 +876,7 @@ export default function AccountsPage() {
     }
 
     return result;
-  }, [accounts, role, status, search, sort.key, sort.direction]);
+  }, [accounts, role, status, debouncedSearch, sort.key, sort.direction]);
 
   // Client-side pagination
   const totalPages = Math.ceil(list.length / itemsPerPage);
