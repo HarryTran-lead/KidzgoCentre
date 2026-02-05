@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "https://kidzgo-be.onrender.com/api/:path*",
+        destination: "http://103.146.22.206:5000/api/:path*",
       },
     ];
   },

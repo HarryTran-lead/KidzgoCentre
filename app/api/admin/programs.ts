@@ -186,10 +186,25 @@ export async function fetchAdminProgramDetail(programId: string): Promise<any> {
   }
 
   const json: any = await res.json();
+  console.log("[fetchAdminProgramDetail] Response structure:", {
+    hasIsSuccess: !!json?.isSuccess,
+    hasData: !!json?.data,
+    hasProgram: !!json?.program,
+    keys: Object.keys(json || {}),
+  });
+  
+  // Handle different response structures
   if (json?.isSuccess && json?.data) {
     return json.data;
   }
-  return json?.data ?? json?.program ?? json;
+  if (json?.data) {
+    return json.data;
+  }
+  if (json?.program) {
+    return json.program;
+  }
+  // If response is the program object directly
+  return json;
 }
 
 export async function updateAdminProgram(
