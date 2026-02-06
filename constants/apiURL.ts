@@ -305,23 +305,3 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   SESSIONS: '/sessions',
 } as const;
 
-// Backend Lead Endpoints (Next.js API Routes → Backend API)
-export const BACKEND_LEAD_ENDPOINTS = {
-  CREATE_PUBLIC: '/leads/public',
-  GET_ALL: '/leads',
-  GET_BY_ID: (id: string) => `/leads/${id}`,
-  CREATE: '/leads',
-  UPDATE: (id: string) => `/leads/${id}`,
-  ASSIGN: (id: string) => `/leads/${id}/assign`,
-  SELF_ASSIGN: (id: string) => `/leads/${id}/self-assign`,
-  UPDATE_STATUS: (id: string) => `/leads/${id}/status`,
-  ADD_NOTE: (id: string) => `/leads/${id}/notes`,
-  GET_ACTIVITIES: (id: string) => `/leads/${id}/activities`,
-  GET_SLA: (id: string) => `/leads/${id}/sla`,
-  
-  // Children endpoints
-  GET_CHILDREN: (leadId: string) => `/leads/${leadId}/children`,
-  CREATE_CHILD: (leadId: string) => `/leads/${leadId}/children`,
-  UPDATE_CHILD: (leadId: string, childId: string) => `/leads/${leadId}/children/${childId}`,
-  DELETE_CHILD: (leadId: string, childId: string) => `/leads/${leadId}/children/${childId}`,
-} as const;

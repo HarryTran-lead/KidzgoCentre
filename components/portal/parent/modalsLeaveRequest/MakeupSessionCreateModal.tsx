@@ -11,8 +11,13 @@ import {
   getMakeupCreditsByStudent,
   getMakeupCreditSuggestions,
 } from "@/lib/api/makeupCreditService";
+import type { StudentClass } from "@/types/student/class";
 
-import type { MakeupCredit, MakeupCreditStudent, MakeupSuggestion } from "@/types/makeupCredit";
+import type {
+  MakeupCredit,
+  MakeupCreditStudent,
+  MakeupSuggestion,
+} from "@/types/makeupCredit";
 
 export type CreateMakeupPayload = {
   studentProfileId: string;
@@ -44,7 +49,8 @@ const pickValue = (obj: any, paths: string[]) => {
 };
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
-const toDateInputValue = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const toDateInputValue = (d: Date) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const toTimeInputValue = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
 const formatDateTimeVN = (iso: string) => {
@@ -140,12 +146,14 @@ const getStudentId = (st: MakeupCreditStudent) =>
   (pickValue(st, ["studentProfileId", "studentId", "id"]) as string | undefined) ?? "";
 
 const getStudentName = (st: MakeupCreditStudent) =>
-  (pickValue(st, ["displayName", "name", "fullName", "studentName", "studentFullName"]) as string | undefined) ??
-  "Chưa rõ học viên";
+  (pickValue(st, ["displayName", "name", "fullName", "studentName", "studentFullName"]) as
+    | string
+    | undefined) ?? "Chưa rõ học viên";
 
 const creditId = (c: MakeupCredit) => (pickValue(c, ["id"]) as string | undefined) ?? "";
 const creditStatus = (c: MakeupCredit) => String(pickValue(c, ["status"]) ?? "").toUpperCase();
-const creditSourceSessionId = (c: MakeupCredit) => (pickValue(c, ["sourceSessionId"]) as string | undefined) ?? "";
+const creditSourceSessionId = (c: MakeupCredit) =>
+  (pickValue(c, ["sourceSessionId"]) as string | undefined) ?? "";
 
 const isUsableCredit = (c: MakeupCredit) => {
   const st = creditStatus(c);
@@ -176,14 +184,48 @@ const normalizeSuggestions = (raw: any[]): MakeupSuggestion[] => {
   return normalized as MakeupSuggestion[];
 };
 
-const suggestionClassId = (s: any) => (pickValue(s, ["classId", "class.id"]) as string | undefined) ?? "";
+const suggestionClassId = (s: any) =>
+  (pickValue(s, ["classId", "class.id"]) as string | undefined) ?? "";
 const suggestionClassName = (s: any) =>
-  (pickValue(s, ["classTitle", "className", "class.name", "class.code"]) as string | undefined) ?? "Chưa rõ lớp";
+  (pickValue(s, ["classTitle", "className", "class.name", "class.code"]) as string | undefined) ??
+  "Chưa rõ lớp";
 const suggestionClassCode = (s: any) =>
   (pickValue(s, ["classCode", "class.code"]) as string | undefined) ?? "";
-const suggestionSessionId = (s: any) => (pickValue(s, ["id", "sessionId"]) as string | undefined) ?? "";
+const suggestionSessionId = (s: any) =>
+  (pickValue(s, ["id", "sessionId"]) as string | undefined) ?? "";
 const suggestionPlannedDatetime = (s: any) =>
-  (pickValue(s, ["plannedDatetime", "plannedDateTime", "datetime", "dateTime"]) as string | undefined) ?? "";
+  (pickValue(s, [
+    "plannedDatetime",
+    "plannedDateTime",
+    "actualDatetime",
+    "datetime",
+    "dateTime",
+    "startTime",
+  ]) as
+    | string
+    | undefined) ?? "";
+
+const classIdValue = (c: any) => (pickValue(c, ["id", "classId"]) as string | undefined) ?? "";
+const classNameValue = (c: any) =>
+  (pickValue(c, ["title", "name", "className"]) as string | undefined) ?? "Chưa rõ lớp";
+const classCodeValue = (c: any) => (pickValue(c, ["code", "classCode"]) as string | undefined) ?? "";
+
+const toISODateStart = (dateStr?: string) => {
+  const baseDate = dateStr ? new Date(dateStr) : new Date();
+  const base = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 0, 0, 0);
+  return `${toDateInputValue(base)}T00:00:00+07:00`;
+};
+
+const toISODateEnd = (dateStr?: string) => {
+  const baseDate = dateStr ? new Date(dateStr) : new Date();
+  const base = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 23, 59, 59);
+  return `${toDateInputValue(base)}T23:59:59+07:00`;
+};
+
+const normalizeSessions = (raw: any[]): any[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(Boolean);
+};
 
 /* ================= component ================= */
 
@@ -202,6 +244,12 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
   const [suggestions, setSuggestions] = useState<MakeupSuggestion[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
+  const [allClasses, setAllClasses] = useState<StudentClass[]>([]);
+  const [allClassesLoading, setAllClassesLoading] = useState(false);
+
+  const [manualSessions, setManualSessions] = useState<any[]>([]);
+  const [manualSessionsLoading, setManualSessionsLoading] = useState(false);
 
   const [payload, setPayload] = useState<CreateMakeupPayload>({
     studentProfileId: "",
@@ -223,6 +271,8 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     setCredits([]);
     setSourceSession(null);
     setSuggestions([]);
+    setAllClasses([]);
+    setManualSessions([]);
     setPayload({
       studentProfileId: "",
       makeupCreditId: "",
@@ -377,6 +427,72 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     run();
   }, [open, payload.makeupCreditId, payload.date, payload.time]);
 
+  const shouldEnableManual = useMemo(() => {
+    if (!payload.makeupCreditId) return false;
+    if (suggestionsLoading) return false;
+    return suggestions.length === 0;
+  }, [payload.makeupCreditId, suggestionsLoading, suggestions.length]);
+
+  // load classes for manual selection when no suggestions
+  useEffect(() => {
+    if (!open) return;
+    if (!shouldEnableManual) return;
+
+    const run = async () => {
+      setAllClassesLoading(true);
+      setError(null);
+      try {
+        const res = await get<any>("/api/classes");
+        const api = unwrap(res);
+        const list = (api?.items ?? api?.classes ?? api) as any[];
+        setAllClasses(Array.isArray(list) ? (list as StudentClass[]) : []);
+      } catch {
+        setError("Không thể tải danh sách lớp để chọn thủ công.");
+      } finally {
+        setAllClassesLoading(false);
+      }
+    };
+
+    run();
+  }, [open, shouldEnableManual]);
+
+  // load sessions for manual class selection
+  useEffect(() => {
+    if (!open) return;
+    if (!shouldEnableManual) return;
+    if (!payload.targetClassId) {
+      setManualSessions([]);
+      return;
+    }
+
+    const run = async () => {
+      setManualSessionsLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams();
+        params.set("classId", payload.targetClassId);
+        params.set("from", toISODateStart(payload.date));
+        params.set("to", toISODateEnd(payload.date));
+
+        const res = await get<any>(`${TEACHER_ENDPOINTS.TIMETABLE}?${params.toString()}`);
+        const api = unwrap(res);
+        const list =
+          (api?.sessions ??
+            api?.items ??
+            api?.data?.sessions ??
+            api?.data?.items ??
+            api) as any[];
+        setManualSessions(normalizeSessions(Array.isArray(list) ? list : []));
+      } catch {
+        setError("Không thể tải danh sách buổi học để chọn thủ công.");
+      } finally {
+        setManualSessionsLoading(false);
+      }
+    };
+
+    run();
+  }, [open, shouldEnableManual, payload.targetClassId, payload.date]);
+
   const studentOptions = useMemo(() => {
     const map = new Map<string, string>();
     students.forEach((s) => {
@@ -410,6 +526,17 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
   }, [suggestions]);
 
+  const manualClassOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    allClasses.forEach((c) => {
+      const id = classIdValue(c);
+      if (!id) return;
+      const label = [classCodeValue(c), classNameValue(c)].filter(Boolean).join(" - ");
+      if (!map.has(id)) map.set(id, label || id);
+    });
+    return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
+  }, [allClasses]);
+
   const filteredSessions = useMemo(() => {
     if (!payload.targetClassId) return [];
     return suggestions.filter((s: any) => suggestionClassId(s) === payload.targetClassId);
@@ -442,6 +569,11 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
   if (!open) return null;
 
+  const classOptionsToShow = shouldEnableManual ? manualClassOptions : targetClassOptions;
+  const isClassLoading = shouldEnableManual ? allClassesLoading : suggestionsLoading;
+  const sessionsToShow = shouldEnableManual ? manualSessions : filteredSessions;
+  const isSessionsLoading = shouldEnableManual ? manualSessionsLoading : suggestionsLoading;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4">
       <div className="w-full max-w-3xl rounded-3xl bg-white shadow-xl border border-pink-100 overflow-hidden">
@@ -451,7 +583,8 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
             <div>
               <div className="text-lg font-bold text-gray-900">Tạo lịch học bù</div>
               <div className="text-xs text-gray-600 mt-1">
-                Chọn học viên → chọn makeup credit → hiện lớp nguồn → suggestions theo makeupDate/timeOfDay → chọn lớp & buổi học bù.
+                Chọn học viên → chọn makeup credit → hiện lớp nguồn → suggestions theo makeupDate/timeOfDay → chọn lớp & buổi
+                học bù.
               </div>
             </div>
 
@@ -554,7 +687,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                 <select
                   className="h-11 w-full appearance-none rounded-xl border border-pink-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-60"
                   value={payload.targetClassId}
-                  disabled={!payload.makeupCreditId || suggestionsLoading}
+                  disabled={!payload.makeupCreditId || isClassLoading}
                   onChange={(e) =>
                     setPayload((p) => ({
                       ...p,
@@ -566,25 +699,37 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                   <option value="">
                     {!payload.makeupCreditId
                       ? "Chọn makeup credit trước"
-                      : suggestionsLoading
-                        ? "Đang tải gợi ý..."
-                        : targetClassOptions.length
-                          ? "Chọn lớp bù"
-                          : "Chưa có gợi ý"}
+                      : isClassLoading
+                        ? shouldEnableManual
+                          ? "Đang tải lớp học..."
+                          : "Đang tải gợi ý..."
+                        : classOptionsToShow.length
+                          ? shouldEnableManual
+                            ? "Chọn lớp bất kỳ"
+                            : "Chọn lớp bù"
+                          : shouldEnableManual
+                            ? "Chưa có lớp để chọn"
+                            : "Chưa có gợi ý"}
                   </option>
-                  {targetClassOptions.map((c) => (
+                  {classOptionsToShow.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.label}
                     </option>
                   ))}
                 </select>
                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  {suggestionsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
+                  {isClassLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
                 </div>
               </div>
               <div className="text-xs text-gray-500">
-                Suggestions đang filter theo: <b>makeupDate={payload.date || "(chưa chọn)"}</b>,{" "}
-                <b>timeOfDay={deriveTimeOfDay(payload.time) || "(n/a)"}</b>
+                {shouldEnableManual ? (
+                  <>Không có gợi ý, bạn có thể chọn lớp bất kỳ để bù.</>
+                ) : (
+                  <>
+                    Suggestions đang filter theo: <b>makeupDate={payload.date || "(chưa chọn)"}</b>,{" "}
+                    <b>timeOfDay={deriveTimeOfDay(payload.time) || "(n/a)"}</b>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -597,7 +742,8 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                 className="h-11 w-full rounded-xl border border-pink-200 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-60"
                 value={
                   payload.makeupCreditId
-                    ? sourceClassDisplay(sourceSession) || (sourceSessionLoading ? "Đang lấy lớp nguồn..." : "Không có dữ liệu lớp nguồn")
+                    ? sourceClassDisplay(sourceSession) ||
+                      (sourceSessionLoading ? "Đang lấy lớp nguồn..." : "Không có dữ liệu lớp nguồn")
                     : ""
                 }
                 placeholder="Chọn makeup credit để hiện lớp nguồn"
@@ -611,10 +757,10 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                 <select
                   className="h-11 w-full appearance-none rounded-xl border border-pink-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-60"
                   value={payload.targetSessionId}
-                  disabled={!payload.targetClassId || suggestionsLoading}
+                  disabled={!payload.targetClassId || isSessionsLoading}
                   onChange={(e) => {
                     const sid = e.target.value;
-                    const chosen = filteredSessions.find((s: any) => suggestionSessionId(s) === sid);
+                    const chosen = sessionsToShow.find((s: any) => suggestionSessionId(s) === sid);
 
                     const planned = chosen ? suggestionPlannedDatetime(chosen) : "";
                     let nextDate = payload.date;
@@ -639,19 +785,24 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                   <option value="">
                     {!payload.targetClassId
                       ? "Chọn lớp bù trước"
-                      : suggestionsLoading
+                      : isSessionsLoading
                         ? "Đang tải buổi học..."
-                        : filteredSessions.length
-                          ? "Chọn buổi học bù"
+                        : sessionsToShow.length
+                          ? shouldEnableManual
+                            ? "Chọn buổi học bất kỳ"
+                            : "Chọn buổi học bù"
                           : "Không có buổi học"}
                   </option>
 
-                  {filteredSessions.map((s: any) => {
+                  {sessionsToShow.map((s: any) => {
                     const id = suggestionSessionId(s);
                     const code = suggestionClassCode(s);
                     const name = suggestionClassName(s);
                     const planned = suggestionPlannedDatetime(s);
-                    const label = [[code, name].filter(Boolean).join(" - "), planned ? formatDateTimeVN(planned) : ""]
+                    const label = [
+                      [code, name].filter(Boolean).join(" - "),
+                      planned ? formatDateTimeVN(planned) : "",
+                    ]
                       .filter(Boolean)
                       .join(" • ");
                     return (
@@ -663,7 +814,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                 </select>
 
                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  {suggestionsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
+                  {isSessionsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
                 </div>
               </div>
             </div>
@@ -748,7 +899,8 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
           </div>
 
           <div className="text-xs text-gray-500">
-            *Gợi ý lớp/buổi học bù (suggestions) phụ thuộc <b>makeupDate</b> + <b>timeOfDay</b>.
+            *Gợi ý lớp/buổi học bù (suggestions) phụ thuộc <b>makeupDate</b> + <b>timeOfDay</b>. Nếu không có gợi ý, bạn có
+            thể chọn lớp/buổi bất kỳ.
           </div>
         </div>
       </div>
