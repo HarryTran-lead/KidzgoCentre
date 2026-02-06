@@ -1,3 +1,4 @@
+import { LeaveRequest } from './../../../types/student/attendance';
 // lib/dict/menu/menuParent.ts
 export const menuParent = {
   vi: {
@@ -10,6 +11,7 @@ export const menuParent = {
       media: "Kho tài liệu",
       notifications: "Thông báo",
       support: "Hỗ trợ",
+      LeaveRequest: "Đơn xin nghỉ",
       account: "Tài khoản",
     },
   },
@@ -23,6 +25,7 @@ export const menuParent = {
       media: "Media",
       notifications: "Notifications",
       support: "Support",
+      LeaveRequest: "Leave Request",
       account: "Account",
     },
   },

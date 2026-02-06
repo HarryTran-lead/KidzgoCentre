@@ -1,6 +1,6 @@
 /**
  * Teacher Attendance API Helper Functions
- * 
+ *
  * This file provides type-safe helper functions for teacher attendance API calls.
  */
 
@@ -18,10 +18,13 @@ import type {
   AttendanceApiResponse,
   StudentAttendanceHistoryApiResponse,
   SessionApiResponse,
+  SessionListApiResponse,
   CreateAttendanceRequest,
   UpdateAttendanceRequest,
   FetchAttendanceResult,
   FetchSessionResult,
+  FetchSessionsParams,
+  FetchSessionsResult,
 } from "@/types/teacher/attendance";
 
 /**
@@ -48,17 +51,24 @@ function formatTimeRange(start: Date, durationMinutes?: number): string {
   return `${startStr} - ${endStr}`;
 }
 
+function formatDateISO(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /**
  * Map session API item to LessonDetail
  */
 function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; attendance: AttendanceSummaryApi } {
   const datetimeIso: string | undefined = session?.actualDatetime ?? session?.plannedDatetime ?? undefined;
   let startDate: Date | null = null;
-  
+
   if (datetimeIso) {
     // Parse the ISO datetime string
     const parsedDate = new Date(datetimeIso);
-    
+
     // Check if date is valid
     if (!isNaN(parsedDate.getTime())) {
       // Use local timezone components to ensure correct date display
@@ -69,61 +79,45 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
         parsedDate.getDate(),
         parsedDate.getHours(),
         parsedDate.getMinutes(),
-        parsedDate.getSeconds()
+        parsedDate.getSeconds(),
       );
     }
   }
 
-  const date = startDate ? formatDateLabel(startDate) : "Chưa cập nhật";
-  const time = startDate ? formatTimeRange(startDate, session?.durationMinutes ?? undefined) : "--:--";
-
   const lesson: LessonDetail = {
-    id: String(session?.id ?? session?.sessionId ?? ""),
-    course: session?.classCode ?? session?.classTitle ?? "Buổi học",
-    lesson: session?.classTitle ?? session?.classCode ?? "Buổi học",
-    date,
-    time,
-    room: session?.actualRoomName ?? session?.plannedRoomName ?? "Đang cập nhật",
-    teacher: session?.actualTeacherName ?? session?.plannedTeacherName ?? "Chưa cập nhật",
-    students: session?.attendanceSummary?.totalStudents ?? 0,
-    branch: session?.branchName ?? null,
-    status: session?.status ?? null,
-    participationType: session?.participationType ?? null,
+    id: String(session?.id ?? ""),
+    lesson: (session as any)?.lessonName ?? (session as any)?.lesson?.name ?? session?.classTitle ?? "Buổi học",
+    course:
+      (session as any)?.courseName ??
+      (session as any)?.course?.name ??
+      session?.classTitle ??
+      session?.classCode ??
+      "Lớp học",
+    teacher: session?.actualTeacherName ?? session?.plannedTeacherName ?? "Giáo viên",
+    room: session?.actualRoomName ?? session?.plannedRoomName ?? "Phòng học",
+    date: startDate ? formatDateLabel(startDate) : "Chưa cập nhật",
+    time: startDate ? formatTimeRange(startDate, session?.durationMinutes ?? undefined) : "--:--",
+    status: (session as any)?.status ?? null,
+    participationType: (session as any)?.participationType ?? null,
+    branch: (session as any)?.branchName ?? (session as any)?.branch?.name ?? null,
+    students:
+      typeof (session as any)?.students === "number"
+        ? (session as any).students
+        : Array.isArray((session as any)?.students)
+        ? (session as any).students.length
+        : typeof (session as any)?.studentCount === "number"
+        ? (session as any).studentCount
+        : 0,
   };
 
-  return {
-    lesson,
-    attendance: session?.attendanceSummary ?? null,
+  const attendance: AttendanceSummaryApi = {
+    totalStudents: (session as any)?.attendanceSummary?.totalStudents ?? lesson.students ?? 0,
+    presentCount: (session as any)?.attendanceSummary?.presentCount ?? 0,
+    absentCount: (session as any)?.attendanceSummary?.absentCount ?? 0,
+    makeupCount: (session as any)?.attendanceSummary?.makeupCount ?? 0,
   };
-}
 
-/**
- * Map attendance API item to Student
- */
-function mapAttendanceToStudent(item: AttendanceItemApi, index: number): Student {
-  const rawStatus = item.attendanceStatus ?? "NotMarked";
-  let status: AttendanceStatus | null = null;
-  if (rawStatus === "Present") status = "present";
-  else if (rawStatus === "Late") status = "late";
-  else if (rawStatus === "Absent") status = "absent";
-
-  return {
-    id: String(item.studentProfileId || item.id || index),
-    name: item.studentName || "Học viên",
-    status,
-    absenceRate: 0,
-    note: (item.note ?? item.comment ?? undefined) || undefined,
-  };
-}
-
-/**
- * Convert AttendanceStatus to API format
- */
-export function statusToApi(status: AttendanceStatus | null): AttendanceRawStatus {
-  if (status === "present") return "Present";
-  if (status === "late") return "Late";
-  if (status === "absent") return "Absent";
-  return "NotMarked";
+  return { lesson, attendance };
 }
 
 /**
@@ -131,7 +125,7 @@ export function statusToApi(status: AttendanceStatus | null): AttendanceRawStatu
  */
 export async function fetchSessionDetail(
   sessionId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<FetchSessionResult> {
   const token = getAccessToken();
   if (!token) {
@@ -147,23 +141,23 @@ export async function fetchSessionDetail(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("Fetch session detail error", res.status, text);
+    console.error("Fetch session error", res.status, text);
     throw new Error("Không thể tải thông tin buổi dạy.");
   }
 
   const json: SessionApiResponse = await res.json();
   let session: SessionApiItem | undefined;
-  
+
   if (json?.data) {
     // Check if data has a session property (nested structure)
-    if (typeof json.data === 'object' && 'session' in json.data) {
-      session = json.data.session;
+    if (typeof json.data === "object" && "session" in json.data) {
+      session = (json.data as any).session;
     } else {
       // data is directly a SessionApiItem
       session = json.data as SessionApiItem;
     }
   }
-  
+
   // Fallback to json itself if data is not available
   if (!session) {
     session = json as unknown as SessionApiItem;
@@ -176,12 +170,113 @@ export async function fetchSessionDetail(
   return mapSessionToLesson(session);
 }
 
+function mapSessionsListResponse(json: SessionListApiResponse): FetchSessionsResult {
+  const data: any = (json as any)?.data;
+
+  const items: SessionApiItem[] = Array.isArray(data?.sessions)
+    ? data.sessions
+    : Array.isArray(data)
+    ? data
+    : Array.isArray(data?.items)
+    ? data.items
+    : Array.isArray((json as any)?.sessions)
+    ? (json as any).sessions
+    : [];
+
+  return {
+    sessions: items,
+    totalCount: typeof data?.totalCount === "number" ? data.totalCount : items.length,
+    totalPages: typeof data?.totalPages === "number" ? data.totalPages : undefined,
+  };
+}
+
+export function toISODateStart(date: Date): string {
+  const base = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+  return `${formatDateISO(base)}T00:00:00+07:00`;
+}
+
+export function toISODateEnd(date: Date): string {
+  const base = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+  return `${formatDateISO(base)}T23:59:59+07:00`;
+}
+
+export function getTodayRange(): { from: string; to: string } {
+  const today = new Date();
+  return {
+    from: toISODateStart(today),
+    to: toISODateEnd(today),
+  };
+}
+
+export function parseSessionDate(session: SessionApiItem): Date | null {
+  const raw = session?.actualDatetime ?? session?.plannedDatetime ?? null;
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+export function formatSessionDisplayDate(session: SessionApiItem): string {
+  const parsed = parseSessionDate(session);
+  if (!parsed) return "Chưa cập nhật";
+  return formatDateLabel(parsed);
+}
+
+export function formatSessionDisplayTime(session: SessionApiItem): string {
+  const parsed = parseSessionDate(session);
+  if (!parsed) return "--:--";
+  return formatTimeRange(parsed, session?.durationMinutes ?? undefined);
+}
+
+export function mapSessionToLessonDetail(session: SessionApiItem): LessonDetail {
+  return mapSessionToLesson(session).lesson;
+}
+
+/**
+ * Fetch sessions list (teacher)
+ */
+export async function fetchSessions(
+  params: FetchSessionsParams,
+  signal?: AbortSignal,
+): Promise<FetchSessionsResult> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
+  }
+
+  const query = new URLSearchParams();
+  if (params.classId) query.set("classId", params.classId);
+  if (params.branchId) query.set("branchId", params.branchId);
+  if (params.status) query.set("status", params.status);
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  if (params.pageNumber) query.set("pageNumber", String(params.pageNumber));
+  if (params.pageSize) query.set("pageSize", String(params.pageSize));
+
+  const url = `${TEACHER_ENDPOINTS.TIMETABLE}?${query.toString()}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Fetch sessions error", res.status, text);
+    throw new Error("Không thể tải danh sách buổi học.");
+  }
+
+  const json: SessionListApiResponse = await res.json();
+  return mapSessionsListResponse(json);
+}
+
 /**
  * Fetch attendance list for a session
  */
 export async function fetchAttendance(
   sessionId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<FetchAttendanceResult> {
   const token = getAccessToken();
   if (!token) {
@@ -202,197 +297,106 @@ export async function fetchAttendance(
   }
 
   const json: AttendanceApiResponse = await res.json();
-  const rawItems: AttendanceItemApi[] = Array.isArray(json?.data)
-    ? json.data
-    : Array.isArray(json?.data?.items)
-    ? json.data.items
-    : Array.isArray(json)
-    ? json
+  const data: any = (json as any)?.data ?? json;
+
+  const students: Student[] = Array.isArray(data?.students)
+    ? data.students
+    : Array.isArray(data)
+    ? data
+    : Array.isArray(data?.items)
+    ? data.items
     : [];
 
-  if (signal?.aborted) {
-    throw new Error("Request aborted");
-  }
+  const summary: AttendanceSummaryApi | undefined =
+    data?.attendanceSummary ?? data?.summary ?? undefined;
 
-  let mappedStudents = rawItems.map(mapAttendanceToStudent);
-
-  // Calculate absence rate for each student based on attendance history
-  try {
-    const historyResults = await Promise.allSettled(
-      mappedStudents.map(async (s) => {
-        if (!s.id || signal?.aborted) return s;
-
-        const hRes = await fetch(
-          `${TEACHER_ENDPOINTS.ATTENDANCE_STUDENTS}/${s.id}?pageNumber=1&pageSize=100`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal,
-          }
-        );
-
-        if (!hRes.ok) return s;
-
-        const hJson: StudentAttendanceHistoryApiResponse = await hRes.json();
-        const items: StudentAttendanceHistoryItem[] =
-          hJson?.data?.items && Array.isArray(hJson.data.items)
-            ? hJson.data.items
-            : [];
-
-        const total = items.length;
-        if (total === 0) return s;
-
-        const absentCount = items.filter(
-          (it) => it.attendanceStatus === "Absent"
-        ).length;
-
-        const rate = (absentCount / total) * 100;
-        return { ...s, absenceRate: rate };
-      })
-    );
-
-    mappedStudents = historyResults.map((r, idx) =>
-      r.status === "fulfilled" && r.value
-        ? (r.value as Student)
-        : mappedStudents[idx]
-    );
-  } catch (err) {
-    console.error("Error when fetching student attendance history:", err);
-  }
-
-  // Check if any student has been marked
-  const hasAnyMarked = mappedStudents.some(
-    (s) => s.status !== null || (s.note ?? "").trim().length > 0
-  );
-
-  // Calculate attendance summary from list if not provided by server
-  const total = mappedStudents.length;
-  const presentCount = mappedStudents.filter((s) => s.status === "present").length;
-  const lateCount = mappedStudents.filter((s) => s.status === "late").length;
-  const absentCount = mappedStudents.filter((s) => s.status === "absent").length;
-  const notMarkedCount = mappedStudents.filter((s) => s.status === null).length;
-
-  const attendanceSummary: AttendanceSummaryApi = {
-    totalStudents: total,
-    presentCount: presentCount + lateCount,
-    absentCount,
-    notMarkedCount,
-  };
+  const hasAnyMarked: boolean =
+    typeof data?.hasAnyMarked === "boolean" ? data.hasAnyMarked : true;
 
   return {
-    students: mappedStudents,
-    attendanceSummary,
+    students,
+    attendanceSummary: summary ?? { totalStudents: 0, presentCount: 0, absentCount: 0, makeupCount: 0, notMarkedCount: 0 },
     hasAnyMarked,
   };
 }
 
 /**
- * Create attendance record for a session
- */
-export async function createAttendance(
-  sessionId: string,
-  data: CreateAttendanceRequest
-): Promise<void> {
-  const token = getAccessToken();
-  if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
-  }
-
-  const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`HTTP ${res.status}: ${text}`);
-  }
-}
-
-/**
- * Update attendance record for a student in a session
- */
-export async function updateAttendance(
-  sessionId: string,
-  studentProfileId: string,
-  data: UpdateAttendanceRequest
-): Promise<void> {
-  const token = getAccessToken();
-  if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
-  }
-
-  const res = await fetch(
-    `${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}/students/${studentProfileId}`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    }
-  );
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`HTTP ${res.status}: ${text}`);
-  }
-}
-
-/**
- * Save attendance for multiple students
+ * Save attendance (create first time, update later)
  */
 export async function saveAttendance(
   sessionId: string,
   students: Student[],
-  isNewSession: boolean
+  isCreate: boolean,
+  signal?: AbortSignal,
 ): Promise<void> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
   }
 
-  // Only send students that have been marked or have notes
-  const itemsToSave = students.filter(
-    (s) => s.status !== null || (s.note ?? "").trim().length > 0
-  );
+  const payload = (students ?? []).map((s: any) => ({
+    studentId: s.id,
+    status: (s.status ?? "absent") as AttendanceStatus,
+    note: s.note ?? undefined,
+  }));
 
-  if (itemsToSave.length === 0) {
-    throw new Error("Vui lòng điểm danh ít nhất một học viên.");
+  const url = isCreate ? TEACHER_ENDPOINTS.ATTENDANCE : `${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`;
+  const method = isCreate ? "POST" : "PUT";
+
+  const body: any = isCreate
+    ? { sessionId, attendances: payload as AttendanceItemApi[] }
+    : { attendances: payload as AttendanceItemApi[] };
+
+  const res = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Save attendance error", res.status, text);
+    throw new Error("Không thể lưu điểm danh.");
+  }
+}
+
+/**
+ * Fetch student attendance history
+ */
+export async function fetchStudentAttendanceHistory(
+  studentId: string,
+  signal?: AbortSignal,
+): Promise<StudentAttendanceHistoryItem[]> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
   }
 
-  const results = await Promise.allSettled(
-    itemsToSave.map(async (s) => {
-      if (isNewSession) {
-        // POST - Create new attendance
-        const body: CreateAttendanceRequest = {
-          studentProfileId: s.id,
-          attendanceStatus: statusToApi(s.status),
-        };
-        if ((s.note ?? "").trim().length > 0) {
-          body.comment = s.note ?? "";
-        }
-        await createAttendance(sessionId, body);
-      } else {
-        // PUT - Update existing attendance
-        const body: UpdateAttendanceRequest = {
-          attendanceStatus: statusToApi(s.status),
-          comment: (s.note ?? "").trim().length > 0 ? s.note : undefined,
-        };
-        await updateAttendance(sessionId, s.id, body);
-      }
-    })
-  );
+  const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE_STUDENTS}/${studentId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    signal,
+  });
 
-  const failed = results.filter((r) => r.status === "rejected");
-  if (failed.length > 0) {
-    console.error("Save attendance errors:", failed);
-    throw new Error(`Không thể lưu điểm danh cho ${failed.length} học viên.`);
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Fetch history error", res.status, text);
+    throw new Error("Không thể tải lịch sử điểm danh.");
   }
+
+  const json: StudentAttendanceHistoryApiResponse = await res.json();
+  const data: any = (json as any)?.data ?? json;
+
+  const items: StudentAttendanceHistoryItem[] = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.items)
+    ? data.items
+    : [];
+
+  return items;
 }

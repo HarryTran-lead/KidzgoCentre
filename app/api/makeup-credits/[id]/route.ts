@@ -1,0 +1,49 @@
+import { NextResponse } from "next/server";
+import { BACKEND_MAKEUP_CREDIT_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
+import type { MakeupCreditResponse } from "@/types/makeupCredit";
+
+type RouteParams = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+export async function GET(req: Request, { params }: RouteParams) {
+  const { id } = await params;
+  try {
+    const authHeader = req.headers.get("authorization");
+
+    if (!authHeader) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Chưa đăng nhập",
+        },
+        { status: 401 }
+      );
+    }
+
+    const upstream = await fetch(buildApiUrl(BACKEND_MAKEUP_CREDIT_ENDPOINTS.GET_BY_ID(id)), {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data: MakeupCreditResponse = await upstream.json();
+
+    return NextResponse.json(data, { status: upstream.status });
+  } catch (error) {
+    console.error("Get makeup credit detail error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message: "Đã xảy ra lỗi khi lấy thông tin makeup credit",
+      },
+      { status: 500 }
+    );
+  }
+}

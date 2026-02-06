@@ -6,20 +6,55 @@
 export interface PlacementTest {
   id: string;
   leadId: string;
-  childId: string;
+  leadChildId: string;
+  leadContactName?: string;
   childName?: string;
-  leadName?: string;
-  leadPhone?: string;
+  studentProfileId?: string;
+  studentName?: string;
+  classId?: string;
+  className?: string;
   scheduledAt: string;
   status: 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
-  testLocation?: string;
-  branchId?: string;
-  branchName?: string;
-  assignedTeacherId?: string;
-  assignedTeacherName?: string;
+  room?: string;
+  invigilatorUserId?: string;
+  invigilatorName?: string;
+  resultScore?: number;
+  listeningScore?: number;
+  speakingScore?: number;
+  readingScore?: number;
+  writingScore?: number;
+  levelRecommendation?: string;
+  programRecommendation?: string;
+  attachmentUrl?: string;
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface PlacementTestResultResponse {
+  id: string;
+  listeningScore: number;
+  speakingScore: number;
+  readingScore: number;
+  writingScore: number;
+  resultScore: number;
+  levelRecommendation: string;
+  programRecommendation: string;
+  attachmentUrl: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
+  updatedAt: string;
+}
+
+export interface PlacementTestResultRequest {
+  id: string;
+  listeningScore: number;
+  speakingScore: number;
+  readingScore: number;
+  writingScore: number;
+  resultScore: number;
+  levelRecommendation: string;
+  programRecommendation: string;
+  attachmentUrl: string;
 }
 
 export interface PlacementTestResult {
@@ -33,7 +68,6 @@ export interface PlacementTestResult {
   strengths?: string;
   weaknesses?: string;
   recommendations?: string;
-  completedAt?: string;
 }
 
 export interface PlacementTestNote {
@@ -46,13 +80,26 @@ export interface PlacementTestNote {
 
 export interface CreatePlacementTestRequest {
   leadId: string;
-  childId: string;
+  leadChildId: string;
+  studentProfileId?: string;
+  classId?: string;
   scheduledAt: string;
-  testLocation?: string;
-  branchId?: string;
-  assignedTeacherId?: string;
-  notes?: string;
+  room?: string;
+  invigilatorUserId: string;
 }
+
+export interface CreatePlacementTestResponse {
+  id: string;
+  leadId: string;
+  leadChildId: string;
+  studentProfileId?: string;
+  classId?: string;
+  scheduledAt: string;
+  room?: string;
+  invigilatorUserId: string;
+  createdAt: string;
+}
+
 
 export interface UpdatePlacementTestRequest {
   scheduledAt?: string;
@@ -61,6 +108,7 @@ export interface UpdatePlacementTestRequest {
   assignedTeacherId?: string;
   notes?: string;
 }
+
 
 export interface PlacementTestFilters {
   status?: string;

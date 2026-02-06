@@ -31,6 +31,11 @@ export type ProfileRequest = {
   profileId: string;
 };
 
+export type SelectStudentResponse = {
+  accessToken?: string;
+  studentId?: string;
+};
+
 export type VerifyParentPinRequest = {
   profileId: string;
   pin: string;
@@ -144,7 +149,7 @@ baseUrl: "/api",
         body,
       }),
     }),
-    selectStudentProfile: builder.mutation<ApiResponse<null>, ProfileRequest>({
+selectStudentProfile: builder.mutation<ApiResponse<SelectStudentResponse>, ProfileRequest>({  
       query: (body) => ({
         url: "/auth/profiles/select-student",
         method: "POST",

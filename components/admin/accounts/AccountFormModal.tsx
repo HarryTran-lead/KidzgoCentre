@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Mail, User as UserIcon, Lock, Shield, Building, Loader2 } from "lucide-react";
+import { X, Mail, User as UserIcon, Lock, Shield, Building, Loader2, Phone } from "lucide-react";
 import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
 
 interface AccountFormModalProps {
@@ -21,6 +21,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     password: '',
     role: 'Parent' as UserRole,
     branchId: '',
+    phoneNumber: '',
   });
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
         password: '',
         role: account.role,
         branchId: account.branchId || '',
+        phoneNumber: account.phoneNumber || '',
       });
     } else if (mode === 'create') {
       // Reset to completely empty form for create mode
@@ -45,6 +47,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
         password: '',
         role: 'Parent',
         branchId: '',
+        phoneNumber: '',
       });
     }
   }, [mode, account, isOpen]);
@@ -55,11 +58,13 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     try {
       if (mode === 'create') {
         await onSubmit({
-          email: formData.email,
+          username: formData.username,
           name: formData.name,
+          email: formData.email,
           password: formData.password,
           role: formData.role,
           branchId: formData.branchId || undefined,
+          phoneNumber: formData.phoneNumber || undefined,
         } as CreateUserRequest);
       } else {
         const updateData: UpdateUserRequest = {
@@ -116,6 +121,22 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             />
           </div>
 
+          {/* Phone Number */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <Phone size={16} className="text-pink-600" />
+              Số điện thoại
+            </label>
+            <input
+              type="tel"
+              value={formData.phoneNumber}
+              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              placeholder="0123456789"
+              pattern="[0-9]*"
+            />
+          </div>
+
           {/* Name */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
@@ -131,6 +152,24 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
               placeholder="Nguyễn Văn A"
             />
           </div>
+
+          {/* Username */}
+          {mode === 'create' && (
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <UserIcon size={16} className="text-pink-600" />
+                Username <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                placeholder="staffmanage"
+              />
+            </div>
+          )}
 
           {/* Username (edit mode only) */}
           {mode === 'edit' && (
@@ -187,18 +226,18 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             </select>
           </div>
 
-          {/* Branch ID (optional) */}
+          {/* Branch (optional) */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
               <Building size={16} className="text-pink-600" />
-              ID Chi nhánh (tùy chọn)
+              Chi nhánh (tùy chọn)
             </label>
             <input
               type="text"
               value={formData.branchId}
               onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
               className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              placeholder="Nhập ID chi nhánh"
+              placeholder="Nhập chi nhánh"
             />
           </div>
 

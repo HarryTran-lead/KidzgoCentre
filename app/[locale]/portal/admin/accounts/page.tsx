@@ -865,7 +865,7 @@ export default function AccountsPage() {
       result = result.filter(acc =>
         acc.name.toLowerCase().includes(searchLower) ||
         acc.email.toLowerCase().includes(searchLower) ||
-        (acc.phone && acc.phone.toLowerCase().includes(searchLower)) ||
+        (acc.phoneNumber && acc.phoneNumber.toLowerCase().includes(searchLower)) ||
         acc.id.toLowerCase().includes(searchLower)
       );
     }
@@ -1237,7 +1237,7 @@ export default function AccountsPage() {
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-700">
                           <Phone size={12} className="text-gray-400" />
-                          <span>{acc.phone || 'Chưa cập nhật'}</span>
+                          <span>{acc.phoneNumber || 'Chưa cập nhật'}</span>
                         </div>
                         <div className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar size={10} />

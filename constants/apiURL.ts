@@ -1,13 +1,26 @@
 // Base URL from environment variable
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+export const BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+
+// (Optional) root base nếu BASE_URL đang là .../api
+const ROOT_BASE_URL = BASE_URL.replace(/\/api\/?$/, "");
 
 // Build full API URL for backend calls (from Next.js API Routes to Backend)
 export const buildApiUrl = (endpoint: string): string => {
+  // endpoint là absolute url thì return luôn
+  if (/^https?:\/\//i.test(endpoint)) return endpoint;
+
+  const ep = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  // Các endpoint dạng /GetAll/... nằm ở root, không có /api
+  const base = ep.startsWith("/GetAll/") ? ROOT_BASE_URL : BASE_URL;
+
+  return `${base}${ep}`;
   // Ensure BASE_URL ends with /api if it doesn't already
   const baseUrl = BASE_URL || '';
   const apiBase = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
   return `${apiBase}${endpoint}`;
 };
+
 
 // Build client API URL (from browser to Next.js API Routes)
 export const buildClientApiUrl = (endpoint: string): string => {
@@ -20,19 +33,66 @@ export const AUTH_ENDPOINTS = {
   LOGIN: '/api/auth/login',
   REFRESH_TOKEN: '/api/auth/refresh-token',
   CHANGE_PASSWORD: '/api/auth/change-password',
-  GET_PROFILES: '/api/auth/profile',
+  GET_PROFILES: '/api/auth/profiles',
   FORGET_PASSWORD: '/api/auth/forget-password',
   RESET_PASSWORD: '/api/auth/reset-password',
   VERIFY_PARENT_PIN: '/api/auth/profile/verify-parent-pin',
   SELECT_STUDENT: '/api/auth/profile/select-student',
   CHANGE_PIN: '/api/auth/change-pin',
   REQUEST_PIN_RESET: '/api/auth/profile/request-pin-reset',
-  
+
   // User
   ME: '/api/auth/me',
   LOGOUT: '/api/auth/logout',
 } as const;
 
+export const STUDENT_ENDPOINTS = {
+  GET_ALL: "/api/profiles",
+   GET_CLASSES: () => `/api/students/classes`,
+
+} as const;
+export const STUDENT_CLASS_ENDPOINTS = {
+  GET_BY_TOKEN: "/api/students/classes",
+} as const;
+export const BACKEND_STUDENT_ENDPOINTS = {
+GET_ALL: () => `/profiles`,
+} as const;
+
+export const CLASS_ENDPOINTS = {
+  GET_ALL: "/api/classes",
+  GET_BY_ID: (id: string) => `/api/classes/${id}`,
+} as const;
+
+export const MAKEUP_CREDIT_ENDPOINTS = {
+    STUDENTS: "/api/makeup-credits/students",
+  GET_ALL: "/api/makeup-credits/all",
+    GET_BY_ID: (id: string) => `/api/makeup-credits/${id}`,
+  SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
+  USE: (id: string) => `/api/makeup-credits/${id}/use`,
+} as const;
+export const SESSION_ENDPOINTS = {
+  GET_BY_ID: (id: string) => `/api/sessions/${id}`,
+} as const;
+
+// Next API → Backend
+export const BACKEND_SESSION_ENDPOINTS = {
+  GET_BY_ID: (id: string) => `/sessions/${id}`, // nếu backend bạn khác path thì sửa chỗ này
+} as const;
+export const BACKEND_CLASS_ENDPOINTS = {
+  
+  GET_ALL: () => "/classes",
+  GET_BY_ID: (id: string) => `/classes/${id}`,
+} as const;
+
+export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
+    STUDENTS: "/makeup-credits/students",
+
+  GET_ALL: "/makeup-credits/all",
+    GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
+
+  SUGGESTIONS: (id: string) => `/makeup-credits/${id}/suggestions`,
+  USE: (id: string) => `/makeup-credits/${id}/use`,
+} as const;
 // Backend Auth Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_AUTH_ENDPOINTS = {
   // Authentication
@@ -46,7 +106,7 @@ export const BACKEND_AUTH_ENDPOINTS = {
   SELECT_STUDENT: '/auth/profiles/select-student',
   CHANGE_PIN: '/auth/change-pin',
   REQUEST_PIN_RESET: '/auth/profiles/request-pin-reset',
-  
+
   // User
   ME: '/me',
   LOGOUT: '/me/logout',
@@ -74,6 +134,23 @@ export const BACKEND_BRANCH_ENDPOINTS = {
   UPDATE_STATUS: (id: string) => `/branches/${id}/status`,
 } as const;
 
+// Leave Request Endpoints (Client-side → Next.js API Routes)
+export const LEAVE_REQUEST_ENDPOINTS = {
+  GET_ALL: '/api/leave-requests',
+  GET_BY_ID: (id: string) => `/api/leave-requests/${id}`,
+  CREATE: '/api/leave-requests',
+  APPROVE: (id: string) => `/api/leave-requests/${id}/approve`,
+  REJECT: (id: string) => `/api/leave-requests/${id}/reject`,
+} as const;
+
+export const BACKEND_LEAVE_REQUEST_ENDPOINTS = {
+  GET_ALL: '/leave-requests',
+  GET_BY_ID: (id: string) => `/leave-requests/${id}`,
+  CREATE: '/leave-requests',
+  APPROVE: (id: string) => `/leave-requests/${id}/approve`,
+  REJECT: (id: string) => `/leave-requests/${id}/reject`,
+} as const;
+
 // User Management Endpoints (Client-side → Next.js API Routes)
 export const USER_ENDPOINTS = {
   // CRUD Operations
@@ -83,7 +160,7 @@ export const USER_ENDPOINTS = {
   UPDATE: (id: string) => `/api/admin/users/${id}`,
   DELETE: (id: string) => `/api/admin/users/${id}`,
   UPDATE_STATUS: (id: string) => `/api/admin/users/${id}/status`,
-  
+
   // User-specific Operations
   ASSIGN_BRANCH: (id: string) => `/api/admin/users/${id}/assign-branch`,
   CHANGE_PIN: (id: string) => `/api/admin/users/${id}/change-pin`,
@@ -227,3 +304,4 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/classrooms/${id}/toggle-status`,
   SESSIONS: '/sessions',
 } as const;
+

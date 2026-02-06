@@ -1,189 +1,104 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { CalendarDays, ArrowRightLeft, BellRing, Users, CheckCircle, Clock, AlertCircle, CalendarCheck, Zap, Send, Filter, ChevronDown, Sparkles, Download, BookOpen, MoreVertical, Search, ChevronLeft, MapPin, TrendingUp, CheckCheckIcon, ArrowUpDown, ChevronUp } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  CalendarDays,
+  ArrowRightLeft,
+  Users,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Send,
+  Download,
+  BookOpen,
+  MoreVertical,
+  Search,
+  ChevronLeft,
+  MapPin,
+  TrendingUp,
+  CheckCheckIcon,
+  ArrowUpDown,
+  ChevronUp,
+  RefreshCcw,
+} from "lucide-react";
 
-type AttendanceStatus = "PRESENT" | "ABSENT_NOTICE" | "ABSENT_LATE" | "MAKEUP";
+import {
+  fetchSessions,
+  fetchAttendance,
+  saveAttendance,
+  toISODateStart,
+  toISODateEnd,
+  mapSessionToLessonDetail,
+} from "@/app/api/teacher/attendance";
 
-type AttendanceRecord = {
-  id: string;
-  student: string;
-  avatar?: string;
-  status: AttendanceStatus;
-  note?: string;
-  studentCode: string;
-  email?: string;
-  phone?: string;
-};
+import type { AttendanceStatus, LessonDetail, SessionApiItem, Student } from "@/types/teacher/attendance";
 
-type ClassSession = {
-  id: string;
+type FilterField = {
   date: string;
   time: string;
-  records: AttendanceRecord[];
-  color: string;
+  session: string;
+  className: string;
+  status: string;
 };
 
-type Class = {
+type SessionCard = {
   id: string;
   className: string;
   classCode: string;
   room: string;
   teacher: string;
+  date: string;
+  time: string;
+  status?: string | null;
+  participationType?: string | null;
+  branch?: string | null;
+  students: number;
   color: string;
-  sessions: ClassSession[];
+  raw: SessionApiItem;
 };
 
-const INITIAL_CLASSES: Class[] = [
-  {
-    id: "CLS001",
-    className: "IELTS Foundation - A1",
-    classCode: "IELTS-FND-A1",
-    room: "Phòng 301",
-    teacher: "Nguyễn Văn A",
-    color: "from-pink-500 to-rose-500",
-    sessions: [
-      {
-        id: "CLS001-20241205",
-        date: "05/12/2024",
-        time: "19:00 - 21:00",
-        color: "from-pink-500 to-rose-500",
-        records: [
-          { id: "HV001", student: "Nguyễn Văn An", studentCode: "HV001", status: "PRESENT", email: "an.nguyen@email.com", phone: "0912 345 678" },
-          { id: "HV002", student: "Trần Thị Bình", studentCode: "HV002", status: "ABSENT_NOTICE", note: "Xin phép 24h trước", email: "binh.tran@email.com", phone: "0913 456 789" },
-          { id: "HV003", student: "Lê Văn Cường", studentCode: "HV003", status: "ABSENT_LATE", note: "Thông báo muộn", email: "cuong.le@email.com", phone: "0914 567 890" },
-          { id: "HV004", student: "Phạm Thị Dung", studentCode: "HV004", status: "PRESENT", email: "dung.pham@email.com", phone: "0915 678 901" },
-          { id: "HV005", student: "Hoàng Minh Đức", studentCode: "HV005", status: "MAKEUP", note: "Bù từ lớp TOEIC B1", email: "duc.hoang@email.com", phone: "0916 789 012" },
-          { id: "HV006", student: "Vũ Thị Lan", studentCode: "HV006", status: "PRESENT", email: "lan.vu@email.com", phone: "0917 890 123" },
-          { id: "HV007", student: "Nguyễn Thị Hoa", studentCode: "HV007", status: "PRESENT", email: "hoa.nguyen@email.com", phone: "0918 901 234" },
-          { id: "HV008", student: "Trần Văn Hùng", studentCode: "HV008", status: "PRESENT", email: "hung.tran@email.com", phone: "0919 012 345" },
-          { id: "HV009", student: "Lê Thị Mai", studentCode: "HV009", status: "ABSENT_NOTICE", note: "Xin phép", email: "mai.le@email.com", phone: "0920 123 456" },
-          { id: "HV010", student: "Phạm Văn Nam", studentCode: "HV010", status: "PRESENT", email: "nam.pham@email.com", phone: "0921 234 567" },
-        ],
-      },
-      {
-        id: "CLS001-20241203",
-        date: "03/12/2024",
-        time: "19:00 - 21:00",
-        color: "from-fuchsia-500 to-purple-500",
-        records: [
-          { id: "HV001", student: "Nguyễn Văn An", studentCode: "HV001", status: "PRESENT", email: "an.nguyen@email.com", phone: "0912 345 678" },
-          { id: "HV002", student: "Trần Thị Bình", studentCode: "HV002", status: "PRESENT", email: "binh.tran@email.com", phone: "0913 456 789" },
-          { id: "HV003", student: "Lê Văn Cường", studentCode: "HV003", status: "MAKEUP", note: "Bù từ lớp TOEIC B1", email: "cuong.le@email.com", phone: "0914 567 890" },
-          { id: "HV004", student: "Phạm Thị Dung", studentCode: "HV004", status: "PRESENT", email: "dung.pham@email.com", phone: "0915 678 901" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "CLS002",
-    className: "TOEIC Intermediate",
-    classCode: "TOEIC-INT",
-    room: "Phòng 205",
-    teacher: "Trần Thị B",
-    color: "from-amber-500 to-orange-500",
-    sessions: [
-      {
-        id: "CLS002-20241206",
-        date: "06/12/2024",
-        time: "14:00 - 16:00",
-        color: "from-amber-500 to-orange-500",
-        records: [
-          { id: "HV007", student: "Nguyễn Thị Hoa", studentCode: "HV007", status: "PRESENT", email: "hoa.nguyen@email.com", phone: "0918 901 234" },
-          { id: "HV008", student: "Trần Văn Hùng", studentCode: "HV008", status: "PRESENT", email: "hung.tran@email.com", phone: "0919 012 345" },
-          { id: "HV009", student: "Lê Thị Mai", studentCode: "HV009", status: "ABSENT_NOTICE", note: "Xin phép", email: "mai.le@email.com", phone: "0920 123 456" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "CLS003",
-    className: "Business English",
-    classCode: "BUS-ENG",
-    room: "Phòng 102",
-    teacher: "Lê Văn C",
-    color: "from-emerald-500 to-teal-500",
-    sessions: [
-      {
-        id: "CLS003-20241207",
-        date: "07/12/2024",
-        time: "09:00 - 11:00",
-        color: "from-emerald-500 to-teal-500",
-        records: [
-          { id: "HV010", student: "Phạm Văn Nam", studentCode: "HV010", status: "PRESENT", email: "nam.pham@email.com", phone: "0921 234 567" },
-          { id: "HV011", student: "Hoàng Thị Linh", studentCode: "HV011", status: "PRESENT", email: "linh.hoang@email.com", phone: "0922 345 678" },
-        ],
-      },
-    ],
-  },
+type StudentRow = Student & {
+  rowKey: string;
+  studentId: string; // id thật để save (nếu có)
+  studentCode?: string;
+  email?: string;
+  phone?: string;
+};
+
+const STATUS_LABELS: Record<AttendanceStatus, string> = {
+  present: "Có mặt",
+  late: "Đi muộn",
+  absent: "Vắng mặt",
+};
+
+const SESSION_COLOR_POOL = [
+  "from-pink-500 to-rose-500",
+  "from-fuchsia-500 to-purple-500",
+  "from-amber-500 to-orange-500",
+  "from-emerald-500 to-teal-500",
+  "from-sky-500 to-blue-500",
+  "from-indigo-500 to-blue-500",
+  "from-rose-500 to-pink-600",
 ];
 
-const STATUS_CONFIG: Record<AttendanceStatus, {
-  text: string;
-  icon: any;
-  color: string;
-  bgColor: string;
-  dotColor: string;
-}> = {
-  PRESENT: {
-    text: "Có mặt",
-    icon: CheckCircle,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-50",
-    dotColor: "bg-emerald-500"
-  },
-  ABSENT_NOTICE: {
-    text: "Vắng phép",
-    icon: CalendarCheck,
-    color: "text-amber-600",
-    bgColor: "bg-amber-50",
-    dotColor: "bg-amber-500"
-  },
-  ABSENT_LATE: {
-    text: "Vắng muộn",
-    icon: Clock,
-    color: "text-rose-600",
-    bgColor: "bg-rose-50",
-    dotColor: "bg-rose-500"
-  },
-  MAKEUP: {
-    text: "Buổi bù",
-    icon: ArrowRightLeft,
-    color: "text-sky-600",
-    bgColor: "bg-sky-50",
-    dotColor: "bg-sky-500"
-  },
-};
-
-function StatusBadge({ status }: { status: AttendanceStatus }) {
-  const config = STATUS_CONFIG[status];
-  const Icon = config.icon;
-
-  return (
-    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${config.bgColor} ${config.color} text-sm font-medium`}>
-      <div className={`w-2 h-2 rounded-full ${config.dotColor}`}></div>
-      <Icon size={14} />
-      <span>{config.text}</span>
-    </div>
-  );
-}
+const ZERO_GUID = "00000000-0000-0000-0000-000000000000";
 
 // SortableHeader Component
-function SortableHeader<T extends string>({ 
-  label, 
-  column, 
-  sortColumn, 
-  sortDirection, 
-  onSort 
-}: { 
-  label: string; 
-  column: T; 
-  sortColumn: T | null; 
-  sortDirection: "asc" | "desc"; 
+function SortableHeader<T extends string>({
+  label,
+  column,
+  sortColumn,
+  sortDirection,
+  onSort,
+}: {
+  label: string;
+  column: T;
+  sortColumn: T | null;
+  sortDirection: "asc" | "desc";
   onSort: (col: T) => void;
 }) {
   const isActive = sortColumn === column;
-  
+
   return (
     <button
       onClick={() => onSort(column)}
@@ -195,7 +110,7 @@ function SortableHeader<T extends string>({
           sortDirection === "asc" ? (
             <ChevronUp size={14} className="text-pink-600" />
           ) : (
-            <ChevronDown size={14} className="text-pink-600" />
+            <ChevronUp size={14} className="text-pink-600 rotate-180" />
           )
         ) : (
           <ArrowUpDown size={14} className="text-gray-400" />
@@ -205,30 +120,12 @@ function SortableHeader<T extends string>({
   );
 }
 
-function StatusSelect({ value, onChange }: {
-  value: AttendanceStatus;
-  onChange: (v: AttendanceStatus) => void;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as AttendanceStatus)}
-      className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${STATUS_CONFIG[value].bgColor
-        } ${STATUS_CONFIG[value].color} border-gray-200 outline-none cursor-pointer`}
-    >
-      {(Object.keys(STATUS_CONFIG) as AttendanceStatus[]).map((status) => (
-        <option key={status} value={status} className="bg-white">
-          {STATUS_CONFIG[status].text}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 function StudentAvatar({ name }: { name: string }) {
-  const initials = name
+  const safe = (name ?? "").trim() || "NA";
+  const initials = safe
     .split(" ")
-    .map(word => word[0])
+    .filter(Boolean)
+    .map((word) => word[0])
     .slice(-2)
     .join("")
     .toUpperCase();
@@ -243,7 +140,7 @@ function StudentAvatar({ name }: { name: string }) {
 function Pagination({
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
 }: {
   currentPage: number;
   totalPages: number;
@@ -254,7 +151,8 @@ function Pagination({
   return (
     <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
       <div className="text-sm text-gray-600">
-        Trang <span className="font-semibold">{currentPage}</span> / <span className="font-semibold">{totalPages}</span>
+        Trang <span className="font-semibold">{currentPage}</span> /{" "}
+        <span className="font-semibold">{totalPages}</span>
       </div>
       <div className="flex items-center gap-1">
         <button
@@ -265,14 +163,15 @@ function Pagination({
           ←
         </button>
 
-        {pages.map(page => (
+        {pages.map((page) => (
           <button
             key={page}
             onClick={() => onPageChange(page)}
-            className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${currentPage === page
-              ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white border-transparent'
-              : 'border-gray-200 hover:bg-gray-50'
-              }`}
+            className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${
+              currentPage === page
+                ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white border-transparent"
+                : "border-gray-200 hover:bg-gray-50"
+            }`}
           >
             {page}
           </button>
@@ -291,26 +190,216 @@ function Pagination({
 }
 
 export default function TeacherAttendancePage() {
-  const [classes, setClasses] = useState<Class[]>(INITIAL_CLASSES);
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SessionApiItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>(() => {
+    const today = new Date();
+    const iso = today.toISOString().slice(0, 10);
+    return { from: iso, to: iso };
+  });
+
+  const [filters, setFilters] = useState<FilterField>({
+    date: "",
+    time: "",
+    session: "",
+    className: "",
+    status: "",
+  });
+
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<AttendanceStatus | "ALL">("ALL");
+
+  const [attendanceList, setAttendanceList] = useState<StudentRow[]>([]);
+  const [attendanceSummary, setAttendanceSummary] = useState<{
+    total: number;
+    present: number;
+    absent: number;
+    makeup: number;
+  } | null>(null);
+
+  const [attendanceLoadingError, setAttendanceLoadingError] = useState<string | null>(null);
+  const [hasAnyMarked, setHasAnyMarked] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<AttendanceStatus | "ALL">("ALL");
+
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortColumn, setSortColumn] = useState<"student" | "studentCode" | null>(null);
+  const [sortColumn, setSortColumn] = useState<"student" | "studentCode">("student");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const recordsPerPage = 8;
 
-  const selectedClass = useMemo(
-    () => classes.find((c) => c.id === selectedClassId),
-    [classes, selectedClassId],
-  );
+  const fetchSessionData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const fromDate = dateRange.from ? new Date(`${dateRange.from}T00:00:00`) : new Date();
+      const toDate = dateRange.to ? new Date(`${dateRange.to}T00:00:00`) : fromDate;
+
+      const range = {
+        from: toISODateStart(fromDate),
+        to: toISODateEnd(toDate),
+      };
+
+      const result = await fetchSessions({
+        from: range.from,
+        to: range.to,
+        pageNumber: 1,
+        pageSize: 100,
+      });
+
+      setSessions(result.sessions ?? []);
+    } catch (err: any) {
+      console.error("Fetch sessions error:", err);
+      setError(err.message || "Không thể tải danh sách buổi học.");
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange.from, dateRange.to]);
+
+  useEffect(() => {
+    fetchSessionData();
+  }, [fetchSessionData]);
 
   const selectedSession = useMemo(() => {
-    if (!selectedClass || !selectedSessionId) return null;
-    return selectedClass.sessions.find((s) => s.id === selectedSessionId);
-  }, [selectedClass, selectedSessionId]);
+    if (!selectedSessionId) return null;
+    return sessions.find((session: any) => String(session.id ?? session.sessionId ?? "") === selectedSessionId) ?? null;
+  }, [sessions, selectedSessionId]);
+
+  const selectedLesson = useMemo<LessonDetail | null>(() => {
+    if (!selectedSession) return null;
+    return mapSessionToLessonDetail(selectedSession);
+  }, [selectedSession]);
+
+  const sessionCards = useMemo(() => {
+    return sessions.map((session, index) => {
+      const lesson = mapSessionToLessonDetail(session);
+      return {
+        id: lesson.id,
+        className: lesson.lesson,
+        classCode: lesson.course,
+        room: lesson.room,
+        teacher: lesson.teacher,
+        date: lesson.date,
+        time: lesson.time,
+        status: lesson.status,
+        participationType: lesson.participationType,
+        branch: lesson.branch ?? null,
+        students: lesson.students,
+        color: SESSION_COLOR_POOL[index % SESSION_COLOR_POOL.length],
+        raw: session,
+      } satisfies SessionCard;
+    });
+  }, [sessions]);
+
+  const filterSessions = useMemo(() => {
+    const filterValue = (value: string) => value.trim().toLowerCase();
+    const dateFilter = filterValue(filters.date);
+    const timeFilter = filterValue(filters.time);
+    const sessionFilter = filterValue(filters.session);
+    const classFilter = filterValue(filters.className);
+    const statusFilter = filterValue(filters.status);
+
+    return sessionCards.filter((card) => {
+      if (dateFilter && !card.date.toLowerCase().includes(dateFilter)) return false;
+      if (timeFilter && !card.time.toLowerCase().includes(timeFilter)) return false;
+      if (sessionFilter && !card.className.toLowerCase().includes(sessionFilter)) return false;
+      if (
+        classFilter &&
+        !card.classCode.toLowerCase().includes(classFilter) &&
+        !card.className.toLowerCase().includes(classFilter)
+      )
+        return false;
+      if (statusFilter && !String(card.status ?? "").toLowerCase().includes(statusFilter)) return false;
+      return true;
+    });
+  }, [sessionCards, filters]);
+
+  const handleFilterChange = (field: keyof FilterField, value: string) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+    setCurrentPage(1);
+  };
+
+  const handleSessionSelect = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    setAttendanceList([]);
+    setAttendanceSummary(null);
+    setAttendanceLoadingError(null);
+    setCurrentPage(1);
+  };
+
+  const refreshAttendance = useCallback(async () => {
+    if (!selectedSessionId) return;
+
+    setLoadingAttendance(true);
+    setAttendanceLoadingError(null);
+
+    try {
+      const result = await fetchAttendance(selectedSessionId);
+
+      const students: StudentRow[] = (result.students ?? []).map((s: any, idx: number) => {
+        const rawStudentId = String(s.studentId ?? s.userId ?? s.id ?? "");
+        const safeStudentId = rawStudentId && rawStudentId !== ZERO_GUID ? rawStudentId : "";
+
+        const email = String(s.email ?? s.mail ?? "").trim();
+        const phone = String(s.phone ?? s.phoneNumber ?? "").trim();
+
+        const rowKey =
+          safeStudentId ||
+          (email ? `email:${email.toLowerCase()}` : phone ? `phone:${phone}` : `row:${idx}`);
+
+        const name = String(s.name ?? s.fullName ?? s.studentName ?? "").trim();
+
+        // IMPORTANT:
+        // - record.id: set unique để UI update + tránh trùng key
+        // - studentId: giữ id thật nếu có để saveAttendance dùng
+        const uniqueIdForUI = safeStudentId || rowKey;
+
+        return {
+          ...s,
+          id: uniqueIdForUI,
+          rowKey,
+          studentId: safeStudentId || uniqueIdForUI,
+          name,
+          email,
+          phone,
+          studentCode: String(s.studentCode ?? s.code ?? safeStudentId ?? s.id ?? "").trim(),
+        } as StudentRow;
+      });
+
+      setAttendanceList(students);
+      setHasAnyMarked(Boolean(result.hasAnyMarked));
+
+      if (result.attendanceSummary) {
+        const total = result.attendanceSummary.totalStudents ?? students.length;
+        const present = result.attendanceSummary.presentCount ?? 0;
+        const absent = result.attendanceSummary.absentCount ?? 0;
+        const makeup = result.attendanceSummary.makeupCount ?? 0;
+        setAttendanceSummary({ total, present, absent, makeup });
+      } else {
+        const total = students.length;
+        const present = students.filter((s) => s.status === "present" || s.status === "late").length;
+        const absent = students.filter((s) => s.status === "absent").length;
+        setAttendanceSummary({ total, present, absent, makeup: 0 });
+      }
+    } catch (err: any) {
+      console.error("Fetch attendance error:", err);
+      setAttendanceLoadingError(err.message || "Không thể tải danh sách điểm danh.");
+    } finally {
+      setLoadingAttendance(false);
+    }
+  }, [selectedSessionId]);
+
+  useEffect(() => {
+    if (!selectedSessionId) return;
+    refreshAttendance();
+  }, [refreshAttendance, selectedSessionId]);
 
   const handleSort = (column: "student" | "studentCode") => {
     if (sortColumn === column) {
@@ -322,40 +411,59 @@ export default function TeacherAttendancePage() {
     setCurrentPage(1);
   };
 
-  const filteredRecords = useMemo(() => {
-    if (!selectedSession) return [];
+  // Update theo rowKey (không dùng id gốc vì có thể trùng/placeholder)
+  const handleStatusChange = (rowKey: string, status: AttendanceStatus) => {
+    setAttendanceList((prev) => prev.map((r) => (r.rowKey === rowKey ? { ...r, status } : r)));
+  };
 
-    let filtered = [...selectedSession.records];
+  const handleSaveAll = useCallback(async () => {
+    if (!selectedSessionId) return;
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      // attendanceList giờ có studentId/id unique, saveAttendance sẽ có data ổn hơn
+      await saveAttendance(selectedSessionId, attendanceList, !hasAnyMarked);
+      await refreshAttendance();
+    } catch (err: any) {
+      console.error("Save attendance error:", err);
+      setSaveError(err.message || "Không thể lưu điểm danh.");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [attendanceList, hasAnyMarked, refreshAttendance, selectedSessionId]);
+
+  const filteredRecords = useMemo(() => {
+    let filtered = [...attendanceList];
 
     if (filterStatus !== "ALL") {
-      filtered = filtered.filter(record => record.status === filterStatus);
+      filtered = filtered.filter((record) => record.status === filterStatus);
     }
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(record =>
-        record.student.toLowerCase().includes(query) ||
-        record.studentCode.toLowerCase().includes(query) ||
-        record.email?.toLowerCase().includes(query) ||
-        record.phone?.includes(query)
-      );
-    }
-
-    // Sort
-    if (sortColumn) {
-      filtered.sort((a, b) => {
-        let comparison = 0;
-        if (sortColumn === "student") {
-          comparison = a.student.localeCompare(b.student);
-        } else if (sortColumn === "studentCode") {
-          comparison = a.studentCode.localeCompare(b.studentCode);
-        }
-        return sortDirection === "asc" ? comparison : -comparison;
+      filtered = filtered.filter((record) => {
+        const name = (record.name ?? "").toLowerCase();
+        const code = (record.studentCode ?? "").toLowerCase();
+        const email = (record.email ?? "").toLowerCase();
+        const phone = record.phone ?? "";
+        return name.includes(query) || code.includes(query) || email.includes(query) || phone.includes(query);
       });
     }
 
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      if (sortColumn === "student") {
+        comparison = (a.name ?? "").localeCompare(b.name ?? "");
+      } else {
+        comparison = (a.studentCode ?? "").localeCompare(b.studentCode ?? "");
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+
     return filtered;
-  }, [selectedSession, filterStatus, searchQuery, sortColumn, sortDirection]);
+  }, [attendanceList, filterStatus, searchQuery, sortColumn, sortDirection]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * recordsPerPage;
@@ -364,62 +472,14 @@ export default function TeacherAttendancePage() {
 
   const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
 
-  // Reset to page 1 when filter/search/sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterStatus, searchQuery, sortColumn]);
+  }, [filterStatus, searchQuery, sortColumn, sortDirection]);
 
   const stats = useMemo(() => {
-    if (!selectedSession) return null;
-    const total = selectedSession.records.length;
-    const present = selectedSession.records.filter(r => r.status === "PRESENT").length;
-    const absent = total - present;
-    const makeup = selectedSession.records.filter(r => r.status === "MAKEUP").length;
-
-    return { total, present, absent, makeup };
-  }, [selectedSession]);
-
-  const handleStatusChange = (recordId: string, status: AttendanceStatus) => {
-    if (!selectedClassId || !selectedSessionId) return;
-
-    setClasses((prev) =>
-      prev.map((cls) =>
-        cls.id === selectedClassId
-          ? {
-            ...cls,
-            sessions: cls.sessions.map((session) =>
-              session.id === selectedSessionId
-                ? {
-                  ...session,
-                  records: session.records.map((record) =>
-                    record.id === recordId ? { ...record, status } : record,
-                  ),
-                }
-                : session,
-            ),
-          }
-          : cls,
-      ),
-    );
-  };
-
-  const handleSaveAll = () => {
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-    }, 1500);
-  };
-
-  const handleClassSelect = (classId: string) => {
-    setSelectedClassId(classId);
-    setSelectedSessionId(null);
-    setCurrentPage(1);
-  };
-
-  const handleSessionSelect = (sessionId: string) => {
-    setSelectedSessionId(sessionId);
-    setCurrentPage(1);
-  };
+    if (!attendanceSummary) return null;
+    return attendanceSummary;
+  }, [attendanceSummary]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/20 to-white p-4 md:p-6">
@@ -431,117 +491,166 @@ export default function TeacherAttendancePage() {
           </div>
 
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">Điểm danh lớp học</h1>
+            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              Điểm danh lớp học
+            </h1>
             <p className="text-gray-600 mt-1 text-sm">Quản lý chuyên cần và sắp xếp buổi bù</p>
           </div>
         </div>
 
-        {/* Class Selector */}
-        {!selectedClassId && (
+        {!selectedSessionId && (
           <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Chọn lớp học</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {classes.map((cls) => (
-                <button
-                  key={cls.id}
-                  onClick={() => handleClassSelect(cls.id)}
-                  className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-pink-300 hover:shadow-sm transition-all cursor-pointer"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={`p-2 rounded-lg bg-gradient-to-r ${cls.color}`}>
-                      <BookOpen size={18} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-gray-900">{cls.className}</div>
-                      <div className="text-xs text-gray-600">{cls.classCode}</div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Users size={12} />
-                      {cls.sessions[0]?.records.length || 0} học viên
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CalendarDays size={12} />
-                      {cls.sessions.length} buổi học
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Session Selector */}
-        {selectedClassId && !selectedSessionId && selectedClass && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Chọn buổi học</h3>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div>
+                <h3 className="font-semibold text-gray-900">Buổi học theo khoảng ngày</h3>
+                <p className="text-sm text-gray-500">Chọn buổi học để điểm danh ngay.</p>
+              </div>
               <button
-                onClick={() => setSelectedClassId(null)}
-                className="text-sm text-pink-600 hover:text-pink-700 font-medium cursor-pointer"
+                onClick={fetchSessionData}
+                className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition cursor-pointer"
               >
-                ← Chọn lớp khác
+                <RefreshCcw size={14} />
+                Làm mới
               </button>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateRange.from}
+                  onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+                <span className="text-gray-400 text-sm">→</span>
+                <input
+                  type="date"
+                  value={dateRange.to}
+                  onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+              </div>
+
+              <input
+                value={filters.date}
+                onChange={(e) => handleFilterChange("date", e.target.value)}
+                placeholder="Ngày"
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+              />
+              <input
+                value={filters.time}
+                onChange={(e) => handleFilterChange("time", e.target.value)}
+                placeholder="Giờ"
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+              />
+              <input
+                value={filters.session}
+                onChange={(e) => handleFilterChange("session", e.target.value)}
+                placeholder="Buổi học"
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+              />
+              <input
+                value={filters.className}
+                onChange={(e) => handleFilterChange("className", e.target.value)}
+                placeholder="Lớp"
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+              />
+              <input
+                value={filters.status}
+                onChange={(e) => handleFilterChange("status", e.target.value)}
+                placeholder="Trạng thái"
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+              />
+            </div>
+
+            {loading && <div className="text-sm text-gray-500">Đang tải danh sách buổi học...</div>}
+            {error && <div className="text-sm text-rose-600">{error}</div>}
+
+            {!loading && !error && filterSessions.length === 0 && (
+              <div className="text-sm text-gray-500">Không có buổi học phù hợp bộ lọc.</div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {selectedClass.sessions.map((session) => (
+              {filterSessions.map((session) => (
                 <button
                   key={session.id}
                   onClick={() => handleSessionSelect(session.id)}
-                  className={`p-4 rounded-lg border text-left transition-all cursor-pointer ${session.id === selectedSessionId
-                    ? `border-pink-300 bg-gradient-to-r from-pink-50 to-rose-50`
-                    : "border-gray-200 hover:border-pink-200 hover:bg-pink-50/50"
-                    }`}
+                  className={`p-4 rounded-lg border text-left transition-all cursor-pointer ${
+                    session.id === selectedSessionId
+                      ? "border-pink-300 bg-gradient-to-r from-pink-50 to-rose-50"
+                      : "border-gray-200 hover:border-pink-200 hover:bg-pink-50/50"
+                  }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <div className={`p-1.5 rounded-md bg-gradient-to-r ${session.color}`}>
                       <CalendarDays size={14} className="text-white" />
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900">{session.date}</div>
-                      <div className="text-xs text-gray-600">{session.time}</div>
+                      <div className="font-semibold text-gray-900">{session.className}</div>
+                      <div className="text-xs text-gray-600">{session.date}</div>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {session.records.length} học viên
+                  <div className="text-xs text-gray-500 flex items-center gap-2">
+                    <Clock size={12} />
+                    {session.time}
                   </div>
+                  <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
+                    <MapPin size={12} />
+                    {session.room}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">{session.students} học viên</div>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Session Info */}
-        {selectedClassId && selectedSessionId && selectedClass && selectedSession && (
+        {selectedSessionId && selectedLesson && (
           <>
             {/* Class Info Card */}
             <div className="bg-gradient-to-br from-white via-pink-50/30 to-white rounded-2xl border border-pink-200 shadow-sm p-6 mb-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`p-3 rounded-xl bg-gradient-to-r ${selectedClass.color} text-white shadow-lg`}>
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg">
                       <BookOpen size={24} />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-1">{selectedClass.className}</h2>
+                      <h2 className="text-2xl font-bold text-gray-900 mb-1">{selectedLesson.lesson}</h2>
                       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                         <div className="flex items-center gap-1.5">
                           <CalendarDays size={16} className="text-pink-500" />
-                          <span className="font-medium">{selectedSession.date}</span>
+                          <span className="font-medium">{selectedLesson.date}</span>
                           <span>•</span>
-                          <span>{selectedSession.time}</span>
+                          <span>{selectedLesson.time}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <MapPin size={16} className="text-pink-500" />
-                          <span>{selectedClass.room}</span>
+                          <span>{selectedLesson.room}</span>
                         </div>
+                      </div>
 
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedLesson.status && (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {selectedLesson.status}
+                          </span>
+                        )}
+                        {selectedLesson.participationType && (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                            {selectedLesson.participationType}
+                          </span>
+                        )}
+                        {selectedLesson.branch && (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-pink-50 text-pink-700 border border-pink-200">
+                            {selectedLesson.branch}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
+
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setSelectedSessionId(null)}
@@ -550,13 +659,15 @@ export default function TeacherAttendancePage() {
                     <ChevronLeft size={16} />
                     Buổi khác
                   </button>
+
                   <button
                     onClick={handleSaveAll}
                     disabled={isSaving}
-                    className={`px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all ${isSaving
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
-                      : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer'
-                      }`}
+                    className={`px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all ${
+                      isSaving
+                        ? "bg-gray-400 text-white cursor-not-allowed"
+                        : "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer"
+                    }`}
                   >
                     {isSaving ? (
                       <>
@@ -623,7 +734,7 @@ export default function TeacherAttendancePage() {
       </div>
 
       {/* Main Content */}
-      {selectedSession ? (
+      {selectedSessionId ? (
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Student Table */}
           <div className="lg:col-span-2">
@@ -633,7 +744,10 @@ export default function TeacherAttendancePage() {
                   <h3 className="font-bold text-gray-900">Danh sách học viên</h3>
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <Search
+                        size={16}
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                      />
                       <input
                         type="text"
                         placeholder="Tìm học viên..."
@@ -648,10 +762,9 @@ export default function TeacherAttendancePage() {
                       className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white outline-none"
                     >
                       <option value="ALL">Tất cả trạng thái</option>
-                      <option value="PRESENT">Có mặt</option>
-                      <option value="ABSENT_NOTICE">Vắng phép</option>
-                      <option value="ABSENT_LATE">Vắng muộn</option>
-                      <option value="MAKEUP">Buổi bù</option>
+                      <option value="present">Có mặt</option>
+                      <option value="late">Đi muộn</option>
+                      <option value="absent">Vắng mặt</option>
                     </select>
                     <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                       <Download size={18} className="text-gray-600" />
@@ -682,38 +795,52 @@ export default function TeacherAttendancePage() {
                           onSort={handleSort}
                         />
                       </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
-                        Trạng thái
-                      </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
-                        Ghi chú
-                      </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
-                        Thao tác
-                      </th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Ghi chú</th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Thao tác</th>
                     </tr>
                   </thead>
+
                   <tbody className="divide-y divide-pink-100">
                     {paginatedRecords.map((record) => (
-                      <tr key={record.id} className="hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-rose-50/50 transition-colors border-b border-pink-100">
+                      <tr
+                        key={record.rowKey}
+                        className="hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-rose-50/50 transition-colors border-b border-pink-100"
+                      >
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <StudentAvatar name={record.student} />
+                            <StudentAvatar name={record.name ?? ""} />
                             <div>
-                              <div className="font-semibold text-gray-900">{record.student}</div>
+                              <div className="font-semibold text-gray-900">{record.name?.trim() || "(Chưa có tên)"}</div>
                               <div className="text-xs text-gray-500">{record.phone}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-900 font-medium">
-                          {record.studentCode}
-                        </td>
+
+                        <td className="px-4 py-4 text-sm text-gray-900 font-medium">{record.studentCode}</td>
+
                         <td className="px-4 py-4">
-                          <StatusSelect
-                            value={record.status}
-                            onChange={(status) => handleStatusChange(record.id, status)}
-                          />
+                          <div className="flex flex-wrap items-center gap-2">
+                            {(["present", "late", "absent"] as AttendanceStatus[]).map((status) => (
+                              <button
+                                key={status}
+                                onClick={() => handleStatusChange(record.rowKey, status)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                                  record.status === status
+                                    ? status === "present"
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                      : status === "late"
+                                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                                      : "bg-rose-50 text-rose-700 border-rose-200"
+                                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                }`}
+                              >
+                                {STATUS_LABELS[status]}
+                              </button>
+                            ))}
+                          </div>
                         </td>
+
                         <td className="px-4 py-4 max-w-xs">
                           {record.note ? (
                             <div className="flex items-center gap-1 text-amber-600 text-sm">
@@ -724,6 +851,7 @@ export default function TeacherAttendancePage() {
                             <span className="text-gray-400 text-sm">Không có</span>
                           )}
                         </td>
+
                         <td className="px-4 py-4">
                           <button className="p-2 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer">
                             <MoreVertical size={16} className="text-gray-500" />
@@ -734,18 +862,22 @@ export default function TeacherAttendancePage() {
                   </tbody>
                 </table>
 
-                {filteredRecords.length === 0 && (
-                  <div className="text-center py-12 text-gray-500">
-                    Không tìm thấy học viên nào
-                  </div>
+                {filteredRecords.length === 0 && !loadingAttendance && (
+                  <div className="text-center py-12 text-gray-500">Không tìm thấy học viên nào</div>
                 )}
 
+                {loadingAttendance && (
+                  <div className="text-center py-12 text-gray-500">Đang tải danh sách học viên...</div>
+                )}
+
+                {attendanceLoadingError && (
+                  <div className="text-center py-6 text-rose-600">{attendanceLoadingError}</div>
+                )}
+
+                {saveError && <div className="text-center py-4 text-rose-600">{saveError}</div>}
+
                 {totalPages > 1 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                  />
+                  <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
                 )}
               </div>
             </div>
@@ -765,55 +897,14 @@ export default function TeacherAttendancePage() {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="text-sm text-gray-500">
-                  Chọn lớp tương đương để học viên bù buổi vắng.
-                </div>
-
-                <div className="space-y-2">
-                  <div className="p-3 bg-sky-50 rounded-lg border border-sky-100">
-                    <div className="font-medium text-sm text-gray-900">TOEIC B1 - Chiều T3</div>
-                    <div className="text-xs text-gray-600 mt-1">15:00 - 17:00 • Phòng 205</div>
-                  </div>
-
-                  <div className="p-3 bg-sky-50 rounded-lg border border-sky-100">
-                    <div className="font-medium text-sm text-gray-900">IELTS C1 - Tối T5</div>
-                    <div className="text-xs text-gray-600 mt-1">19:00 - 21:00 • Phòng 301</div>
-                  </div>
-                </div>
-
-                <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-sky-500 to-blue-500 text-white py-2.5 rounded-lg font-medium text-sm hover:shadow-md transition-shadow cursor-pointer">
-                  <CalendarCheck size={16} />
-                  Đề xuất lịch bù
+              <div className="space-y-2">
+                <button className="w-full px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition cursor-pointer">
+                  Tạo đề xuất buổi bù
                 </button>
-              </div>
-            </div>
-
-            {/* Notification Card */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg">
-                  <BellRing size={18} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">Nhắc nhở</h3>
-                  <p className="text-sm text-gray-600">Gửi thông báo</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="text-sm text-gray-500">
-                  Gửi thông báo cho học viên vắng mặt.
-                </div>
-
-                <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                  <div className="text-xs font-medium text-emerald-700 mb-1">Tự động gửi</div>
-                  <div className="text-xs text-emerald-600">10 phút sau giờ học</div>
-                </div>
-
-                <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-2.5 rounded-lg font-medium text-sm hover:shadow-md transition-shadow cursor-pointer">
-                  <Send size={16} />
-                  Gửi thông báo
+                <button className="w-full px-4 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-500 text-white hover:shadow-md transition cursor-pointer">
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <Send size={16} /> Gửi đề xuất
+                  </span>
                 </button>
               </div>
             </div>
@@ -841,16 +932,16 @@ export default function TeacherAttendancePage() {
                 <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200">
                   <div>
                     <div className="text-lg font-bold text-rose-500">
-                      {selectedSession?.records.filter(r => r.status === "ABSENT_LATE").length || 0}
+                      {attendanceList.filter((r) => r.status === "absent").length || 0}
                     </div>
-                    <div className="text-xs text-gray-600">Vắng muộn</div>
+                    <div className="text-xs text-gray-600">Vắng mặt</div>
                   </div>
 
                   <div>
                     <div className="text-lg font-bold text-amber-500">
-                      {selectedSession?.records.filter(r => r.status === "ABSENT_NOTICE").length || 0}
+                      {attendanceList.filter((r) => r.status === "late").length || 0}
                     </div>
-                    <div className="text-xs text-gray-600">Xin phép</div>
+                    <div className="text-xs text-gray-600">Đi muộn</div>
                   </div>
                 </div>
               </div>
