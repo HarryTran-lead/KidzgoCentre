@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     const upstream = await fetch(fullUrl, {
       method: "GET",
       headers: {
-        "Authorization": authHeader,
+        Authorization: authHeader,
       },
     });
 
