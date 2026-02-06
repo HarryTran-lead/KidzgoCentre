@@ -1,42 +1,14 @@
 import { LeaveRequest } from './../../../types/student/attendance';
 import {
-  Calendar,
-  History,
-  FileText,
-  ShieldCheck,
-  ClipboardList,
-  GraduationCap,
-  MessageSquare,
-  FileCheck,
-  BarChart3,
-  Receipt,
-  CreditCard,
-  Wallet,
-  DollarSign,
-  Target,
-  Flame,
-  Star,
-  TrendingUp,
-  Award,
-  Image,
-  User,
-  HelpCircle,
   Settings,
-  UserCircle,
-  LockKeyhole,
-  LogOut,
   CalendarCheck2,
   BookOpen,
   FileSpreadsheet,
   Banknote,
-  Gamepad2,
   ImageIcon,
   BellRing,
   HeadphonesIcon,
-  Users,
-  Ticket,
 } from "lucide-react";
-import { makeMenu, makeGroup, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
 import type { Locale } from "@/lib/i18n";
 import { getMessages } from "@/lib/dict";

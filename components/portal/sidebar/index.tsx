@@ -27,6 +27,8 @@ import Tooltip from "@mui/material/Tooltip";
 import { createPortal } from "react-dom";
 import ChildSelector from "../parent/ChildSelector";
 import StudentSidebar from "./StudentSidebar";
+import BranchFilter from "./BranchFilter";
+import type { Branch } from "@/types/branch";
 
 /* ===== Types ===== */
 type FlatItem = {
@@ -350,7 +352,7 @@ export default function Sidebar({
   role: Role;
   version?: string;
   logoSrc?: string;
-  branches?: string[];
+  branches?: Branch[];
   initialBranch?: string;
 }) {
   const pathname = usePathname();
@@ -394,9 +396,6 @@ export default function Sidebar({
     return pathname === target || pathname.startsWith(target + "/");
   };
 
-  const [branch, setBranch] = useState(
-    initialBranch || branches?.[0] || "Chi nhánh Hồ Chí Minh"
-  );
   const [branchOpen, setBranchOpen] = useState(false);
 
   // default mở rộng
@@ -536,76 +535,17 @@ export default function Sidebar({
         />
       </div>
 
-      {branches?.length && !collapsed ? (
-        <div className="px-3 py-3">
-          <div className="relative">
-            <button
-              onClick={() => setBranchOpen((v) => !v)}
-              className="w-full inline-flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 hover:bg-linear-to-r hover:from-pink-50 hover:to-transparent hover:border-pink-300 hover:shadow-sm transition-all duration-300 ease-out group"
-              type="button"
-            >
-              <span className="inline-flex items-center gap-2 min-w-0">
-                <MapPin
-                  size={16}
-                  className="text-pink-500 shrink-0 group-hover:scale-110 transition-all duration-300 ease-out"
-                  strokeWidth={2.5}
-                />
-                <span className="truncate font-medium">{branch}</span>
-              </span>
-              <ChevronDown
-                size={16}
-                className={`text-slate-400 group-hover:text-pink-500 shrink-0 transition-all duration-500 ease-out ${
-                  branchOpen ? "rotate-180" : "rotate-0"
-                }`}
-                strokeWidth={2}
-              />
-            </button>
-
-            {branchOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-10 animate-in fade-in duration-200"
-                  onClick={() => setBranchOpen(false)}
-                />
-                <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
-                  <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                    {branches.map((b, idx) => (
-                      <button
-                        key={b}
-                        onClick={() => {
-                          setBranch(b);
-                          setBranchOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-all duration-200 ease-out ${
-                          b === branch
-                            ? "bg-linear-to-r from-pink-50 via-pink-50/80 to-transparent text-pink-700"
-                            : "text-slate-700 hover:bg-linear-to-r hover:from-slate-50 hover:to-transparent hover:text-slate-900"
-                        } ${
-                          idx !== branches.length - 1
-                            ? "border-b border-slate-100"
-                            : ""
-                        }`}
-                        type="button"
-                      >
-                        <span className="flex items-center gap-2.5">
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ease-out ${
-                              b === branch
-                                ? "bg-pink-500 scale-125"
-                                : "bg-transparent"
-                            }`}
-                          />
-                          {b}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+      {/* Branch Filter - Only show for Admin role and when branches are available */}
+      {role === "Admin" && branches && branches.length > 0 && (
+        <BranchFilter branches={branches} collapsed={collapsed} />
+      )}
+      
+      {/* Debug info - Remove in production */}
+      {role === "Admin" && (
+        <div style={{ display: 'none' }}>
+          Role: {role}, Has branches: {branches ? 'Yes' : 'No'}, Count: {branches?.length || 0}
         </div>
-      ) : null}
+      )}
 
       {role === "Parent" && !collapsed && (
         <div className="px-3 py-2">

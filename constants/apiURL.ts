@@ -15,6 +15,10 @@ export const buildApiUrl = (endpoint: string): string => {
   const base = ep.startsWith("/GetAll/") ? ROOT_BASE_URL : BASE_URL;
 
   return `${base}${ep}`;
+  // Ensure BASE_URL ends with /api if it doesn't already
+  const baseUrl = BASE_URL || '';
+  const apiBase = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
+  return `${apiBase}${endpoint}`;
 };
 
 
@@ -186,33 +190,26 @@ export const TEACHER_ENDPOINTS = {
 // Admin Endpoints (client-side -> Next.js API Routes)
 export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
+  CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
   PROGRAMS: '/api/programs',
   CLASSROOMS: '/api/classrooms',
+  CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
   SESSIONS: '/api/sessions',
 } as const;
 
-// Lead Endpoints (Client-side → Next.js API Routes)
-export const LEAD_ENDPOINTS = {
-  // Public endpoint - no authentication required
-  CREATE_PUBLIC: '/api/leads/public',
-  
-  // Authenticated endpoints
-  GET_ALL: '/api/leads',
-  GET_BY_ID: (id: string) => `/api/leads/${id}`,
-  CREATE: '/api/leads',
-  UPDATE: (id: string) => `/api/leads/${id}`,
-  ASSIGN: (id: string) => `/api/leads/${id}/assign`,
-  SELF_ASSIGN: (id: string) => `/api/leads/${id}/self-assign`,
-  UPDATE_STATUS: (id: string) => `/api/leads/${id}/status`,
-  ADD_NOTE: (id: string) => `/api/leads/${id}/notes`,
-  GET_ACTIVITIES: (id: string) => `/api/leads/${id}/activities`,
-  GET_SLA: (id: string) => `/api/leads/${id}/sla`,
-  
-  // Children endpoints
-  GET_CHILDREN: (leadId: string) => `/api/leads/${leadId}/children`,
-  CREATE_CHILD: (leadId: string) => `/api/leads/${leadId}/children`,
-  UPDATE_CHILD: (leadId: string, childId: string) => `/api/leads/${leadId}/children/${childId}`,
-  DELETE_CHILD: (leadId: string, childId: string) => `/api/leads/${leadId}/children/${childId}`,
+// Backend Admin Endpoints (Next.js API Routes → Backend API)
+// Note: buildApiUrl automatically adds /api prefix, so endpoints here should NOT include /api
+export const BACKEND_ADMIN_ENDPOINTS = {
+  CLASSES: '/classes',
+  CLASSES_BY_ID: (id: string) => `/classes/${id}`,
+  CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
+  PROGRAMS: '/programs',
+  PROGRAMS_BY_ID: (id: string) => `/programs/${id}`,
+  PROGRAMS_TOGGLE_STATUS: (id: string) => `/programs/${id}/toggle-status`,
+  CLASSROOMS: '/classrooms',
+  CLASSROOMS_BY_ID: (id: string) => `/classrooms/${id}`,
+  CLASSROOMS_TOGGLE_STATUS: (id: string) => `/classrooms/${id}/toggle-status`,
+  SESSIONS: '/sessions',
 } as const;
 
 // Backend Lead Endpoints (Next.js API Routes → Backend API)

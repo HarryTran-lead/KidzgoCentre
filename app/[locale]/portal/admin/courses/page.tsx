@@ -22,11 +22,14 @@ import {
   FileText,
   Building2,
   Power,
-  PowerOff
+  PowerOff,
+  Tag
 } from "lucide-react";
 import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram, toggleProgramStatus } from "@/app/api/admin/programs";
 import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
 import { getAllBranches } from "@/lib/api/branchService";
+import ConfirmModal from "@/components/ConfirmModal";
+import { useToast } from "@/hooks/use-toast";
 
 /* -------------------------- helpers -------------------------- */
 function cn(...a: Array<string | false | null | undefined>) {
@@ -170,22 +173,46 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 
   // Tự động tính giá mỗi buổi khi số buổi học hoặc học phí mặc định thay đổi
   useEffect(() => {
-    const sessions = Number(formData.totalSessions);
-    const tuition = Number(formData.defaultTuitionAmount.replace(/,/g, ""));
-    
-    if (sessions > 0 && tuition > 0) {
-      const pricePerSession = Math.round(tuition / sessions);
-      setFormData(prev => ({
-        ...prev,
-        unitPriceSession: pricePerSession.toLocaleString("vi-VN")
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        unitPriceSession: ""
-      }));
+    // Nếu đang ở chế độ edit và unitPriceSession đã có giá trị, chỉ tính toán khi người dùng thay đổi
+    if (mode === "edit" && initialData) {
+      const sessionsChanged = formData.totalSessions !== initialData.totalSessions;
+      const tuitionChanged = formData.defaultTuitionAmount !== initialData.defaultTuitionAmount;
+      
+      // Nếu không có thay đổi và unitPriceSession đã có giá trị, giữ nguyên
+      if (!sessionsChanged && !tuitionChanged && formData.unitPriceSession && formData.unitPriceSession.trim() !== "") {
+        return;
+      }
     }
-  }, [formData.totalSessions, formData.defaultTuitionAmount]);
+
+    // Chỉ tính toán nếu có giá trị hợp lệ
+    const sessions = Number(formData.totalSessions);
+    const tuitionStr = formData.defaultTuitionAmount.replace(/,/g, "").trim();
+    const tuition = Number(tuitionStr);
+    
+    // Nếu cả hai giá trị đều hợp lệ, tính toán giá mỗi buổi
+    if (sessions > 0 && tuition > 0 && !isNaN(sessions) && !isNaN(tuition)) {
+      const pricePerSession = Math.round(tuition / sessions);
+      const newValue = pricePerSession.toLocaleString("vi-VN");
+      setFormData(prev => {
+        // Chỉ cập nhật nếu giá trị thay đổi
+        if (prev.unitPriceSession !== newValue) {
+          return {
+            ...prev,
+            unitPriceSession: newValue
+          };
+        }
+        return prev;
+      });
+    } else if (!formData.unitPriceSession || formData.unitPriceSession.trim() === "") {
+      // Chỉ xóa nếu unitPriceSession đang trống và không thể tính toán
+      if (formData.totalSessions === "" || formData.defaultTuitionAmount === "") {
+        setFormData(prev => ({
+          ...prev,
+          unitPriceSession: ""
+        }));
+      }
+    }
+  }, [formData.totalSessions, formData.defaultTuitionAmount, mode, initialData]);
 
   const loadBranches = async () => {
     try {
@@ -556,6 +583,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 
 /* ------------------------------ page ------------------------------- */
 export default function Page() {
+  const { toast } = useToast();
   const [q, setQ] = useState("");
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [sortField, setSortField] = useState<SortField | null>(null);
@@ -570,15 +598,29 @@ export default function Page() {
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<CourseFormData | null>(null);
   const [originalStatus, setOriginalStatus] = useState<"Đang hoạt động" | "Tạm dừng" | null>(null);
+  const [showToggleStatusModal, setShowToggleStatusModal] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<CourseRow | null>(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedCourseDetail, setSelectedCourseDetail] = useState<any | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
+  // Fetch programs with branch filter
   useEffect(() => {
+    // Wait for localStorage to be loaded
+    if (!isLoaded) return;
+
     async function fetchPrograms() {
       try {
         setLoading(true);
         setError(null);
 
-        const mapped = await fetchAdminPrograms();
+        const branchId = getBranchQueryParam();
+        console.log("📚 Fetching programs for branch:", branchId || "All branches");
+
+        const mapped = await fetchAdminPrograms({ branchId });
         setCourses(mapped);
+        console.log("✅ Loaded", mapped.length, "programs");
       } catch (err) {
         console.error("Unexpected error when fetching admin programs:", err);
         setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách khóa học.");
@@ -589,7 +631,10 @@ export default function Page() {
     }
 
     fetchPrograms();
-  }, []);
+    
+    // Reset page về 1 khi branch thay đổi
+    setPage(1);
+  }, [selectedBranchId, isLoaded]); // Chỉ depend vào selectedBranchId và isLoaded
 
   const stats = useMemo(() => {
     const total = courses.length;
@@ -669,7 +714,11 @@ export default function Page() {
       const unitPriceSession = Number(data.unitPriceSession.replace(/,/g, ""));
 
       if (!data.branchId) {
-        alert("Vui lòng chọn chi nhánh");
+        toast({
+          title: "Thiếu thông tin",
+          description: "Vui lòng chọn chi nhánh",
+          type: "warning",
+        });
         return;
       }
 
@@ -701,10 +750,18 @@ export default function Page() {
       };
 
       setCourses(prev => [newCourse, ...prev]);
-      alert(`Đã tạo khóa học ${data.name} thành công!`);
+      toast({
+        title: "Thành công",
+        description: `Đã tạo khóa học ${data.name} thành công!`,
+        type: "success",
+      });
     } catch (err: any) {
       console.error("Failed to create program:", err);
-      alert(err?.message || "Không thể tạo khóa học. Vui lòng thử lại.");
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể tạo khóa học. Vui lòng thử lại.",
+        type: "destructive",
+      });
     }
   };
 
@@ -714,7 +771,19 @@ export default function Page() {
       setEditingProgramId(row.id);
       setEditingInitialData(null);
 
+      console.log("[handleOpenEditCourse] Fetching detail for program ID:", row.id);
       const detail: any = await fetchAdminProgramDetail(row.id);
+      console.log("[handleOpenEditCourse] Received detail:", {
+        hasDetail: !!detail,
+        keys: detail ? Object.keys(detail) : [],
+        name: detail?.name,
+        branchId: detail?.branchId,
+        isActive: detail?.isActive,
+      });
+
+      if (!detail) {
+        throw new Error("Không nhận được dữ liệu từ server");
+      }
 
       const totalSessionsNum: number = detail?.totalSessions ?? 0;
       const defaultTuitionAmountNum: number = detail?.defaultTuitionAmount ?? 0;
@@ -727,19 +796,24 @@ export default function Page() {
       const formData: CourseFormData = {
         name: String(detail?.name ?? row.name ?? ""),
         description: String(detail?.description ?? row.desc ?? ""),
-        level: (String(detail?.level ?? row.level ?? "A1") as CourseFormData["level"]) || "A1",
+        level: (String(detail?.level ?? row.level ?? "A1").toUpperCase() as CourseFormData["level"]) || "A1",
         status,
         branchId: String(detail?.branchId ?? ""),
-        totalSessions: totalSessionsNum ? String(totalSessionsNum) : "",
-        defaultTuitionAmount: defaultTuitionAmountNum ? String(defaultTuitionAmountNum) : "",
-        unitPriceSession: unitPriceSessionNum ? String(unitPriceSessionNum) : "",
+        totalSessions: totalSessionsNum > 0 ? String(totalSessionsNum) : "",
+        defaultTuitionAmount: defaultTuitionAmountNum > 0 ? defaultTuitionAmountNum.toLocaleString("vi-VN") : "",
+        unitPriceSession: unitPriceSessionNum > 0 ? unitPriceSessionNum.toLocaleString("vi-VN") : "",
       };
 
+      console.log("[handleOpenEditCourse] Form data prepared:", formData);
       setEditingInitialData(formData);
       setOriginalStatus(status);
     } catch (err: any) {
       console.error("Failed to load program detail for edit:", err);
-      alert(err?.message || "Không thể tải thông tin chương trình để chỉnh sửa.");
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể tải thông tin chương trình để chỉnh sửa.",
+        type: "destructive",
+      });
       setIsEditModalOpen(false);
       setEditingProgramId(null);
       setEditingInitialData(null);
@@ -754,7 +828,11 @@ export default function Page() {
       const unitPriceSession = Number(data.unitPriceSession.replace(/,/g, ""));
 
       if (!data.branchId) {
-        alert("Vui lòng chọn chi nhánh");
+        toast({
+          title: "Thiếu thông tin",
+          description: "Vui lòng chọn chi nhánh",
+          type: "warning",
+        });
         return;
       }
 
@@ -776,13 +854,22 @@ export default function Page() {
         await toggleProgramStatus(editingProgramId);
       }
 
-      // Refresh danh sách
-      const mapped = await fetchAdminPrograms();
+      // Refresh danh sách với branch filter hiện tại
+      const branchId = getBranchQueryParam();
+      const mapped = await fetchAdminPrograms({ branchId });
       setCourses(mapped);
-      alert(`Đã cập nhật khóa học ${data.name} thành công!`);
+      toast({
+        title: "Thành công",
+        description: `Đã cập nhật khóa học ${data.name} thành công!`,
+        type: "success",
+      });
     } catch (err: any) {
       console.error("Failed to update program:", err);
-      alert(err?.message || "Không thể cập nhật khóa học. Vui lòng thử lại.");
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể cập nhật khóa học. Vui lòng thử lại.",
+        type: "destructive",
+      });
     } finally {
       setEditingProgramId(null);
       setEditingInitialData(null);
@@ -790,19 +877,66 @@ export default function Page() {
     }
   };
 
-  const handleToggleStatus = async (row: CourseRow) => {
+  const handleToggleStatus = (row: CourseRow) => {
+    setSelectedCourse(row);
+    setShowToggleStatusModal(true);
+  };
+
+  const handleViewDetail = async (row: CourseRow) => {
     try {
-      const result = await toggleProgramStatus(row.id);
+      setLoadingDetail(true);
+      setShowDetailModal(true);
+      setSelectedCourseDetail(null);
+
+      const detail = await fetchAdminProgramDetail(row.id);
+      setSelectedCourseDetail(detail);
+    } catch (err: any) {
+      console.error("Failed to load program detail:", err);
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể tải thông tin chi tiết khóa học.",
+        type: "destructive",
+      });
+      setShowDetailModal(false);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const confirmToggleStatus = async () => {
+    if (!selectedCourse) return;
+
+    // Xác định trạng thái mới dựa trên trạng thái hiện tại
+    const currentStatus = selectedCourse.status;
+    const newStatus = currentStatus === "Đang hoạt động" ? "Tạm dừng" : "Đang hoạt động";
+    const actionText = newStatus === "Đang hoạt động" ? "kích hoạt" : "tạm dừng";
+
+    try {
+      setIsTogglingStatus(true);
+      await toggleProgramStatus(selectedCourse.id);
       
-      // Cập nhật danh sách
-      const mapped = await fetchAdminPrograms();
+      // Cập nhật danh sách với branch filter hiện tại
+      const branchId = getBranchQueryParam();
+      const mapped = await fetchAdminPrograms({ branchId });
       setCourses(mapped);
       
-      const newStatus = result?.data?.isActive ? "Đang hoạt động" : "Tạm dừng";
-      alert(`Đã ${newStatus === "Đang hoạt động" ? "kích hoạt" : "tạm dừng"} khóa học ${row.name} thành công!`);
+      toast({
+        title: "Thành công",
+        description: `Đã ${actionText} khóa học "${selectedCourse.name}" thành công!`,
+        type: "success",
+      });
+      
+      setShowToggleStatusModal(false);
+      setSelectedCourse(null);
     } catch (err: any) {
       console.error("Failed to toggle program status:", err);
-      alert(err?.message || "Không thể thay đổi trạng thái khóa học. Vui lòng thử lại.");
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể thay đổi trạng thái khóa học. Vui lòng thử lại.",
+        type: "destructive",
+      });
+    } finally {
+      setIsTogglingStatus(false);
     }
   };
 
@@ -881,6 +1015,16 @@ export default function Page() {
             </div>
           </div>
         </div>
+
+        {/* Branch Filter Indicator */}
+        {selectedBranchId && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+            <Building2 size={16} className="text-pink-600" />
+            <span className="text-sm text-pink-700 font-medium">
+              Đang lọc theo chi nhánh đã chọn
+            </span>
+          </div>
+        )}
 
         {/* Search & Filters */}
         <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
@@ -986,7 +1130,11 @@ export default function Page() {
 
                       <td className="py-3 px-6">
                         <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
-                          <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" title="Xem">
+                          <button 
+                            onClick={() => handleViewDetail(c)}
+                            className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" 
+                            title="Xem chi tiết"
+                          >
                             <Eye size={14} />
                           </button>
                           <button
@@ -1083,6 +1231,182 @@ export default function Page() {
         mode="edit"
         initialData={editingInitialData}
       />
+
+      {/* Toggle Status Confirm Modal */}
+      <ConfirmModal
+        isOpen={showToggleStatusModal}
+        onClose={() => {
+          setShowToggleStatusModal(false);
+          setSelectedCourse(null);
+        }}
+        onConfirm={confirmToggleStatus}
+        title={selectedCourse?.status === "Đang hoạt động" ? "Xác nhận tạm dừng khóa học" : "Xác nhận kích hoạt khóa học"}
+        message={
+          selectedCourse?.status === "Đang hoạt động"
+            ? `Bạn có chắc chắn muốn tạm dừng khóa học "${selectedCourse?.name}"? Khóa học sẽ không còn hoạt động sau khi tạm dừng.`
+            : `Bạn có chắc chắn muốn kích hoạt khóa học "${selectedCourse?.name}"? Khóa học sẽ được kích hoạt và có thể sử dụng ngay.`
+        }
+        confirmText={selectedCourse?.status === "Đang hoạt động" ? "Tạm dừng" : "Kích hoạt"}
+        cancelText="Hủy"
+        variant={selectedCourse?.status === "Đang hoạt động" ? "warning" : "success"}
+        isLoading={isTogglingStatus}
+      />
+
+      {/* Detail Modal */}
+      {showDetailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <BookOpen size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Chi tiết khóa học</h2>
+                    <p className="text-sm text-pink-100">Thông tin chi tiết về khóa học</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    setSelectedCourseDetail(null);
+                  }}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <X size={24} className="text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              {loadingDetail ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+                </div>
+              ) : selectedCourseDetail ? (
+                <div className="space-y-6">
+                  {/* Tên khóa học */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <BookOpen size={16} className="text-pink-500" />
+                      Tên khóa học
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                      {selectedCourseDetail.name || "Chưa có thông tin"}
+                    </div>
+                  </div>
+
+                  {/* Mô tả */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <FileText size={16} className="text-pink-500" />
+                      Mô tả khóa học
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900 min-h-[80px]">
+                      {selectedCourseDetail.description || "Chưa có mô tả"}
+                    </div>
+                  </div>
+
+                  {/* Grid: Trình độ, Số buổi, Học phí */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <BarChart size={16} className="text-pink-500" />
+                        Trình độ
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                        <LevelBadge level={selectedCourseDetail.level || "N/A"} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Clock size={16} className="text-pink-500" />
+                        Số buổi học
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                        {selectedCourseDetail.totalSessions ? `${selectedCourseDetail.totalSessions} buổi` : "Chưa có thông tin"}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <DollarSign size={16} className="text-pink-500" />
+                        Học phí mặc định
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                        {selectedCourseDetail.defaultTuitionAmount 
+                          ? `${selectedCourseDetail.defaultTuitionAmount.toLocaleString("vi-VN")} VND`
+                          : "Chưa có thông tin"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Grid: Giá mỗi buổi, Chi nhánh, Trạng thái */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <DollarSign size={16} className="text-pink-500" />
+                        Giá mỗi buổi
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                        {selectedCourseDetail.unitPriceSession 
+                          ? `${selectedCourseDetail.unitPriceSession.toLocaleString("vi-VN")} VND`
+                          : "Chưa có thông tin"}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Building2 size={16} className="text-pink-500" />
+                        Chi nhánh
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                        {selectedCourseDetail.branchName || selectedCourseDetail.branch?.name || "Chưa có chi nhánh"}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <BookOpen size={16} className="text-pink-500" />
+                        Trạng thái
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white">
+                        <StatusBadge value={selectedCourseDetail.isActive ? "Đang hoạt động" : "Tạm dừng"} />
+                      </div>
+                    </div>
+                  </div>
+
+                  
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  Không có dữ liệu để hiển thị
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 p-6">
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    setSelectedCourseDetail(null);
+                  }}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

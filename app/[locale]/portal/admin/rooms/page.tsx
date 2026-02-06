@@ -5,15 +5,17 @@ import {
   Plus, Filter, Calendar, ChevronRight, MoreVertical, CheckCircle, 
   XCircle, ChevronLeft, ChevronsLeft, ChevronsRight, X, Tag, 
   MapPin,
-  AlertCircle, Save, RotateCcw
+  AlertCircle, Save, RotateCcw, Power, PowerOff
 } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { fetchAdminRooms, createAdminRoom, updateAdminRoom } from "@/app/api/admin/rooms";
+import { fetchAdminRooms, createAdminRoom, updateAdminRoom, fetchAdminRoomDetail, toggleRoomStatus } from "@/app/api/admin/rooms";
 import { fetchClassFormSelectData } from "@/app/api/admin/classFormData";
 import { fetchAdminSessions } from "@/app/api/admin/sessions";
 import type { Room, Status as RoomStatus, CreateRoomRequest } from "@/types/admin/rooms";
 import type { SelectOption } from "@/types/admin/classFormData";
 import type { Session } from "@/types/admin/sessions";
+import { useToast } from "@/hooks/use-toast";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type SortDirection = "asc" | "desc";
 
@@ -219,6 +221,7 @@ interface RoomFormData {
   name: string;
   capacity: number;
   note: string;
+  status: Status;
 }
 
 const initialFormData: RoomFormData = {
@@ -226,6 +229,7 @@ const initialFormData: RoomFormData = {
   name: "",
   capacity: 30,
   note: "",
+  status: "free",
 };
 
 function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateRoomModalProps) {
@@ -424,7 +428,37 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
               </div>
             </div>
 
-            {/* Row 3: Ghi chú */}
+            {/* Row 3: Trạng thái (chỉ hiển thị khi edit) */}
+            {mode === "edit" && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <CheckCircle size={16} className="text-pink-500" />
+                  Trạng thái
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["free", "using", "maintenance"] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => handleChange("status", status)}
+                      className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                        formData.status === status
+                          ? status === "free"
+                            ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                            : status === "using"
+                            ? "bg-rose-100 border-rose-300 text-rose-700"
+                            : "bg-amber-100 border-amber-300 text-amber-700"
+                          : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
+                      }`}
+                    >
+                      {status === "free" ? "Trống" : status === "using" ? "Đang sử dụng" : "Bảo trì"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Row 4: Ghi chú */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Building2 size={16} className="text-pink-500" />
@@ -486,6 +520,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
 /* --------------------------------- Page --------------------------------- */
 
 export default function Page() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -499,16 +534,29 @@ export default function Page() {
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<RoomFormData | null>(null);
   const [todaySessions, setTodaySessions] = useState<Session[]>([]);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedRoomDetail, setSelectedRoomDetail] = useState<any | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [showToggleStatusModal, setShowToggleStatusModal] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [originalRoomStatus, setOriginalRoomStatus] = useState<Status | null>(null);
 
-  // Gọi API để lấy danh sách phòng học
+  // Fetch rooms with branch filter
   useEffect(() => {
+    if (!isLoaded) return;
+
     async function fetchClassrooms() {
       try {
         setLoading(true);
         setError(null);
 
-        const mapped = await fetchAdminRooms();
+        const branchId = getBranchQueryParam();
+        console.log("🏫 Fetching rooms for branch:", branchId || "All branches");
+
+        const mapped = await fetchAdminRooms({ branchId });
         setRooms(mapped);
+        console.log("✅ Loaded", mapped.length, "rooms");
       } catch (err) {
         console.error("Unexpected error when fetching admin classrooms:", err);
         setError((err as Error)?.message || "Đã xảy ra lỗi khi tải danh sách phòng học.");
@@ -519,7 +567,8 @@ export default function Page() {
     }
 
     fetchClassrooms();
-  }, []);
+    setCurrentPage(1);
+  }, [selectedBranchId, isLoaded]);
 
   // Fetch today's sessions
   useEffect(() => {
@@ -641,14 +690,22 @@ export default function Page() {
 
       const created = await createAdminRoom(payload);
 
-      const updatedRooms = await fetchAdminRooms();
+      const branchId = getBranchQueryParam();
+      const updatedRooms = await fetchAdminRooms({ branchId });
       setRooms(updatedRooms);
 
-      alert(`Đã tạo phòng học ${data.name} thành công!`);
+      toast({
+        title: "Thành công",
+        description: `Đã tạo phòng học ${data.name} thành công!`,
+        type: "success",
+      });
     } catch (err: any) {
       console.error("Failed to create room:", err);
-      const errorMessage = err?.message || "Không thể tạo phòng học. Vui lòng thử lại.";
-      alert(errorMessage);
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể tạo phòng học. Vui lòng thử lại.",
+        type: "destructive",
+      });
     }
   };
 
@@ -661,9 +718,11 @@ export default function Page() {
       name: room.name,
       capacity: room.capacity,
       note: room.equipment.join(", "),
+      status: room.status,
     };
 
     setEditingInitialData(formData);
+    setOriginalRoomStatus(room.status);
   };
 
   const handleUpdateRoom = async (data: RoomFormData) => {
@@ -676,19 +735,40 @@ export default function Page() {
         note: data.note || undefined,
       };
 
+      // Cập nhật thông tin phòng học
       await updateAdminRoom(editingRoomId, payload);
+
+      // Nếu trạng thái thay đổi giữa "free" và "maintenance", gọi toggle-status API
+      if (originalRoomStatus !== null && data.status !== originalRoomStatus) {
+        // toggle-status API chỉ hỗ trợ chuyển đổi giữa free (isActive=true) và maintenance (isActive=false)
+        if (
+          (data.status === "free" && originalRoomStatus === "maintenance") ||
+          (data.status === "maintenance" && originalRoomStatus === "free")
+        ) {
+          await toggleRoomStatus(editingRoomId);
+        }
+        // "using" 状态通常由系统自动管理，不需要通过 toggle-status API
+      }
 
       const updatedRooms = await fetchAdminRooms();
       setRooms(updatedRooms);
 
-      alert(`Đã cập nhật phòng học ${data.name} thành công!`);
+      toast({
+        title: "Thành công",
+        description: `Đã cập nhật phòng học ${data.name} thành công!`,
+        type: "success",
+      });
     } catch (err: any) {
       console.error("Failed to update room:", err);
-      const errorMessage = err?.message || "Không thể cập nhật phòng học. Vui lòng thử lại.";
-      alert(errorMessage);
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể cập nhật phòng học. Vui lòng thử lại.",
+        type: "destructive",
+      });
     } finally {
       setEditingRoomId(null);
       setEditingInitialData(null);
+      setOriginalRoomStatus(null);
     }
   };
 
@@ -729,6 +809,68 @@ export default function Page() {
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const yyyy = today.getFullYear();
     return `${dayName}, ${dd}/${mm}/${yyyy}`;
+  };
+
+  const handleViewDetail = async (room: Room) => {
+    try {
+      setLoadingDetail(true);
+      setShowDetailModal(true);
+      setSelectedRoomDetail(null);
+
+      const detail = await fetchAdminRoomDetail(room.id);
+      setSelectedRoomDetail(detail);
+    } catch (err: any) {
+      console.error("Failed to load room detail:", err);
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể tải thông tin chi tiết phòng học.",
+        type: "destructive",
+      });
+      setShowDetailModal(false);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const handleToggleStatus = (room: Room) => {
+    setSelectedRoom(room);
+    setShowToggleStatusModal(true);
+  };
+
+  const confirmToggleStatus = async () => {
+    if (!selectedRoom) return;
+
+    // Xác định trạng thái mới dựa trên trạng thái hiện tại
+    const currentStatus = selectedRoom.status;
+    const newStatus = currentStatus === "free" ? "maintenance" : "free";
+    const actionText = newStatus === "free" ? "kích hoạt" : "tạm dừng";
+
+    try {
+      setIsTogglingStatus(true);
+      await toggleRoomStatus(selectedRoom.id);
+      
+      // Cập nhật danh sách
+      const updatedRooms = await fetchAdminRooms();
+      setRooms(updatedRooms);
+      
+      toast({
+        title: "Thành công",
+        description: `Đã ${actionText} phòng học "${selectedRoom.name}" thành công!`,
+        type: "success",
+      });
+      
+      setShowToggleStatusModal(false);
+      setSelectedRoom(null);
+    } catch (err: any) {
+      console.error("Failed to toggle room status:", err);
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể thay đổi trạng thái phòng học. Vui lòng thử lại.",
+        type: "destructive",
+      });
+    } finally {
+      setIsTogglingStatus(false);
+    }
   };
 
   return (
@@ -799,6 +941,16 @@ export default function Page() {
             color="amber"
           />
         </div>
+
+        {/* Branch Filter Indicator */}
+        {selectedBranchId && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+            <Building2 size={16} className="text-pink-600" />
+            <span className="text-sm text-pink-700 font-medium">
+              Đang lọc theo chi nhánh đã chọn
+            </span>
+          </div>
+        )}
 
         {/* Search and Filter */}
         <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
@@ -921,7 +1073,11 @@ export default function Page() {
                         </td>
                         <td className="py-4 px-6">
                           <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
-                            <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" title="Xem chi tiết">
+                            <button 
+                              onClick={() => handleViewDetail(room)}
+                              className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" 
+                              title="Xem chi tiết"
+                            >
                               <Eye size={14} />
                             </button>
                             <button
@@ -931,8 +1087,16 @@ export default function Page() {
                             >
                               <Pencil size={14} />
                             </button>
-                            <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer " title="Thêm">
-                              <MoreVertical size={14} />
+                            <button 
+                              onClick={() => handleToggleStatus(room)}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                room.status === "free"
+                                  ? "hover:bg-amber-50 text-gray-400 hover:text-amber-600"
+                                  : "hover:bg-emerald-50 text-gray-400 hover:text-emerald-600"
+                              }`}
+                              title={room.status === "free" ? "Tạm dừng phòng học" : "Kích hoạt phòng học"}
+                            >
+                              {room.status === "free" ? <PowerOff size={14} /> : <Power size={14} />}
                             </button>
                           </div>
                         </td>
@@ -1154,10 +1318,165 @@ export default function Page() {
           setIsEditModalOpen(false);
           setEditingRoomId(null);
           setEditingInitialData(null);
+          setOriginalRoomStatus(null);
         }}
         onSubmit={handleUpdateRoom}
         mode="edit"
         initialData={editingInitialData}
+      />
+
+      {/* Detail Modal */}
+      {showDetailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <Building2 size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Chi tiết phòng học</h2>
+                    <p className="text-sm text-pink-100">Thông tin chi tiết về phòng học</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    setSelectedRoomDetail(null);
+                  }}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <X size={24} className="text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              {loadingDetail ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+                </div>
+              ) : selectedRoomDetail ? (
+                <div className="space-y-6">
+                  {/* Tên phòng và Chi nhánh */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Tag size={16} className="text-pink-500" />
+                        Tên phòng học
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                        {selectedRoomDetail.name || "Chưa có thông tin"}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <MapPin size={16} className="text-pink-500" />
+                        Chi nhánh
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                        {selectedRoomDetail.branchName || selectedRoomDetail.branch?.name || "Chưa có chi nhánh"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sức chứa và Trạng thái */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Users size={16} className="text-pink-500" />
+                        Sức chứa
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                        {selectedRoomDetail.capacity ? `${selectedRoomDetail.capacity} người` : "Chưa có thông tin"}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <CheckCircle size={16} className="text-pink-500" />
+                        Trạng thái
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white">
+                        <StatusPill status={selectedRoomDetail.isActive === false ? "maintenance" : "free"} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ghi chú / Thiết bị */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Building2 size={16} className="text-pink-500" />
+                      Ghi chú / Thiết bị
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900 min-h-[80px]">
+                      {selectedRoomDetail.note ? (
+                        <div className="space-y-2">
+                          <p>{selectedRoomDetail.note}</p>
+                          {selectedRoomDetail.equipment && Array.isArray(selectedRoomDetail.equipment) && selectedRoomDetail.equipment.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {selectedRoomDetail.equipment.map((eq: string, i: number) => (
+                                <EquipmentBadge key={i}>{eq}</EquipmentBadge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500">Chưa có ghi chú</p>
+                      )}
+                    </div>
+                  </div>
+
+
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  Không có dữ liệu để hiển thị
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 p-6">
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    setSelectedRoomDetail(null);
+                  }}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toggle Status Confirm Modal */}
+      <ConfirmModal
+        isOpen={showToggleStatusModal}
+        onClose={() => {
+          setShowToggleStatusModal(false);
+          setSelectedRoom(null);
+        }}
+        onConfirm={confirmToggleStatus}
+        title={selectedRoom?.status === "free" ? "Xác nhận tạm dừng phòng học" : "Xác nhận kích hoạt phòng học"}
+        message={
+          selectedRoom?.status === "free"
+            ? `Bạn có chắc chắn muốn tạm dừng phòng học "${selectedRoom?.name}"? Phòng học sẽ không còn sử dụng được sau khi tạm dừng.`
+            : `Bạn có chắc chắn muốn kích hoạt phòng học "${selectedRoom?.name}"? Phòng học sẽ được kích hoạt và có thể sử dụng ngay.`
+        }
+        confirmText={selectedRoom?.status === "free" ? "Tạm dừng" : "Kích hoạt"}
+        cancelText="Hủy"
+        variant={selectedRoom?.status === "free" ? "warning" : "success"}
+        isLoading={isTogglingStatus}
       />
     </>
   );

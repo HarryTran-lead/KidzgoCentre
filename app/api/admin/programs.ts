@@ -52,7 +52,7 @@ function mapApiProgramToRow(item: any): CourseRow {
   };
 }
 
-export async function fetchAdminPrograms(): Promise<CourseRow[]> {
+export async function fetchAdminPrograms(options?: { branchId?: string }): Promise<CourseRow[]> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập để xem danh sách khóa học.");
@@ -62,6 +62,11 @@ export async function fetchAdminPrograms(): Promise<CourseRow[]> {
     pageNumber: "1",
     pageSize: "100",
   });
+
+  // Thêm branchId vào query params nếu có
+  if (options?.branchId) {
+    params.append("branchId", options.branchId);
+  }
 
   const res = await fetch(`${ADMIN_ENDPOINTS.PROGRAMS}?${params.toString()}`, {
     headers: {
@@ -181,10 +186,25 @@ export async function fetchAdminProgramDetail(programId: string): Promise<any> {
   }
 
   const json: any = await res.json();
+  console.log("[fetchAdminProgramDetail] Response structure:", {
+    hasIsSuccess: !!json?.isSuccess,
+    hasData: !!json?.data,
+    hasProgram: !!json?.program,
+    keys: Object.keys(json || {}),
+  });
+  
+  // Handle different response structures
   if (json?.isSuccess && json?.data) {
     return json.data;
   }
-  return json?.data ?? json?.program ?? json;
+  if (json?.data) {
+    return json.data;
+  }
+  if (json?.program) {
+    return json.program;
+  }
+  // If response is the program object directly
+  return json;
 }
 
 export async function updateAdminProgram(

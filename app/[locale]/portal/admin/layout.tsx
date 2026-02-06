@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 import Sidebar from "@/components/portal/sidebar";
 import PortalHeader from "@/components/portal/header";
 import { normalizeRole, type Role } from "@/lib/role";
-import type { Locale } from "@/lib/i18n";
 import { getSession } from "@/lib/auth";
+import { BACKEND_BRANCH_ENDPOINTS } from "@/constants/apiURL";
+import type { GetAllBranchesApiResponse } from "@/types/branch";
+import { cookies } from "next/headers";
 
 type Props = {
   children: ReactNode;
@@ -23,11 +25,53 @@ export default async function PortalLayout({ children, params }: Props) {
   const role: Role = normalizeRole(session.role);
   const user = session.user;
 
+  // Fetch branches for Admin role - Gọi trực tiếp backend API từ server component
+  let branches = undefined;
+  if (role === "Admin") {
+    try {
+      // Lấy token từ cookie
+      const cookieStore = await cookies();
+      const accessToken = cookieStore.get("kidzgo.accessToken")?.value;
+      
+      if (!accessToken) {
+        console.log("No access token found in cookies");
+      } else {
+        // Gọi trực tiếp backend API (không qua Next.js API route)
+        const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+        const apiUrl = `${BASE_URL}${BACKEND_BRANCH_ENDPOINTS.GET_ALL}/all?isActive=true`;
+        console.log("Fetching branches from:", apiUrl);
+        
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          cache: "no-store", // Không cache để luôn lấy data mới nhất
+        });
+
+        const data: GetAllBranchesApiResponse = await response.json();
+        console.log("Branch API Response:", data);
+        
+        if (data.isSuccess && data.data) {
+          branches = data.data.branches;
+          console.log("Fetched branches successfully:", branches?.length, "branches");
+        } else {
+          console.log("No branches data or API failed:", data);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch branches:", error);
+    }
+  }
+  
+  console.log("Admin Layout - Role:", role, "Branches count:", branches ? branches.length : 0);
+
   return (
     <div className="h-dvh w-full">
       <div className="flex h-full">
         {/* Sidebar: desktop chiếm chỗ thật, mobile overlay ở trong chính component */}
-        <Sidebar role={role} />
+        <Sidebar role={role} branches={branches} />
 
         {/* Cột nội dung: container cuộn chính */}
         <section className="flex min-w-0 flex-1 flex-col">
