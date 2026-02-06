@@ -15,3 +15,6 @@ export interface ApiResponse<T> {
       field?: string,
     ]
   }
+  export type ListData<T> =
+  | T[]
+  | { items: T[] };

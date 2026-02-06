@@ -18,8 +18,9 @@ import type { PlacementTest, CreatePlacementTestRequest, UpdatePlacementTestRequ
 interface PlacementTestFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: CreatePlacementTestRequest | UpdatePlacementTestRequest) => Promise<void>;
+  onSuccess: () => void;
   test?: PlacementTest | null;
+  onSubmit?: (data: CreatePlacementTestRequest | UpdatePlacementTestRequest) => Promise<void>;
   leads?: Array<{ id: string; contactName: string; children?: Array<{ id: string; name: string }> }>;
   branches?: Array<{ id: string; name: string }>;
   teachers?: Array<{ id: string; name: string }>;
@@ -28,19 +29,20 @@ interface PlacementTestFormModalProps {
 export default function PlacementTestFormModal({
   isOpen,
   onClose,
-  onSubmit,
+  onSuccess,
   test,
+  onSubmit,
   leads = [],
   branches = [],
   teachers = [],
 }: PlacementTestFormModalProps) {
   const [formData, setFormData] = useState({
     leadId: test?.leadId || "",
-    childId: test?.childId || "",
+    childId: test?.leadChildId || "",
     scheduledAt: test?.scheduledAt ? new Date(test.scheduledAt).toISOString().slice(0, 16) : "",
-    testLocation: test?.testLocation || "",
-    branchId: test?.branchId || "",
-    assignedTeacherId: test?.assignedTeacherId || "",
+    testLocation: (test as any)?.testLocation || test?.room || "",
+    branchId: (test as any)?.branchId || "",
+    assignedTeacherId: test?.invigilatorUserId || "",
     notes: test?.notes || "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,7 +91,10 @@ export default function PlacementTestFormModal({
             notes: formData.notes,
           };
 
-      await onSubmit(submitData);
+      if (onSubmit) {
+        await onSubmit(submitData);
+      }
+      onSuccess();
       onClose();
     } catch (error) {
       console.error("Error submitting form:", error);

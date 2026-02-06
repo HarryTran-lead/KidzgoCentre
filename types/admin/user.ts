@@ -8,11 +8,13 @@ export type UserRole = "Admin" | "Parent" | "ManagementStaff" | "Teacher";
 
 // Create User Request
 export interface CreateUserRequest {
-  email: string;
+  username: string;
   name: string;
+  email: string;
   password: string;
   role: UserRole;
   branchId?: string;
+  phoneNumber?: string;
 }
 
 // Update User Request
@@ -66,6 +68,7 @@ export interface User {
   email: string;
   username: string;
   name: string;
+  phoneNumber?: string;
   role: UserRole;
   branchId?: string;
   branchCode?: string;

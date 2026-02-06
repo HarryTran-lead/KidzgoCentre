@@ -17,7 +17,12 @@ export async function GET(req: Request) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(BACKEND_AUTH_ENDPOINTS.GET_PROFILES), {
+    const { searchParams } = new URL(req.url);
+    const queryString = searchParams.toString();
+    const url = buildApiUrl(BACKEND_AUTH_ENDPOINTS.GET_PROFILES);
+    const fullUrl = queryString ? `${url}?${queryString}` : url;
+
+    const upstream = await fetch(fullUrl, {
       method: "GET",
       headers: {
         "Authorization": authHeader,

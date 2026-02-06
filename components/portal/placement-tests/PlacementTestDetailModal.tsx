@@ -80,14 +80,14 @@ export default function PlacementTestDetailModal({
                   <User className="text-slate-400 mt-1" size={18} />
                   <div>
                     <p className="text-sm text-slate-600">Phụ huynh</p>
-                    <p className="font-medium text-slate-900">{test.leadName || 'N/A'}</p>
+                    <p className="font-medium text-slate-900">{test.leadContactName || 'N/A'}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <FileText className="text-slate-400 mt-1" size={18} />
                   <div>
                     <p className="text-sm text-slate-600">Số điện thoại</p>
-                    <p className="font-medium text-slate-900">{test.leadPhone || 'N/A'}</p>
+                    <p className="font-medium text-slate-900">{(test as any).leadPhone || 'N/A'}</p>
                   </div>
                 </div>
               </div>
@@ -109,21 +109,21 @@ export default function PlacementTestDetailModal({
                   <MapPin className="text-slate-400 mt-1" size={18} />
                   <div>
                     <p className="text-sm text-slate-600">Chi nhánh</p>
-                    <p className="font-medium text-slate-900">{test.branchName || 'N/A'}</p>
+                    <p className="font-medium text-slate-900">{(test as any).branchName || 'N/A'}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <MapPin className="text-slate-400 mt-1" size={18} />
                   <div>
                     <p className="text-sm text-slate-600">Địa điểm</p>
-                    <p className="font-medium text-slate-900">{test.testLocation || 'N/A'}</p>
+                    <p className="font-medium text-slate-900">{(test as any).testLocation || test.room || 'N/A'}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <User className="text-slate-400 mt-1" size={18} />
                   <div>
                     <p className="text-sm text-slate-600">Giáo viên phụ trách</p>
-                    <p className="font-medium text-slate-900">{test.assignedTeacherName || 'Chưa phân công'}</p>
+                    <p className="font-medium text-slate-900">{test.invigilatorName || 'Chưa phân công'}</p>
                   </div>
                 </div>
               </div>

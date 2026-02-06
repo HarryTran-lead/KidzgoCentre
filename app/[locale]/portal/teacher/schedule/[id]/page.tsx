@@ -19,7 +19,6 @@ import {
   fetchSessionDetail,
   fetchAttendance,
   saveAttendance,
-  statusToApi,
 } from "@/app/api/teacher/attendance";
 import type {
   AttendanceStatus,

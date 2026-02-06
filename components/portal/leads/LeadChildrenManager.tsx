@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, User, Calendar, Book, UserRound } from "lucide-react";
+import { Plus, Edit, Trash2, User, Calendar, Book, UserRound, Activity, Clock, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
 import {
@@ -263,6 +263,11 @@ export default function LeadChildrenManager({
                     )}
                   </div>
 
+                  {/* Child ID */}
+                  <div className="text-xs text-gray-500">
+                    ID: {child.id}
+                  </div>
+
                   {child.dob && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar size={14} />
@@ -280,6 +285,40 @@ export default function LeadChildrenManager({
                   {child.notes && (
                     <p className="text-sm text-gray-500 italic">{child.notes}</p>
                   )}
+
+                  {/* Status Badge */}
+                  {(child as any).status && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Activity size={14} className="text-blue-500" />
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {(child as any).status === 'New' ? 'Mới' : (child as any).status}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Converted Student Profile */}
+                  {(child as any).convertedStudentProfileId && (
+                    <div className="flex items-center gap-2 text-sm text-emerald-600">
+                      <CheckCircle size={14} />
+                      <span>Đã chuyển đổi • ID: {(child as any).convertedStudentProfileId}</span>
+                    </div>
+                  )}
+
+                  {/* Metadata */}
+                  <div className="flex flex-wrap gap-3 text-xs text-gray-400 pt-2 border-t border-gray-100">
+                    {child.createdAt && (
+                      <div className="flex items-center gap-1">
+                        <Clock size={12} />
+                        <span>Tạo: {formatDate(child.createdAt)}</span>
+                      </div>
+                    )}
+                    {child.updatedAt && (
+                      <div className="flex items-center gap-1">
+                        <Clock size={12} />
+                        <span>Cập nhật: {formatDate(child.updatedAt)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {isEditable && (

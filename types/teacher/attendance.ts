@@ -98,6 +98,15 @@ export type SessionApiResponse = {
   } | SessionApiItem;
   message?: string;
 };
+export type SessionListApiResponse = {
+  success?: boolean;
+  data?: {
+    items?: SessionApiItem[];
+    totalCount?: number;
+    totalPages?: number;
+  } | SessionApiItem[];
+  message?: string;
+};
 
 export type CreateAttendanceRequest = {
   studentProfileId: string;
@@ -115,7 +124,21 @@ export type FetchAttendanceResult = {
   attendanceSummary: AttendanceSummaryApi;
   hasAnyMarked: boolean;
 };
+export type FetchSessionsParams = {
+  classId?: string;
+  branchId?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+  pageNumber?: number;
+  pageSize?: number;
+};
 
+export type FetchSessionsResult = {
+  sessions: SessionApiItem[];
+  totalCount?: number;
+  totalPages?: number;
+};
 export type FetchSessionResult = {
   lesson: LessonDetail;
   attendance: AttendanceSummaryApi;
