@@ -7,6 +7,59 @@ import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
 import type { CourseRow, CreateProgramRequest, Program } from "@/types/admin/programs";
 
+// Normalize isActive/status values from API which may be boolean/number/string (e.g. true, 1, "true", "ACTIVE")
+export function normalizeIsActive(value: any): boolean | null {
+  if (value === true) return true;
+  if (value === false) return false;
+  if (value === null || value === undefined) return null;
+
+  if (typeof value === "number") {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    if (!v) return null;
+
+    // Truthy
+    if (
+      v === "true" ||
+      v === "1" ||
+      v === "active" ||
+      v === "activated" ||
+      v === "enabled" ||
+      v === "on" ||
+      v === "yes" ||
+      v === "y" ||
+      v === "đang hoạt động" ||
+      v === "dang hoat dong"
+    ) {
+      return true;
+    }
+
+    // Falsy
+    if (
+      v === "false" ||
+      v === "0" ||
+      v === "inactive" ||
+      v === "disabled" ||
+      v === "off" ||
+      v === "no" ||
+      v === "n" ||
+      v === "tạm dừng" ||
+      v === "tam dung"
+    ) {
+      return false;
+    }
+
+    return null;
+  }
+
+  return null;
+}
+
 function mapApiProgramToRow(item: any): CourseRow {
   const id = String(item?.id ?? item?.code ?? "");
   const name = item?.name ?? "Chương trình";
@@ -34,7 +87,8 @@ function mapApiProgramToRow(item: any): CourseRow {
   const students = "0 học viên";
 
   let status: CourseRow["status"] = "Tạm dừng";
-  if (item?.isActive === true) status = "Đang hoạt động";
+  const active = normalizeIsActive(item?.isActive ?? item?.status ?? item?.active);
+  if (active === true) status = "Đang hoạt động";
 
   const branch = item?.branchName ?? item?.branch?.name ?? item?.branch ?? "";
 
@@ -150,7 +204,7 @@ export async function createAdminProgram(
         : payload.unitPriceSession,
     description: data?.description ?? payload.description ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
-    isActive: data?.isActive ?? true,
+    isActive: normalizeIsActive(data?.isActive ?? data?.status) ?? true,
   };
 
   if (!program.id) {
@@ -262,7 +316,7 @@ export async function updateAdminProgram(
         : payload.unitPriceSession,
     description: data?.description ?? payload.description ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
-    isActive: data?.isActive ?? null,
+    isActive: normalizeIsActive(data?.isActive ?? data?.status),
   };
 
   if (!program.id) {

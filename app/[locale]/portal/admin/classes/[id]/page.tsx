@@ -24,6 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
+  Plus,
 } from "lucide-react";
 import { fetchAndMapAdminClassDetail, fetchAdminClassStudents, type Student } from "@/app/api/admin/classes";
 import type { ClassDetail, Track } from "@/types/admin/classes";
@@ -515,6 +516,15 @@ export default function ClassDetailPage() {
                   Không hoạt động
                 </button>
               </div>
+
+              {/* Add Student */}
+              <button
+                onClick={() => router.push(`/${locale}/portal/admin/students?classId=${classId}`)}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Plus size={16} />
+                Thêm học viên
+              </button>
             </div>
           </div>
         </div>
@@ -596,12 +606,8 @@ export default function ClassDetailPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="inline-flex p-4 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl mb-4">
-                      <Search size={32} className="text-pink-500" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Không tìm thấy học viên</h3>
-                    <p className="text-gray-600">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
+                  <td colSpan={6} className="px-6 py-6 text-center text-sm text-gray-500">
+                    {/* intentionally left blank when không có kết quả lọc; empty state chung phía dưới sẽ xử lý khi thật sự chưa có học viên */}
                   </td>
                 </tr>
               )}
@@ -627,7 +633,14 @@ export default function ClassDetailPage() {
               <Users size={32} className="text-pink-500" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Chưa có học viên</h3>
-            <p className="text-gray-600">Lớp học này chưa có học viên đăng ký</p>
+            <p className="text-gray-600 mb-4">Lớp học này chưa có học viên đăng ký</p>
+            <button
+              onClick={() => router.push(`/${locale}/portal/admin/students?classId=${classId}`)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
+            >
+              <Plus size={16} />
+              Thêm học viên
+            </button>
           </div>
         )}
       </div>
