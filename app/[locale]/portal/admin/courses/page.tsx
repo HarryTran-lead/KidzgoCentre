@@ -30,6 +30,7 @@ import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
 import { getAllBranches } from "@/lib/api/branchService";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 /* -------------------------- helpers -------------------------- */
 function cn(...a: Array<string | false | null | undefined>) {
@@ -584,6 +585,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 /* ------------------------------ page ------------------------------- */
 export default function Page() {
   const { toast } = useToast();
+  const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
   const [q, setQ] = useState("");
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [sortField, setSortField] = useState<SortField | null>(null);

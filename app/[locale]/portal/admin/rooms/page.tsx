@@ -16,6 +16,7 @@ import type { SelectOption } from "@/types/admin/classFormData";
 import type { Session } from "@/types/admin/sessions";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 type SortDirection = "asc" | "desc";
 
@@ -521,6 +522,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
 
 export default function Page() {
   const { toast } = useToast();
+  const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
