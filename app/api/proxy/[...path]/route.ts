@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 const BACKEND_BASE =
-  process.env.BACKEND_API_BASE_URL ?? "https://kidzgo-be.onrender.com/api";
+  process.env.BACKEND_API_BASE_URL ?? "http://103.146.22.206:5000/api";
 
 async function handler(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;

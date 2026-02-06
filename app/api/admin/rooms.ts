@@ -197,3 +197,93 @@ export async function updateAdminRoom(
 
   return roomData;
 }
+
+export async function fetchAdminRoomDetail(roomId: string): Promise<any> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem chi tiết phòng học.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSROOMS}/${roomId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch (parseError) {
+    console.error("[fetchAdminRoomDetail] Failed to parse response as JSON:", text.substring(0, 200));
+  }
+
+  if (!res.ok) {
+    const errorMessage = 
+      json?.message || 
+      json?.detail || 
+      json?.error ||
+      (res.status === 500 ? "Lỗi máy chủ (500). Vui lòng kiểm tra lại thông tin phòng học." : "Không thể tải chi tiết phòng học từ máy chủ.");
+    console.error("[fetchAdminRoomDetail] Error response:", {
+      status: res.status,
+      statusText: res.statusText,
+      errorMessage,
+      responseText: text.substring(0, 500),
+    });
+    throw new Error(errorMessage);
+  }
+
+  console.log("[fetchAdminRoomDetail] Success response structure:", {
+    hasIsSuccess: !!json?.isSuccess,
+    hasData: !!json?.data,
+    hasClassroom: !!json?.classroom,
+    keys: Object.keys(json || {}),
+  });
+  
+  // Handle different response structures
+  if (json?.isSuccess && json?.data) {
+    return json.data;
+  }
+  if (json?.data) {
+    return json.data;
+  }
+  if (json?.classroom) {
+    return json.classroom;
+  }
+  // If response is the classroom object directly
+  return json || {};
+}
+
+export async function toggleRoomStatus(roomId: string): Promise<{ isSuccess: boolean; data: { id: string; isActive: boolean } }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để thay đổi trạng thái phòng học.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSROOMS_TOGGLE_STATUS(roomId)}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg =
+      json?.message ||
+      json?.error ||
+      (typeof text === "string" && text.trim() ? text : null) ||
+      "Không thể thay đổi trạng thái phòng học từ máy chủ.";
+    throw new Error(msg);
+  }
+
+  return json?.data ?? json;
+}

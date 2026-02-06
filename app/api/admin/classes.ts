@@ -534,6 +534,51 @@ export async function fetchAdminUsersByIds(userIds: string[]): Promise<Map<strin
 /**
  * Fetch and map class detail with teacher names
  */
+export async function updateClassStatus(
+  classId: string,
+  status: string
+): Promise<any> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cập nhật trạng thái lớp học.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSES_STATUS(classId)}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ status }),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const detail = json?.detail || json?.message || json?.error;
+    const title = json?.title;
+
+    let msg = "Không thể cập nhật trạng thái lớp học từ máy chủ.";
+    if (detail) {
+      msg = detail;
+    } else if (title) {
+      msg = title;
+    } else if (typeof text === "string" && text.trim()) {
+      msg = text;
+    }
+
+    throw new Error(msg);
+  }
+
+  return json?.data ?? json;
+}
+
 export async function fetchAndMapAdminClassDetail(classId: string): Promise<ClassDetail> {
   const apiData = await fetchAdminClassDetail(classId);
 
