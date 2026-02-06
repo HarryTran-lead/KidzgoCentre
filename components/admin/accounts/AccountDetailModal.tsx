@@ -78,7 +78,7 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
                 <div>
                   <p className="text-sm text-gray-500">Số điện thoại</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {account.branchContactPhone || 'Chưa có'}
+                    {account.phoneNumber || 'Chưa có'}
                   </p>
                 </div>
               </div>
