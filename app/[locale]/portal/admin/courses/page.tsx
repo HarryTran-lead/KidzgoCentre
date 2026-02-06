@@ -25,7 +25,7 @@ import {
   PowerOff,
   Tag
 } from "lucide-react";
-import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram, toggleProgramStatus } from "@/app/api/admin/programs";
+import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram, toggleProgramStatus, normalizeIsActive } from "@/app/api/admin/programs";
 import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
 import { getAllBranches } from "@/lib/api/branchService";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -187,8 +187,9 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 
     // Chỉ tính toán nếu có giá trị hợp lệ
     const sessions = Number(formData.totalSessions);
-    const tuitionStr = formData.defaultTuitionAmount.replace(/,/g, "").trim();
-    const tuition = Number(tuitionStr);
+    // vi-VN thường dùng "." để phân tách hàng nghìn (vd: 200.000).
+    // Vì vậy chỉ giữ lại chữ số để parse (hỗ trợ cả "." và "," hoặc khoảng trắng).
+    const tuition = Number(formData.defaultTuitionAmount.replace(/[^\d]/g, ""));
     
     // Nếu cả hai giá trị đều hợp lệ, tính toán giá mỗi buổi
     if (sessions > 0 && tuition > 0 && !isNaN(sessions) && !isNaN(tuition)) {
@@ -242,10 +243,10 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     if (!formData.totalSessions.trim() || Number(formData.totalSessions) <= 0) {
       newErrors.totalSessions = "Số buổi học phải lớn hơn 0";
     }
-    if (!formData.defaultTuitionAmount.trim() || Number(formData.defaultTuitionAmount.replace(/,/g, "")) <= 0) {
+    if (!formData.defaultTuitionAmount.trim() || Number(formData.defaultTuitionAmount.replace(/[^\d]/g, "")) <= 0) {
       newErrors.defaultTuitionAmount = "Học phí mặc định phải lớn hơn 0";
     }
-    if (!formData.unitPriceSession.trim() || Number(formData.unitPriceSession.replace(/,/g, "")) <= 0) {
+    if (!formData.unitPriceSession.trim() || Number(formData.unitPriceSession.replace(/[^\d]/g, "")) <= 0) {
       newErrors.unitPriceSession = "Giá mỗi buổi phải lớn hơn 0";
     }
 
@@ -737,7 +738,7 @@ export default function Page() {
       const created = await createAdminProgram(payload);
 
       // Map response về CourseRow để thêm vào danh sách
-      // Tạo mới luôn là "Đang hoạt động"
+      // Tạo mới: hiển thị theo lựa chọn trong form (backend có thể default khác; sẽ đồng bộ bên dưới)
       const newCourse: CourseRow = {
         id: created.code ?? created.id,
         name: created.name,
@@ -747,11 +748,32 @@ export default function Page() {
         fee: `${created.defaultTuitionAmount.toLocaleString("vi-VN")} VND`,
         classes: "0 lớp",
         students: "0 học viên",
-        status: "Đang hoạt động",
+        status: data.status,
         branch: "",
       };
 
       setCourses(prev => [newCourse, ...prev]);
+
+      // Đồng bộ trạng thái với backend nếu backend tạo default khác lựa chọn trên UI
+      try {
+        const programId = newCourse.id;
+        const desiredActive = data.status === "Đang hoạt động";
+        if (programId) {
+          const detail = await fetchAdminProgramDetail(programId);
+          const currentActive = normalizeIsActive(detail?.isActive ?? detail?.status);
+          if (currentActive !== null && currentActive !== desiredActive) {
+            await toggleProgramStatus(programId);
+          }
+
+          // Refresh lại danh sách để đảm bảo UI khớp dữ liệu backend
+          const branchId = getBranchQueryParam();
+          const mapped = await fetchAdminPrograms({ branchId });
+          setCourses(mapped);
+        }
+      } catch (syncErr) {
+        console.warn("[handleCreateCourse] Could not sync status after create:", syncErr);
+      }
+
       toast({
         title: "Thành công",
         description: `Đã tạo khóa học ${data.name} thành công!`,
@@ -791,7 +813,7 @@ export default function Page() {
       const defaultTuitionAmountNum: number = detail?.defaultTuitionAmount ?? 0;
       const unitPriceSessionNum: number = detail?.unitPriceSession ?? 0;
 
-      const isActive: boolean | null = detail?.isActive ?? null;
+      const isActive: boolean | null = normalizeIsActive(detail?.isActive ?? detail?.status);
       let status: CourseFormData["status"] = "Tạm dừng";
       if (isActive === true) status = "Đang hoạt động";
 
@@ -1378,7 +1400,7 @@ export default function Page() {
                         Trạng thái
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white">
-                        <StatusBadge value={selectedCourseDetail.isActive ? "Đang hoạt động" : "Tạm dừng"} />
+                        <StatusBadge value={normalizeIsActive(selectedCourseDetail?.isActive ?? selectedCourseDetail?.status) === true ? "Đang hoạt động" : "Tạm dừng"} />
                       </div>
                     </div>
                   </div>

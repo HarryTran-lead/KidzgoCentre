@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
+import { getAllBranches } from "@/lib/api/branchService";
 import { createAdminSession, fetchAdminSessions } from "@/app/api/admin/sessions";
 import { fetchAdminUsersByIds } from "@/app/api/admin/classes";
 import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
@@ -33,7 +34,6 @@ import {
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
-
 type Slot = {
   id: string;
   title: string;
@@ -44,6 +44,12 @@ type Slot = {
   date: string;
   note?: string;
   color?: string;
+};
+
+const PERIOD_TIME_RANGES: Record<Period, string> = {
+  MORNING: "08:00 - 11:00",
+  AFTERNOON: "14:00 - 17:00",
+  EVENING: "18:30 - 21:00",
 };
 
 /* =================== DATA từ backend (không dùng mock cứng) =================== */
@@ -106,6 +112,7 @@ interface CreateScheduleModalProps {
 }
 
 interface ScheduleFormData {
+  branchId: string;
   type: SlotType;
   classId: string;
   teacherId: string;
@@ -113,16 +120,15 @@ interface ScheduleFormData {
   assistantId: string;
   date: string;
   time: string;
-  period: "MORNING" | "AFTERNOON" | "EVENING";
+  period: Period;
   color: string;
   note: string;
-  repeat: "NONE" | "WEEKLY" | "BIWEEKLY" | "MONTHLY";
-  repeatEndDate: string;
   sendNotification: boolean;
   participationType: ParticipationType;
 }
 
 const initialFormData: ScheduleFormData = {
+  branchId: "",
   type: "CLASS",
   classId: "",
   teacherId: "",
@@ -133,8 +139,6 @@ const initialFormData: ScheduleFormData = {
   period: "EVENING",
   color: "bg-gradient-to-r from-pink-500 to-rose-500",
   note: "",
-  repeat: "NONE",
-  repeatEndDate: "",
   sendNotification: true,
   participationType: "OFFLINE",
 };
@@ -146,6 +150,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   const [errors, setErrors] = useState<Partial<Record<keyof ScheduleFormData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
   const [classOptions, setClassOptions] = useState<SelectOption[]>([]);
   const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
@@ -157,8 +162,18 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   const buildPlannedDatetimeISO = (dateISO: string, timeRange: string) => {
     const [start] = timeRange.split(" - ");
     const startTime = (start || "00:00").trim();
-    const d = new Date(`${dateISO}T${startTime}:00`);
-    return d.toISOString();
+
+    if (!dateISO) return "";
+
+    // Giữ nguyên giờ người dùng chọn, tránh bị lệch do timezone của trình duyệt.
+    // Tạo chuỗi ISO có kèm offset múi giờ hiện tại (vd: +07:00 cho Việt Nam).
+    const offsetMinutes = new Date().getTimezoneOffset(); // ví dụ: -420 cho UTC+7
+    const sign = offsetMinutes <= 0 ? "+" : "-";
+    const abs = Math.abs(offsetMinutes);
+    const offsetHours = String(Math.floor(abs / 60)).padStart(2, "0");
+    const offsetMins = String(abs % 60).padStart(2, "0");
+
+    return `${dateISO}T${startTime}:00${sign}${offsetHours}:${offsetMins}`;
   };
 
   const computeDurationMinutes = (timeRange: string) => {
@@ -173,17 +188,19 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
     }
   };
 
-  const fetchSelectData = async () => {
+  const fetchSelectData = async (branchId?: string) => {
     try {
       const token = getAccessToken();
       if (!token) return;
 
       const authHeaders = { Authorization: `Bearer ${token}` };
 
+      const branchQuery = branchId ? `&branchId=${encodeURIComponent(branchId)}` : "";
+
       const [classesRes, roomsRes, teachersRes] = await Promise.all([
-        fetch("/api/classes?pageNumber=1&pageSize=200", { headers: authHeaders }),
-        fetch("/api/classrooms?pageNumber=1&pageSize=200", { headers: authHeaders }),
-        fetch("/api/admin/users?pageNumber=1&pageSize=200&role=Teacher", { headers: authHeaders }),
+        fetch(`/api/classes?pageNumber=1&pageSize=200${branchQuery}`, { headers: authHeaders }),
+        fetch(`/api/classrooms?pageNumber=1&pageSize=200${branchQuery}`, { headers: authHeaders }),
+        fetch(`/api/admin/users?pageNumber=1&pageSize=200&role=Teacher${branchQuery}`, { headers: authHeaders }),
       ]);
 
       const [classesJson, roomsJson, teachersJson] = await Promise.all([
@@ -251,9 +268,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       document.body.style.overflow = "hidden";
-
       setSubmitError(null);
-      fetchSelectData();
     }
 
     return () => {
@@ -262,23 +277,73 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
     };
   }, [isOpen, onClose]);
 
+  // Load danh sách chi nhánh khi mở modal
   useEffect(() => {
-    if (isOpen) {
-      setFormData(initialFormData);
-      const today = new Date();
-      const formattedDate = today.toISOString().split("T")[0];
-      setFormData((prev) => ({
-        ...prev,
-        date: prefillDate ?? formattedDate,
-        time: prefillTime ?? prev.time,
-      }));
-      setErrors({});
-    }
+    if (!isOpen) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await getAllBranches({ page: 1, limit: 100 });
+        if (cancelled) return;
+
+        const branches: any[] = res?.data?.branches ?? res?.data ?? [];
+        setBranchOptions(
+          branches
+            .map((b) => ({
+              id: String(b?.id ?? ""),
+              label: String(b?.name ?? b?.code ?? "Chi nhánh"),
+            }))
+            .filter((b) => b.id)
+        );
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to load branches for schedule modal:", err);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  // Reset form mỗi lần mở modal, prefill ngày / giờ
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const today = new Date();
+    const formattedDate = today.toISOString().split("T")[0];
+
+    setFormData((prev) => ({
+      ...initialFormData,
+      branchId: prev.branchId || "",
+      date: prefillDate ?? formattedDate,
+      time: prefillTime ?? prev.time,
+    }));
+    setErrors({});
   }, [isOpen, prefillDate, prefillTime]);
+
+  // Khi đổi chi nhánh -> load lại lớp, phòng, giáo viên theo chi nhánh
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const branchId = formData.branchId;
+    if (!branchId) {
+      setClassOptions([]);
+      setRoomOptions([]);
+      setTeacherOptions([]);
+      return;
+    }
+
+    fetchSelectData(branchId);
+  }, [isOpen, formData.branchId]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ScheduleFormData, string>> = {};
 
+    if (!formData.branchId) newErrors.branchId = "Chi nhánh là bắt buộc";
     if (!formData.classId) newErrors.classId = "Lớp học là bắt buộc";
     if (!formData.teacherId) newErrors.teacherId = "Giáo viên là bắt buộc";
     if (!formData.roomId) newErrors.roomId = "Phòng học là bắt buộc";
@@ -332,16 +397,6 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
 
   if (!isOpen) return null;
 
-  // Hàm lấy thời gian theo ca học
-  const getTimeByPeriod = (period: string) => {
-    switch (period) {
-      case "MORNING": return "08:00 - 11:00";
-      case "AFTERNOON": return "14:00 - 17:00";
-      case "EVENING": return "18:30 - 21:00";
-      default: return "18:30 - 21:00";
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
@@ -378,6 +433,42 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 {submitError}
               </div>
             )}
+
+            {/* Row 0: Chi nhánh */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Building2 size={16} className="text-pink-500" />
+                  Chi nhánh *
+                </label>
+                <div className="relative">
+                  <select
+                    value={formData.branchId}
+                    onChange={(e) => handleChange("branchId", e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
+                      errors.branchId ? "border-rose-500" : "border-pink-200"
+                    }`}
+                  >
+                    <option value="">Chọn chi nhánh</option>
+                    {branchOptions.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.branchId && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-rose-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.branchId && (
+                  <p className="text-sm text-rose-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.branchId}
+                  </p>
+                )}
+              </div>
+            </div>
 
             {/* Row 1: Lớp học & Loại */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -526,9 +617,9 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {([
-                    { value: "MORNING" as const, label: "Sáng", time: "08:00 - 11:00" },
-                    { value: "AFTERNOON" as const, label: "Chiều", time: "14:00 - 17:00" },
-                    { value: "EVENING" as const, label: "Tối", time: "18:30 - 21:00" },
+                    { value: "MORNING" as const, label: "Sáng", time: PERIOD_TIME_RANGES.MORNING },
+                    { value: "AFTERNOON" as const, label: "Chiều", time: PERIOD_TIME_RANGES.AFTERNOON },
+                    { value: "EVENING" as const, label: "Tối", time: PERIOD_TIME_RANGES.EVENING },
                   ]).map((period) => (
                     <button
                       key={period.value}
@@ -595,50 +686,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
               </div>
             </div>
 
-            {/* Row 6: Lặp lại */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <CalendarRange size={16} className="text-pink-500" />
-                Lặp lại lịch
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {([
-                  { value: "NONE" as const, label: "Không lặp" },
-                  { value: "WEEKLY" as const, label: "Hàng tuần" },
-                  { value: "BIWEEKLY" as const, label: "2 tuần/lần" },
-                  { value: "MONTHLY" as const, label: "Hàng tháng" },
-                ]).map((repeat) => (
-                  <button
-                    key={repeat.value}
-                    type="button"
-                    onClick={() => handleChange("repeat", repeat.value)}
-                    className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${formData.repeat === repeat.value
-                      ? "bg-gradient-to-r from-pink-50 to-rose-50 border-pink-300 text-pink-700"
-                      : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
-                      }`}
-                  >
-                    {repeat.label}
-                  </button>
-                ))}
-              </div>
-
-              {formData.repeat !== "NONE" && (
-                <div className="mt-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kết thúc lặp lại vào
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.repeatEndDate}
-                    onChange={(e) => handleChange("repeatEndDate", e.target.value)}
-                    min={formData.date}
-                    className="w-full px-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-300"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Row 7: Ghi chú */}
+            {/* Row 6: Ghi chú */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <FileText size={16} className="text-pink-500" />
@@ -1437,10 +1485,10 @@ export default function AdminSchedulePage() {
         prefillTime={
           selectedPeriod
             ? selectedPeriod === "MORNING"
-              ? "08:00 - 11:00"
+              ? PERIOD_TIME_RANGES.MORNING
               : selectedPeriod === "AFTERNOON"
-                ? "14:00 - 17:00"
-                : "18:30 - 21:00"
+                ? PERIOD_TIME_RANGES.AFTERNOON
+                : PERIOD_TIME_RANGES.EVENING
             : undefined
         }
       />
