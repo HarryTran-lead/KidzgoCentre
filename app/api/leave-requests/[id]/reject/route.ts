@@ -3,12 +3,14 @@ import { BACKEND_LEAVE_REQUEST_ENDPOINTS, buildApiUrl } from "@/constants/apiURL
 import type { LeaveRequestActionResponse } from "@/types/leaveRequest";
 
 type RouteParams = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export async function PUT(req: Request, { params }: RouteParams) {  try {
+export async function PUT(req: Request, { params }: RouteParams) {
+  const { id } = await params;
+  try {
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
@@ -23,7 +25,7 @@ export async function PUT(req: Request, { params }: RouteParams) {  try {
     }
     const bodyText = await req.text();
 
-    const upstream = await fetch(buildApiUrl(BACKEND_LEAVE_REQUEST_ENDPOINTS.REJECT(params.id)), {
+    const upstream = await fetch(buildApiUrl(BACKEND_LEAVE_REQUEST_ENDPOINTS.REJECT(id)), {
       method: "PUT",
       headers: {
         Authorization: authHeader,

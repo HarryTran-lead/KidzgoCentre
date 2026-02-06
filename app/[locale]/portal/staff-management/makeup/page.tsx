@@ -214,10 +214,10 @@ const mapUsedMakeupCredits = (items: MakeupCredit[]): UsedMakeupCredit[] => {
   }));
 };
 
-const sessionTitle = (session: SessionDetail | null) =>
+const sessionTitle = (session: SessionDetail | null | undefined) =>
   [session?.classCode, session?.classTitle].filter(Boolean).join(" - ") || "Chưa có lớp";
 
-const sessionMeta = (session: SessionDetail | null) =>
+const sessionMeta = (session: SessionDetail | null | undefined) =>
   [session?.branchName, session?.plannedRoomName].filter(Boolean).join(" • ");
 
 /* ===================== UI bits ===================== */

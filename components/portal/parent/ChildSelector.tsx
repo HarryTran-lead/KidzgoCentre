@@ -23,6 +23,7 @@ export default function ChildSelector() {
     () =>
       profiles.find((profile) => profile.id === selectedProfile?.id) ??
       selectedProfile,
+    [profiles, selectedProfile]
 );
 const syncSelectedProfile = useCallback(
     async (child: Child) => {

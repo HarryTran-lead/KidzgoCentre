@@ -196,7 +196,7 @@ export default function ParentAttendancePage() {
 
         const data = Array.isArray(response.data)
           ? response.data
-          : response.data?.items ?? response.data?.classes?.items ?? [];
+          : response.data?.items ?? [];
 
         setClasses(data);
 

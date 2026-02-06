@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { BACKEND_LEAVE_REQUEST_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
 import type { LeaveRequestActionResponse, LeaveRequestRecord } from "@/types/leaveRequest";
 
-type RouteParams = { params: { id: string } };
+type RouteParams = { params: Promise<{ id: string }> };
 
-export async function PUT(req: Request, { params }: RouteParams) {  try {
+export async function PUT(req: Request, { params }: RouteParams) {
+  const { id } = await params;
+  try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return NextResponse.json(
@@ -14,7 +16,7 @@ export async function PUT(req: Request, { params }: RouteParams) {  try {
     }
 
     const bodyText = await req.text();
-    const fullUrl = buildApiUrl(BACKEND_LEAVE_REQUEST_ENDPOINTS.APPROVE(params.id));
+    const fullUrl = buildApiUrl(BACKEND_LEAVE_REQUEST_ENDPOINTS.APPROVE(id));
 
     const upstream = await fetch(fullUrl, {
       method: "PUT",
@@ -26,7 +28,7 @@ export async function PUT(req: Request, { params }: RouteParams) {  try {
     });
 
     const text = await upstream.text();
-    const fallbackData = { id: params.id } as LeaveRequestRecord;
+    const fallbackData = { id } as LeaveRequestRecord;
 
     let data: LeaveRequestActionResponse;
     try {

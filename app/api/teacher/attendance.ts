@@ -86,16 +86,15 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
 
   const lesson: LessonDetail = {
     id: String(session?.id ?? ""),
-    lesson: session?.lessonName ?? session?.lesson?.name ?? session?.name ?? "Buổi học",
+    lesson: (session as any)?.lessonName ?? (session as any)?.lesson?.name ?? session?.classTitle ?? "Buổi học",
     course:
-      session?.courseName ??
-      session?.course?.name ??
-      session?.className ??
-      session?.class?.name ??
-      session?.class?.code ??
+      (session as any)?.courseName ??
+      (session as any)?.course?.name ??
+      session?.classTitle ??
+      session?.classCode ??
       "Lớp học",
-    teacher: session?.teacherName ?? session?.teacher?.fullName ?? session?.teacher?.name ?? "Giáo viên",
-    room: session?.roomName ?? session?.room?.name ?? "Phòng học",
+    teacher: session?.actualTeacherName ?? session?.plannedTeacherName ?? "Giáo viên",
+    room: session?.actualRoomName ?? session?.plannedRoomName ?? "Phòng học",
     date: startDate ? formatDateLabel(startDate) : "Chưa cập nhật",
     time: startDate ? formatTimeRange(startDate, session?.durationMinutes ?? undefined) : "--:--",
     status: (session as any)?.status ?? null,
@@ -133,7 +132,7 @@ export async function fetchSessionDetail(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
   }
 
-  const res = await fetch(`${TEACHER_ENDPOINTS.SESSION}/${sessionId}`, {
+  const res = await fetch(`${TEACHER_ENDPOINTS.SESSIONS}/${sessionId}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -316,7 +315,7 @@ export async function fetchAttendance(
 
   return {
     students,
-    attendanceSummary: summary,
+    attendanceSummary: summary ?? { totalStudents: 0, presentCount: 0, absentCount: 0, makeupCount: 0, notMarkedCount: 0 },
     hasAnyMarked,
   };
 }
@@ -344,7 +343,7 @@ export async function saveAttendance(
   const url = isCreate ? TEACHER_ENDPOINTS.ATTENDANCE : `${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`;
   const method = isCreate ? "POST" : "PUT";
 
-  const body: CreateAttendanceRequest | UpdateAttendanceRequest = isCreate
+  const body: any = isCreate
     ? { sessionId, attendances: payload as AttendanceItemApi[] }
     : { attendances: payload as AttendanceItemApi[] };
 
@@ -377,7 +376,7 @@ export async function fetchStudentAttendanceHistory(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
   }
 
-  const res = await fetch(`${TEACHER_ENDPOINTS.STUDENT_ATTENDANCE}/${studentId}`, {
+  const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE_STUDENTS}/${studentId}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

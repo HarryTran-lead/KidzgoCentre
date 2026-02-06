@@ -18,7 +18,13 @@ import PlacementTestDetailModal from "@/components/portal/placement-tests/Placem
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
 import { PLACEMENT_TEST_ENDPOINTS } from "@/constants/apiURL";
-import type { PlacementTest, PlacementTestFilters, CreatePlacementTestRequest, UpdatePlacementTestRequest, PlacementTestResult } from "@/types/placement-test";
+import type { 
+  PlacementTest, 
+  PlacementTestFilters, 
+  CreatePlacementTestRequest, 
+  UpdatePlacementTestRequest,
+  PlacementTestResult 
+} from "@/types/placement-test";
 
 export default function PlacementTestsPage() {
   const [tests, setTests] = useState<PlacementTest[]>([]);

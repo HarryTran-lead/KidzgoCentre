@@ -164,10 +164,10 @@ export default function PlacementTestTable({
                 <div className="font-medium text-slate-900">{test.childName || 'N/A'}</div>
               </td>
               <td className="px-4 py-3">
-                <div className="text-slate-700">{test.leadName || 'N/A'}</div>
+                <div className="text-slate-700">{test.leadContactName || 'N/A'}</div>
               </td>
               <td className="px-4 py-3">
-                <div className="text-sm text-slate-600">{test.leadPhone || 'N/A'}</div>
+                <div className="text-sm text-slate-600">{(test as any).leadPhone || 'N/A'}</div>
               </td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-1.5 text-sm text-slate-600">
@@ -176,10 +176,10 @@ export default function PlacementTestTable({
                 </div>
               </td>
               <td className="px-4 py-3">
-                <div className="text-sm text-slate-700">{test.branchName || 'N/A'}</div>
+                <div className="text-sm text-slate-700">{(test as any).branchName || 'N/A'}</div>
               </td>
               <td className="px-4 py-3">
-                <div className="text-sm text-slate-700">{test.assignedTeacherName || 'Chưa phân công'}</div>
+                <div className="text-sm text-slate-700">{test.invigilatorName || 'Chưa phân công'}</div>
               </td>
               <td className="px-4 py-3">
                 {getStatusBadge(STATUS_MAPPING[test.status])}

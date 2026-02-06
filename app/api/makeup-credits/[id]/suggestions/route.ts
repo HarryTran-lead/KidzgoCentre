@@ -3,10 +3,11 @@ import { BACKEND_MAKEUP_CREDIT_ENDPOINTS, buildApiUrl } from "@/constants/apiURL
 import type { MakeupSuggestionsResponse } from "@/types/makeupCredit";
 
 type RouteParams = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function GET(req: Request, { params }: RouteParams) {
+  const { id } = await params;
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
@@ -20,7 +21,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     const makeupDate = searchParams.get("makeupDate"); // YYYY-MM-DD
     const timeOfDay = searchParams.get("timeOfDay");   // string
 
-    const upstreamUrl = new URL(buildApiUrl(BACKEND_MAKEUP_CREDIT_ENDPOINTS.SUGGESTIONS(params.id)));
+    const upstreamUrl = new URL(buildApiUrl(BACKEND_MAKEUP_CREDIT_ENDPOINTS.SUGGESTIONS(id)));
 
     if (makeupDate) upstreamUrl.searchParams.set("makeupDate", makeupDate);
     if (timeOfDay) upstreamUrl.searchParams.set("timeOfDay", timeOfDay);

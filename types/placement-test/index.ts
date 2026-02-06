@@ -57,6 +57,19 @@ export interface PlacementTestResultRequest {
   attachmentUrl: string;
 }
 
+export interface PlacementTestResult {
+  testId: string;
+  listeningScore?: number;
+  speakingScore?: number;
+  readingScore?: number;
+  writingScore?: number;
+  overallScore?: number;
+  suggestedLevel?: string;
+  strengths?: string;
+  weaknesses?: string;
+  recommendations?: string;
+}
+
 export interface PlacementTestNote {
   id?: string;
   testId: string;

@@ -38,11 +38,11 @@ export default function PlacementTestFormModal({
 }: PlacementTestFormModalProps) {
   const [formData, setFormData] = useState({
     leadId: test?.leadId || "",
-    childId: test?.childId || "",
+    childId: test?.leadChildId || "",
     scheduledAt: test?.scheduledAt ? new Date(test.scheduledAt).toISOString().slice(0, 16) : "",
-    testLocation: test?.testLocation || "",
-    branchId: test?.branchId || "",
-    assignedTeacherId: test?.assignedTeacherId || "",
+    testLocation: (test as any)?.testLocation || test?.room || "",
+    branchId: (test as any)?.branchId || "",
+    assignedTeacherId: test?.invigilatorUserId || "",
     notes: test?.notes || "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { BACKEND_SESSION_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
 
 type RouteParams = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function GET(req: Request, { params }: RouteParams) {
+  const { id } = await params;
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
@@ -15,7 +16,7 @@ export async function GET(req: Request, { params }: RouteParams) {
       );
     }
 
-    const upstream = await fetch(buildApiUrl(BACKEND_SESSION_ENDPOINTS.GET_BY_ID(params.id)), {
+    const upstream = await fetch(buildApiUrl(BACKEND_SESSION_ENDPOINTS.GET_BY_ID(id)), {
       method: "GET",
       headers: {
         Authorization: authHeader,
