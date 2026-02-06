@@ -21,6 +21,7 @@ import { fetchClassFormSelectData, fetchTeacherOptionsByBranch, fetchProgramOpti
 import type { ClassRow, CreateClassRequest } from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { useToast } from "@/hooks/use-toast";
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -813,6 +814,7 @@ export default function Page() {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
+  const { toast } = useToast();
   
   // Branch filter hook
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
@@ -937,7 +939,10 @@ export default function Page() {
   const handleCreateClass = async (data: ClassFormData) => {
     try {
       if (!data.programId || data.programId.trim() === "") {
-        alert("Vui lòng chọn chương trình học.");
+        toast.warning({
+          title: "Thiếu thông tin",
+          description: "Vui lòng chọn chương trình học.",
+        });
         return;
       }
       const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
@@ -963,11 +968,17 @@ export default function Page() {
       const updatedClasses = await fetchAdminClasses();
       setClasses(updatedClasses);
 
-      alert(`Đã tạo lớp học ${data.name} thành công!`);
+      toast.success({
+        title: "Tạo lớp học thành công",
+        description: `Lớp ${data.name} đã được tạo.`,
+      });
     } catch (err: any) {
       console.error("Failed to create class:", err);
       const errorMessage = err?.message || "Không thể tạo lớp học. Vui lòng thử lại.";
-      alert(errorMessage);
+      toast.destructive({
+        title: "Tạo lớp học thất bại",
+        description: errorMessage,
+      });
     }
   };
 
@@ -1018,7 +1029,10 @@ export default function Page() {
     if (!editingClassId) return;
     try {
       if (!data.programId || data.programId.trim() === "") {
-        alert("Vui lòng chọn chương trình học.");
+        toast.warning({
+          title: "Thiếu thông tin",
+          description: "Vui lòng chọn chương trình học.",
+        });
         return;
       }
 
@@ -1057,11 +1071,17 @@ export default function Page() {
       // Refresh danh sách
       const updatedClasses = await fetchAdminClasses();
       setClasses(updatedClasses);
-      alert(`Đã cập nhật lớp học ${data.name} thành công!`);
+      toast.success({
+        title: "Cập nhật lớp học thành công",
+        description: `Thông tin lớp ${data.name} đã được lưu.`,
+      });
     } catch (err: any) {
       console.error("Failed to update class:", err);
       const errorMessage = err?.message || "Không thể cập nhật lớp học. Vui lòng thử lại.";
-      alert(errorMessage);
+      toast.destructive({
+        title: "Cập nhật lớp học thất bại",
+        description: errorMessage,
+      });
     } finally {
       setEditingClassId(null);
       setEditingInitialData(null);
@@ -1096,10 +1116,16 @@ export default function Page() {
         "Closed": "Đã kết thúc",
       };
       const newStatusText = statusMap[newStatus] || newStatus;
-      alert(`Đã cập nhật trạng thái lớp học ${row.name} thành "${newStatusText}" thành công!`);
+      toast.success({
+        title: "Cập nhật trạng thái thành công",
+        description: `Lớp ${row.name} đã chuyển sang trạng thái "${newStatusText}".`,
+      });
     } catch (err: any) {
       console.error("Failed to toggle class status:", err);
-      alert(err?.message || "Không thể cập nhật trạng thái lớp học. Vui lòng thử lại.");
+      toast.destructive({
+        title: "Cập nhật trạng thái thất bại",
+        description: err?.message || "Không thể cập nhật trạng thái lớp học. Vui lòng thử lại.",
+      });
     }
   };
 
