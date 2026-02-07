@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Users,
   DollarSign,
@@ -41,14 +41,14 @@ type SummaryCardProps = {
 };
 function SummaryCard({ icon, label, value, hint, trend = "neutral", trendValue }: SummaryCardProps) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5 transition-all duration-300 hover:border-pink-300 hover:shadow-lg">
+    <div className="group relative overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-300 hover:border-red-300 hover:shadow-lg">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 grid place-items-center rounded-xl bg-gradient-to-br from-pink-100 to-rose-100 text-pink-600">
+            <div className="h-10 w-10 grid place-items-center rounded-xl bg-gradient-to-br from-red-100 to-red-200 text-red-600">
               {icon}
             </div>
-            <div className="text-sm font-medium text-pink-600">{label}</div>
+            <div className="text-sm font-medium text-red-600">{label}</div>
           </div>
           <div className="mt-3 text-2xl font-extrabold tracking-tight text-gray-900">
             {value}
@@ -61,7 +61,7 @@ function SummaryCard({ icon, label, value, hint, trend = "neutral", trendValue }
               </div>
             )}
             {trend === "down" && (
-              <div className="flex items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-xs font-medium text-rose-700">
+              <div className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
                 <TrendingDown size={12} />
                 {trendValue || hint}
               </div>
@@ -72,7 +72,7 @@ function SummaryCard({ icon, label, value, hint, trend = "neutral", trendValue }
           </div>
         </div>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          <Eye size={18} className="text-pink-400" />
+          <Eye size={18} className="text-red-400" />
         </div>
       </div>
     </div>
@@ -89,10 +89,10 @@ function SectionCard({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+    <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-        {action && <div className="text-sm text-pink-600">{action}</div>}
+        {action && <div className="text-sm text-red-600">{action}</div>}
       </div>
       {children}
     </div>
@@ -109,7 +109,7 @@ function ProgressBar({
   color?: "pink" | "emerald" | "blue" | "amber" | "purple";
 }) {
   const colorClasses = {
-    pink: "bg-gradient-to-r from-pink-500 to-rose-500",
+    pink: "bg-gradient-to-r from-red-600 to-red-700",
     emerald: "bg-gradient-to-r from-emerald-500 to-teal-500",
     blue: "bg-gradient-to-r from-blue-500 to-sky-500",
     amber: "bg-gradient-to-r from-amber-500 to-orange-500",
@@ -117,7 +117,7 @@ function ProgressBar({
   };
 
   return (
-    <div className={clsx("h-2 w-full rounded-full bg-pink-100", className)}>
+    <div className={clsx("h-2 w-full rounded-full bg-red-100", className)}>
       <div
         className={clsx("h-2 rounded-full transition-all duration-500", colorClasses[color])}
         style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
@@ -134,12 +134,12 @@ function StatBadge({
   color?: "pink" | "emerald" | "blue" | "amber" | "purple" | "rose";
 }) {
   const colorClasses = {
-    pink: "bg-pink-50 text-pink-700 border border-pink-200",
+    pink: "bg-red-50 text-red-700 border border-red-200",
     emerald: "bg-emerald-50 text-emerald-700 border border-emerald-200",
     blue: "bg-blue-50 text-blue-700 border border-blue-200",
     amber: "bg-amber-50 text-amber-700 border border-amber-200",
     purple: "bg-purple-50 text-purple-700 border border-purple-200",
-    rose: "bg-rose-50 text-rose-700 border border-rose-200",
+    rose: "bg-red-50 text-red-700 border border-red-200",
   };
 
   return (
@@ -154,6 +154,11 @@ export default function ReportsPage() {
   const [tab, setTab] = useState<
     "tuyensinh" | "doanhthu" | "khoahoc" | "giaovien" | "cosovatchat"
   >("tuyensinh");
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   // Demo data
   const months = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"];
@@ -210,38 +215,38 @@ export default function ReportsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
               <BarChart3 size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Báo cáo & Thống kê KidzGo
               </h1>
               <p className="text-gray-600 mt-1 flex items-center gap-2">
-                <Shield size={14} className="text-pink-500" />
+                <Shield size={14} className="text-red-600" />
                 Tổng hợp báo cáo và phân tích dữ liệu thời gian thực
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 px-4 py-2 bg-white border border-pink-200 rounded-xl">
-              <Calendar size={16} className="text-pink-500" />
+            <div className="flex items-center gap-2 px-4 py-2 bg-white border border-red-200 rounded-xl">
+              <Calendar size={16} className="text-red-600" />
               <span className="text-sm font-medium text-gray-700">01/01/2025</span>
               <ChevronRight size={14} className="text-gray-400" />
               <span className="text-sm font-medium text-gray-700">31/10/2025</span>
             </div>
 
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-pink-50 transition-colors">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors">
               <Filter size={16} />
               Lọc
             </button>
-            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all">
+            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all">
               <Download size={16} />
               Xuất báo cáo
             </button>
@@ -249,9 +254,9 @@ export default function ReportsPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <SummaryCard
-            icon={<Users className="text-pink-600" />}
+            icon={<Users className="text-red-600" />}
             label="Tổng học viên"
             value="487"
             trend="up"
@@ -282,7 +287,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 rounded-2xl border border-pink-200 bg-white p-1">
+      <div className={`mb-6 rounded-2xl border border-red-200 bg-white p-1 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex flex-wrap">
           {[
             { key: "tuyensinh", label: "Tuyển sinh", icon: Users },
@@ -297,8 +302,8 @@ export default function ReportsPage() {
               className={clsx(
                 "flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-xl transition-all",
                 tab === (t.key as typeof tab)
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                  : "text-gray-700 hover:bg-pink-50"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                  : "text-gray-700 hover:bg-red-50"
               )}
             >
               <t.icon size={16} />
@@ -310,7 +315,7 @@ export default function ReportsPage() {
 
       {/* Content - Tuyển sinh */}
       {tab === "tuyensinh" && (
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className={`grid gap-6 xl:grid-cols-2 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Enrollment Trend Chart */}
           <SectionCard 
             title="Xu hướng tuyển sinh theo tháng"
@@ -321,7 +326,7 @@ export default function ReportsPage() {
                 <div key={i} className="flex flex-col items-center gap-3">
                   <div className="relative w-8">
                     <div
-                      className="w-8 rounded-t-xl bg-gradient-to-t from-pink-500 to-rose-400 transition-all hover:from-pink-600 hover:to-rose-500"
+                      className="w-8 rounded-t-xl bg-gradient-to-t from-red-600 to-red-500 transition-all hover:from-red-700 hover:to-red-600"
                       style={{
                         height: `${(v / maxEnroll) * 200 + 30}px`,
                       }}
@@ -335,10 +340,10 @@ export default function ReportsPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-8 pt-4 border-t border-pink-100">
+            <div className="mt-8 pt-4 border-t border-red-100">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-pink-500 to-rose-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-red-600 to-red-700"></div>
                   <span className="text-gray-600">Học viên mới</span>
                 </div>
                 <div className="text-gray-900 font-semibold">Tổng: 723 học viên</div>
@@ -350,7 +355,7 @@ export default function ReportsPage() {
           <SectionCard title="Phân bố học viên theo khóa học">
             <div className="space-y-4">
               {distribution.map((d) => (
-                <div key={d.name} className="group p-3 rounded-xl border border-pink-100 hover:border-pink-300 hover:bg-pink-50/50 transition-all">
+                <div key={d.name} className="group p-3 rounded-xl border border-red-100 hover:border-red-300 hover:bg-red-50/50 transition-all">
                   <div className="flex items-center gap-4">
                     <div className={`h-10 w-10 rounded-lg ${d.color} flex items-center justify-center text-white font-bold`}>
                       {d.pct}%
@@ -384,7 +389,7 @@ export default function ReportsPage() {
               {distribution.map((c) => (
                 <div
                   key={c.name}
-                  className="group rounded-xl border border-pink-200 bg-white p-4 hover:border-pink-300 hover:shadow-md transition-all"
+                  className="group rounded-xl border border-red-200 bg-white p-4 hover:border-red-300 hover:shadow-md transition-all"
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -426,7 +431,7 @@ export default function ReportsPage() {
                 { metric: "Đăng ký trực tiếp", current: 31, previous: 26, change: "+19%" },
                 { metric: "Tỷ lệ chuyển đổi", current: "68%", previous: "62%", change: "+6%" },
               ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-pink-100 hover:bg-pink-50/50">
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-red-100 hover:bg-red-50/50">
                   <div className="font-medium text-gray-900">{item.metric}</div>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
@@ -450,7 +455,7 @@ export default function ReportsPage() {
 
       {/* Content - Doanh thu */}
       {tab === "doanhthu" && (
-        <div className="grid gap-6">
+        <div className={`grid gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Revenue Overview */}
           <div className="grid gap-6 md:grid-cols-3">
             <SectionCard title="Doanh thu tháng này">
@@ -486,17 +491,17 @@ export default function ReportsPage() {
             <SectionCard title="Tỷ lệ hoàn thành mục tiêu">
               <div className="text-4xl font-bold text-gray-900 mb-2">142%</div>
               <div className="flex items-center gap-2">
-                <Target size={16} className="text-pink-600" />
-                <span className="text-pink-600 font-medium">Vượt 42%</span>
+                <Target size={16} className="text-red-600" />
+                <span className="text-red-600 font-medium">Vượt 42%</span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="text-center p-2 rounded-lg bg-emerald-50">
                   <div className="text-lg font-bold text-emerald-700">12</div>
                   <div className="text-xs text-emerald-600">Tháng liên tiếp</div>
                 </div>
-                <div className="text-center p-2 rounded-lg bg-pink-50">
-                  <div className="text-lg font-bold text-pink-700">1.48B</div>
-                  <div className="text-xs text-pink-600">Tổng YTD</div>
+                <div className="text-center p-2 rounded-lg bg-red-50">
+                  <div className="text-lg font-bold text-red-700">1.48B</div>
+                  <div className="text-xs text-red-600">Tổng YTD</div>
                 </div>
               </div>
             </SectionCard>
@@ -528,7 +533,7 @@ export default function ReportsPage() {
                   </div>
                 ))}
               </div>
-              <div className="mt-8 pt-4 border-t border-pink-100">
+              <div className="mt-8 pt-4 border-t border-red-100">
                 <div className="flex items-center justify-center gap-6">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-sky-500"></div>
@@ -553,7 +558,7 @@ export default function ReportsPage() {
                   { source: "Tài liệu học tập", amount: "4%", value: "59M", color: "purple" },
                   { source: "Dịch vụ bổ trợ", amount: "3%", value: "44M", color: "amber" },
                 ].map((item, i) => (
-                  <div key={i} className="group p-3 rounded-xl border border-pink-100 hover:bg-pink-50/50">
+                  <div key={i} className="group p-3 rounded-xl border border-red-100 hover:bg-red-50/50">
                     <div className="flex items-center justify-between mb-2">
                       <div className="font-medium text-gray-900">{item.source}</div>
                       <div className="font-bold text-gray-900">{item.value} VND</div>
@@ -576,7 +581,7 @@ export default function ReportsPage() {
                   { course: "Academic Writing", revenue: "155M", students: 22, growth: "+19%" },
                   { course: "Conversation Practice", revenue: "121M", students: 18, growth: "+15%" },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-pink-100 hover:bg-pink-50/50">
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-red-100 hover:bg-red-50/50">
                     <div>
                       <div className="font-medium text-gray-900">{item.course}</div>
                       <div className="text-xs text-gray-500">{item.students} học viên</div>
@@ -595,7 +600,7 @@ export default function ReportsPage() {
 
       {/* Content - Khóa học */}
       {tab === "khoahoc" && (
-        <div className="grid gap-6">
+        <div className={`grid gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Course Performance Overview */}
           <div className="grid gap-6 md:grid-cols-3">
             <SectionCard title="Số khóa học đang hoạt động">
@@ -657,7 +662,7 @@ export default function ReportsPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-pink-100">
+                  <tr className="border-b border-red-100">
                     <th className="pb-3 text-left font-semibold text-gray-900">Khóa học</th>
                     <th className="pb-3 text-left font-semibold text-gray-900">Tỷ lệ hoàn thành</th>
                     <th className="pb-3 text-left font-semibold text-gray-900">Đánh giá</th>
@@ -667,7 +672,7 @@ export default function ReportsPage() {
                 </thead>
                 <tbody>
                   {coursePerformance.map((course, i) => (
-                    <tr key={i} className="border-b border-pink-50 hover:bg-pink-50/50">
+                    <tr key={i} className="border-b border-red-50 hover:bg-red-50/50">
                       <td className="py-3">
                         <div className="font-medium text-gray-900">{course.course}</div>
                       </td>
@@ -705,7 +710,7 @@ export default function ReportsPage() {
           <SectionCard title="Phân bổ học viên theo khóa học">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {distribution.map((course) => (
-                <div key={course.name} className="text-center p-4 rounded-xl border border-pink-200 bg-white hover:shadow-md transition-all">
+                <div key={course.name} className="text-center p-4 rounded-xl border border-red-200 bg-white hover:shadow-md transition-all">
                   <div className={`h-16 w-16 rounded-full ${course.color} flex items-center justify-center mx-auto mb-3 text-white text-2xl font-bold`}>
                     {course.pct}%
                   </div>
@@ -728,7 +733,7 @@ export default function ReportsPage() {
 
       {/* Content - Giáo viên */}
       {tab === "giaovien" && (
-        <div className="grid gap-6">
+        <div className={`grid gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Teacher Stats */}
           <div className="grid gap-6 md:grid-cols-3">
             <SectionCard title="Tổng số giáo viên">
@@ -785,9 +790,9 @@ export default function ReportsPage() {
           <SectionCard title="Danh sách giáo viên">
             <div className="space-y-3">
               {teachers.map((teacher, i) => (
-                <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-pink-200 bg-white hover:border-pink-300 hover:shadow-sm transition-all">
+                <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white hover:border-red-300 hover:shadow-sm transition-all">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center text-pink-600 font-bold">
+                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center text-red-600 font-bold">
                       {teacher.name.split(" ")[1].charAt(0)}
                     </div>
                     <div>
@@ -830,7 +835,7 @@ export default function ReportsPage() {
                 { name: "Ms. Lisa", completion: 90, satisfaction: 4.9, students: 42 },
                 { name: "Mr. Robert", completion: 87, satisfaction: 4.7, students: 35 },
               ].map((teacher, i) => (
-                <div key={i} className="p-4 rounded-xl border border-pink-200 bg-white hover:shadow-md transition-all">
+                <div key={i} className="p-4 rounded-xl border border-red-200 bg-white hover:shadow-md transition-all">
                   <div className="font-semibold text-gray-900 mb-3">{teacher.name}</div>
                   <div className="space-y-3">
                     <div>
@@ -850,7 +855,7 @@ export default function ReportsPage() {
                       </div>
                       <ProgressBar value={teacher.satisfaction * 20} color="amber" />
                     </div>
-                    <div className="pt-2 border-t border-pink-100">
+                    <div className="pt-2 border-t border-red-100">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Số học viên:</span>
                         <span className="font-bold text-gray-900">{teacher.students}</span>
@@ -866,7 +871,7 @@ export default function ReportsPage() {
 
       {/* Content - Cơ sở vật chất */}
       {tab === "cosovatchat" && (
-        <div className="grid gap-6">
+        <div className={`grid gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Facility Stats */}
           <div className="grid gap-6 md:grid-cols-3">
             <SectionCard title="Tổng số phòng">
@@ -901,8 +906,8 @@ export default function ReportsPage() {
             <SectionCard title="Sức chứa tổng">
               <div className="text-4xl font-bold text-gray-900 mb-2">310</div>
               <div className="flex items-center gap-2">
-                <Users size={16} className="text-pink-600" />
-                <span className="text-pink-600 font-medium">Đáp ứng 100%</span>
+                <Users size={16} className="text-red-600" />
+                <span className="text-red-600 font-medium">Đáp ứng 100%</span>
               </div>
               <div className="mt-4 space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -921,7 +926,7 @@ export default function ReportsPage() {
           <SectionCard title="Danh sách cơ sở vật chất">
             <div className="space-y-3">
               {facilities.map((facility, i) => (
-                <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-pink-200 bg-white hover:border-pink-300 hover:shadow-sm transition-all">
+                <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white hover:border-red-300 hover:shadow-sm transition-all">
                   <div className="flex items-center gap-4">
                     <div className={`h-12 w-12 rounded-xl grid place-items-center ${
                       facility.status === "available" ? "bg-emerald-50 text-emerald-600" :
@@ -959,7 +964,7 @@ export default function ReportsPage() {
           <SectionCard title="Tỷ lệ sử dụng theo phòng">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {facilities.map((facility, i) => (
-                <div key={i} className="p-4 rounded-xl border border-pink-200 bg-white hover:shadow-md transition-all">
+                <div key={i} className="p-4 rounded-xl border border-red-200 bg-white hover:shadow-md transition-all">
                   <div className="font-semibold text-gray-900 mb-3">{facility.name}</div>
                   <div className="space-y-4">
                     <div>
@@ -975,7 +980,7 @@ export default function ReportsPage() {
                         }
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-pink-100">
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-red-100">
                       <div className="text-center">
                         <div className="text-lg font-bold text-gray-900">{facility.capacity}</div>
                         <div className="text-xs text-gray-500">Sức chứa</div>
@@ -1003,7 +1008,7 @@ export default function ReportsPage() {
                 { facility: "Thư viện", type: "Bổ sung sách", date: "30/11/2024", status: "planned" },
                 { facility: "Phòng tự học", type: "Thay đèn", date: "05/12/2024", status: "planned" },
               ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-pink-100 hover:bg-pink-50/50">
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-red-100 hover:bg-red-50/50">
                   <div className="flex items-center gap-3">
                     <div className={`h-8 w-8 rounded-lg grid place-items-center ${
                       item.status === "in-progress" ? "bg-blue-50 text-blue-600" :
@@ -1030,10 +1035,10 @@ export default function ReportsPage() {
       )}
 
       {/* Footer */}
-      <div className="mt-8 pt-6 border-t border-pink-200">
+      <div className={`mt-8 pt-6 border-t border-red-200 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-2">
-            <Zap size={16} className="text-pink-500" />
+            <Zap size={16} className="text-red-600" />
             <span>Cập nhật thời gian thực • Dữ liệu được cập nhật lúc 14:30</span>
           </div>
           <div className="flex items-center gap-4">

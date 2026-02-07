@@ -2,7 +2,7 @@
 
 import { Mail, Phone, Eye, Pencil, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Users, Search, Plus, GraduationCap, DollarSign } from "lucide-react";
 import Badge from "@/components/admin/Badge";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 const rows = [
   {id:"HV001", name:"Nguyễn Văn An", phone:"0901234567", email:"van.an@email.com", cls:"English B1-01", level:"B1", state:"Đang học", fee:"2.500.000 / 2.500.000 VND", feeTag:"Đã đóng"},
@@ -32,13 +32,13 @@ function SortableHeader({
 }) {
   const isActive = currentField === field;
   const icon = isActive ? (
-    direction === "asc" ? <ArrowUp size={14} className="text-pink-500" /> : <ArrowDown size={14} className="text-pink-500" />
+    direction === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
   ) : <ArrowUpDown size={14} className="text-gray-400" />;
   const alignClass = align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left";
   return (
     <th
       onClick={() => onSort(field)}
-      className={`py-3 px-6 ${alignClass} text-sm font-semibold text-gray-700 whitespace-nowrap cursor-pointer select-none hover:bg-pink-50 transition-colors`}
+      className={`py-3 px-6 ${alignClass} text-sm font-semibold text-gray-700 whitespace-nowrap cursor-pointer select-none hover:bg-red-50 transition-colors`}
     >
       <span className="inline-flex items-center gap-2">{children}{icon}</span>
     </th>
@@ -52,6 +52,11 @@ export default function Page(){
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<"ALL" | string>("ALL");
   const [stateFilter, setStateFilter] = useState<"ALL" | string>("ALL");
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -132,15 +137,15 @@ export default function Page(){
   const goPage = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <Users size={24} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Quản lý học viên
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -148,18 +153,18 @@ export default function Page(){
             </p>
           </div>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
+        <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
           <Plus size={16} />
           Thêm học viên mới
         </button>
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 hover:shadow-md transition">
           <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-pink-100 grid place-items-center">
-              <Users className="text-pink-600" size={18} />
+            <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
+              <Users className="text-red-600" size={18} />
             </span>
             <div>
               <div className="text-sm text-gray-600">Tổng học viên</div>
@@ -168,7 +173,7 @@ export default function Page(){
           </div>
         </div>
 
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 hover:shadow-md transition">
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-emerald-100 grid place-items-center">
               <GraduationCap className="text-emerald-600" size={18} />
@@ -180,7 +185,7 @@ export default function Page(){
           </div>
         </div>
 
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 hover:shadow-md transition">
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-amber-100 grid place-items-center">
               <DollarSign className="text-amber-600" size={18} />
@@ -192,7 +197,7 @@ export default function Page(){
           </div>
         </div>
 
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 hover:shadow-md transition">
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-sky-100 grid place-items-center">
               <DollarSign className="text-sky-600" size={18} />
@@ -206,15 +211,15 @@ export default function Page(){
       </div>
 
       {/* Search & Filters */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="relative flex-1 max-w-3xl min-w-[280px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-500" size={16} />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-600" size={16} />
             <input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Tìm kiếm học viên theo tên, mã, email, số điện thoại..."
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-pink-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-red-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
           </div>
 
@@ -222,7 +227,7 @@ export default function Page(){
             <select
               value={levelFilter}
               onChange={(e) => { setLevelFilter(e.target.value as typeof levelFilter); setPage(1); }}
-              className="h-10 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="h-10 rounded-xl border border-red-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
               <option value="ALL">Tất cả trình độ</option>
               {[...new Set(rows.map(r => r.level))].map(level => (
@@ -232,7 +237,7 @@ export default function Page(){
             <select
               value={stateFilter}
               onChange={(e) => { setStateFilter(e.target.value as typeof stateFilter); setPage(1); }}
-              className="h-10 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="h-10 rounded-xl border border-red-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
               <option value="ALL">Tất cả trạng thái</option>
               {[...new Set(rows.map(r => r.state))].map(state => (
@@ -244,9 +249,9 @@ export default function Page(){
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Table Header */}
-        <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Danh sách học viên</h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -258,7 +263,7 @@ export default function Page(){
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
               <tr>
                 <SortableHeader field="id" currentField={sortField} direction={sortDirection} onSort={handleSort}>Mã HV</SortableHeader>
                 <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Họ tên</SortableHeader>
@@ -270,12 +275,12 @@ export default function Page(){
                 <th className="py-3 px-6 text-right text-xs font-medium text-gray-700 whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-pink-100">
+            <tbody className="divide-y divide-red-100">
               {paged.length > 0 ? (
                 paged.map((r) => (
                   <tr
                     key={r.id}
-                    className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
                     <td className="py-4 px-6 text-sm text-gray-900 whitespace-nowrap">{r.id}</td>
                     <td className="py-4 px-6">
@@ -309,7 +314,7 @@ export default function Page(){
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
-                        <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" title="Xem chi tiết">
+                        <button className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer" title="Xem chi tiết">
                           <Eye size={14} />
                         </button>
                         <button className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer" title="Chỉnh sửa">
@@ -322,8 +327,8 @@ export default function Page(){
               ) : (
                 <tr>
                   <td colSpan={8} className="py-12 text-center">
-                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                      <Search size={24} className="text-pink-400" />
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                      <Search size={24} className="text-red-400" />
                     </div>
                     <div className="text-gray-600 font-medium">Không tìm thấy học viên</div>
                     <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc thêm học viên mới</div>
@@ -336,7 +341,7 @@ export default function Page(){
 
         {/* Table Footer - Pagination */}
         {sorted.length > 0 && (
-          <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+          <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-sm text-gray-600">
                 Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, sorted.length)}</span>
@@ -344,7 +349,7 @@ export default function Page(){
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-1.5 rounded-lg border border-red-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-50 transition-colors"
                   onClick={() => goPage(currentPage - 1)}
                   disabled={currentPage === 1}
                   aria-label="Trang trước"
@@ -355,7 +360,7 @@ export default function Page(){
                   {currentPage} / {totalPages}
                 </div>
                 <button
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-1.5 rounded-lg border border-red-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-50 transition-colors"
                   onClick={() => goPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
                   aria-label="Trang sau"

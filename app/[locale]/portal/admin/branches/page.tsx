@@ -47,11 +47,11 @@ function Badge({
   const colorClasses = {
     gray: "bg-gray-100 text-gray-700 border border-gray-200",
     blue: "bg-blue-50 text-blue-700 border border-blue-200",
-    red: "bg-rose-50 text-rose-700 border border-rose-200",
+    red: "bg-red-50 text-red-700 border border-red-200",
     green: "bg-emerald-50 text-emerald-700 border border-emerald-200",
     purple: "bg-purple-50 text-purple-700 border border-purple-200",
     yellow: "bg-amber-50 text-amber-700 border border-amber-200",
-    pink: "bg-pink-50 text-pink-700 border border-pink-200",
+    pink: "bg-red-50 text-red-700 border border-red-200",
     orange: "bg-orange-50 text-orange-700 border border-orange-200"
   };
 
@@ -92,7 +92,7 @@ function StatCard({
   value, 
   change, 
   icon,
-  color = "from-pink-500 to-rose-500"
+  color = "from-red-600 to-red-700"
 }: { 
   label: string; 
   value: string | number; 
@@ -101,7 +101,7 @@ function StatCard({
   color?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
       <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}></div>
       <div className="relative flex items-center justify-between gap-3">
         <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
@@ -115,7 +115,7 @@ function StatCard({
                 change > 0 
                   ? 'text-emerald-600 bg-emerald-50' 
                   : change < 0 
-                    ? 'text-rose-600 bg-rose-50'
+                    ? 'text-red-600 bg-red-50'
                     : 'text-gray-600 bg-gray-50'
               }`}>
                 {change > 0 ? '+' : ''}{change}%
@@ -149,7 +149,7 @@ function SortableHeader({
 }) {
   const isActive = currentField === field;
   const icon = isActive ? (
-    direction === 'asc' ? <ArrowUp size={14} className="text-pink-500" /> : <ArrowDown size={14} className="text-pink-500" />
+    direction === 'asc' ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
   ) : (
     <ArrowUpDown size={14} className="text-gray-400" />
   );
@@ -159,7 +159,7 @@ function SortableHeader({
   return (
     <th
       onClick={() => onSort(field)}
-      className={`py-3 px-6 ${alignClass} text-sm font-semibold text-gray-700 whitespace-nowrap cursor-pointer select-none hover:bg-pink-50 transition-colors`}
+      className={`py-3 px-6 ${alignClass} text-sm font-semibold text-gray-700 whitespace-nowrap cursor-pointer select-none hover:bg-red-50 transition-colors`}
     >
       <span className="inline-flex items-center gap-2">
         {children}
@@ -187,6 +187,11 @@ export default function BranchesPage() {
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   // Fetch branches from API
   useEffect(() => {
@@ -542,15 +547,15 @@ export default function BranchesPage() {
   }, [branches]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <Building2 size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
               Quản lý chi nhánh
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -558,7 +563,7 @@ export default function BranchesPage() {
             </p>
           </div>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+        <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
           onClick={() => setShowAddModal(true)}
         >
           <Plus size={16} />
@@ -567,12 +572,12 @@ export default function BranchesPage() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <StatCard 
           label="Tổng chi nhánh" 
           value={stats.total} 
           icon={<Building2 size={20} />}
-          color="from-pink-500 to-rose-500"
+          color="from-red-600 to-red-700"
         />
         <StatCard 
           label="Đang hoạt động" 
@@ -597,22 +602,22 @@ export default function BranchesPage() {
       </div>
 
       {/* Filters and Search */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="relative flex-1 min-w-[250px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-500" size={16} />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-600" size={16} />
             <input
               type="text"
               placeholder="Tìm kiếm chi nhánh theo tên, địa chỉ..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-pink-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-red-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-2 border border-pink-200 rounded-xl bg-white">
-              <Filter size={16} className="text-pink-500" />
+            <div className="flex items-center gap-2 px-3 py-2 border border-red-200 rounded-xl bg-white">
+              <Filter size={16} className="text-red-600" />
               <select 
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
@@ -629,16 +634,16 @@ export default function BranchesPage() {
 
       {/* Loading State */}
       {isLoading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-pink-500" />
+        <div className={`flex items-center justify-center py-20 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <Loader2 className="w-8 h-8 animate-spin text-red-600" />
         </div>
       )}
 
       {/* Branches Table */}
       {!isLoading && (
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
+        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Table Header */}
-          <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Danh sách chi nhánh</h2>
               <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -650,7 +655,7 @@ export default function BranchesPage() {
           {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr>
                   <SortableHeader
                     field="code"
@@ -708,15 +713,15 @@ export default function BranchesPage() {
                   <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-pink-100">
+              <tbody className="divide-y divide-red-100">
                 {sortedBranches.length > 0 ? (
                   sortedBranches.map((branch) => (
                     <tr
                       key={branch.id}
-                      className="group hover:bg-pink-50/50 transition-colors"
+                      className="group hover:bg-red-50/50 transition-colors"
                     >
                       <td className="py-4 px-6">
-                        <span className="px-2.5 py-1 bg-pink-50 text-pink-700 text-xs font-medium rounded-full border border-pink-200">
+                        <span className="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full border border-red-200">
                           {branch.code}
                         </span>
                       </td>
@@ -725,7 +730,7 @@ export default function BranchesPage() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-start gap-2 text-sm text-gray-600 max-w-xs">
-                          <MapPin size={14} className="mt-0.5 text-pink-500 flex-shrink-0" />
+                          <MapPin size={14} className="mt-0.5 text-red-600 flex-shrink-0" />
                           <span className="line-clamp-2">{branch.address}</span>
                         </div>
                       </td>
@@ -768,7 +773,7 @@ export default function BranchesPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleViewDetail(branch.id)}
-                            className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer"
+                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                             title="Xem chi tiết"
                           >
                             <EyeIcon size={16} />
@@ -789,7 +794,7 @@ export default function BranchesPage() {
                                 e.stopPropagation();
                                 handleOpenConfirmDeactivate(branch);
                               }}
-                              className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                               title="Vô hiệu hóa"
                             >
                               <Trash2 size={16} />
@@ -813,8 +818,8 @@ export default function BranchesPage() {
                 ) : (
                   <tr>
                     <td colSpan={9} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                        <Building2 size={24} className="text-pink-400" />
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                        <Building2 size={24} className="text-red-400" />
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 mb-2">Không tìm thấy chi nhánh</h3>
                       <p className="text-sm text-gray-600">
@@ -829,7 +834,7 @@ export default function BranchesPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+            <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
                   Trang <span className="font-semibold text-gray-900">{currentPage}</span> / <span className="font-semibold text-gray-900">{totalPages}</span>
@@ -838,14 +843,14 @@ export default function BranchesPage() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-pink-200 rounded-lg hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Trước
                   </button>
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-pink-200 rounded-lg hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Sau
                   </button>

@@ -82,7 +82,7 @@ export default function BranchFilter({
       <div className="relative">
         <button
           onClick={() => setIsOpen((v) => !v)}
-          className="w-full inline-flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-transparent hover:border-pink-300 hover:shadow-sm transition-all duration-300 ease-out group"
+          className="w-full inline-flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-transparent hover:border-red-300 hover:shadow-sm transition-all duration-300 ease-out group cursor-pointer"
           type="button"
           aria-expanded={isOpen}
           aria-label="Chọn chi nhánh"
@@ -90,14 +90,14 @@ export default function BranchFilter({
           <span className="inline-flex items-center gap-2 min-w-0">
             <MapPin
               size={16}
-              className="text-pink-500 shrink-0 group-hover:scale-110 transition-all duration-300 ease-out"
+              className="text-red-600 shrink-0 group-hover:scale-110 transition-all duration-300 ease-out"
               strokeWidth={2.5}
             />
             <span className="truncate font-medium">{displayText}</span>
           </span>
           <ChevronDown
             size={16}
-            className={`text-slate-400 group-hover:text-pink-500 shrink-0 transition-all duration-500 ease-out ${
+            className={`text-slate-400 group-hover:text-red-600 shrink-0 transition-all duration-500 ease-out ${
               isOpen ? "rotate-180" : "rotate-0"
             }`}
             strokeWidth={2}
@@ -120,7 +120,7 @@ export default function BranchFilter({
                   }}
                   className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-all duration-200 ease-out border-b border-slate-100 ${
                     !selectedBranchId
-                      ? "bg-gradient-to-r from-pink-50 via-pink-50/80 to-transparent text-pink-700"
+                      ? "bg-gradient-to-r from-red-50 via-red-50/80 to-transparent text-red-700"
                       : "text-slate-700 hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent hover:text-slate-900"
                   }`}
                   type="button"
@@ -129,12 +129,12 @@ export default function BranchFilter({
                     <Building2
                       size={16}
                       className={`shrink-0 ${
-                        !selectedBranchId ? "text-pink-500" : "text-slate-400"
+                        !selectedBranchId ? "text-red-600" : "text-slate-400"
                       }`}
                     />
                     <span>Tất cả chi nhánh</span>
                     {!selectedBranchId && (
-                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-pink-500" />
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-red-600" />
                     )}
                   </span>
                 </button>
@@ -149,7 +149,7 @@ export default function BranchFilter({
                     }}
                     className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-all duration-200 ease-out ${
                       branch.id === selectedBranchId
-                        ? "bg-gradient-to-r from-pink-50 via-pink-50/80 to-transparent text-pink-700"
+                        ? "bg-gradient-to-r from-red-50 via-red-50/80 to-transparent text-red-700"
                         : "text-slate-700 hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent hover:text-slate-900"
                     } ${
                       idx !== branches.length - 1
@@ -164,7 +164,7 @@ export default function BranchFilter({
                         size={16}
                         className={`shrink-0 ${
                           branch.id === selectedBranchId
-                            ? "text-pink-500"
+                            ? "text-red-600"
                             : branch.isActive
                               ? "text-slate-400"
                               : "text-slate-300"
@@ -179,7 +179,7 @@ export default function BranchFilter({
                         {!branch.isActive && " (Không hoạt động)"}
                       </span>
                       {branch.id === selectedBranchId && (
-                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-pink-500" />
+                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-red-600" />
                       )}
                     </span>
                   </button>

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from 'react';
 import { 
   ShieldCheck, 
   Sparkles, 
@@ -30,7 +33,7 @@ const POLICIES = [
     title: 'Gamification (XP/Star/Mission)',
     desc: 'Cấu hình mức thưởng sao, XP và điều kiện hoàn thành nhiệm vụ.',
     status: 'Cập nhật tuần này',
-    color: 'bg-gradient-to-r from-pink-500 to-rose-500',
+    color: 'bg-gradient-to-r from-red-600 to-red-700',
     statusColor: 'amber',
     features: ['Hệ thống sao', 'Missions', 'Leaderboard']
   },
@@ -62,32 +65,38 @@ const QUICK_SETTINGS = [
 ];
 
 export default function SettingsPage() {
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
               <Settings size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Cài đặt & Chính sách
               </h1>
               <p className="text-gray-600 mt-1 flex items-center gap-2">
-                <Zap size={14} className="text-pink-500" />
+                <Zap size={14} className="text-red-600" />
                 Quản lý cấu hình hệ thống, chính sách học bù và phân quyền toàn trung tâm.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-pink-50 transition-colors cursor-pointer">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors cursor-pointer">
               <Edit2 size={16} />
               Chế độ chỉnh sửa
             </button>
-            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
+            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
               <Save size={16} />
               Lưu thay đổi
             </button>
@@ -95,16 +104,16 @@ export default function SettingsPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium text-pink-600">Chính sách</div>
+                <div className="text-sm font-medium text-red-600">Chính sách</div>
                 <div className="text-2xl font-bold text-gray-900 mt-2">4</div>
                 <div className="text-xs text-gray-500 mt-1">đang hoạt động</div>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                <ShieldCheck className="h-6 w-6 text-pink-600" />
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                <ShieldCheck className="h-6 w-6 text-red-600" />
               </div>
             </div>
           </div>
@@ -151,7 +160,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Main Content */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className={`grid lg:grid-cols-3 gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Policies Section */}
         <div className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
@@ -161,7 +170,7 @@ export default function SettingsPage() {
 
           <div className="grid gap-4">
             {POLICIES.map((policy, index) => (
-              <div key={policy.title} className="group relative overflow-hidden rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5 transition-all hover:border-pink-300 hover:shadow-lg">
+              <div key={policy.title} className="group relative overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 transition-all hover:border-red-300 hover:shadow-lg">
                 <div className="flex items-start gap-4">
                   <div className={`h-12 w-12 rounded-xl ${policy.color} flex items-center justify-center text-white`}>
                     {policy.icon}
@@ -173,7 +182,7 @@ export default function SettingsPage() {
                         <h3 className="text-lg font-semibold text-gray-900">{policy.title}</h3>
                         <p className="mt-1 text-sm text-gray-600">{policy.desc}</p>
                       </div>
-                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-pink-100 rounded-lg">
+                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-100 rounded-lg">
                         <MoreVertical size={18} className="text-gray-400" />
                       </button>
                     </div>
@@ -191,7 +200,7 @@ export default function SettingsPage() {
                       
                       <div className="flex flex-wrap gap-1.5">
                         {policy.features.map((feature, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 rounded-full bg-pink-50 px-2.5 py-1 text-xs text-pink-700">
+                          <span key={i} className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs text-red-700">
                             {feature}
                           </span>
                         ))}
@@ -200,9 +209,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 
-                <div className="mt-4 flex items-center justify-between pt-4 border-t border-pink-100">
+                <div className="mt-4 flex items-center justify-between pt-4 border-t border-red-100">
                   <div className="text-sm text-gray-500">Cập nhật lần cuối: 2 ngày trước</div>
-                  <button className="flex items-center gap-1 text-sm font-medium text-pink-600 hover:text-pink-700 cursor-pointer">
+                  <button className="flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 cursor-pointer">
                     Chi tiết
                     <ChevronRight size={14} />
                   </button>
@@ -215,13 +224,13 @@ export default function SettingsPage() {
         {/* Quick Settings Sidebar */}
         <div className="space-y-6">
           {/* Quick Actions */}
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">Hành động nhanh</h3>
             <div className="space-y-3">
-              <button className="flex w-full items-center justify-between rounded-xl border border-pink-200 bg-white p-3 hover:bg-pink-50 transition-colors cursor-pointer">
+              <button className="flex w-full items-center justify-between rounded-xl border border-red-200 bg-white p-3 hover:bg-red-50 transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-pink-600" />
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                    <Users className="h-4 w-4 text-red-600" />
                   </div>
                   <div className="text-left">
                     <div className="text-sm font-medium text-gray-900">Phân quyền nhân sự</div>
@@ -260,11 +269,11 @@ export default function SettingsPage() {
           </div>
 
           {/* Quick Configuration */}
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">Cấu hình nhanh</h3>
             <div className="space-y-3">
               {QUICK_SETTINGS.map((setting, index) => (
-                <div key={setting.label} className="flex items-center justify-between p-3 rounded-xl border border-pink-100 hover:bg-pink-50/50 transition-colors">
+                <div key={setting.label} className="flex items-center justify-between p-3 rounded-xl border border-red-100 hover:bg-red-50/50 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
                       setting.active 
@@ -296,7 +305,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Recent Activity */}
-      <div className="mt-8 rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+      <div className={`mt-8 rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <h3 className="mb-4 text-lg font-semibold text-gray-900">Hoạt động gần đây</h3>
         <div className="space-y-3">
           {[
@@ -305,13 +314,13 @@ export default function SettingsPage() {
             { action: 'Điều chỉnh đơn giá TOEIC', user: 'Kế toán', time: 'Hôm qua', type: 'finance' },
             { action: 'Kích hoạt gamification', user: 'Admin', time: '2 ngày trước', type: 'feature' },
           ].map((activity, index) => (
-            <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-pink-100 hover:bg-pink-50/50 transition-colors">
+            <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-red-100 hover:bg-red-50/50 transition-colors">
               <div className="flex items-center gap-3">
                 <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
                   activity.type === 'policy' ? 'bg-blue-50 text-blue-600' :
                   activity.type === 'security' ? 'bg-purple-50 text-purple-600' :
                   activity.type === 'finance' ? 'bg-emerald-50 text-emerald-600' :
-                  'bg-pink-50 text-pink-600'
+                  'bg-red-50 text-red-600'
                 }`}>
                   {activity.type === 'policy' ? <Clock3 size={14} /> :
                    activity.type === 'security' ? <ShieldCheck size={14} /> :
@@ -330,9 +339,9 @@ export default function SettingsPage() {
       </div>
 
       {/* Footer Note */}
-      <div className="mt-6 text-center">
+      <div className={`mt-6 text-center transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <p className="text-sm text-gray-500">
-          <span className="text-pink-600 font-medium">KidzGo System v2.5</span> • Tất cả thay đổi sẽ được áp dụng sau 5 phút
+          <span className="text-red-600 font-medium">KidzGo System v2.5</span> • Tất cả thay đổi sẽ được áp dụng sau 5 phút
         </p>
       </div>
     </div>

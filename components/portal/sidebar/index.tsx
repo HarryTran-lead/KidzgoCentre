@@ -68,7 +68,7 @@ function NavLink({
       aria-current={active ? "page" : undefined}
       className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out ${
         active
-          ? "bg-linear-to-r from-pink-50 via-transparent to-pink-50 text-pink-700 shadow-sm rounded-l-none"
+          ? "bg-linear-to-r from-red-50 via-transparent to-red-50 text-red-700 shadow-sm rounded-l-none"
           : "text-slate-600 hover:bg-gray-100 hover:text-slate-900"
       }`}
       style={{
@@ -78,7 +78,7 @@ function NavLink({
       title={!collapsed ? undefined : label}
     >
       <span
-        className={`absolute left-0 top-1/2 -translate-y-1/2 h-full w-0.5 bg-linear-to-b from-pink-400 via-pink-500 to-red-500 transition-all duration-300 ease-out ${
+        className={`absolute left-0 top-1/2 -translate-y-1/2 h-full w-0.5 bg-linear-to-b from-red-400 via-red-600 to-red-700 transition-all duration-300 ease-out ${
           active ? "opacity-100 scale-100" : "opacity-0 scale-y-50"
         }`}
       />
@@ -88,8 +88,8 @@ function NavLink({
           size={18}
           className={`shrink-0 transition-all duration-300 ease-out ${
             active
-              ? "text-pink-600 scale-110"
-              : "text-slate-400 group-hover:text-pink-500 group-hover:scale-105"
+              ? "text-red-600 scale-110"
+              : "text-slate-400 group-hover:text-red-600 group-hover:scale-105"
           }`}
           strokeWidth={active ? 2.5 : 2}
         />
@@ -97,8 +97,8 @@ function NavLink({
         <span
           className={`h-1.5 w-1.5 rounded-full shrink-0 transition-all duration-300 ease-out ${
             active
-              ? "bg-pink-600 scale-125"
-              : "bg-slate-300 group-hover:bg-pink-500 group-hover:scale-110"
+              ? "bg-red-600 scale-125"
+              : "bg-slate-300 group-hover:bg-red-600 group-hover:scale-110"
           }`}
         />
       )}
@@ -271,10 +271,10 @@ function Group({
           collapsed ? "justify-center" : ""
         } ${
           open && !collapsed
-            ? "bg-pink-50/50 text-pink-600"
+            ? "bg-red-50/50 text-red-600"
             : hasActive && collapsed
-              ? "bg-linear-to-r from-pink-50 via-transparent to-pink-50 text-pink-700 shadow-sm"
-              : "text-slate-500 hover:text-pink-600 hover:bg-slate-50/80"
+              ? "bg-linear-to-r from-red-50 via-transparent to-red-50 text-red-700 shadow-sm"
+              : "text-slate-500 hover:text-red-600 hover:bg-slate-50/80"
         }`}
       >
         {!collapsed ? (
@@ -285,12 +285,12 @@ function Group({
                 strokeWidth={accent ? 2.5 : 2}
                 className={`transition-all duration-300 ease-out ${
                   accent
-                    ? "text-pink-500 scale-110"
-                    : "text-slate-400 group-hover:text-pink-500 group-hover:scale-105"
+                    ? "text-red-600 scale-110"
+                    : "text-slate-400 group-hover:text-red-600 group-hover:scale-105"
                 }`}
               />
             )}
-            <span className={`${accent ? "text-pink-600" : ""}`}>{title}</span>
+            <span className={`${accent ? "text-red-600" : ""}`}>{title}</span>
           </span>
         ) : (
           Icon && (
@@ -300,8 +300,8 @@ function Group({
                 strokeWidth={hasActive ? 2.5 : 2}
                 className={`transition-all duration-300 ease-out ${
                   hasActive
-                    ? "text-pink-600 scale-110"
-                    : "text-slate-400 group-hover:text-pink-500 group-hover:scale-105"
+                    ? "text-red-600 scale-110"
+                    : "text-slate-400 group-hover:text-red-600 group-hover:scale-105"
                 }`}
               />
             </span>
@@ -319,8 +319,8 @@ function Group({
               strokeWidth={2}
               className={`${
                 accent
-                  ? "text-pink-500"
-                  : "text-slate-400 group-hover:text-pink-500"
+                  ? "text-red-600"
+                  : "text-slate-400 group-hover:text-red-600"
               }`}
             />
           </span>
@@ -516,12 +516,12 @@ export default function Sidebar({
             bg-white border border-slate-200 text-slate-400
             shadow-md hover:shadow-xl hover:text-blue-600 hover:border-blue-300
             hover:scale-110 active:scale-95
-            transition-all duration-300 ease-out`}
+            transition-all duration-300 ease-out cursor-pointer`}
         >
           <ChevronLeft
             size={14}
             strokeWidth={2.5}
-            className={`transition-all duration-500 ease-out ${
+            className={`transition-all duration-500 ease-out cursor-pointer ${
               collapsed ? "rotate-180" : "rotate-0"
             }`}
           />
