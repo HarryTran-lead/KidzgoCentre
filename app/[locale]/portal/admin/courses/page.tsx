@@ -40,14 +40,14 @@ function cn(...a: Array<string | false | null | undefined>) {
 /* Tag nhỏ hiển thị trình độ (A1, A2, B1,...) */
 function LevelBadge({ level }: { level: string }) {
   const map: Record<string, string> = {
-    A1: "bg-blue-100 text-blue-700",
-    A2: "bg-emerald-100 text-emerald-700",
-    B1: "bg-amber-100 text-amber-700",
-    B2: "bg-violet-100 text-violet-700",
-    C1: "bg-rose-100 text-rose-700",
+    A1: "bg-red-100 text-red-700 border border-red-200",
+    A2: "bg-gray-100 text-gray-700 border border-gray-200",
+    B1: "bg-red-200 text-red-800 border border-red-300",
+    B2: "bg-gray-200 text-gray-800 border border-gray-300",
+    C1: "bg-black/10 text-gray-900 border border-gray-400",
   };
   return (
-    <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", map[level] || "bg-slate-100 text-slate-700")}>
+    <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", map[level] || "bg-gray-100 text-gray-700 border border-gray-200")}>
       {level}
     </span>
   );
@@ -56,8 +56,8 @@ function LevelBadge({ level }: { level: string }) {
 /* Trạng thái khoá học */
 function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng" }) {
   const map: Record<string, string> = {
-    "Đang hoạt động": "bg-emerald-100 text-emerald-700",
-    "Tạm dừng": "bg-amber-100 text-amber-700",
+    "Đang hoạt động": "bg-red-100 text-red-700 border border-red-200",
+    "Tạm dừng": "bg-gray-100 text-gray-700 border border-gray-200",
   };
   return (
     <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>
@@ -89,7 +89,7 @@ function SortableHeader({
 }) {
   const isActive = currentField === field;
   const icon = isActive ? (
-    direction === "asc" ? <ArrowUp size={14} className="text-pink-500" /> : <ArrowDown size={14} className="text-pink-500" />
+    direction === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
   ) : (
     <ArrowUpDown size={14} className="text-gray-400" />
   );
@@ -97,7 +97,7 @@ function SortableHeader({
   return (
     <th
       onClick={() => onSort(field)}
-      className={`py-3 px-6 ${alignClass} text-sm font-semibold tracking-wide text-gray-700 whitespace-nowrap cursor-pointer select-none hover:bg-pink-50 transition-colors`}
+      className={`py-3 px-6 ${alignClass} text-sm font-semibold tracking-wide text-gray-700 whitespace-nowrap cursor-pointer select-none hover:bg-red-50 transition-colors`}
     >
       <span className="inline-flex items-center gap-2">{children}{icon}</span>
     </th>
@@ -275,10 +275,10 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div 
         ref={modalRef}
-        className="relative w-full max-w-5xl bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-5xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
       >
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -288,7 +288,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 <h2 className="text-2xl font-bold text-white">
                   {mode === "edit" ? "Cập nhật chương trình" : "Tạo khóa học mới"}
                 </h2>
-                <p className="text-sm text-pink-100">
+                <p className="text-sm text-red-100">
                   {mode === "edit" ? "Chỉnh sửa thông tin chương trình học" : "Nhập thông tin chi tiết về khóa học mới"}
                 </p>
               </div>
@@ -309,7 +309,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
             {/* Row 0: Chi nhánh */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Building2 size={16} className="text-pink-500" />
+                <Building2 size={16} className="text-red-600" />
                 Chi nhánh *
               </label>
               <div className="relative">
@@ -319,8 +319,8 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   disabled={loadingBranches}
                   className={cn(
                     "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                    "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                    errors.branchId ? "border-rose-500" : "border-pink-200",
+                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    errors.branchId ? "border-red-500" : "border-gray-200",
                     loadingBranches ? "opacity-50 cursor-not-allowed" : ""
                   )}
                 >
@@ -333,17 +333,17 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 </select>
                 {errors.branchId && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <AlertCircle size={18} className="text-rose-500" />
+                    <AlertCircle size={18} className="text-red-500" />
                   </div>
                 )}
               </div>
-              {errors.branchId && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
+              {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
             </div>
 
             {/* Row 1: Tên khóa */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <BookOpen size={16} className="text-pink-500" />
+                <BookOpen size={16} className="text-red-600" />
                 Tên khóa học *
               </label>
               <div className="relative">
@@ -353,24 +353,24 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   onChange={(e) => handleChange("name", e.target.value)}
                   className={cn(
                     "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                    "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                    errors.name ? "border-rose-500" : "border-pink-200"
+                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    errors.name ? "border-red-500" : "border-gray-200"
                   )}
                   placeholder="VD: Tiếng Anh giao tiếp cơ bản"
                 />
                 {errors.name && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <AlertCircle size={18} className="text-rose-500" />
+                    <AlertCircle size={18} className="text-red-500" />
                   </div>
                 )}
               </div>
-              {errors.name && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
+              {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
             </div>
 
             {/* Row 2: Mô tả */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <FileText size={16} className="text-pink-500" />
+                <FileText size={16} className="text-red-600" />
                 Mô tả khóa học *
               </label>
               <div className="relative">
@@ -380,24 +380,24 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   rows={3}
                   className={cn(
                     "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                    "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                    errors.description ? "border-rose-500" : "border-pink-200"
+                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    errors.description ? "border-red-500" : "border-gray-200"
                   )}
                   placeholder="Mô tả chi tiết về khóa học..."
                 />
                 {errors.description && (
                   <div className="absolute right-3 top-3">
-                    <AlertCircle size={18} className="text-rose-500" />
+                    <AlertCircle size={18} className="text-red-500" />
                   </div>
                 )}
               </div>
-              {errors.description && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.description}</p>}
+              {errors.description && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.description}</p>}
             </div>
 
             {/* Row 3: Trình độ */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <BarChart size={16} className="text-pink-500" />
+                <BarChart size={16} className="text-red-600" />
                 Trình độ
               </label>
               <div className="grid grid-cols-5 gap-2">
@@ -410,15 +410,15 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                       "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
                       formData.level === level
                         ? level === "A1"
-                          ? "bg-blue-100 border-blue-300 text-blue-700"
+                          ? "bg-red-100 border-red-300 text-red-700"
                           : level === "A2"
-                          ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                          ? "bg-gray-100 border-gray-300 text-gray-700"
                           : level === "B1"
-                          ? "bg-amber-100 border-amber-300 text-amber-700"
+                          ? "bg-red-200 border-red-400 text-red-800"
                           : level === "B2"
-                          ? "bg-violet-100 border-violet-300 text-violet-700"
-                          : "bg-rose-100 border-rose-300 text-rose-700"
-                        : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
+                          ? "bg-gray-200 border-gray-400 text-gray-800"
+                          : "bg-black/10 border-gray-500 text-gray-900"
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                     )}
                   >
                     {level}
@@ -431,7 +431,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Clock size={16} className="text-pink-500" />
+                  <Clock size={16} className="text-red-600" />
                   Số buổi học *
                 </label>
                 <div className="relative">
@@ -442,23 +442,23 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     onChange={(e) => handleChange("totalSessions", e.target.value)}
                     className={cn(
                       "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                      errors.totalSessions ? "border-rose-500" : "border-pink-200"
+                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                      errors.totalSessions ? "border-red-500" : "border-gray-200"
                     )}
                     placeholder="VD: 24"
                   />
                   {errors.totalSessions && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
+                      <AlertCircle size={18} className="text-red-500" />
                     </div>
                   )}
                 </div>
-                {errors.totalSessions && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.totalSessions}</p>}
+                {errors.totalSessions && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.totalSessions}</p>}
               </div>
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <DollarSign size={16} className="text-pink-500" />
+                  <DollarSign size={16} className="text-red-600" />
                   Học phí mặc định (VND) *
                 </label>
                 <div className="relative">
@@ -471,23 +471,23 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     }}
                     className={cn(
                       "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all",
-                      errors.defaultTuitionAmount ? "border-rose-500" : "border-pink-200"
+                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                      errors.defaultTuitionAmount ? "border-red-500" : "border-gray-200"
                     )}
                     placeholder="VD: 3000000"
                   />
                   {errors.defaultTuitionAmount && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
+                      <AlertCircle size={18} className="text-red-500" />
                     </div>
                   )}
                 </div>
-                {errors.defaultTuitionAmount && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.defaultTuitionAmount}</p>}
+                {errors.defaultTuitionAmount && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.defaultTuitionAmount}</p>}
               </div>
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <DollarSign size={16} className="text-pink-500" />
+                  <DollarSign size={16} className="text-red-600" />
                   Giá mỗi buổi (VND) *
                 </label>
                 <div className="relative">
@@ -498,17 +498,17 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     className={cn(
                       "w-full px-4 py-3 rounded-xl border bg-gray-50 text-gray-700",
                       "cursor-not-allowed",
-                      errors.unitPriceSession ? "border-rose-500" : "border-pink-200"
+                      errors.unitPriceSession ? "border-red-500" : "border-gray-200"
                     )}
                     placeholder="Tự động tính từ học phí mặc định / số buổi học"
                   />
                   {errors.unitPriceSession && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-rose-500" />
+                      <AlertCircle size={18} className="text-red-500" />
                     </div>
                   )}
                 </div>
-                {errors.unitPriceSession && <p className="text-sm text-rose-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.unitPriceSession}</p>}
+                {errors.unitPriceSession && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.unitPriceSession}</p>}
                 <p className="text-xs text-gray-500">Tự động tính từ học phí mặc định chia cho số buổi học</p>
               </div>
             </div>
@@ -516,7 +516,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
             {/* Row 4: Trạng thái */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <BookOpen size={16} className="text-pink-500" />
+                <BookOpen size={16} className="text-red-600" />
                 Trạng thái
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -529,13 +529,13 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                       "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
                       formData.status === status
                         ? status === "Đang hoạt động"
-                          ? "bg-emerald-100 border-emerald-300 text-emerald-700"
-                          : "bg-amber-100 border-amber-300 text-amber-700"
-                        : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"
+                          ? "bg-red-100 border-red-300 text-red-700"
+                          : "bg-gray-100 border-gray-300 text-gray-700"
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                     )}
                   >
                     {status}
-                  </button>
+                    </button>
                 ))}
               </div>
             </div>
@@ -544,12 +544,12 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
         </div>
 
         {/* Modal Footer */}
-        <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 p-6">
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
           <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl border border-pink-300 text-pink-600 font-semibold hover:bg-pink-50 transition-colors cursor-pointer"
+              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
             >
               Hủy bỏ
             </button>
@@ -564,14 +564,14 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   }
                   setErrors({});
                 }}
-                className="px-6 py-2.5 rounded-xl border border-pink-300 text-pink-600 font-semibold hover:bg-pink-50 transition-colors cursor-pointer"
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 {mode === "edit" ? "Khôi phục" : "Đặt lại"}
               </button>
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
               >
                 {mode === "edit" ? "Lưu thay đổi" : "Tạo khóa học"}
               </button>
@@ -587,6 +587,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 export default function Page() {
   const { toast } = useToast();
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [q, setQ] = useState("");
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [sortField, setSortField] = useState<SortField | null>(null);
@@ -607,6 +608,10 @@ export default function Page() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedCourseDetail, setSelectedCourseDetail] = useState<any | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   // Fetch programs with branch filter
   useEffect(() => {
@@ -966,15 +971,15 @@ export default function Page() {
 
   return (
     <>
-      <div className="space-y-6 bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6 rounded-3xl">
+      <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
         {/* Title */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 shadow-lg">
+            <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
               <BookOpen className="text-white" size={24} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
                 Quản lý môn học
               </h1>
               <p className="text-sm text-gray-600">Quản lý chương trình học và khóa học</p>
@@ -983,18 +988,18 @@ export default function Page() {
           <button
             onClick={() => setIsCreateModalOpen(true)}
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
           >
             <Plus size={18} /> Tạo khóa học mới
           </button>
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-pink-100 grid place-items-center">
-                <BookOpen className="text-pink-600" size={18} />
+              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
+                <BookOpen className="text-red-600" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Tổng khóa học</div>
@@ -1003,10 +1008,10 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-emerald-100 grid place-items-center">
-                <GraduationCap className="text-emerald-600" size={18} />
+              <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
+                <GraduationCap className="text-red-600" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Đang hoạt động</div>
@@ -1015,10 +1020,10 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-amber-100 grid place-items-center">
-                <Users className="text-amber-600" size={18} />
+              <span className="w-10 h-10 rounded-xl bg-gray-100 grid place-items-center">
+                <Users className="text-gray-600" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Tổng học viên</div>
@@ -1027,10 +1032,10 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 hover:shadow-md transition">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-sky-100 grid place-items-center">
-                <DollarSign className="text-sky-600" size={18} />
+              <span className="w-10 h-10 rounded-xl bg-black/10 grid place-items-center">
+                <DollarSign className="text-gray-800" size={18} />
               </span>
               <div>
                 <div className="text-sm text-gray-600">Doanh thu/tháng</div>
@@ -1042,24 +1047,24 @@ export default function Page() {
 
         {/* Branch Filter Indicator */}
         {selectedBranchId && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
-            <Building2 size={16} className="text-pink-600" />
-            <span className="text-sm text-pink-700 font-medium">
+          <div className={`flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl transition-all duration-700 delay-150 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <Building2 size={16} className="text-red-600" />
+            <span className="text-sm text-red-700 font-medium">
               Đang lọc theo chi nhánh đã chọn
             </span>
           </div>
         )}
 
         {/* Search & Filters */}
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+        <div className={`rounded-2xl border border-gray-200 bg-white p-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="relative flex-1 max-w-3xl min-w-[280px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-500" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input
                 value={q}
                 onChange={(e) => { setQ(e.target.value); setPage(1); }}
                 placeholder="Tìm kiếm khóa học..."
-                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-pink-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-300"
+                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
             </div>
 
@@ -1067,7 +1072,7 @@ export default function Page() {
               <select
                 value={levelFilter}
                 onChange={(e) => { setLevelFilter(e.target.value as typeof levelFilter); setPage(1); }}
-                className="h-10 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               >
                 <option value="ALL">Tất cả trình độ</option>
                 <option value="A1">A1</option>
@@ -1079,7 +1084,7 @@ export default function Page() {
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
-                className="h-10 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               >
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="Đang hoạt động">Đang hoạt động</option>
@@ -1090,9 +1095,9 @@ export default function Page() {
         </div>
 
         {/* Table */}
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
+        <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Table Header */}
-          <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Danh sách khóa học</h2>
               <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -1104,7 +1109,7 @@ export default function Page() {
           {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên khóa học</SortableHeader>
                   <SortableHeader field="level" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trình độ</SortableHeader>
@@ -1116,12 +1121,12 @@ export default function Page() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-pink-100">
+              <tbody className="divide-y divide-gray-100">
                 {pagedRows.length > 0 ? (
                   pagedRows.map((c) => (
                     <tr
                       key={c.id}
-                      className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+                      className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                     >
                       <td className="py-3 px-6">
                         <div className="text-sm text-gray-900 truncate">{c.name}</div>
@@ -1156,14 +1161,14 @@ export default function Page() {
                         <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
                           <button 
                             onClick={() => handleViewDetail(c)}
-                            className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer" 
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer" 
                             title="Xem chi tiết"
                           >
                             <Eye size={14} />
                           </button>
                           <button
                             onClick={() => handleOpenEditCourse(c)}
-                            className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer"
                             title="Sửa"
                           >
                             <Pencil size={14} />
@@ -1173,8 +1178,8 @@ export default function Page() {
                             className={cn(
                               "p-1.5 rounded-lg transition-colors cursor-pointer",
                               c.status === "Đang hoạt động"
-                                ? "hover:bg-amber-50 text-gray-400 hover:text-amber-600"
-                                : "hover:bg-emerald-50 text-gray-400 hover:text-emerald-600"
+                                ? "hover:bg-gray-100 text-gray-400 hover:text-gray-800"
+                                : "hover:bg-red-50 text-gray-400 hover:text-red-600"
                             )}
                             title={c.status === "Đang hoạt động" ? "Tạm dừng" : "Kích hoạt"}
                           >
@@ -1187,8 +1192,8 @@ export default function Page() {
                 ) : (
                   <tr>
                     <td colSpan={8} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                        <Search size={24} className="text-pink-400" />
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                        <Search size={24} className="text-gray-400" />
                       </div>
                       <div className="text-gray-600 font-medium">Không tìm thấy khóa học</div>
                       <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo khóa học mới</div>
@@ -1201,7 +1206,7 @@ export default function Page() {
 
           {/* Table Footer - Pagination */}
           {rows.length > 0 && (
-            <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-gray-600">
                   Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, rows.length)}</span>
@@ -1209,7 +1214,7 @@ export default function Page() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                    className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                     onClick={() => goPage(currentPage - 1)}
                     disabled={currentPage === 1}
                     aria-label="Trang trước"
@@ -1220,7 +1225,7 @@ export default function Page() {
                     {currentPage} / {totalPages}
                   </div>
                   <button
-                    className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                    className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                     onClick={() => goPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     aria-label="Trang sau"
@@ -1279,9 +1284,9 @@ export default function Page() {
       {/* Detail Modal */}
       {showDetailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-3xl bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -1289,7 +1294,7 @@ export default function Page() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-white">Chi tiết khóa học</h2>
-                    <p className="text-sm text-pink-100">Thông tin chi tiết về khóa học</p>
+                    <p className="text-sm text-red-100">Thông tin chi tiết về khóa học</p>
                   </div>
                 </div>
                 <button
@@ -1309,17 +1314,17 @@ export default function Page() {
             <div className="p-6 max-h-[70vh] overflow-y-auto">
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
                 </div>
               ) : selectedCourseDetail ? (
                 <div className="space-y-6">
                   {/* Tên khóa học */}
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <BookOpen size={16} className="text-pink-500" />
+                      <BookOpen size={16} className="text-red-600" />
                       Tên khóa học
                     </label>
-                    <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                       {selectedCourseDetail.name || "Chưa có thông tin"}
                     </div>
                   </div>
@@ -1327,10 +1332,10 @@ export default function Page() {
                   {/* Mô tả */}
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <FileText size={16} className="text-pink-500" />
+                      <FileText size={16} className="text-red-600" />
                       Mô tả khóa học
                     </label>
-                    <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900 min-h-[80px]">
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 min-h-[80px]">
                       {selectedCourseDetail.description || "Chưa có mô tả"}
                     </div>
                   </div>
@@ -1339,30 +1344,30 @@ export default function Page() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <BarChart size={16} className="text-pink-500" />
+                        <BarChart size={16} className="text-red-600" />
                         Trình độ
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         <LevelBadge level={selectedCourseDetail.level || "N/A"} />
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Clock size={16} className="text-pink-500" />
+                        <Clock size={16} className="text-red-600" />
                         Số buổi học
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         {selectedCourseDetail.totalSessions ? `${selectedCourseDetail.totalSessions} buổi` : "Chưa có thông tin"}
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <DollarSign size={16} className="text-pink-500" />
+                        <DollarSign size={16} className="text-red-600" />
                         Học phí mặc định
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         {selectedCourseDetail.defaultTuitionAmount 
                           ? `${selectedCourseDetail.defaultTuitionAmount.toLocaleString("vi-VN")} VND`
                           : "Chưa có thông tin"}
@@ -1374,10 +1379,10 @@ export default function Page() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <DollarSign size={16} className="text-pink-500" />
+                        <DollarSign size={16} className="text-red-600" />
                         Giá mỗi buổi
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         {selectedCourseDetail.unitPriceSession 
                           ? `${selectedCourseDetail.unitPriceSession.toLocaleString("vi-VN")} VND`
                           : "Chưa có thông tin"}
@@ -1386,20 +1391,20 @@ export default function Page() {
 
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Building2 size={16} className="text-pink-500" />
+                        <Building2 size={16} className="text-red-600" />
                         Chi nhánh
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white text-gray-900">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         {selectedCourseDetail.branchName || selectedCourseDetail.branch?.name || "Chưa có chi nhánh"}
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <BookOpen size={16} className="text-pink-500" />
+                        <BookOpen size={16} className="text-red-600" />
                         Trạng thái
                       </label>
-                      <div className="px-4 py-3 rounded-xl border border-pink-200 bg-white">
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
                         <StatusBadge value={normalizeIsActive(selectedCourseDetail?.isActive ?? selectedCourseDetail?.status) === true ? "Đang hoạt động" : "Tạm dừng"} />
                       </div>
                     </div>
@@ -1415,14 +1420,14 @@ export default function Page() {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 p-6">
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
               <div className="flex justify-end">
                 <button
                   onClick={() => {
                     setShowDetailModal(false);
                     setSelectedCourseDetail(null);
                   }}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/25 transition-all cursor-pointer"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
                 >
                   Đóng
                 </button>

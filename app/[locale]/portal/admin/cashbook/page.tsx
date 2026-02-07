@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { 
   ArrowDownRight, 
   ArrowUpRight, 
@@ -156,7 +156,7 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
       <div className={`absolute right-0 top-0 h-20 w-20 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`}></div>
       <div className="relative flex items-start justify-between">
         <div className="space-y-2">
@@ -186,7 +186,7 @@ function StatCard({
 
 function TransactionCard({ row }: { row: CashRow }) {
   return (
-    <div className="group rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-pink-100/50">
+    <div className="group rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-red-100/50">
       <div className="flex items-start justify-between mb-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -203,13 +203,13 @@ function TransactionCard({ row }: { row: CashRow }) {
           <div className="text-xs text-gray-500">{row.id}</div>
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600">
+          <button className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600">
             <Eye size={14} />
           </button>
-          <button className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600">
+          <button className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600">
             <Edit size={14} />
           </button>
-          <button className="p-1.5 rounded-lg hover:bg-rose-50 transition-colors text-gray-400 hover:text-rose-600">
+          <button className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600">
             <Trash2 size={14} />
           </button>
         </div>
@@ -254,6 +254,11 @@ export default function CashbookPage() {
   const [search, setSearch] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('09/2025');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const rows = useMemo(() => {
     let result = ROWS;
@@ -290,7 +295,7 @@ export default function CashbookPage() {
       title: 'Số dư hiện tại',
       value: formatVND(balance),
       icon: <Wallet size={20} />,
-      color: 'from-pink-500 to-rose-500',
+      color: 'from-red-600 to-red-700',
       subtitle: 'Sau khi trừ chi phí',
       trend: { value: 8, label: 'vs tháng trước' }
     },
@@ -306,7 +311,7 @@ export default function CashbookPage() {
       title: 'Tổng chi tháng',
       value: formatVND(totalOut),
       icon: <ArrowDownRight size={20} />,
-      color: 'from-rose-500 to-pink-500',
+      color: 'from-red-600 to-red-700',
       subtitle: 'Lương, vật tư, mặt bằng',
       trend: { value: -5, label: 'vs tháng trước' }
     },
@@ -324,15 +329,15 @@ export default function CashbookPage() {
   const months = ['09/2025', '08/2025', '07/2025', '06/2025'];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <DollarSign size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Sổ quỹ & Dòng tiền
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -341,28 +346,28 @@ export default function CashbookPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+          <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors">
             <Download size={16} /> Xuất báo cáo
           </button>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
             <Plus size={16} /> Ghi thu/chi mới
           </button>
         </div>
       </div>
 
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {stats.map((stat, idx) => (
           <StatCard key={idx} {...stat} />
         ))}
       </div>
 
       {/* Filter Bar */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Type Filter */}
-            <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1">
+            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
               {[
                 { k: 'ALL', label: 'Tất cả', count: ROWS.length },
                 { k: 'IN', label: 'Thu', count: ROWS.filter(r => r.type === 'IN').length },
@@ -373,8 +378,8 @@ export default function CashbookPage() {
                   onClick={() => setFilter(item.k as typeof filter)}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
                     filter === item.k 
-                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm' 
-                      : 'text-gray-700 hover:bg-pink-50'
+                      ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm' 
+                      : 'text-gray-700 hover:bg-red-50'
                   }`}
                 >
                   {item.label}
@@ -393,7 +398,7 @@ export default function CashbookPage() {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               >
                 {categories.map(category => (
                   <option key={category} value={category}>{category}</option>
@@ -407,7 +412,7 @@ export default function CashbookPage() {
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               >
                 {months.map(month => (
                   <option key={month} value={month}>{month}</option>
@@ -422,7 +427,7 @@ export default function CashbookPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm kiếm giao dịch..."
-              className="h-10 w-72 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
@@ -430,12 +435,12 @@ export default function CashbookPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className={`grid gap-6 lg:grid-cols-3 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Transactions List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Nhật ký thu chi</h2>
-            <button className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-pink-600 transition-colors">
+            <button className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-red-600 transition-colors">
               Xem tất cả <ChevronRight size={14} />
             </button>
           </div>
@@ -446,9 +451,9 @@ export default function CashbookPage() {
                 <TransactionCard key={row.id} row={row} />
               ))
             ) : (
-              <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-8 text-center">
-                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                  <Search size={24} className="text-pink-400" />
+              <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-8 text-center">
+                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                  <Search size={24} className="text-red-400" />
                 </div>
                 <div className="text-gray-600 font-medium">Không tìm thấy giao dịch</div>
                 <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo giao dịch mới</div>
@@ -460,7 +465,7 @@ export default function CashbookPage() {
         {/* Sidebar - Analytics */}
         <div className="space-y-6">
           {/* Categories Breakdown */}
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
             <div className="flex items-center gap-2 mb-4">
               <div className="p-2 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50">
                 <PieChart size={18} className="text-blue-500" />
@@ -496,7 +501,7 @@ export default function CashbookPage() {
           </div>
 
           {/* Payment Methods */}
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
             <div className="flex items-center gap-2 mb-4">
               <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50">
                 <CreditCard size={18} className="text-emerald-500" />
@@ -530,18 +535,18 @@ export default function CashbookPage() {
           </div>
 
           {/* Quick Actions */}
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
             <h3 className="font-semibold text-gray-900 mb-4">Thao tác nhanh</h3>
             <div className="space-y-2">
-              <button className="w-full rounded-xl border border-pink-200 bg-white px-4 py-3 text-sm font-medium hover:bg-pink-50 transition-colors flex items-center gap-2">
+              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2">
                 <RefreshCw size={16} />
                 Đối soát ngân hàng
               </button>
-              <button className="w-full rounded-xl border border-pink-200 bg-white px-4 py-3 text-sm font-medium hover:bg-pink-50 transition-colors flex items-center gap-2">
+              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2">
                 <BarChart3 size={16} />
                 Xuất báo cáo thuế
               </button>
-              <button className="w-full rounded-xl border border-pink-200 bg-white px-4 py-3 text-sm font-medium hover:bg-pink-50 transition-colors flex items-center gap-2">
+              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2">
                 <CalendarDays size={16} />
                 Xem dự báo dòng tiền
               </button>
@@ -551,20 +556,20 @@ export default function CashbookPage() {
       </div>
 
       {/* Summary Panel */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+      <div className={`grid gap-4 md:grid-cols-3 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
           <div className="text-sm font-medium text-gray-600 mb-2">Tổng giao dịch</div>
           <div className="text-2xl font-bold text-gray-900">{ROWS.length}</div>
           <div className="text-xs text-gray-500 mt-1">trong tháng 9/2025</div>
         </div>
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
           <div className="text-sm font-medium text-gray-600 mb-2">Tỷ lệ thu/chi</div>
           <div className="text-2xl font-bold text-gray-900">
             {totalOut > 0 ? Math.round((totalIn / totalOut) * 100) : 0}%
           </div>
           <div className="text-xs text-gray-500 mt-1">Hiệu quả tài chính</div>
         </div>
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
           <div className="text-sm font-medium text-gray-600 mb-2">Chi nhánh hoạt động</div>
           <div className="text-2xl font-bold text-gray-900">3</div>
           <div className="text-xs text-gray-500 mt-1">Cơ sở 1, 2, 3</div>
@@ -572,7 +577,7 @@ export default function CashbookPage() {
       </div>
 
       {/* Legend */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích</div>
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
