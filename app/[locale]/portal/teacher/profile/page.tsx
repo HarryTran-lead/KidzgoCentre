@@ -61,18 +61,18 @@ export default function Page() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <UserRound size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900">
               Hồ sơ cá nhân
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
               Quản lý thông tin, chứng chỉ và bảo mật tài khoản
             </p>
           </div>
@@ -80,7 +80,7 @@ export default function Page() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-gradient-to-br from-white via-white to-pink-50/30 rounded-2xl border border-pink-200 overflow-hidden shadow-sm">
+      <div className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Tabs */}
         <div className="px-6 pt-6">
           <div className="flex flex-wrap gap-2">
@@ -89,7 +89,7 @@ export default function Page() {
               onClick={() => setTab("info")}
               icon={<UserRound size={16} />}
               count={4}
-              color="pink"
+              color="red"
             >
               Thông tin cá nhân
             </TabButton>
@@ -98,7 +98,7 @@ export default function Page() {
               onClick={() => setTab("certs")}
               icon={<Award size={16} />}
               count={5}
-              color="purple"
+              color="gray"
             >
               Chứng chỉ
             </TabButton>
@@ -106,7 +106,7 @@ export default function Page() {
               active={tab === "security"}
               onClick={() => setTab("security")}
               icon={<Shield size={16} />}
-              color="blue"
+              color="gray"
             >
               Bảo mật
             </TabButton>
@@ -114,20 +114,20 @@ export default function Page() {
               active={tab === "stats"}
               onClick={() => setTab("stats")}
               icon={<BarChart3 size={16} />}
-              color="emerald"
+              color="red"
             >
               Thống kê
             </TabButton>
           </div>
         </div>
 
-        <div className="border-t border-pink-100 mt-4" />
+        <div className="border-t border-gray-200 mt-4" />
 
         {/* Tab content */}
         <div className="p-6">
           {tab === "info" && <InfoTab isEditing={isEditing} setIsEditing={setIsEditing} isPageLoaded={isPageLoaded} />}
-          {tab === "certs" && <CertsTab />}
-          {tab === "security" && <SecurityTab />}
+          {tab === "certs" && <CertsTab isPageLoaded={isPageLoaded} />}
+          {tab === "security" && <SecurityTab isPageLoaded={isPageLoaded} />}
           {tab === "stats" && <StatsTab isPageLoaded={isPageLoaded} />}
         </div>
       </div>
@@ -143,42 +143,40 @@ function TabButton({
   icon,
   onClick,
   count,
-  color = "pink"
+  color = "red"
 }: {
   active?: boolean;
   children: React.ReactNode;
   icon?: React.ReactNode;
   onClick?: () => void;
   count?: number;
-  color?: "pink" | "purple" | "blue" | "emerald";
+  color?: "red" | "gray" | "black";
 }) {
   const colorClasses = {
-    pink: "from-pink-500 to-rose-500",
-    purple: "from-purple-500 to-fuchsia-500",
-    blue: "from-blue-500 to-sky-500",
-    emerald: "from-emerald-500 to-teal-500"
+    red: "from-red-600 to-red-700",
+    gray: "from-gray-600 to-gray-700",
+    black: "from-gray-800 to-gray-900"
   };
 
   const bgColorClasses = {
-    pink: "bg-pink-100 text-pink-700",
-    purple: "bg-purple-100 text-purple-700",
-    blue: "bg-blue-100 text-blue-700",
-    emerald: "bg-emerald-100 text-emerald-700"
+    red: "bg-red-50 text-red-700 border border-red-200",
+    gray: "bg-gray-100 text-gray-700 border border-gray-200",
+    black: "bg-gray-900 text-white border border-gray-800"
   };
 
   return (
     <button
       onClick={onClick}
       className={`relative px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 group cursor-pointer ${active
-        ? "bg-pink-100 text-pink-700 border border-pink-200 shadow-sm"
-        : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
         }`}
     >
       {icon && <span className="w-4 h-4 flex items-center justify-center">{icon}</span>}
       {children}
       {count !== undefined && (
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${active
-          ? "bg-pink-200 text-pink-800"
+          ? "bg-white/20 text-white"
           : bgColorClasses[color]
           }`}>
           {count}
@@ -242,16 +240,16 @@ function InfoTab({
   };
 
   return (
-    <div className="space-y-8">
+    <div className={`space-y-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
       {/* Header with gradient background */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-pink-500/10 p-6">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-pink-500/20 to-rose-500/20 rounded-full -translate-y-16 translate-x-16" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-500/20 to-rose-500/20 rounded-full translate-y-12 -translate-x-12" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-500/10 via-red-500/10 to-red-500/10 p-6">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/20 to-red-600/20 rounded-full -translate-y-16 translate-x-16" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-red-500/20 to-red-600/20 rounded-full translate-y-12 -translate-x-12" />
 
         <div className="relative flex flex-col md:flex-row items-start gap-8">
           {/* Profile Image */}
           <div className="relative">
-            <div className="relative w-40 h-40 rounded-2xl overflow-hidden border-4 border-white shadow-2xl bg-gradient-to-r from-pink-500 to-rose-500 group">
+            <div className="relative w-40 h-40 rounded-2xl overflow-hidden border-4 border-white shadow-2xl bg-gradient-to-r from-red-600 to-red-700 group">
               <img
                 src={profileImage}
                 alt="Profile"
@@ -284,7 +282,7 @@ function InfoTab({
             <div>
               <div className="flex flex-wrap items-center gap-3 mb-2">
                 <h2 className="text-3xl font-bold text-gray-900">{formData.fullName}</h2>
-                <div className="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-medium rounded-full">
+                <div className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-medium rounded-full">
                   Giảng viên chính
                 </div>
               </div>
@@ -308,12 +306,12 @@ function InfoTab({
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-4 border-t border-pink-100">
-              <StatItem label="Khóa học" value="12" color="pink" />
-              <StatItem label="Học viên" value="145+" color="emerald" />
-              <StatItem label="Đánh giá" value="4.9" color="amber" />
-              <StatItem label="Hoàn thành" value="92%" color="green" />
-              <StatItem label="Giờ dạy" value="1,240h" color="blue" />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-4 border-t border-gray-200">
+              <StatItem label="Khóa học" value="12" color="red" />
+              <StatItem label="Học viên" value="145+" color="red" />
+              <StatItem label="Đánh giá" value="4.9" color="gray" />
+              <StatItem label="Hoàn thành" value="92%" color="red" />
+              <StatItem label="Giờ dạy" value="1,240h" color="gray" />
             </div>
           </div>
         </div>
@@ -324,14 +322,14 @@ function InfoTab({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsEditing(false)}
-                className="px-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-700 hover:bg-pink-50 transition-all shadow-sm flex items-center gap-2"
+                className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
               >
                 <X size={16} />
                 Hủy
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg transition-all shadow-sm flex items-center gap-2"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all shadow-sm flex items-center gap-2 cursor-pointer"
               >
                 <Save size={16} />
                 Lưu thay đổi
@@ -340,7 +338,7 @@ function InfoTab({
           ) : (
             <button
               onClick={() => setIsEditing(true)}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all shadow-sm flex cursor-pointer items-center gap-2 group"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all shadow-sm flex cursor-pointer items-center gap-2 group"
             >
               <Edit size={16} className="group-hover:rotate-12 transition-transform" />
               Chỉnh sửa hồ sơ
@@ -352,9 +350,9 @@ function InfoTab({
       {/* Skills Section */}
       <div className="grid md:grid-cols-2 gap-8">
         {/* Skills Progress */}
-        <div className="bg-gradient-to-br from-white to-pink-50/30 rounded-2xl border border-pink-200 p-6">
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg">
+            <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
               <Zap size={20} className="text-white" />
             </div>
             <div>
@@ -368,11 +366,11 @@ function InfoTab({
               <div key={index} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-900">{skill.name}</span>
-                  <span className="text-sm font-bold text-pink-600">{skill.level}%</span>
+                  <span className="text-sm font-bold text-red-600">{skill.level}%</span>
                 </div>
                 <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-1000"
+                    className="h-full bg-gradient-to-r from-red-600 to-red-700 rounded-full transition-all duration-1000"
                     style={{ width: isPageLoaded ? `${skill.level}%` : '0%' }}
                   />
                 </div>
@@ -437,13 +435,13 @@ function InfoTab({
 
         {!isEditing && (
           <div className="flex items-center gap-3 mt-4">
-            <div className="px-3 py-1.5 bg-pink-100 text-pink-700 rounded-full text-sm">
+            <div className="px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-full text-sm">
               <Heart size={12} className="inline mr-1" /> 8 năm kinh nghiệm
             </div>
-            <div className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm">
+            <div className="px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-sm">
               <MessageSquare size={12} className="inline mr-1" /> 500+ đánh giá
             </div>
-            <div className="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-sm">
+            <div className="px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-sm">
               <CheckSquare size={12} className="inline mr-1" /> 95% hài lòng
             </div>
           </div>
@@ -455,8 +453,8 @@ function InfoTab({
 
 function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 p-3 bg-white/50 rounded-xl border border-pink-100">
-      <div className="p-2 bg-pink-100 rounded-lg">
+    <div className="flex items-center gap-3 p-3 bg-white/50 rounded-xl border border-gray-200">
+      <div className="p-2 bg-red-50 rounded-lg">
         {icon}
       </div>
       <div>
@@ -469,15 +467,14 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
 
 function StatItem({ label, value, color }: { label: string; value: string; color: string }) {
   const colorClasses = {
-    pink: "text-pink-600",
-    emerald: "text-emerald-600",
-    amber: "text-amber-600",
-    blue: "text-blue-600"
+    red: "text-red-600",
+    gray: "text-gray-600",
+    black: "text-gray-900"
   };
 
   return (
     <div className="text-center p-3">
-      <div className={`text-2xl font-bold mb-1 ${colorClasses[color as keyof typeof colorClasses]}`}>
+      <div className={`text-2xl font-bold mb-1 ${colorClasses[color as keyof typeof colorClasses] || colorClasses.red}`}>
         {value}
       </div>
       <div className="text-xs text-gray-600">{label}</div>
@@ -487,7 +484,7 @@ function StatItem({ label, value, color }: { label: string; value: string; color
 
 /* ---------- Chứng chỉ - Hiện đại hơn ---------- */
 
-function CertsTab() {
+function CertsTab({ isPageLoaded = true }: { isPageLoaded?: boolean }) {
   const [certificates, setCertificates] = useState([
     {
       id: 1,
@@ -496,7 +493,7 @@ function CertsTab() {
       year: "2020",
       verified: true,
       level: "Expert",
-      color: "from-pink-500 to-rose-500",
+      color: "from-red-600 to-red-700",
       icon: <Globe size={24} />
     },
     {
@@ -559,7 +556,7 @@ function CertsTab() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className={`space-y-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -569,11 +566,11 @@ function CertsTab() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="px-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-700 hover:bg-pink-50 transition-all flex items-center gap-2 cursor-pointer">
+          <button className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2 cursor-pointer">
             <Download size={16} />
             Xuất tất cả
           </button>
-          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white cursor-pointer hover:shadow-lg transition-all">
+          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white cursor-pointer hover:shadow-lg transition-all">
             <Plus size={16} />
             Thêm mới
             <input
@@ -591,7 +588,7 @@ function CertsTab() {
         {certificates.map((cert) => (
           <div
             key={cert.id}
-            className="group relative overflow-hidden rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+            className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
           >
             {/* Background gradient */}
             <div className={`absolute inset-0 bg-gradient-to-r ${cert.color} opacity-0 group-hover:opacity-5 transition-opacity`} />
@@ -615,10 +612,10 @@ function CertsTab() {
                       <Clock size={12} /> Chờ duyệt
                     </span>
                   )}
-                  <span className={`text-xs px-2.5 py-1 rounded-full ${cert.level === "Perfect" ? "bg-rose-100 text-rose-700" :
-                    cert.level === "Expert" ? "bg-pink-100 text-pink-700" :
-                      cert.level === "Advanced" ? "bg-purple-100 text-purple-700" :
-                        "bg-blue-100 text-blue-700"
+                  <span className={`text-xs px-2.5 py-1 rounded-full ${cert.level === "Perfect" ? "bg-red-50 text-red-700 border border-red-200" :
+                    cert.level === "Expert" ? "bg-red-50 text-red-700 border border-red-200" :
+                      cert.level === "Advanced" ? "bg-gray-100 text-gray-700 border border-gray-200" :
+                        "bg-gray-100 text-gray-700 border border-gray-200"
                     }`}>
                     {cert.level}
                   </span>
@@ -656,16 +653,16 @@ function CertsTab() {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-between pt-6 mt-6 border-t border-pink-100">
+              <div className="flex items-center justify-between pt-6 mt-6 border-t border-gray-200">
                 <div className="flex items-center gap-2">
-                  <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors">
+                  <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
                     <Eye size={18} />
                   </button>
-                  <button className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+                  <button className="p-2 text-gray-500 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
                     <Share2 size={18} />
                   </button>
                 </div>
-                <button className="px-3 py-1.5 text-sm bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg hover:shadow-md transition-all flex items-center gap-1.5  cursor-pointer">
+                <button className="px-3 py-1.5 text-sm bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
                   <Download size={14} />
                   Tải xuống
                 </button>
@@ -676,16 +673,16 @@ function CertsTab() {
       </div>
 
       {/* Add New Certificate Card */}
-      <div className="border-2 border-dashed border-pink-300 rounded-2xl bg-gradient-to-br from-white/50 to-pink-50/30 p-8 text-center">
+      <div className="border-2 border-dashed border-gray-300 rounded-2xl bg-white p-8 text-center">
         <div className="max-w-md mx-auto">
-          <div className="p-4 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-            <Upload size={24} className="text-pink-500" />
+          <div className="p-4 bg-gradient-to-r from-red-500/10 to-red-600/10 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <Upload size={24} className="text-red-600" />
           </div>
           <h4 className="font-bold text-gray-900 mb-2">Tải lên chứng chỉ mới</h4>
           <p className="text-sm text-gray-600 mb-6">
             Kéo thả file hoặc nhấn để chọn file từ máy tính
           </p>
-          <label className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white cursor-pointer hover:shadow-lg transition-all">
+          <label className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white cursor-pointer hover:shadow-lg transition-all">
             <Upload size={16} />
             Chọn file
             <input
@@ -706,7 +703,7 @@ function CertsTab() {
 
 /* ---------- Bảo mật ---------- */
 
-function SecurityTab() {
+function SecurityTab({ isPageLoaded = true }: { isPageLoaded?: boolean }) {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -736,7 +733,7 @@ function SecurityTab() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className={`space-y-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -750,7 +747,7 @@ function SecurityTab() {
       {/* Password Change Form */}
       <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl border border-blue-200 p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-lg">
+          <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-lg shadow-lg">
             <ShieldCheck size={20} className="text-white" />
           </div>
           <div>
@@ -796,7 +793,7 @@ function SecurityTab() {
             </button>
             <button
               type="submit"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all shadow-sm cursor-pointer"
             >
               <ShieldCheck size={16} />
               Cập nhật mật khẩu
@@ -862,7 +859,7 @@ function SecurityTab() {
                     Hiện tại
                   </span>
                 ) : (
-                  <button className="text-xs text-rose-600 hover:text-rose-700">
+                  <button className="text-xs text-red-600 hover:text-red-700 cursor-pointer">
                     Đăng xuất
                   </button>
                 )}
@@ -906,7 +903,7 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
   const [activeTimeFilter, setActiveTimeFilter] = useState<"week" | "month" | "quarter">("month");
 
   const stats = [
-    { label: "Tỉ lệ hoàn thành khóa học", value: 92, change: "+2.5%", color: "from-pink-500 to-rose-500" },
+    { label: "Tỉ lệ hoàn thành khóa học", value: 92, change: "+2.5%", color: "from-red-600 to-red-700" },
     { label: "Đánh giá từ học viên", value: 4.9, change: "+0.1", color: "from-amber-500 to-orange-500" },
     { label: "Tỉ lệ giữ chân học viên", value: 88, change: "+3.2%", color: "from-emerald-500 to-teal-500" },
     { label: "Thời gian phản hồi TB", value: 2.4, change: "-0.5h", color: "from-blue-500 to-sky-500" },
@@ -940,7 +937,7 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
             <button
               onClick={() => setActiveTimeFilter("week")}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTimeFilter === "week"
-                ? "bg-white text-pink-600 shadow-sm"
+                ? "bg-white text-red-600 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
                 }`}
             >
@@ -949,7 +946,7 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
             <button
               onClick={() => setActiveTimeFilter("month")}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTimeFilter === "month"
-                ? "bg-white text-pink-600 shadow-sm"
+                ? "bg-white text-red-600 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
                 }`}
             >
@@ -958,14 +955,14 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
             <button
               onClick={() => setActiveTimeFilter("quarter")}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTimeFilter === "quarter"
-                ? "bg-white text-pink-600 shadow-sm"
+                ? "bg-white text-red-600 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
                 }`}
             >
               Quý
             </button>
           </div>
-          <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer">
+          <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer">
             <Download size={16} />
             Xuất báo cáo
           </button>
@@ -975,10 +972,10 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
       {/* Stats Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-gradient-to-br from-white to-pink-50/30 rounded-2xl border border-pink-200 p-5 hover:shadow-md transition-shadow">
+          <div key={index} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md transition-shadow shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm text-gray-600">{stat.label}</div>
-              <div className={`text-sm ${stat.change.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <div className={`text-sm ${stat.change.startsWith('+') ? 'text-red-600' : 'text-gray-600'}`}>
                 {stat.change}
               </div>
             </div>
@@ -1080,17 +1077,17 @@ function StatsTab({ isPageLoaded }: { isPageLoaded: boolean }) {
           <div className="text-xs text-amber-500">/tuần</div>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-pink-50/30 rounded-2xl border border-pink-200 p-5">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg">
+            <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
               <MessageSquare size={18} className="text-white" />
             </div>
             <div>
               <div className="text-sm text-gray-600">Phản hồi tích cực</div>
-              <div className="text-2xl font-bold text-pink-600">98%</div>
+              <div className="text-2xl font-bold text-red-600">98%</div>
             </div>
           </div>
-          <div className="text-xs text-pink-500">500+ đánh giá</div>
+          <div className="text-xs text-gray-600">500+ đánh giá</div>
         </div>
       </div>
     </div>
@@ -1570,7 +1567,7 @@ function LabeledInput({
           placeholder={placeholder}
           disabled={disabled}
           onChange={(e) => onChange?.(e.target.value)}
-          className={`w-full rounded-xl border border-pink-200 bg-white/50 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all ${icon ? 'pl-10' : ''
+          className={`w-full rounded-xl border border-gray-200 bg-white/50 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all ${icon ? 'pl-10' : ''
             } ${disabled ? 'bg-transparent cursor-not-allowed' : ''}`}
         />
       </div>
@@ -1602,7 +1599,7 @@ function PasswordInput({
           type={showPassword ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-xl border border-pink-200 bg-white/50 pl-10 pr-10 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+          className="w-full rounded-xl border border-gray-200 bg-white/50 pl-10 pr-10 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
         />
         <button
           type="button"

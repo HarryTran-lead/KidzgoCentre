@@ -43,7 +43,7 @@ function StatCard({
   value,
   hint,
   trend = "up",
-  color = "pink",
+  color = "red",
   delay = 0
 }: {
   icon: React.ReactNode;
@@ -51,7 +51,7 @@ function StatCard({
   value: string;
   hint: string;
   trend?: "up" | "down" | "stable";
-  color?: "pink" | "green" | "yellow" | "blue" | "purple";
+  color?: "red" | "gray" | "black";
   delay?: number;
 }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -62,22 +62,20 @@ function StatCard({
   }, [delay]);
 
   const colorClasses = {
-    pink: "from-pink-500 to-rose-500",
-    green: "from-emerald-500 to-teal-500",
-    yellow: "from-amber-500 to-orange-500",
-    blue: "from-blue-500 to-sky-500",
-    purple: "from-purple-500 to-indigo-500"
+    red: "from-red-600 to-red-700",
+    gray: "from-gray-600 to-gray-700",
+    black: "from-gray-800 to-gray-900"
   };
 
   const trendColors = {
-    up: "text-emerald-600",
-    down: "text-rose-600",
-    stable: "text-amber-600"
+    up: "text-red-600",
+    down: "text-gray-600",
+    stable: "text-gray-800"
   };
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all duration-700 transform cursor-pointer ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+      className={`bg-white rounded-2xl border border-gray-200 p-5 transition-all duration-700 transform cursor-pointer hover:border-red-300 hover:shadow-md ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
     >
       <div className="flex items-center justify-between">
@@ -103,21 +101,17 @@ function Badge({
   color = "gray",
   children
 }: {
-  color?: "gray" | "blue" | "red" | "green" | "purple" | "yellow" | "pink";
+  color?: "gray" | "red" | "black";
   children: React.ReactNode;
 }) {
   const colorClasses = {
-    gray: "bg-gray-100 text-gray-700",
-    blue: "bg-blue-100 text-blue-700",
-    red: "bg-rose-100 text-rose-700",
-    green: "bg-emerald-100 text-emerald-700",
-    purple: "bg-purple-100 text-purple-700",
-    yellow: "bg-amber-100 text-amber-700",
-    pink: "bg-pink-100 text-pink-700"
+    gray: "bg-gray-100 text-gray-700 border border-gray-200",
+    red: "bg-red-50 text-red-700 border border-red-200",
+    black: "bg-gray-900 text-white border border-gray-800"
   };
 
   return (
-    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium ${colorClasses[color]}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colorClasses[color]}`}>
       {children}
     </span>
   );
@@ -137,99 +131,54 @@ function ClassCard({
   const [isHovered, setIsHovered] = useState(false);
 
   // Map màu theme của lớp sang màu pie chart
-  const getPieChartColor = (colorGradient: string): "pink" | "green" | "blue" | "yellow" | "purple" | "orange" => {
-    if (colorGradient.includes("pink") || colorGradient.includes("rose")) return "pink";
-    if (colorGradient.includes("amber") || colorGradient.includes("orange")) return "orange";
-    if (colorGradient.includes("emerald") || colorGradient.includes("teal") || colorGradient.includes("green")) return "green";
-    if (colorGradient.includes("blue") || colorGradient.includes("sky")) return "blue";
-    if (colorGradient.includes("purple") || colorGradient.includes("indigo")) return "purple";
-    return "pink"; // default
+  const getPieChartColor = (colorGradient: string): "red" | "gray" | "black" => {
+    if (colorGradient.includes("red")) return "red";
+    if (colorGradient.includes("gray") || colorGradient.includes("grey")) return "gray";
+    return "red"; // default
   };
 
   // Map màu theme của lớp sang các class Tailwind
   const getThemeClasses = (colorGradient: string) => {
-    if (colorGradient.includes("pink") || colorGradient.includes("rose")) {
+    if (colorGradient.includes("red")) {
       return {
-        border: "border-pink-200",
-        bg: "bg-gradient-to-br from-white to-pink-50",
-        hover: "from-pink-500/5 to-rose-500/5",
-        timeBorder: "border-pink-100",
-        dayBg: "bg-pink-50",
-        dayBorder: "border-pink-100",
-        dayText: "text-pink-700",
-        pieBorder: "border-pink-100",
-        corner: "text-pink-200",
-        cornerBg: "bg-pink-100"
+        border: "border-red-200",
+        bg: "bg-white",
+        hover: "from-red-500/5 to-red-500/5",
+        timeBorder: "border-red-100",
+        dayBg: "bg-red-50",
+        dayBorder: "border-red-100",
+        dayText: "text-red-700",
+        pieBorder: "border-red-100",
+        corner: "text-red-200",
+        cornerBg: "bg-red-100"
       };
     }
-    if (colorGradient.includes("amber") || colorGradient.includes("orange")) {
+    if (colorGradient.includes("gray") || colorGradient.includes("grey")) {
       return {
-        border: "border-amber-200",
-        bg: "bg-gradient-to-br from-white to-amber-50",
-        hover: "from-amber-500/5 to-orange-500/5",
-        timeBorder: "border-amber-100",
-        dayBg: "bg-amber-50",
-        dayBorder: "border-amber-100",
-        dayText: "text-amber-700",
-        pieBorder: "border-amber-100",
-        corner: "text-amber-200",
-        cornerBg: "bg-amber-100"
+        border: "border-gray-200",
+        bg: "bg-white",
+        hover: "from-gray-500/5 to-gray-500/5",
+        timeBorder: "border-gray-100",
+        dayBg: "bg-gray-50",
+        dayBorder: "border-gray-100",
+        dayText: "text-gray-700",
+        pieBorder: "border-gray-100",
+        corner: "text-gray-200",
+        cornerBg: "bg-gray-100"
       };
     }
-    if (colorGradient.includes("emerald") || colorGradient.includes("teal") || colorGradient.includes("green")) {
-      return {
-        border: "border-emerald-200",
-        bg: "bg-gradient-to-br from-white to-emerald-50",
-        hover: "from-emerald-500/5 to-teal-500/5",
-        timeBorder: "border-emerald-100",
-        dayBg: "bg-emerald-50",
-        dayBorder: "border-emerald-100",
-        dayText: "text-emerald-700",
-        pieBorder: "border-emerald-100",
-        corner: "text-emerald-200",
-        cornerBg: "bg-emerald-100"
-      };
-    }
-    if (colorGradient.includes("blue") || colorGradient.includes("sky")) {
-      return {
-        border: "border-blue-200",
-        bg: "bg-gradient-to-br from-blue-50 to-white",
-        hover: "from-blue-500/5 to-sky-500/5",
-        timeBorder: "border-blue-100",
-        dayBg: "bg-blue-50",
-        dayBorder: "border-blue-100",
-        dayText: "text-blue-700",
-        pieBorder: "border-blue-100",
-        corner: "text-blue-200",
-        cornerBg: "bg-blue-100"
-      };
-    }
-    if (colorGradient.includes("purple") || colorGradient.includes("indigo")) {
-      return {
-        border: "border-purple-200",
-        bg: "bg-gradient-to-br from-white to-purple-50",
-        hover: "from-purple-500/5 to-indigo-500/5",
-        timeBorder: "border-purple-100",
-        dayBg: "bg-purple-50",
-        dayBorder: "border-purple-100",
-        dayText: "text-purple-700",
-        pieBorder: "border-purple-100",
-        corner: "text-purple-200",
-        cornerBg: "bg-purple-100"
-      };
-    }
-    // Default pink
+    // Default red
     return {
-      border: "border-pink-200",
-      bg: "bg-gradient-to-br from-white to-pink-50",
-      hover: "from-pink-500/5 to-rose-500/5",
-      timeBorder: "border-pink-100",
-      dayBg: "bg-pink-50",
-      dayBorder: "border-pink-100",
-      dayText: "text-pink-700",
-      pieBorder: "border-pink-100",
-      corner: "text-pink-200",
-      cornerBg: "bg-pink-100"
+      border: "border-red-200",
+      bg: "bg-white",
+      hover: "from-red-500/5 to-red-500/5",
+      timeBorder: "border-red-100",
+      dayBg: "bg-red-50",
+      dayBorder: "border-red-100",
+      dayText: "text-red-700",
+      pieBorder: "border-red-100",
+      corner: "text-red-200",
+      cornerBg: "bg-red-100"
     };
   };
 
@@ -314,7 +263,7 @@ function ClassCard({
                 <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
                   {/* Mode badge */}
                   {cls.type === "online" && (
-                    <Badge color="green">
+                    <Badge color="red">
                       <Video size={12} />
                       Online · Google Meet
                     </Badge>
@@ -326,7 +275,7 @@ function ClassCard({
                     </Badge>
                   )}
                   {cls.type === "hybrid" && (
-                    <Badge color="purple">
+                    <Badge color="red">
                       <Video size={12} />
                       Hybrid · Phòng {cls.room}
                     </Badge>
@@ -344,7 +293,7 @@ function ClassCard({
                       href={cls.meetUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-100 text-xs sm:text-[13px] text-emerald-700 hover:bg-emerald-100 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50 border border-red-100 text-xs sm:text-[13px] text-red-700 hover:bg-red-100 transition-colors"
                     >
                       <ExternalLink size={12} />
                       <span className="truncate max-w-[140px] sm:max-w-[200px]">
@@ -389,13 +338,13 @@ function ClassCard({
 function PieChart({
   value,
   size = 80,
-  color = "pink",
+  color = "red",
   label = "",
   animate = true
 }: {
   value: number;
   size?: number;
-  color?: "pink" | "green" | "blue" | "yellow" | "purple" | "orange";
+  color?: "red" | "gray" | "black";
   label?: string;
   animate?: boolean;
 }) {
@@ -430,12 +379,9 @@ function PieChart({
 
   const displayValue = animate ? Math.round(progress) : value;
   const colorClasses = {
-    pink: { fill: "#ec4899", stroke: "#fce7f3", bg: "bg-pink-100" },
-    green: { fill: "#10b981", stroke: "#d1fae5", bg: "bg-emerald-100" },
-    blue: { fill: "#3b82f6", stroke: "#dbeafe", bg: "bg-blue-100" },
-    yellow: { fill: "#f59e0b", stroke: "#fef3c7", bg: "bg-amber-100" },
-    purple: { fill: "#a855f7", stroke: "#e9d5ff", bg: "bg-purple-100" },
-    orange: { fill: "#f97316", stroke: "#fed7aa", bg: "bg-orange-100" }
+    red: { fill: "#dc2626", stroke: "#fee2e2", bg: "bg-red-100" },
+    gray: { fill: "#6b7280", stroke: "#f3f4f6", bg: "bg-gray-100" },
+    black: { fill: "#171717", stroke: "#e5e7eb", bg: "bg-gray-200" }
   };
 
   const radius = size / 2 - 4;
@@ -482,7 +428,7 @@ function PieChart({
 function BarChart({
   data,
   labels,
-  colors = ["#ec4899", "#10b981", "#3b82f6", "#f59e0b"],
+  colors = ["#dc2626", "#6b7280", "#171717", "#991b1b"],
   height = 200,
   animate = true
 }: {
@@ -559,7 +505,7 @@ function BarChart({
 function LineChart({
   data,
   labels,
-  color = "#ec4899",
+  color = "#dc2626",
   height = 150,
   animate = true
 }: {
@@ -739,7 +685,7 @@ export default function Page() {
       room: "Phòng 301",
       day: "Hôm nay",
       students: 18,
-      color: "from-pink-500 to-rose-500",
+      color: "from-red-600 to-red-700",
       type: "online",
       meetUrl: "https://meet.google.com/ielts-a1",
       progress: 65,
@@ -752,7 +698,7 @@ export default function Page() {
       room: "Phòng 205",
       day: "Hôm nay",
       students: 15,
-      color: "from-amber-500 to-orange-500",
+      color: "from-gray-600 to-gray-700",
       type: "offline",
       progress: 45,
       attendance: 88
@@ -764,7 +710,7 @@ export default function Page() {
       room: "Phòng 102",
       day: "Thứ 6, 10/10",
       students: 12,
-      color: "from-emerald-500 to-teal-500",
+      color: "from-red-600 to-red-700",
       type: "online",
       meetUrl: "https://meet.google.com/business-en",
       progress: 80,
@@ -777,7 +723,7 @@ export default function Page() {
       room: "Phòng 305",
       day: "Thứ 7, 11/10",
       students: 10,
-      color: "from-blue-500 to-sky-500",
+      color: "from-gray-800 to-gray-900",
       type: "hybrid",
       progress: 30,
       attendance: 85
@@ -789,7 +735,7 @@ export default function Page() {
       room: "Phòng 108",
       day: "Thứ 2, 14/10",
       students: 8,
-      color: "from-purple-500 to-indigo-500",
+      color: "from-red-600 to-red-700",
       type: "online",
       progress: 55,
       attendance: 90
@@ -824,10 +770,10 @@ export default function Page() {
   ]);
 
   const [classProgress] = useState([
-    { name: "IELTS Foundation", progress: 65, attendance: 92, color: "pink" },
-    { name: "TOEIC Intermediate", progress: 45, attendance: 88, color: "yellow" },
-    { name: "Business English", progress: 80, attendance: 95, color: "green" },
-    { name: "Academic Writing", progress: 30, attendance: 85, color: "blue" }
+    { name: "IELTS Foundation", progress: 65, attendance: 92, color: "red" },
+    { name: "TOEIC Intermediate", progress: 45, attendance: 88, color: "gray" },
+    { name: "Business English", progress: 80, attendance: 95, color: "red" },
+    { name: "Academic Writing", progress: 30, attendance: 85, color: "black" }
   ]);
 
   // Chart data
@@ -854,26 +800,28 @@ export default function Page() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
               <BarChart3 size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Tổng quan giảng dạy
               </h1>
-              <p className="text-gray-600 mt-1">Thống kê và phân tích hiệu suất tuần này</p>
+              <p className="text-gray-600 mt-1 flex items-center gap-2">
+                Thống kê và phân tích hiệu suất tuần này
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-2.5 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-colors">
+            <button className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors cursor-pointer">
               <Download size={18} className="text-gray-600" />
             </button>
-            <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-medium hover:shadow-lg transition-all">
+            <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
               <Calendar size={16} className="inline mr-2" />
               Tuần này
             </button>
@@ -883,56 +831,56 @@ export default function Page() {
         {/* Main Stats */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
-            icon={<BookOpen size={24} />}
+            icon={<BookOpen size={20} />}
             label="Lớp đang dạy"
             value="4"
             hint="Ổn định"
             trend="stable"
-            color="pink"
+            color="red"
             delay={100}
           />
           <StatCard
-            icon={<CalendarClock size={24} />}
+            icon={<CalendarClock size={20} />}
             label="Buổi/tuần"
             value="12"
             hint="+2 so với tuần trước"
             trend="up"
-            color="green"
+            color="gray"
             delay={200}
           />
           <StatCard
-            icon={<Users size={24} />}
+            icon={<Users size={20} />}
             label="Tổng học viên"
             value="55"
             hint="+3 mới"
             trend="up"
-            color="yellow"
+            color="black"
             delay={300}
           />
           <StatCard
-            icon={<TrendingUp size={24} />}
+            icon={<TrendingUp size={20} />}
             label="Hiệu suất TB"
             value="89%"
             hint="+5%"
             trend="up"
-            color="blue"
+            color="red"
             delay={400}
           />
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className={`grid lg:grid-cols-3 gap-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Left Column - Upcoming Classes & Progress */}
         <div className="lg:col-span-2 space-y-6">
           {/* Upcoming Classes - Redesigned */}
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-pink-200">
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <CalendarClock size={20} className="text-pink-500" />
+                  <CalendarClock size={20} className="text-red-600" />
                   <h3 className="font-bold text-gray-900">Lịch dạy sắp tới</h3>
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-white text-xs">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white text-xs">
                     {todayClasses.length + upcomingFutureClasses.length}
                   </span>
                 </div>
@@ -942,7 +890,7 @@ export default function Page() {
                     <button
                       onClick={() => setActiveTab("today")}
                       className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === "today"
-                        ? "bg-white text-pink-600 shadow-sm"
+                        ? "bg-white text-red-600 shadow-sm"
                         : "text-gray-600 hover:text-gray-900"
                         }`}
                     >
@@ -951,7 +899,7 @@ export default function Page() {
                     <button
                       onClick={() => setActiveTab("upcoming")}
                       className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === "upcoming"
-                        ? "bg-white text-pink-600 shadow-sm"
+                        ? "bg-white text-red-600 shadow-sm"
                         : "text-gray-600 hover:text-gray-900"
                         }`}
                     >
@@ -961,7 +909,7 @@ export default function Page() {
 
                   <button
                     onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
-                    className="text-sm text-pink-600 font-medium hover:text-pink-700 flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                    className="text-sm text-red-600 font-medium hover:text-red-700 flex items-center gap-1 whitespace-nowrap cursor-pointer"
                   >
                     Xem lịch đầy đủ
                     <ChevronRight size={14} />
@@ -995,18 +943,18 @@ export default function Page() {
             </div>
 
             {/* Calendar Preview */}
-            <div className="px-6 py-4 border-t border-pink-200 bg-pink-50/50">
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg border border-pink-200">
-                    <Calendar size={18} className="text-pink-600" />
+                  <div className="p-2 bg-white rounded-lg border border-gray-200">
+                    <Calendar size={18} className="text-red-600" />
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-900">Tuần sau có 8 buổi dạy</div>
                     <div className="text-xs text-gray-600">Tổng cộng 16 giờ giảng dạy</div>
                   </div>
                 </div>
-                <button className="px-4 py-2 bg-white border border-pink-200 text-pink-600 hover:bg-pink-50 rounded-lg text-sm font-medium transition-colors">
+                <button className="px-4 py-2 bg-white border border-gray-200 text-red-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition-colors cursor-pointer">
                   Xem tất cả
                 </button>
               </div>
@@ -1016,10 +964,10 @@ export default function Page() {
           {/* Charts Section */}
           <div className="grid md:grid-cols-2 gap-6">
             {/* Performance Chart */}
-            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <TrendingUp size={20} className="text-pink-500" />
+                  <TrendingUp size={20} className="text-red-600" />
                   <h3 className="font-bold text-gray-900">Hiệu suất tuần</h3>
                 </div>
                 <span className="text-sm text-gray-600">Điểm TB: 87%</span>
@@ -1028,7 +976,7 @@ export default function Page() {
                 <LineChart
                   data={weeklyPerformance.data}
                   labels={weeklyPerformance.labels}
-                  color="#ec4899"
+                  color="#dc2626"
                   height={150}
                   animate={isPageLoaded}
                 />
@@ -1036,10 +984,10 @@ export default function Page() {
             </div>
 
             {/* Class Size Chart */}
-            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Users size={20} className="text-blue-500" />
+                  <Users size={20} className="text-gray-900" />
                   <h3 className="font-bold text-gray-900">Quy mô lớp học</h3>
                 </div>
                 <span className="text-sm text-gray-600">Tổng: 55 học viên</span>
@@ -1048,7 +996,7 @@ export default function Page() {
                 <BarChart
                   data={classSizeData.data}
                   labels={classSizeData.labels}
-                  colors={["#ec4899", "#f59e0b", "#10b981", "#3b82f6"]}
+                  colors={["#dc2626", "#6b7280", "#171717", "#991b1b"]}
                   height={150}
                   animate={isPageLoaded}
                 />
@@ -1060,23 +1008,23 @@ export default function Page() {
         {/* Right Column - Notifications & Quick Actions */}
         <div className="space-y-6">
           {/* Notifications */}
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-pink-200">
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Bell size={20} className="text-pink-500" />
+                  <Bell size={20} className="text-red-600" />
                   <h3 className="font-bold text-gray-900">Thông báo mới</h3>
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-white text-xs">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs">
                     {notifications.filter(n => !n.read).length}
                   </span>
                 </div>
-                <button className="text-sm text-pink-600 font-medium hover:text-pink-700">
+                <button className="text-sm text-red-600 font-medium hover:text-red-700 cursor-pointer">
                   Đánh dấu đã đọc
                 </button>
               </div>
             </div>
 
-            <div className="divide-y divide-pink-100">
+            <div className="divide-y divide-gray-100">
               {notifications.map((notif, index) => {
                 const Icon = notif.icon;
                 const typeColors = {
@@ -1088,7 +1036,7 @@ export default function Page() {
                 return (
                   <div
                     key={index}
-                    className={`px-6 py-4 transition-colors ${!notif.read ? 'bg-pink-50/50' : ''}`}
+                    className={`px-6 py-4 transition-colors ${!notif.read ? 'bg-red-50/50' : ''}`}
                   >
                     <div className="flex items-start gap-3 cursor-pointer">
                       <div className={`p-2 rounded-lg ${typeColors[notif.type as keyof typeof typeColors]}`}>
@@ -1101,7 +1049,7 @@ export default function Page() {
                             <div className="text-xs text-gray-600 mt-1">{notif.message}</div>
                           </div>
                           {!notif.read && (
-                            <div className="h-1.5 w-1.5 rounded-full bg-rose-500 flex-shrink-0 mt-1"></div>
+                            <div className="h-1.5 w-1.5 rounded-full bg-red-600 flex-shrink-0 mt-1"></div>
                           )}
                         </div>
                         <div className="flex items-center justify-between mt-3">
@@ -1116,15 +1064,15 @@ export default function Page() {
           </div>
 
           {/* Class Progress Pie Charts */}
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <Target size={20} className="text-pink-500" />
+              <Target size={20} className="text-red-600" />
               <h3 className="font-bold text-gray-900">Tiến độ lớp học</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               {classProgress.slice(0, 4).map((cls, index) => (
-                <div key={index} className="flex flex-col items-center p-3 bg-white rounded-xl border border-pink-200">
+                <div key={index} className="flex flex-col items-center p-3 bg-white rounded-xl border border-gray-200">
                   <div className="text-xs font-medium text-gray-900 mb-2 text-center truncate w-full">
                     {cls.name.split(' ')[0]}
                   </div>
@@ -1141,7 +1089,7 @@ export default function Page() {
           </div>
 
           {/* Performance Highlight */}
-          <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-6 text-white">
+          <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl p-6 text-white">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                 <Award size={20} />
@@ -1163,7 +1111,7 @@ export default function Page() {
               </div>
             </div>
 
-            <button className="w-full mt-6 py-2.5 bg-white text-pink-600 rounded-xl font-medium hover:bg-white/90 transition-colors">
+            <button className="w-full mt-6 py-2.5 bg-white text-red-600 rounded-xl font-medium hover:bg-white/90 transition-colors cursor-pointer">
               Xem chi tiết
             </button>
           </div>
@@ -1171,10 +1119,10 @@ export default function Page() {
       </div>
 
       {/* Footer Stats */}
-      <div className="mt-8 pt-6 border-t border-pink-200">
+      <div className={`mt-8 pt-6 border-t border-gray-200 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}>
         <div className="flex flex-col sm:flex-row items-center justify-between text-sm text-gray-600 gap-2">
           <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-pink-500" />
+            <Sparkles size={16} className="text-red-600" />
             <span>Cập nhật lần cuối: Hôm nay, 09:30</span>
           </div>
           <div>© 2024 Education Dashboard</div>

@@ -19,9 +19,9 @@ import type { ClassItem, Track } from "@/types/teacher/classes";
 /* ----------------------------- UI pieces ----------------------------- */
 function TrackBadge({ track }: { track: Track }) {
   const trackColors = {
-    IELTS: "from-pink-500 to-purple-600",
-    TOEIC: "from-rose-500 to-pink-600",
-    Business: "from-fuchsia-500 to-purple-500",
+    IELTS: "from-red-600 to-red-700",
+    TOEIC: "from-gray-600 to-gray-700",
+    Business: "from-gray-800 to-gray-900",
   };
 
   return (
@@ -46,10 +46,10 @@ function FilterChip({
     <button
       onClick={onClick}
       className={[
-        "px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-sm",
+        "px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-sm cursor-pointer",
         active
-          ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-          : "bg-white hover:bg-pink-50 text-gray-700 border border-pink-100",
+          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+          : "bg-white hover:bg-gray-50 text-gray-700 border border-gray-200",
       ].join(" ")}
     >
       {children}
@@ -57,24 +57,24 @@ function FilterChip({
   );
 }
 
-function ProgressBar({ progress }: { progress: number }) {
+function ProgressBar({ progress, isPageLoaded = true }: { progress: number; isPageLoaded?: boolean }) {
   return (
     <div className="mt-4">
       <div className="flex justify-between text-xs text-gray-600 mb-1">
         <span>Tiến độ khóa học</span>
         <span className="font-semibold">{progress}%</span>
       </div>
-      <div className="h-2 bg-pink-100 rounded-full overflow-hidden">
+      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
         <div 
-          className="h-full bg-gradient-to-r from-pink-400 to-rose-500 rounded-full transition-all duration-1000 ease-out"
-          style={{ width: `${progress}%` }}
+          className="h-full bg-gradient-to-r from-red-600 to-red-700 rounded-full transition-all duration-1000 ease-out"
+          style={{ width: isPageLoaded ? `${progress}%` : '0%' }}
         />
       </div>
     </div>
   );
 }
 
-function ClassCard({ item, index }: { item: ClassItem; index: number }) {
+function ClassCard({ item, index, isPageLoaded = true }: { item: ClassItem; index: number; isPageLoaded?: boolean }) {
   const [isHovered, setIsHovered] = useState(false);
   const router = useRouter();
   const params = useParams();
@@ -86,7 +86,7 @@ function ClassCard({ item, index }: { item: ClassItem; index: number }) {
 
   return (
     <div
-      className="rounded-2xl bg-gradient-to-br from-white to-pink-50 border border-pink-100 p-6 flex flex-col justify-between transition-all duration-500 hover:shadow-xl hover:shadow-pink-100/50 hover:-translate-y-1"
+      className="rounded-2xl bg-white border border-gray-200 p-6 flex flex-col justify-between transition-all duration-500 hover:shadow-xl hover:shadow-gray-100/50 hover:-translate-y-1"
       style={{ animationDelay: `${index * 100}ms` }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -94,10 +94,10 @@ function ClassCard({ item, index }: { item: ClassItem; index: number }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-gradient-to-r from-pink-100 to-rose-100 rounded-lg">
-              <BookOpen size={16} className="text-pink-600" />
+            <div className="p-2 bg-red-50 rounded-lg">
+              <BookOpen size={16} className="text-red-600" />
             </div>
-            <span className="text-xs font-medium text-pink-600">Mã lớp: {item.code}</span>
+            <span className="text-xs font-medium text-red-600">Mã lớp: {item.code}</span>
           </div>
           <h3 className="text-gray-900 font-bold text-xl mb-2">{item.name}</h3>
         </div>
@@ -106,8 +106,8 @@ function ClassCard({ item, index }: { item: ClassItem; index: number }) {
 
       <div className="my-6 space-y-4 text-sm">
         <div className="flex items-center gap-3 text-gray-700">
-          <div className="p-2 bg-pink-50 rounded-lg">
-            <Users size={16} className="text-pink-500" />
+          <div className="p-2 bg-gray-50 rounded-lg">
+            <Users size={16} className="text-gray-600" />
           </div>
           <div>
             <div className="font-semibold text-gray-900">{item.students} học viên</div>
@@ -116,8 +116,8 @@ function ClassCard({ item, index }: { item: ClassItem; index: number }) {
         </div>
         
         <div className="flex items-center gap-3 text-gray-700">
-          <div className="p-2 bg-pink-50 rounded-lg">
-            <CalendarClock size={16} className="text-pink-500" />
+          <div className="p-2 bg-gray-50 rounded-lg">
+            <CalendarClock size={16} className="text-gray-600" />
           </div>
           <div>
             <div className="font-semibold text-gray-900">{item.schedule.split(":")[0]}</div>
@@ -126,11 +126,11 @@ function ClassCard({ item, index }: { item: ClassItem; index: number }) {
         </div>
       </div>
 
-      {item.progress && <ProgressBar progress={item.progress} />}
+      {item.progress && <ProgressBar progress={item.progress} isPageLoaded={isPageLoaded} />}
 
       <button 
         onClick={handleViewDetail}
-        className={`mt-6 w-full rounded-xl cursor-pointer py-3 text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-300 ${isHovered ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md' : 'bg-white text-gray-900 border border-pink-200 hover:border-pink-300'}`}
+        className={`mt-6 w-full rounded-xl cursor-pointer py-3 text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-300 ${isHovered ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md' : 'bg-white text-gray-900 border border-gray-200 hover:border-red-300'}`}
       >
         <Eye size={16} />
         Xem chi tiết
@@ -142,14 +142,14 @@ function ClassCard({ item, index }: { item: ClassItem; index: number }) {
 
 function StatsCard({ title, value, icon: Icon, color }: { title: string; value: string; icon: any; color: string }) {
   return (
-    <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-100 p-5 transition-all duration-500 hover:shadow-lg hover:shadow-pink-100/30">
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 transition-all duration-500 hover:shadow-lg hover:shadow-gray-100/30 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm text-gray-600">{title}</div>
           <div className="text-2xl font-bold mt-2 text-gray-900">{value}</div>
         </div>
         <div className={`p-3 rounded-xl ${color}`}>
-          <Icon size={24} className="text-pink-600" />
+          <Icon size={24} className="text-red-600" />
         </div>
       </div>
     </div>
@@ -160,7 +160,7 @@ function StatsCard({ title, value, icon: Icon, color }: { title: string; value: 
 export default function Page() {
   const [q, setQ] = useState("");
   const [track, setTrack] = useState<Track | "ALL">("ALL");
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,7 +186,7 @@ export default function Page() {
         setClasses([]);
       } finally {
         setLoading(false);
-        setIsLoaded(true);
+        setIsPageLoaded(true);
       }
     }
 
@@ -210,22 +210,22 @@ export default function Page() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header với animation */}
-      <div className={`mb-8 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <BookOpen size={24} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900">
               Lớp học của tôi
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
               Quản lý và theo dõi các lớp được phân công
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-2 text-sm text-pink-600 font-medium">
+          <div className="ml-auto flex items-center gap-2 text-sm text-red-600 font-medium">
             <Sparkles size={16} />
             <span>Trực tuyến</span>
           </div>
@@ -237,41 +237,41 @@ export default function Page() {
             title="Tổng số lớp"
             value={totalClasses.toString()}
             icon={BookOpen}
-            color="bg-pink-100"
+            color="bg-red-50"
           />
           <StatsCard
             title="Tổng học viên"
             value={totalStudents.toString()}
             icon={Users}
-            color="bg-rose-100"
+            color="bg-gray-100"
           />
           <StatsCard
             title="Tiến độ trung bình"
             value={`${averageProgress}%`}
             icon={CalendarClock}
-            color="bg-fuchsia-100"
+            color="bg-gray-100"
           />
         </div>
       </div>
 
       {/* Search + filters */}
-      <div className={`mb-8 transition-all duration-700 delay-100 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="rounded-2xl bg-gradient-to-r from-white to-pink-50/50 border border-pink-200 p-5 shadow-sm">
+      <div className={`mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <Filter size={20} className="text-pink-500" />
+            <Filter size={20} className="text-red-600" />
             <h2 className="text-lg font-semibold text-gray-900">Lọc và tìm kiếm</h2>
           </div>
           
           <div className="relative mb-5">
             <Search
               size={20}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-400"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
             />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Tìm kiếm theo tên lớp, mã lớp hoặc giáo viên..."
-              className="w-full rounded-xl bg-white border border-pink-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+              className="w-full rounded-xl bg-white border border-gray-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
             />
           </div>
           
@@ -302,11 +302,11 @@ export default function Page() {
       </div>
 
       {/* Kết quả tìm kiếm */}
-      <div className={`mb-4 transition-all duration-700 delay-200 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+      <div className={`mb-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">
             Danh sách lớp học
-            <span className="text-pink-600 ml-2">({filtered.length})</span>
+            <span className="text-red-600 ml-2">({filtered.length})</span>
           </h2>
           <div className="text-sm text-gray-500">
             {filtered.length > 0 ? "Đang hiển thị" : "Không tìm thấy"} lớp học
@@ -317,8 +317,8 @@ export default function Page() {
       {/* Loading state */}
       {loading && (
         <div className="text-center py-16">
-          <div className="inline-flex p-4 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl mb-4 animate-pulse">
-            <BookOpen size={32} className="text-pink-500" />
+          <div className="inline-flex p-4 bg-red-50 rounded-2xl mb-4 animate-pulse">
+            <BookOpen size={32} className="text-red-600" />
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
             Đang tải danh sách lớp học...
@@ -329,8 +329,8 @@ export default function Page() {
       {/* Error state */}
       {error && !loading && (
         <div className="text-center py-16">
-          <div className="inline-flex p-4 bg-gradient-to-r from-red-100 to-pink-100 rounded-2xl mb-4">
-            <BookOpen size={32} className="text-red-500" />
+          <div className="inline-flex p-4 bg-red-50 rounded-2xl mb-4">
+            <BookOpen size={32} className="text-red-600" />
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
             {error}
@@ -340,7 +340,7 @@ export default function Page() {
               setPageNumber(1);
               setError(null);
             }}
-            className="mt-6 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-300"
+            className="mt-6 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-300 cursor-pointer"
           >
             Thử lại
           </button>
@@ -353,9 +353,10 @@ export default function Page() {
           {filtered.map((c, index) => (
             <div
               key={c.id}
-              className={`transition-all duration-700 delay-${index * 100} ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              className={`transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              style={{ transitionDelay: `${index * 100}ms` }}
             >
-              <ClassCard item={c} index={index} />
+              <ClassCard item={c} index={index} isPageLoaded={isPageLoaded} />
             </div>
           ))}
         </div>
@@ -363,9 +364,9 @@ export default function Page() {
 
       {/* Empty state */}
       {!loading && !error && filtered.length === 0 && (
-        <div className={`text-center py-16 transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="inline-flex p-4 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl mb-4">
-            <Search size={32} className="text-pink-500" />
+        <div className={`text-center py-16 transition-all duration-700 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="inline-flex p-4 bg-gray-50 rounded-2xl mb-4">
+            <Search size={32} className="text-gray-600" />
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
             Không tìm thấy lớp học
@@ -378,7 +379,7 @@ export default function Page() {
               setQ("");
               setTrack("ALL");
             }}
-            className="mt-6 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-300"
+            className="mt-6 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-300 cursor-pointer"
           >
             Xóa bộ lọc
           </button>

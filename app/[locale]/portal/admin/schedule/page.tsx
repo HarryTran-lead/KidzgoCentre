@@ -914,6 +914,7 @@ function WeekTimetable({
     if (!colorClass) return defaultLight;
 
     return colorClass
+      .replace('bg-gradient-to-r', 'bg-gradient-to-br')
       .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
       .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
       .replace('from-gray-600 to-gray-700', 'from-gray-100 to-gray-200')
@@ -1090,6 +1091,22 @@ export default function AdminSchedulePage() {
 
   // Branch filter hook
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+
+  // Helper function to convert color to light version
+  const getLightColor = (colorClass: string | undefined) => {
+    const defaultLight = "bg-gradient-to-br from-red-50 to-red-100";
+    if (!colorClass) return defaultLight;
+
+    return colorClass
+      .replace('bg-gradient-to-r', 'bg-gradient-to-br')
+      .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
+      .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
+      .replace('from-gray-600 to-gray-700', 'from-gray-100 to-gray-200')
+      .replace('from-gray-500 to-gray-600', 'from-gray-100 to-gray-200')
+      .replace('from-gray-700 to-gray-800', 'from-gray-200 to-gray-300')
+      .replace('from-gray-200 to-gray-300', 'from-gray-100 to-gray-200')
+      .replace('from-red-600 to-gray-600', 'from-red-50 to-gray-100');
+  };
 
   const [filter, setFilter] = useState<SlotType | "ALL">("ALL");
   const [slots, setSlots] = useState<Slot[]>(SLOTS);
@@ -1397,16 +1414,7 @@ export default function AdminSchedulePage() {
         <div className={`space-y-4 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="text-lg font-semibold text-gray-900">Chi tiết lịch tháng 12</div>
           {sortedList.map((slot) => {
-            const lightColor = slot.color
-              ? slot.color
-                .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
-                .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
-                .replace('from-gray-600 to-gray-700', 'from-gray-100 to-gray-200')
-                .replace('from-gray-500 to-gray-600', 'from-gray-100 to-gray-200')
-                .replace('from-gray-700 to-gray-800', 'from-gray-200 to-gray-300')
-                .replace('from-gray-200 to-gray-300', 'from-gray-100 to-gray-200')
-                .replace('from-red-600 to-gray-600', 'from-red-50 to-gray-100')
-              : "bg-gradient-to-br from-red-50 to-red-100";
+            const lightColor = getLightColor(slot.color);
 
             return (
               <div

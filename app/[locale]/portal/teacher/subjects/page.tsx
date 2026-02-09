@@ -21,15 +21,15 @@ function SortableHeader<T extends string>({
   return (
     <button
       onClick={() => onSort(column)}
-      className="flex items-center gap-2 hover:text-pink-600 transition-colors cursor-pointer text-left"
+      className="flex items-center gap-2 hover:text-red-600 transition-colors cursor-pointer text-left"
     >
       <span>{label}</span>
       <div className="flex flex-col">
         {isActive ? (
           sortDirection === "asc" ? (
-            <ChevronUp size={14} className="text-pink-600" />
+            <ChevronUp size={14} className="text-red-600" />
           ) : (
-            <ChevronDown size={14} className="text-pink-600" />
+            <ChevronDown size={14} className="text-red-600" />
           )
         ) : (
           <ArrowUpDown size={14} className="text-gray-400" />
@@ -42,15 +42,15 @@ function SortableHeader<T extends string>({
 // Tabs Component
 function Tabs({ value, onChange, items }: { value: string; onChange: (k: string) => void; items: { key: string; label: string; icon?: React.ReactNode }[] }) {
   return (
-    <div className="inline-flex bg-white border border-pink-200 rounded-xl p-1 text-sm">
+    <div className="inline-flex bg-white border border-gray-200 rounded-xl p-1 text-sm">
       {items.map((item) => (
         <button
           key={item.key}
           onClick={() => onChange(item.key)}
           className={`px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300 cursor-pointer ${
             value === item.key
-              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-              : "text-gray-700 hover:bg-pink-50"
+              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+              : "text-gray-700 hover:bg-gray-50"
           }`}
         >
           {item.icon}
@@ -62,7 +62,7 @@ function Tabs({ value, onChange, items }: { value: string; onChange: (k: string)
 }
 
 // CourseCard Component
-function CourseCard({ title, level, duration, sessions, color = "from-pink-500 to-rose-500", progress = 65 }: { 
+function CourseCard({ title, level, duration, sessions, color = "from-red-600 to-red-700", progress = 65 }: { 
   title: string; 
   level: string; 
   duration: string; 
@@ -75,13 +75,13 @@ function CourseCard({ title, level, duration, sessions, color = "from-pink-500 t
   const levelColor = {
     "Cơ bản": "bg-emerald-100 text-emerald-700",
     "Trung cấp": "bg-amber-100 text-amber-700",
-    "Nâng cao": "bg-rose-100 text-rose-700"
+    "Nâng cao": "bg-red-100 text-red-700"
   }[level] || "bg-gray-100 text-gray-700";
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all duration-500 hover:shadow-xl hover:shadow-pink-100/50 hover:-translate-y-1 ${
-        isHovered ? "ring-2 ring-pink-200" : ""
+      className={`bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 transition-all duration-500 hover:shadow-xl hover:shadow-gray-100/50 hover:-translate-y-1 ${
+        isHovered ? "ring-2 ring-gray-200" : ""
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -118,24 +118,24 @@ function CourseCard({ title, level, duration, sessions, color = "from-pink-500 t
             <span>Tiến độ khóa học</span>
             <span className="font-semibold">{progress}%</span>
           </div>
-          <div className="h-2 bg-pink-100 rounded-full overflow-hidden">
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-pink-400 to-rose-500 rounded-full transition-all duration-1000"
+              className="h-full bg-gradient-to-r from-red-600 to-red-700 rounded-full transition-all duration-1000"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-pink-100">
-          <button className="text-xs text-pink-600 font-medium hover:text-pink-700 flex items-center gap-1">
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <button className="text-xs text-red-600 font-medium hover:text-red-700 flex items-center gap-1">
             Xem chi tiết
             <ChevronRight size={12} className={isHovered ? "translate-x-0.5" : ""} />
           </button>
           <div className="flex items-center gap-2">
-            <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg">
+            <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
               <Edit size={14} />
             </button>
-            <button className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
+            <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
               <Trash2 size={14} />
             </button>
           </div>
@@ -146,7 +146,7 @@ function CourseCard({ title, level, duration, sessions, color = "from-pink-500 t
 }
 
 // MaterialRow Component
-function MaterialRow({ name, course, kind, size, date, color = "from-pink-500 to-rose-500" }: { 
+function MaterialRow({ name, course, kind, size, date, color = "from-red-600 to-red-700" }: { 
   name: string; 
   course: string; 
   kind: string; 
@@ -170,8 +170,8 @@ function MaterialRow({ name, course, kind, size, date, color = "from-pink-500 to
     <div
       className={`grid grid-cols-12 gap-3 items-center py-4 px-4 rounded-xl transition-all duration-300 border ${
         isHovered 
-          ? "bg-gradient-to-r from-pink-50/50 to-rose-50/50 border-pink-200 shadow-sm" 
-          : "bg-white border-pink-100"
+          ? "bg-gradient-to-r from-red-50/50 to-red-100/50 border-gray-200 shadow-sm" 
+          : "bg-white border-gray-100"
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -207,13 +207,13 @@ function MaterialRow({ name, course, kind, size, date, color = "from-pink-500 to
       </div>
       
       <div className="col-span-1 flex items-center justify-end gap-1">
-        <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer">
+        <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
           <Eye size={16} />
         </button>
         <button className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer">
           <Download size={16} />
         </button>
-        <button className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer">
+        <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
           <Trash2 size={16} />
         </button>
       </div>
@@ -222,7 +222,7 @@ function MaterialRow({ name, course, kind, size, date, color = "from-pink-500 to
 }
 
 // ExamRow Component
-function ExamRow({ title, course, class: className, date, duration, status, color = "from-pink-500 to-rose-500" }: { 
+function ExamRow({ title, course, class: className, date, duration, status, color = "from-red-600 to-red-700" }: { 
   title: string; 
   course: string; 
   class: string;
@@ -237,8 +237,8 @@ function ExamRow({ title, course, class: className, date, duration, status, colo
     <div
       className={`grid grid-cols-12 gap-3 items-center py-4 px-4 rounded-xl transition-all duration-300 border ${
         isHovered 
-          ? "bg-gradient-to-r from-pink-50/50 to-rose-50/50 border-pink-200 shadow-sm" 
-          : "bg-white border-pink-100"
+          ? "bg-gradient-to-r from-red-50/50 to-red-100/50 border-gray-200 shadow-sm" 
+          : "bg-white border-gray-100"
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -284,13 +284,13 @@ function ExamRow({ title, course, class: className, date, duration, status, colo
       </div>
       
       <div className="col-span-2 flex items-center justify-end gap-1">
-        <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer">
+        <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
           <Eye size={16} />
         </button>
         <button className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer">
           <Edit size={16} />
         </button>
-        <button className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer">
+        <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
           <Trash2 size={16} />
         </button>
       </div>
@@ -333,8 +333,8 @@ export default function Page() {
   }, []);
 
   const materialsData: Material[] = [
-    { id: "1", name: "IELTS Speaking Module 1-5", course: "IELTS Foundation", kind: "PDF", size: "2.5 MB", date: "01/10/2025", color: "from-pink-500 to-rose-500" },
-    { id: "2", name: "TOEIC Practice Test Vol.1", course: "TOEIC Intermediate", kind: "PDF", size: "1.8 MB", date: "05/09/2025", color: "from-fuchsia-500 to-purple-500" },
+    { id: "1", name: "IELTS Speaking Module 1-5", course: "IELTS Foundation", kind: "PDF", size: "2.5 MB", date: "01/10/2025", color: "from-red-600 to-red-700" },
+    { id: "2", name: "TOEIC Practice Test Vol.1", course: "TOEIC Intermediate", kind: "PDF", size: "1.8 MB", date: "05/09/2025", color: "from-gray-600 to-gray-700" },
     { id: "3", name: "Business Vocabulary List", course: "Business English", kind: "DOCX", size: "0.5 MB", date: "15/09/2025", color: "from-amber-500 to-orange-500" },
     { id: "4", name: "IELTS Writing Task 2 Samples", course: "IELTS Foundation", kind: "PDF", size: "3.2 MB", date: "20/09/2025", color: "from-emerald-500 to-teal-500" },
     { id: "5", name: "Grammar Rules Complete Guide", course: "Academic Writing", kind: "PDF", size: "4.1 MB", date: "10/09/2025", color: "from-sky-500 to-blue-500" },
@@ -373,8 +373,8 @@ export default function Page() {
   );
 
   const examsData: Exam[] = [
-    { id: "1", title: "Kiểm tra giữa kỳ - IELTS", course: "IELTS Foundation", class: "IELTS Foundation - A1", date: "15/10/2025", duration: "90 phút", status: "Sắp tới", color: "from-pink-500 to-rose-500" },
-    { id: "2", title: "Kiểm tra cuối kỳ - TOEIC", course: "TOEIC Intermediate", class: "TOEIC Intermediate", date: "25/10/2025", duration: "120 phút", status: "Sắp tới", color: "from-fuchsia-500 to-purple-500" },
+    { id: "1", title: "Kiểm tra giữa kỳ - IELTS", course: "IELTS Foundation", class: "IELTS Foundation - A1", date: "15/10/2025", duration: "90 phút", status: "Sắp tới", color: "from-red-600 to-red-700" },
+    { id: "2", title: "Kiểm tra cuối kỳ - TOEIC", course: "TOEIC Intermediate", class: "TOEIC Intermediate", date: "25/10/2025", duration: "120 phút", status: "Sắp tới", color: "from-gray-600 to-gray-700" },
     { id: "3", title: "Bài kiểm tra 1 - Business", course: "Business English", class: "Business English", date: "05/10/2025", duration: "60 phút", status: "Đã hoàn thành", color: "from-amber-500 to-orange-500" },
     { id: "4", title: "Writing Assessment", course: "Academic Writing", class: "Academic Writing", date: "12/10/2025", duration: "45 phút", status: "Sắp tới", color: "from-emerald-500 to-teal-500" },
   ];
@@ -421,15 +421,15 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50/30 to-white p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className={`mb-8 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <BookOpen size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
               Tài liệu
             </h1>
             <p className="text-gray-600 mt-1">Quản lý chương trình học và tài liệu giảng dạy</p>
@@ -440,7 +440,7 @@ export default function Page() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
+      <div className={`bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden transition-all duration-700 delay-100 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Tabs and Actions */}
         <div className="px-6 pt-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 ">
@@ -454,7 +454,7 @@ export default function Page() {
             />
             
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
+              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
                 <Upload size={16} />
                 {tab === "tailieu" ? "Tải lên tài liệu" : "Tải lên đề thi"}
               </button>
@@ -463,18 +463,18 @@ export default function Page() {
 
           {/* Search Bar */}
           <div className="relative mb-6">
-            <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-400" />
+            <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl bg-white border border-pink-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+              className="w-full rounded-xl bg-white border border-gray-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
               placeholder={
                 tab === "tailieu" 
                   ? "Tìm kiếm tài liệu, tên file..." 
                   : "Tìm kiếm đề thi, bài kiểm tra..."
               }
             />
-            <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-pink-600">
+            <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-red-600">
               <Filter size={18} />
             </button>
           </div>
@@ -485,7 +485,7 @@ export default function Page() {
           {tab === "tailieu" && (
             <div className="space-y-2">
               {/* Table Header */}
-              <div className="grid grid-cols-12 gap-3 text-sm font-semibold text-gray-700 px-4 py-4 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+              <div className="grid grid-cols-12 gap-3 text-sm font-semibold text-gray-700 px-4 py-4 bg-gradient-to-r from-red-50 to-red-100 border border-gray-200 rounded-xl">
                 <div className="col-span-4">
                   <SortableHeader
                     label="Tên tài liệu"
@@ -537,7 +537,7 @@ export default function Page() {
           {tab === "dekiemtra" && (
             <div className="space-y-2">
               {/* Table Header */}
-              <div className="grid grid-cols-12 gap-3 text-sm font-semibold text-gray-700 px-4 py-4 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+              <div className="grid grid-cols-12 gap-3 text-sm font-semibold text-gray-700 px-4 py-4 bg-gradient-to-r from-red-50 to-red-100 border border-gray-200 rounded-xl">
                 <div className="col-span-2">
                   <SortableHeader
                     label="Tên bài kiểm tra"

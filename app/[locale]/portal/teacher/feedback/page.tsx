@@ -67,7 +67,7 @@ const FEEDBACKS: Feedback[] = [
     progress: 92,
     teacherComment: "Học sinh chăm chỉ, có tinh thần học tập rất tốt. Cần tập trung vào phát âm để hoàn thiện kỹ năng nói.",
     class: "IELTS Foundation - A1",
-    color: "from-pink-500 to-rose-500",
+    color: "from-red-600 to-red-700",
   },
   {
     studentId: "HV002",
@@ -280,7 +280,7 @@ function FeedbackCard({ data }: { data: Feedback }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 space-y-4 transition-all duration-500 hover:shadow-xl hover:shadow-pink-100/30">
+    <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-6 space-y-4 transition-all duration-500 hover:shadow-xl hover:shadow-gray-100/30">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4 flex-1">
@@ -307,7 +307,7 @@ function FeedbackCard({ data }: { data: Feedback }) {
           </div>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 hover:bg-pink-100 rounded-lg transition-colors cursor-pointer"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
           >
             <ChevronDown size={18} className={`text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           </button>
@@ -361,16 +361,16 @@ function FeedbackCard({ data }: { data: Feedback }) {
           </div>
         </div>
         
-        <div className="group relative p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-200 hover:border-pink-300 transition-all hover:shadow-md">
+        <div className="group relative p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:border-gray-300 transition-all hover:shadow-md">
           <div className="flex flex-col items-center text-center">
-            <div className="p-2.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl mb-2 group-hover:scale-110 transition-transform">
+            <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-xl mb-2 group-hover:scale-110 transition-transform">
               <TrendingUp size={18} className="text-white" />
             </div>
-            <div className="text-2xl font-bold text-pink-600 mb-1">{data.progress}%</div>
+            <div className="text-2xl font-bold text-gray-900 mb-1">{data.progress}%</div>
             <div className="text-xs font-medium text-gray-700">Tiến bộ</div>
             {data.progress >= 90 && (
               <div className="absolute -top-1 -right-1">
-                <Sparkles size={12} className="text-pink-500" />
+                <Sparkles size={12} className="text-red-600" />
               </div>
             )}
           </div>
@@ -379,7 +379,7 @@ function FeedbackCard({ data }: { data: Feedback }) {
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="space-y-4 pt-4 border-t border-pink-200 animate-fadeIn">
+        <div className="space-y-4 pt-4 border-t border-gray-200 animate-fadeIn">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 p-4 space-y-3">
               <div className="flex items-center gap-2">
@@ -478,20 +478,20 @@ function FeedbackCard({ data }: { data: Feedback }) {
               </div>
             </div>
             
-            <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-200 p-5 text-center hover:shadow-lg transition-all">
-              <div className="inline-flex p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl mb-3">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 p-5 text-center hover:shadow-lg transition-all">
+              <div className="inline-flex p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl mb-3">
                 <TrendingUp size={20} className="text-white" />
               </div>
-              <div className="text-3xl font-bold text-pink-600 mb-1">{data.progress}%</div>
+              <div className="text-3xl font-bold text-gray-900 mb-1">{data.progress}%</div>
               <div className="text-sm font-medium text-gray-700">Tiến bộ</div>
               <div className="mt-3 flex items-center justify-center gap-1">
                 {data.progress >= 90 ? (
                   <>
-                    <Crown size={14} className="text-pink-500" />
-                    <span className="text-xs text-pink-600 font-medium">Xuất sắc</span>
+                    <Crown size={14} className="text-red-600" />
+                    <span className="text-xs text-red-600 font-medium">Xuất sắc</span>
                   </>
                 ) : data.progress >= 80 ? (
-                  <span className="text-xs text-pink-600 font-medium">Tốt</span>
+                  <span className="text-xs text-red-600 font-medium">Tốt</span>
                 ) : (
                   <span className="text-xs text-gray-500">Cần cải thiện</span>
                 )}
@@ -509,11 +509,11 @@ function FeedbackCard({ data }: { data: Feedback }) {
               <Send size={16} />
               Gửi Zalo
             </button>
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white text-gray-700 px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-all cursor-pointer">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white text-gray-700 px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-all cursor-pointer">
               <Eye size={16} />
               Xem chi tiết
             </button>
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white text-gray-700 px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-all cursor-pointer">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white text-gray-700 px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-all cursor-pointer">
               <Share2 size={16} />
               Chia sẻ
             </button>
@@ -523,14 +523,14 @@ function FeedbackCard({ data }: { data: Feedback }) {
 
       {/* Collapsed Actions */}
       {!isExpanded && (
-        <div className="flex items-center justify-between pt-2 border-t border-pink-200">
+        <div className="flex items-center justify-between pt-2 border-t border-gray-200">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
             <span className="text-xs text-gray-500">Đánh giá:</span>
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                 data.progress >= 90 ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white" :
                 data.progress >= 80 ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white" :
-                "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
+                "bg-gradient-to-r from-red-600 to-red-700 text-white"
               }`}>
               {data.progress >= 90 ? "Xuất sắc" : data.progress >= 80 ? "Tốt" : "Khá"}
             </span>
@@ -541,7 +541,7 @@ function FeedbackCard({ data }: { data: Feedback }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="text-xs text-pink-600 font-medium hover:text-pink-700 flex items-center gap-1 cursor-pointer">
+            <button className="text-xs text-red-600 font-medium hover:text-red-700 flex items-center gap-1 cursor-pointer">
               Xem đầy đủ
               <ChevronDown size={12} />
             </button>
@@ -559,7 +559,7 @@ function OverallStatsPieChart({ stats }: { stats: any }) {
   const pieData = [
     { value: stats.avgHomework, label: "Bài tập", color: "#10b981" },
     { value: stats.avgAttendance, label: "Chuyên cần", color: "#3b82f6" },
-    { value: stats.avgProgress, label: "Tiến bộ", color: "#ec4899" },
+    { value: stats.avgProgress, label: "Tiến bộ", color: "#dc2626" },
   ];
 
   const total = pieData.reduce((sum, item) => sum + item.value, 0);
@@ -612,15 +612,15 @@ export default function TeacherFeedbackPage() {
   }, [list]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50/30 to-white p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <MessageSquare size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
               Feedback Học viên
             </h1>
             <p className="text-gray-600 mt-1">
@@ -630,19 +630,19 @@ export default function TeacherFeedbackPage() {
         </div>
 
         {/* Stats Overview with Pie Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+        <div className={`grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {overallStats && (
             <>
               <OverallStatsPieChart stats={overallStats} />
               
-            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
+            <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-gray-600">Học viên đánh giá</div>
                   <div className="text-2xl font-bold mt-2 text-gray-900">{list.length}</div>
                 </div>
-                <div className="p-3 rounded-xl bg-pink-100">
-                  <UserRound size={24} className="text-pink-600" />
+                <div className="p-3 rounded-xl bg-red-100">
+                  <UserRound size={24} className="text-red-600" />
                 </div>
               </div>
             </div>
@@ -690,7 +690,7 @@ export default function TeacherFeedbackPage() {
 
         {/* Top Student Highlight */}
         {overallStats?.topStudent && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 p-5 mb-8">
+          <div className={`bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 p-5 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="relative">
@@ -718,7 +718,7 @@ export default function TeacherFeedbackPage() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
+      <div className={`bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Filters and Actions */}
         <div className="px-6 pt-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
@@ -729,8 +729,8 @@ export default function TeacherFeedbackPage() {
                   onClick={() => setMonth(m)}
                   className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 cursor-pointer ${
                     m === month
-                      ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                      : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                      : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
                   }`}
                 >
                   Tháng {m}
@@ -739,7 +739,7 @@ export default function TeacherFeedbackPage() {
             </div>
             
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
+              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
                 <UserPlus size={16} />
                 Thêm đánh giá mới
               </button>
@@ -749,11 +749,11 @@ export default function TeacherFeedbackPage() {
           {/* Search and Filter Bar */}
           <div className="flex flex-col md:flex-row gap-3 mb-6">
             <div className="relative flex-1">
-              <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-400" />
+              <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl bg-white border border-pink-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+                className="w-full rounded-xl bg-white border border-gray-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
                 placeholder="Tìm kiếm học viên, ID hoặc lớp..."
               />
             </div>
@@ -763,7 +763,7 @@ export default function TeacherFeedbackPage() {
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
-                  className="appearance-none rounded-xl bg-white border border-pink-200 pl-4 pr-10 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+                  className="appearance-none rounded-xl bg-white border border-gray-200 pl-4 pr-10 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
                 >
                   <option value="ALL">Tất cả lớp</option>
                   {classes.map((cls) => (
@@ -773,7 +773,7 @@ export default function TeacherFeedbackPage() {
                 <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
               
-              <button className="p-3.5 rounded-xl bg-white border border-pink-200 hover:bg-pink-50 transition-colors cursor-pointer">
+              <button className="p-3.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
                 <Filter size={18} className="text-gray-600" />
               </button>
             </div>
@@ -785,7 +785,7 @@ export default function TeacherFeedbackPage() {
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-900">
               Danh sách feedback
-              <span className="text-pink-600 ml-2">({list.length})</span>
+              <span className="text-red-600 ml-2">({list.length})</span>
             </h3>
             {list.length > 0 && (
               <div className="flex items-center gap-4">
@@ -811,8 +811,8 @@ export default function TeacherFeedbackPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <div className="inline-flex p-4 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl mb-4">
-                <Search size={32} className="text-pink-500" />
+              <div className="inline-flex p-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl mb-4">
+                <Search size={32} className="text-gray-500" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
                 Không tìm thấy feedback
