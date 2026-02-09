@@ -8,7 +8,7 @@ import {
   Plus, MessageSquare, UserCheck, XCircle, CheckCircle,
   MapPin, Globe, Instagram, Facebook, Youtube
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 type SortDirection = 'asc' | 'desc';
 
@@ -274,7 +274,7 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
       <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`}></div>
       <div className="relative flex items-center justify-between gap-3">
         <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
@@ -299,7 +299,7 @@ function Avatar({ name, color }: { name: string; color: string }) {
     .slice(0, 2);
 
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-lg text-white font-semibold text-xs bg-gradient-to-r from-pink-500 to-rose-500 shadow-sm">
+    <div className="flex h-8 w-8 items-center justify-center rounded-lg text-white font-semibold text-xs bg-gradient-to-r from-red-600 to-red-700 shadow-sm">
       {initials}
     </div>
   );
@@ -340,6 +340,11 @@ export default function TeachersPage() {
   const [itemsPerPage] = useState(10);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState<Teacher>>({ key: null, direction: 'asc' });
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const toggleSort = (key: keyof Teacher) => {
     setSort(prev => {
@@ -384,7 +389,7 @@ export default function TeachersPage() {
       title: 'Tổng giáo viên',
       value: `${TEACHERS.length}`,
       icon: <Users size={20} />,
-      color: 'from-pink-500 to-rose-500',
+      color: 'from-red-600 to-red-700',
       subtitle: 'Toàn hệ thống'
     },
     {
@@ -467,15 +472,15 @@ export default function TeachersPage() {
   const offTeachers = TEACHERS.filter(t => t.status === 'off').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <GraduationCap size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Quản lý Giáo viên
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -484,28 +489,28 @@ export default function TeachersPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+          <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors">
             <Download size={16} /> Xuất danh sách
           </button>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
             <Plus size={16} /> Thêm giáo viên mới
           </button>
         </div>
       </div>
 
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {stats.map((stat, idx) => (
           <StatCard key={idx} {...stat} />
         ))}
       </div>
 
       {/* Filter Bar */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Status Filter */}
-            <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1">
+            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
               {[
                 { k: 'all', label: 'Tất cả', count: TEACHERS.length },
                 { k: 'active', label: 'Đang làm việc', count: activeTeachers },
@@ -516,8 +521,8 @@ export default function TeachersPage() {
                   key={item.k}
                   onClick={() => setStatusFilter(item.k as typeof statusFilter)}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${statusFilter === item.k
-                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
-                      : 'text-gray-700 hover:bg-pink-50'
+                      ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
+                      : 'text-gray-700 hover:bg-red-50'
                     }`}
                 >
                   {item.label}
@@ -535,7 +540,7 @@ export default function TeachersPage() {
               <select
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               >
                 <option value="all">Tất cả bộ môn</option>
                 {departments.filter(d => d !== 'all').map(dept => (
@@ -551,7 +556,7 @@ export default function TeachersPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm kiếm giáo viên..."
-              className="h-10 w-72 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
@@ -559,9 +564,9 @@ export default function TeachersPage() {
       </div>
 
       {/* Main Table */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Table Header */}
-        <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Danh sách giáo viên</h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -569,7 +574,7 @@ export default function TeachersPage() {
               {selectedRows.length > 0 && (
                 <>
                   <span className="mx-2">•</span>
-                  <span className="text-pink-600 font-medium">
+                  <span className="text-red-600 font-medium">
                     Đã chọn {selectedRows.length} giáo viên
                   </span>
                 </>
@@ -581,7 +586,7 @@ export default function TeachersPage() {
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
               <tr>
                 <th className="py-3 px-6 text-left">
                   <div className="flex items-center gap-3">
@@ -589,7 +594,7 @@ export default function TeachersPage() {
                       type="checkbox"
                       checked={selectedRows.length === currentRows.length && currentRows.length > 0}
                       onChange={toggleSelectAll}
-                      className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200"
+                      className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200"
                     />
                     <SortHeader label="Giáo viên" sortKey="name" />
                   </div>
@@ -614,12 +619,12 @@ export default function TeachersPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-pink-100">
+            <tbody className="divide-y divide-red-100">
               {currentRows.length > 0 ? (
                 currentRows.map((t) => (
                   <tr
                     key={t.code}
-                    className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
@@ -627,7 +632,7 @@ export default function TeachersPage() {
                           type="checkbox"
                           checked={selectedRows.includes(t.code)}
                           onChange={() => toggleSelectRow(t.code)}
-                          className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200"
+                          className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200"
                         />
                         <div className="flex items-center gap-3">
                           <Avatar name={t.name} color={t.avatarColor} />
@@ -695,7 +700,7 @@ export default function TeachersPage() {
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-1 transition-opacity duration-200">
                         <button
-                          className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer"
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           title="Xem chi tiết"
                         >
                           <Eye size={14} />
@@ -713,7 +718,7 @@ export default function TeachersPage() {
                           <MessageSquare size={14} />
                         </button>
                         <button
-                          className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer"
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           title="Thao tác khác"
                         >
                           <MoreVertical size={14} />
@@ -725,8 +730,8 @@ export default function TeachersPage() {
               ) : (
                 <tr>
                   <td colSpan={7} className="py-12 text-center">
-                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                      <Search size={24} className="text-pink-400" />
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                      <Search size={24} className="text-red-400" />
                     </div>
                     <div className="text-gray-600 font-medium">Không tìm thấy giáo viên</div>
                     <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc thêm giáo viên mới</div>
@@ -739,13 +744,13 @@ export default function TeachersPage() {
 
         {/* Table Footer - Pagination */}
         {list.length > 0 && (
-          <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+          <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-sm text-gray-600">
                 Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, list.length)}</span>
                 {' '}trong tổng số <span className="font-semibold text-gray-900">{list.length}</span> giáo viên
                 {selectedRows.length > 0 && (
-                  <span className="ml-3 text-pink-600 font-medium">
+                  <span className="ml-3 text-red-600 font-medium">
                     Đã chọn {selectedRows.length} giáo viên
                   </span>
                 )}
@@ -754,14 +759,14 @@ export default function TeachersPage() {
                 <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-1.5 rounded-lg border border-red-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-50 transition-colors"
                 >
                   <ChevronsLeft size={16} className="text-gray-600" />
                 </button>
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-1.5 rounded-lg border border-red-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-50 transition-colors"
                 >
                   <ChevronLeft size={16} className="text-gray-600" />
                 </button>
@@ -784,8 +789,8 @@ export default function TeachersPage() {
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
                         className={`h-8 w-8 rounded-lg text-sm font-medium transition-all ${currentPage === pageNum
-                            ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
-                            : 'border border-pink-200 bg-white text-gray-700 hover:bg-pink-50'
+                            ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
+                            : 'border border-red-200 bg-white text-gray-700 hover:bg-red-50'
                           }`}
                       >
                         {pageNum}
@@ -797,14 +802,14 @@ export default function TeachersPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-1.5 rounded-lg border border-red-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-50 transition-colors"
                 >
                   <ChevronRight size={16} className="text-gray-600" />
                 </button>
                 <button
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                  className="p-1.5 rounded-lg border border-pink-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-50 transition-colors"
+                  className="p-1.5 rounded-lg border border-red-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-50 transition-colors"
                 >
                   <ChevronsRight size={16} className="text-gray-600" />
                 </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { 
   Search, 
   CheckCircle2, 
@@ -50,7 +50,7 @@ const REPORTS: FeedbackReport[] = [
     updatedAt: "05/12/2024 09:00",
     submittedBy: "Trần Văn A",
     progress: 75,
-    color: "from-pink-500 to-rose-500",
+    color: "from-red-600 to-red-700",
     submittedDate: "04/12/2024"
   },
   {
@@ -172,7 +172,7 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
       <div className={`absolute right-0 top-0 h-20 w-20 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`}></div>
       <div className="relative flex items-start justify-between">
         <div className="space-y-2">
@@ -208,7 +208,7 @@ function ProgressPieChart({ progress, color }: { progress: number; color: string
     if (color.includes('blue')) return 'text-blue-500';
     if (color.includes('purple') || color.includes('violet')) return 'text-purple-500';
     if (color.includes('indigo')) return 'text-indigo-500';
-    return 'text-pink-500';
+    return 'text-red-600';
   };
   
   return (
@@ -250,7 +250,7 @@ function ReportTableRow({ report }: { report: FeedbackReport }) {
   const statusInfo = STATUS_INFO[report.status];
   
   return (
-    <tr className="group border-b border-pink-100 hover:bg-pink-50/50 transition-colors">
+    <tr className="group border-b border-red-100 hover:bg-red-50/50 transition-colors">
       <td className="px-4 py-4 align-top">
         <div className="flex items-center gap-3">
           <div className={`h-3 w-3 rounded-full bg-gradient-to-r ${report.color}`}></div>
@@ -298,7 +298,7 @@ function ReportTableRow({ report }: { report: FeedbackReport }) {
       </td>
       <td className="px-4 py-4 align-top">
         <div className="flex items-center justify-end gap-1">
-          <button className="p-2 rounded-lg hover:bg-pink-50 transition-colors text-gray-500 hover:text-pink-600" title="Xem chi tiết">
+          <button className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-500 hover:text-red-600" title="Xem chi tiết">
             <Eye size={16} />
           </button>
           {report.status === "PENDING" && (
@@ -306,15 +306,15 @@ function ReportTableRow({ report }: { report: FeedbackReport }) {
               <button className="p-2 rounded-lg hover:bg-emerald-50 transition-colors text-gray-500 hover:text-emerald-600" title="Duyệt">
                 <Check size={16} />
               </button>
-              <button className="p-2 rounded-lg hover:bg-rose-50 transition-colors text-gray-500 hover:text-rose-600" title="Từ chối">
+              <button className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-500 hover:text-red-600" title="Từ chối">
                 <AlertCircle size={16} />
               </button>
             </>
           )}
-          <button className="p-2 rounded-lg hover:bg-pink-50 transition-colors text-gray-500 hover:text-pink-600" title="Gửi">
+          <button className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-500 hover:text-red-600" title="Gửi">
             <Send size={16} />
           </button>
-          <button className="p-2 rounded-lg hover:bg-pink-50 transition-colors text-gray-500 hover:text-pink-600 opacity-0 group-hover:opacity-100" title="Thêm">
+          <button className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-500 hover:text-red-600 opacity-0 group-hover:opacity-100" title="Thêm">
             <MoreVertical size={16} />
           </button>
         </div>
@@ -332,13 +332,18 @@ export default function AdminFeedbackPage() {
   const [selectedMonth, setSelectedMonth] = useState("Tất cả");
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const stats = [
     {
       title: "Tổng báo cáo",
       value: "35",
       icon: <FileText size={20} />,
-      color: "from-pink-500 to-rose-500",
+      color: "from-red-600 to-red-700",
       subtitle: "Tháng 12/2024",
       trend: "+12%"
     },
@@ -456,15 +461,15 @@ export default function AdminFeedbackPage() {
   const approvedCount = REPORTS.filter(r => r.status === "APPROVED").length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <MessageSquare size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Quản lý Feedback
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -474,32 +479,32 @@ export default function AdminFeedbackPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-500">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-red-600">
               <Bell size={16} />
             </div>
             <div className="pl-10 pr-4 py-2.5 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 text-amber-700 text-sm font-medium">
               <span className="font-bold">{pendingCount}</span> báo cáo chờ duyệt
             </div>
           </div>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
             <Upload size={16} /> Tải lên báo cáo
           </button>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {stats.map((stat, idx) => (
           <StatCard key={idx} {...stat} />
         ))}
       </div>
 
       {/* Filter Bar */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Status Tabs */}
-            <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1">
+            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
               {["ALL", "PENDING", "APPROVED", "REJECTED"].map((item) => {
                 const count = item === "ALL" ? REPORTS.length : REPORTS.filter(r => r.status === item).length;
                 return (
@@ -508,8 +513,8 @@ export default function AdminFeedbackPage() {
                     onClick={() => setStatus(item as typeof status)}
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
                       status === item 
-                        ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm' 
-                        : 'text-gray-700 hover:bg-pink-50'
+                        ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm' 
+                        : 'text-gray-700 hover:bg-red-50'
                     }`}
                   >
                     {item === "ALL" ? "Tất cả" : STATUS_INFO[item as Status].text}
@@ -529,7 +534,7 @@ export default function AdminFeedbackPage() {
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               >
                 {months.map(month => (
                   <option key={month} value={month}>{month}</option>
@@ -544,7 +549,7 @@ export default function AdminFeedbackPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm theo lớp, giáo viên..."
-              className="h-10 w-72 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
@@ -552,91 +557,91 @@ export default function AdminFeedbackPage() {
       </div>
 
       {/* Reports Table */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 overflow-hidden">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="overflow-x-auto">
           <table className="w-full table-fixed min-w-[1200px]">
-            <thead className="bg-gradient-to-r from-pink-50 to-rose-50 border-b border-pink-200">
+            <thead className="bg-gradient-to-r from-red-50 to-red-100 border-b border-red-200">
               <tr>
                 <th 
-                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-pink-100 transition-colors w-[320px]"
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[320px]"
                   onClick={() => handleSort("className")}
                 >
                   <div className="flex items-center gap-2">
                     Lớp học
                     {sortColumn === "className" ? (
-                      sortDirection === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
                     ) : (
                       <ArrowUpDown size={14} className="text-gray-400" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-pink-100 transition-colors w-[180px]"
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[180px]"
                   onClick={() => handleSort("teacher")}
                 >
                   <div className="flex items-center gap-2">
                     Giáo viên
                     {sortColumn === "teacher" ? (
-                      sortDirection === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
                     ) : (
                       <ArrowUpDown size={14} className="text-gray-400" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-pink-100 transition-colors w-[140px]"
+                  className="px-4 py-3 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[140px]"
                   onClick={() => handleSort("totalStudents")}
                 >
                   <div className="flex items-center gap-2">
                     Học viên
                     {sortColumn === "totalStudents" ? (
-                      sortDirection === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
                     ) : (
                       <ArrowUpDown size={14} className="text-gray-400" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-pink-100 transition-colors w-[120px]"
+                  className="px-4 py-3 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[120px]"
                   onClick={() => handleSort("progress")}
                 >
                   <div className="flex items-center gap-2">
                     Tiến độ
                     {sortColumn === "progress" ? (
-                      sortDirection === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
                     ) : (
                       <ArrowUpDown size={14} className="text-gray-400" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-pink-100 transition-colors w-[180px]"
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[180px]"
                   onClick={() => handleSort("submittedBy")}
                 >
                   <div className="flex items-center gap-2">
                     Người gửi
                     {sortColumn === "submittedBy" ? (
-                      sortDirection === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
                     ) : (
                       <ArrowUpDown size={14} className="text-gray-400" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-pink-100 transition-colors w-[180px]"
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[180px]"
                   onClick={() => handleSort("status")}
                 >
                   <div className="flex items-center gap-2">
                     Trạng thái
                     {sortColumn === "status" ? (
-                      sortDirection === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
                     ) : (
                       <ArrowUpDown size={14} className="text-gray-400" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-pink-100 transition-colors w-[200px]"
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[200px]"
                   onClick={() => handleSort("updatedAt")}
                 >
                   <div className="flex items-center gap-2">
@@ -653,7 +658,7 @@ export default function AdminFeedbackPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-pink-100">
+            <tbody className="bg-white divide-y divide-red-100">
               {list.length > 0 ? (
                 list.map((report) => (
                   <ReportTableRow key={report.id} report={report} />
@@ -661,8 +666,8 @@ export default function AdminFeedbackPage() {
               ) : (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center">
-                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                      <Search size={24} className="text-pink-400" />
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                      <Search size={24} className="text-red-400" />
                     </div>
                     <div className="text-gray-600 font-medium">Không tìm thấy báo cáo phù hợp</div>
                     <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tìm kiếm khác</div>
@@ -675,10 +680,10 @@ export default function AdminFeedbackPage() {
       </div>
 
       {/* Quick Actions Panel */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className={`grid gap-6 lg:grid-cols-3 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Export Section */}
         <div className="lg:col-span-2">
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-6">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
                 <Download size={20} />
@@ -721,7 +726,7 @@ export default function AdminFeedbackPage() {
 
         {/* Notification Section */}
         <div className="space-y-6">
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-6">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
                 <Send size={20} />
@@ -739,11 +744,11 @@ export default function AdminFeedbackPage() {
               </button>
               
               <div className="grid grid-cols-2 gap-2">
-                <button className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-pink-50 transition-colors flex items-center gap-2">
+                <button className="rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors flex items-center gap-2">
                   <Mail size={16} />
                   Email
                 </button>
-                <button className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-pink-50 transition-colors flex items-center gap-2">
+                <button className="rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors flex items-center gap-2">
                   <Zap size={16} />
                   Zalo OA
                 </button>
@@ -756,7 +761,7 @@ export default function AdminFeedbackPage() {
       </div>
 
       {/* Legend */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích trạng thái</div>
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
