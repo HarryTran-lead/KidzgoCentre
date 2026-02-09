@@ -63,7 +63,7 @@ const SUBMISSIONS: Submission[] = [
     status: "PENDING",
     assignmentTitle: "Writing Task 1 - Bar Chart",
     dueDate: "05/12/2024 23:59",
-    color: "from-pink-500 to-rose-500"
+    color: "from-red-600 to-red-700"
   },
   {
     id: "SB002",
@@ -108,7 +108,7 @@ const SUBMISSIONS: Submission[] = [
     assignmentTitle: "Business Email Writing",
     dueDate: "30/11/2024 23:59",
     note: "Bài nộp muộn 1 ngày",
-    color: "from-rose-500 to-pink-500"
+    color: "from-gray-600 to-gray-700"
   },
   {
     id: "SB005",
@@ -173,9 +173,9 @@ const STATUS_CONFIG: Record<SubmissionStatus, {
   OVERDUE: {
     text: "Quá hạn",
     icon: AlertCircle,
-    color: "text-rose-600",
-    bgColor: "bg-gradient-to-r from-rose-50 to-pink-50",
-    borderColor: "border-rose-200"
+    color: "text-red-600",
+    bgColor: "bg-gradient-to-r from-red-50 to-red-100",
+    borderColor: "border-red-200"
   }
 };
 
@@ -198,15 +198,15 @@ function SortableHeader<T extends string>({
   return (
     <button
       onClick={() => onSort(column)}
-      className="flex items-center gap-2 hover:text-pink-600 transition-colors cursor-pointer text-left"
+      className="flex items-center gap-2 hover:text-red-600 transition-colors cursor-pointer text-left"
     >
       <span>{label}</span>
       <div className="flex flex-col">
         {isActive ? (
           sortDirection === "asc" ? (
-            <ChevronUp size={14} className="text-pink-600" />
+            <ChevronUp size={14} className="text-red-600" />
           ) : (
-            <ChevronDown size={14} className="text-pink-600" />
+            <ChevronDown size={14} className="text-red-600" />
           )
         ) : (
           <ArrowUpDown size={14} className="text-gray-400" />
@@ -245,7 +245,7 @@ function StatusBadge({ status }: { status: SubmissionStatus }) {
 
 function FileTypeBadge({ type }: { type: string }) {
   const typeColors: Record<string, string> = {
-    "PDF": "bg-rose-100 text-rose-700",
+    "PDF": "bg-red-100 text-red-700",
     "DOCX": "bg-blue-100 text-blue-700",
     "MP3": "bg-emerald-100 text-emerald-700",
     "ZIP": "bg-amber-100 text-amber-700",
@@ -267,8 +267,8 @@ function SubmissionRow({ item }: { item: Submission }) {
     <div 
       className={`grid grid-cols-12 gap-4 items-center py-4 px-4 rounded-xl transition-all duration-300 border ${
         isHovered 
-          ? "bg-gradient-to-r from-pink-50/50 to-rose-50/50 border-pink-200 shadow-sm" 
-          : "bg-white border-pink-100"
+          ? "bg-gradient-to-r from-red-50/50 to-red-100/50 border-gray-200 shadow-sm" 
+          : "bg-white border-gray-100"
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -333,7 +333,7 @@ function SubmissionRow({ item }: { item: Submission }) {
 
       {/* Actions */}
       <div className="col-span-1 flex items-center justify-end gap-1">
-        <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer">
+        <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
           <Eye size={18} />
         </button>
         <button className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer">
@@ -388,7 +388,7 @@ function Pagination({
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-t border-pink-200 bg-white">
+    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
       <div className="text-sm text-gray-600">
         Hiển thị <span className="font-semibold text-gray-900">{startItem}</span> -{" "}
         <span className="font-semibold text-gray-900">{endItem}</span>{" "}
@@ -401,7 +401,7 @@ function Pagination({
           disabled={currentPage === 1}
           className={`p-2 rounded-lg border transition-all ${currentPage === 1
             ? "border-gray-200 text-gray-400 cursor-not-allowed"
-            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
+            : "border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
             }`}
         >
           <ChevronLeft size={18} />
@@ -422,8 +422,8 @@ function Pagination({
                 key={page}
                 onClick={() => onPageChange(page as number)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${currentPage === page
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                  : "text-gray-700 hover:bg-pink-50 border border-pink-200"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-50 border border-gray-200"
                   }`}
               >
                 {page}
@@ -437,7 +437,7 @@ function Pagination({
           disabled={currentPage === totalPages}
           className={`p-2 rounded-lg border transition-all ${currentPage === totalPages
             ? "border-gray-200 text-gray-400 cursor-not-allowed"
-            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
+            : "border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
             }`}
         >
           <ChevronRight size={18} />
@@ -544,15 +544,15 @@ export default function TeacherAssignmentsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50/30 to-white p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <ClipboardList size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
               Bài tập & Nộp bài
             </h1>
             <p className="text-gray-600 mt-1">
@@ -562,15 +562,15 @@ export default function TeacherAssignmentsPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
+        <div className={`grid grid-cols-1 md:grid-cols-5 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-600">Tổng bài nộp</div>
                 <div className="text-2xl font-bold mt-2 text-gray-900">{stats.total}</div>
               </div>
-              <div className="p-3 rounded-xl bg-pink-100">
-                <FileCheck size={24} className="text-pink-600" />
+              <div className="p-3 rounded-xl bg-red-100">
+                <FileCheck size={24} className="text-red-600" />
               </div>
             </div>
           </div>
@@ -599,14 +599,14 @@ export default function TeacherAssignmentsPage() {
             </div>
           </div>
           
-          <div className="bg-gradient-to-br from-white to-rose-50 rounded-2xl border border-rose-200 p-5">
+          <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-5">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-600">Quá hạn</div>
-                <div className="text-2xl font-bold mt-2 text-rose-600">{stats.overdue}</div>
+                <div className="text-2xl font-bold mt-2 text-red-600">{stats.overdue}</div>
               </div>
-              <div className="p-3 rounded-xl bg-rose-100">
-                <AlertCircle size={24} className="text-rose-600" />
+              <div className="p-3 rounded-xl bg-red-100">
+                <AlertCircle size={24} className="text-red-600" />
               </div>
             </div>
           </div>
@@ -626,7 +626,7 @@ export default function TeacherAssignmentsPage() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
+      <div className={`bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Filters and Actions */}
         <div className="px-6 pt-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
@@ -640,7 +640,7 @@ export default function TeacherAssignmentsPage() {
                       className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all duration-300 cursor-pointer ${
                         filter === key
                           ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
-                          : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+                          : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
                       <BarChart3 size={16} />
@@ -659,7 +659,7 @@ export default function TeacherAssignmentsPage() {
                     className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all duration-300 cursor-pointer ${
                       filter === key
                         ? `bg-gradient-to-r ${config.bgColor.replace("bg-gradient-to-r ", "")} text-white shadow-md`
-                        : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     <Icon size={16} />
@@ -670,7 +670,7 @@ export default function TeacherAssignmentsPage() {
             </div>
             
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
+              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
                 <TimerReset size={16} />
                 Giao bài mới
               </button>
@@ -680,11 +680,11 @@ export default function TeacherAssignmentsPage() {
           {/* Search and Filter Bar */}
           <div className="flex flex-col md:flex-row gap-3 mb-6">
             <div className="relative flex-1">
-              <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-400" />
+              <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl bg-white border border-pink-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+                className="w-full rounded-xl bg-white border border-gray-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
                 placeholder="Tìm kiếm học viên, bài tập, hoặc mã ID..."
               />
             </div>
@@ -694,7 +694,7 @@ export default function TeacherAssignmentsPage() {
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
-                  className="appearance-none rounded-xl bg-white border border-pink-200 pl-4 pr-10 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+                  className="appearance-none rounded-xl bg-white border border-gray-200 pl-4 pr-10 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
                 >
                   <option value="ALL">Tất cả lớp</option>
                   {classes.map((cls) => (
@@ -704,7 +704,7 @@ export default function TeacherAssignmentsPage() {
                 <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
               
-              <button className="p-3.5 rounded-xl bg-white border border-pink-200 hover:bg-pink-50 transition-colors">
+              <button className="p-3.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
                 <Filter size={18} className="text-gray-600" />
               </button>
             </div>
@@ -714,7 +714,7 @@ export default function TeacherAssignmentsPage() {
         {/* Submissions Table */}
         <div className="px-6">
           {/* Table Header */}
-          <div className="grid grid-cols-12 gap-4 px-4 py-4 text-sm font-semibold text-gray-700 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl mb-2">
+          <div className="grid grid-cols-12 gap-4 px-4 py-4 text-sm font-semibold text-gray-700 bg-gradient-to-r from-red-50 to-red-100 border border-gray-200 rounded-xl mb-2">
             <div className="col-span-3">
               <SortableHeader
                 label="Học viên & Lớp"
@@ -755,8 +755,8 @@ export default function TeacherAssignmentsPage() {
               ))
             ) : (
               <div className="text-center py-12">
-                <div className="inline-flex p-4 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl mb-4">
-                  <Search size={32} className="text-pink-500" />
+                <div className="inline-flex p-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl mb-4">
+                  <Search size={32} className="text-gray-500" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
                   Không tìm thấy bài nộp
@@ -781,7 +781,7 @@ export default function TeacherAssignmentsPage() {
         </div>
 
         {/* AI Tools Section */}
-        <div className="px-6 pb-6 pt-8 mt-8 border-t border-pink-200">
+        <div className={`px-6 pb-6 pt-8 mt-8 border-t border-gray-200 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="bg-gradient-to-br from-white to-amber-50 rounded-2xl border border-amber-200 p-6">
               <div className="flex items-center gap-3 mb-4">
