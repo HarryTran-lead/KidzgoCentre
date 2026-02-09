@@ -42,7 +42,7 @@ function StatCard({
   value,
   hint,
   trend = "up",
-  color = "pink",
+  color = "red",
   delay = 0,
 }: {
   icon: React.ReactNode;
@@ -50,7 +50,7 @@ function StatCard({
   value: string;
   hint: string;
   trend?: "up" | "down" | "stable";
-  color?: "pink" | "green" | "yellow" | "blue" | "purple";
+  color?: "red" | "gray" | "black";
   delay?: number;
 }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -61,22 +61,20 @@ function StatCard({
   }, [delay]);
 
   const colorClasses = {
-    pink: "bg-gradient-to-r from-pink-500 to-rose-500",
-    green: "bg-gradient-to-r from-emerald-500 to-teal-500",
-    yellow: "bg-gradient-to-r from-amber-500 to-orange-500",
-    blue: "bg-gradient-to-r from-blue-500 to-sky-500",
-    purple: "bg-gradient-to-r from-purple-500 to-indigo-500",
+    red: "bg-gradient-to-r from-red-600 to-red-700",
+    gray: "bg-gradient-to-r from-gray-600 to-gray-700",
+    black: "bg-gradient-to-r from-gray-800 to-gray-900",
   };
 
   const trendColors = {
-    up: "text-emerald-600",
-    down: "text-rose-600",
-    stable: "text-amber-600",
+    up: "text-red-600",
+    down: "text-gray-600",
+    stable: "text-gray-800",
   };
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all duration-700 transform cursor-pointer ${
+      className={`bg-white rounded-2xl border border-gray-200 p-5 transition-all duration-700 transform cursor-pointer hover:border-red-300 hover:shadow-md ${
         isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
       }`}
     >
@@ -85,8 +83,8 @@ function StatCard({
           <div className="text-sm text-gray-600">{label}</div>
           <div className="text-2xl font-bold mt-2 text-gray-900">{value}</div>
           <div className={`text-xs flex items-center gap-1 mt-1 ${trendColors[trend]}`}>
-            {trend === "up" && <ArrowUpRight size={12} />}
-            {trend === "down" && <ArrowDownRight size={12} />}
+            {trend === "up" && <TrendingUp size={12} />}
+            {trend === "down" && <TrendingUp size={12} className="rotate-180" />}
             {trend === "stable" && <span>→</span>}
             {hint}
           </div>
@@ -103,17 +101,13 @@ function Badge({
   color = "gray",
   children,
 }: {
-  color?: "gray" | "blue" | "red" | "green" | "purple" | "yellow" | "pink";
+  color?: "gray" | "red" | "black";
   children: React.ReactNode;
 }) {
   const colorClasses = {
-    gray: "bg-gray-100 text-gray-700",
-    blue: "bg-blue-50 text-blue-700 border border-blue-200",
-    red: "bg-rose-50 text-rose-700 border border-rose-200",
-    green: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-    purple: "bg-purple-50 text-purple-700 border border-purple-200",
-    yellow: "bg-amber-50 text-amber-700 border border-amber-200",
-    pink: "bg-pink-50 text-pink-700 border border-pink-200",
+    gray: "bg-gray-100 text-gray-700 border border-gray-200",
+    red: "bg-red-50 text-red-700 border border-red-200",
+    black: "bg-gray-900 text-white border border-gray-800",
   };
 
   return (
@@ -123,7 +117,7 @@ function Badge({
   );
 }
 
-// Chart Data (staff-management)
+// Chart Data (staff-management) - Updated colors
 const leadGrowthData = [
   { month: "T7", leads: 120, qualified: 48 },
   { month: "T8", leads: 142, qualified: 62 },
@@ -144,10 +138,10 @@ const classOpsData = [
 ];
 
 const ticketDistribution = [
-  { name: "Tư vấn học", value: 45, color: "#3b82f6" },
-  { name: "Đổi lịch", value: 28, color: "#8b5cf6" },
-  { name: "Báo cáo", value: 18, color: "#10b981" },
-  { name: "Khác", value: 9, color: "#f59e0b" },
+  { name: "Tư vấn học", value: 45, color: "#dc2626" },       // red-600
+  { name: "Đổi lịch", value: 28, color: "#404040" },         // gray-600
+  { name: "Báo cáo", value: 18, color: "#171717" },          // gray-900
+  { name: "Khác", value: 9, color: "#991b1b" },              // red-800
 ];
 
 const reportProgressData = [
@@ -170,7 +164,7 @@ export default function Page() {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-lg">
+        <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-lg">
           <p className="text-sm font-semibold text-gray-900">{label}</p>
           {payload.map((p: any) => (
             <p key={p.dataKey} className="text-sm" style={{ color: p.color }}>
@@ -184,35 +178,35 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header */}
       <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
               <BarChart3 size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Vận hành & Học vụ
               </h1>
               <p className="text-gray-600 mt-1 flex items-center gap-2">
-                <Sparkles size={14} className="text-pink-500" />
+                <Sparkles size={14} className="text-red-600" />
                 Tổng quan lead, xếp lớp, học bù, báo cáo tháng và ticket hỗ trợ
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 bg-white border border-pink-200 rounded-xl">
-              <Calendar size={16} className="text-pink-500" />
+            <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl">
+              <Calendar size={16} className="text-red-600" />
               <span className="text-sm font-medium text-gray-700">Tháng 12/2024</span>
             </div>
-            <button className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all cursor-pointer flex items-center gap-2">
+            <button className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all cursor-pointer flex items-center gap-2">
               <Download size={16} />
               Xuất báo cáo
             </button>
-            <button className="p-2 bg-white border border-pink-200 rounded-xl hover:bg-pink-50 transition-colors cursor-pointer">
+            <button className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
               <MoreVertical size={20} className="text-gray-600" />
             </button>
           </div>
@@ -226,7 +220,7 @@ export default function Page() {
             value="228"
             hint="+17% so với T11"
             trend="up"
-            color="pink"
+            color="red"
             delay={100}
           />
           <StatCard
@@ -235,7 +229,7 @@ export default function Page() {
             value="108"
             hint="Tỷ lệ 47%"
             trend="stable"
-            color="blue"
+            color="gray"
             delay={200}
           />
           <StatCard
@@ -244,7 +238,7 @@ export default function Page() {
             value="155"
             hint="Xung đột: 5"
             trend="down"
-            color="yellow"
+            color="gray"
             delay={300}
           />
           <StatCard
@@ -253,7 +247,7 @@ export default function Page() {
             value="83% đã nộp"
             hint="Còn 9 báo cáo"
             trend="up"
-            color="green"
+            color="red"
             delay={400}
           />
         </div>
@@ -261,7 +255,7 @@ export default function Page() {
 
       {/* Tab Navigation */}
       <div
-        className={`flex items-center gap-1 mb-6 p-1 bg-white border border-pink-200 rounded-xl w-fit transition-all duration-700 ${
+        className={`flex items-center gap-1 mb-6 p-1 bg-white border border-gray-200 rounded-xl w-fit transition-all duration-700 ${
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
         }`}
       >
@@ -278,8 +272,8 @@ export default function Page() {
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
               activeTab === tab.key
-                ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                : "text-gray-700 hover:bg-pink-50"
+                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                : "text-gray-700 hover:bg-gray-50"
             }`}
           >
             {tab.label}
@@ -291,16 +285,17 @@ export default function Page() {
       {activeTab === "overview" && (
         <>
           <div className={`grid lg:grid-cols-2 gap-6 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+            {/* Lead Growth Chart */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <TrendingUp size={20} className="text-blue-500" />
+                    <TrendingUp size={20} className="text-red-600" />
                     Tăng trưởng Lead
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">6 tháng gần nhất</p>
                 </div>
-                <Badge color="blue">+24% tháng này</Badge>
+                <Badge color="red">+24% tháng này</Badge>
               </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -310,16 +305,16 @@ export default function Page() {
                     <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Area type="monotone" dataKey="leads" name="Lead" stroke="#3b82f6" fill="url(#leadFill)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="qualified" name="Qualified" stroke="#10b981" fill="url(#qualifiedFill)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="leads" name="Lead" stroke="#dc2626" fill="url(#leadFill)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="qualified" name="Qualified" stroke="#404040" fill="url(#qualifiedFill)" strokeWidth={2} />
                     <defs>
                       <linearGradient id="leadFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="qualifiedFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#404040" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#404040" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                   </AreaChart>
@@ -327,16 +322,17 @@ export default function Page() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+            {/* Ticket Distribution Chart */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <MessageSquare size={20} className="text-purple-500" />
+                    <MessageSquare size={20} className="text-red-600" />
                     Phân loại ticket
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">Theo nhóm yêu cầu</p>
                 </div>
-                <Badge color="purple">Tuần này</Badge>
+                <Badge color="gray">Tuần này</Badge>
               </div>
 
               <div className="h-64">
@@ -353,7 +349,7 @@ export default function Page() {
               </div>
               <div className="grid grid-cols-2 gap-2 mt-4">
                 {ticketDistribution.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 hover:bg-pink-50/50 rounded-xl transition-colors cursor-pointer">
+                  <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
                       <span className="text-sm text-gray-700">{item.name}</span>
@@ -366,13 +362,14 @@ export default function Page() {
           </div>
 
           <div className={`grid md:grid-cols-2 gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+            {/* Class Operations Chart */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                  <CalendarRange size={20} className="text-emerald-500" />
+                  <CalendarRange size={20} className="text-gray-900" />
                   Ca học & xung đột tuần
                 </h3>
-                <Badge color="green">7 ngày</Badge>
+                <Badge color="gray">7 ngày</Badge>
               </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -382,23 +379,24 @@ export default function Page() {
                     <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Bar dataKey="sessions" name="Ca học" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="conflicts" name="Xung đột" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="sessions" name="Ca học" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="conflicts" name="Xung đột" fill="#404040" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+            {/* Report Progress Chart */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <AlertCircle size={20} className="text-rose-500" />
+                    <AlertCircle size={20} className="text-red-600" />
                     Tiến độ báo cáo tháng
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">Tỷ lệ nộp & tồn</p>
                 </div>
-                <Badge color="pink">+4% cải thiện</Badge>
+                <Badge color="gray">+4% cải thiện</Badge>
               </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -408,8 +406,8 @@ export default function Page() {
                     <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Line type="monotone" dataKey="submitted" name="Đã nộp" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="pending" name="Còn lại" stroke="#ec4899" strokeWidth={3} dot={{ r: 4 }} strokeDasharray="5 5" />
+                    <Line type="monotone" dataKey="submitted" name="Đã nộp" stroke="#dc2626" strokeWidth={3} dot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="pending" name="Còn lại" stroke="#404040" strokeWidth={3} dot={{ r: 4 }} strokeDasharray="5 5" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -418,17 +416,18 @@ export default function Page() {
         </>
       )}
 
+      {/* Leads Tab */}
       {activeTab === "leads" && (
         <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-sky-500 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
                   <TrendingUp size={20} className="text-white" />
                 </div>
                 Lead & Qualified 6 tháng
               </h3>
-              <Badge color="blue">Tổng lead: 1,019</Badge>
+              <Badge color="red">Tổng lead: 1,019</Badge>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -438,16 +437,16 @@ export default function Page() {
                   <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Area type="monotone" dataKey="leads" name="Lead" stroke="#3b82f6" fill="url(#leadFill2)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="qualified" name="Qualified" stroke="#10b981" fill="url(#qualifiedFill2)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="leads" name="Lead" stroke="#dc2626" fill="url(#leadFill2)" strokeWidth={3} />
+                  <Area type="monotone" dataKey="qualified" name="Qualified" stroke="#404040" fill="url(#qualifiedFill2)" strokeWidth={3} />
                   <defs>
                     <linearGradient id="leadFill2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="qualifiedFill2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#404040" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#404040" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                 </AreaChart>
@@ -457,17 +456,18 @@ export default function Page() {
         </div>
       )}
 
+      {/* Schedule Tab */}
       {activeTab === "schedule" && (
         <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
-                <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-gray-600 to-gray-700 rounded-lg">
                   <CalendarRange size={20} className="text-white" />
                 </div>
                 Ca học & xung đột tuần
               </h3>
-              <Badge color="green">Tuần hiện tại</Badge>
+              <Badge color="gray">Tuần hiện tại</Badge>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -477,8 +477,8 @@ export default function Page() {
                   <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Bar dataKey="sessions" name="Ca học" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="conflicts" name="Xung đột" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="sessions" name="Ca học" fill="#dc2626" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="conflicts" name="Xung đột" fill="#404040" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -486,17 +486,18 @@ export default function Page() {
         </div>
       )}
 
+      {/* Reports Tab */}
       {activeTab === "reports" && (
         <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
-                <div className="p-2 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
                   <NotebookPen size={20} className="text-white" />
                 </div>
                 Tiến độ báo cáo tháng
               </h3>
-              <Badge color="pink">83% đã nộp</Badge>
+              <Badge color="gray">83% đã nộp</Badge>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -506,8 +507,8 @@ export default function Page() {
                   <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Line type="monotone" dataKey="submitted" name="Đã nộp" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="pending" name="Còn lại" stroke="#ec4899" strokeWidth={3} dot={{ r: 4 }} strokeDasharray="5 5" />
+                  <Line type="monotone" dataKey="submitted" name="Đã nộp" stroke="#dc2626" strokeWidth={3} dot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="pending" name="Còn lại" stroke="#404040" strokeWidth={3} dot={{ r: 5 }} strokeDasharray="5 5" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -516,23 +517,23 @@ export default function Page() {
       )}
 
       {/* Footer */}
-      <div className={`mt-8 pt-6 border-t border-pink-200 transition-all duration-700 delay-300 ${isPageLoaded ? "opacity-100" : "opacity-0"}`}>
+      <div className={`mt-8 pt-6 border-t border-gray-200 transition-all duration-700 delay-300 ${isPageLoaded ? "opacity-100" : "opacity-0"}`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-pink-500" />
+            <Sparkles size={16} className="text-red-600" />
             <span>Cập nhật thời gian thực • Dữ liệu được cập nhật lúc 14:30</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Ổn định</span>
+              <div className="w-2 h-2 rounded-full bg-red-600" />
+              <span>Hoạt động tốt</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <div className="w-2 h-2 rounded-full bg-gray-600" />
               <span>Cần chú ý</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-rose-500" />
+              <div className="w-2 h-2 rounded-full bg-gray-900" />
               <span>Cần hành động</span>
             </div>
           </div>
