@@ -9,7 +9,7 @@ export type AttendanceRawStatus = "Present" | "Late" | "Absent" | "NotMarked";
 
 export type Student = {
   id: string;
-  name: string;
+  studentName: string;
   status: AttendanceStatus | null;
   absenceRate: number;
   note?: string;
