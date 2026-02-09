@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   CalendarDays,
   ArrowRightLeft,
@@ -58,6 +59,7 @@ type SessionCard = {
 };
 
 type StudentRow = Student & {
+  name: string;
   rowKey: string;
   studentId: string; // id thật để save (nếu có)
   studentCode?: string;
@@ -190,6 +192,7 @@ function Pagination({
 }
 
 export default function TeacherAttendancePage() {
+  const searchParams = useSearchParams();
   const [sessions, setSessions] = useState<SessionApiItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
@@ -271,6 +274,49 @@ export default function TeacherAttendancePage() {
   useEffect(() => {
     setIsPageLoaded(true);
   }, []);
+
+  // Auto-select session from URL params
+  useEffect(() => {
+    if (!sessions.length) return;
+
+    const sessionIdParam = searchParams.get("sessionId");
+    const dateParam = searchParams.get("date");
+    const timeParam = searchParams.get("time");
+    const classParam = searchParams.get("class");
+
+    // Nếu có dateParam từ lịch dạy, cập nhật dateRange
+    if (dateParam && (dateParam !== dateRange.from || dateParam !== dateRange.to)) {
+      setDateRange({ from: dateParam, to: dateParam });
+    }
+
+    if (sessionIdParam) {
+      // Nếu có sessionId, chọn session đó trực tiếp
+      const matchingSession = sessions.find((session: any) => String(session.id ?? session.sessionId ?? "") === sessionIdParam);
+      if (matchingSession) {
+        handleSessionSelect(sessionIdParam);
+      }
+    } else if (timeParam && classParam) {
+      // Nếu không có sessionId, tìm buổi học phù hợp với các tham số
+      const matchingSession = sessions.find((session: any) => {
+        const lesson = mapSessionToLessonDetail(session);
+        const [startTime] = lesson.time.split(" - ");
+        return (
+          startTime === timeParam &&
+          lesson.course === classParam
+        );
+      });
+
+      if (matchingSession) {
+        const lesson = mapSessionToLessonDetail(matchingSession);
+        handleSessionSelect(lesson.id);
+      }
+    } else {
+      // Nếu không có tham số URL, tự động chọn buổi học đầu tiên
+      const firstSession = sessions[0];
+      const lesson = mapSessionToLessonDetail(firstSession);
+      handleSessionSelect(lesson.id);
+    }
+  }, [sessions, searchParams]);
 
   const selectedSession = useMemo(() => {
     if (!selectedSessionId) return null;
@@ -460,7 +506,7 @@ export default function TeacherAttendancePage() {
     filtered.sort((a, b) => {
       let comparison = 0;
       if (sortColumn === "student") {
-        comparison = (a.name ?? "").localeCompare(b.name ?? "");
+        comparison = (a.name ?? "").localeCompare(b.studentName ?? "");
       } else {
         comparison = (a.studentCode ?? "").localeCompare(b.studentCode ?? "");
       }
