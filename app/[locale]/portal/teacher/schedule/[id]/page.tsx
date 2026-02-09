@@ -267,7 +267,7 @@ export default function LessonAttendancePage() {
     if (!search.trim()) return list;
     return list.filter(
       (s) =>
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.studentName.toLowerCase().includes(search.toLowerCase()) ||
         s.id.toLowerCase().includes(search.toLowerCase())
     );
   }, [list, search]);
@@ -282,6 +282,9 @@ export default function LessonAttendancePage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedStudents = filtered.slice(startIndex, endIndex);
+  console.log({paginatedStudents});
+  
+  
 
   const totalStudentsCount = attendanceSummary?.totalStudents ?? list.length;
   const checkedCount =
@@ -586,8 +589,8 @@ export default function LessonAttendancePage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-600 to-red-700 text-white flex items-center justify-center font-bold text-sm">
-                          {student.name
-                            .split("")
+                          {student.studentName
+                            .split(" ")
                             .map((w) => w[0])
                             .filter(Boolean)
                             .slice(-2)
@@ -595,7 +598,7 @@ export default function LessonAttendancePage() {
                             .toUpperCase() || "HV"}
                         </div>
                         <div>
-                          <div className="font-semibold text-gray-900">{student.name}</div>
+                          <div className="font-semibold text-gray-900">{student.studentName}</div>
                           <div className="text-xs text-gray-500">ID: {student.id}</div>
                         </div>
                       </div>

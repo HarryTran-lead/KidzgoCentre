@@ -290,7 +290,7 @@ export default function AdminLessonDetailPage() {
     if (!search.trim()) return list;
     return list.filter(
       (s) =>
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.studentName.toLowerCase().includes(search.toLowerCase()) ||
         s.id.toLowerCase().includes(search.toLowerCase())
     );
   }, [list, search]);
@@ -542,7 +542,7 @@ export default function AdminLessonDetailPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-600 to-red-700 text-white flex items-center justify-center font-bold text-sm">
-                          {student.name
+                          {student.studentName
                             .split(" ")
                             .map((w) => w[0])
                             .filter(Boolean)
@@ -552,7 +552,7 @@ export default function AdminLessonDetailPage() {
                         </div>
                         <div>
                           <div className="font-semibold text-gray-900">
-                            {student.name}
+                            {student.studentName}
                           </div>
 
                         </div>
