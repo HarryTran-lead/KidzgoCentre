@@ -31,7 +31,7 @@ function StatusBadge({ status }: { status: AttendanceStatus }) {
   const map = {
     present: { text: "Có mặt", cls: "bg-emerald-50 text-emerald-700 border border-emerald-200" },
     late: { text: "Đi muộn", cls: "bg-amber-50 text-amber-700 border border-amber-200" },
-    absent: { text: "Vắng", cls: "bg-rose-50 text-rose-700 border border-rose-200" },
+    absent: { text: "Vắng", cls: "bg-red-50 text-red-700 border border-red-200" },
   } as const;
   return <span className={`px-3 py-1 rounded-full text-xs font-medium ${map[status].cls}`}>{map[status].text}</span>;
 }
@@ -61,7 +61,7 @@ function AbsencePie({ value }: { value: number }) {
           r={radius}
           stroke="currentColor"
           strokeWidth={4}
-          className="text-rose-500"
+          className="text-red-600"
           fill="transparent"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -69,7 +69,7 @@ function AbsencePie({ value }: { value: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-semibold text-rose-600">
+        <span className="text-[10px] font-semibold text-red-600">
           {Math.round(clamped)}%
         </span>
       </div>
@@ -118,7 +118,7 @@ function Pagination({
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-t border-pink-200 bg-white">
+    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
       <div className="text-sm text-gray-600">
         Hiển thị <span className="font-semibold text-gray-900">{startItem}</span> -{" "}
         <span className="font-semibold text-gray-900">{endItem}</span>{" "}
@@ -131,7 +131,7 @@ function Pagination({
           disabled={currentPage === 1}
           className={`p-2 rounded-lg border transition-all ${currentPage === 1
             ? "border-gray-200 text-gray-400 cursor-not-allowed"
-            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
+            : "border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
             }`}
         >
           <ChevronLeft size={18} />
@@ -152,8 +152,8 @@ function Pagination({
                 key={page}
                 onClick={() => onPageChange(page as number)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${currentPage === page
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                  : "text-gray-700 hover:bg-pink-50 border border-pink-200"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-50 border border-gray-200"
                   }`}
               >
                 {page}
@@ -167,7 +167,7 @@ function Pagination({
           disabled={currentPage === totalPages}
           className={`p-2 rounded-lg border transition-all ${currentPage === totalPages
             ? "border-gray-200 text-gray-400 cursor-not-allowed"
-            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
+            : "border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
             }`}
         >
           <ChevronRight size={18} />
@@ -356,7 +356,7 @@ export default function LessonAttendancePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50/30 to-white p-6 flex items-center justify-center">
         <div className="text-center space-y-3">
           <h2 className="text-2xl font-bold text-gray-900">Đang tải thông tin buổi dạy...</h2>
           <p className="text-gray-600">Vui lòng chờ trong giây lát.</p>
@@ -367,20 +367,20 @@ export default function LessonAttendancePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50/30 to-white p-6 flex items-center justify-center">
         <div className="text-center space-y-3">
           <h2 className="text-2xl font-bold text-gray-900">Có lỗi xảy ra</h2>
           <p className="text-gray-600">{error}</p>
           <div className="flex items-center justify-center gap-2">
             <button
               onClick={() => router.refresh()}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition cursor-pointer"
             >
               Thử lại
             </button>
             <button
               onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
-              className="px-5 py-2.5 rounded-xl bg-white border border-pink-200 text-gray-800 hover:border-pink-300 transition cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-800 hover:border-gray-300 transition cursor-pointer"
             >
               Quay lại lịch dạy
             </button>
@@ -392,13 +392,13 @@ export default function LessonAttendancePage() {
 
   if (!lesson) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50/30 to-white p-6 flex items-center justify-center">
         <div className="text-center space-y-3">
           <h2 className="text-2xl font-bold text-gray-900">Không tìm thấy buổi học</h2>
           <p className="text-gray-600">Buổi học không tồn tại hoặc đã bị xoá.</p>
           <button
             onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition cursor-pointer"
           >
             Quay lại lịch dạy
           </button>
@@ -408,7 +408,7 @@ export default function LessonAttendancePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50/30 to-white p-6">
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={() => router.push(`/${locale}/portal/teacher/schedule`)}
@@ -419,17 +419,17 @@ export default function LessonAttendancePage() {
         </button>
 
         <div className="flex items-center gap-2">
-          <button className="px-3 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition flex items-center gap-2 cursor-pointer">
+          <button className="px-3 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition flex items-center gap-2 cursor-pointer">
             <Download size={16} /> Xuất danh sách
           </button>
         </div>
       </div>
 
       {/* Lesson Info */}
-      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm mb-6">
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-6 shadow-sm mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
-            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl text-white shadow-lg">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl text-white shadow-lg">
               <BookOpen size={22} />
             </div>
             <div>
@@ -437,16 +437,16 @@ export default function LessonAttendancePage() {
               <h1 className="text-2xl font-bold text-gray-900">{lesson.lesson}</h1>
               <div className="flex flex-wrap gap-3 text-sm text-gray-700 mt-2">
                 <span className="inline-flex items-center gap-1">
-                  <CalendarClock size={16} className="text-pink-500" /> {lesson.date}
+                  <CalendarClock size={16} className="text-red-600" /> {lesson.date}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <Clock size={16} className="text-pink-500" /> {lesson.time}
+                  <Clock size={16} className="text-red-600" /> {lesson.time}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <MapPin size={16} className="text-pink-500" /> {lesson.room}
+                  <MapPin size={16} className="text-red-600" /> {lesson.room}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <Users size={16} className="text-pink-500" /> {lesson.students} HV
+                  <Users size={16} className="text-red-600" /> {lesson.students} HV
                 </span>
               </div>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -461,7 +461,7 @@ export default function LessonAttendancePage() {
                   </span>
                 )}
                 {lesson.branch && (
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-pink-50 text-pink-700 border border-pink-200">
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
                     {lesson.branch}
                   </span>
                 )}
@@ -472,7 +472,7 @@ export default function LessonAttendancePage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-2xl border border-pink-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="text-sm text-gray-500">Tổng sĩ số</div>
           <div className="text-2xl font-bold text-gray-900 mt-1">{totalStudentsCount ?? 0}</div>
         </div>
@@ -489,13 +489,13 @@ export default function LessonAttendancePage() {
       </div>
 
       {/* Attendance list */}
-      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
-        <div className="p-5 border-b border-pink-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="p-5 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Điểm danh</h2>
             <p className="text-sm text-gray-600">
               {totalStudentsCount ? `${checkedCount} / ${totalStudentsCount} học viên đã điểm danh` : "Chưa có dữ liệu điểm danh"}
-              {saveError && <span className="text-rose-600 ml-3">{saveError}</span>}
+              {saveError && <span className="text-red-600 ml-3">{saveError}</span>}
             </p>
           </div>
 
@@ -506,7 +506,7 @@ export default function LessonAttendancePage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Tìm kiếm học viên..."
-                className="pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition text-sm"
+                className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition text-sm"
               />
             </div>
             {!isEditing ? (
@@ -518,7 +518,7 @@ export default function LessonAttendancePage() {
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-pink-200 text-gray-800 text-sm font-medium hover:border-pink-300 transition cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-800 text-sm font-medium hover:border-gray-300 transition cursor-pointer"
                 >
                   Chỉnh sửa
                 </button>
@@ -528,7 +528,7 @@ export default function LessonAttendancePage() {
                 type="button"
                 onClick={handleSaveAttendance}
                 disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-medium shadow-sm hover:shadow-lg transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-medium shadow-sm hover:shadow-lg transition-all cursor-pointer"
               >
                 <CheckCircle size={16} />
                 {saving ? "Đang lưu..." : "Lưu điểm danh"}
@@ -540,7 +540,7 @@ export default function LessonAttendancePage() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gradient-to-r from-pink-50 to-rose-50 border-b border-pink-200">
+              <tr className="bg-gradient-to-r from-red-50 to-red-100 border-b border-gray-200">
                 <th className="px-4 py-4 w-12">
                   <div className="flex items-center justify-center">
                     <input
@@ -548,7 +548,7 @@ export default function LessonAttendancePage() {
                       type="checkbox"
                       checked={allSelected}
                       onChange={toggleSelectAll}
-                      className="w-4 h-4 text-pink-600 border-pink-300 rounded focus:ring-pink-500 cursor-pointer"
+                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 cursor-pointer"
                     />
                   </div>
                 </th>
@@ -569,8 +569,8 @@ export default function LessonAttendancePage() {
                 paginatedStudents.map((student, idx) => (
                   <tr
                     key={student.id}
-                    className={`border-b border-pink-100 transition hover:bg-pink-50/50 ${
-                      idx % 2 === 0 ? "bg-white" : "bg-pink-50/30"
+                    className={`border-b border-gray-100 transition hover:bg-gray-50/50 ${
+                      idx % 2 === 0 ? "bg-white" : "bg-gray-50/30"
                     }`}
                   >
                     <td className="px-4 py-4">
@@ -579,15 +579,15 @@ export default function LessonAttendancePage() {
                           type="checkbox"
                           checked={selected.has(student.id)}
                           onChange={() => toggleSelect(student.id)}
-                          className="w-4 h-4 text-pink-600 border-pink-300 rounded focus:ring-pink-500 cursor-pointer"
+                          className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 cursor-pointer"
                         />
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white flex items-center justify-center font-bold text-sm">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-600 to-red-700 text-white flex items-center justify-center font-bold text-sm">
                           {student.name
-                            .split(" ")
+                            .split("")
                             .map((w) => w[0])
                             .filter(Boolean)
                             .slice(-2)
@@ -623,8 +623,8 @@ export default function LessonAttendancePage() {
                           disabled={!isEditing}
                           className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer disabled:cursor-default ${
                             student.status === "absent"
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : "border-gray-200 text-gray-600 hover:bg-rose-50"
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : "border-gray-200 text-gray-600 hover:bg-red-50"
                           }`}
                         >
                           Vắng
@@ -637,7 +637,7 @@ export default function LessonAttendancePage() {
                         onChange={(e) => updateNote(student.id, e.target.value)}
                         disabled={!isEditing}
                         placeholder="Thêm ghi chú..."
-                        className="w-full px-3 py-2 rounded-lg border border-pink-200 bg-white text-sm text-gray-800 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-default"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-800 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-default"
                       />
                     </td>
                   </tr>

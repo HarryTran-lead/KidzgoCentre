@@ -72,13 +72,13 @@ const STATUS_LABELS: Record<AttendanceStatus, string> = {
 };
 
 const SESSION_COLOR_POOL = [
-  "from-pink-500 to-rose-500",
-  "from-fuchsia-500 to-purple-500",
+  "from-red-600 to-red-700",
+  "from-gray-600 to-gray-700",
   "from-amber-500 to-orange-500",
   "from-emerald-500 to-teal-500",
   "from-sky-500 to-blue-500",
   "from-indigo-500 to-blue-500",
-  "from-rose-500 to-pink-600",
+  "from-red-500 to-red-600",
 ];
 
 const ZERO_GUID = "00000000-0000-0000-0000-000000000000";
@@ -102,15 +102,15 @@ function SortableHeader<T extends string>({
   return (
     <button
       onClick={() => onSort(column)}
-      className="flex items-center gap-2 hover:text-pink-600 transition-colors cursor-pointer text-left"
+      className="flex items-center gap-2 hover:text-red-600 transition-colors cursor-pointer text-left"
     >
       <span>{label}</span>
       <div className="flex flex-col">
         {isActive ? (
           sortDirection === "asc" ? (
-            <ChevronUp size={14} className="text-pink-600" />
+            <ChevronUp size={14} className="text-red-600" />
           ) : (
-            <ChevronUp size={14} className="text-pink-600 rotate-180" />
+            <ChevronUp size={14} className="text-red-600 rotate-180" />
           )
         ) : (
           <ArrowUpDown size={14} className="text-gray-400" />
@@ -131,7 +131,7 @@ function StudentAvatar({ name }: { name: string }) {
     .toUpperCase();
 
   return (
-    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold text-xs">
+    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold text-xs">
       {initials}
     </div>
   );
@@ -169,7 +169,7 @@ function Pagination({
             onClick={() => onPageChange(page)}
             className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${
               currentPage === page
-                ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white border-transparent"
+                ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-transparent"
                 : "border-gray-200 hover:bg-gray-50"
             }`}
           >
@@ -231,6 +231,7 @@ export default function TeacherAttendancePage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   const recordsPerPage = 8;
 
@@ -266,6 +267,10 @@ export default function TeacherAttendancePage() {
   useEffect(() => {
     fetchSessionData();
   }, [fetchSessionData]);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const selectedSession = useMemo(() => {
     if (!selectedSessionId) return null;
@@ -482,16 +487,16 @@ export default function TeacherAttendancePage() {
   }, [attendanceSummary]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/20 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50/20 to-white p-4 md:p-6">
       {/* Header */}
-      <div className="mb-6">
+      <div className={`mb-6 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <CheckCheckIcon size={24} className="text-white" />
           </div>
 
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
               Điểm danh lớp học
             </h1>
             <p className="text-gray-600 mt-1 text-sm">Quản lý chuyên cần và sắp xếp buổi bù</p>
@@ -564,7 +569,7 @@ export default function TeacherAttendancePage() {
             </div>
 
             {loading && <div className="text-sm text-gray-500">Đang tải danh sách buổi học...</div>}
-            {error && <div className="text-sm text-rose-600">{error}</div>}
+            {error && <div className="text-sm text-red-600">{error}</div>}
 
             {!loading && !error && filterSessions.length === 0 && (
               <div className="text-sm text-gray-500">Không có buổi học phù hợp bộ lọc.</div>
@@ -577,8 +582,8 @@ export default function TeacherAttendancePage() {
                   onClick={() => handleSessionSelect(session.id)}
                   className={`p-4 rounded-lg border text-left transition-all cursor-pointer ${
                     session.id === selectedSessionId
-                      ? "border-pink-300 bg-gradient-to-r from-pink-50 to-rose-50"
-                      : "border-gray-200 hover:border-pink-200 hover:bg-pink-50/50"
+                      ? "border-red-300 bg-gradient-to-r from-red-50 to-red-100"
+                      : "border-gray-200 hover:border-red-200 hover:bg-red-50/50"
                   }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
@@ -608,24 +613,24 @@ export default function TeacherAttendancePage() {
         {selectedSessionId && selectedLesson && (
           <>
             {/* Class Info Card */}
-            <div className="bg-gradient-to-br from-white via-pink-50/30 to-white rounded-2xl border border-pink-200 shadow-sm p-6 mb-6">
+            <div className={`bg-gradient-to-br from-white via-gray-50/30 to-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg">
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
                       <BookOpen size={24} />
                     </div>
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-1">{selectedLesson.lesson}</h2>
                       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                         <div className="flex items-center gap-1.5">
-                          <CalendarDays size={16} className="text-pink-500" />
+                          <CalendarDays size={16} className="text-red-600" />
                           <span className="font-medium">{selectedLesson.date}</span>
                           <span>•</span>
                           <span>{selectedLesson.time}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <MapPin size={16} className="text-pink-500" />
+                          <MapPin size={16} className="text-red-600" />
                           <span>{selectedLesson.room}</span>
                         </div>
                       </div>
@@ -642,7 +647,7 @@ export default function TeacherAttendancePage() {
                           </span>
                         )}
                         {selectedLesson.branch && (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-pink-50 text-pink-700 border border-pink-200">
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
                             {selectedLesson.branch}
                           </span>
                         )}
@@ -666,7 +671,7 @@ export default function TeacherAttendancePage() {
                     className={`px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all ${
                       isSaving
                         ? "bg-gray-400 text-white cursor-not-allowed"
-                        : "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer"
+                        : "bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer"
                     }`}
                   >
                     {isSaving ? (
@@ -686,7 +691,7 @@ export default function TeacherAttendancePage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tổng học viên</div>
@@ -717,14 +722,14 @@ export default function TeacherAttendancePage() {
                 <div className="text-3xl font-bold text-amber-600">{stats?.absent || 0}</div>
               </div>
 
-              <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+              <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-semibold text-pink-600 uppercase tracking-wide">Tỉ lệ chuyên cần</div>
-                  <div className="p-2 rounded-lg bg-pink-100">
-                    <TrendingUp size={20} className="text-pink-600" />
+                  <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tỉ lệ chuyên cần</div>
+                  <div className="p-2 rounded-lg bg-gray-100">
+                    <TrendingUp size={20} className="text-gray-600" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-pink-600">
+                <div className="text-3xl font-bold text-gray-900">
                   {stats ? Math.round((stats.present / stats.total) * 100) : 0}%
                 </div>
               </div>
@@ -735,7 +740,7 @@ export default function TeacherAttendancePage() {
 
       {/* Main Content */}
       {selectedSessionId ? (
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className={`grid lg:grid-cols-3 gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Student Table */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -753,7 +758,7 @@ export default function TeacherAttendancePage() {
                         placeholder="Tìm học viên..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-full md:w-64 focus:outline-none focus:border-pink-300"
+                        className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-full md:w-64 focus:outline-none focus:border-red-300"
                       />
                     </div>
                     <select
@@ -775,7 +780,7 @@ export default function TeacherAttendancePage() {
 
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-pink-50 to-rose-50 border-b border-pink-200">
+                  <thead className="bg-gradient-to-r from-red-50 to-red-100 border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
                         <SortableHeader
@@ -801,11 +806,11 @@ export default function TeacherAttendancePage() {
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-pink-100">
+                  <tbody className="divide-y divide-gray-100">
                     {paginatedRecords.map((record) => (
                       <tr
                         key={record.rowKey}
-                        className="hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-rose-50/50 transition-colors border-b border-pink-100"
+                        className="hover:bg-gradient-to-r hover:from-red-50/50 hover:to-red-100/50 transition-colors border-b border-gray-100"
                       >
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
@@ -831,7 +836,7 @@ export default function TeacherAttendancePage() {
                                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                       : status === "late"
                                       ? "bg-amber-50 text-amber-700 border-amber-200"
-                                      : "bg-rose-50 text-rose-700 border-rose-200"
+                                      : "bg-red-50 text-red-700 border-red-200"
                                     : "border-gray-200 text-gray-600 hover:bg-gray-50"
                                 }`}
                               >
@@ -853,7 +858,7 @@ export default function TeacherAttendancePage() {
                         </td>
 
                         <td className="px-4 py-4">
-                          <button className="p-2 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer">
+                          <button className="p-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
                             <MoreVertical size={16} className="text-gray-500" />
                           </button>
                         </td>
@@ -871,10 +876,10 @@ export default function TeacherAttendancePage() {
                 )}
 
                 {attendanceLoadingError && (
-                  <div className="text-center py-6 text-rose-600">{attendanceLoadingError}</div>
+                  <div className="text-center py-6 text-red-600">{attendanceLoadingError}</div>
                 )}
 
-                {saveError && <div className="text-center py-4 text-rose-600">{saveError}</div>}
+                {saveError && <div className="text-center py-4 text-red-600">{saveError}</div>}
 
                 {totalPages > 1 && (
                   <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
@@ -931,7 +936,7 @@ export default function TeacherAttendancePage() {
 
                 <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200">
                   <div>
-                    <div className="text-lg font-bold text-rose-500">
+                    <div className="text-lg font-bold text-red-600">
                       {attendanceList.filter((r) => r.status === "absent").length || 0}
                     </div>
                     <div className="text-xs text-gray-600">Vắng mặt</div>

@@ -29,9 +29,9 @@ import type { Student, ClassDetail, Track } from "@/types/teacher/classes";
 
 function TrackBadge({ track }: { track: Track }) {
   const trackColors = {
-    IELTS: "from-pink-500 to-purple-600",
-    TOEIC: "from-rose-500 to-pink-600",
-    Business: "from-fuchsia-500 to-purple-500",
+    IELTS: "from-red-600 to-red-700",
+    TOEIC: "from-gray-600 to-gray-700",
+    Business: "from-gray-800 to-gray-900",
   };
 
   return (
@@ -52,7 +52,7 @@ function StudentAvatar({ name }: { name: string }) {
     .toUpperCase();
 
   return (
-    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-sm shadow-lg">
+    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-bold text-sm shadow-lg">
       {initials}
     </div>
   );
@@ -83,7 +83,7 @@ function AbsencePie({ value }: { value: number }) {
           r={radius}
           stroke="currentColor"
           strokeWidth={4}
-          className="text-rose-500"
+          className="text-red-600"
           fill="transparent"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -91,7 +91,7 @@ function AbsencePie({ value }: { value: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-semibold text-rose-600">
+        <span className="text-[10px] font-semibold text-red-600">
           {Math.round(clamped)}%
         </span>
       </div>
@@ -145,7 +145,7 @@ function Pagination({
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-t border-pink-200 bg-white">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
       <div className="text-sm text-gray-600">
         Hiển thị <span className="font-semibold text-gray-900">{startItem}</span> -{" "}
         <span className="font-semibold text-gray-900">{endItem}</span>{" "}
@@ -156,12 +156,10 @@ function Pagination({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`p-2 rounded-lg border transition-all ${currentPage === 1
-            ? "border-gray-200 text-gray-400 cursor-not-allowed"
-            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
-            }`}
+          className={`p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors ${currentPage === 1 ? "" : "cursor-pointer"}`}
+          aria-label="Trang trước"
         >
-          <ChevronLeft size={18} />
+          <ChevronLeft size={16} className="text-gray-600" />
         </button>
 
         <div className="flex items-center gap-1">
@@ -179,8 +177,8 @@ function Pagination({
                 key={page}
                 onClick={() => onPageChange(page as number)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${currentPage === page
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                  : "text-gray-700 hover:bg-pink-50 border border-pink-200"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-50 border border-gray-200"
                   }`}
               >
                 {page}
@@ -192,12 +190,10 @@ function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`p-2 rounded-lg border transition-all ${currentPage === totalPages
-            ? "border-gray-200 text-gray-400 cursor-not-allowed"
-            : "border-pink-200 text-gray-700 hover:bg-pink-50 hover:border-pink-300 cursor-pointer"
-            }`}
+          className={`p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors ${currentPage === totalPages ? "" : "cursor-pointer"}`}
+          aria-label="Trang sau"
         >
-          <ChevronRight size={18} />
+          <ChevronRight size={16} className="text-gray-600" />
         </button>
       </div>
     </div>
@@ -321,7 +317,7 @@ export default function ClassDetailPage() {
 
   if (loading || !classData) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Đang tải thông tin lớp học...</h2>
           {error && <p className="text-gray-600 mb-4">{error}</p>}
@@ -329,7 +325,7 @@ export default function ClassDetailPage() {
           {error && (
             <button
               onClick={() => router.push(`/${locale}/portal/teacher/classes`)}
-              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl hover:shadow-lg transition-all cursor-pointer"
+              className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:shadow-lg transition-all cursor-pointer"
             >
               Quay lại danh sách lớp
             </button>
@@ -349,9 +345,9 @@ export default function ClassDetailPage() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <button
           onClick={() => router.push(`/${locale}/portal/teacher/classes`)}
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors cursor-pointer"
@@ -360,10 +356,10 @@ export default function ClassDetailPage() {
           <span>Quay lại danh sách lớp</span>
         </button>
 
-        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-3 flex-1">
-              <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+              <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
                 <BookOpen size={24} className="text-white" />
               </div>
               <div className="flex-1">
@@ -375,11 +371,11 @@ export default function ClassDetailPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3">
-              <button className="px-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-700 hover:bg-pink-50 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
+              <button className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
                 <Share2 size={16} />
                 Chia sẻ
               </button>
-              <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
+              <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
                 <Download size={16} />
                 Xuất danh sách
               </button>
@@ -388,27 +384,27 @@ export default function ClassDetailPage() {
 
           <div>
             <div className="grid md:grid-cols-3 gap-4 mb-6">
-              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-pink-100">
-                <div className="p-2 bg-pink-100 rounded-lg">
-                  <CalendarClock size={18} className="text-pink-600" />
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                <div className="p-2 bg-red-50 rounded-lg">
+                  <CalendarClock size={18} className="text-red-600" />
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Lịch học</div>
                   <div className="font-semibold text-gray-900">{classData.schedule}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-pink-100">
-                <div className="p-2 bg-pink-100 rounded-lg">
-                  <MapPin size={18} className="text-pink-600" />
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <MapPin size={18} className="text-gray-600" />
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Phòng học</div>
                   <div className="font-semibold text-gray-900">{classData.room}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-pink-100">
-                <div className="p-2 bg-pink-100 rounded-lg">
-                  <Users size={18} className="text-pink-600" />
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Users size={18} className="text-gray-600" />
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Học viên</div>
@@ -417,7 +413,7 @@ export default function ClassDetailPage() {
               </div>
             </div>
 
-            <div className="p-4 bg-white rounded-xl border border-pink-100">
+            <div className="p-4 bg-white rounded-xl border border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-2">Mô tả khóa học</h3>
               <p className="text-sm text-gray-600 leading-relaxed">{classData.description}</p>
             </div>
@@ -426,21 +422,21 @@ export default function ClassDetailPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
+      <div className={`grid md:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-gray-600">Tiến độ khóa học</div>
               <div className="text-2xl font-bold mt-2 text-gray-900">{classData.progress}%</div>
             </div>
-            <div className="p-3 rounded-xl bg-pink-100">
-              <TrendingUp size={24} className="text-pink-600" />
+            <div className="p-3 rounded-xl bg-red-50">
+              <TrendingUp size={24} className="text-red-600" />
             </div>
           </div>
           <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-1000"
-              style={{ width: `${classData.progress}%` }}
+              className="h-full bg-gradient-to-r from-red-600 to-red-700 rounded-full transition-all duration-1000"
+              style={{ width: isPageLoaded ? `${classData.progress}%` : '0%' }}
             />
           </div>
         </div>
@@ -485,17 +481,18 @@ export default function ClassDetailPage() {
       </div>
 
       {/* Students List */}
-      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
-        <div className="p-6 border-b border-pink-200">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {/* Table Header */}
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">Danh sách học viên</h2>
-              <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-gray-900">Danh sách học viên</h2>
+              <div className="flex items-center gap-3 mt-1">
                 <p className="text-sm text-gray-600">
                   {filteredStudents.length} / {allStudents.length} học viên
                 </p>
                 {selectedStudents.size > 0 && (
-                  <span className="text-sm font-semibold text-pink-600 bg-pink-50 px-3 py-1 rounded-full border border-pink-200">
+                  <span className="text-sm font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">
                     Đã chọn: {selectedStudents.size}
                   </span>
                 )}
@@ -505,22 +502,22 @@ export default function ClassDetailPage() {
             <div className="flex items-center gap-3">
               {/* Search */}
               <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Tìm kiếm học viên..."
-                  className="pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all text-sm"
+                  className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all text-sm"
                 />
               </div>
 
               {/* Status Filter */}
-              <div className="flex items-center gap-2 bg-white border border-pink-200 rounded-xl p-1">
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-1">
                 <button
                   onClick={() => setStatusFilter("all")}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${statusFilter === "all"
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
-                    : "text-gray-700 hover:bg-pink-50"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
+                    : "text-gray-700 hover:bg-gray-50"
                     }`}
                 >
                   Tất cả
@@ -528,8 +525,8 @@ export default function ClassDetailPage() {
                 <button
                   onClick={() => setStatusFilter("active")}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${statusFilter === "active"
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
-                    : "text-gray-700 hover:bg-pink-50"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
+                    : "text-gray-700 hover:bg-gray-50"
                     }`}
                 >
                   Hoạt động
@@ -537,8 +534,8 @@ export default function ClassDetailPage() {
                 <button
                   onClick={() => setStatusFilter("inactive")}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${statusFilter === "inactive"
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
-                    : "text-gray-700 hover:bg-pink-50"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
+                    : "text-gray-700 hover:bg-gray-50"
                     }`}
                 >
                   Không hoạt động
@@ -551,8 +548,8 @@ export default function ClassDetailPage() {
         {/* Students Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead>
-              <tr className="bg-gradient-to-r from-pink-50 to-rose-50 border-b border-pink-200">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
+              <tr>
                 <th className="px-6 py-4 w-12">
                   <div className="flex items-center justify-center">
                     <input
@@ -560,7 +557,7 @@ export default function ClassDetailPage() {
                       ref={selectAllCheckboxRef}
                       checked={isAllSelected}
                       onChange={handleSelectAll}
-                      className="w-4 h-4 text-pink-600 bg-white border-pink-300 rounded focus:ring-pink-500 focus:ring-2 cursor-pointer"
+                      className="w-4 h-4 text-red-600 bg-white border-gray-300 rounded focus:ring-red-500 focus:ring-2 cursor-pointer"
                     />
                   </div>
                 </th>
@@ -572,100 +569,111 @@ export default function ClassDetailPage() {
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Thao tác</th>
               </tr>
             </thead>
-            <tbody>
-              {paginatedStudents.map((student, index) => (
-                <tr
-                  key={student.id}
-                  className={`border-b border-pink-100 transition-colors hover:bg-pink-50/50 ${index % 2 === 0 ? "bg-white" : "bg-pink-50/30"
-                    } ${selectedStudents.has(student.id) ? "bg-pink-100/50" : ""}`}
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudents.has(student.id)}
-                        onChange={() => handleSelectStudent(student.id)}
-                        className="w-4 h-4 text-pink-600 bg-white border-pink-300 rounded focus:ring-pink-500 focus:ring-2 cursor-pointer"
-                      />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <StudentAvatar name={student.name} />
-                      <div>
-                        <div className="font-semibold text-gray-900">{student.name}</div>
-                        <div className="text-xs text-gray-500">ID: {student.id}</div>
+            <tbody className="divide-y divide-gray-100">
+              {paginatedStudents.length > 0 ? (
+                paginatedStudents.map((student, index) => (
+                  <tr
+                    key={student.id}
+                    className={`group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 ${selectedStudents.has(student.id) ? "bg-red-50/50" : ""}`}
+                  >
+                    <td className="px-6 py-3">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudents.has(student.id)}
+                          onChange={() => handleSelectStudent(student.id)}
+                          className="w-4 h-4 text-red-600 bg-white border-gray-300 rounded focus:ring-red-500 focus:ring-2 cursor-pointer"
+                        />
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Mail size={14} className="text-gray-400" />
-                        <span>{student.email}</span>
+                    </td>
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-3">
+                        <StudentAvatar name={student.name} />
+                        <div>
+                          <div className="text-sm text-gray-900 font-medium">{student.name}</div>
+                          <div className="text-xs text-gray-500">ID: {student.id}</div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Phone size={14} className="text-gray-400" />
-                        <span>{student.phone}</span>
+                    </td>
+                    <td className="px-6 py-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm text-gray-900">
+                          <Mail size={14} className="text-gray-400" />
+                          <span className="truncate">{student.email}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-900">
+                          <Phone size={14} className="text-gray-400" />
+                          <span className="truncate">{student.phone}</span>
+                        </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-3 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center">
+                        <AbsencePie value={100 - student.attendance} />
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 text-center whitespace-nowrap">
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
+                        <Star size={14} className="text-amber-600 fill-amber-600" />
+                        <span className="text-sm font-semibold text-amber-700">{student.stars}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${student.status === "active" ? "bg-emerald-500" : "bg-gray-400"
+                          }`} />
+                        <span className="text-sm text-gray-700">{student.lastActive}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-3">
+                      <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
+                        <button 
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer" 
+                          title="Nhắn tin"
+                        >
+                          <MessageSquare size={14} />
+                        </button>
+                        <button 
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer"
+                          title="Xem chi tiết"
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <button 
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer"
+                          title="Thêm"
+                        >
+                          <MoreVertical size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                      <Search size={24} className="text-gray-400" />
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center">
-                      <AbsencePie value={100 - student.attendance} />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
-                      <Star size={14} className="text-amber-600 fill-amber-600" />
-                      <span className="text-sm font-semibold text-amber-700">{student.stars}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${student.status === "active" ? "bg-emerald-500" : "bg-gray-400"
-                        }`} />
-                      <span className="text-sm text-gray-700">{student.lastActive}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-center gap-2">
-                      <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer">
-                        <MessageSquare size={18} />
-                      </button>
-                      <button className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors cursor-pointer">
-                        <Eye size={18} />
-                      </button>
-                      <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
-                        <MoreVertical size={18} />
-                      </button>
-                    </div>
+                    <div className="text-gray-600 font-medium">Không tìm thấy học viên</div>
+                    <div className="text-sm text-gray-500 mt-1">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</div>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
         {filteredStudents.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredStudents.length}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
-        )}
-
-        {/* Empty State */}
-        {filteredStudents.length === 0 && (
-          <div className="text-center py-12">
-            <div className="inline-flex p-4 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl mb-4">
-              <Search size={32} className="text-pink-500" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Không tìm thấy học viên</h3>
-            <p className="text-gray-600">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
+          <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredStudents.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </div>

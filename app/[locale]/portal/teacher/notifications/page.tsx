@@ -80,7 +80,7 @@ const SEED_NOTICES: Notice[] = [
     isPinned: true,
     priority: "high",
     relatedClass: "IELTS Foundation - A1",
-    color: "from-pink-500 to-rose-500",
+    color: "from-red-600 to-red-700",
   },
   {
     id: "n2",
@@ -138,7 +138,7 @@ const SEED_NOTICES: Notice[] = [
     from: "Hệ thống",
     isNew: true,
     priority: "medium",
-    color: "from-fuchsia-500 to-pink-500",
+    color: "from-gray-600 to-gray-700",
   },
 ];
 
@@ -183,7 +183,7 @@ const SEED_SENT: SentItem[] = [
 ];
 
 const CLASS_OPTIONS = [
-  { value: "IELTS Foundation - A1", color: "from-pink-500 to-rose-500" },
+  { value: "IELTS Foundation - A1", color: "from-red-600 to-red-700" },
   { value: "TOEIC Intermediate", color: "from-amber-500 to-orange-500" },
   { value: "Business English", color: "from-emerald-500 to-teal-500" },
   { value: "Tất cả các lớp", color: "from-blue-500 to-sky-500" },
@@ -197,7 +197,7 @@ function KindIcon({ kind }: { kind: NoticeKind }) {
     warning: { icon: AlertTriangle, color: "text-amber-500" },
     success: { icon: CheckCircle2, color: "text-emerald-500" },
     reminder: { icon: Clock, color: "text-purple-500" },
-    urgent: { icon: AlertTriangle, color: "text-rose-500" },
+    urgent: { icon: AlertTriangle, color: "text-red-600" },
   }[kind];
 
   const Icon = config.icon;
@@ -208,7 +208,7 @@ function PriorityBadge({ priority }: { priority: Notice["priority"] }) {
   const config = {
     low: { text: "Thấp", color: "bg-gray-100 text-gray-700" },
     medium: { text: "Trung bình", color: "bg-amber-100 text-amber-700" },
-    high: { text: "Cao", color: "bg-rose-100 text-rose-700" },
+    high: { text: "Cao", color: "bg-red-100 text-red-700" },
   }[priority];
 
   return (
@@ -222,7 +222,7 @@ function StatusBadge({ status }: { status: SentItem["status"] }) {
   const config = {
     sent: { text: "Đã gửi", color: "bg-blue-100 text-blue-700" },
     read: { text: "Đã đọc", color: "bg-emerald-100 text-emerald-700" },
-    failed: { text: "Thất bại", color: "bg-rose-100 text-rose-700" },
+    failed: { text: "Thất bại", color: "bg-red-100 text-red-700" },
   }[status];
 
   return (
@@ -242,7 +242,7 @@ const NoticeCard: React.FC<{
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-pink-50 rounded-2xl border ${notice.isNew ? 'border-pink-300' : 'border-pink-200'} p-5 transition-all duration-300 hover:shadow-xl hover:shadow-pink-100/30 hover:-translate-y-0.5 ${notice.isPinned ? 'ring-1 ring-pink-300' : ''}`}
+      className={`bg-gradient-to-br from-white to-gray-50 rounded-2xl border ${notice.isNew ? 'border-red-300' : 'border-gray-200'} p-5 transition-all duration-300 hover:shadow-xl hover:shadow-gray-100/30 hover:-translate-y-0.5 ${notice.isPinned ? 'ring-1 ring-gray-300' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -257,7 +257,7 @@ const NoticeCard: React.FC<{
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="text-lg font-bold text-gray-900">{notice.title}</h4>
                 {notice.isNew && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-medium">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-medium">
                     Mới
                   </span>
                 )}
@@ -311,7 +311,7 @@ const NoticeCard: React.FC<{
                   >
                     {notice.isNew ? <Eye size={16} /> : <EyeOff size={16} />}
                   </button>
-                  <button className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                  <button className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 size={16} />
                   </button>
                 </>
@@ -330,7 +330,7 @@ const SentHistoryItem: React.FC<{ item: SentItem }> = ({ item }) => {
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-4 transition-all duration-300 hover:shadow-lg ${isHovered ? 'border-pink-300' : ''}`}
+      className={`bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-4 transition-all duration-300 hover:shadow-lg ${isHovered ? 'border-gray-300' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -382,6 +382,7 @@ export default function Page() {
   const [sent, setSent] = useState<SentItem[]>(SEED_SENT);
   const [filter, setFilter] = useState<"all" | "unread" | "pinned">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   // form state
   const [clazz, setClazz] = useState("");
@@ -419,8 +420,7 @@ export default function Page() {
   }, [notices, filter, searchQuery]);
 
   useEffect(() => {
-    // Animation on load
-    document.body.classList.add('loaded');
+    setIsPageLoaded(true);
   }, []);
 
   function markAllRead() {
@@ -476,15 +476,15 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50/30 to-white p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <Bell size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
               Thông báo & Trao đổi
             </h1>
             <p className="text-gray-600 mt-1">
@@ -494,15 +494,15 @@ export default function Page() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5">
+        <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-600">Thông báo chưa đọc</div>
                 <div className="text-2xl font-bold mt-2 text-gray-900">{unreadCount}</div>
               </div>
-              <div className="p-3 rounded-xl bg-pink-100">
-                <Bell size={24} className="text-pink-600" />
+              <div className="p-3 rounded-xl bg-red-100">
+                <Bell size={24} className="text-red-600" />
               </div>
             </div>
           </div>
@@ -546,24 +546,24 @@ export default function Page() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
+      <div className={`bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Tabs */}
         <div className="px-6 pt-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-            <div className="inline-flex bg-white border border-pink-200 rounded-xl p-1 text-sm">
+            <div className="inline-flex bg-white border border-gray-200 rounded-xl p-1 text-sm">
               <button
                 onClick={() => setTab("feed")}
                 className={classNames(
                   "px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300",
                   tab === "feed"
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                    : "text-gray-700 hover:bg-pink-50"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                    : "text-gray-700 hover:bg-gray-50"
                 )}
               >
                 <Bell size={16} />
                 Thông báo
                 {unreadCount > 0 && (
-                  <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 text-white text-xs">
+                  <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs">
                     {unreadCount}
                   </span>
                 )}
@@ -573,8 +573,8 @@ export default function Page() {
                 className={classNames(
                   "px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300",
                   tab === "send"
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                    : "text-gray-700 hover:bg-pink-50"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                    : "text-gray-700 hover:bg-gray-50"
                 )}
               >
                 <SendHorizonal size={16} />
@@ -586,7 +586,7 @@ export default function Page() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={markAllRead}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all"
                 >
                   <CheckCheck size={16} />
                   Đánh dấu đã đọc tất cả
@@ -599,25 +599,25 @@ export default function Page() {
           {tab === "feed" && (
             <div className="flex flex-col md:flex-row gap-3 mb-6">
               <div className="relative flex-1">
-                <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-400" />
+                <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl bg-white border border-pink-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+                  className="w-full rounded-xl bg-white border border-gray-200 pl-12 pr-4 py-3.5 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
                   placeholder="Tìm kiếm thông báo..."
                 />
               </div>
               
               <div className="flex items-center gap-2">
-                <div className="flex bg-white border border-pink-200 rounded-xl p-1">
+                <div className="flex bg-white border border-gray-200 rounded-xl p-1">
                   {(["all", "unread", "pinned"] as const).map((f) => (
                     <button
                       key={f}
                       onClick={() => setFilter(f)}
                       className={`px-4 py-2 text-sm rounded-lg transition-all ${
                         filter === f
-                          ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white"
-                          : "text-gray-700 hover:bg-pink-50"
+                          ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
+                          : "text-gray-700 hover:bg-gray-50"
                       }`}
                     >
                       {f === "all" ? "Tất cả" : f === "unread" ? "Chưa đọc" : "Đã ghim"}
@@ -625,7 +625,7 @@ export default function Page() {
                   ))}
                 </div>
                 
-                <button className="p-3.5 rounded-xl bg-white border border-pink-200 hover:bg-pink-50 transition-colors">
+                <button className="p-3.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
                   <Filter size={18} className="text-gray-600" />
                 </button>
               </div>
@@ -649,8 +649,8 @@ export default function Page() {
                 ))
               ) : (
                 <div className="text-center py-12">
-                  <div className="inline-flex p-4 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl mb-4">
-                    <Search size={32} className="text-pink-500" />
+                  <div className="inline-flex p-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl mb-4">
+                    <Search size={32} className="text-gray-500" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Không tìm thấy thông báo
@@ -665,9 +665,9 @@ export default function Page() {
             // --------- SEND (Form gửi + Lịch sử gửi) ----------
             <div className="grid lg:grid-cols-2 gap-6">
               {/* Form gửi */}
-              <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6">
+              <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg">
+                  <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
                     <SendHorizonal size={20} className="text-white" />
                   </div>
                   <div>
@@ -682,7 +682,7 @@ export default function Page() {
                     <select
                       value={clazz}
                       onChange={(e) => setClazz(e.target.value)}
-                      className="w-full rounded-xl bg-white border border-pink-200 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+                      className="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
                     >
                       <option value="">Chọn lớp học...</option>
                       {CLASS_OPTIONS.map((c) => (
@@ -699,7 +699,7 @@ export default function Page() {
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Nhập tiêu đề thông báo..."
-                      className="w-full rounded-xl bg-white border border-pink-200 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+                      className="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
                     />
                   </div>
 
@@ -710,21 +710,21 @@ export default function Page() {
                       onChange={(e) => setContent(e.target.value)}
                       placeholder="Nhập nội dung thông báo..."
                       rows={6}
-                      className="w-full rounded-xl bg-white border border-pink-200 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+                      className="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
                     />
                   </div>
 
                   <div className="flex items-center gap-3 pt-2">
                     <button
                       type="submit"
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-3 font-medium hover:shadow-lg transition-all"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 font-medium hover:shadow-lg transition-all"
                     >
                       <SendHorizonal size={16} />
                       Gửi thông báo
                     </button>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white text-gray-700 px-4 py-3 font-medium hover:bg-pink-50 transition-all"
+                      className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white text-gray-700 px-4 py-3 font-medium hover:bg-gray-50 transition-all"
                     >
                       <Zap size={16} />
                       AI hỗ trợ
@@ -734,7 +734,7 @@ export default function Page() {
               </div>
 
               {/* Lịch sử gửi */}
-              <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-6">
+              <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-gradient-to-r from-blue-500 to-sky-500 rounded-lg">
@@ -745,7 +745,7 @@ export default function Page() {
                       <p className="text-sm text-gray-600">{sent.length} thông báo đã gửi</p>
                     </div>
                   </div>
-                  <button className="text-sm text-pink-600 font-medium hover:text-pink-700">
+                  <button className="text-sm text-red-600 font-medium hover:text-red-700">
                     Xem tất cả
                   </button>
                 </div>
