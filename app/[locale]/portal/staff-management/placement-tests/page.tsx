@@ -37,6 +37,7 @@ import type {
   CreatePlacementTestRequest,
   UpdatePlacementTestRequest,
   PlacementTestResult,
+  PlacementTestResultRequest,
 } from "@/types/placement-test";
 
 export default function PlacementTestsPage() {
@@ -640,10 +641,16 @@ export default function PlacementTestsPage() {
     }
   };
 
-  const handleResultSubmit = async (data: PlacementTestResult) => {
+  const handleResultSubmit = async (data: Omit<PlacementTestResultRequest, "id">) => {
     if (!selectedTest) return;
 
     try {
+      // Convert form data to PlacementTestResult format
+      const resultData: PlacementTestResult = {
+        testId: selectedTest.id,
+        ...data,
+      };
+
       const response = await fetch(
         PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(selectedTest.id),
         {
@@ -652,7 +659,7 @@ export default function PlacementTestsPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-          body: JSON.stringify(data),
+          body: JSON.stringify(resultData),
         },
       );
 
