@@ -21,6 +21,8 @@ import {
   ArrowUpDown,
   ChevronUp,
   RefreshCcw,
+  Flag,
+  MessageSquareText, 
 } from "lucide-react";
 
 import {
@@ -466,7 +468,32 @@ export default function TeacherAttendancePage() {
   const handleStatusChange = (rowKey: string, status: AttendanceStatus) => {
     setAttendanceList((prev) => prev.map((r) => (r.rowKey === rowKey ? { ...r, status } : r)));
   };
+  const handleNoteStudent = (record: StudentRow) => {
+  const currentNote = record.note ?? "";
+  const note = window.prompt(
+    `Nhận xét cho ${record.name || "học sinh"}:`,
+    currentNote
+  );
 
+  if (note === null) return; // bấm cancel
+
+  setAttendanceList((prev) =>
+    prev.map((r) =>
+      r.rowKey === record.rowKey ? { ...r, note: note.trim() } : r
+    )
+  );
+};
+const handleReportStudent = (record: StudentRow) => {
+  console.log("Report student:", {
+    studentId: record.studentId,
+    name: record.name,
+    sessionId: selectedSessionId,
+  });
+
+  // Sau này:
+  // - mở modal
+  // - hoặc gọi API báo cáo
+};
   const handleSaveAll = useCallback(async () => {
     if (!selectedSessionId) return;
 
@@ -903,11 +930,27 @@ export default function TeacherAttendancePage() {
                           )}
                         </td>
 
-                        <td className="px-4 py-4">
-                          <button className="p-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
-                            <MoreVertical size={16} className="text-gray-500" />
-                          </button>
-                        </td>
+                  <td className="px-4 py-4">
+  <div className="flex items-center gap-2">
+    {/* Nút nhận xét */}
+    <button
+      onClick={() => handleNoteStudent(record)}
+      title="Nhận xét học tập"
+      className={`p-2 rounded-lg border transition cursor-pointer ${
+        record.note
+          ? "border-amber-300 bg-amber-50 text-amber-600"
+          : "border-gray-200 text-gray-500 hover:bg-gray-50"
+      }`}
+    >
+      <MessageSquareText size={16} />
+    </button>
+
+    {/* Nút cũ */}
+    <button className="p-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
+      <MoreVertical size={16} className="text-gray-500" />
+    </button>
+  </div>
+</td>
                       </tr>
                     ))}
                   </tbody>
