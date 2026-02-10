@@ -1,56 +1,55 @@
 "use client";
 
-import { Calendar, Clock, CheckCircle, XCircle, UserX } from "lucide-react";
-import type { PlacementTest } from "@/types/placement-test";
+import { Users, CheckCircle, PauseCircle, XCircle } from "lucide-react";
+import type { Enrollment } from "@/types/enrollment";
 
-interface PlacementTestStatsProps {
-  tests: PlacementTest[];
+interface EnrollmentStatsProps {
+  enrollments: Enrollment[];
   isLoading?: boolean;
 }
 
-export default function PlacementTestStats({ tests, isLoading }: PlacementTestStatsProps) {
-  const testsArray = Array.isArray(tests) ? tests : [];
-  
+export default function EnrollmentStats({ enrollments, isLoading }: EnrollmentStatsProps) {
+  const enrollmentsArray = Array.isArray(enrollments) ? enrollments : [];
+
   const stats = {
-    total: testsArray.length,
-    scheduled: testsArray.filter((t) => t.status === "Scheduled").length,
-    completed: testsArray.filter((t) => t.status === "Completed").length,
-    cancelled: testsArray.filter((t) => t.status === "Cancelled").length,
-    noShow: testsArray.filter((t) => t.status === "NoShow").length,
+    total: enrollmentsArray.length,
+    active: enrollmentsArray.filter((e) => e.status === "Active").length,
+    paused: enrollmentsArray.filter((e) => e.status === "Paused").length,
+    dropped: enrollmentsArray.filter((e) => e.status === "Dropped").length,
   };
 
   const statCards = [
     {
-      label: "Tổng số test",
+      label: "Tổng ghi danh",
       value: stats.total,
-      icon: Calendar,
+      icon: Users,
       color: "from-purple-500 to-pink-500",
       bgColor: "bg-purple-50",
       textColor: "text-purple-600",
     },
     {
-      label: "Đã đặt lịch",
-      value: stats.scheduled,
-      icon: Clock,
-      color: "from-blue-500 to-cyan-500",
-      bgColor: "bg-blue-50",
-      textColor: "text-blue-600",
-    },
-    {
-      label: "Đã hoàn thành",
-      value: stats.completed,
+      label: "Đang học",
+      value: stats.active,
       icon: CheckCircle,
       color: "from-emerald-500 to-green-500",
       bgColor: "bg-emerald-50",
       textColor: "text-emerald-600",
     },
     {
-      label: "Không đến",
-      value: stats.noShow,
-      icon: UserX,
-      color: "from-orange-500 to-amber-500",
-      bgColor: "bg-orange-50",
-      textColor: "text-orange-600",
+      label: "Tạm nghỉ",
+      value: stats.paused,
+      icon: PauseCircle,
+      color: "from-amber-500 to-orange-500",
+      bgColor: "bg-amber-50",
+      textColor: "text-amber-600",
+    },
+    {
+      label: "Đã nghỉ",
+      value: stats.dropped,
+      icon: XCircle,
+      color: "from-rose-500 to-red-500",
+      bgColor: "bg-rose-50",
+      textColor: "text-rose-600",
     },
   ];
 

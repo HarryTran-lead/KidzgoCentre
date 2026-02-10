@@ -1,22 +1,19 @@
 "use client";
 
-import { X, Calendar, MapPin, User, FileText, Award, TrendingUp, TrendingDown, Clock } from "lucide-react";
-import { Button } from "@/components/lightswind/button";
-import type { PlacementTest, PlacementTestResult } from "@/types/placement-test";
+import { X, Calendar, MapPin, User, FileText, Award, BookOpen, Paperclip, Clock } from "lucide-react";
+import type { PlacementTest } from "@/types/placement-test";
 import { formatDateTime } from "@/lib/utils";
 
 interface PlacementTestDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   test: PlacementTest | null;
-  result?: PlacementTestResult | null;
 }
 
 export default function PlacementTestDetailModal({
   isOpen,
   onClose,
   test,
-  result,
 }: PlacementTestDetailModalProps) {
   if (!isOpen || !test) return null;
 
@@ -37,8 +34,12 @@ export default function PlacementTestDetailModal({
     );
   };
 
+  const hasResult = test.status === 'Completed' && (
+    test.resultScore !== undefined || test.listeningScore !== undefined
+  );
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-linear-to-r from-pink-500 to-rose-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
@@ -48,7 +49,7 @@ export default function PlacementTestDetailModal({
           </div>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-white/10 transition-colors text-white"
           >
             <X size={24} />
           </button>
@@ -83,13 +84,6 @@ export default function PlacementTestDetailModal({
                     <p className="font-medium text-slate-900">{test.leadContactName || 'N/A'}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <FileText className="text-slate-400 mt-1" size={18} />
-                  <div>
-                    <p className="text-sm text-slate-600">Số điện thoại</p>
-                    <p className="font-medium text-slate-900">{(test as any).leadPhone || 'N/A'}</p>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -108,15 +102,8 @@ export default function PlacementTestDetailModal({
                 <div className="flex items-start gap-3">
                   <MapPin className="text-slate-400 mt-1" size={18} />
                   <div>
-                    <p className="text-sm text-slate-600">Chi nhánh</p>
-                    <p className="font-medium text-slate-900">{(test as any).branchName || 'N/A'}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <MapPin className="text-slate-400 mt-1" size={18} />
-                  <div>
-                    <p className="text-sm text-slate-600">Địa điểm</p>
-                    <p className="font-medium text-slate-900">{(test as any).testLocation || test.room || 'N/A'}</p>
+                    <p className="text-sm text-slate-600">Phòng</p>
+                    <p className="font-medium text-slate-900">{test.room || 'N/A'}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -141,8 +128,8 @@ export default function PlacementTestDetailModal({
             </div>
           )}
 
-          {/* Results */}
-          {result && test.status === 'Completed' && (
+          {/* Results - uses PlacementTest fields directly */}
+          {hasResult && (
             <div className="space-y-4 bg-linear-to-br from-purple-50 to-indigo-50 p-6 rounded-xl border border-purple-200">
               <h3 className="text-lg font-semibold text-slate-900 border-b border-purple-200 pb-2 flex items-center gap-2">
                 <Award size={18} className="text-purple-600" />
@@ -152,69 +139,68 @@ export default function PlacementTestDetailModal({
               {/* Scores Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <p className="text-xs text-slate-600 mb-1">Nghe</p>
-                  <p className="text-2xl font-bold text-blue-600">{result.listeningScore || 'N/A'}</p>
+                  <p className="text-xs text-slate-600 mb-1">Nghe (Listening)</p>
+                  <p className="text-2xl font-bold text-blue-600">{test.listeningScore ?? 'N/A'}</p>
                 </div>
                 <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <p className="text-xs text-slate-600 mb-1">Nói</p>
-                  <p className="text-2xl font-bold text-green-600">{result.speakingScore || 'N/A'}</p>
+                  <p className="text-xs text-slate-600 mb-1">Nói (Speaking)</p>
+                  <p className="text-2xl font-bold text-green-600">{test.speakingScore ?? 'N/A'}</p>
                 </div>
                 <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <p className="text-xs text-slate-600 mb-1">Đọc</p>
-                  <p className="text-2xl font-bold text-purple-600">{result.readingScore || 'N/A'}</p>
+                  <p className="text-xs text-slate-600 mb-1">Đọc (Reading)</p>
+                  <p className="text-2xl font-bold text-purple-600">{test.readingScore ?? 'N/A'}</p>
                 </div>
                 <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <p className="text-xs text-slate-600 mb-1">Viết</p>
-                  <p className="text-2xl font-bold text-orange-600">{result.writingScore || 'N/A'}</p>
+                  <p className="text-xs text-slate-600 mb-1">Viết (Writing)</p>
+                  <p className="text-2xl font-bold text-orange-600">{test.writingScore ?? 'N/A'}</p>
                 </div>
               </div>
 
-              {/* Overall Score */}
-              {result.overallScore && (
+              {/* Result Score (Overall) */}
+              {test.resultScore !== undefined && (
                 <div className="bg-white p-4 rounded-lg shadow-md border-2 border-purple-300">
-                  <p className="text-sm text-slate-600 mb-1">Điểm tổng</p>
-                  <p className="text-4xl font-bold text-purple-600">{result.overallScore}</p>
+                  <p className="text-sm text-slate-600 mb-1">Điểm Tổng (Result Score)</p>
+                  <p className="text-4xl font-bold text-purple-600">{test.resultScore}</p>
                 </div>
               )}
 
-              {/* Suggested Level */}
-              {result.suggestedLevel && (
+              {/* Level Recommendation */}
+              {test.levelRecommendation && (
                 <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <p className="text-sm text-slate-600 mb-1">Trình độ đề xuất</p>
-                  <p className="text-xl font-semibold text-indigo-600">{result.suggestedLevel}</p>
+                  <p className="text-sm text-slate-600 mb-1 flex items-center gap-2">
+                    <BookOpen size={14} />
+                    Đề xuất trình độ (Level Recommendation)
+                  </p>
+                  <p className="text-xl font-semibold text-indigo-600">{test.levelRecommendation}</p>
                 </div>
               )}
 
-              {/* Strengths & Weaknesses */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {result.strengths && (
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-semibold text-green-700 mb-2 flex items-center gap-2">
-                      <TrendingUp size={16} />
-                      Điểm mạnh
-                    </h4>
-                    <p className="text-sm text-slate-700">{result.strengths}</p>
-                  </div>
-                )}
-                {result.weaknesses && (
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-semibold text-rose-700 mb-2 flex items-center gap-2">
-                      <TrendingDown size={16} />
-                      Điểm yếu
-                    </h4>
-                    <p className="text-sm text-slate-700">{result.weaknesses}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Recommendations */}
-              {result.recommendations && (
+              {/* Program Recommendation */}
+              {test.programRecommendation && (
                 <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <h4 className="font-semibold text-indigo-700 mb-2 flex items-center gap-2">
-                    <FileText size={16} />
-                    Gợi ý và đề xuất
-                  </h4>
-                  <p className="text-sm text-slate-700">{result.recommendations}</p>
+                  <p className="text-sm text-slate-600 mb-1 flex items-center gap-2">
+                    <FileText size={14} />
+                    Đề xuất chương trình (Program Recommendation)
+                  </p>
+                  <p className="text-xl font-semibold text-indigo-600">{test.programRecommendation}</p>
+                </div>
+              )}
+
+              {/* Attachment URL */}
+              {test.attachmentUrl && (
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <p className="text-sm text-slate-600 mb-1 flex items-center gap-2">
+                    <Paperclip size={14} />
+                    Tài liệu đính kèm
+                  </p>
+                  <a
+                    href={test.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline break-all"
+                  >
+                    {test.attachmentUrl}
+                  </a>
                 </div>
               )}
             </div>
@@ -222,12 +208,12 @@ export default function PlacementTestDetailModal({
 
           {/* Close Button */}
           <div className="flex justify-end pt-4">
-            <Button
+            <button
               onClick={onClose}
-              className="bg-linear-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700"
+              className="px-6 py-2 rounded-lg bg-linear-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg transition-all"
             >
               Đóng
-            </Button>
+            </button>
           </div>
         </div>
       </div>

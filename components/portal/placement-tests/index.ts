@@ -5,3 +5,5 @@ export { default as PlacementTestFormModal } from './PlacementTestFormModal';
 export { default as ResultFormModal } from './ResultFormModal';
 export { default as PlacementTestDetailModal } from './PlacementTestDetailModal';
 export { default as PlacementTestFilterPanel } from './PlacementTestFilterPanel';
+export { default as NoteFormModal } from './NoteFormModal';
+export { default as ConvertToEnrolledModal } from './ConvertToEnrolledModal';

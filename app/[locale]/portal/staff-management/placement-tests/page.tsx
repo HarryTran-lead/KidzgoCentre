@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, RefreshCw, FileText, Download } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Filter,
+  RefreshCw,
+  FileText,
+  Download,
+} from "lucide-react";
 import { Button } from "@/components/lightswind/button";
 import { Input } from "@/components/lightswind/input";
 import {
@@ -17,13 +24,19 @@ import ResultFormModal from "@/components/portal/placement-tests/ResultFormModal
 import PlacementTestDetailModal from "@/components/portal/placement-tests/PlacementTestDetailModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
-import { PLACEMENT_TEST_ENDPOINTS } from "@/constants/apiURL";
-import type { 
-  PlacementTest, 
-  PlacementTestFilters, 
-  CreatePlacementTestRequest, 
+import {
+  PLACEMENT_TEST_ENDPOINTS,
+  USER_ENDPOINTS,
+  LEAD_ENDPOINTS,
+  PROFILE_ENDPOINTS,
+  ADMIN_ENDPOINTS,
+} from "@/constants/apiURL";
+import type {
+  PlacementTest,
+  PlacementTestFilters,
+  CreatePlacementTestRequest,
   UpdatePlacementTestRequest,
-  PlacementTestResult 
+  PlacementTestResult,
 } from "@/types/placement-test";
 
 export default function PlacementTestsPage() {
@@ -44,7 +57,11 @@ export default function PlacementTestsPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState<PlacementTest | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ action: string; title: string; message: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    action: string;
+    title: string;
+    message: string;
+  } | null>(null);
 
   // Filters
   const [filters, setFilters] = useState<PlacementTestFilters>({
@@ -55,15 +72,23 @@ export default function PlacementTestsPage() {
 
   // Mock data for dropdowns - replace with API calls
   const [leads, setLeads] = useState<any[]>([]);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
+  const [studentProfiles, setStudentProfiles] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [invigilators, setInvigilators] = useState<any[]>([]);
+  const [isLoadingDropdownData, setIsLoadingDropdownData] = useState(false);
 
+  // Fetch placement tests when filters change
   useEffect(() => {
     fetchPlacementTests();
-    // fetchLeads();
-    // fetchBranches();
-    // fetchTeachers();
   }, [filters, sortKey, sortDir]);
+
+  // Fetch dropdown data once on mount
+  useEffect(() => {
+    fetchInvigilators();
+    fetchLeads();
+    fetchStudentProfiles();
+    fetchClasses();
+  }, []); // Empty dependency array - only run once
 
   const fetchPlacementTests = async () => {
     setIsLoading(true);
@@ -71,7 +96,8 @@ export default function PlacementTestsPage() {
       const queryParams = new URLSearchParams();
       if (filters.status) queryParams.append("status", filters.status);
       if (filters.branchId) queryParams.append("branchId", filters.branchId);
-      if (filters.searchTerm) queryParams.append("searchTerm", filters.searchTerm);
+      if (filters.searchTerm)
+        queryParams.append("searchTerm", filters.searchTerm);
       if (sortKey) {
         queryParams.append("sortBy", sortKey);
         queryParams.append("sortOrder", sortDir);
@@ -83,7 +109,7 @@ export default function PlacementTestsPage() {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to fetch placement tests");
@@ -104,6 +130,380 @@ export default function PlacementTestsPage() {
     }
   };
 
+  const fetchInvigilators = async () => {
+    try {
+      // Fetch both Admin and ManagementStaff users with pagination
+      const adminParams = new URLSearchParams();
+      adminParams.append("role", "Admin");
+      adminParams.append("isActive", "true");
+      adminParams.append("page", "1000");
+      adminParams.append("pageNumber", "1");
+
+      const staffParams = new URLSearchParams();
+      staffParams.append("role", "ManagementStaff");
+      staffParams.append("isActive", "true");
+      staffParams.append("pageSize", "1000");
+      staffParams.append("page", "1");
+
+      const [adminResponse, staffResponse] = await Promise.all([
+        fetch(`${USER_ENDPOINTS.GET_ALL}?${adminParams.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }),
+        fetch(`${USER_ENDPOINTS.GET_ALL}?${staffParams.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }),
+      ]);
+
+      if (adminResponse.ok && staffResponse.ok) {
+        const adminData = await adminResponse.json();
+        const staffData = await staffResponse.json();
+
+        // Handle multiple response formats
+        const adminItems =
+          adminData.data?.items ||
+          adminData.data?.users ||
+          adminData.data ||
+          adminData.items ||
+          adminData.users ||
+          [];
+        const staffItems =
+          staffData.data?.items ||
+          staffData.data?.users ||
+          staffData.data ||
+          staffData.items ||
+          staffData.users ||
+          [];
+
+        const admins = adminItems.map((user: any) => ({
+          id: user.id,
+          fullName: user.fullName || user.userName || user.name || "N/A",
+          role: "Admin",
+        }));
+
+        const staff = staffItems.map((user: any) => ({
+          id: user.id,
+          fullName: user.fullName || user.userName || user.name || "N/A",
+          role: "ManagementStaff",
+        }));
+
+        setInvigilators([...admins, ...staff]);
+      } else {
+        console.error(
+          "❌ Failed to fetch invigilators:",
+          "Admin:",
+          adminResponse.status,
+          "Staff:",
+          staffResponse.status,
+        );
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tải danh sách người giám sát",
+      });
+    }
+  };
+
+  const fetchLeadsForModal = async () => {
+    try {
+      // Create a completely clean URL with minimal params for modal
+      const modalParams = new URLSearchParams();
+      modalParams.append("status", "New");
+      modalParams.append("pageSize", "1000");
+      modalParams.append("pageNumber", "1");
+      modalParams.append("_modal", "true"); // Flag to indicate this is for modal
+      modalParams.append("_t", Date.now().toString()); // Cache buster
+
+      const modalUrl = `${LEAD_ENDPOINTS.GET_ALL}?${modalParams.toString()}`;
+
+      const response = await fetch(modalUrl, {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+          "X-Modal-Request": "true", // Header flag for modal request
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Handle multiple response formats
+        const leadsData =
+          data.data?.items ||
+          data.data?.leads ||
+          data.data ||
+          data.items ||
+          data.leads ||
+          [];
+
+        // Filter leads with status "New"
+
+        const filteredLeads = leadsData.filter((lead: any) => {
+          const status = lead.status;
+          const isNew =
+            status === "New" || status === "new" || status === "NEW";
+          return isNew;
+        });
+
+        // Process leads with children
+        const leadsWithChildren = await Promise.all(
+          filteredLeads.map(async (lead: any) => {
+            let children = lead.children || [];
+
+            // If no children in response, try to fetch them separately
+            if (children.length === 0) {
+              try {
+                const childrenResponse = await fetch(
+                  LEAD_ENDPOINTS.GET_CHILDREN(lead.id),
+                  {
+                    headers: {
+                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                  },
+                );
+
+                if (childrenResponse.ok) {
+                  const childrenData = await childrenResponse.json();
+                  children = childrenData.data || childrenData || [];
+                }
+              } catch (error) {
+                console.warn(
+                  `⚠️ [MODAL] Could not fetch children for lead ${lead.id}:`,
+                  error,
+                );
+              }
+            }
+
+            // Map children with correct field name
+            const mappedChildren = children.map((child: any) => ({
+              id: child.id,
+              name: child.childName || child.name || "N/A",
+            }));
+
+            return {
+              id: lead.id,
+              contactName: lead.contactName || lead.fullName || "N/A",
+              children: mappedChildren,
+            };
+          }),
+        );
+
+        // Update leads state specifically for modal
+        setLeads(leadsWithChildren);
+
+        return leadsWithChildren;
+      } else {
+        console.error(
+          "❌ [MODAL] Failed to fetch leads:",
+          response.status,
+          response.statusText,
+        );
+        const errorText = await response.text();
+        console.error("❌ [MODAL] Error response body:", errorText);
+        throw new Error(`Failed to fetch leads: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("❌ [MODAL] Error fetching leads for modal:", error);
+      throw error;
+    }
+  };
+
+  const fetchLeads = async () => {
+    try {
+      // Only fetch leads with status = "New" for placement test
+      // Force clear any existing branch filter for leads fetch
+      const queryParams = new URLSearchParams();
+      queryParams.append("status", "New");
+      queryParams.append("pageSize", "1000"); // Large page size to get all leads
+      queryParams.append("pageNumber", "1");
+      queryParams.append("_t", Date.now().toString()); // Cache buster
+      // Explicitly don't add branchId to get all leads regardless of branch
+
+      const url = `${LEAD_ENDPOINTS.GET_ALL}?${queryParams.toString()}`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        cache: "no-store", // Force fresh request
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Handle multiple response formats
+        const leadsData =
+          data.data?.items ||
+          data.data?.leads ||
+          data.data ||
+          data.items ||
+          data.leads ||
+          [];
+        // Filter leads with status "New" and fetch children for each
+        const filteredLeads = leadsData.filter((lead: any) => {
+          const status = lead.status;
+          const isNew =
+            status === "New" || status === "new" || status === "NEW";
+          return isNew;
+        });
+
+        const leadsWithChildren = await Promise.all(
+          filteredLeads.map(async (lead: any) => {
+            let children = lead.children || [];
+
+            // If no children in response, try to fetch them separately
+            if (children.length === 0) {
+              try {
+                const childrenResponse = await fetch(
+                  LEAD_ENDPOINTS.GET_CHILDREN(lead.id),
+                  {
+                    headers: {
+                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                  },
+                );
+
+                if (childrenResponse.ok) {
+                  const childrenData = await childrenResponse.json();
+                  children = childrenData.data || childrenData || [];
+                }
+              } catch (error) {
+                console.warn(
+                  `⚠️ Could not fetch children for lead ${lead.id}:`,
+                  error,
+                );
+              }
+            }
+
+            // Map children with correct field name
+            const mappedChildren = children.map((child: any) => ({
+              id: child.id,
+              name: child.childName || child.name || "N/A", // childName is the correct field
+            }));
+
+            return {
+              id: lead.id,
+              contactName: lead.contactName || lead.fullName || "N/A",
+              children: mappedChildren,
+            };
+          }),
+        );
+
+        setLeads(leadsWithChildren);
+      } else {
+        console.error(
+          "❌ Failed to fetch leads:",
+          response.status,
+          response.statusText,
+        );
+        const errorText = await response.text();
+        console.error("❌ Error response body:", errorText);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching leads:", error);
+    }
+  };
+
+  const fetchStudentProfiles = async () => {
+    try {
+      // Add pagination parameters to get all profiles
+      const queryParams = new URLSearchParams();
+      queryParams.append("pageSize", "1000"); // Large page size to get all profiles
+      queryParams.append("pageNumber", "1");
+
+      const response = await fetch(
+        `${PROFILE_ENDPOINTS.GET_ALL}?${queryParams.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Handle multiple response formats
+        const profiles =
+          data.data?.items ||
+          data.data?.profiles ||
+          data.data ||
+          data.items ||
+          data.profiles ||
+          [];
+
+        const mappedProfiles = profiles.map((profile: any) => ({
+          id: profile.id,
+          fullName: profile.fullName || profile.studentName || "N/A",
+        }));
+
+        setStudentProfiles(mappedProfiles);
+      } else {
+        console.error(
+          "❌ Failed to fetch student profiles:",
+          response.status,
+          response.statusText,
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error fetching student profiles:", error);
+    }
+  };
+
+  const fetchClasses = async () => {
+    try {
+      // Add pagination parameters to get all classes
+      const queryParams = new URLSearchParams();
+      queryParams.append("pageSize", "1000"); // Large page size to get all classes
+      queryParams.append("pageNumber", "1");
+
+      const response = await fetch(
+        `${ADMIN_ENDPOINTS.CLASSES}?${queryParams.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Handle multiple response formats
+        const classesData =
+          data.data?.items ||
+          data.data?.classes ||
+          data.data ||
+          data.items ||
+          data.classes ||
+          [];
+
+        const mappedClasses = classesData.map((cls: any) => ({
+          id: cls.id,
+          className: cls.className || cls.name || "N/A",
+        }));
+
+        setClasses(mappedClasses);
+      } else {
+        console.error(
+          "❌ Failed to fetch classes:",
+          response.status,
+          response.statusText,
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error fetching classes:", error);
+    }
+  };
+
   const handleSort = (key: string) => {
     if (sortKey === key) {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -114,12 +514,45 @@ export default function PlacementTestsPage() {
   };
 
   const handleSearch = () => {
-    setFilters(prev => ({ ...prev, searchTerm }));
+    setFilters((prev) => ({ ...prev, searchTerm }));
   };
 
-  const handleCreate = () => {
-    setSelectedTest(null);
-    setIsFormModalOpen(true);
+  const handleCreate = async () => {
+    setIsLoadingDropdownData(true);
+
+    try {
+      // Force refresh leads data specifically for modal (bypass any filters)
+      await fetchLeadsForModal();
+      const otherDataPromises = [];
+
+      if (studentProfiles.length === 0) {
+        otherDataPromises.push(fetchStudentProfiles());
+      }
+
+      if (classes.length === 0) {
+        otherDataPromises.push(fetchClasses());
+      }
+
+      if (invigilators.length === 0) {
+        otherDataPromises.push(fetchInvigilators());
+      }
+
+      // Wait for other data to be loaded
+      if (otherDataPromises.length > 0) {
+        await Promise.all(otherDataPromises);
+      }
+      setSelectedTest(null);
+      setIsFormModalOpen(true);
+    } catch (error) {
+      console.error("❌ Error loading dropdown data:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu. Vui lòng thử lại.",
+      });
+    } finally {
+      setIsLoadingDropdownData(false);
+    }
   };
 
   const handleEdit = (test: PlacementTest) => {
@@ -167,7 +600,9 @@ export default function PlacementTestsPage() {
     setIsConfirmModalOpen(true);
   };
 
-  const handleFormSubmit = async (data: CreatePlacementTestRequest | UpdatePlacementTestRequest) => {
+  const handleFormSubmit = async (
+    data: CreatePlacementTestRequest | UpdatePlacementTestRequest,
+  ) => {
     try {
       const url = selectedTest
         ? PLACEMENT_TEST_ENDPOINTS.UPDATE(selectedTest.id)
@@ -218,7 +653,7 @@ export default function PlacementTestsPage() {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify(data),
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to save results");
@@ -271,6 +706,7 @@ export default function PlacementTestsPage() {
       toast({
         title: "Thành công",
         description: "Đã thực hiện thao tác thành công",
+        variant: "success",
       });
 
       fetchPlacementTests();
@@ -304,10 +740,15 @@ export default function PlacementTestsPage() {
             </div>
             <Button
               onClick={handleCreate}
-              className="bg-linear-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white font-medium"
+              disabled={isLoadingDropdownData}
+              className="bg-linear-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white font-medium disabled:opacity-50"
             >
-              <Plus size={20} className="mr-2" />
-              Tạo Test mới
+              {isLoadingDropdownData ? (
+                <RefreshCw size={20} className="mr-2 animate-spin" />
+              ) : (
+                <Plus size={20} className="mr-2" />
+              )}
+              {isLoadingDropdownData ? "Đang tải..." : "Tạo Test mới"}
             </Button>
           </div>
 
@@ -321,7 +762,7 @@ export default function PlacementTestsPage() {
                 <div>
                   <p className="text-sm text-slate-600">Đã lên lịch</p>
                   <p className="text-2xl font-bold text-orange-700">
-                    {tests.filter(t => t.status === 'Scheduled').length}
+                    {tests.filter((t) => t.status === "Scheduled").length}
                   </p>
                 </div>
               </div>
@@ -335,7 +776,7 @@ export default function PlacementTestsPage() {
                 <div>
                   <p className="text-sm text-slate-600">Đã hoàn thành</p>
                   <p className="text-2xl font-bold text-emerald-700">
-                    {tests.filter(t => t.status === 'Completed').length}
+                    {tests.filter((t) => t.status === "Completed").length}
                   </p>
                 </div>
               </div>
@@ -349,7 +790,7 @@ export default function PlacementTestsPage() {
                 <div>
                   <p className="text-sm text-slate-600">Đã hủy</p>
                   <p className="text-2xl font-bold text-rose-700">
-                    {tests.filter(t => t.status === 'Cancelled').length}
+                    {tests.filter((t) => t.status === "Cancelled").length}
                   </p>
                 </div>
               </div>
@@ -363,7 +804,7 @@ export default function PlacementTestsPage() {
                 <div>
                   <p className="text-sm text-slate-600">Không đến</p>
                   <p className="text-2xl font-bold text-amber-700">
-                    {tests.filter(t => t.status === 'NoShow').length}
+                    {tests.filter((t) => t.status === "NoShow").length}
                   </p>
                 </div>
               </div>
@@ -375,7 +816,10 @@ export default function PlacementTestsPage() {
             {/* Search */}
             <div className="md:col-span-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                <Search
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+                  size={20}
+                />
                 <Input
                   placeholder="Tìm kiếm theo tên, số điện thoại..."
                   value={searchTerm}
@@ -389,7 +833,9 @@ export default function PlacementTestsPage() {
             {/* Status Filter */}
             <Select
               value={filters.status}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, status: value }))
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Trạng thái" />
@@ -439,12 +885,16 @@ export default function PlacementTestsPage() {
         <PlacementTestFormModal
           isOpen={isFormModalOpen}
           onClose={() => setIsFormModalOpen(false)}
-        onSuccess={() => {
-          fetchPlacementTests();
-          setIsFormModalOpen(false);
-        }}
-          branches={branches}
-          teachers={teachers}
+          onSuccess={() => {
+            fetchPlacementTests();
+            setIsFormModalOpen(false);
+          }}
+          test={selectedTest}
+          onSubmit={handleFormSubmit}
+          leads={leads}
+          studentProfiles={studentProfiles}
+          classes={classes}
+          invigilators={invigilators}
         />
 
         <ResultFormModal

@@ -268,6 +268,32 @@ export const BACKEND_PLACEMENT_TEST_ENDPOINTS = {
   CONVERT_TO_ENROLLED: (id: string) => `/placement-tests/${id}/convert-to-enrolled`,
 } as const;
 
+// Enrollment Endpoints (Client-side → Next.js API Routes)
+export const ENROLLMENT_ENDPOINTS = {
+  GET_ALL: '/api/enrollments',
+  GET_BY_ID: (id: string) => `/api/enrollments/${id}`,
+  CREATE: '/api/enrollments',
+  UPDATE: (id: string) => `/api/enrollments/${id}`,
+  PAUSE: (id: string) => `/api/enrollments/${id}/pause`,
+  DROP: (id: string) => `/api/enrollments/${id}/drop`,
+  REACTIVATE: (id: string) => `/api/enrollments/${id}/reactivate`,
+  ASSIGN_TUITION_PLAN: (id: string) => `/api/enrollments/${id}/assign-tuition-plan`,
+  STUDENT_HISTORY: (studentProfileId: string) => `/api/enrollments/student/${studentProfileId}/history`,
+} as const;
+
+// Backend Enrollment Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_ENROLLMENT_ENDPOINTS = {
+  GET_ALL: '/enrollments',
+  GET_BY_ID: (id: string) => `/enrollments/${id}`,
+  CREATE: '/enrollments',
+  UPDATE: (id: string) => `/enrollments/${id}`,
+  PAUSE: (id: string) => `/enrollments/${id}/pause`,
+  DROP: (id: string) => `/enrollments/${id}/drop`,
+  REACTIVATE: (id: string) => `/enrollments/${id}/reactivate`,
+  ASSIGN_TUITION_PLAN: (id: string) => `/enrollments/${id}/assign-tuition-plan`,
+  STUDENT_HISTORY: (studentProfileId: string) => `/enrollments/student/${studentProfileId}/history`,
+} as const;
+
 // Profile Management Endpoints (Client-side → Next.js API Routes)
 export const PROFILE_ENDPOINTS = {
   GET_ALL: '/api/profiles',

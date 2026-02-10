@@ -2,16 +2,6 @@
 
 import { useState } from "react";
 import { Filter, X, Calendar } from "lucide-react";
-import { Button } from "@/components/lightswind/button";
-import { Input } from "@/components/lightswind/input";
-import { Label } from "@/components/lightswind/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/lightswind/select";
 import type { PlacementTestFilters } from "@/types/placement-test";
 
 interface FilterPanelProps {
@@ -50,14 +40,13 @@ export default function PlacementTestFilterPanel({
 
   if (!isOpen) {
     return (
-      <Button
+      <button
         onClick={() => setIsOpen(true)}
-        variant="outline"
-        className="flex items-center gap-2"
+        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
       >
         <Filter size={16} />
         Bộ lọc nâng cao
-      </Button>
+      </button>
     );
   }
 
@@ -72,7 +61,7 @@ export default function PlacementTestFilterPanel({
           </h2>
           <button
             onClick={() => setIsOpen(false)}
-            className="text-white/80 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-white/10 transition-colors text-white"
           >
             <X size={24} />
           </button>
@@ -82,107 +71,96 @@ export default function PlacementTestFilterPanel({
         <div className="p-6 space-y-4">
           {/* Status */}
           <div className="space-y-2">
-            <Label>Trạng thái</Label>
-            <Select
+            <label className="block text-sm font-medium text-gray-700">Trạng thái</label>
+            <select
               value={localFilters.status}
-              onValueChange={(value) => setLocalFilters(prev => ({ ...prev, status: value }))}
+              onChange={(e) => setLocalFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Tất cả" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Tất cả</SelectItem>
-                <SelectItem value="Scheduled">Đã lên lịch</SelectItem>
-                <SelectItem value="Completed">Đã hoàn thành</SelectItem>
-                <SelectItem value="Cancelled">Đã hủy</SelectItem>
-                <SelectItem value="NoShow">Không đến</SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="">Tất cả</option>
+              <option value="Scheduled">Đã lên lịch</option>
+              <option value="Completed">Đã hoàn thành</option>
+              <option value="Cancelled">Đã hủy</option>
+              <option value="NoShow">Không đến</option>
+            </select>
           </div>
 
           {/* Branch */}
           <div className="space-y-2">
-            <Label>Chi nhánh</Label>
-            <Select
+            <label className="block text-sm font-medium text-gray-700">Chi nhánh</label>
+            <select
               value={localFilters.branchId}
-              onValueChange={(value) => setLocalFilters(prev => ({ ...prev, branchId: value }))}
+              onChange={(e) => setLocalFilters(prev => ({ ...prev, branchId: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Tất cả chi nhánh" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Tất cả</SelectItem>
-                {branches.map((branch) => (
-                  <SelectItem key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="">Tất cả chi nhánh</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Teacher */}
           <div className="space-y-2">
-            <Label>Giáo viên</Label>
-            <Select
+            <label className="block text-sm font-medium text-gray-700">Giáo viên</label>
+            <select
               value={localFilters.assignedTeacherId}
-              onValueChange={(value) => setLocalFilters(prev => ({ ...prev, assignedTeacherId: value }))}
+              onChange={(e) => setLocalFilters(prev => ({ ...prev, assignedTeacherId: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Tất cả giáo viên" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Tất cả</SelectItem>
-                {teachers.map((teacher) => (
-                  <SelectItem key={teacher.id} value={teacher.id}>
-                    {teacher.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="">Tất cả giáo viên</option>
+              {teachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {teacher.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Date Range */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Calendar size={14} />
                 Từ ngày
-              </Label>
-              <Input
+              </label>
+              <input
                 type="date"
                 value={localFilters.fromDate}
                 onChange={(e) => setLocalFilters(prev => ({ ...prev, fromDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Calendar size={14} />
                 Đến ngày
-              </Label>
-              <Input
+              </label>
+              <input
                 type="date"
                 value={localFilters.toDate}
                 onChange={(e) => setLocalFilters(prev => ({ ...prev, toDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
+            <button
               onClick={handleReset}
-              className="flex-1"
+              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Đặt lại
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={handleApply}
-              className="flex-1 bg-linear-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700"
+              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg transition-all"
             >
               Áp dụng
-            </Button>
+            </button>
           </div>
         </div>
       </div>

@@ -13,16 +13,12 @@ import {
   FileText,
   UserCheck,
   Ban,
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useState } from "react";
 import type { PlacementTest } from "@/types/placement-test";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/lightswind/dropdown-menu";
-import { Button } from "@/components/lightswind/button";
 import { formatDateTime } from "@/lib/utils";
 
 type StatusType = 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
@@ -48,6 +44,7 @@ interface PlacementTestTableProps {
   onSort?: (key: string) => void;
   onEdit?: (test: PlacementTest) => void;
   onAddResult?: (test: PlacementTest) => void;
+  onAddNote?: (test: PlacementTest) => void;
   onCancel?: (test: PlacementTest) => void;
   onNoShow?: (test: PlacementTest) => void;
   onConvertToEnrolled?: (test: PlacementTest) => void;
@@ -67,12 +64,14 @@ export default function PlacementTestTable({
   onSort,
   onEdit,
   onAddResult,
+  onAddNote,
   onCancel,
   onNoShow,
   onConvertToEnrolled,
 }: PlacementTestTableProps) {
   const testsArray = Array.isArray(tests) ? tests : [];
-  
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
   const getStatusBadge = (statusText: string) => {
     const statusMap: Record<string, { bg: string; text: string; border: string; icon: any }> = {
       "Đã lên lịch": { bg: "from-blue-50 to-cyan-50", text: "text-blue-700", border: "border-blue-200", icon: Clock },
@@ -90,227 +89,328 @@ export default function PlacementTestTable({
     );
   };
 
-  const SortHeader = ({ column, label }: { column: string; label: string }) => (
-    <button
-      onClick={() => onSort?.(column)}
-      className="flex items-center gap-1 font-semibold text-slate-700 hover:text-slate-900 transition-colors"
-    >
-      {label}
-      <ArrowUpDown
-        size={14}
-        className={sortKey === column ? "text-blue-600" : "text-slate-400"}
-      />
-    </button>
-  );
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 7;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("...");
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push("...");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
 
+  // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="rounded-2xl border border-pink-200 bg-white p-6">
+        <div className="space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-16 rounded-lg bg-linear-to-r from-pink-50 to-white animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
+  // Empty state
   if (!testsArray || testsArray.length === 0) {
     return (
-      <div className="text-center py-12">
-        <FileText className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-2 text-sm text-gray-600">Không có placement test nào.</p>
+      <div className="rounded-2xl border border-pink-200 bg-white p-12 text-center">
+        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-pink-100 to-rose-100 flex items-center justify-center">
+          <FileText size={24} className="text-pink-600" />
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Không có placement test nào</h3>
+        <p className="text-sm text-gray-500">Hãy tạo placement test mới hoặc điều chỉnh bộ lọc</p>
       </div>
     );
   }
 
   return (
-    <>
-    <div className="overflow-x-auto rounded-xl border border-pink-200 bg-white shadow-sm">
-      <table className="w-full">
-        <thead>
-          <tr className="bg-linear-to-r from-pink-50 to-rose-50 border-b border-pink-200">
-            <th className="text-left px-4 py-3 text-sm">
-              <SortHeader column="childName" label="Tên trẻ" />
-            </th>
-            <th className="text-left px-4 py-3 text-sm">
-              <SortHeader column="leadName" label="Phụ huynh" />
-            </th>
-            <th className="text-left px-4 py-3 text-sm">
-              Liên hệ
-            </th>
-            <th className="text-left px-4 py-3 text-sm">
-              <SortHeader column="scheduledAt" label="Thời gian" />
-            </th>
-            <th className="text-left px-4 py-3 text-sm">
-              <SortHeader column="branchName" label="Chi nhánh" />
-            </th>
-            <th className="text-left px-4 py-3 text-sm">
-              Giáo viên
-            </th>
-            <th className="text-left px-4 py-3 text-sm">
-              <SortHeader column="status" label="Trạng thái" />
-            </th>
-            <th className="text-center px-4 py-3 text-sm font-semibold text-slate-700">
-              Thao tác
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {testsArray.map((test, idx) => (
-            <tr
-              key={test.id}
-              className={`border-b border-pink-100 hover:bg-pink-50/30 transition-colors ${
-                idx % 2 === 0 ? "bg-white" : "bg-pink-50/10"
-              }`}
-            >
-              <td className="px-4 py-3">
-                <div className="font-medium text-slate-900">{test.childName || 'N/A'}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-slate-700">{test.leadContactName || 'N/A'}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-slate-600">{(test as any).leadPhone || 'N/A'}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                  <Calendar size={14} />
-                  {formatDateTime(test.scheduledAt)}
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-slate-700">{(test as any).branchName || 'N/A'}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-slate-700">{test.invigilatorName || 'Chưa phân công'}</div>
-              </td>
-              <td className="px-4 py-3">
-                {getStatusBadge(STATUS_MAPPING[test.status])}
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center justify-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onView(test)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Eye size={16} />
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreVertical size={16} />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      {test.status === 'Scheduled' && (
-                        <>
-                          {onEdit && (
-                            <DropdownMenuItem onClick={() => onEdit(test)}>
-                              <Edit size={16} className="mr-2" />
-                              Chỉnh sửa
-                            </DropdownMenuItem>
-                          )}
-                          {onAddResult && (
-                            <DropdownMenuItem onClick={() => onAddResult(test)}>
-                              <FileText size={16} className="mr-2" />
-                              Nhập kết quả
-                            </DropdownMenuItem>
-                          )}
-                          {onNoShow && (
-                            <DropdownMenuItem onClick={() => onNoShow(test)}>
-                              <AlertCircle size={16} className="mr-2" />
-                              Đánh dấu không đến
-                            </DropdownMenuItem>
-                          )}
-                          {onCancel && (
-                            <DropdownMenuItem onClick={() => onCancel(test)}>
-                              <Ban size={16} className="mr-2" />
-                              Hủy lịch test
-                            </DropdownMenuItem>
-                          )}
-                        </>
-                      )}
-                      {test.status === 'Completed' && (
-                        <>
-                          <DropdownMenuItem onClick={() => onView(test)}>
-                            <Eye size={16} className="mr-2" />
-                            Xem kết quả
-                          </DropdownMenuItem>
-                          {onConvertToEnrolled && (
-                            <DropdownMenuItem onClick={() => onConvertToEnrolled(test)}>
-                              <UserCheck size={16} className="mr-2" />
-                              Chuyển thành học viên
-                            </DropdownMenuItem>
-                          )}
-                        </>
-                      )}
-                      {(test.status === 'Cancelled' || test.status === 'NoShow') && (
-                        <DropdownMenuItem onClick={() => onView(test)}>
-                          <Eye size={16} className="mr-2" />
-                          Xem chi tiết
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-    
-    {/* Pagination */}
-    {totalPages > 1 && (
-      <div className="flex items-center justify-between px-6 py-4 bg-white rounded-xl border border-pink-200 mt-4">
-        <div className="text-sm text-gray-600">
-          Hiển thị {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalCount)} trong tổng số {totalCount} placement test
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            Trước
-          </Button>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-
-              return (
-                <Button
-                  key={pageNum}
-                  variant={currentPage === pageNum ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => onPageChange(pageNum)}
-                  className={currentPage === pageNum ? "bg-gradient-to-r from-pink-500 to-rose-500" : ""}
-                >
-                  {pageNum}
-                </Button>
-              );
-            })}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            Sau
-          </Button>
+    <div className="rounded-2xl border border-pink-200 bg-linear-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="bg-linear-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-gray-900">Danh sách Placement Test</h3>
+          <div className="text-sm text-gray-600">{totalCount} placement test</div>
         </div>
       </div>
-    )}
-    </>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-linear-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+            <tr>
+              <th className="py-3 px-6 text-left">
+                <button
+                  type="button"
+                  onClick={() => onSort?.("childName")}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                >
+                  Tên trẻ
+                  <ArrowUpDown size={14} className={sortKey === "childName" ? "text-pink-600" : "text-gray-400"} />
+                </button>
+              </th>
+              <th className="py-3 px-6 text-left">
+                <button
+                  type="button"
+                  onClick={() => onSort?.("leadContactName")}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                >
+                  Phụ huynh
+                  <ArrowUpDown size={14} className={sortKey === "leadContactName" ? "text-pink-600" : "text-gray-400"} />
+                </button>
+              </th>
+              <th className="py-3 px-6 text-left">
+                <button
+                  type="button"
+                  onClick={() => onSort?.("scheduledAt")}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                >
+                  Thời gian
+                  <ArrowUpDown size={14} className={sortKey === "scheduledAt" ? "text-pink-600" : "text-gray-400"} />
+                </button>
+              </th>
+              <th className="py-3 px-6 text-left">
+                <span className="text-sm font-semibold text-gray-700">Người giám sát</span>
+              </th>
+              <th className="py-3 px-6 text-left">
+                <button
+                  type="button"
+                  onClick={() => onSort?.("status")}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                >
+                  Trạng thái
+                  <ArrowUpDown size={14} className={sortKey === "status" ? "text-pink-600" : "text-gray-400"} />
+                </button>
+              </th>
+              <th className="py-3 px-6 text-left">
+                <span className="text-sm font-semibold text-gray-700">Thao tác</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-pink-100">
+            {testsArray.map((test) => (
+              <tr
+                key={test.id}
+                className="group hover:bg-linear-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+              >
+                {/* Tên trẻ */}
+                <td className="py-4 px-6">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-linear-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-xs">
+                      {test.childName ? test.childName.split(" ").map(word => word[0]).join("").toUpperCase().slice(0, 2) : "??"}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">{test.childName || "N/A"}</div>
+                    </div>
+                  </div>
+                </td>
+
+                {/* Phụ huynh */}
+                <td className="py-4 px-6">
+                  <div className="font-medium text-gray-700">{test.leadContactName || "N/A"}</div>
+                </td>
+
+                {/* Thời gian */}
+                <td className="py-4 px-6">
+                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <Calendar size={14} className="text-gray-400" />
+                    <span>{formatDateTime(test.scheduledAt)}</span>
+                  </div>
+                  {test.room && (
+                    <div className="text-xs text-gray-400 mt-0.5">Phòng: {test.room}</div>
+                  )}
+                </td>
+
+                {/* Người giám sát */}
+                <td className="py-4 px-6">
+                  {test.invigilatorName ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-linear-to-r from-blue-400 to-cyan-400 flex items-center justify-center text-white text-xs font-semibold">
+                        {test.invigilatorName.split(" ").pop()?.[0] || "N"}
+                      </div>
+                      <span className="font-medium text-gray-900">{test.invigilatorName}</span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-400">Chưa phân công</span>
+                  )}
+                </td>
+
+                {/* Trạng thái */}
+                <td className="py-4 px-6">
+                  {getStatusBadge(STATUS_MAPPING[test.status] || test.status)}
+                </td>
+
+                {/* Thao tác */}
+                <td className="py-4 px-6">
+                  <div className="relative flex items-center gap-1">
+                    <button
+                      onClick={() => onView(test)}
+                      className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                      title="Xem chi tiết"
+                    >
+                      <Eye size={14} />
+                    </button>
+
+                    {test.status === "Scheduled" && onEdit && (
+                      <button
+                        onClick={() => onEdit(test)}
+                        className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer"
+                        title="Chỉnh sửa"
+                      >
+                        <Edit size={14} />
+                      </button>
+                    )}
+
+                    {test.status === "Scheduled" && onAddResult && (
+                      <button
+                        onClick={() => onAddResult(test)}
+                        className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-gray-400 hover:text-green-600 cursor-pointer"
+                        title="Nhập kết quả"
+                      >
+                        <FileText size={14} />
+                      </button>
+                    )}
+
+                    {/* More actions dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === test.id ? null : test.id)}
+                        className="p-1.5 rounded-lg hover:bg-gray-50 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
+                        title="Thêm"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+
+                      {openMenuId === test.id && (
+                        <>
+                          {/* Backdrop */}
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setOpenMenuId(null)}
+                          />
+                          {/* Menu */}
+                          <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl border border-pink-200 bg-white shadow-lg py-1">
+                            {test.status === "Scheduled" && (
+                              <>
+                                {onNoShow && (
+                                  <button
+                                    onClick={() => { onNoShow(test); setOpenMenuId(null); }}
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                                  >
+                                    <AlertCircle size={14} />
+                                    Đánh dấu không đến
+                                  </button>
+                                )}
+                                {onCancel && (
+                                  <button
+                                    onClick={() => { onCancel(test); setOpenMenuId(null); }}
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+                                  >
+                                    <Ban size={14} />
+                                    Hủy lịch test
+                                  </button>
+                                )}
+                              </>
+                            )}
+                            {onAddNote && (
+                              <button
+                                onClick={() => { onAddNote(test); setOpenMenuId(null); }}
+                                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                              >
+                                <MessageSquare size={14} />
+                                Thêm ghi chú
+                              </button>
+                            )}
+                            {test.status === "Completed" && onConvertToEnrolled && (
+                              <button
+                                onClick={() => { onConvertToEnrolled(test); setOpenMenuId(null); }}
+                                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                              >
+                                <UserCheck size={14} />
+                                Chuyển thành học viên
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination Footer */}
+      {totalPages > 0 && (
+        <div className="bg-linear-to-r from-pink-500/5 to-rose-500/5 border-t border-pink-200 px-6 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-gray-600">
+              Hiển thị <span className="font-semibold text-gray-900">
+                {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)}
+              </span> trong tổng số{" "}
+              <span className="font-semibold text-gray-900">{totalCount}</span> placement test
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onPageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                aria-label="Trang trước"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <div className="flex items-center gap-1">
+                {getPageNumbers().map((page, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => typeof page === "number" && onPageChange(page)}
+                    disabled={page === "..."}
+                    className={`min-w-9 h-9 px-3 rounded-lg text-sm font-medium transition-all ${
+                      page === currentPage
+                        ? "bg-linear-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                        : page === "..."
+                        ? "cursor-default text-gray-400"
+                        : "border border-pink-200 hover:bg-pink-50 text-gray-700"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => onPageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                aria-label="Trang sau"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
+0

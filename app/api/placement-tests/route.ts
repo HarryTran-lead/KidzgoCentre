@@ -9,6 +9,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BACKEND_PLACEMENT_TEST_ENDPOINTS, buildApiUrl } from '@/constants/apiURL';
 
+const parseResponseBody = async (response: Response) => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+};
+
 export async function GET(request: NextRequest) {
   try {
     // Get authorization header
@@ -41,7 +51,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const data = await response.json();
+    const data = await parseResponseBody(response);
 
     if (!response.ok) {
       return NextResponse.json(
@@ -85,6 +95,9 @@ export async function POST(request: NextRequest) {
     // Forward to backend API
     const backendUrl = buildApiUrl(BACKEND_PLACEMENT_TEST_ENDPOINTS.CREATE);
 
+    console.log('[API Route] POST placement-tests → backend URL:', backendUrl);
+    console.log('[API Route] POST placement-tests → body:', JSON.stringify(body));
+
     const response = await fetch(backendUrl, {
       method: 'POST',
       headers: {
@@ -94,13 +107,25 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     });
 
-    const data = await response.json();
+    console.log('[API Route] POST placement-tests → backend status:', response.status);
+
+    const responseText = await response.text();
+    console.log('[API Route] POST placement-tests → backend response:', responseText);
+
+    let data: any = null;
+    if (responseText) {
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { message: responseText };
+      }
+    }
 
     if (!response.ok) {
       return NextResponse.json(
         {
           success: false,
-          message: data.message || 'Failed to create placement test',
+          message: data?.message || `Backend returned ${response.status}`,
         },
         { status: response.status }
       );
@@ -112,7 +137,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Internal server error',
       },
       { status: 500 }
     );

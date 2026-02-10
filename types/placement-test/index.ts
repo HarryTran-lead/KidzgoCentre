@@ -63,17 +63,16 @@ export interface PlacementTestResult {
   speakingScore?: number;
   readingScore?: number;
   writingScore?: number;
-  overallScore?: number;
-  suggestedLevel?: string;
-  strengths?: string;
-  weaknesses?: string;
-  recommendations?: string;
+  resultScore?: number;
+  levelRecommendation?: string;
+  programRecommendation?: string;
+  attachmentUrl?: string;
 }
 
 export interface PlacementTestNote {
   id?: string;
   testId: string;
-  content: string;
+  note: string;
   createdBy?: string;
   createdAt?: string;
 }
@@ -95,7 +94,8 @@ export interface CreatePlacementTestResponse {
   studentProfileId?: string;
   classId?: string;
   scheduledAt: string;
-  room?: string;
+  status: string;
+  room?: 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
   invigilatorUserId: string;
   createdAt: string;
 }
@@ -103,9 +103,8 @@ export interface CreatePlacementTestResponse {
 
 export interface UpdatePlacementTestRequest {
   scheduledAt?: string;
-  testLocation?: string;
-  branchId?: string;
-  assignedTeacherId?: string;
+  room?: string;
+  invigilatorUserId?: string;
   notes?: string;
 }
 

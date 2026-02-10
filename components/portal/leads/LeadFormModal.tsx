@@ -40,9 +40,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
     const fetchBranches = async () => {
       try {
         const response = await getAllBranchesPublic({ isActive: true });
-        console.log("Branches API response:", response);
         if (response.isSuccess && response.data?.branches) {
-          console.log("Branches loaded:", response.data.branches);
           setBranches(response.data.branches);
         } else {
           console.log("No branches found in response");

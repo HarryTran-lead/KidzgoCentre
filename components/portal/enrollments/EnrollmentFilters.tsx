@@ -1,42 +1,33 @@
 "use client";
 
-import { Search, Filter, Calendar } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 
-interface PlacementTestFiltersProps {
+interface EnrollmentFiltersProps {
   searchQuery: string;
   selectedStatus: string;
-  fromDate: string;
-  toDate: string;
   pageSize: number;
   totalCount: number;
   statusCounts: Record<string, number>;
   onSearchChange: (value: string) => void;
   onStatusChange: (status: string) => void;
-  onFromDateChange: (date: string) => void;
-  onToDateChange: (date: string) => void;
   onPageSizeChange: (size: number) => void;
 }
 
-export default function PlacementTestFilters({
+export default function EnrollmentFilters({
   searchQuery,
   selectedStatus,
-  fromDate,
-  toDate,
   pageSize,
   totalCount,
   statusCounts,
   onSearchChange,
   onStatusChange,
-  onFromDateChange,
-  onToDateChange,
   onPageSizeChange,
-}: PlacementTestFiltersProps) {
+}: EnrollmentFiltersProps) {
   const statusOptions = [
     { value: "Tất cả", label: "Tất cả", count: statusCounts["Tất cả"] || 0 },
-    { value: "Scheduled", label: "Đã đặt lịch", count: statusCounts["Scheduled"] || 0 },
-    { value: "Completed", label: "Hoàn thành", count: statusCounts["Completed"] || 0 },
-    { value: "Cancelled", label: "Đã hủy", count: statusCounts["Cancelled"] || 0 },
-    { value: "NoShow", label: "Không đến", count: statusCounts["NoShow"] || 0 },
+    { value: "Active", label: "Đang học", count: statusCounts["Active"] || 0 },
+    { value: "Paused", label: "Tạm nghỉ", count: statusCounts["Paused"] || 0 },
+    { value: "Dropped", label: "Đã nghỉ", count: statusCounts["Dropped"] || 0 },
   ];
 
   return (
@@ -68,7 +59,7 @@ export default function PlacementTestFilters({
         </div>
       </div>
 
-      {/* Search and Date Filters */}
+      {/* Search and Page Size */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-62.5">
@@ -77,49 +68,25 @@ export default function PlacementTestFilters({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Tìm theo tên bé, tên PH, SĐT..."
+            placeholder="Tìm theo tên học viên, lớp, mã lớp..."
             className="w-full rounded-xl border border-pink-200 bg-white pl-10 pr-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
           />
         </div>
 
-        {/* From Date */}
-        <div className="flex items-center gap-2 bg-white rounded-xl border border-pink-200 px-3 py-2">
-          <Calendar size={16} className="text-gray-400" />
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => onFromDateChange(e.target.value)}
-            className="text-sm border-none focus:outline-none"
-          />
-        </div>
-
-        {/* To Date */}
-        <div className="flex items-center gap-2 bg-white rounded-xl border border-pink-200 px-3 py-2">
-          <Calendar size={16} className="text-gray-400" />
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => onToDateChange(e.target.value)}
-            className="text-sm border-none focus:outline-none"
-          />
-        </div>
-
         {/* Page Size */}
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
-        >
-          <option value={10}>10 / trang</option>
-          <option value={20}>20 / trang</option>
-          <option value={50}>50 / trang</option>
-          <option value={100}>100 / trang</option>
-        </select>
-      </div>
-
-      {/* Results Count */}
-      <div className="text-sm text-gray-600">
-        Hiển thị <span className="font-semibold text-pink-600">{totalCount}</span> placement test
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Hiển thị:</span>
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm focus:border-pink-500 focus:outline-none"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+          <span className="text-sm text-gray-500">/ {totalCount} kết quả</span>
+        </div>
       </div>
     </div>
   );

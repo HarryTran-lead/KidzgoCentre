@@ -17,8 +17,6 @@ import {
   Trash2,
   ChevronDown,
 } from "lucide-react";
-import Image from "next/image";
-import { useState } from "react";
 import type { Lead } from "@/types/lead";
 import LeadPagination from "./LeadPagination";
 import StatusSelect from "./StatusSelect";
