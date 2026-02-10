@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { 
   Search, PhoneCall, CalendarDays, Mail, MessageCircle, 
   Clock, Filter, MoreVertical, Plus, Eye, User, 
@@ -160,16 +160,16 @@ function SortableHeader({
   
   return (
     <th 
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-pink-50/50 transition-colors"
+      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-red-50/50 transition-colors"
       onClick={() => onSort(field)}
     >
       <div className="flex items-center gap-2">
         <span>{children}</span>
         {isActive ? (
           direction === 'asc' ? (
-            <ArrowUp size={14} className="text-pink-500" />
+            <ArrowUp size={14} className="text-red-600" />
           ) : (
-            <ArrowDown size={14} className="text-pink-500" />
+            <ArrowDown size={14} className="text-red-600" />
           )
         ) : (
           <ArrowUpDown size={14} className="text-gray-400" />
@@ -186,6 +186,11 @@ export default function LeadsPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -283,16 +288,16 @@ export default function LeadsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
               <UserPlus size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent mb-2">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Quản lý khách hàng tiềm năng
               </h1>
               <p className="text-gray-600">
@@ -301,11 +306,11 @@ export default function LeadsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2.5 border border-pink-200 rounded-xl text-sm font-medium hover:bg-pink-50 transition-colors cursor-pointer">
+            <button className="flex items-center gap-2 px-4 py-2.5 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
               <Filter size={16} />
               Bộ lọc nâng cao
             </button>
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-medium hover:shadow-lg transition-all cursor-pointer">
+            <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-medium hover:shadow-lg transition-all cursor-pointer">
               <Plus size={16} />
               Thêm lead mới
             </button>
@@ -313,8 +318,8 @@ export default function LeadsPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6">
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+        <div className={`grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-5 transition-all hover:shadow-md cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-600 mb-1">Tổng leads</div>
@@ -326,7 +331,7 @@ export default function LeadsPage() {
             </div>
           </div>
           
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+          <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-5 transition-all hover:shadow-md cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-600 mb-1">Leads mới</div>
@@ -338,7 +343,7 @@ export default function LeadsPage() {
             </div>
           </div>
           
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+          <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-5 transition-all hover:shadow-md cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-600 mb-1">Đã liên hệ</div>
@@ -350,7 +355,7 @@ export default function LeadsPage() {
             </div>
           </div>
           
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+          <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-5 transition-all hover:shadow-md cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-600 mb-1">Đăng ký thành công</div>
@@ -362,13 +367,13 @@ export default function LeadsPage() {
             </div>
           </div>
           
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 transition-all hover:shadow-md cursor-pointer">
+          <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-5 transition-all hover:shadow-md cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-600 mb-1">Tỷ lệ chuyển đổi</div>
-                <div className="text-2xl font-bold text-pink-600">{stats.conversionRate}%</div>
+                <div className="text-2xl font-bold text-red-600">{stats.conversionRate}%</div>
               </div>
-              <div className="p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg">
+              <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
                 <TrendingUp size={20} />
               </div>
             </div>
@@ -376,7 +381,7 @@ export default function LeadsPage() {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-4 mb-6">
+        <div className={`bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-4 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             {/* Status Filter */}
             <div className="flex flex-wrap gap-1">
@@ -384,8 +389,8 @@ export default function LeadsPage() {
                 onClick={() => setStatus("ALL")}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
                   status === "ALL" 
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md" 
-                    : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
+                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
                 }`}
               >
                 Tất cả ({stats.total})
@@ -397,7 +402,7 @@ export default function LeadsPage() {
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
                     status === s 
                       ? `${STATUS_CONFIG[s].bgColor} ${STATUS_CONFIG[s].color}` 
-                      : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+                      : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
                   }`}
                 >
                   {STATUS_CONFIG[s].text}
@@ -414,7 +419,7 @@ export default function LeadsPage() {
                   placeholder="Tìm kiếm phụ huynh, học viên, khóa học..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2.5 border border-pink-200 rounded-xl text-sm w-full md:w-80 bg-white focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2.5 border border-red-200 rounded-xl text-sm w-full md:w-80 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
               </div>
               <select
@@ -423,7 +428,7 @@ export default function LeadsPage() {
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               >
                 <option value={5}>5 / trang</option>
                 <option value={10}>10 / trang</option>
@@ -436,11 +441,11 @@ export default function LeadsPage() {
       </div>
 
       {/* Leads Table */}
-      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden mb-6 shadow-sm">
-        <div className="p-6 border-b border-pink-200 bg-gradient-to-r from-pink-500/10 to-rose-500/10">
+      <div className={`bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 overflow-hidden mb-6 shadow-sm transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="p-6 border-b border-red-200 bg-gradient-to-r from-red-500/10 to-red-700/10">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <UserPlus size={20} className="text-pink-500" />
+              <UserPlus size={20} className="text-red-600" />
               Danh sách khách hàng tiềm năng
             </h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -459,8 +464,8 @@ export default function LeadsPage() {
               <col className="w-[20%]" />
               <col className="w-[15%]" />
             </colgroup>
-            <thead className="bg-gradient-to-r from-pink-500/10 to-rose-500/10">
-              <tr className="border-b border-pink-200">
+            <thead className="bg-gradient-to-r from-red-500/10 to-red-700/10">
+              <tr className="border-b border-red-200">
                 <SortableHeader 
                   field="parentName" 
                   currentField={sortField} 
@@ -498,12 +503,12 @@ export default function LeadsPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-pink-100">
+            <tbody className="divide-y divide-red-100">
               {currentLeads.map((lead) => (
-                <tr key={lead.id} className="hover:bg-pink-50/50 transition-colors">
+                <tr key={lead.id} className="hover:bg-red-50/50 transition-colors">
                   <td className="px-6 py-4 align-top">
                     <div className="flex items-start gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold text-sm flex-shrink-0">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold text-sm flex-shrink-0">
                         {lead.parentName.split(' ').slice(-1)[0][0]}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -526,7 +531,7 @@ export default function LeadsPage() {
                   </td>
                   <td className="px-6 py-4 align-top whitespace-nowrap">
                     <div className="text-sm text-gray-600 flex items-center gap-1">
-                      <Calendar size={14} className="text-pink-500 flex-shrink-0" />
+                      <Calendar size={14} className="text-red-600 flex-shrink-0" />
                       <span>{lead.createdAt}</span>
                     </div>
                   </td>
@@ -542,13 +547,13 @@ export default function LeadsPage() {
                   </td>
                   <td className="px-6 py-4 align-top whitespace-nowrap">
                     <div className="flex items-center gap-2 justify-start">
-                      <button className="p-2 hover:bg-pink-100 rounded-lg transition-colors cursor-pointer" title="Nhắn tin">
+                      <button className="p-2 hover:bg-red-100 rounded-lg transition-colors cursor-pointer" title="Nhắn tin">
                         <MessageCircle size={18} className="text-gray-600" />
                       </button>
-                      <button className="p-2 hover:bg-pink-100 rounded-lg transition-colors cursor-pointer" title="Xem chi tiết">
+                      <button className="p-2 hover:bg-red-100 rounded-lg transition-colors cursor-pointer" title="Xem chi tiết">
                         <Eye size={18} className="text-gray-600" />
                       </button>
-                      <button className="p-2 hover:bg-pink-100 rounded-lg transition-colors cursor-pointer">
+                      <button className="p-2 hover:bg-red-100 rounded-lg transition-colors cursor-pointer">
                         <MoreVertical size={18} className="text-gray-600" />
                       </button>
                     </div>
@@ -567,7 +572,7 @@ export default function LeadsPage() {
 
         {/* Pagination Footer */}
         {filteredLeads.length > 0 && (
-          <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+          <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               {/* Left: Info */}
               <div className="text-sm text-gray-600">
@@ -580,7 +585,7 @@ export default function LeadsPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   aria-label="Previous page"
                 >
                   <ChevronLeft size={18} />
@@ -620,10 +625,10 @@ export default function LeadsPage() {
                         disabled={page === "..."}
                         className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all ${
                           page === currentPage
-                            ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                            ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
                             : page === "..."
                             ? "cursor-default text-gray-400"
-                            : "border border-pink-200 hover:bg-pink-50 text-gray-700"
+                            : "border border-red-200 hover:bg-red-50 text-gray-700"
                         }`}
                       >
                         {page}
@@ -635,7 +640,7 @@ export default function LeadsPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   aria-label="Next page"
                 >
                   <ChevronRight size={18} />
@@ -647,8 +652,8 @@ export default function LeadsPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 hover:shadow-md transition-all cursor-pointer">
+      <div className={`grid md:grid-cols-3 gap-4 mb-6 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-5 hover:shadow-md transition-all cursor-pointer">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-gradient-to-r from-blue-500 to-sky-500 text-white rounded-xl shadow-lg">
               <PhoneCall size={20} />
@@ -669,7 +674,7 @@ export default function LeadsPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 hover:shadow-md transition-all cursor-pointer">
+        <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-5 hover:shadow-md transition-all cursor-pointer">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl shadow-lg">
               <CalendarDays size={20} />
@@ -690,7 +695,7 @@ export default function LeadsPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-5 hover:shadow-md transition-all cursor-pointer">
+        <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-5 hover:shadow-md transition-all cursor-pointer">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl shadow-lg">
               <Mail size={20} />
@@ -713,10 +718,10 @@ export default function LeadsPage() {
       </div>
 
       {/* Footer Stats */}
-      <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 p-4">
+      <div className={`bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 p-4 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-2">
-            <ChevronRight size={16} className="text-pink-500" />
+            <ChevronRight size={16} className="text-red-600" />
             <span>Hiển thị {filteredLeads.length}/{LEADS.length} khách hàng tiềm năng • 
               Tỷ lệ chuyển đổi: {stats.conversionRate}% • 
               Cập nhật thời gian thực</span>

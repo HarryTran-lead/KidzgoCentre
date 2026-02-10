@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Tent,
   Users,
@@ -92,7 +92,7 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
       <div className={`absolute right-0 top-0 h-20 w-20 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}></div>
       <div className="relative flex items-start justify-between">
         <div className="space-y-2">
@@ -114,29 +114,29 @@ function ProgramCard({ program }: { program: Program }) {
   const info = TYPE_INFO[program.type];
   const fill = Math.round((program.registered / program.capacity) * 100);
   return (
-    <div className="group rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5 space-y-4 transition-all duration-300 hover:shadow-lg hover:shadow-pink-100/50">
+    <div className="group rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 space-y-4 transition-all duration-300 hover:shadow-lg hover:shadow-red-100/50">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${info.cls}`}>
             <Tent size={14} /> {info.text}
           </div>
-          <h3 className="mt-2 text-lg font-semibold text-gray-900 group-hover:text-pink-600 transition-colors">{program.name}</h3>
+          <h3 className="mt-2 text-lg font-semibold text-gray-900 group-hover:text-red-600 transition-colors">{program.name}</h3>
         </div>
         <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{program.id}</div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-600">
         <div className="inline-flex items-center gap-2">
-          <CalendarDays size={16} className="text-pink-500" /> {program.date}
+          <CalendarDays size={16} className="text-red-600" /> {program.date}
         </div>
         <div className="inline-flex items-center gap-2">
-          <MapPin size={16} className="text-pink-500" /> {program.location}
+          <MapPin size={16} className="text-red-600" /> {program.location}
         </div>
         <div className="inline-flex items-center gap-2">
-          <Users size={16} className="text-pink-500" /> {program.registered}/{program.capacity} học viên
+          <Users size={16} className="text-red-600" /> {program.registered}/{program.capacity} học viên
         </div>
         <div className="inline-flex items-center gap-2">
-          <DollarSign size={16} className="text-pink-500" /> {program.fee.toLocaleString("vi-VN")}đ
+          <DollarSign size={16} className="text-red-600" /> {program.fee.toLocaleString("vi-VN")}đ
         </div>
       </div>
 
@@ -154,11 +154,11 @@ function ProgramCard({ program }: { program: Program }) {
         <div className="mt-1 text-xs text-gray-500">Số chỗ đã được đăng ký</div>
       </div>
 
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-pink-100">
-        <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors">
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-red-100">
+        <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors">
           <UploadCloud size={16} /> Cập nhật hình ảnh
         </button>
-        <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors">
+        <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors">
           <Download size={16} /> Xuất danh sách
         </button>
       </div>
@@ -169,6 +169,11 @@ function ProgramCard({ program }: { program: Program }) {
 export default function ExtracurricularPage() {
   const [filter, setFilter] = useState<ProgramType | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const list = useMemo(() => {
     let result = PROGRAMS;
@@ -197,15 +202,15 @@ export default function ExtracurricularPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <Tent size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Ngoại khóa • Trại hè • Kỹ năng
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -217,7 +222,7 @@ export default function ExtracurricularPage() {
           <div className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-4 py-2.5 text-sm font-medium text-amber-700">
             <Sparkles size={16} /> {PROGRAMS.length} chương trình đang mở
           </div>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
             <Plus size={16} />
             Tạo chương trình mới
           </button>
@@ -225,12 +230,12 @@ export default function ExtracurricularPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <StatCard
           title="Tổng chương trình"
           value={`${stats.total}`}
           icon={<Tent size={20} />}
-          color="from-pink-500 to-rose-500"
+          color="from-red-600 to-red-700"
           subtitle="Đang hoạt động"
         />
         <StatCard
@@ -257,19 +262,19 @@ export default function ExtracurricularPage() {
       </div>
 
       {/* Search and Filter */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="relative flex-1 min-w-[250px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-500" size={16} />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-600" size={16} />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm kiếm chương trình..."
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-pink-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-red-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
           </div>
           
-          <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1">
+          <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
             {["ALL", "CAMP", "WORKSHOP", "CLUB"].map((item) => {
               const count = item === "ALL" 
                 ? PROGRAMS.length 
@@ -281,8 +286,8 @@ export default function ExtracurricularPage() {
                   onClick={() => setFilter(item as typeof filter)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
                     filter === item
-                      ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm"
-                      : "text-gray-700 hover:bg-pink-50"
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                      : "text-gray-700 hover:bg-red-50"
                   }`}
                 >
                   {item === "ALL" ? "Tất cả" : TYPE_INFO[item as ProgramType].text}
@@ -300,15 +305,15 @@ export default function ExtracurricularPage() {
 
       {/* Programs Grid */}
       {list.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className={`grid gap-4 md:grid-cols-2 xl:grid-cols-3 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {list.map((program) => (
             <ProgramCard key={program.id} program={program} />
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-12 text-center">
-          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-            <Search size={24} className="text-pink-400" />
+        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-12 text-center transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+            <Search size={24} className="text-red-400" />
           </div>
           <div className="text-gray-600 font-medium">Không tìm thấy chương trình</div>
           <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo chương trình mới</div>

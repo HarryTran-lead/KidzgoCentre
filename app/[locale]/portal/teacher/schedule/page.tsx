@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { CalendarDays, Calendar as CalendarIcon, MapPin, Users, Download, ChevronLeft, ChevronRight, Sparkles, BookOpen, Palette } from 'lucide-react';
+import { CalendarDays, Calendar as CalendarIcon, MapPin, Users, Download, ChevronLeft, ChevronRight, Sparkles, BookOpen, Palette, CheckCircle } from 'lucide-react';
 import { fetchTeacherTimetable, getVietnameseDow, formatDateISO } from '@/app/api/teacher/schedule';
 import type { Lesson, DaySchedule } from '@/types/teacher/schedule';
 
@@ -70,7 +70,7 @@ function isTimeOverlap(time1: string, time2: string): boolean {
 /** Kiểm tra xem có buổi học nào trùng giờ trong cùng ngày không */
 function checkTimeConflicts(lessons: Lesson[]): { hasConflict: boolean; conflicts: Array<{ lesson1: Lesson; lesson2: Lesson }> } {
   const conflicts: Array<{ lesson1: Lesson; lesson2: Lesson }> = [];
-  
+
   for (let i = 0; i < lessons.length; i++) {
     for (let j = i + 1; j < lessons.length; j++) {
       if (isTimeOverlap(lessons[i].time, lessons[j].time)) {
@@ -104,7 +104,7 @@ function removeOverlappingLessons(lessons: Lesson[]): Lesson[] {
 
     // Kiểm tra xem buổi học này có trùng với bất kỳ buổi học nào đã được chấp nhận không
     const overlapsWithValid = validLessons.some(validLesson => isTimeOverlap(validLesson.time, lesson.time));
-    
+
     if (!overlapsWithValid) {
       // Không trùng giờ, thêm vào danh sách hợp lệ
       validLessons.push(lesson);
@@ -133,7 +133,7 @@ function groupOverlappingLessons(lessons: Lesson[]): Map<string, { groupIndex: n
 
     for (let j = i + 1; j < lessons.length; j++) {
       if (processed.has(lessons[j].id)) continue;
-      
+
       // Kiểm tra xem có trùng với bất kỳ buổi học nào trong group không
       const overlapsWithGroup = overlappingGroup.some(l => isTimeOverlap(l.time, lessons[j].time));
       if (overlapsWithGroup) {
@@ -159,7 +159,7 @@ function groupOverlappingLessons(lessons: Lesson[]): Map<string, { groupIndex: n
 }
 
 /** Tag nhỏ */
-function Pill({ children, color = 'from-pink-500 to-rose-500' }: { children: React.ReactNode; color?: string }) {
+function Pill({ children, color = 'from-red-600 to-red-700' }: { children: React.ReactNode; color?: string }) {
   return (
     <span className={`inline-flex items-center rounded-full bg-gradient-to-r ${color} text-white text-xs px-3 py-1.5 font-medium shadow-sm`}>
       {children}
@@ -169,59 +169,65 @@ function Pill({ children, color = 'from-pink-500 to-rose-500' }: { children: Rea
 
 // Color options
 const COLOR_OPTIONS = [
-  { name: 'Pink', value: 'bg-gradient-to-r from-pink-500 to-rose-500' },
-  { name: 'Purple', value: 'bg-gradient-to-r from-fuchsia-500 to-purple-500' },
-  { name: 'Amber', value: 'bg-gradient-to-r from-amber-500 to-orange-500' },
-  { name: 'Emerald', value: 'bg-gradient-to-r from-emerald-500 to-teal-500' },
-  { name: 'Blue', value: 'bg-gradient-to-r from-blue-500 to-sky-500' },
-  { name: 'Indigo', value: 'bg-gradient-to-r from-indigo-500 to-blue-500' },
-  { name: 'Rose', value: 'bg-gradient-to-r from-rose-500 to-pink-600' },
-  { name: 'Violet', value: 'bg-gradient-to-r from-violet-500 to-purple-600' },
+  { name: 'Đỏ đậm', value: 'bg-gradient-to-r from-red-400 to-red-500' },
+  { name: 'Đỏ nhạt', value: 'bg-gradient-to-r from-red-300 to-red-400' },
+  { name: 'Đỏ tươi', value: 'bg-gradient-to-r from-red-500 to-red-600' },
+  { name: 'Xám đậm', value: 'bg-gradient-to-r from-gray-400 to-gray-500' },
+  { name: 'Xám nhạt', value: 'bg-gradient-to-r from-gray-300 to-gray-400' },
+  { name: 'Đen', value: 'bg-gradient-to-r from-gray-500 to-gray-600' },
+  { name: 'Trắng-xám', value: 'bg-gradient-to-r from-gray-200 to-gray-300' },
+  { name: 'Đỏ xám', value: 'bg-gradient-to-r from-red-400 to-gray-400' },
 ];
 
 /** Timeline Item */
-function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = false, layoutInfo }: { lesson: Lesson; compact?: boolean; onColorChange?: (lessonId: string, color: string) => void; hasConflict?: boolean; layoutInfo?: { groupIndex: number; positionInGroup: number; totalInGroup: number } }) {
+function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = false, layoutInfo, data }: { lesson: Lesson; compact?: boolean; onColorChange?: (lessonId: string, color: string) => void; hasConflict?: boolean; layoutInfo?: { groupIndex: number; positionInGroup: number; totalInGroup: number }; data?: DaySchedule }) {
   const [isHovered, setIsHovered] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
-  
+
   // Tính toán vị trí chính xác dựa trên thời gian thực tế
   const [startHour, startMin] = lesson.time.split(' - ')[0].split(':').map(Number);
   const startPosition = ((startHour - 7) * 60 + startMin); // 7am là 0px, mỗi phút = 1px
-  
+
   // Tính toán vị trí và kích thước nếu có trùng giờ
   const baseLeft = 20;
-  
+
   let left: string | number = baseLeft;
   let width = 'calc(100% - 40px)';
-  
+
   if (layoutInfo && layoutInfo.totalInGroup > 1) {
     // Chia đều chiều rộng cho các buổi học trùng giờ
     const gap = 4; // Khoảng cách giữa các buổi học (px)
     const totalGaps = gap * (layoutInfo.totalInGroup - 1);
     const itemWidthPercent = 100 / layoutInfo.totalInGroup;
-    
+
     // Tính toán left position dựa trên percentage
     const leftPercent = (layoutInfo.positionInGroup * itemWidthPercent);
     left = `calc(${baseLeft}px + ${leftPercent}% + ${layoutInfo.positionInGroup * gap}px)`;
     width = `calc(${itemWidthPercent}% - ${(totalGaps / layoutInfo.totalInGroup) + (baseLeft * 2 / layoutInfo.totalInGroup)}px)`;
   }
-  
+
   // Chuyển màu gradient thành màu nhạt
   const lightColor = lesson.color
-    .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
-    .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
-    .replace('from-fuchsia-500 to-purple-500', 'from-fuchsia-100 to-purple-100')
-    .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
-    .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
-    .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
-    .replace('from-purple-500 to-indigo-500', 'from-purple-100 to-indigo-100');
+    .replace('bg-gradient-to-r', 'bg-gradient-to-br')
+    .replace('from-red-400 to-red-500', 'from-white to-red-50')
+    .replace('from-red-300 to-red-400', 'from-white to-red-50')
+    .replace('from-gray-400 to-gray-500', 'from-gray-50 to-gray-100')
+    .replace('from-gray-300 to-gray-400', 'from-gray-50 to-gray-100')
+    .replace('from-gray-500 to-gray-600', 'from-gray-50 to-gray-100')
+    .replace('from-gray-200 to-gray-300', 'from-gray-50 to-gray-100')
+    .replace('from-red-400 to-gray-400', 'from-white to-gray-50')
+    .replace('from-red-600 to-red-700', 'from-white to-red-50')
+    .replace('from-red-500 to-red-600', 'from-white to-red-50')
+    .replace('from-gray-600 to-gray-700', 'from-gray-50 to-gray-100')
+    .replace('from-gray-700 to-gray-800', 'from-gray-50 to-gray-100')
+    .replace('from-red-600 to-gray-600', 'from-white to-gray-50');
 
   return (
-    <div 
-      className={`absolute rounded-xl shadow-lg transition-all duration-300 border border-pink-200 ${isHovered ? 'shadow-pink-200 -translate-y-0.5 z-10' : 'shadow-pink-100'} ${lightColor} p-4 text-gray-900 ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}
+    <div
+      className={`absolute rounded-xl shadow-lg transition-all duration-300 border border-gray-200 ${isHovered ? 'shadow-gray-200 -translate-y-0.5 z-10' : 'shadow-gray-100'} ${lightColor} p-4 text-gray-900 ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}
       style={{
         left: typeof left === 'number' ? `${left}px` : left,
         top: `${startPosition}px`,
@@ -239,7 +245,7 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
             <div className="text-xs text-gray-700 mt-1">{lesson.time}</div>
           )}
         </div>
-        
+
         {!compact && (
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-2 text-xs text-gray-700">
@@ -260,7 +266,7 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
                       e.stopPropagation();
                       setShowColorPicker(!showColorPicker);
                     }}
-                    className="text-xs bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer flex items-center gap-1 border border-pink-200"
+                    className="text-xs bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer flex items-center gap-1 border border-gray-200"
                   >
                     <Palette size={12} className="text-gray-700" />
                   </button>
@@ -276,7 +282,7 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
                               onColorChange(lesson.id, color.value);
                               setShowColorPicker(false);
                             }}
-                            className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-pink-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
+                            className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-red-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
                             title={color.name}
                           />
                         ))}
@@ -285,12 +291,23 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
                   )}
                 </div>
               )}
-              <button
+              {/* <button
                 onClick={() => router.push(`/${locale}/portal/teacher/schedule/${lesson.id}`)}
-                className="text-xs bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer border border-pink-200 text-gray-700"
+                className="text-xs bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer border border-gray-200 text-gray-700"
               >
-              Chi tiết
-            </button>
+                Chi tiết
+              </button> */}
+              <button
+                onClick={() => {
+                  const [startTime] = lesson.time.split(' - ');
+                  const [hour, minute] = startTime.split(':');
+                  const lessonDate = data?.date || new Date().toISOString().split('T')[0];
+                  router.push(`/${locale}/portal/teacher/attendance?date=${lessonDate}&time=${hour}:${minute}&class=${encodeURIComponent(lesson.course)}`);
+                }}
+                className="text-xs bg-gradient-to-r from-red-600 to-red-700 hover:shadow-md backdrop-blur-sm rounded-lg px-2 py-1 transition-all cursor-pointer text-white"
+              >
+                Điểm danh
+              </button>
             </div>
           </div>
         )}
@@ -307,7 +324,7 @@ function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; h
 
   // Loại bỏ các buổi học trùng giờ - chỉ giữ lại buổi học hợp lệ (không trùng giờ)
   const validLessons = useMemo(() => removeOverlappingLessons(data.lessons), [data.lessons]);
-  
+
   // Kiểm tra xung đột thời gian (trước khi loại bỏ) để hiển thị cảnh báo
   const conflictCheck = useMemo(() => checkTimeConflicts(data.lessons), [data.lessons]);
   const removedLessons = useMemo(() => {
@@ -345,15 +362,15 @@ function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; h
   const timeDisplay = `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}:${String(currentTime.getSeconds()).padStart(2, '0')}`;
 
   return (
-    <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden shadow-sm">
+    <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
       {/* Header */}
-      <div className={`bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 p-6`}>
+      <div className={`bg-gradient-to-r from-red-50 to-gray-100 border-b border-gray-200 p-6`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className={`relative p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg`}>
+            <div className={`relative p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg`}>
               <CalendarDays size={24} />
               <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                <span className="text-xs font-bold text-pink-600">{data.day}</span>
+                <span className="text-xs font-bold text-red-600">{data.day}</span>
               </div>
             </div>
             <div>
@@ -361,7 +378,7 @@ function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; h
               <div className="text-gray-600">{data.month} - {formatVNDate(data.date)}</div>
               {isToday && (
                 <div className="flex items-center gap-2 mt-1">
-                  <div className="text-xs font-semibold text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full">
+                  <div className="text-xs font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
                     Hôm nay
                   </div>
                   <div className="text-xs text-gray-500 font-mono">
@@ -388,8 +405,8 @@ function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; h
         {/* Time labels - theo giờ */}
         <div className="absolute left-0 top-0 bottom-0 w-16">
           {timeSlots.map(hour => (
-            <div 
-              key={hour} 
+            <div
+              key={hour}
               className="relative text-sm text-gray-500 text-right pr-2"
               style={{ height: '60px', lineHeight: '60px' }}
             >
@@ -401,37 +418,38 @@ function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; h
         {/* Timeline grid lines */}
         <div className="ml-16 h-full relative" style={{ minHeight: '720px' }}>
           {timeSlots.map(hour => (
-            <div 
-              key={`line-${hour}`} 
-              className="absolute left-0 right-0 border-t border-pink-100"
+            <div
+              key={`line-${hour}`}
+              className="absolute left-0 right-0 border-t border-gray-100"
               style={{ top: `${(hour - 7) * 60}px` }}
             />
           ))}
-          
+
           {/* Current time indicator - realtime */}
           {currentTimePos !== null && (
-            <div 
+            <div
               className="absolute left-0 right-0 z-30"
               style={{ top: `${currentTimePos}px` }}
             >
-              <div className="absolute left-0 h-0.5 w-full bg-gradient-to-r from-pink-500 to-rose-500"></div>
-              <div className="absolute -left-2 -top-1.5 w-3 h-3 rounded-full bg-rose-500 shadow-lg"></div>
-              <div className="absolute right-0 -top-2.5 bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full font-semibold shadow-md">
+              <div className="absolute left-0 h-0.5 w-full bg-gradient-to-r from-red-600 to-red-700"></div>
+              <div className="absolute -left-2 -top-1.5 w-3 h-3 rounded-full bg-red-600 shadow-lg"></div>
+              <div className="absolute right-0 -top-2.5 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-semibold shadow-md">
                 {timeDisplay}
               </div>
-          </div>
+            </div>
           )}
 
           {/* Lessons - chỉ hiển thị các buổi học không trùng giờ */}
           {validLessons.map(lesson => {
             const layoutInfo = lessonLayouts.get(lesson.id);
             return (
-              <TimelineLesson 
-                key={lesson.id} 
-                lesson={lesson} 
+              <TimelineLesson
+                key={lesson.id}
+                lesson={lesson}
                 onColorChange={onColorChange}
                 hasConflict={false}
                 layoutInfo={layoutInfo}
+                data={data}
               />
             );
           })}
@@ -442,46 +460,48 @@ function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; h
 }
 
 /** Week Lesson Button Component */
-function WeekLessonButton({ 
-  lesson, 
-  top, 
-  height, 
-  locale, 
-  router, 
+function WeekLessonButton({
+  lesson,
+  top,
+  height,
+  locale,
+  router,
   onColorChange,
   hasConflict = false,
-  layoutInfo
-}: { 
-  lesson: Lesson; 
-  top: number; 
-  height: number; 
-  locale: string; 
-  router: any; 
+  layoutInfo,
+  date
+}: {
+  lesson: Lesson;
+  top: number;
+  height: number;
+  locale: string;
+  router: any;
   onColorChange?: (lessonId: string, color: string) => void;
   hasConflict?: boolean;
   layoutInfo?: { groupIndex: number; positionInGroup: number; totalInGroup: number };
+  date?: string;
 }) {
   const [showColorPicker, setShowColorPicker] = useState(false);
-  
+
   // Tính toán vị trí và kích thước nếu có trùng giờ
   const baseLeft = 4; // left-1 = 4px
-  
+
   let left: string | number = baseLeft;
   let width = 'calc(100% - 8px)';
   let right: string | undefined = '4px';
-  
+
   if (layoutInfo && layoutInfo.totalInGroup > 1) {
     // Chia đều chiều rộng cho các buổi học trùng giờ
     const gap = 2; // Khoảng cách giữa các buổi học (px)
     const itemWidthPercent = 100 / layoutInfo.totalInGroup;
-    
+
     // Tính toán left position dựa trên percentage
     const leftPercent = (layoutInfo.positionInGroup * itemWidthPercent);
     left = `calc(${baseLeft}px + ${leftPercent}% + ${layoutInfo.positionInGroup * gap}px)`;
     width = `calc(${itemWidthPercent}% - ${(gap * (layoutInfo.totalInGroup - 1) / layoutInfo.totalInGroup) + (8 / layoutInfo.totalInGroup)}px)`;
     right = 'auto';
   }
-  
+
   return (
     <div
       className="absolute z-10"
@@ -495,9 +515,12 @@ function WeekLessonButton({
       }}
     >
       <button
-        onClick={() => router.push(`/${locale}/portal/teacher/schedule/${lesson.id}`)}
+        onClick={() => {
+          const lessonDate = date || new Date().toISOString().split('T')[0];
+          router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${lessonDate}`);
+        }}
         className={`w-full h-full rounded-lg ${lesson.color} p-2 text-white shadow-md hover:shadow-lg transition-all text-left cursor-pointer ${hasConflict ? 'ring-2 ring-red-500 ring-offset-1' : ''}`}
-        title={hasConflict ? '⚠️ Cảnh báo: Buổi học này trùng giờ với buổi học khác trong ngày' : ''}
+        title={hasConflict ? '⚠️ Cảnh báo: Buổi học này trùng giờ với buổi học khác trong ngày' : 'Bấm để điểm danh'}
       >
         <div className="h-full flex flex-col justify-between">
           <div>
@@ -517,7 +540,17 @@ function WeekLessonButton({
         </div>
       </button>
       {onColorChange && (
-        <div className="absolute top-1 right-1">
+        <div className="absolute top-1 right-1 flex items-center gap-1">
+          {/* <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/${locale}/portal/teacher/schedule/${lesson.id}`);
+            }}
+            className="bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg p-1 transition-colors cursor-pointer"
+            title="Chi tiết"
+          >
+            <CheckCircle size={10}/>
+          </button> */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -539,7 +572,7 @@ function WeekLessonButton({
                       onColorChange(lesson.id, color.value);
                       setShowColorPicker(false);
                     }}
-                    className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-pink-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
+                    className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-red-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
                     title={color.name}
                   />
                 ))}
@@ -553,26 +586,30 @@ function WeekLessonButton({
 }
 
 /** Grid Lesson Card Component */
-function GridLessonCard({ 
-  lesson, 
-  lightColor, 
-  locale, 
-  router, 
-  onColorChange 
-}: { 
-  lesson: Lesson; 
-  lightColor: string; 
-  locale: string; 
-  router: any; 
+function GridLessonCard({
+  lesson,
+  lightColor,
+  locale,
+  router,
+  onColorChange,
+  date
+}: {
+  lesson: Lesson;
+  lightColor: string;
+  locale: string;
+  router: any;
   onColorChange?: (lessonId: string, color: string) => void;
+  date?: string;
 }) {
   const [showColorPicker, setShowColorPicker] = useState(false);
-  
+
   return (
     <div className="relative group">
       <div
-        onClick={() => router.push(`/${locale}/portal/teacher/schedule/${lesson.id}`)}
-        className={`rounded-lg ${lightColor} p-3 text-gray-900 cursor-pointer hover:shadow-md transition-all border border-pink-200`}
+        onClick={() => {
+          router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${date}`);
+        }}
+        className={`rounded-lg ${lightColor} p-3 text-gray-900 cursor-pointer hover:shadow-md transition-all border border-gray-200`}
       >
         <div className="font-semibold text-sm whitespace-nowrap overflow-hidden text-ellipsis">{lesson.time}</div>
         <div className="font-medium text-xs mt-1 overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
@@ -584,7 +621,17 @@ function GridLessonCard({
         </div>
       </div>
       {onColorChange && (
-        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+          {/* <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/${locale}/portal/teacher/schedule/${lesson.id}`);
+            }}
+            className="bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg p-1.5 transition-colors cursor-pointer shadow-sm"
+            title="Chi tiết"
+          >
+            <CheckCircle size={12} className="text-red-600" />
+          </button> */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -606,7 +653,7 @@ function GridLessonCard({
                       onColorChange(lesson.id, color.value);
                       setShowColorPicker(false);
                     }}
-                    className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-pink-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
+                    className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-red-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
                     title={color.name}
                   />
                 ))}
@@ -641,7 +688,7 @@ function WeekCalendarView({
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const currentHour = now.getHours() + now.getMinutes() / 60;
-  
+
   // Chia thành 3 ca: Sáng (7-12h), Chiều (12-17h), Tối (17-22h)
   const timeShifts = [
     { label: 'Sáng', start: 7, end: 12 },
@@ -655,7 +702,7 @@ function WeekCalendarView({
 
   // Dựng đủ 7 ngày của tuần đang xem (Thứ 2 -> Chủ nhật), dù có/không có buổi học
   const { start: weekStart, end: weekEnd } = getWeekRangeByOffset(now, weekOffset);
-  
+
   // Tính năm từ tuần đang xem
   const year = weekStart.getFullYear();
   const monthLabel =
@@ -681,7 +728,7 @@ function WeekCalendarView({
   const getShiftForLesson = (lesson: Lesson): string | null => {
     const [startTime] = lesson.time.split(' - ');
     const [hour] = startTime.split(':').map(Number);
-    
+
     if (hour >= 7 && hour < 12) return 'Sáng';
     if (hour >= 12 && hour < 17) return 'Chiều';
     if (hour >= 17 && hour < 22) return 'Tối';
@@ -694,19 +741,19 @@ function WeekCalendarView({
   };
 
   return (
-    <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden shadow-sm">
+    <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+      <div className="bg-gradient-to-r from-red-50 to-gray-100 border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <CalendarDays size={20} className="text-pink-500" />
+            <CalendarDays size={20} className="text-red-600" />
             <h3 className="font-bold text-gray-900">Lịch tuần</h3>
             <span className="text-sm text-gray-600">({monthLabelWithYear})</span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={onPrevWeek}
-              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer"
+              className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
               aria-label="Tuần trước"
               title="Tuần trước"
             >
@@ -717,7 +764,7 @@ function WeekCalendarView({
             </span>
             <button
               onClick={onNextWeek}
-              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer"
+              className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
               aria-label="Tuần sau"
               title="Tuần sau"
             >
@@ -725,7 +772,7 @@ function WeekCalendarView({
             </button>
             <button
               onClick={onGoThisWeek}
-              className="ml-2 px-3 py-2 rounded-lg border border-pink-200 bg-white hover:bg-pink-50 text-sm text-gray-700 cursor-pointer whitespace-nowrap"
+              className="ml-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700 cursor-pointer whitespace-nowrap"
             >
               Tuần này
             </button>
@@ -739,20 +786,20 @@ function WeekCalendarView({
           <table className="w-full border-collapse table-fixed">
             {/* Header row */}
             <thead>
-              <tr className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b-2 border-pink-300">
-                <th className="w-24 px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-pink-200">
+              <tr className="bg-gradient-to-r from-red-50 to-gray-100 border-b-2 border-gray-200">
+                <th className="w-24 px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-200">
                   Ca / Ngày
                 </th>
                 {calendarDays.map((day, index) => {
                   const isToday = day.date === todayStr;
                   return (
-                    <th key={index} className="w-[calc((100%-96px)/7)] px-4 py-3 text-center border-r border-pink-200 last:border-r-0 whitespace-nowrap">
+                    <th key={index} className="w-[calc((100%-96px)/7)] px-4 py-3 text-center border-r border-gray-200 last:border-r-0 whitespace-nowrap">
                       <div className="text-xs text-gray-600 mb-1 whitespace-nowrap flex items-center justify-center gap-1">
                         <span>{day.dow === 'Chủ nhật' ? 'CN' : day.dow.replace('Thứ ', 'Th ')}</span>
-                        
+
                       </div>
                       <div className="text-[10px] text-gray-500 -mt-1">{day.month}</div>
-                      <div className={`text-lg font-bold whitespace-nowrap ${day.day ? 'text-gray-900' : 'text-gray-400'} ${isToday ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white inline-flex px-3 py-1 rounded-lg shadow-sm' : ''}`}>
+                      <div className={`text-lg font-bold whitespace-nowrap ${day.day ? 'text-gray-900' : 'text-gray-400'} ${isToday ? 'bg-gradient-to-r from-red-600 to-red-700 text-white inline-flex px-3 py-1 rounded-lg shadow-sm' : ''}`}>
                         {day.day || ''}
                       </div>
                     </th>
@@ -760,23 +807,23 @@ function WeekCalendarView({
                 })}
               </tr>
             </thead>
-            
+
             {/* Body - 3 ca */}
             <tbody>
               {timeShifts.map((shift, shiftIndex) => (
-                <tr key={shift.label} className="border-b border-pink-200 last:border-b-0">
+                <tr key={shift.label} className="border-b border-gray-200 last:border-b-0">
                   {/* Shift label column */}
-                  <td className="w-24 px-4 py-6 text-center bg-pink-50/50 border-r border-pink-200 align-top whitespace-nowrap">
+                  <td className="w-24 px-4 py-6 text-center bg-red-50/50 border-r border-gray-200 align-top whitespace-nowrap">
                     <div className="font-bold text-gray-900 text-sm whitespace-nowrap">{shift.label}</div>
                     <div className="text-xs text-gray-600 mt-1 whitespace-nowrap">{shift.start}:00 - {shift.end}:00</div>
                     {isCurrentShift(shift) && (
-                      <div className="text-[10px] mt-2 text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                        <span className="h-1.5 w-1.5 rounded-full bg-pink-500 animate-pulse" />
+                      <div className="text-[10px] mt-2 text-red-600 bg-red-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
                         Đang diễn ra
                       </div>
                     )}
                   </td>
-                  
+
                   {/* Day columns */}
                   {calendarDays.map((day, dayIndex) => {
                     const lessons = getLessonsForShift(day, shift.label);
@@ -785,7 +832,7 @@ function WeekCalendarView({
                     return (
                       <td
                         key={dayIndex}
-                        className={`w-[calc((100%-96px)/7)] px-3 py-4 border-r border-pink-200 last:border-r-0 align-top min-h-[200px] bg-white relative ${isNow ? 'ring-2 ring-pink-400 ring-offset-1' : ''}`}
+                        className={`w-[calc((100%-96px)/7)] px-3 py-4 border-r border-gray-200 last:border-r-0 align-top min-h-[200px] bg-white relative ${isNow ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
                       >
                         {lessons.length === 0 ? (
                           <div className="text-center text-gray-400 text-sm py-8 whitespace-nowrap">Trống</div>
@@ -794,14 +841,20 @@ function WeekCalendarView({
                             {lessons.map((lesson) => {
                               // Chuyển màu gradient thành màu nhạt
                               const lightColor = lesson.color
-                                .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
-                                .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
-                                .replace('from-fuchsia-500 to-purple-500', 'from-fuchsia-100 to-purple-100')
-                                .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
-                                .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
-                                .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
-                                .replace('from-purple-500 to-indigo-500', 'from-purple-100 to-indigo-100');
-                              
+                                .replace('bg-gradient-to-r', 'bg-gradient-to-br')
+                                .replace('from-red-400 to-red-500', 'from-white to-red-50')
+                                .replace('from-red-300 to-red-400', 'from-white to-red-50')
+                                .replace('from-gray-400 to-gray-500', 'from-gray-50 to-gray-100')
+                                .replace('from-gray-300 to-gray-400', 'from-gray-50 to-gray-100')
+                                .replace('from-gray-500 to-gray-600', 'from-gray-50 to-gray-100')
+                                .replace('from-gray-200 to-gray-300', 'from-gray-50 to-gray-100')
+                                .replace('from-red-400 to-gray-400', 'from-white to-gray-50')
+                                .replace('from-red-600 to-red-700', 'from-white to-red-50')
+                                .replace('from-red-500 to-red-600', 'from-white to-red-50')
+                                .replace('from-gray-600 to-gray-700', 'from-gray-50 to-gray-100')
+                                .replace('from-gray-700 to-gray-800', 'from-gray-50 to-gray-100')
+                                .replace('from-red-600 to-gray-600', 'from-white to-gray-50');
+
                               return (
                                 <GridLessonCard
                                   key={lesson.id}
@@ -810,6 +863,7 @@ function WeekCalendarView({
                                   locale={locale}
                                   router={router}
                                   onColorChange={onColorChange}
+                                  date={day.date}
                                 />
                               );
                             })}
@@ -835,12 +889,12 @@ function DayCard({ data, onColorChange }: { data: DaySchedule; onColorChange?: (
   const locale = params.locale as string;
 
   return (
-    <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden transition-all duration-500 hover:shadow-lg hover:shadow-pink-100/50">
+    <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden transition-all duration-500 hover:shadow-lg hover:shadow-gray-100/50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200 p-4">
+      <div className="bg-gradient-to-r from-red-50 to-gray-100 border-b border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white`}>
+            <div className={`p-2.5 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white`}>
               <CalendarDays size={18} />
             </div>
             <div>
@@ -873,15 +927,17 @@ function DayLessonCard({
   lesson,
   locale,
   router,
-  onColorChange
+  onColorChange,
+  date
 }: {
   lesson: Lesson;
   locale: string;
   router: any;
   onColorChange?: (lessonId: string, color: string) => void;
+  date?: string;
 }) {
   const [showColorPicker, setShowColorPicker] = useState(false);
-  
+
   return (
     <div className="group cursor-pointer">
       <div className={`rounded-xl ${lesson.color} p-4 text-white transition-all duration-300 hover:shadow-lg relative`}>
@@ -914,7 +970,7 @@ function DayLessonCard({
                             onColorChange(lesson.id, color.value);
                             setShowColorPicker(false);
                           }}
-                          className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-pink-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
+                          className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-red-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
                           title={color.name}
                         />
                       ))}
@@ -924,11 +980,19 @@ function DayLessonCard({
               </div>
             )}
             <button
+              onClick={() => {
+                router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${date}`);
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 cursor-pointer"
+            >
+              Điểm danh
+            </button>
+            {/* <button
               onClick={() => router.push(`/${locale}/portal/teacher/schedule/${lesson.id}`)}
               className="opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 cursor-pointer"
             >
               Chi tiết
-            </button>
+            </button> */}
           </div>
         </div>
         <div className="flex items-center gap-4 mt-3 text-xs">
@@ -1122,16 +1186,16 @@ export default function Page() {
   }, [weekData, today]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6">
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 p-6">
       {/* Header */}
       <div className={`mb-8 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
               <CalendarDays size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold text-gray-900">
                 Lịch giảng dạy
               </h1>
               <p className="text-gray-600 mt-1">Quản lý và theo dõi lịch dạy theo timeline</p>
@@ -1139,24 +1203,24 @@ export default function Page() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="bg-white border border-pink-200 rounded-xl p-1 flex">
-              
+            <div className="bg-white border border-gray-200 rounded-xl p-1 flex">
+
               <button
-                className={`px-4 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all cursor-pointer ${tab === 'week' ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md' : 'text-gray-700 hover:bg-pink-50'}`}
+                className={`px-4 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all cursor-pointer ${tab === 'week' ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md' : 'text-gray-700 hover:bg-gray-50'}`}
                 onClick={() => setTab('week')}
               >
                 <CalendarDays size={16} />
                 Tuần
               </button>
               <button
-                className={`px-4 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all cursor-pointer ${tab === 'month' ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md' : 'text-gray-700 hover:bg-pink-50'}`}
+                className={`px-4 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all cursor-pointer ${tab === 'month' ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md' : 'text-gray-700 hover:bg-gray-50'}`}
                 onClick={() => setTab('month')}
               >
                 <CalendarIcon size={16} />
                 Tháng
               </button>
               <button
-                className={`px-4 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all cursor-pointer ${tab === 'timeline' ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md' : 'text-gray-700 hover:bg-pink-50'}`}
+                className={`px-4 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all cursor-pointer ${tab === 'timeline' ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md' : 'text-gray-700 hover:bg-gray-50'}`}
                 onClick={() => setTab('timeline')}
               >
                 <Sparkles size={16} />
@@ -1164,7 +1228,7 @@ export default function Page() {
               </button>
             </div>
 
-            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
+            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 text-sm font-medium hover:shadow-lg transition-all cursor-pointer">
               <Download size={16} /> Xuất lịch
             </button>
           </div>
@@ -1177,29 +1241,29 @@ export default function Page() {
         {tab === 'timeline' && (
           <div className="space-y-6">
             {/* Date Selector */}
-            <div className="bg-gradient-to-r from-white to-pink-50 rounded-2xl border border-pink-200 p-4">
+            <div className="bg-gradient-to-r from-white to-gray-50 rounded-2xl border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <CalendarDays size={20} className="text-pink-500" />
+                  <CalendarDays size={20} className="text-red-600" />
                   <h3 className="font-semibold text-gray-900">Chọn ngày xem timeline</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
+                  <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
                     <ChevronLeft size={18} />
                   </button>
-                    <span className="text-sm text-gray-700">{weekMonthLabel}</span>
-                  <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
+                  <span className="text-sm text-gray-700">{weekMonthLabel}</span>
+                  <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
                     <ChevronRight size={18} />
                   </button>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-7 gap-2">
                 {weekDaysForSelector.map(day => (
                   <button
                     key={day.date}
                     onClick={() => setSelectedDate(day.date)}
-                    className={`w-full rounded-lg p-2 transition-all duration-300 cursor-pointer ${selectedDate === day.date ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg' : 'bg-white border border-pink-200 hover:border-pink-300'}`}
+                    className={`w-full rounded-lg p-2 transition-all duration-300 cursor-pointer ${selectedDate === day.date ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg' : 'bg-white border border-gray-200 hover:border-gray-300'}`}
                   >
                     <div className="text-center">
                       <div className={`text-xs ${selectedDate === day.date ? 'text-white/90' : 'text-gray-500'}`}>
@@ -1208,7 +1272,7 @@ export default function Page() {
                       <div className={`text-lg font-bold mt-0.5 ${selectedDate === day.date ? 'text-white' : 'text-gray-900'}`}>{day.day}</div>
                       <div className={`text-[10px] mt-0.5 ${selectedDate === day.date ? 'text-white/80' : 'text-gray-600'}`}>{day.month}</div>
                       {day.lessons.length > 0 && (
-                        <div className={`text-[10px] mt-1 px-1.5 py-0.5 rounded-full ${selectedDate === day.date ? 'bg-white/20' : 'bg-pink-100 text-pink-600'}`}>
+                        <div className={`text-[10px] mt-1 px-1.5 py-0.5 rounded-full ${selectedDate === day.date ? 'bg-white/20' : 'bg-red-100 text-red-600'}`}>
                           {day.lessons.length} buổi
                         </div>
                       )}
@@ -1235,17 +1299,17 @@ export default function Page() {
         )}
 
         {tab === 'month' && (
-          <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200 px-6 py-4">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-red-50 to-gray-100 border-b border-gray-200 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 font-bold text-gray-900">
-                  <CalendarIcon size={20} className="text-pink-500" /> {monthTitle}
+                  <CalendarIcon size={20} className="text-red-600" /> {monthTitle}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
+                  <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
                     <ChevronLeft size={18} />
                   </button>
-                  <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 cursor-pointer">
+                  <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
                     <ChevronRight size={18} />
                   </button>
                 </div>
@@ -1267,7 +1331,7 @@ export default function Page() {
                     return (
                       <div
                         key={`empty-${i}`}
-                        className="h-32 rounded-xl bg-pink-50/30 border border-dashed border-pink-100"
+                        className="h-32 rounded-xl bg-gray-50/30 border border-dashed border-gray-100"
                       />
                     );
                   }
@@ -1285,16 +1349,15 @@ export default function Page() {
                           setTab('timeline');
                         }
                       }}
-                      className={`h-32 rounded-xl p-3 text-left transition-all duration-300 cursor-pointer bg-white border border-pink-200 hover:border-pink-300 hover:shadow-lg hover:shadow-pink-100/30 ${
-                        selectedDate === cell.date ? 'ring-2 ring-pink-500 ring-offset-2' : ''
-                      } ${isToday ? 'ring-1 ring-rose-300' : ''}`}
+                      className={`h-32 rounded-xl p-3 text-left transition-all duration-300 cursor-pointer bg-white border border-gray-200 hover:border-gray-300 hover:shadow-lg hover:shadow-gray-100/30 ${selectedDate === cell.date ? 'ring-2 ring-red-500 ring-offset-2' : ''
+                        } ${isToday ? 'ring-1 ring-red-300' : ''}`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className={`text-lg font-bold ${isToday ? 'text-rose-600' : 'text-gray-900'}`}>
+                        <span className={`text-lg font-bold ${isToday ? 'text-red-600' : 'text-gray-900'}`}>
                           {cell.dayNum}
                         </span>
                         {hasLessons && (
-                          <div className="h-2 w-2 rounded-full bg-gradient-to-r from-pink-500 to-rose-500" />
+                          <div className="h-2 w-2 rounded-full bg-gradient-to-r from-red-600 to-red-700" />
                         )}
                       </div>
 
@@ -1303,24 +1366,25 @@ export default function Page() {
                           {dayData.lessons.slice(0, 2).map((lesson, idx) => {
                             // Chuyển màu gradient thành màu nhạt
                             const lightColor = lesson.color
-                              .replace('from-pink-500 to-rose-500', 'from-pink-100 to-rose-100')
-                              .replace('from-rose-500 to-pink-600', 'from-rose-100 to-pink-100')
-                              .replace('from-fuchsia-500 to-purple-500', 'from-fuchsia-100 to-purple-100')
-                              .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
-                              .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
-                              .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
-                              .replace('from-purple-500 to-indigo-500', 'from-purple-100 to-indigo-100');
+                              .replace('bg-gradient-to-r', 'bg-gradient-to-br')
+                              .replace('from-red-600 to-red-700', 'from-white to-red-50')
+                              .replace('from-red-500 to-red-600', 'from-white to-red-50')
+                              .replace('from-gray-600 to-gray-700', 'from-gray-50 to-gray-100')
+                              .replace('from-gray-500 to-gray-600', 'from-gray-50 to-gray-100')
+                              .replace('from-gray-700 to-gray-800', 'from-gray-50 to-gray-100')
+                              .replace('from-gray-200 to-gray-300', 'from-gray-50 to-gray-100')
+                              .replace('from-red-600 to-gray-600', 'from-white to-gray-50');
                             return (
                               <div
                                 key={idx}
-                                className={`text-xs p-1.5 rounded-lg text-gray-900 border border-pink-200 ${lightColor}`}
+                                className={`text-xs p-1.5 rounded-lg text-gray-900 border border-gray-200 ${lightColor}`}
                               >
                                 {lesson.time.split(' - ')[0]}
                               </div>
                             );
                           })}
                           {dayData.lessons.length > 2 && (
-                            <div className="text-xs text-pink-600 font-medium text-center">
+                            <div className="text-xs text-red-600 font-medium text-center">
                               +{dayData.lessons.length - 2} buổi
                             </div>
                           )}
@@ -1336,20 +1400,20 @@ export default function Page() {
       </div>
 
       {/* Legend */}
-      <div className={`mt-8 pt-6 border-t border-pink-200 transition-all duration-700 delay-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`mt-8 pt-6 border-t border-gray-200 transition-all duration-700 delay-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600 flex items-center gap-4">
             <span className="font-semibold">Chú thích:</span>
             <div className="flex items-center gap-2">
-              <div className="h-3 w-6 rounded bg-gradient-to-r from-pink-500 to-rose-500"></div>
+              <div className="h-3 w-6 rounded bg-gradient-to-r from-red-600 to-red-700"></div>
               <span className="text-sm">IELTS</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-3 w-6 rounded bg-gradient-to-r from-rose-500 to-pink-600"></div>
+              <div className="h-3 w-6 rounded bg-gradient-to-r from-red-500 to-red-600"></div>
               <span className="text-sm">TOEIC</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-3 w-6 rounded bg-gradient-to-r from-fuchsia-500 to-purple-500"></div>
+              <div className="h-3 w-6 rounded bg-gradient-to-r from-gray-600 to-gray-700"></div>
               <span className="text-sm">Business</span>
             </div>
           </div>
@@ -1360,4 +1424,4 @@ export default function Page() {
       </div>
     </div>
   );
-}
+}  

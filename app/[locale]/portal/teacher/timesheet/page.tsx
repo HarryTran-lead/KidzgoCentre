@@ -42,7 +42,7 @@ function ModernStatCard({
   trend,
   subtitle,
   delay = 0,
-  color = 'pink',
+  color = 'red',
 }: {
   icon: React.ReactNode;
   title: string;
@@ -50,17 +50,17 @@ function ModernStatCard({
   trend?: { value: number; isPositive: boolean };
   subtitle?: string;
   delay?: number;
-  color?: 'pink' | 'emerald' | 'amber' | 'blue';
+  color?: 'red' | 'emerald' | 'amber' | 'blue';
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const colorClasses = {
-    pink: {
-      gradient: 'from-pink-500 to-rose-500',
-      light: 'bg-pink-100',
-      text: 'text-pink-600',
-      border: 'border-pink-200',
+    red: {
+      gradient: 'from-red-600 to-red-700',
+      light: 'bg-red-100',
+      text: 'text-red-600',
+      border: 'border-gray-200',
     },
     emerald: {
       gradient: 'from-emerald-500 to-teal-500',
@@ -102,7 +102,7 @@ function ModernStatCard({
   return (
     <div
       ref={ref}
-      className={`group relative overflow-hidden rounded-2xl border ${currentColor.border} bg-white p-6 transition-all duration-700 hover:shadow-xl hover:shadow-pink-100/30 ${
+      className={`group relative overflow-hidden rounded-2xl border ${currentColor.border} bg-white p-6 transition-all duration-700 hover:shadow-xl hover:shadow-gray-100/30 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}
     >
@@ -136,7 +136,7 @@ function ModernStatCard({
               <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
                 trend.isPositive 
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  : 'bg-red-50 text-red-700 border border-red-200'
               }`}>
                 {trend.isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                 <span>{trend.isPositive ? '+' : ''}{trend.value}%</span>
@@ -425,13 +425,13 @@ function ModernBarChart() {
     <div className="space-y-6">
       {/* Filter buttons */}
       <div className="flex items-center justify-end">
-        <div className="flex items-center gap-2 bg-white border border-pink-200 rounded-xl p-1">
+        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-1">
           <button
             onClick={() => setFilter('thisMonth')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               filter === 'thisMonth'
-                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md'
-                : 'text-gray-700 hover:bg-pink-50'
+                ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md'
+                : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
             Tháng này
@@ -440,8 +440,8 @@ function ModernBarChart() {
             onClick={() => setFilter('6months')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               filter === '6months'
-                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md'
-                : 'text-gray-700 hover:bg-pink-50'
+                ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md'
+                : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
             6 tháng
@@ -450,8 +450,8 @@ function ModernBarChart() {
             onClick={() => setFilter('1year')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               filter === '1year'
-                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md'
-                : 'text-gray-700 hover:bg-pink-50'
+                ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md'
+                : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
             1 năm
@@ -476,11 +476,11 @@ function ModernDataTable({ data }: { data: Array<{
   classes: number;
 }> }) {
   return (
-    <div className="bg-gradient-to-br from-white to-pink-50 rounded-2xl border border-pink-200 overflow-hidden shadow-sm">
+    <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="bg-gradient-to-r from-pink-50 to-rose-50">
+            <tr className="bg-gradient-to-r from-red-50 to-red-100">
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
                 <div className="flex items-center gap-2">
                   <Calendar size={16} />
@@ -518,16 +518,16 @@ function ModernDataTable({ data }: { data: Array<{
             {data.map((row, index) => (
               <tr 
                 key={row.month}
-                className={`group transition-all duration-300 hover:bg-pink-50/60 ${
-                  index % 2 === 0 ? 'bg-white' : 'bg-pink-50/30'
+                className={`group transition-all duration-300 hover:bg-gray-50/60 ${
+                  index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
                 }`}
               >
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg bg-gradient-to-r ${
                       index === 0 
-                        ? 'from-pink-500 to-rose-500' 
-                        : 'from-pink-400 to-rose-400'
+                        ? 'from-red-600 to-red-700' 
+                        : 'from-red-500 to-red-600'
                     }`}>
                       <Calendar size={16} className="text-white" />
                     </div>
@@ -539,7 +539,7 @@ function ModernDataTable({ data }: { data: Array<{
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-50 to-rose-50 flex items-center justify-center border border-pink-200 group-hover:border-pink-300">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center border border-gray-200 group-hover:border-gray-300">
                       <span className="text-base font-bold text-gray-900">{row.hours}</span>
                     </div>
                   </div>
@@ -598,6 +598,7 @@ function ModernDataTable({ data }: { data: Array<{
 export default function Page() {
   const [tab, setTab] = useState<'overview' | 'detail'>('overview');
   const [year] = useState(2025);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   const monthlyData = [
     { month: 'T6/2025', hours: 68, income: 20400000, rate: 300000, status: 'paid' as const, classes: 4 },
@@ -631,14 +632,18 @@ export default function Page() {
     URL.revokeObjectURL(url);
   };
 
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/20 via-white to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50/20 via-white to-white p-4 md:p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-xl">
+              <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-xl">
                 <DollarSign size={28} className="text-white" />
               </div>
               <div className="absolute -top-2 -right-2 p-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full shadow-lg">
@@ -646,7 +651,7 @@ export default function Page() {
               </div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
                 Công giờ & Thu nhập
               </h1>
               <p className="text-gray-600 mt-1">
@@ -657,7 +662,7 @@ export default function Page() {
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative group">
-              <select className="appearance-none rounded-xl bg-white border border-pink-200 pl-4 pr-10 py-2.5 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all">
+              <select className="appearance-none rounded-xl bg-white border border-gray-200 pl-4 pr-10 py-2.5 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all">
                 <option value="2025">Năm 2025</option>
                 <option value="2024">Năm 2024</option>
                 <option value="2023">Năm 2023</option>
@@ -666,25 +671,25 @@ export default function Page() {
             </div>
             <button
               onClick={exportReport}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2.5 text-sm font-medium hover:shadow-xl transition-all shadow-lg hover:scale-105 duration-300"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 text-sm font-medium hover:shadow-xl transition-all shadow-lg hover:scale-105 duration-300"
             >
               <Download size={16} /> Xuất báo cáo
             </button>
-            <button className="p-2.5 rounded-xl border border-pink-200 bg-white hover:bg-pink-50 transition-colors">
+            <button className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
               <Share2 size={18} className="text-gray-600" />
             </button>
           </div>
         </div>
 
         {/* Top stats */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className={`grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <ModernStatCard
             icon={<Clock size={20} />}
             title="Công giờ tháng này"
             value={`${thisMonth.hours} giờ`}
             trend={{ value: 12, isPositive: true }}
             subtitle="Trung bình 28h/tuần"
-            color="pink"
+            color="red"
             delay={100}
           />
           <ModernStatCard
@@ -715,10 +720,10 @@ export default function Page() {
         </div>
 
         {/* Yearly Summary Card */}
-        <div className="bg-gradient-to-r from-white to-pink-50 rounded-2xl border border-pink-200 p-6 mb-8 shadow-sm hover:shadow-md transition-shadow">
+        <div className={`bg-gradient-to-r from-white to-gray-50 rounded-2xl border border-gray-200 p-6 mb-8 shadow-sm hover:shadow-md transition-shadow transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+              <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
                 <Award size={24} className="text-white" />
               </div>
               <div>
@@ -749,17 +754,17 @@ export default function Page() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-gradient-to-br from-white to-pink-50/30 rounded-2xl border border-pink-200 shadow-sm">
+      <div className={`bg-gradient-to-br from-white to-gray-50/30 rounded-2xl border border-gray-200 shadow-sm transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Tabs */}
         <div className="px-6 pt-6">
-          <div className="inline-flex bg-white border border-pink-200 rounded-xl p-1">
+          <div className="inline-flex bg-white border border-gray-200 rounded-xl p-1">
             <button
               onClick={() => setTab('overview')}
               className={cx(
                 'px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all text-sm font-medium',
                 tab === 'overview' 
-                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md' 
-                  : 'text-gray-700 hover:bg-pink-50'
+                  ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md' 
+                  : 'text-gray-700 hover:bg-gray-50'
               )}
             >
               <Sparkles size={16} />
@@ -770,8 +775,8 @@ export default function Page() {
               className={cx(
                 'px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all text-sm font-medium',
                 tab === 'detail' 
-                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md' 
-                  : 'text-gray-700 hover:bg-pink-50'
+                  ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md' 
+                  : 'text-gray-700 hover:bg-gray-50'
               )}
             >
               <Target size={16} />
@@ -871,7 +876,7 @@ export default function Page() {
               </div>
 
               {/* Detailed breakdown */}
-              <div className="bg-white rounded-2xl border border-pink-200 p-6">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6">
                 <h4 className="font-bold text-gray-900 mb-4">Phân tích theo lớp học</h4>
                 <div className="space-y-4">
                   {[
@@ -880,10 +885,10 @@ export default function Page() {
                     { class: 'Business English', hours: 20, rate: 300000, status: 'paid' },
                     { class: 'Training & Meetings', hours: 20, rate: 150000, status: 'pending' },
                   ].map((item, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-pink-50/50 to-white rounded-xl border border-pink-100 hover:border-pink-200 transition-colors">
+                    <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50/50 to-white rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
                       <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-lg ${index === 0 ? 'bg-gradient-to-r from-pink-500 to-rose-500' : 'bg-pink-100'}`}>
-                          <Users size={18} className={index === 0 ? 'text-white' : 'text-pink-600'} />
+                        <div className={`p-3 rounded-lg ${index === 0 ? 'bg-gradient-to-r from-red-600 to-red-700' : 'bg-gray-100'}`}>
+                          <Users size={18} className={index === 0 ? 'text-white' : 'text-gray-600'} />
                         </div>
                         <div>
                           <div className="font-semibold text-gray-900">{item.class}</div>

@@ -100,9 +100,9 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
     else if (trackHint.includes('business')) track = 'Business';
 
     const colorByTrack: Record<Track, string> = {
-      IELTS: 'bg-gradient-to-r from-pink-500 to-rose-500',
-      TOEIC: 'bg-gradient-to-r from-rose-500 to-pink-600',
-      Business: 'bg-gradient-to-r from-fuchsia-500 to-purple-500',
+      IELTS: 'bg-gradient-to-r from-red-400 to-red-500',
+      TOEIC: 'bg-gradient-to-r from-red-300 to-red-400',
+      Business: 'bg-gradient-to-r from-gray-400 to-gray-500',
     };
 
     const id: string =
