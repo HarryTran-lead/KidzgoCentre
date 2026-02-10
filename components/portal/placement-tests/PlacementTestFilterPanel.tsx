@@ -65,7 +65,7 @@ export default function PlacementTestFilterPanel({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
         {/* Header */}
-        <div className="bg-linear-to-r from-pink-500 to-rose-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Filter size={20} />
             Bộ lọc nâng cao

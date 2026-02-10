@@ -475,7 +475,7 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
       <div
         className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${
@@ -483,17 +483,17 @@ export default function Page() {
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <Target size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Quản lý Lead & Placement Test
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-700 mt-1">
               Nhận lead, phân công tư vấn, đặt lịch test và chuyển đổi ghi danh
               {currentUser?.branchName && (
-                <span className="ml-2 text-pink-600 font-medium">
+                <span className="ml-2 text-red-600 font-medium">
                   • Chi nhánh: {currentUser.branchName}
                 </span>
               )}
@@ -502,24 +502,24 @@ export default function Page() {
         </div>
         {activeTab === "leads" ? (
           <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors cursor-pointer text-gray-700">
               <Download size={16} /> Xuất DS
             </button>
             <button 
               onClick={handleCreateLead}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
             >
               <UserPlus size={16} /> Nhập lead mới
             </button>
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors cursor-pointer text-gray-700">
               <Download size={16} /> Xuất DS Test
             </button>
             <button 
               onClick={handleCreateTest}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
             >
               <CalendarClock size={16} /> Đặt lịch test mới
             </button>
@@ -528,20 +528,22 @@ export default function Page() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-2xl border border-pink-200 p-1 inline-flex gap-1">
+      <div className={`bg-white rounded-2xl border border-gray-200 p-1 inline-flex gap-1 transition-all duration-700 delay-100 ${
+        isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+      }`}>
         <button
           onClick={() => setActiveTab("leads")}
-          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "leads"
-              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-              : "text-gray-600 hover:bg-pink-50"
+              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+              : "text-gray-700 hover:bg-gray-100"
           }`}
         >
           <div className="flex items-center gap-2">
             <Target size={16} />
             <span>Lead</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
-              activeTab === "leads" ? "bg-white/20" : "bg-gray-100"
+              activeTab === "leads" ? "bg-white/20" : "bg-gray-100 text-gray-700"
             }`}>
               {totalCount}
             </span>
@@ -549,17 +551,17 @@ export default function Page() {
         </button>
         <button
           onClick={() => setActiveTab("placement_tests")}
-          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "placement_tests"
-              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-              : "text-gray-600 hover:bg-pink-50"
+              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+              : "text-gray-700 hover:bg-gray-100"
           }`}
         >
           <div className="flex items-center gap-2">
             <CalendarClock size={16} />
             <span>Placement Test</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
-              activeTab === "placement_tests" ? "bg-white/20" : "bg-gray-100"
+              activeTab === "placement_tests" ? "bg-white/20" : "bg-gray-100 text-gray-700"
             }`}>
               {allPlacementTests.length}
             </span>
@@ -570,7 +572,7 @@ export default function Page() {
       {/* Content based on active tab */}
       {activeTab === "leads" ? (
         <>
-          <div className={` transition-all duration-700 delay-100 ${
+          <div className={`transition-all duration-700 delay-100 ${
               isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >

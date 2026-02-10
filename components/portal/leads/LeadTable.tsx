@@ -82,17 +82,17 @@ export default function LeadTable({
 
   const getStatusBadge = (statusText: string) => {
     const statusMap: Record<string, { bg: string; text: string; border: string; icon: any }> = {
-      "Mới": { bg: "from-amber-50 to-orange-50", text: "text-amber-700", border: "border-amber-200", icon: Sparkles },
-      "Đang tư vấn": { bg: "from-blue-50 to-cyan-50", text: "text-blue-700", border: "border-blue-200", icon: Phone },
-      "Đã đặt lịch test": { bg: "from-indigo-50 to-purple-50", text: "text-indigo-700", border: "border-indigo-200", icon: CalendarCheck },
-      "Đã test": { bg: "from-purple-50 to-violet-50", text: "text-purple-700", border: "border-purple-200", icon: FileText },
-      "Đã ghi danh": { bg: "from-emerald-50 to-teal-50", text: "text-emerald-700", border: "border-emerald-200", icon: CheckCircle2 },
-      "Đã hủy": { bg: "from-rose-50 to-pink-50", text: "text-rose-700", border: "border-rose-200", icon: XCircle },
+      "Mới": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: Sparkles },
+      "Đang tư vấn": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: Phone },
+      "Đã đặt lịch test": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: CalendarCheck },
+      "Đã test": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: FileText },
+      "Đã ghi danh": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: CheckCircle2 },
+      "Đã hủy": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: XCircle },
     };
     const config = statusMap[statusText] || statusMap["Mới"];
     const Icon = config.icon;
     return (
-      <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gradient-to-r ${config.bg} ${config.text} border ${config.border}`}>
+      <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gradient-to-r ${config.bg}${config.text} border ${config.border}`}>
         <Icon size={12} />
         <span>{statusText}</span>
       </div>
@@ -101,10 +101,10 @@ export default function LeadTable({
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-pink-200 bg-white p-6">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6">
         <div className="space-y-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-16 rounded-lg bg-gradient-to-r from-pink-50 to-white animate-pulse" />
+            <div key={i} className="h-16 rounded-lg bg-gradient-to-r from-red-100 to-red-200 animate-pulse" />
           ))}
         </div>
       </div>
@@ -113,9 +113,9 @@ export default function LeadTable({
 
   if (leads.length === 0) {
     return (
-      <div className="rounded-2xl border border-pink-200 bg-white p-12 text-center">
-        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-          <Sparkles size={24} className="text-pink-600" />
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-12 text-center">
+        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+          <Sparkles size={24} className="text-red-400" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Không có lead nào</h3>
         <p className="text-sm text-gray-500">Hãy tạo lead mới hoặc điều chỉnh bộ lọc</p>
@@ -124,24 +124,25 @@ export default function LeadTable({
   }
 
   return (
-    <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
-      <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+    <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+      <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">Danh sách Lead</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Danh sách Lead</h3>
           <div className="text-sm text-gray-600">{leads.length} lead</div>
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+          <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
             <tr>
-              <th className="py-3 px-4 text-left">
+              <th className="py-3 px-4 text-left w-12">
                 <input
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={onSelectAll}
-                  className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+                  className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                  aria-label="Chọn tất cả"
                 />
               </th>
 
@@ -149,10 +150,10 @@ export default function LeadTable({
                 <button
                   type="button"
                   onClick={() => onSort("contactName")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                 >
                   Thông tin
-                  <ArrowUpDown size={14} className={sortKey === "contactName" ? "text-pink-600" : "text-gray-400"} />
+                  <ArrowUpDown size={14} className={sortKey === "contactName" ? "text-red-600" : "text-gray-400"} />
                 </button>
               </th>
 
@@ -164,10 +165,10 @@ export default function LeadTable({
                 <button
                   type="button"
                   onClick={() => onSort("source")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                 >
                   Nguồn
-                  <ArrowUpDown size={14} className={sortKey === "source" ? "text-pink-600" : "text-gray-400"} />
+                  <ArrowUpDown size={14} className={sortKey === "source" ? "text-red-600" : "text-gray-400"} />
                 </button>
               </th>
 
@@ -175,10 +176,10 @@ export default function LeadTable({
                 <button
                   type="button"
                   onClick={() => onSort("ownerStaffName")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                 >
                   Phụ trách
-                  <ArrowUpDown size={14} className={sortKey === "ownerStaffName" ? "text-pink-600" : "text-gray-400"} />
+                  <ArrowUpDown size={14} className={sortKey === "ownerStaffName" ? "text-red-600" : "text-gray-400"} />
                 </button>
               </th>
 
@@ -186,10 +187,10 @@ export default function LeadTable({
                 <button
                   type="button"
                   onClick={() => onSort("status")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                 >
                   Trạng thái
-                  <ArrowUpDown size={14} className={sortKey === "status" ? "text-pink-600" : "text-gray-400"} />
+                  <ArrowUpDown size={14} className={sortKey === "status" ? "text-red-600" : "text-gray-400"} />
                 </button>
               </th>
 
@@ -198,25 +199,25 @@ export default function LeadTable({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-pink-100">
-            {leads.map((lead) => (
+          <tbody className="divide-y divide-red-100">
+            {leads.map((lead, index) => (
               <tr
                 key={lead.id}
-                className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+                className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
               >
-                <td className="py-4 px-4 align-top">
+                <td className="py-4 px-4">
                   <input
                     type="checkbox"
                     checked={!!selectedIds[lead.id]}
                     onChange={() => onSelectOne(lead.id)}
-                    className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+                    className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
                     aria-label={`Chọn ${lead.contactName || 'Lead'}`}
                   />
                 </td>
                 <td className="py-4 px-6">
                   <div className="space-y-1 min-w-[220px]">
                     <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white font-semibold text-xs">
+                      <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center text-white font-semibold text-xs">
                         {lead.contactName ? lead.contactName.split(" ").map(word => word[0]).join("").toUpperCase().slice(0, 2) : "??"}
                       </div>
                       <div>
@@ -251,7 +252,7 @@ export default function LeadTable({
                 </td>
 
                 <td className="py-4 px-6">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200">
                     {lead.source || "Không rõ"}
                   </span>
                 </td>
@@ -259,7 +260,7 @@ export default function LeadTable({
                 <td className="py-4 px-6">
                   {lead.ownerStaffName ? (
                     <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 flex items-center justify-center text-white text-xs font-semibold">
+                      <div className="h-6 w-6 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white text-xs font-semibold">
                         {lead.ownerStaffName.split(" ").pop()?.[0] || "N"}
                       </div>
                       <span className="font-medium text-gray-900">{lead.ownerStaffName}</span>
@@ -282,14 +283,14 @@ export default function LeadTable({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => onView(lead)}
-                      className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                       title="Xem chi tiết"
                     >
                       <Eye size={14} />
                     </button>
                     <button
                       onClick={() => onEdit(lead)}
-                      className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                       title="Chỉnh sửa"
                     >
                       <Edit size={14} />
@@ -298,14 +299,14 @@ export default function LeadTable({
                     {!lead.ownerStaffId && (
                       <button
                         onClick={() => onAction(lead, "self-assign")}
-                        className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-gray-400 hover:text-green-600 cursor-pointer"
+                        className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                         title="Nhận lead"
                       >
                         <UserCheck size={14} />
                       </button>
                     )}
                     <button
-                      className="p-1.5 rounded-lg hover:bg-gray-50 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                       title="Thêm"
                     >
                       <MoreVertical size={14} />
@@ -320,7 +321,7 @@ export default function LeadTable({
 
       {/* Pagination Footer */}
       {totalPages > 0 && onPageChange && onPageSizeChange && (
-        <div className="border-t border-pink-200">
+        <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
           <LeadPagination
             currentPage={currentPage}
             totalPages={totalPages}

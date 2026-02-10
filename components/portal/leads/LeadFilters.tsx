@@ -62,7 +62,7 @@ export default function LeadFilters({
   }, [availableSources, leads]);
 
   return (
-    <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5 space-y-4">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex items-center gap-2 flex-1">
           <div className="flex-1 relative">
@@ -72,14 +72,14 @@ export default function LeadFilters({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Tìm kiếm tên, SĐT, email, mã lead..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
             />
           </div>
           {onPageSizeChange && (
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
               <option value={5}>5 / trang</option>
               <option value={10}>10 / trang</option>
@@ -95,7 +95,7 @@ export default function LeadFilters({
             <select
               value={selectedSource}
               onChange={(e) => onSourceChange(e.target.value)}
-              className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-100 cursor-pointer"
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 cursor-pointer"
             >
               {sourceOptions.map((source) => (
                 <option key={source} value={source}>
@@ -107,12 +107,12 @@ export default function LeadFilters({
           
           {/* Filter chỉ lead của tôi */}
           {onMyLeadsOnlyChange && currentUserName && (
-            <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-pink-200 bg-white cursor-pointer hover:bg-pink-50 transition-colors">
+            <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white cursor-pointer hover:bg-gray-100 transition-colors">
               <input
                 type="checkbox"
                 checked={myLeadsOnly}
                 onChange={(e) => onMyLeadsOnlyChange(e.target.checked)}
-                className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+                className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-200 cursor-pointer"
               />
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
                 Chỉ lead của tôi
@@ -123,7 +123,7 @@ export default function LeadFilters({
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1 overflow-x-auto">
+        <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 overflow-x-auto">
           {statusOptions.map((status) => {
             // Get count from statusCounts (from initial load, doesn't change)
             const count = statusCounts[status] ?? 0;
@@ -133,8 +133,8 @@ export default function LeadFilters({
                 onClick={() => onStatusChange(status)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                   selectedStatus === status
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm"
-                    : "text-gray-700 hover:bg-pink-50"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                    : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
                 {status}

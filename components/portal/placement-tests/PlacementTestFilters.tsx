@@ -40,19 +40,19 @@ export default function PlacementTestFilters({
   ];
 
   return (
-    <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 space-y-4">
+    <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 space-y-4">
       {/* Status Filter */}
       <div className="flex flex-wrap items-center gap-2">
         <Filter size={16} className="text-gray-500" />
-        <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1 flex-wrap gap-1">
+        <div className="inline-flex rounded-xl border border-red-200 bg-white p-1 flex-wrap gap-1">
           {statusOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => onStatusChange(option.value)}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
                 selectedStatus === option.value
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm"
-                  : "text-gray-700 hover:bg-pink-50"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                  : "text-gray-700 hover:bg-red-50"
               }`}
             >
               {option.label}
@@ -78,12 +78,12 @@ export default function PlacementTestFilters({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Tìm theo tên bé, tên PH, SĐT..."
-            className="w-full rounded-xl border border-pink-200 bg-white pl-10 pr-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
+            className="w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
           />
         </div>
 
         {/* From Date */}
-        <div className="flex items-center gap-2 bg-white rounded-xl border border-pink-200 px-3 py-2">
+        <div className="flex items-center gap-2 bg-white rounded-xl border border-red-200 px-3 py-2">
           <Calendar size={16} className="text-gray-400" />
           <input
             type="date"
@@ -94,7 +94,7 @@ export default function PlacementTestFilters({
         </div>
 
         {/* To Date */}
-        <div className="flex items-center gap-2 bg-white rounded-xl border border-pink-200 px-3 py-2">
+        <div className="flex items-center gap-2 bg-white rounded-xl border border-red-200 px-3 py-2">
           <Calendar size={16} className="text-gray-400" />
           <input
             type="date"

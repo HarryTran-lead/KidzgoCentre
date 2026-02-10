@@ -8,6 +8,9 @@ import {
   Loader2,
   Send,
   X,
+  User,
+  Users,
+  BookOpen,
 } from "lucide-react";
 
 import { createLeaveRequest } from "@/lib/api/leaveRequestService";
@@ -162,7 +165,7 @@ function Banner({
 }) {
   const cls =
     kind === "error"
-      ? "border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700"
+      ? "border-red-200 bg-gradient-to-r from-red-50 to-red-100 text-red-700"
       : "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700";
   const Icon = kind === "error" ? AlertCircle : CheckCircle2;
 
@@ -361,38 +364,42 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
     >
       {/* overlay */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         onClick={onClose}
       />
 
       {/* modal */}
       <div className="absolute left-1/2 top-1/2 w-[min(720px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2">
-        <div className="rounded-3xl border border-pink-200 bg-white shadow-2xl overflow-hidden">
+        <div className="rounded-3xl border border-red-200 bg-white shadow-2xl overflow-hidden">
           {/* header */}
-          <div className="p-5 border-b border-pink-100 bg-gradient-to-r from-pink-50 to-rose-50">
+          <div className="p-5 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <CalendarDays className="text-pink-600" size={18} />
-                  <div className="text-lg font-bold text-gray-900">Tạo đơn xin nghỉ</div>
-                </div>
-                <div className="text-sm text-gray-600">
-                  Vui lòng điền thông tin để gửi yêu cầu nghỉ học
+                  <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white">
+                    <CalendarDays size={20} />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-gray-900">Tạo đơn xin nghỉ</div>
+                    <div className="text-sm text-gray-600">
+                      Vui lòng điền thông tin để gửi yêu cầu nghỉ học
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <button
                 onClick={onClose}
-                className="p-2 rounded-xl border border-pink-200 bg-white text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-colors"
+                className="p-2 rounded-xl border border-red-300 bg-white text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                 aria-label="Đóng"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
           </div>
 
           {/* body */}
-          <div className="p-5 space-y-4">
+          <div className="p-5 space-y-6 bg-gradient-to-b from-white to-red-50/20">
             {(actionError || actionMessage) && (
               <div className="space-y-3">
                 {actionError && <Banner kind="error" text={actionError} />}
@@ -401,27 +408,37 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
             )}
 
             {/* Student */}
-            <div className="space-y-1">
-              <div className="text-sm font-semibold text-gray-800">Học viên</div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <User size={18} className="text-red-600" />
+                <div className="text-sm font-semibold text-gray-800">Học viên</div>
+              </div>
 
-              <div className="grid gap-2 md:grid-cols-2">
-                <input
-                  className="h-11 w-full rounded-xl border border-pink-200 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                  placeholder="Tìm theo tên học viên"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <input
-                  className="h-11 w-full rounded-xl border border-pink-200 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                  placeholder="Tìm theo tên phụ huynh"
-                  value={parentSearchTerm}
-                  onChange={(e) => setParentSearchTerm(e.target.value)}
-                />
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="relative">
+                  <input
+                    className="h-11 w-full rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
+                    placeholder="Tìm theo tên học viên"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
+                
+                <div className="relative">
+                  <input
+                    className="h-11 w-full rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
+                    placeholder="Tìm theo tên phụ huynh"
+                    value={parentSearchTerm}
+                    onChange={(e) => setParentSearchTerm(e.target.value)}
+                  />
+                  <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
               </div>
 
               <div className="relative">
                 <select
-                  className="h-11 w-full appearance-none rounded-xl border border-pink-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
                   value={formState.studentProfileId}
                   onChange={(e) => {
                     const id = e.target.value;
@@ -454,22 +471,28 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
                 </div>
               </div>
 
-              {profilesError && <div className="text-sm text-rose-600">{profilesError}</div>}
+              {profilesError && <div className="text-sm text-red-600">{profilesError}</div>}
 
               {selectedStudentClassText && (
-                <div className="text-xs text-gray-500">
-                  Lớp của học viên:{" "}
-                  <span className="font-medium">{selectedStudentClassText}</span>
+                <div className="p-3 rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50">
+                  <div className="text-xs text-gray-700">
+                    <span className="font-medium">Lớp của học viên:</span>{" "}
+                    {selectedStudentClassText}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Class */}
-            <div className="space-y-1">
-              <div className="text-sm font-semibold text-gray-800">Lớp</div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <BookOpen size={18} className="text-red-600" />
+                <div className="text-sm font-semibold text-gray-800">Lớp</div>
+              </div>
+              
               <div className="relative">
                 <select
-                  className="h-11 w-full appearance-none rounded-xl border border-pink-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-60"
+                  className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
                   value={formState.classId}
                   onChange={(e) => setFormState((p) => ({ ...p, classId: e.target.value }))}
                   disabled={!formState.studentProfileId || classesLoading}
@@ -494,26 +517,32 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
                 </div>
               </div>
 
-              {classesError && <div className="text-sm text-rose-600">{classesError}</div>}
+              {classesError && <div className="text-sm text-red-600">{classesError}</div>}
             </div>
 
             {/* Dates */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <div className="text-sm font-semibold text-gray-800">Ngày nghỉ (từ)</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                  <CalendarDays size={16} className="text-red-600" />
+                  Ngày nghỉ (từ)
+                </div>
                 <input
                   type="date"
-                  className="h-11 w-full rounded-xl border border-pink-200 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
                   value={formState.sessionDate}
                   onChange={(e) => setFormState((p) => ({ ...p, sessionDate: e.target.value }))}
                 />
               </div>
 
-              <div className="space-y-1">
-                <div className="text-sm font-semibold text-gray-800">Ngày nghỉ (đến)</div>
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                  <CalendarDays size={16} className="text-red-600" />
+                  Ngày nghỉ (đến)
+                </div>
                 <input
                   type="date"
-                  className="h-11 w-full rounded-xl border border-pink-200 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
                   value={formState.endDate}
                   onChange={(e) => setFormState((p) => ({ ...p, endDate: e.target.value }))}
                 />
@@ -521,10 +550,10 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
             </div>
 
             {/* Reason */}
-            <div className="space-y-1">
+            <div className="space-y-2">
               <div className="text-sm font-semibold text-gray-800">Lý do</div>
               <textarea
-                className="min-h-[92px] w-full resize-none rounded-2xl border border-pink-200 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="min-h-[100px] w-full resize-none rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
                 placeholder="Nhập lý do xin nghỉ..."
                 value={formState.reason}
                 onChange={(e) => setFormState((p) => ({ ...p, reason: e.target.value }))}
@@ -532,10 +561,10 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
             </div>
 
             {/* Footer */}
-            <div className="pt-2 flex items-center justify-end gap-2">
+            <div className="pt-4 border-t border-red-200 flex items-center justify-end gap-3">
               <button
                 onClick={onClose}
-                className="h-11 rounded-xl border border-pink-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-pink-50 disabled:opacity-60"
+                className="px-5 py-2.5 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 text-gray-700 font-medium hover:bg-red-50 transition-all disabled:opacity-60 cursor-pointer"
                 disabled={creating}
               >
                 Hủy
@@ -544,7 +573,7 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
               <button
                 onClick={handleCreate}
                 disabled={!canSubmit || creating}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-pink-600 px-4 text-sm font-semibold text-white hover:bg-pink-700 disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all disabled:opacity-70 cursor-pointer"
               >
                 {creating ? (
                   <>
