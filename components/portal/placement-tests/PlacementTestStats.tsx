@@ -24,33 +24,33 @@ export default function PlacementTestStats({ tests, isLoading }: PlacementTestSt
       label: "Tổng số test",
       value: stats.total,
       icon: Calendar,
-      color: "from-purple-500 to-pink-500",
-      bgColor: "bg-purple-50",
-      textColor: "text-purple-600",
+      color: "from-red-600 to-red-700",
+      bgColor: "bg-red-50",
+      textColor: "text-red-600",
     },
     {
       label: "Đã đặt lịch",
       value: stats.scheduled,
       icon: Clock,
-      color: "from-blue-500 to-cyan-500",
-      bgColor: "bg-blue-50",
-      textColor: "text-blue-600",
+      color: "from-gray-600 to-gray-700",
+      bgColor: "bg-gray-50",
+      textColor: "text-gray-600",
     },
     {
       label: "Đã hoàn thành",
       value: stats.completed,
       icon: CheckCircle,
-      color: "from-emerald-500 to-green-500",
-      bgColor: "bg-emerald-50",
-      textColor: "text-emerald-600",
+      color: "from-gray-700 to-gray-800",
+      bgColor: "bg-gray-100",
+      textColor: "text-gray-700",
     },
     {
       label: "Không đến",
       value: stats.noShow,
       icon: UserX,
-      color: "from-orange-500 to-amber-500",
-      bgColor: "bg-orange-50",
-      textColor: "text-orange-600",
+      color: "from-gray-500 to-gray-600",
+      bgColor: "bg-gray-50",
+      textColor: "text-gray-600",
     },
   ];
 
@@ -74,7 +74,7 @@ export default function PlacementTestStats({ tests, isLoading }: PlacementTestSt
         return (
           <div
             key={stat.label}
-            className="group relative overflow-hidden rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-6 transition-all hover:shadow-lg hover:scale-105"
+            className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all hover:shadow-lg hover:scale-105"
           >
             <div className="flex items-center justify-between">
               <div>

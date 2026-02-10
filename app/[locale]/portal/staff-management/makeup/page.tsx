@@ -225,7 +225,7 @@ const sessionMeta = (session: SessionDetail | null | undefined) =>
 function Banner({ kind, text }: { kind: "error" | "success"; text: string }) {
   const cls =
     kind === "error"
-      ? "border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700"
+      ? "border-red-200 bg-gradient-to-r from-red-50 to-red-100 text-red-700"
       : "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700";
   const Icon = kind === "error" ? AlertCircle : CheckCircle2;
 
@@ -250,10 +250,10 @@ function StatCard({
   value: string;
   subtitle?: string;
   icon: LucideIcon;
-  color: string; // ex: "from-pink-500 to-rose-500"
+  color: string;
 }) {
   return (
-    <div className="rounded-2xl border border-pink-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm font-semibold text-gray-700">{title}</div>
@@ -291,26 +291,26 @@ function ConfirmModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-pink-100">
-        <div className="p-5 border-b border-pink-100">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-red-200">
+        <div className="p-5 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
           <div className="text-lg font-bold text-gray-900">{title}</div>
           <div className="mt-2 text-sm text-gray-600 whitespace-pre-line">
             {description}
           </div>
         </div>
 
-        <div className="p-5 flex items-center justify-end gap-2">
+        <div className="p-5 flex items-center justify-end gap-2 bg-gradient-to-br from-white to-red-50/20">
           <button
             onClick={onClose}
             disabled={disabled}
-            className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors disabled:opacity-60 cursor-pointer"
           >
             Hủy
           </button>
           <button
             onClick={onConfirm}
             disabled={disabled}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all disabled:opacity-60 cursor-pointer"
           >
             {confirmText}
           </button>
@@ -371,7 +371,6 @@ export default function Page() {
     setLoadingUsedCredits(true);
     setUsedError(null);
     try {
-      // nếu API bạn yêu cầu phân trang thì add pageNumber/pageSize ở đây
       const response = await getMakeupCredits({ status: "used", pageNumber: 1, pageSize: 100 });
       const api = unwrap(response);
       const items = Array.isArray(api?.items) ? api.items : Array.isArray(api) ? api : [];
@@ -474,9 +473,9 @@ export default function Page() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5 shadow-sm">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-xl font-bold text-gray-900">Staff Management • Leave & Makeup</div>
@@ -491,7 +490,7 @@ export default function Page() {
                 setActiveTab("leave");
                 setOpenLeaveModal(true);
               }}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all cursor-pointer"
             >
               <Plus size={16} />
               Tạo đơn xin nghỉ
@@ -502,7 +501,7 @@ export default function Page() {
                 setActiveTab("makeup");
                 setOpenMakeupModal(true);
               }}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition"
+              className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
             >
               <Plus size={16} />
               Tạo lịch bù
@@ -510,26 +509,24 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="mt-4 flex items-center gap-2">
+        {/* Tabs - Updated with red theme */}
+        <div className="mt-4 flex items-center gap-2 bg-white rounded-xl border border-red-200 p-1 inline-flex">
           <button
             type="button"
             onClick={() => setActiveTab("leave")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border transition
-              ${
-                activeTab === "leave"
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white border-transparent shadow"
-                  : "bg-white text-gray-700 border-pink-200 hover:bg-pink-50"
-              }`}
+            className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+              activeTab === "leave"
+                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                : "text-gray-600 hover:bg-red-50"
+            }`}
           >
             <CalendarDays size={16} />
             Đơn xin nghỉ
             <span
-              className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold
-              ${
+              className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold ${
                 activeTab === "leave"
                   ? "bg-white/20 text-white"
-                  : "bg-pink-50 text-pink-700 border border-pink-200"
+                  : "bg-red-50 text-red-700 border border-red-200"
               }`}
             >
               {requestItems.length}
@@ -539,21 +536,19 @@ export default function Page() {
           <button
             type="button"
             onClick={() => setActiveTab("makeup")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border transition
-              ${
-                activeTab === "makeup"
-                  ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-transparent shadow"
-                  : "bg-white text-gray-700 border-blue-200 hover:bg-blue-50"
-              }`}
+            className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+              activeTab === "makeup"
+                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                : "text-gray-600 hover:bg-red-50"
+            }`}
           >
             <Clock3 size={16} />
             Đơn makeup
             <span
-              className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold
-              ${
+              className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold ${
                 activeTab === "makeup"
                   ? "bg-white/20 text-white"
-                  : "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "bg-red-50 text-red-700 border border-red-200"
               }`}
             >
               {usedCredits.length}
@@ -575,7 +570,7 @@ export default function Page() {
               title="Tổng"
               value={String(stats.total)}
               icon={CalendarDays}
-              color="from-pink-500 to-rose-500"
+              color="from-red-600 to-red-700"
             />
             <StatCard
               title="Chờ duyệt"
@@ -593,7 +588,7 @@ export default function Page() {
               title="Từ chối"
               value={String(stats.rejected)}
               icon={XCircle}
-              color="from-rose-500 to-pink-500"
+              color="from-red-500 to-pink-500"
             />
             <StatCard
               title="Auto-approve"
@@ -604,7 +599,7 @@ export default function Page() {
           </div>
 
           {/* Filters */}
-          <div className="rounded-2xl border border-pink-200 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="relative w-full md:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -612,7 +607,7 @@ export default function Page() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Tìm theo học viên / phụ huynh / lớp / mã đơn..."
-                  className="h-11 w-full rounded-xl border border-pink-200 bg-white pl-10 pr-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="h-11 w-full rounded-xl border border-red-300 bg-white pl-10 pr-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 cursor-text"
                 />
               </div>
 
@@ -620,7 +615,7 @@ export default function Page() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="h-11 rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="h-11 rounded-xl border border-red-300 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 cursor-pointer"
                 >
                   {statusOptions.map((s) => (
                     <option key={s} value={s}>
@@ -631,7 +626,7 @@ export default function Page() {
 
                 <button
                   onClick={fetchLeaveRequests}
-                  className="h-11 rounded-xl border border-pink-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-pink-50 transition"
+                  className="h-11 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
                 >
                   Reload
                 </button>
@@ -640,8 +635,8 @@ export default function Page() {
           </div>
 
           {/* Leave Table */}
-          <div className="rounded-2xl border border-pink-200 bg-white shadow-sm overflow-hidden">
-            <div className="border-b border-pink-100 px-6 py-4 flex items-center justify-between">
+          <div className="rounded-2xl border border-red-200 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100/30 px-6 py-4 flex items-center justify-between">
               <div>
                 <div className="text-lg font-semibold text-gray-900">Danh sách đơn xin nghỉ</div>
                 {loadingRequests && <div className="text-sm text-gray-500 mt-1">Đang tải...</div>}
@@ -651,7 +646,7 @@ export default function Page() {
 
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-100">
+                <thead className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200">
                   <tr>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Học viên</th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Phụ huynh</th>
@@ -663,14 +658,14 @@ export default function Page() {
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-pink-50">
+                <tbody className="divide-y divide-red-100">
                   {filteredLeave.length > 0 ? (
                     filteredLeave.map((r) => {
                       const canAct = r.status === "Chờ duyệt";
                       return (
                         <tr
                           key={r.id}
-                          className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+                          className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                         >
                           <td className="py-4 px-6">
                             <div className="text-sm font-medium text-gray-900">{r.student}</div>
@@ -683,7 +678,7 @@ export default function Page() {
                             <div className="text-xs text-gray-500">{r.requestTime}</div>
                           </td>
                           <td className="py-4 px-6">
-                            <span className="inline-flex items-center rounded-xl border border-pink-200 bg-pink-50 px-2.5 py-1 text-xs font-semibold text-pink-700">
+                            <span className="inline-flex items-center rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
                               {r.status}
                             </span>
                           </td>
@@ -693,7 +688,7 @@ export default function Page() {
                               <button
                                 disabled={!canAct}
                                 onClick={() => setConfirmAction({ type: "approve", request: r })}
-                                className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 cursor-pointer"
                                 title="Duyệt"
                               >
                                 <ShieldCheck size={14} />
@@ -702,7 +697,7 @@ export default function Page() {
                               <button
                                 disabled={!canAct}
                                 onClick={() => setConfirmAction({ type: "reject", request: r })}
-                                className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50 cursor-pointer"
                                 title="Từ chối"
                               >
                                 <XCircle size={14} />
@@ -716,8 +711,8 @@ export default function Page() {
                   ) : (
                     <tr>
                       <td colSpan={7} className="py-12 text-center">
-                        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                          <Search size={24} className="text-pink-400" />
+                        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                          <Search size={24} className="text-red-400" />
                         </div>
                         <div className="text-gray-600 font-medium">Không có đơn phù hợp</div>
                         <div className="text-sm text-gray-500 mt-1">
@@ -735,8 +730,8 @@ export default function Page() {
 
       {/* MAKEUP TAB */}
       {activeTab === "makeup" && (
-        <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50/30 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border-b border-blue-200 px-6 py-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Danh sách đơn makeup</h2>
@@ -747,7 +742,7 @@ export default function Page() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={fetchUsedCredits}
-                  className="h-11 rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-blue-50 transition"
+                  className="h-11 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
                 >
                   Reload
                 </button>
@@ -767,7 +762,7 @@ export default function Page() {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-blue-500/5 to-indigo-500/5 border-b border-blue-200">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Học viên</th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Buổi nghỉ</th>
@@ -777,7 +772,7 @@ export default function Page() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-blue-100">
+              <tbody className="divide-y divide-red-100">
                 {usedCredits.length > 0 ? (
                   usedCredits.map((credit) => {
                     const sourceTime = credit.sourceSession?.plannedDatetime
@@ -793,7 +788,7 @@ export default function Page() {
                     return (
                       <tr
                         key={credit.id}
-                        className="group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-white transition-all duration-200"
+                        className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                       >
                         <td className="py-4 px-6">
                           <div className="text-sm font-medium text-gray-900">{credit.student}</div>
@@ -823,7 +818,7 @@ export default function Page() {
                         </td>
 
                         <td className="py-4 px-6">
-                          <span className="inline-flex items-center rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                          <span className="inline-flex items-center rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
                             {credit.status}
                           </span>
                           {credit.createdReason && (
@@ -842,8 +837,8 @@ export default function Page() {
                 ) : (
                   <tr>
                     <td colSpan={5} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 flex items-center justify-center">
-                        <Search size={24} className="text-blue-400" />
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                        <Search size={24} className="text-red-400" />
                       </div>
                       <div className="text-gray-600 font-medium">Chưa có đơn makeup</div>
                       <div className="text-sm text-gray-500 mt-1">
@@ -888,16 +883,6 @@ export default function Page() {
         open={openMakeupModal}
         onClose={() => setOpenMakeupModal(false)}
         onCreate={async (payload: CreateMakeupPayload) => {
-          // Modal đang handle call API create bên trong onCreate từ page trước đây.
-          // Bạn giữ logic cũ của bạn ở đây (gọi API create).
-          // Sau khi tạo xong thì refresh list makeup.
-          // NOTE: Mình để trống vì bạn chưa paste hàm create service ở page này.
-          // -> nếu bạn đã có handleCreateMakeup ở file cũ thì thay vào đây.
-
-          // Ví dụ:
-          // await createMakeupSession(payload);
-          // await fetchUsedCredits();
-
           await fetchUsedCredits();
           setActiveTab("makeup");
         }}

@@ -151,7 +151,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
       `}</style>
       <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl hide-scrollbar">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-pink-500 to-rose-500 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">
             {lead ? "Chỉnh sửa Lead" : "Tạo Lead mới"}
           </h2>
@@ -181,7 +181,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   type="text"
                   value={formData.contactName}
                   onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                   placeholder="Nguyễn Văn A"
                   required
                 />
@@ -195,7 +195,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                   placeholder="0987654321"
                   required
                 />
@@ -209,7 +209,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                   placeholder="email@example.com"
                 />
               </div>
@@ -222,7 +222,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   type="text"
                   value={formData.zaloId}
                   onChange={(e) => setFormData({ ...formData, zaloId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                   placeholder="Zalo ID"
                 />
               </div>
@@ -245,7 +245,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   type="text"
                   value={formData.source}
                   onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                   placeholder="Website, Facebook, Zalo..."
                 />
               </div>
@@ -258,7 +258,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   type="text"
                   value={formData.campaign}
                   onChange={(e) => setFormData({ ...formData, campaign: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                   placeholder="Tên chiến dịch"
                 />
               </div>
@@ -271,7 +271,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   type="text"
                   value={formData.company}
                   onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                   placeholder="Tên công ty"
                 />
               </div>
@@ -293,7 +293,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 <select
                   value={formData.branchPreference}
                   onChange={(e) => setFormData({ ...formData, branchPreference: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                 >
                   <option value="">Chọn chi nhánh</option>
                   {branches.map((branch) => (
@@ -312,7 +312,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   type="text"
                   value={formData.programInterest}
                   onChange={(e) => setFormData({ ...formData, programInterest: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                   placeholder="Chương trình học"
                 />
               </div>
@@ -326,7 +326,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 type="text"
                 value={formData.subject}
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                 placeholder="Chủ đề liên hệ"
               />
             </div>
@@ -339,7 +339,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none resize-none"
                 placeholder="Ghi chú thêm..."
               />
             </div>
@@ -358,7 +358,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+              className="px-6 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
             >
               {isSubmitting ? "Đang lưu..." : (lead ? "Cập nhật" : "Tạo mới")}
             </button>

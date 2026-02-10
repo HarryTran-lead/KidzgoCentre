@@ -117,10 +117,10 @@ function StatCard({
   trend?: string;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5 transition-all duration-300 hover:border-pink-300 hover:shadow-lg cursor-pointer">
+    <div className="group relative overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-300 hover:border-red-300 hover:shadow-lg cursor-pointer">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-sm font-medium text-pink-600 mb-3">{title}</div>
+          <div className="text-sm font-medium text-red-600 mb-3">{title}</div>
           <div className="text-2xl font-bold text-gray-900 mb-1">{value}</div>
           <div className="flex items-center gap-2">
             {subtitle && <div className="text-sm text-gray-600">{subtitle}</div>}
@@ -158,7 +158,7 @@ function StatusBadge({ status }: { status: CampaignStatus }) {
       label: "Đã gửi",
     },
     Failed: {
-      cls: "bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border border-rose-200",
+      cls: "bg-gradient-to-r from-red-50 to-red-50 text-red-700 border border-red-200",
       icon: Zap,
       label: "Lỗi",
     },
@@ -186,7 +186,7 @@ function ChannelBadge({ channel }: { channel: Channel }) {
       icon: Mail,
     },
     "Zalo OA + Email": {
-      cls: "bg-gradient-to-r from-pink-50 to-rose-50 text-pink-700 border border-pink-200",
+      cls: "bg-gradient-to-r from-pink-50 to-rose-50 text-pink-700 border border-red-200",
       icon: Send,
     },
   };
@@ -329,20 +329,20 @@ export default function Page() {
   const createNotification = () => alert("Tạo thông báo mới — Demo");
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
       {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
               <Bell size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Trung tâm thông báo
               </h1>
               <p className="text-gray-600 mt-1 flex items-center gap-2">
-                <Zap size={14} className="text-pink-500" />
+                <Zap size={14} className="text-red-500" />
                 Gửi broadcast qua Zalo OA/Email, theo dõi lịch gửi và kết quả
               </p>
             </div>
@@ -351,7 +351,7 @@ export default function Page() {
           <div className="flex items-center gap-3">
             <button
               onClick={createNotification}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
             >
               <Plus size={16} /> Tạo thông báo
             </button>
@@ -388,7 +388,7 @@ export default function Page() {
       </div>
 
       {/* Filter Bar */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5 mb-6">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
           <div className="flex-1">
             <div className="relative">
@@ -396,7 +396,7 @@ export default function Page() {
               <input
                 type="text"
                 placeholder="Tìm kiếm theo mã, tiêu đề, đối tượng..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-red-200 bg-white focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -409,7 +409,7 @@ export default function Page() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-100 cursor-pointer"
+                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 cursor-pointer"
               >
                 {statusOptions.map((s) => (
                   <option key={s} value={s}>
@@ -430,7 +430,7 @@ export default function Page() {
             <select
               value={channelFilter}
               onChange={(e) => setChannelFilter(e.target.value)}
-              className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-100 cursor-pointer"
+              className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 cursor-pointer"
             >
               {channelOptions.map((c) => (
                 <option key={c} value={c}>
@@ -439,7 +439,7 @@ export default function Page() {
               ))}
             </select>
 
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-pink-50 transition-colors cursor-pointer">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors cursor-pointer">
               <MoreVertical size={16} />
               Thêm lọc
             </button>
@@ -459,7 +459,7 @@ export default function Page() {
                       ? "bg-blue-50 text-blue-700 border-blue-200"
                       : status === "Sent"
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-rose-50 text-rose-700 border-rose-200"
+                        : "bg-rose-50 text-red-700 border-red-200"
                   : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
               }`}
             >
@@ -480,8 +480,8 @@ export default function Page() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 overflow-hidden">
-        <div className="p-5 border-b border-pink-200 bg-white">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 overflow-hidden">
+        <div className="p-5 border-b border-red-200 bg-white">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">
               Danh sách thông báo
@@ -493,14 +493,14 @@ export default function Page() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="border-b border-pink-100 bg-pink-50/50">
+            <thead className="border-b border-red-100 bg-red-50/50">
               <tr>
                 <th className="py-3 px-4 text-left w-12">
                   <input
                     type="checkbox"
                     checked={allVisibleSelected}
                     onChange={toggleSelectAllVisible}
-                    className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+                    className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
                     aria-label="Chọn tất cả"
                   />
                 </th>
@@ -508,12 +508,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("title")}
-                    className="inline-flex items-center gap-1 hover:text-pink-700"
+                    className="inline-flex items-center gap-1 hover:text-red-700"
                   >
                     Mã & Tiêu đề
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "title" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "title" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -521,12 +521,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("channel")}
-                    className="inline-flex items-center gap-1 hover:text-pink-700"
+                    className="inline-flex items-center gap-1 hover:text-red-700"
                   >
                     Kênh
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "channel" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "channel" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -534,12 +534,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("audience")}
-                    className="inline-flex items-center gap-1 hover:text-pink-700"
+                    className="inline-flex items-center gap-1 hover:text-red-700"
                   >
                     Đối tượng
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "audience" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "audience" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -547,12 +547,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("status")}
-                    className="inline-flex items-center gap-1 hover:text-pink-700"
+                    className="inline-flex items-center gap-1 hover:text-red-700"
                   >
                     Trạng thái
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "status" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "status" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -560,12 +560,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("sendAt")}
-                    className="inline-flex items-center gap-1 hover:text-pink-700"
+                    className="inline-flex items-center gap-1 hover:text-red-700"
                   >
                     Lịch gửi
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "sendAt" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "sendAt" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -574,25 +574,25 @@ export default function Page() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-pink-100">
+            <tbody className="divide-y divide-red-100">
               {sortedCampaigns.length > 0 ? (
                 sortedCampaigns.map((campaign) => (
                   <tr
                     key={campaign.id}
-                    className="hover:bg-pink-50/30 transition-colors group"
+                    className="hover:bg-red-50/30 transition-colors group"
                   >
                     <td className="py-4 px-4 align-top">
                       <input
                         type="checkbox"
                         checked={!!selectedIds[campaign.id]}
                         onChange={() => toggleSelectOne(campaign.id)}
-                        className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+                        className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
                         aria-label={`Chọn ${campaign.title}`}
                       />
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white font-bold">
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-r from-red-500 to-red-500 flex items-center justify-center text-white font-bold">
                           {campaign.id.slice(-2)}
                         </div>
                         <div>
@@ -643,9 +643,9 @@ export default function Page() {
                             <span className="text-gray-600">Mở: {campaign.openedRate}%</span>
                             <span className="text-gray-600">Click: {campaign.clickRate}%</span>
                           </div>
-                          <div className="h-1.5 rounded-full bg-pink-100 overflow-hidden">
+                          <div className="h-1.5 rounded-full bg-red-100 overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-pink-400 to-rose-400 transition-all duration-500"
+                              className="h-full rounded-full bg-gradient-to-r from-red-400 to-red-400 transition-all duration-500"
                               style={{ width: `${campaign.openedRate}%` }}
                             />
                           </div>
@@ -657,7 +657,7 @@ export default function Page() {
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-1.5">
                         <button
-                          className="p-1.5 rounded-lg border border-pink-200 bg-white text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg border border-red-200 bg-white text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                           title="Xem"
                         >
                           <Eye size={14} />
@@ -680,7 +680,7 @@ export default function Page() {
                         )}
                         {campaign.status === "Scheduled" && (
                           <button
-                            className="p-1.5 rounded-lg border border-pink-200 bg-white text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg border border-red-200 bg-white text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             title="Gửi ngay"
                           >
                             <Send size={14} />
@@ -693,8 +693,8 @@ export default function Page() {
               ) : (
                 <tr>
                   <td colSpan={8} className="py-12 text-center">
-                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                      <Search size={24} className="text-pink-400" />
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-100 flex items-center justify-center">
+                      <Search size={24} className="text-red-400" />
                     </div>
                     <div className="text-gray-600 font-medium">Không có thông báo phù hợp</div>
                     <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa</div>
@@ -707,7 +707,7 @@ export default function Page() {
       </div>
 
       {/* Footer */}
-      <div className="mt-8 pt-6 border-t border-pink-200">
+      <div className="mt-8 pt-6 border-t border-red-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-2">
             <Zap size={16} className="text-pink-500" />

@@ -52,7 +52,7 @@ export default function LeadPagination({
   };
 
   return (
-    <div className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+    <div className="bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Left: Info */}
           <div className="text-sm text-gray-600">
@@ -65,7 +65,7 @@ export default function LeadPagination({
             <button
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Previous page"
             >
               <ChevronLeft size={18} />
@@ -79,10 +79,10 @@ export default function LeadPagination({
                   disabled={page === "..."}
                   className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all ${
                     page === currentPage
-                      ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
                       : page === "..."
                       ? "cursor-default text-gray-400"
-                      : "border border-pink-200 hover:bg-pink-50 text-gray-700"
+                      : "border border-red-200 hover:bg-red-50 text-gray-700"
                   }`}
                 >
                   {page}
@@ -93,7 +93,7 @@ export default function LeadPagination({
             <button
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Next page"
             >
               <ChevronRight size={18} />

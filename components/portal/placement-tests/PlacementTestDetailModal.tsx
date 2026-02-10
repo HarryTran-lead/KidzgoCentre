@@ -22,10 +22,10 @@ export default function PlacementTestDetailModal({
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { bg: string; text: string; icon: any }> = {
-      Scheduled: { bg: "bg-blue-100 text-blue-700", text: "Đã lên lịch", icon: Clock },
-      Completed: { bg: "bg-green-100 text-green-700", text: "Đã hoàn thành", icon: Award },
-      Cancelled: { bg: "bg-rose-100 text-rose-700", text: "Đã hủy", icon: X },
-      NoShow: { bg: "bg-amber-100 text-amber-700", text: "Không đến", icon: Clock },
+      Scheduled: { bg: "bg-red-100 text-red-700", text: "Đã lên lịch", icon: Clock },
+      Completed: { bg: "bg-gray-100 text-gray-700", text: "Đã hoàn thành", icon: Award },
+      Cancelled: { bg: "bg-gray-200 text-gray-800", text: "Đã hủy", icon: X },
+      NoShow: { bg: "bg-gray-300 text-gray-900", text: "Không đến", icon: Clock },
     };
     const config = statusMap[status] || statusMap.Scheduled;
     const Icon = config.icon;
@@ -41,10 +41,10 @@ export default function PlacementTestDetailModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-linear-to-r from-pink-500 to-rose-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
+        <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold">Chi tiết Placement Test</h2>
-            <p className="text-blue-100 mt-1">ID: {test.id}</p>
+            <p className="text-red-100 mt-1">ID: {test.id}</p>
           </div>
           <button
             onClick={onClose}
@@ -224,7 +224,7 @@ export default function PlacementTestDetailModal({
           <div className="flex justify-end pt-4">
             <Button
               onClick={onClose}
-              className="bg-linear-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700"
+              className="px-6 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer"
             >
               Đóng
             </Button>
