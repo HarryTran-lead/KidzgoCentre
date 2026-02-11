@@ -12,7 +12,6 @@ import {
   Send,
   Download,
   BookOpen,
-  MoreVertical,
   Search,
   ChevronLeft,
   MapPin,
@@ -21,8 +20,7 @@ import {
   ArrowUpDown,
   ChevronUp,
   RefreshCcw,
-  Flag,
-  MessageSquareText, 
+  MessageSquareText,
 } from "lucide-react";
 
 import {
@@ -35,6 +33,9 @@ import {
 } from "@/app/api/teacher/attendance";
 
 import type { AttendanceStatus, LessonDetail, SessionApiItem, Student } from "@/types/teacher/attendance";
+import type { SessionReportItem } from "@/types/teacher/sessionReport";
+import { createSessionReport, updateSessionReport } from "@/app/api/teacher/sessionReport";
+import SessionNoteModal from "@/components/teacher/attendance/SessionNoteModal";
 
 type FilterField = {
   date: string;
@@ -86,6 +87,17 @@ const SESSION_COLOR_POOL = [
 ];
 
 const ZERO_GUID = "00000000-0000-0000-0000-000000000000";
+const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type SessionReportState = {
+  reportId: string;
+  feedback: string;
+};
+
+const buildSessionReportKey = (sessionId: string, studentId: string, rowKey: string): string => {
+  const studentKey = studentId || rowKey;
+  return `${sessionId}:${studentKey}`;
+};
 
 // SortableHeader Component
 function SortableHeader<T extends string>({
@@ -238,6 +250,12 @@ export default function TeacherAttendancePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
+  const [sessionReports, setSessionReports] = useState<Record<string, SessionReportState>>({});
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [selectedStudentForNote, setSelectedStudentForNote] = useState<StudentRow | null>(null);
+  const [noteModalError, setNoteModalError] = useState<string | null>(null);
+  const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+
   const recordsPerPage = 8;
 
   const fetchSessionData = useCallback(async () => {
@@ -286,26 +304,20 @@ export default function TeacherAttendancePage() {
     const timeParam = searchParams.get("time");
     const classParam = searchParams.get("class");
 
-    // Nếu có dateParam từ lịch dạy, cập nhật dateRange
     if (dateParam && (dateParam !== dateRange.from || dateParam !== dateRange.to)) {
       setDateRange({ from: dateParam, to: dateParam });
     }
 
     if (sessionIdParam) {
-      // Nếu có sessionId, chọn session đó trực tiếp
       const matchingSession = sessions.find((session: any) => String(session.id ?? session.sessionId ?? "") === sessionIdParam);
       if (matchingSession) {
         handleSessionSelect(sessionIdParam);
       }
     } else if (timeParam && classParam) {
-      // Nếu không có sessionId, tìm buổi học phù hợp với các tham số
       const matchingSession = sessions.find((session: any) => {
         const lesson = mapSessionToLessonDetail(session);
         const [startTime] = lesson.time.split(" - ");
-        return (
-          startTime === timeParam &&
-          lesson.course === classParam
-        );
+        return startTime === timeParam && lesson.course === classParam;
       });
 
       if (matchingSession) {
@@ -313,11 +325,11 @@ export default function TeacherAttendancePage() {
         handleSessionSelect(lesson.id);
       }
     } else {
-      // Nếu không có tham số URL, tự động chọn buổi học đầu tiên
       const firstSession = sessions[0];
       const lesson = mapSessionToLessonDetail(firstSession);
       handleSessionSelect(lesson.id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, searchParams]);
 
   const selectedSession = useMemo(() => {
@@ -367,8 +379,9 @@ export default function TeacherAttendancePage() {
         classFilter &&
         !card.classCode.toLowerCase().includes(classFilter) &&
         !card.className.toLowerCase().includes(classFilter)
-      )
+      ) {
         return false;
+      }
       if (statusFilter && !String(card.status ?? "").toLowerCase().includes(statusFilter)) return false;
       return true;
     });
@@ -397,8 +410,14 @@ export default function TeacherAttendancePage() {
       const result = await fetchAttendance(selectedSessionId);
 
       const students: StudentRow[] = (result.students ?? []).map((s: any, idx: number) => {
-        const rawStudentId = String(s.studentId ?? s.userId ?? s.id ?? "");
-        const safeStudentId = rawStudentId && rawStudentId !== ZERO_GUID ? rawStudentId : "";
+        const rawStudentId = String(s.studentProfileId ?? s.studentId ?? s.userId ?? s.id ?? "");
+        const normalizedStudentId = rawStudentId.trim();
+        const safeStudentId =
+          normalizedStudentId &&
+          normalizedStudentId !== ZERO_GUID &&
+          GUID_REGEX.test(normalizedStudentId)
+            ? normalizedStudentId
+            : "";
 
         const email = String(s.email ?? s.mail ?? "").trim();
         const phone = String(s.phone ?? s.phoneNumber ?? "").trim();
@@ -409,15 +428,13 @@ export default function TeacherAttendancePage() {
 
         const name = String(s.name ?? s.fullName ?? s.studentName ?? "").trim();
 
-        // IMPORTANT:
-        // - record.id: set unique để UI update + tránh trùng key
-        // - studentId: giữ id thật nếu có để saveAttendance dùng
         const uniqueIdForUI = safeStudentId || rowKey;
 
         return {
           ...s,
           id: uniqueIdForUI,
           rowKey,
+          // vẫn giữ fallback để saveAttendance không bị thiếu id
           studentId: safeStudentId || uniqueIdForUI,
           name,
           email,
@@ -464,36 +481,85 @@ export default function TeacherAttendancePage() {
     setCurrentPage(1);
   };
 
-  // Update theo rowKey (không dùng id gốc vì có thể trùng/placeholder)
   const handleStatusChange = (rowKey: string, status: AttendanceStatus) => {
     setAttendanceList((prev) => prev.map((r) => (r.rowKey === rowKey ? { ...r, status } : r)));
   };
-  const handleNoteStudent = (record: StudentRow) => {
-  const currentNote = record.note ?? "";
-  const note = window.prompt(
-    `Nhận xét cho ${record.name || "học sinh"}:`,
-    currentNote
-  );
 
-  if (note === null) return; // bấm cancel
+  const handleOpenNoteModal = (record: StudentRow) => {
+    setSelectedStudentForNote(record);
+    setNoteModalError(null);
+    setNoteModalOpen(true);
+  };
 
-  setAttendanceList((prev) =>
-    prev.map((r) =>
-      r.rowKey === record.rowKey ? { ...r, note: note.trim() } : r
-    )
-  );
-};
-const handleReportStudent = (record: StudentRow) => {
-  console.log("Report student:", {
-    studentId: record.studentId,
-    name: record.name,
-    sessionId: selectedSessionId,
-  });
+  const handleCloseNoteModal = () => {
+    setNoteModalOpen(false);
+    setSelectedStudentForNote(null);
+    setNoteModalError(null);
+  };
 
-  // Sau này:
-  // - mở modal
-  // - hoặc gọi API báo cáo
-};
+  const handleSubmitStudentNote = async (feedback: string) => {
+    if (!selectedSessionId || !selectedStudentForNote) return;
+
+    if (!feedback.trim()) {
+      setNoteModalError("Vui lòng nhập nội dung nhận xét.");
+      return;
+    }
+
+    // vì studentId có thể fallback => chỉ cho gửi nếu là GUID thật
+    if (!selectedStudentForNote.studentId || !GUID_REGEX.test(selectedStudentForNote.studentId)) {
+      setNoteModalError("Không tìm thấy StudentProfileId hợp lệ để gửi nhận xét.");
+      return;
+    }
+
+    const reportKey = buildSessionReportKey(
+      selectedSessionId,
+      selectedStudentForNote.studentId,
+      selectedStudentForNote.rowKey,
+    );
+    const existingReport = sessionReports[reportKey];
+
+    try {
+      setIsSubmittingNote(true);
+      setNoteModalError(null);
+
+      let report: SessionReportItem | null = null;
+
+      if (existingReport?.reportId) {
+        report = await updateSessionReport(existingReport.reportId, { feedback });
+      } else {
+        report = await createSessionReport({
+          sessionId: selectedSessionId,
+          studentProfileId: selectedStudentForNote.studentId,
+          reportDate: new Date().toISOString().slice(0, 10),
+          feedback,
+        });
+      }
+
+      const reportId = String(report?.id ?? existingReport?.reportId ?? "").trim();
+
+      setSessionReports((prev) => ({
+        ...prev,
+        [reportKey]: {
+          reportId,
+          feedback,
+        },
+      }));
+
+      setAttendanceList((prev) =>
+        prev.map((r) =>
+          r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: feedback.trim() } : r,
+        ),
+      );
+
+      handleCloseNoteModal();
+    } catch (err: any) {
+      console.error("Save session report error:", err);
+      setNoteModalError(err.message || "Không thể lưu nhận xét buổi học.");
+    } finally {
+      setIsSubmittingNote(false);
+    }
+  };
+
   const handleSaveAll = useCallback(async () => {
     if (!selectedSessionId) return;
 
@@ -501,7 +567,6 @@ const handleReportStudent = (record: StudentRow) => {
       setIsSaving(true);
       setSaveError(null);
 
-      // attendanceList giờ có studentId/id unique, saveAttendance sẽ có data ổn hơn
       await saveAttendance(selectedSessionId, attendanceList, !hasAnyMarked);
       await refreshAttendance();
     } catch (err: any) {
@@ -533,7 +598,7 @@ const handleReportStudent = (record: StudentRow) => {
     filtered.sort((a, b) => {
       let comparison = 0;
       if (sortColumn === "student") {
-        comparison = (a.name ?? "").localeCompare(b.studentName ?? "");
+        comparison = (a.name ?? "").localeCompare(b.name ?? "");
       } else {
         comparison = (a.studentCode ?? "").localeCompare(b.studentCode ?? "");
       }
@@ -562,7 +627,7 @@ const handleReportStudent = (record: StudentRow) => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50/20 to-white p-4 md:p-6">
       {/* Header */}
-      <div className={`mb-6 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+      <div className={`mb-6 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
         <div className="flex items-center gap-3 mb-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <CheckCheckIcon size={24} className="text-white" />
@@ -686,7 +751,7 @@ const handleReportStudent = (record: StudentRow) => {
         {selectedSessionId && selectedLesson && (
           <>
             {/* Class Info Card */}
-            <div className={`bg-gradient-to-br from-white via-gray-50/30 to-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className={`bg-gradient-to-br from-white via-gray-50/30 to-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
@@ -764,7 +829,7 @@ const handleReportStudent = (record: StudentRow) => {
             </div>
 
             {/* Stats Cards */}
-            <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
               <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tổng học viên</div>
@@ -813,7 +878,7 @@ const handleReportStudent = (record: StudentRow) => {
 
       {/* Main Content */}
       {selectedSessionId ? (
-        <div className={`grid lg:grid-cols-3 gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid lg:grid-cols-3 gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           {/* Student Table */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -822,10 +887,7 @@ const handleReportStudent = (record: StudentRow) => {
                   <h3 className="font-bold text-gray-900">Danh sách học viên</h3>
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <Search
-                        size={16}
-                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                      />
+                      <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
                         placeholder="Tìm học viên..."
@@ -880,79 +942,91 @@ const handleReportStudent = (record: StudentRow) => {
                   </thead>
 
                   <tbody className="divide-y divide-gray-100">
-                    {paginatedRecords.map((record) => (
-                      <tr
-                        key={record.rowKey}
-                        className="hover:bg-gradient-to-r hover:from-red-50/50 hover:to-red-100/50 transition-colors border-b border-gray-100"
-                      >
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
-                            <StudentAvatar name={record.name ?? ""} />
-                            <div>
-                              <div className="font-semibold text-gray-900">{record.name?.trim() || "(Chưa có tên)"}</div>
-                              <div className="text-xs text-gray-500">{record.phone}</div>
+                    {paginatedRecords.map((record) => {
+                      const canSendNote = Boolean(record.studentId && GUID_REGEX.test(record.studentId));
+
+                      return (
+                        <tr
+                          key={record.rowKey}
+                          className="hover:bg-gradient-to-r hover:from-red-50/50 hover:to-red-100/50 transition-colors border-b border-gray-100"
+                        >
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <StudentAvatar name={record.name ?? ""} />
+                              <div>
+                                <div className="font-semibold text-gray-900">{record.name?.trim() || "(Chưa có tên)"}</div>
+                                <div className="text-xs text-gray-500">{record.phone}</div>
+                              </div>
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="px-4 py-4 text-sm text-gray-900 font-medium">{record.studentCode}</td>
+                          <td className="px-4 py-4 text-sm text-gray-900 font-medium">{record.studentCode}</td>
 
-                        <td className="px-4 py-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {(["present", "late", "absent"] as AttendanceStatus[]).map((status) => (
+                          <td className="px-4 py-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {(["present", "late", "absent"] as AttendanceStatus[]).map((status) => (
+                                <button
+                                  key={status}
+                                  onClick={() => handleStatusChange(record.rowKey, status)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                                    record.status === status
+                                      ? status === "present"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : status === "late"
+                                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                                          : "bg-red-50 text-red-700 border-red-200"
+                                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  {STATUS_LABELS[status]}
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-4 max-w-xs">
+                            {record.note ? (
+                              <div className="flex items-center gap-1 text-amber-600 text-sm">
+                                <AlertCircle size={14} />
+                                <span className="truncate">{record.note}</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-sm">Không có</span>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2">
                               <button
-                                key={status}
-                                onClick={() => handleStatusChange(record.rowKey, status)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                                  record.status === status
-                                    ? status === "present"
-                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                      : status === "late"
-                                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                                      : "bg-red-50 text-red-700 border-red-200"
-                                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                onClick={() => handleOpenNoteModal(record)}
+                                title={canSendNote ? "Thêm nhận xét buổi học" : "Không có StudentProfileId hợp lệ"}
+                                disabled={!canSendNote}
+                                className={`px-2.5 py-1.5 rounded-lg border transition text-xs font-semibold inline-flex items-center gap-1 ${
+                                  !canSendNote
+                                    ? "border-gray-200 text-gray-300 cursor-not-allowed"
+                                    : record.note
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 cursor-pointer"
+                                      : "border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
                                 }`}
                               >
-                                {STATUS_LABELS[status]}
+                                <MessageSquareText size={14} />
+                                Note
                               </button>
-                            ))}
-                          </div>
-                        </td>
 
-                        <td className="px-4 py-4 max-w-xs">
-                          {record.note ? (
-                            <div className="flex items-center gap-1 text-amber-600 text-sm">
-                              <AlertCircle size={14} />
-                              <span className="truncate">{record.note}</span>
+                              {record.note ? (
+                                <button
+                                  onClick={() => handleOpenNoteModal(record)}
+                                  disabled={!canSendNote}
+                                  className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Edit
+                                </button>
+                              ) : null}
                             </div>
-                          ) : (
-                            <span className="text-gray-400 text-sm">Không có</span>
-                          )}
-                        </td>
-
-                  <td className="px-4 py-4">
-  <div className="flex items-center gap-2">
-    {/* Nút nhận xét */}
-    <button
-      onClick={() => handleNoteStudent(record)}
-      title="Nhận xét học tập"
-      className={`p-2 rounded-lg border transition cursor-pointer ${
-        record.note
-          ? "border-amber-300 bg-amber-50 text-amber-600"
-          : "border-gray-200 text-gray-500 hover:bg-gray-50"
-      }`}
-    >
-      <MessageSquareText size={16} />
-    </button>
-
-    {/* Nút cũ */}
-    <button className="p-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
-      <MoreVertical size={16} className="text-gray-500" />
-    </button>
-  </div>
-</td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
 
@@ -960,13 +1034,9 @@ const handleReportStudent = (record: StudentRow) => {
                   <div className="text-center py-12 text-gray-500">Không tìm thấy học viên nào</div>
                 )}
 
-                {loadingAttendance && (
-                  <div className="text-center py-12 text-gray-500">Đang tải danh sách học viên...</div>
-                )}
+                {loadingAttendance && <div className="text-center py-12 text-gray-500">Đang tải danh sách học viên...</div>}
 
-                {attendanceLoadingError && (
-                  <div className="text-center py-6 text-red-600">{attendanceLoadingError}</div>
-                )}
+                {attendanceLoadingError && <div className="text-center py-6 text-red-600">{attendanceLoadingError}</div>}
 
                 {saveError && <div className="text-center py-4 text-red-600">{saveError}</div>}
 
@@ -1041,6 +1111,33 @@ const handleReportStudent = (record: StudentRow) => {
               </div>
             </div>
           </div>
+
+          {/* Modal Note */}
+          <SessionNoteModal
+            open={noteModalOpen}
+            studentName={selectedStudentForNote?.name || "Học sinh"}
+            sessionLabel={selectedLesson ? `${selectedLesson.lesson} • ${selectedLesson.date} • ${selectedLesson.time}` : undefined}
+            initialFeedback={
+              selectedStudentForNote && selectedSessionId
+                ? sessionReports[
+                    buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
+                  ]?.feedback ??
+                  selectedStudentForNote.note ??
+                  ""
+                : ""
+            }
+            canEdit={Boolean(
+              selectedStudentForNote &&
+                selectedSessionId &&
+                sessionReports[
+                  buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
+                ]?.reportId,
+            )}
+            isSubmitting={isSubmittingNote}
+            error={noteModalError}
+            onClose={handleCloseNoteModal}
+            onSubmit={handleSubmitStudentNote}
+          />
         </div>
       ) : null}
     </div>
