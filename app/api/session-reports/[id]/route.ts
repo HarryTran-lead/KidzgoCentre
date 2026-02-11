@@ -2,8 +2,16 @@ import { NextResponse } from "next/server";
 import { BACKEND_SESSION_REPORT_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
 
 type UpdateSessionReportPayload = {
+  Feedback?: string;
   feedback?: string;
 };
+
+function normalizeUpdatePayload(payload: UpdateSessionReportPayload) {
+  return {
+    ...payload,
+    Feedback: payload.Feedback ?? payload.feedback,
+  };
+}
 
 type RouteParams = {
   params: Promise<{
@@ -28,6 +36,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
     }
 
     const payload = (await req.json()) as UpdateSessionReportPayload;
+    const normalizedPayload = normalizeUpdatePayload(payload);
 
     const upstream = await fetch(buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.UPDATE(id)), {
       method: "PUT",
@@ -35,7 +44,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ request: payload }),
+      body: JSON.stringify({ request: normalizedPayload }),
     });
 
     const text = await upstream.text();
