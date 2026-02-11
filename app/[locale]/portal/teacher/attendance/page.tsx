@@ -93,7 +93,50 @@ type SessionReportState = {
   reportId: string;
   feedback: string;
 };
+function pickSessionReportFromStudent(student: any, sessionId: string): SessionReportState {
+  const directNote = String(
+    student?.note ??
+      student?.feedback ??
+      student?.Feedback ??
+      student?.comment ??
+      student?.Comment ??
+      student?.sessionReportFeedback ??
+      "",
+  ).trim();
 
+  const directReportId = String(
+    student?.sessionReportId ?? student?.reportId ?? student?.ReportId ?? "",
+  ).trim();
+
+  const singleReport = student?.sessionReport;
+  const singleReportFeedback = String(
+    singleReport?.feedback ?? singleReport?.Feedback ?? singleReport?.note ?? singleReport?.comment ?? "",
+  ).trim();
+  const singleReportId = String(singleReport?.id ?? singleReport?.reportId ?? singleReport?.Id ?? "").trim();
+
+  const reportList = Array.isArray(student?.sessionReports)
+    ? student.sessionReports
+    : Array.isArray(student?.SessionReports)
+      ? student.SessionReports
+      : [];
+
+  const reportFromList = reportList.find((item: any) => {
+    const reportSessionId = String(item?.sessionId ?? item?.SessionId ?? "").trim();
+    return reportSessionId === sessionId;
+  });
+
+  const listFeedback = String(
+    reportFromList?.feedback ?? reportFromList?.Feedback ?? reportFromList?.note ?? reportFromList?.comment ?? "",
+  ).trim();
+  const listReportId = String(
+    reportFromList?.id ?? reportFromList?.reportId ?? reportFromList?.Id ?? "",
+  ).trim();
+
+  return {
+    feedback: listFeedback || singleReportFeedback || directNote,
+    reportId: listReportId || singleReportId || directReportId,
+  };
+}
 const buildSessionReportKey = (sessionId: string, studentId: string, rowKey: string): string => {
   const studentKey = studentId || rowKey;
   return `${sessionId}:${studentKey}`;
@@ -409,6 +452,7 @@ export default function TeacherAttendancePage() {
     try {
       const result = await fetchAttendance(selectedSessionId);
 
+      const nextSessionReports: Record<string, SessionReportState> = {};
       const students: StudentRow[] = (result.students ?? []).map((s: any, idx: number) => {
         const rawStudentId = String(s.studentProfileId ?? s.studentId ?? s.userId ?? s.id ?? "");
         const normalizedStudentId = rawStudentId.trim();
@@ -429,7 +473,18 @@ export default function TeacherAttendancePage() {
         const name = String(s.name ?? s.fullName ?? s.studentName ?? "").trim();
 
         const uniqueIdForUI = safeStudentId || rowKey;
+        
+const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId);
+        const note = persistedSessionReport.feedback;
+        const reportId = persistedSessionReport.reportId;
 
+        if (note) {
+          const reportKey = buildSessionReportKey(selectedSessionId, safeStudentId, rowKey);
+          nextSessionReports[reportKey] = {
+            reportId,
+            feedback: note,
+          };
+        }
         return {
           ...s,
           id: uniqueIdForUI,
@@ -439,11 +494,14 @@ export default function TeacherAttendancePage() {
           name,
           email,
           phone,
+          note,
           studentCode: String(s.studentCode ?? s.code ?? safeStudentId ?? s.id ?? "").trim(),
         } as StudentRow;
       });
 
       setAttendanceList(students);
+            setAttendanceList(students);
+
       setHasAnyMarked(Boolean(result.hasAnyMarked));
 
       if (result.attendanceSummary) {
