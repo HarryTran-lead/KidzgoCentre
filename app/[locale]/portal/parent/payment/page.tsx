@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Receipt, CreditCard, Wallet, History, QrCode, ArrowRight, CheckCircle, AlertCircle, Download, Banknote, TrendingUp, Filter } from "lucide-react";
+import { Receipt, CreditCard, Wallet, History, QrCode, ArrowRight, CheckCircle, AlertCircle, Download, Banknote, TrendingUp, Filter, Sparkles, Calendar, Users } from "lucide-react";
 
 type TabType = "invoices" | "payment" | "history";
 
@@ -44,6 +44,27 @@ const MOCK_PAYMENT_HISTORY = [
   },
 ];
 
+// Badge Component
+function Badge({
+  color = "gray",
+  children
+}: {
+  color?: "gray" | "red" | "black";
+  children: React.ReactNode;
+}) {
+  const colorClasses = {
+    gray: "bg-gray-100 text-gray-700 border border-gray-200",
+    red: "bg-red-50 text-red-700 border border-red-200",
+    black: "bg-gray-900 text-white border border-gray-800"
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colorClasses[color]}`}>
+      {children}
+    </span>
+  );
+}
+
 export default function PaymentPage() {
   const [activeTab, setActiveTab] = useState<TabType>("invoices");
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
@@ -59,35 +80,29 @@ export default function PaymentPage() {
 
   const getStatusBadge = (status: string) => {
     if (status === "paid") {
-      return (
-        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold flex items-center gap-1">
-          <CheckCircle className="w-3 h-3" /> Đã thanh toán
-        </span>
-      );
+      return <Badge color="black">Đã thanh toán</Badge>;
     }
-    return (
-      <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-xs font-semibold flex items-center gap-1">
-        <AlertCircle className="w-3 h-3" /> Chưa thanh toán
-      </span>
-    );
+    return <Badge color="red">Chưa thanh toán</Badge>;
   };
 
   const getPaymentMethodIcon = (method: string) => {
-    if (method.includes("QR")) return <QrCode className="w-4 h-4" />;
-    if (method.includes("Chuyển khoản")) return <Banknote className="w-4 h-4" />;
-    return <CreditCard className="w-4 h-4" />;
+    if (method.includes("QR")) return <QrCode className="w-4 h-4 text-gray-700" />;
+    if (method.includes("Chuyển khoản")) return <Banknote className="w-4 h-4 text-gray-700" />;
+    return <CreditCard className="w-4 h-4 text-gray-700" />;
   };
 
+  const paidInvoices = MOCK_INVOICES.filter((inv) => inv.status === "paid").length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/20 via-white to-white p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <Wallet className="text-white" size={28} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Thanh toán học phí
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -95,63 +110,64 @@ export default function PaymentPage() {
             </p>
           </div>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors cursor-pointer">
-          <Filter size={16} /> Lọc theo tháng
+        <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer text-gray-700">
+          <Filter size={16} className="text-gray-600" /> Lọc theo tháng
         </button>
       </div>
 
-      {/* Quick Stats */}
+      {/* Stats Cards - Redesigned with Red-Black-White theme */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold text-rose-600">{formatCurrency(totalDebt)}</div>
-              <div className="text-sm text-gray-600 mt-1">Công nợ</div>
+              <div className="text-sm text-gray-600">Công nợ</div>
+              <div className="text-2xl font-bold mt-2 text-gray-900">{formatCurrency(totalDebt)}</div>
             </div>
-            <div className="p-3 bg-gradient-to-r from-rose-500/10 to-pink-500/10 rounded-xl">
-              <AlertCircle className="w-6 h-6 text-rose-500" />
+            <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
+              <AlertCircle size={20} />
             </div>
           </div>
-          <div className="mt-4 h-1 bg-gray-100 rounded-full">
-            <div className="h-full bg-gradient-to-r from-rose-500 to-pink-500" style={{ width: '60%' }} />
+          <div className="mt-4 text-xs text-gray-600 flex items-center gap-1">
+            <Calendar size={12} className="text-red-600" />
+            Hạn thanh toán: 15/01/2025
           </div>
         </div>
 
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold text-emerald-600">{MOCK_PAYMENT_HISTORY.length}</div>
-              <div className="text-sm text-gray-600 mt-1">Lần thanh toán</div>
+              <div className="text-sm text-gray-600">Lần thanh toán</div>
+              <div className="text-2xl font-bold mt-2 text-gray-900">{MOCK_PAYMENT_HISTORY.length}</div>
             </div>
-            <div className="p-3 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-xl">
-              <TrendingUp className="w-6 h-6 text-emerald-500" />
+            <div className="p-3 rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 text-white shadow-lg">
+              <TrendingUp size={20} />
             </div>
           </div>
-          <div className="mt-4 h-1 bg-gray-100 rounded-full">
-            <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500" style={{ width: '85%' }} />
+          <div className="mt-4 text-xs text-gray-600 flex items-center gap-1">
+            <Users size={12} className="text-gray-700" />
+            Giao dịch thành công
           </div>
         </div>
 
-        <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold text-blue-600">
-                {MOCK_INVOICES.filter((inv) => inv.status === "paid").length}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">Hóa đơn đã thanh toán</div>
+              <div className="text-sm text-gray-600">Hóa đơn đã thanh toán</div>
+              <div className="text-2xl font-bold mt-2 text-gray-900">{paidInvoices}</div>
             </div>
-            <div className="p-3 bg-gradient-to-r from-blue-500/10 to-sky-500/10 rounded-xl">
-              <CheckCircle className="w-6 h-6 text-blue-500" />
+            <div className="p-3 rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 text-white shadow-lg">
+              <CheckCircle size={20} />
             </div>
           </div>
-          <div className="mt-4 h-1 bg-gray-100 rounded-full">
-            <div className="h-full bg-gradient-to-r from-blue-500 to-sky-500" style={{ width: '40%' }} />
+          <div className="mt-4 text-xs text-gray-600 flex items-center gap-1">
+            <CheckCircle size={12} className="text-gray-700" />
+            Đã thanh toán đầy đủ
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-2 flex gap-2">
+      <div className="bg-white rounded-2xl border border-gray-200 p-1 flex gap-1">
         {[
           { key: "invoices" as TabType, label: "Hóa đơn", icon: Receipt },
           { key: "payment" as TabType, label: "Thanh toán", icon: QrCode },
@@ -160,10 +176,10 @@ export default function PaymentPage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+            className={`flex-1 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer flex items-center justify-center gap-2 ${
               activeTab === tab.key
-                ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                : "bg-white border border-pink-200 text-gray-600 hover:bg-pink-50"
+                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                : "bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
             <tab.icon className="w-4 h-4" />
@@ -179,9 +195,9 @@ export default function PaymentPage() {
             {MOCK_INVOICES.map((invoice) => (
               <div
                 key={invoice.id}
-                className={`rounded-2xl border ${
-                  invoice.status === "pending" ? "border-rose-200" : "border-emerald-200"
-                } bg-gradient-to-br from-white to-pink-50 p-5 hover:shadow-md transition-all`}
+                className={`bg-white rounded-2xl border ${
+                  invoice.status === "pending" ? "border-red-200" : "border-gray-200"
+                } p-5 hover:shadow-md transition-all`}
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1">
@@ -206,7 +222,7 @@ export default function PaymentPage() {
                     {invoice.status === "pending" && (
                       <button 
                         onClick={() => setSelectedInvoice(invoice.id)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer mt-2"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-md transition-all cursor-pointer mt-2"
                       >
                         <Wallet className="w-4 h-4" />
                         Thanh toán ngay
@@ -221,11 +237,11 @@ export default function PaymentPage() {
         )}
 
         {activeTab === "payment" && (
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-gradient-to-r from-blue-500/10 to-sky-500/10 rounded-xl">
-                  <QrCode className="w-6 h-6 text-blue-500" />
+                <div className="p-3 bg-gray-100 rounded-xl border border-gray-200">
+                  <QrCode className="w-6 h-6 text-gray-700" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Thanh toán bằng QR PayOS</h3>
@@ -241,9 +257,9 @@ export default function PaymentPage() {
                       onClick={() => setSelectedInvoice(invoice.id)}
                       className={`w-full text-left p-4 rounded-xl border ${
                         selectedInvoice === invoice.id 
-                          ? "border-pink-300 bg-gradient-to-r from-pink-50 to-rose-50" 
-                          : "border-pink-200 bg-white"
-                      } hover:bg-pink-50 transition-all`}
+                          ? "border-red-300 bg-gradient-to-r from-red-50 to-red-100" 
+                          : "border-gray-200 bg-white"
+                      } hover:bg-gray-50 transition-all`}
                     >
                       <div className="font-medium text-gray-900">{invoice.month}</div>
                       <div className="text-sm text-gray-600 mt-1">{formatCurrency(invoice.amount)}</div>
@@ -252,11 +268,11 @@ export default function PaymentPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <div className="p-6 border-2 border-dashed border-pink-300 bg-white/50 rounded-2xl">
+                  <div className="p-6 border-2 border-dashed border-gray-300 bg-gray-50 rounded-2xl">
                     {selectedInvoice ? (
                       <div className="text-center space-y-4">
-                        <div className="inline-block p-6 bg-white rounded-2xl shadow-lg">
-                          <div className="w-48 h-48 mx-auto bg-gradient-to-br from-blue-400 to-sky-300 flex items-center justify-center rounded-lg mb-3">
+                        <div className="inline-block p-6 bg-white rounded-2xl shadow-md border border-gray-200">
+                          <div className="w-48 h-48 mx-auto bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center rounded-lg mb-3 shadow-lg">
                             <QrCode className="w-32 h-32 text-white" />
                           </div>
                         </div>
@@ -272,14 +288,14 @@ export default function PaymentPage() {
                       </div>
                     ) : (
                       <div className="text-center py-12">
-                        <QrCode className="w-20 h-20 text-pink-300 mx-auto mb-4" />
+                        <QrCode className="w-20 h-20 text-gray-300 mx-auto mb-4" />
                         <p className="text-gray-600">Chọn hóa đơn để hiển thị mã QR thanh toán</p>
                       </div>
                     )}
                   </div>
                   
-                  <div className="mt-4 p-4 bg-gradient-to-r from-blue-50/50 to-sky-50/50 rounded-xl border border-blue-200">
-                    <div className="text-sm font-semibold text-blue-900 mb-2">💡 Hướng dẫn nhanh</div>
+                  <div className="mt-4 p-4 bg-gray-100 rounded-xl border border-gray-200">
+                    <div className="text-sm font-semibold text-gray-900 mb-2">Hướng dẫn nhanh</div>
                     <ul className="space-y-1 text-sm text-gray-600">
                       <li>1. Chọn hóa đơn cần thanh toán</li>
                       <li>2. Quét mã QR bằng app ngân hàng</li>
@@ -293,10 +309,10 @@ export default function PaymentPage() {
         )}
 
         {activeTab === "history" && (
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-xl">
-                <History className="w-6 h-6 text-gray-600" />
+              <div className="p-3 bg-gray-100 rounded-xl border border-gray-200">
+                <History className="w-6 h-6 text-gray-700" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Lịch sử thanh toán</h3>
@@ -308,11 +324,11 @@ export default function PaymentPage() {
               {MOCK_PAYMENT_HISTORY.map((payment) => (
                 <div
                   key={payment.id}
-                  className="p-4 rounded-xl border border-pink-200 bg-white hover:shadow-sm transition-all"
+                  className="p-4 rounded-xl border border-gray-200 bg-white hover:shadow-sm transition-all"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-lg">
+                      <div className="p-2 bg-gray-100 rounded-lg border border-gray-200">
                         {getPaymentMethodIcon(payment.method)}
                       </div>
                       <div>
@@ -326,7 +342,7 @@ export default function PaymentPage() {
                         <div className="font-bold text-gray-900">{formatCurrency(payment.amount)}</div>
                         <div className="text-xs text-gray-500">Mã: {payment.invoice}</div>
                       </div>
-                      <button className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 transition-colors cursor-pointer">
+                      <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
                         <Download className="w-4 h-4 text-gray-600" />
                       </button>
                     </div>
@@ -339,21 +355,45 @@ export default function PaymentPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="font-semibold text-gray-900 mb-1">📞 Cần hỗ trợ?</div>
+            <div className="font-semibold text-gray-900 mb-1">Cần hỗ trợ?</div>
             <div className="text-sm text-gray-600">Liên hệ bộ phận tài chính để được giải đáp</div>
           </div>
           <div className="flex gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors cursor-pointer">
-              <Receipt className="w-4 h-4" />
+            <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
+              <Receipt className="w-4 h-4 text-gray-600" />
               Xuất báo cáo
             </button>
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors cursor-pointer">
-              <Download className="w-4 h-4" />
+            <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
+              <Download className="w-4 h-4 text-gray-600" />
               Sao kê
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="pt-6 border-t border-gray-200">
+        <div className="flex items-center justify-between gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-red-600" />
+            <span>Cập nhật thời gian thực • Dữ liệu được cập nhật lúc 09:30</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-red-600"></div>
+              <span>Chưa thanh toán</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-gray-600"></div>
+              <span>Đã thanh toán</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-gray-900"></div>
+              <span>Quá hạn</span>
+            </div>
           </div>
         </div>
       </div>
