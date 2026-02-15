@@ -88,8 +88,8 @@ function toVNDateLabel(value?: string | null) {
 function Banner({ kind, text }: { kind: "error" | "success"; text: string }) {
   const cls =
     kind === "error"
-      ? "border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700"
-      : "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700";
+      ? "border-red-200 bg-gradient-to-r from-red-50 to-red-100 text-red-700"
+      : "border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700";
   const Icon = kind === "error" ? AlertCircle : CheckCircle2;
 
   return (
@@ -326,13 +326,13 @@ export default function ParentAttendancePage() {
     "—";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
+    <div className="min-h-screen space-y-6 bg-gray-50 p-4 md:p-6">
       {/* Header */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5 shadow-sm">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center shadow">
+              <div className="h-9 w-9 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center shadow">
                 <CalendarCheck className="text-white" size={18} />
               </div>
               <div>
@@ -353,7 +353,7 @@ export default function ParentAttendancePage() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition disabled:opacity-60"
               disabled={profilesLoading || !!profilesError}
             >
               <Plus size={16} />
@@ -369,8 +369,8 @@ export default function ParentAttendancePage() {
       {successMessage && <Banner kind="success" text={successMessage} />}
 
       {/* Table */}
-      <div className="rounded-2xl border border-pink-200 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-pink-100 px-6 py-4 flex items-center justify-between">
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <div>
             <div className="text-lg font-semibold text-gray-900">Đơn nghỉ gần đây</div>
             {requestsLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
@@ -383,7 +383,7 @@ export default function ParentAttendancePage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-100">
+              <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
                 <tr>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                     Thời gian nghỉ
@@ -399,7 +399,7 @@ export default function ParentAttendancePage() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-pink-50">
+              <tbody className="divide-y divide-gray-100">
                 {displayRequests.map((r) => {
  const status = normalizeStatus(r.status as string | undefined);                  const start = (r as any).sessionDate ?? r.sessionDate;
                   const end = (r as any).endDate ?? r.endDate;
@@ -412,7 +412,7 @@ export default function ParentAttendancePage() {
                   return (
                     <tr
                       key={(r as any).id ?? `${r.studentProfileId}-${r.classId}-${start}-${end}`}
-                      className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+                      className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                     >
                       <td className="py-4 px-6 whitespace-nowrap text-sm text-gray-700">
                         {toVNDateLabel(start)}{" "}
@@ -450,8 +450,8 @@ export default function ParentAttendancePage() {
       </div>
 
       {/* Info */}
-      <div className="rounded-2xl border border-pink-200 bg-white p-4 shadow-sm flex gap-3">
-        <div className="h-9 w-9 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center shadow">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex gap-3">
+        <div className="h-9 w-9 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 flex items-center justify-center shadow">
           <MessageSquare className="text-white" size={18} />
         </div>
         <p className="text-sm text-gray-700">
@@ -462,8 +462,8 @@ export default function ParentAttendancePage() {
       {/* Modal */}
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl border border-pink-100">
-            <div className="p-5 border-b border-pink-100 flex items-center justify-between gap-3">
+          <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl border border-gray-200">
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between gap-3">
               <div>
                 <div className="text-lg font-bold text-gray-900">Tạo đơn xin nghỉ</div>
                 <div className="mt-1 text-sm text-gray-600">Điền thông tin và bấm “Gửi đơn”.</div>
@@ -472,7 +472,7 @@ export default function ParentAttendancePage() {
               <button
                 type="button"
                 onClick={closeCreateModal}
-                className="p-2 rounded-xl hover:bg-pink-50 transition"
+                className="p-2 rounded-xl hover:bg-gray-50 transition"
                 aria-label="Close"
               >
                 <XCircle size={18} className="text-gray-600" />
@@ -484,7 +484,7 @@ export default function ParentAttendancePage() {
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-gray-700">Học viên</label>
                 <select
-                  className="h-11 w-full rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
                   value={formState.studentProfileId}
                   disabled={profilesLoading || !studentProfiles.length}
                   onChange={(e) =>
@@ -511,7 +511,7 @@ export default function ParentAttendancePage() {
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-gray-700">Lớp</label>
                 <select
-                  className="h-11 w-full rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
                   value={formState.classId}
                   disabled={classesLoading || !classes.length}
                   onChange={(e) => setFormState((prev) => ({ ...prev, classId: e.target.value }))}
@@ -526,7 +526,7 @@ export default function ParentAttendancePage() {
                   ))}
                 </select>
 
-                {classesError ? <div className="text-xs text-rose-600">{classesError}</div> : null}
+                {classesError ? <div className="text-xs text-red-600">{classesError}</div> : null}
               </div>
 
               {/* Dates */}
@@ -535,7 +535,7 @@ export default function ParentAttendancePage() {
                   <label className="text-sm font-semibold text-gray-700">Ngày bắt đầu nghỉ</label>
                   <input
                     type="date"
-                    className="h-11 w-full rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
                     value={formState.sessionDate}
                     onChange={(e) => setFormState((prev) => ({ ...prev, sessionDate: e.target.value }))}
                   />
@@ -545,7 +545,7 @@ export default function ParentAttendancePage() {
                   <label className="text-sm font-semibold text-gray-700">Ngày kết thúc nghỉ</label>
                   <input
                     type="date"
-                    className="h-11 w-full rounded-xl border border-pink-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
                     value={formState.endDate}
                     onChange={(e) => setFormState((prev) => ({ ...prev, endDate: e.target.value }))}
                   />
@@ -556,7 +556,7 @@ export default function ParentAttendancePage() {
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-gray-700">Lý do</label>
                 <textarea
-                  className="w-full rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-800 min-h-[110px] focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 min-h-[110px] focus:outline-none focus:ring-2 focus:ring-gray-200"
                   placeholder="Nhập lý do xin nghỉ..."
                   value={formState.reason}
                   onChange={(e) => setFormState((prev) => ({ ...prev, reason: e.target.value }))}
@@ -564,11 +564,11 @@ export default function ParentAttendancePage() {
               </div>
             </div>
 
-            <div className="p-5 border-t border-pink-100 flex items-center justify-end gap-2">
+            <div className="p-5 border-t border-gray-200 flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={closeCreateModal}
-                className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-pink-50 transition disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
                 disabled={submitting}
               >
                 Huỷ
@@ -577,7 +577,7 @@ export default function ParentAttendancePage() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition disabled:opacity-60"
                 disabled={submitting || profilesLoading}
               >
                 <Send size={16} />
