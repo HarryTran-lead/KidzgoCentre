@@ -57,7 +57,20 @@ function formatDateISO(date: Date): string {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+function mapApiStatusToUi(status: unknown): AttendanceStatus | null {
+  const raw = String(status ?? "").trim().toLowerCase();
+  if (raw === "present") return "present";
+  if (raw === "late") return "late";
+  if (raw === "absent") return "absent";
+  return null;
+}
 
+function mapUiStatusToApi(status: AttendanceStatus | null | undefined): AttendanceRawStatus {
+  if (status === "present") return "Present";
+  if (status === "late") return "Late";
+  if (status === "absent") return "Absent";
+  return "NotMarked";
+}
 /**
  * Map session API item to LessonDetail
  */
@@ -299,19 +312,41 @@ export async function fetchAttendance(
   const json: AttendanceApiResponse = await res.json();
   const data: any = (json as any)?.data ?? json;
 
-  const students: Student[] = Array.isArray(data?.students)
-    ? data.students
+  const rawStudents: any[] = Array.isArray(data?.students)    ? data.students
     : Array.isArray(data)
     ? data
     : Array.isArray(data?.items)
     ? data.items
     : [];
+  const students: Student[] = rawStudents.map((item: any, idx: number) => {
+    const studentProfileId = String(item?.studentProfileId ?? item?.studentId ?? item?.userId ?? "").trim();
+    const attendanceId = String(item?.id ?? "").trim();
+    const fallbackId = attendanceId && attendanceId !== "00000000-0000-0000-0000-000000000000" ? attendanceId : "";
 
+    const resolvedStudentId = studentProfileId || fallbackId || `row:${idx}`;
+    const studentName = String(item?.studentName ?? item?.name ?? item?.fullName ?? "").trim();
+
+    return {
+      ...item,
+      id: resolvedStudentId,
+      studentId: studentProfileId || resolvedStudentId,
+      studentProfileId: studentProfileId || undefined,
+      attendanceId: attendanceId || undefined,
+      studentName,
+      status: mapApiStatusToUi(item?.attendanceStatus ?? item?.status),
+      note: (item?.feedback ?? item?.note ?? item?.comment ?? "") || undefined,
+      absenceRate: Number(item?.absenceRate ?? 0),
+    } as Student;
+  });
   const summary: AttendanceSummaryApi | undefined =
     data?.attendanceSummary ?? data?.summary ?? undefined;
-
+ const inferredHasAnyMarked = students.some((student: any) => {
+    if (student?.status) return true;
+    const attendanceId = String(student?.attendanceId ?? "").trim();
+    return attendanceId.length > 0 && attendanceId !== "00000000-0000-0000-0000-000000000000";
+  });
   const hasAnyMarked: boolean =
-    typeof data?.hasAnyMarked === "boolean" ? data.hasAnyMarked : true;
+ typeof data?.hasAnyMarked === "boolean" ? data.hasAnyMarked : inferredHasAnyMarked;
 
   return {
     students,
@@ -334,19 +369,27 @@ export async function saveAttendance(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
   }
 
-  const payload = (students ?? []).map((s: any) => ({
-    studentId: s.id,
-    status: (s.status ?? "absent") as AttendanceStatus,
-    note: s.note ?? undefined,
-  }));
+ const payload = (students ?? []).map((s: any) => {
+    const studentId = String(s.studentProfileId ?? s.studentId ?? s.id ?? "").trim();
+    const status = (s.status ?? "absent") as AttendanceStatus;
+    const note = typeof s.note === "string" ? s.note.trim() : "";
+
+    return {
+      studentId,
+      studentProfileId: studentId,
+      status,
+      attendanceStatus: mapUiStatusToApi(status),
+      note: note || undefined,
+      comment: note || undefined,
+    };
+  });
 
   const url = isCreate ? TEACHER_ENDPOINTS.ATTENDANCE : `${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`;
   const method = isCreate ? "POST" : "PUT";
 
   const body: any = isCreate
     ? { sessionId, attendances: payload as AttendanceItemApi[] }
-    : { attendances: payload as AttendanceItemApi[] };
-
+    : { sessionId, attendances: payload as AttendanceItemApi[] };
   const res = await fetch(url, {
     method,
     headers: {
