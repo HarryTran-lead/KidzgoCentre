@@ -14,17 +14,12 @@ import {
 
 import { createLeaveRequest, getLeaveRequests } from "@/lib/api/leaveRequestService";
 import { getProfiles } from "@/lib/api/authService";
-import { getStudentClassesByToken } from "@/lib/api/studentService";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getStudentClasses } from "@/lib/api/studentService";
 
 import type { UserProfile } from "@/types/auth";
 import type { StudentClass } from "@/types/student/class";
-import type {
-  LeaveRequestPayload,
-  LeaveRequestRecord,
-  LeaveRequestStatus,
-} from "@/types/leaveRequest";
+import type { LeaveRequestPayload, LeaveRequestRecord, LeaveRequestStatus } from "@/types/leaveRequest";
 
 /* ===================== Types ===================== */
 
@@ -40,12 +35,13 @@ const initialFormState: FormState = {
   reason: "",
 };
 
+type FormErrors = Partial<Record<keyof FormState, string>>;
+
 const statusLabels: Record<LeaveRequestStatus, string> = {
   PENDING: "Chờ duyệt",
   APPROVED: "Đã duyệt",
   REJECTED: "Từ chối",
   AUTO_APPROVED: "Tự duyệt",
-
 };
 
 // giữ màu trạng thái, nhưng “shape” + style giống trang trên
@@ -53,16 +49,13 @@ const statusStyles: Record<LeaveRequestStatus, string> = {
   PENDING: "border border-amber-200 bg-amber-50 text-amber-700",
   APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
   REJECTED: "border border-rose-200 bg-rose-50 text-rose-700",
-   AUTO_APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  AUTO_APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
 };
 
 const normalizeStatus = (value?: string | null): LeaveRequestStatus => {
   if (!value) return "PENDING";
 
-  const normalized = value
-    .replace(/\s+/g, "_")
-    .replace(/-+/g, "_")
-    .toUpperCase();
+  const normalized = value.replace(/\s+/g, "_").replace(/-+/g, "_").toUpperCase();
 
   if (normalized === "APPROVED") return "APPROVED";
   if (normalized === "REJECTED") return "REJECTED";
@@ -81,6 +74,24 @@ function toVNDateLabel(value?: string | null) {
     month: "2-digit",
     day: "2-digit",
   }).format(d);
+}
+
+function extractClasses(payload: unknown): StudentClass[] {
+  if (!payload || typeof payload !== "object") return [];
+
+  const raw = payload as {
+    data?: {
+      items?: StudentClass[];
+      classes?: {
+        items?: StudentClass[];
+      };
+    };
+  };
+
+  if (Array.isArray(raw.data?.items)) return raw.data.items;
+  if (Array.isArray(raw.data?.classes?.items)) return raw.data.classes.items;
+
+  return [];
 }
 
 /* ===================== UI bits (same vibe as page trên) ===================== */
@@ -112,6 +123,7 @@ export default function ParentAttendancePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   // Profiles
   const [studentProfiles, setStudentProfiles] = useState<UserProfile[]>([]);
@@ -140,9 +152,7 @@ export default function ParentAttendancePage() {
       try {
         const response = await getProfiles({ profileType: "Student" });
 
-        const data = Array.isArray(response.data)
-          ? response.data
-          : response.data?.profiles ?? [];
+        const data = Array.isArray(response.data) ? response.data : response.data?.profiles ?? [];
 
         const students = data.filter((p: UserProfile) => p.profileType === "Student");
         setStudentProfiles(students);
@@ -162,24 +172,28 @@ export default function ParentAttendancePage() {
   useEffect(() => {
     if (!studentProfiles.length) return;
 
-    const defaultProfile =
+    const profileFromSelector =
       (selectedProfile && studentProfiles.find((p) => p.id === selectedProfile.id)) ||
       studentProfiles[0];
 
-    if (defaultProfile && formState.studentProfileId !== defaultProfile.id) {
-      setFormState((prev) => ({
+    if (!profileFromSelector) return;
+
+    setFormState((prev) => {
+      if (prev.studentProfileId === profileFromSelector.id) return prev;
+
+      return {
         ...prev,
-        studentProfileId: defaultProfile.id,
+        studentProfileId: profileFromSelector.id,
         classId: "",
-      }));
-    }
-  }, [formState.studentProfileId, selectedProfile, studentProfiles]);
+      };
+    });
+  }, [selectedProfile, studentProfiles]);
 
   /* ===================== Fetch Classes by Token ===================== */
 
   useEffect(() => {
     const fetchClasses = async () => {
-      if (!selectedProfile) {
+      if (!formState.studentProfileId) {
         setClasses([]);
         setFormState((prev) => ({ ...prev, classId: "" }));
         return;
@@ -190,13 +204,12 @@ export default function ParentAttendancePage() {
 
       try {
         const response = await getStudentClasses({
+          studentId: formState.studentProfileId,
           pageNumber: 1,
           pageSize: 100,
         });
 
-        const data = Array.isArray(response.data)
-          ? response.data
-          : response.data?.items ?? [];
+        const data = extractClasses(response);
 
         setClasses(data);
 
@@ -206,14 +219,14 @@ export default function ParentAttendancePage() {
       } catch (err) {
         console.error("Fetch student classes error:", err);
         setClasses([]);
-        setClassesError("Không thể tải danh sách lớp.");
+        setClassesError("Không thể tải danh sách lớp. Vui lòng thử lại hoặc chọn học viên khác.");
       } finally {
         setClassesLoading(false);
       }
     };
 
     fetchClasses();
-  }, [selectedProfile]);
+  }, [formState.studentProfileId]);
 
   /* ===================== Fetch Leave Requests ===================== */
 
@@ -274,26 +287,34 @@ export default function ParentAttendancePage() {
     setSubmitting(true);
     setError(null);
     setSuccessMessage(null);
+    setFormErrors({});
 
     try {
+      const nextErrors: FormErrors = {};
+
       if (!formState.studentProfileId) {
-        setError("Vui lòng chọn học viên.");
-        return;
+        nextErrors.studentProfileId = "Vui lòng chọn học viên.";
       }
       if (!formState.classId) {
-        setError("Vui lòng chọn lớp.");
-        return;
+        nextErrors.classId = "Vui lòng chọn lớp.";
       }
       if (!formState.sessionDate) {
-        setError("Vui lòng chọn ngày bắt đầu nghỉ.");
-        return;
+        nextErrors.sessionDate = "Vui lòng chọn ngày bắt đầu nghỉ.";
       }
       if (!formState.endDate) {
-        setError("Vui lòng chọn ngày kết thúc nghỉ.");
-        return;
+        nextErrors.endDate = "Vui lòng chọn ngày kết thúc nghỉ.";
       }
       if (!formState.reason?.trim()) {
-        setError("Vui lòng nhập lý do.");
+        nextErrors.reason = "Vui lòng nhập lý do.";
+      }
+
+      if (formState.sessionDate && formState.endDate && formState.endDate < formState.sessionDate) {
+        nextErrors.endDate = "Ngày kết thúc nghỉ phải lớn hơn hoặc bằng ngày bắt đầu nghỉ.";
+      }
+
+      if (Object.keys(nextErrors).length > 0) {
+        setFormErrors(nextErrors);
+        setError("Vui lòng kiểm tra lại thông tin bắt buộc trước khi gửi đơn.");
         return;
       }
 
@@ -307,6 +328,7 @@ export default function ParentAttendancePage() {
         ...initialFormState,
         studentProfileId: prev.studentProfileId,
       }));
+      setFormErrors({});
 
       setSuccessMessage("Đã tạo đơn xin nghỉ. Hệ thống sẽ tự duyệt theo luật 24h nếu đủ điều kiện.");
       closeCreateModal();
@@ -401,9 +423,11 @@ export default function ParentAttendancePage() {
 
               <tbody className="divide-y divide-gray-100">
                 {displayRequests.map((r) => {
- const status = normalizeStatus(r.status as string | undefined);                  const start = (r as any).sessionDate ?? r.sessionDate;
+                  const status = normalizeStatus(r.status as string | undefined);
+                  const start = (r as any).sessionDate ?? r.sessionDate;
                   const end = (r as any).endDate ?? r.endDate;
- const created =
+
+                  const created =
                     (r as any).createdAt ??
                     (r as any).submittedAt ??
                     (r as any).requestedAt ??
@@ -419,9 +443,11 @@ export default function ParentAttendancePage() {
                         {end ? <span className="text-gray-400">→</span> : null}{" "}
                         {end ? toVNDateLabel(end) : null}
                       </td>
-  <td className="py-4 px-6 whitespace-nowrap text-sm text-gray-700">
+
+                      <td className="py-4 px-6 whitespace-nowrap text-sm text-gray-700">
                         {toVNDateLabel(created) || "—"}
                       </td>
+
                       <td className="py-4 px-6 text-sm text-gray-700">
                         {(r as any).className ??
                           (r as any).classTitle ??
@@ -429,9 +455,7 @@ export default function ParentAttendancePage() {
                           classNameById(r.classId)}
                       </td>
 
-                      <td className="py-4 px-6 text-sm text-gray-700">
-                        {(r as any).reason ?? "—"}
-                      </td>
+                      <td className="py-4 px-6 text-sm text-gray-700">{(r as any).reason ?? "—"}</td>
 
                       <td className="py-4 px-6">
                         <span
@@ -505,6 +529,10 @@ export default function ParentAttendancePage() {
                     <option value="">Không có học viên</option>
                   )}
                 </select>
+
+                {formErrors.studentProfileId ? (
+                  <div className="text-xs text-red-600">{formErrors.studentProfileId}</div>
+                ) : null}
               </div>
 
               {/* Class */}
@@ -526,6 +554,9 @@ export default function ParentAttendancePage() {
                   ))}
                 </select>
 
+                {formErrors.classId ? (
+                  <div className="text-xs text-red-600">{formErrors.classId}</div>
+                ) : null}
                 {classesError ? <div className="text-xs text-red-600">{classesError}</div> : null}
               </div>
 
@@ -537,8 +568,13 @@ export default function ParentAttendancePage() {
                     type="date"
                     className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
                     value={formState.sessionDate}
-                    onChange={(e) => setFormState((prev) => ({ ...prev, sessionDate: e.target.value }))}
+                    onChange={(e) =>
+                      setFormState((prev) => ({ ...prev, sessionDate: e.target.value }))
+                    }
                   />
+                  {formErrors.sessionDate ? (
+                    <div className="text-xs text-red-600">{formErrors.sessionDate}</div>
+                  ) : null}
                 </div>
 
                 <div className="space-y-1">
@@ -549,6 +585,9 @@ export default function ParentAttendancePage() {
                     value={formState.endDate}
                     onChange={(e) => setFormState((prev) => ({ ...prev, endDate: e.target.value }))}
                   />
+                  {formErrors.endDate ? (
+                    <div className="text-xs text-red-600">{formErrors.endDate}</div>
+                  ) : null}
                 </div>
               </div>
 
@@ -561,6 +600,9 @@ export default function ParentAttendancePage() {
                   value={formState.reason}
                   onChange={(e) => setFormState((prev) => ({ ...prev, reason: e.target.value }))}
                 />
+                {formErrors.reason ? (
+                  <div className="text-xs text-red-600">{formErrors.reason}</div>
+                ) : null}
               </div>
             </div>
 

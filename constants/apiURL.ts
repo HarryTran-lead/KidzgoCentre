@@ -185,6 +185,13 @@ export const TEACHER_ENDPOINTS = {
   ATTENDANCE: '/api/attendance',
   ATTENDANCE_STUDENTS: '/api/attendance/students',
   SESSIONS: '/api/sessions',
+   SESSION_REPORTS: '/api/session-reports',
+  SESSION_REPORT_BY_ID: (id: string) => `/api/session-reports/${id}`,
+} as const;
+
+export const BACKEND_SESSION_REPORT_ENDPOINTS = {
+  CREATE: '/session-reports',
+  UPDATE: (id: string) => `/session-reports/${id}`,
 } as const;
 
 // Admin Endpoints (client-side -> Next.js API Routes)
