@@ -226,16 +226,16 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
 
   return (
     <div className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-linear-to-br from-pink-50 via-white to-rose-50" />
-      <div className="absolute -top-24 -left-24 h-64 w-64 rounded-full bg-pink-200/40 blur-3xl" />
-      <div className="absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-rose-200/40 blur-3xl" />
+      <div className="absolute inset-0 bg-red" />
+      <div className="absolute -top-24 -left-24 h-64 w-64 rounded-full bg-red-200/40 blur-3xl" />
+      <div className="absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-gray-300/40 blur-3xl" />
 
       {/* Particles */}
       <div className="pointer-events-none absolute inset-0">
         {particleStyle.current.map((s, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-pink-300/25 blur-xl"
+            className="absolute rounded-full bg-red-300/25 blur-xl"
             style={s as React.CSSProperties}
           />
         ))}
@@ -247,10 +247,10 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
         transition={{ duration: 0.5 }}
         className="relative mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-6xl items-center justify-center px-4 py-8"
       >
-        <div className="w-full overflow-hidden rounded-2xl border border-white/60 bg-white/60 shadow-xl backdrop-blur">
+        <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white/60 shadow-xl backdrop-blur">
           <div className="grid grid-cols-1 lg:grid-cols-2">
             {/* LEFT */}
-            <div className="relative overflow-hidden bg-linear-to-br from-pink-600 to-rose-600 p-6 lg:p-10 text-white">
+            <div className="relative overflow-hidden bg-gradient-to-br from-red-600 to-red-700 p-6 lg:p-10 text-white">
               <div className="mb-6 flex items-center gap-2">
                 <a
                   href={`/${resolvedLocale}`}
@@ -262,7 +262,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
               </div>
 
               <div className="space-y-5">
-                <h1 className="text-2xl font-bold leading-tight">Đăng nhập KidzGo</h1>
+                <h1 className="text-2xl font-bold leading-tight">Đăng nhập Rex</h1>
                 <p className="text-sm text-white/90">
                   Dành cho học sinh và phụ huynh để theo dõi học tập & kết nối giáo viên.
                 </p>
@@ -343,7 +343,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                     inputProps={{
                       placeholder: "Nhập email của bạn",
                       className:
-                        "w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200",
+                        "w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-red-600 focus:border-red-600 focus:ring-1 focus:ring-red-600/20 text-sm text-gray-800 transition-colors duration-200",
                     }}
                   />
 
@@ -355,7 +355,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                     inputProps={{
                       placeholder: "Nhập mật khẩu của bạn",
                       className:
-                        "w-full pl-10 pr-9 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-pink-500 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 text-sm text-gray-800 transition-colors duration-200",
+                        "w-full pl-10 pr-9 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-red-600 focus:border-red-600 focus:ring-1 focus:ring-red-600/20 text-sm text-gray-800 transition-colors duration-200",
                     }}
                   />
 
@@ -365,13 +365,13 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                         type="checkbox"
                         checked={remember}
                         onChange={() => setRemember(!remember)}
-                        className="h-3.5 w-3.5 rounded border-gray-300 text-pink-600 focus:ring-pink-600"
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-red-600 focus:ring-red-600 cursor-pointer"
                       />
                       <span className="text-xs text-gray-700">Ghi nhớ đăng nhập</span>
                     </label>
                     <button
                       type="button"
-                      className="text-xs text-pink-600 hover:text-pink-700 font-medium"
+                      className="text-xs text-red-600 hover:text-red-700 font-medium cursor-pointer"
                     >
                       Quên mật khẩu?
                     </button>
@@ -385,7 +385,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                     whileTap={{ scale: 0.98 }}
                     onClick={handleSubmit}
                     disabled={isLoading}
-                    className="w-full bg-linear-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                    className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
                   >
                     {isLoading ? "Đang đăng nhập..." : "Đăng nhập ngay"}
                   </motion.button>

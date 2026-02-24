@@ -75,14 +75,14 @@ export default function Navbar() {
     () => ({
       default: {
         borderRadius: 9999,
-        backgroundColor: "rgba(255, 255, 255, 0.95)",
+        backgroundColor: "rgba(255,255,255,0.95)",
         boxShadow: "0 10px 40px -12px rgba(0,0,0,0.08)",
         backdropFilter: "blur(12px)",
         borderColor: "rgba(0,0,0,0.08)",
       },
       scrolled: {
         borderRadius: 0,
-        backgroundColor: "rgba(255, 255, 255, 0.98)",
+        backgroundColor: "rgba(255,255,255,0.98)",
         boxShadow: "0 4px 20px -8px rgba(0,0,0,0.08)",
         backdropFilter: "blur(16px)",
         borderColor: "rgba(0,0,0,0.04)",
@@ -107,7 +107,6 @@ export default function Navbar() {
         kind: "route",
         href: localizePath(EndPoint.HOME, locale),
       },
-
       {
         id: "faqs",
         label: msg.nav.faqs,
@@ -156,7 +155,7 @@ export default function Navbar() {
   const activeKey = useMemo(() => {
     if (pathname.includes("/contact")) return "contact";
     if (pathname.includes("/faqs")) return "faqs";
-    if (pathname.includes("/blogs")) return "bantin";
+    if (pathname.includes("/blogs")) return "blogs";
     if (pathname.includes("/pricing")) return "pricing";
     return activeSectionId;
   }, [pathname, activeSectionId]);
@@ -291,15 +290,15 @@ export default function Navbar() {
                   smoothTo("hero");
                 }
               }}
-                className="flex items-center group"
+              className="flex items-center group"
             >
               <Image
                 src={LOGO}
                 alt="KidzGo logo"
-                  width={200}
-                  height={70}
+                width={200}
+                height={70}
                 priority
-                  className="h-20 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
+                className="h-20 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
               />
 
             </a>
@@ -310,11 +309,11 @@ export default function Navbar() {
               <div className="flex items-center">
                 <div
                   ref={containerRef}
-                  className="relative inline-flex items-center gap-0.5 px-1.5 pb-2.5 py-2"
+                  className="relative inline-flex items-center gap-0.5 px-1.5 pb-2.5 pt-2"
                 >
                   {indReady && (
                     <motion.div
-                      className="absolute top-2 left-0 h-[calc(100%-16px)] bg-linear-to-r from-pink-400/20 to-rose-400/20 rounded-xl border border-pink-100/50 shadow-sm"
+                      className="absolute top-2 left-0 h-[calc(100%-16px)] bg-gradient-to-r from-red-400/20 to-red-500/20 rounded-xl border border-red-100/50 shadow-sm"
                       initial={false}
                       style={{
                         x,
@@ -350,8 +349,8 @@ export default function Navbar() {
                             transition-all duration-300 ease-out
                             group/nav-item whitespace-nowrap
                             ${isActive 
-                              ? "text-pink-600 font-semibold"
-                              : "text-gray-800 hover:text-pink-600"
+                              ? "text-red-600 font-semibold"
+                              : "text-gray-800 hover:text-red-600"
                             }
                           `}
                           whileHover={{ 
@@ -360,11 +359,11 @@ export default function Navbar() {
                           whileTap={{ scale: 0.95 }}
                         >
                           <span className="relative inline-block whitespace-nowrap">
-                          {item.label}
+                            {item.label}
                             <span
                               className={`
                                 absolute left-0 right-0 -bottom-1 h-0.5 rounded-full
-                                bg-linear-to-r from-pink-500 to-rose-500
+                                bg-gradient-to-r from-red-600 to-red-700
                                 transform origin-left transition-all duration-300 ease-out
                                 ${isActive 
                                   ? "scale-x-100 opacity-100" 
@@ -387,19 +386,19 @@ export default function Navbar() {
                           transition-all duration-300 ease-out
                           group/nav-item whitespace-nowrap
                           ${isActive 
-                            ? "text-pink-600 font-semibold"
-                            : "text-gray-800 hover:text-pink-600"
+                            ? "text-red-600 font-semibold"
+                            : "text-gray-800 hover:text-red-600"
                           }
                         `}
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.95 }}
                       >
                         <span className="relative inline-block whitespace-nowrap">
-                        {item.label}
+                          {item.label}
                           <span
                             className={`
                               absolute left-0 right-0 -bottom-1 h-0.5 rounded-full
-                              bg-linear-to-r from-pink-500 to-rose-500
+                              bg-gradient-to-r from-red-600 to-red-700
                               transform origin-left transition-all duration-300 ease-out
                               ${isActive 
                                 ? "scale-x-100 opacity-100" 
@@ -429,10 +428,10 @@ export default function Navbar() {
               >
                 <Link
                   href={localizePath(EndPoint.LOGIN, locale)}
-                  className="group relative inline-flex items-center gap-3 px-6 py-3 bg-linear-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-pink-500/25 active:shadow-inner"
+                  className="group relative inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-red-600/25 active:shadow-inner"
                 >
                   {/* Button glow effect */}
-                  <span className="absolute inset-0 bg-linear-to-r from-pink-400 to-rose-400 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <span className="absolute inset-0 bg-gradient-to-r from-red-400 to-red-500 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <span className="relative flex items-center gap-2">
                     <LogIn className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                     {msg.auth.login}
@@ -450,7 +449,7 @@ export default function Navbar() {
               whileTap={{ scale: 0.9 }}
             >
               {/* Button background effect */}
-              <span className="absolute inset-0 bg-linear-to-r from-pink-500/10 to-rose-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-red-600/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <span className="relative">
                 {open ? (
                   <X className="w-5 h-5 text-gray-700" />
@@ -478,7 +477,7 @@ export default function Navbar() {
           initial={false}
           animate={{ opacity: open ? 0.5 : 0 }}
           transition={{ duration: 0.2 }}
-          className="absolute inset-0 bg-linear-to-br from-gray-900/30 to-pink-900/20 backdrop-blur-sm"
+          className="absolute inset-0 bg-gradient-to-br from-gray-900/30 to-red-900/20 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         />
         
@@ -505,7 +504,7 @@ export default function Navbar() {
                 height={42}
                 className="h-10 w-auto"
               />
-              <Sparkles className="w-5 h-5 text-pink-400 animate-pulse" />
+              <Sparkles className="w-5 h-5 text-red-500 animate-pulse" />
             </div>
             <motion.button
               onClick={() => setOpen(false)}
@@ -513,13 +512,12 @@ export default function Navbar() {
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
             >
-              <span className="absolute inset-0 bg-linear-to-r from-pink-500/10 to-rose-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-red-600/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <span className="relative">
                 <X className="w-5 h-5 text-gray-700" />
               </span>
             </motion.button>
-          </div>
-          
+          </div>          
           <div className="p-6 h-[calc(100%-80px)] overflow-y-auto">
             <div className="mb-6">
               <div className="inline-block">
@@ -549,7 +547,7 @@ export default function Navbar() {
                         text-gray-800 transition-all duration-300
                         group/mobile-item relative overflow-hidden
                         ${isActive 
-                          ? "bg-linear-to-r from-pink-50 to-rose-50 text-transparent bg-linear-to-r from-pink-500 to-rose-500 bg-clip-text" 
+                          ? "bg-gradient-to-r from-red-50 to-red-100 text-transparent bg-gradient-to-r from-red-600 to-red-700 bg-clip-text" 
                           : "hover:bg-gray-50/80"
                         }
                       `}
@@ -558,7 +556,7 @@ export default function Navbar() {
                     >
                       {/* Background effect */}
                       <span className={`
-                        absolute inset-0 bg-linear-to-r from-pink-500/5 to-rose-500/5
+                        absolute inset-0 bg-gradient-to-r from-red-500/5 to-red-600/5
                         opacity-0 group-hover/mobile-item:opacity-100
                         transition-opacity duration-300
                       `} />
@@ -566,13 +564,13 @@ export default function Navbar() {
                       <span className="relative flex items-center gap-3">
                         <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                           isActive 
-                            ? "bg-linear-to-r from-pink-400 to-rose-400 scale-125" 
-                            : "bg-gray-300 group-hover/mobile-item:bg-pink-300"
+                            ? "bg-gradient-to-r from-red-400 to-red-500 scale-125" 
+                            : "bg-gray-300 group-hover/mobile-item:bg-red-400"
                         }`} />
                         <span className={`font-medium ${
                           isActive 
                             ? "" 
-                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-linear-to-r group-hover/mobile-item:from-pink-500 group-hover/mobile-item:to-rose-500"
+                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-gradient-to-r group-hover/mobile-item:from-red-600 group-hover/mobile-item:to-red-700"
                         }`}>
                           {item.label}
                         </span>
@@ -581,8 +579,8 @@ export default function Navbar() {
                       <span className="relative">
                         <ChevronRight className={`w-4 h-4 transition-all duration-300 ${
                           isActive 
-                            ? "text-pink-500 transform translate-x-0.5" 
-                            : "text-gray-400 group-hover/mobile-item:text-pink-400 group-hover/mobile-item:translate-x-0.5"
+                            ? "text-red-600 transform translate-x-0.5" 
+                            : "text-gray-400 group-hover/mobile-item:text-red-500 group-hover/mobile-item:translate-x-0.5"
                         }`} />
                       </span>
                     </motion.a>
@@ -604,14 +602,14 @@ export default function Navbar() {
                         text-gray-800 transition-all duration-300
                         group/mobile-item relative overflow-hidden
                         ${isActive 
-                          ? "bg-linear-to-r from-pink-50 to-rose-50 text-transparent bg-linear-to-r from-pink-500 to-rose-500 bg-clip-text" 
+                          ? "bg-gradient-to-r from-red-50 to-red-100 text-transparent bg-gradient-to-r from-red-600 to-red-700 bg-clip-text" 
                           : "hover:bg-gray-50/80"
                         }
                       `}
                     >
                       {/* Background effect */}
                       <span className={`
-                        absolute inset-0 bg-linear-to-r from-pink-500/5 to-rose-500/5
+                        absolute inset-0 bg-gradient-to-r from-red-500/5 to-red-600/5
                         opacity-0 group-hover/mobile-item:opacity-100
                         transition-opacity duration-300
                       `} />
@@ -619,13 +617,13 @@ export default function Navbar() {
                       <span className="relative flex items-center gap-3">
                         <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                           isActive 
-                            ? "bg-linear-to-r from-pink-400 to-rose-400 scale-125" 
-                            : "bg-gray-300 group-hover/mobile-item:bg-pink-300"
+                            ? "bg-gradient-to-r from-red-400 to-red-500 scale-125" 
+                            : "bg-gray-300 group-hover/mobile-item:bg-red-400"
                         }`} />
                         <span className={`font-medium ${
                           isActive 
                             ? "" 
-                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-linear-to-r group-hover/mobile-item:from-pink-500 group-hover/mobile-item:to-rose-500"
+                            : "group-hover/mobile-item:text-transparent group-hover/mobile-item:bg-clip-text group-hover/mobile-item:bg-gradient-to-r group-hover/mobile-item:from-red-600 group-hover/mobile-item:to-red-700"
                         }`}>
                           {item.label}
                         </span>
@@ -634,16 +632,15 @@ export default function Navbar() {
                       <span className="relative">
                         <ChevronRight className={`w-4 h-4 transition-all duration-300 ${
                           isActive 
-                            ? "text-pink-500 transform translate-x-0.5" 
-                            : "text-gray-400 group-hover/mobile-item:text-pink-400 group-hover/mobile-item:translate-x-0.5"
+                            ? "text-red-600 transform translate-x-0.5" 
+                            : "text-gray-400 group-hover/mobile-item:text-red-500 group-hover/mobile-item:translate-x-0.5"
                         }`} />
                       </span>
                   </Link>
-                  </motion.div>
+                </motion.div>
                 );
               })}
-            </div>
-            
+            </div>            
             <div className="mt-8 pt-8 border-t border-gray-100/50">
               <motion.div
                 whileHover={{ scale: 1.02 }}
@@ -653,14 +650,14 @@ export default function Navbar() {
               <Link
                 href={localizePath(EndPoint.LOGIN, locale)}
                   className="group relative flex items-center justify-center gap-3 w-full py-4 
-                    bg-linear-to-r from-pink-500 to-rose-500 
-                    hover:from-pink-600 hover:to-rose-600 
+                    bg-gradient-to-r from-red-600 to-red-700 
+                    hover:from-red-700 hover:to-red-800 
                     text-white font-semibold rounded-xl 
                     transition-all duration-300 shadow-lg hover:shadow-xl"
                   onClick={() => setOpen(false)}
                 >
                   {/* Button glow */}
-                  <span className="absolute inset-0 bg-linear-to-r from-pink-400 to-rose-400 rounded-xl blur-lg opacity-0 group-hover:opacity-70 transition-opacity duration-300" />
+                  <span className="absolute inset-0 bg-gradient-to-r from-red-400 to-red-500 rounded-xl blur-lg opacity-0 group-hover:opacity-70 transition-opacity duration-300" />
                   
                   <span className="relative flex items-center gap-3">
                     <LogIn className="w-5 h-5 transition-transform group-hover:translate-x-1" />
