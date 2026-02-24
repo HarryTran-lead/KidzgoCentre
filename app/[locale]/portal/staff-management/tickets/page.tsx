@@ -71,7 +71,7 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
       <div
         className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}
       ></div>
@@ -104,7 +104,7 @@ function StatusBadge({ status }: { status: TicketStatus }) {
       icon: CheckCircle2,
     },
     "Đã đóng": {
-      cls: "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200",
+      cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
       icon: ShieldCheck,
     },
   };
@@ -124,7 +124,7 @@ function CategoryBadge({ category }: { category: TicketCategory }) {
   const map: Record<TicketCategory, { label: string; cls: string }> = {
     Operations: {
       label: "Operations",
-      cls: "bg-gradient-to-r from-pink-50 to-rose-50 text-pink-700 border border-pink-200",
+      cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
     },
     Accountant: {
       label: "Accountant",
@@ -272,29 +272,29 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <LifeBuoy size={28} className="text-white" />
           </div>
-        <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-            Ticket hỗ trợ
-          </h1>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              Ticket hỗ trợ
+            </h1>
             <p className="text-sm text-gray-600 mt-1">
-            Quản lý phản hồi phụ huynh/học viên, phân tuyến cho giáo viên và staff
-          </p>
-        </div>
+              Quản lý phản hồi phụ huynh/học viên, phân tuyến cho giáo viên và staff
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+          <button className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
             <Download size={16} /> Xuất DS
           </button>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all cursor-pointer">
             <PlusCircle size={16} /> Tạo ticket
-        </button>
+          </button>
         </div>
       </div>
 
@@ -305,7 +305,7 @@ export default function Page() {
           value={String(stats.total)}
           subtitle="Trong danh sách"
           icon={LifeBuoy}
-          color="from-pink-500 to-rose-500"
+          color="from-red-600 to-red-700"
         />
         <StatCard
           title="Ticket mới"
@@ -331,7 +331,7 @@ export default function Page() {
       </div>
 
       {/* Filter Bar */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
@@ -339,7 +339,7 @@ export default function Page() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="rounded-xl border border-red-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
               >
                 {statusOptions.map((s) => (
                   <option key={s} value={s}>
@@ -352,7 +352,7 @@ export default function Page() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="rounded-xl border border-red-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
               >
                 {categoryOptions.map((c) => (
                   <option key={c} value={c}>
@@ -361,39 +361,39 @@ export default function Page() {
                 ))}
               </select>
             </div>
-      </div>
+          </div>
 
           <div className="relative">
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm theo mã, tiêu đề, người gửi..."
-              className="h-10 w-72 rounded-xl border border-pink-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className="h-10 w-72 rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
             />
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
-            </div>
-          </div>
+        </div>
+      </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
-        <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Danh sách ticket</h2>
             <div className="text-sm text-gray-600 font-medium">{sortedTickets.length} ticket</div>
           </div>
-      </div>
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
               <tr>
                 <th className="py-3 px-4 text-left w-12">
                   <input
                     type="checkbox"
                     checked={allVisibleSelected}
                     onChange={toggleSelectAllVisible}
-                    className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+                    className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
                     aria-label="Chọn tất cả"
                   />
                 </th>
@@ -401,12 +401,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("title")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                   >
                     Ticket
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "title" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "title" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -414,12 +414,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("requester")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                   >
                     Người gửi
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "requester" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "requester" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -427,12 +427,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("category")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                   >
                     Nhóm xử lý
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "category" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "category" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -440,12 +440,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("status")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                   >
                     Trạng thái
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "status" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "status" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -453,12 +453,12 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => toggleSort("updated")}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                   >
                     Cập nhật
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "updated" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "updated" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -467,19 +467,19 @@ export default function Page() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-pink-100">
+            <tbody className="divide-y divide-red-100">
               {sortedTickets.length > 0 ? (
                 sortedTickets.map((t) => (
                   <tr
                     key={t.id}
-                    className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
                     <td className="py-4 px-4 align-top">
                       <input
                         type="checkbox"
                         checked={!!selectedIds[t.id]}
                         onChange={() => toggleSelectOne(t.id)}
-                        className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+                        className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
                         aria-label={`Chọn ${t.title}`}
                       />
                     </td>
@@ -491,7 +491,7 @@ export default function Page() {
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
-                        <div className="h-7 w-7 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white">
+                        <div className="h-7 w-7 rounded-lg bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center text-white">
                           <User size={14} />
                         </div>
                         <div className="text-sm font-medium text-gray-900">{t.requester}</div>
@@ -505,17 +505,17 @@ export default function Page() {
                     </td>
                     <td className="py-4 px-6">
                       <div className="text-sm text-gray-700">{t.updated}</div>
-                </td>
+                    </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-1.5">
                         <button
-                          className="p-1.5 rounded-lg border border-pink-200 bg-white text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg border border-red-300 bg-gradient-to-r from-white to-red-50 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                           title="Xem"
                         >
                           <Eye size={14} />
                         </button>
                         <button
-                          className="p-1.5 rounded-lg border border-pink-200 bg-white text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg border border-red-300 bg-gradient-to-r from-white to-red-50 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                           title="Phân tuyến"
                         >
                           <ShieldCheck size={14} />
@@ -526,17 +526,17 @@ export default function Page() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center">
-                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                      <Search size={24} className="text-pink-400" />
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                      <Search size={24} className="text-red-400" />
                     </div>
                     <div className="text-gray-600 font-medium">Không có ticket phù hợp</div>
                     <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa</div>
-                </td>
-              </tr>
+                  </td>
+                </tr>
               )}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -455,7 +455,7 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
             ref={combinedRef}
             style={calculatedStyle}
             className={cn(
-              "z-50 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
+              "z-[99999] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
               position === "popper" &&
                 "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
               className

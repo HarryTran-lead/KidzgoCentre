@@ -81,7 +81,7 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
       <div
         className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}
       ></div>
@@ -246,7 +246,7 @@ export default function Page() {
           value: String(planStats.total),
           subtitle: "Trong thư viện",
           icon: BookOpenCheck,
-          color: "from-pink-500 to-rose-500",
+          color: "from-red-600 to-red-700",
         },
         {
           title: "Đã chuẩn hóa",
@@ -278,7 +278,7 @@ export default function Page() {
         value: String(reviewStats.total),
         subtitle: "Lớp cần nộp",
         icon: FileText,
-        color: "from-pink-500 to-rose-500",
+        color: "from-red-600 to-red-700",
       },
       {
         title: "Đã nộp",
@@ -368,11 +368,11 @@ export default function Page() {
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <BookOpenCheck size={28} className="text-white" />
           </div>
         <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
             Giáo án & chất lượng
           </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -381,11 +381,11 @@ export default function Page() {
         </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+          <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors">
             <Download size={16} /> Xuất DS
           </button>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
-            <PlusCircle size={16} /> Tạo giáo án khung
+          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+            <PlusCircle size={16}/> Tạo giáo án khung
         </button>
         </div>
       </div>
@@ -405,7 +405,7 @@ export default function Page() {
 
       {/* Filter + Tabs + Search */}
       <div
-        className={`rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-5 transition-all duration-700 delay-150 ${
+        className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-700 delay-150 ${
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
@@ -423,7 +423,7 @@ export default function Page() {
                     ? "Tìm kiếm theo mã, chương trình, unit..."
                     : "Tìm kiếm theo mã, lớp, giáo viên..."
                 }
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-red-200 bg-white focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -436,7 +436,7 @@ export default function Page() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-100 cursor-pointer"
+                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 cursor-pointer"
               >
                 {statusOptions.map((s) => (
                   <option key={s} value={s}>
@@ -446,15 +446,15 @@ export default function Page() {
               </select>
             </div>
 
-            <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-pink-50 transition-colors cursor-pointer">
-              <MoreVertical size={16} />
+            <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors cursor-pointer">
+              <MoreVertical size={16}/>
               Thêm lọc
             </button>
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="inline-flex rounded-2xl border border-pink-200 bg-white/60 p-1">
+          <div className="inline-flex rounded-2xl border border-red-200 bg-white/60 p-1">
             <button
               onClick={() => {
                 setActiveTab("library");
@@ -463,8 +463,8 @@ export default function Page() {
               }}
               className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "library"
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                  : "text-gray-700 hover:bg-pink-50"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                  : "text-gray-700 hover:bg-red-50"
               }`}
             >
               Thư viện giáo án
@@ -477,8 +477,8 @@ export default function Page() {
               }}
               className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "tracking"
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                  : "text-gray-700 hover:bg-pink-50"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                  : "text-gray-700 hover:bg-red-50"
               }`}
             >
               Theo dõi giáo án thực tế
@@ -491,11 +491,11 @@ export default function Page() {
 
       {/* Main Table */}
       <div
-        className={`rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${
+        className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
-        <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">
               {activeTab === "library" ? "Thư viện giáo án" : "Theo dõi nộp giáo án"}
@@ -511,7 +511,7 @@ export default function Page() {
         <div className="overflow-x-auto">
           {activeTab === "library" ? (
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr>
                   <th className="py-3 px-4 text-left w-12">
                     <input

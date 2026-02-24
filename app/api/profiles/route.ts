@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { BACKEND_STUDENT_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
+import { BACKEND_STUDENT_ENDPOINTS, BACKEND_PROFILE_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
 import type { StudentsResponse } from "@/types/student/student";
 
 export async function GET(req: Request) {
@@ -69,6 +69,66 @@ export async function GET(req: Request) {
         success: false,
         data: { items: [] },
         message: "Đã xảy ra lỗi khi lấy danh sách học viên",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/profiles
+ * Create a new profile (Parent or Student)
+ * Forwards to backend POST /profiles
+ */
+export async function POST(req: Request) {
+  try {
+    const authHeader = req.headers.get("authorization");
+
+    if (!authHeader) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Chưa đăng nhập",
+        },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+    const backendUrl = buildApiUrl(BACKEND_PROFILE_ENDPOINTS.CREATE);
+
+    const upstream = await fetch(backendUrl, {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const contentType = upstream.headers.get("content-type") ?? "";
+    let data;
+
+    if (contentType.includes("application/json")) {
+      data = await upstream.json();
+    } else {
+      const text = await upstream.text();
+      data = {
+        success: false,
+        data: null,
+        message: text || `Backend trả về dữ liệu không hợp lệ (status ${upstream.status}).`,
+      };
+    }
+
+    return NextResponse.json(data, { status: upstream.status });
+  } catch (error) {
+    console.error("Create profile error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message: "Đã xảy ra lỗi khi tạo profile",
       },
       { status: 500 }
     );
