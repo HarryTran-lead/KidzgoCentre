@@ -46,7 +46,7 @@ export default function Contact() {
       try {
         const response = await getAllBranchesPublic({ isActive: true });
         if (response.success && response.data) {
-          setBranches(response.data.items || []);
+          setBranches(response.data.branches || []);
         }
       } catch (error) {
         console.error("Error fetching branches:", error);
