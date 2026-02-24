@@ -664,6 +664,8 @@ const loadSessionReports = async () => {
     }
   };
   const syncSessionReportsWithAttendance = useCallback(async () => {
+    if (!selectedSessionId) return;
+    
     const reportSyncTasks = attendanceList
       .map((student) => {
         const studentProfileId = String(student.studentId ?? "").trim();
