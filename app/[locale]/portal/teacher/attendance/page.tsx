@@ -93,6 +93,18 @@ type SessionReportState = {
   reportId: string;
   feedback: string;
 };
+const SESSION_REPORT_PAGE_SIZE = 100;
+const SESSION_REPORT_MAX_PAGES = 20;
+
+function getSessionReportTimestamp(report: SessionReportItem | any): number {
+  const updatedAt = Date.parse(String(report?.updatedAt ?? ""));
+  if (!Number.isNaN(updatedAt)) return updatedAt;
+
+  const createdAt = Date.parse(String(report?.createdAt ?? ""));
+  if (!Number.isNaN(createdAt)) return createdAt;
+
+  return 0;
+}
 function pickSessionReportFromStudent(student: any, sessionId: string): SessionReportState {
   const directNote = String(
     student?.note ??
@@ -450,24 +462,55 @@ export default function TeacherAttendancePage() {
     setAttendanceLoadingError(null);
 
     try {
-const [result, reports] = await Promise.all([
-        fetchAttendance(selectedSessionId),
-fetchSessionReports({ sessionId: selectedSessionId, pageNumber: 1, pageSize: 500 }).catch((err) => {          console.warn("Fetch session reports warning:", err);
-          return [] as SessionReportItem[];
+const loadSessionReports = async () => {
+        const collected: SessionReportItem[] = [];
+
+        for (let pageNumber = 1; pageNumber <= SESSION_REPORT_MAX_PAGES; pageNumber += 1) {
+          const pageItems = await fetchSessionReports({
+            sessionId: selectedSessionId,
+            pageNumber,
+            pageSize: SESSION_REPORT_PAGE_SIZE,
+          });
+
+          if (!pageItems.length) break;
+
+          collected.push(...pageItems);
+
+          if (pageItems.length < SESSION_REPORT_PAGE_SIZE) break;
+        }
+
+        return collected;
+      };
+
+      const [result, reports] = await Promise.all([        
+                fetchAttendance(selectedSessionId),
+ loadSessionReports().catch((err) => {
+          console.warn("Fetch session reports warning:", err);    
+              return [] as SessionReportItem[];
         }),
       ]);
-
+ const reportTimestampByStudentId: Record<string, number> = {};
       const reportsByStudentId = reports.reduce<Record<string, SessionReportState>>((acc, report) => {
+         const reportSessionId = String(report?.sessionId ?? "").trim();
+        if (reportSessionId && reportSessionId !== selectedSessionId) {
+          return acc;
+        }
         const reportStudentId = String(report?.studentProfileId ?? "").trim();
         if (!reportStudentId) {
           return acc;
         }
+ const previousReport = acc[reportStudentId];
+        const previousTs = reportTimestampByStudentId[reportStudentId] ?? -1;
+        const currentTs = getSessionReportTimestamp(report);
 
+        if (previousReport && previousTs > currentTs) {
+          return acc;
+        }
         acc[reportStudentId] = {
           reportId: String(report?.id ?? "").trim(),
           feedback: String(report?.feedback ?? "").trim(),
         };
-
+        reportTimestampByStudentId[reportStudentId] = currentTs;
         return acc;
       }, {});
       const nextSessionReports: Record<string, SessionReportState> = {};
@@ -492,10 +535,11 @@ fetchSessionReports({ sessionId: selectedSessionId, pageNumber: 1, pageSize: 500
 
         const uniqueIdForUI = safeStudentId || rowKey;
         
-const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId);        const reportFromList = safeStudentId ? reportsByStudentId[safeStudentId] : undefined;
+ const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId);
+        const reportFromList = safeStudentId ? reportsByStudentId[safeStudentId] : undefined;
 
- const note = (reportFromList?.feedback || persistedSessionReport.feedback || "").trim();        const reportId = String(
- reportFromList?.reportId || persistedSessionReport.reportId || "",        ).trim();
+        const note = (reportFromList?.feedback || persistedSessionReport.feedback || "").trim();
+        const reportId = String(reportFromList?.reportId || persistedSessionReport.reportId || "").trim();
 
         if (note || reportId) {
           const reportKey = buildSessionReportKey(selectedSessionId, safeStudentId, rowKey);
@@ -577,39 +621,49 @@ const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId
   const handleSubmitStudentNote = async (feedback: string) => {
     if (!selectedSessionId || !selectedStudentForNote) return;
 
-   const normalizedFeedback = feedback.trim();
-    const reportKey = buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey);
+    const normalizedFeedback = feedback.trim();
+        const reportKey = buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey);
     const existingReport = sessionReports[reportKey];
-
+ const existingReportId = String(existingReport?.reportId ?? "").trim();
+    const studentProfileId = String(selectedStudentForNote.studentId ?? "").trim();
+    const canSyncWithApi = GUID_REGEX.test(studentProfileId);
     try {
       setIsSubmittingNote(true);
       setNoteModalError(null);
 
-  
+  let reportId = existingReportId;
+      if (canSyncWithApi) {
+        const report = existingReportId
+          ? await updateSessionReport(existingReportId, { feedback: normalizedFeedback })
+          : await createSessionReport({
+              sessionId: selectedSessionId,
+              studentProfileId,
+              reportDate: new Date().toISOString().slice(0, 10),
+              feedback: normalizedFeedback,
+            });
+
+        reportId = String(report?.id ?? existingReportId ?? "").trim();
+      }
 
       setSessionReports((prev) => ({
         ...prev,
         [reportKey]: {
-            reportId: existingReport?.reportId ?? "",
-          feedback: normalizedFeedback,
+          reportId,          feedback: normalizedFeedback,
         },
       }));
 
       setAttendanceList((prev) =>
-       prev.map((r) => (r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: normalizedFeedback || undefined } : r)),
-      );
+  prev.map((r) => (r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: normalizedFeedback || undefined } : r)),      );
 
       handleCloseNoteModal();
     } catch (err: any) {
-  console.error("Update local note error:", err);
-      setNoteModalError(err.message || "Không thể cập nhật note.");
+ console.error("Submit note error:", err);
+      setNoteModalError(err.message || "Không thể lưu note.");
     } finally {
       setIsSubmittingNote(false);
     }
   };
-const syncSessionReportsWithAttendance = useCallback(async () => {
-    if (!selectedSessionId) return;
-
+  const syncSessionReportsWithAttendance = useCallback(async () => {
     const reportSyncTasks = attendanceList
       .map((student) => {
         const studentProfileId = String(student.studentId ?? "").trim();

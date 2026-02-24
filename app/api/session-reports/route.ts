@@ -23,7 +23,35 @@ function normalizeCreatePayload(payload: CreateSessionReportPayload) {
     Feedback: payload.Feedback ?? payload.feedback,
   };
 }
+export async function GET(req: Request) {
+  try {
+    const authHeader = req.headers.get("authorization");
 
+    if (!authHeader) {
+      return NextResponse.json({ success: false, message: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const { search } = new URL(req.url);
+    const upstream = await fetch(`${buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.CREATE)}${search}`, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+      },
+      cache: "no-store",
+    });
+
+    const text = await upstream.text();
+    const data = text ? JSON.parse(text) : { success: upstream.ok };
+
+    return NextResponse.json(data, { status: upstream.status });
+  } catch (error) {
+    console.error("Fetch session reports error:", error);
+    return NextResponse.json(
+      { success: false, message: "Đã xảy ra lỗi khi tải nhận xét buổi học" },
+      { status: 500 },
+    );
+  }
+}
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
