@@ -41,7 +41,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
       `}</style>
       <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl hide-scrollbar">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-pink-500 to-rose-500 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-white">Chi tiết Lead</h2>
@@ -61,7 +61,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
               onClick={() => setActiveTab('info')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === 'info'
-                  ? 'bg-white text-pink-600'
+                  ? 'bg-white text-red-600'
                   : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
@@ -72,7 +72,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
               onClick={() => setActiveTab('children')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === 'children'
-                  ? 'bg-white text-pink-600'
+                  ? 'bg-white text-red-600'
                   : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
@@ -87,9 +87,9 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
           {activeTab === 'info' && (
             <>
           {/* Basic Info */}
-          <div className="rounded-xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5 custom-scrollbar">
+          <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 custom-scrollbar">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <User size={16} className="text-pink-600" />
+              <User size={16} className="text-red-600" />
               Thông tin cơ bản
             </h3>
             
@@ -128,9 +128,9 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
           </div>
 
           {/* Lead Status & Assignment */}
-          <div className="rounded-xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+          <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <Activity size={16} className="text-pink-600" />
+              <Activity size={16} className="text-red-600" />
               Trạng thái & Phân công
             </h3>
             
@@ -173,9 +173,9 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
           </div>
 
           {/* Source & Campaign */}
-          <div className="rounded-xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+          <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <Tag size={16} className="text-pink-600" />
+              <Tag size={16} className="text-red-600" />
               Nguồn lead
             </h3>
             
@@ -193,9 +193,9 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
           </div>
 
           {/* Preferences */}
-          <div className="rounded-xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+          <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <Building size={16} className="text-pink-600" />
+              <Building size={16} className="text-red-600" />
               Sở thích
             </h3>
             
@@ -221,9 +221,9 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
 
           {/* Notes */}
           {lead.notes && (
-            <div className="rounded-xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+            <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
               <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <FileText size={16} className="text-pink-600" />
+                <FileText size={16} className="text-red-600" />
                 Ghi chú
               </h3>
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{lead.notes}</p>
@@ -276,7 +276,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
                 onEdit(lead);
                 onClose();
               }}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg transition-all"
+              className="px-6 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all"
             >
               Chỉnh sửa
             </button>
@@ -286,7 +286,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
 
           {/* Tab: Children */}
           {activeTab === 'children' && (
-            <div className="rounded-xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 p-5">
+            <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
               <LeadChildrenManager leadId={lead.id} isEditable={true} />
             </div>
           )}

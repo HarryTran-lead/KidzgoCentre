@@ -37,15 +37,15 @@ export default function AccountPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/40 to-white p-4 md:p-6">
-      {/* Header – giống style teacher profile */}
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
+      {/* Header – giống style admin accounts */}
       <div className="mb-6">
         <div className="flex items-center gap-4 mb-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <UserRound size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
               Tài khoản phụ huynh
             </h1>
             <p className="text-gray-600 mt-1">
@@ -55,8 +55,8 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* Main Card – bo góc, gradient giống teacher */}
-      <div className="bg-gradient-to-br from-white via-white to-pink-50/40 rounded-2xl border border-pink-200 overflow-hidden shadow-sm">
+      {/* Main Card – bo góc, gradient giống admin */}
+      <div className="bg-gradient-to-br from-white via-white to-red-50/30 rounded-2xl border border-red-200 overflow-hidden shadow-sm">
         {/* Tabs */}
         <div className="px-6 pt-6">
           <div className="flex flex-wrap gap-2">
@@ -64,7 +64,7 @@ export default function AccountPage() {
               active={activeTab === "profile"}
               onClick={() => setActiveTab("profile")}
               icon={<UserRound size={16} />}
-              color="pink"
+              color="red"
             >
               Thông tin phụ huynh
             </TabButton>
@@ -72,35 +72,35 @@ export default function AccountPage() {
               active={activeTab === "password"}
               onClick={() => setActiveTab("password")}
               icon={<Shield size={16} />}
-              color="blue"
+              color="red"
             >
               Bảo mật / Mật khẩu
             </TabButton>
           </div>
         </div>
 
-        <div className="border-t border-pink-100 mt-4" />
+        <div className="border-t border-red-200 mt-4" />
 
         {/* Tab Content */}
         <div className="p-6 space-y-6">
           {activeTab === "profile" && (
             <div className="space-y-8">
-              {/* Profile header – copy style từ teacher/info */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-pink-500/10 p-6">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-pink-500/20 to-rose-500/20 rounded-full -translate-y-16 translate-x-16" />
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-500/20 to-rose-500/20 rounded-full translate-y-12 -translate-x-12" />
+              {/* Profile header – copy style từ admin accounts */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-500/10 to-red-700/10 p-6">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/20 to-red-700/20 rounded-full -translate-y-16 translate-x-16" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-red-500/20 to-red-700/20 rounded-full translate-y-12 -translate-x-12" />
 
                 <div className="relative flex flex-col md:flex-row items-start gap-8">
                   {/* Avatar */}
                   <div className="relative">
-                    <div className="relative w-32 h-32 md:w-36 md:h-36 rounded-2xl overflow-hidden border-4 border-white shadow-2xl bg-gradient-to-r from-pink-500 to-rose-500">
+                    <div className="relative w-32 h-32 md:w-36 md:h-36 rounded-2xl overflow-hidden border-4 border-white shadow-2xl bg-gradient-to-r from-red-600 to-red-700">
                       <img
                         src="/image/avatar-placeholder.png"
                         alt="Parent"
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-white shadow-md flex items-center gap-2 text-xs text-pink-700">
+                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-white shadow-md flex items-center gap-2 text-xs text-red-700">
                       <Heart size={12} />
                       {profileData.childrenCount} con đang theo học
                     </div>
@@ -113,7 +113,7 @@ export default function AccountPage() {
                         <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
                           {profileData.fullName}
                         </h2>
-                        <div className="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs md:text-sm font-medium rounded-full">
+                        <div className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs md:text-sm font-medium rounded-full">
                           Phụ huynh Kidzgo
                         </div>
                       </div>
@@ -137,13 +137,13 @@ export default function AccountPage() {
                     </div>
                   </div>
 
-                  {/* Edit buttons – giống style teacher */}
+                  {/* Edit buttons – giống style admin */}
                   <div className="absolute top-4 right-0 md:right-4">
                     {isEditing ? (
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setIsEditing(false)}
-                          className="px-4 py-2.5 rounded-xl border border-pink-200 bg-white text-gray-700 hover:bg-pink-50 transition-all shadow-sm text-sm"
+                          className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all shadow-sm text-sm"
                         >
                           Huỷ
                         </button>
@@ -158,7 +158,7 @@ export default function AccountPage() {
                     ) : (
                       <button
                         onClick={() => setIsEditing(true)}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all shadow-sm text-sm"
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all shadow-sm text-sm"
                       >
                         Chỉnh sửa thông tin
                       </button>
@@ -209,7 +209,7 @@ export default function AccountPage() {
                     icon={<MapPin size={16} />}
                     onChange={(value) => setProfileData({ ...profileData, address: value })}
                   />
-                  <div className="rounded-2xl border border-pink-100 bg-pink-50/40 p-4 text-sm text-gray-700">
+                  <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4 text-sm text-gray-700">
                     <div className="font-semibold mb-1">Gợi ý</div>
                     <p>
                       Cập nhật đầy đủ thông tin giúp nhà trường liên hệ nhanh hơn khi có thông báo quan
@@ -223,10 +223,10 @@ export default function AccountPage() {
 
           {activeTab === "password" && (
             <div className="space-y-8">
-              {/* Security card – giống style SecurityTab teacher */}
-              <div className="bg-gradient-to-br from-white to-blue-50/40 rounded-2xl border border-blue-200 p-6">
+              {/* Security card – giống style admin accounts */}
+              <div className="bg-gradient-to-br from-white to-red-50/30 rounded-2xl border border-red-200 p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-lg">
+                  <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-lg shadow-lg">
                     <Shield size={20} className="text-white" />
                   </div>
                   <div>
@@ -264,13 +264,13 @@ export default function AccountPage() {
                       onClick={() =>
                         setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
                       }
-                      className="px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-gray-700 hover:bg-blue-50 transition-all text-sm"
+                      className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm"
                     >
                       Hủy bỏ
                     </button>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all shadow-sm text-sm"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all shadow-sm text-sm"
                     >
                       <Lock size={16} />
                       Cập nhật mật khẩu
@@ -315,17 +315,16 @@ function TabButton({
   children,
   icon,
   onClick,
-  color = "pink",
+  color = "red",
 }: {
   active?: boolean;
   children: React.ReactNode;
   icon?: React.ReactNode;
   onClick?: () => void;
-  color?: "pink" | "blue";
+  color?: "red";
 }) {
   const colorClasses = {
-    pink: "from-pink-500 to-rose-500",
-    blue: "from-blue-500 to-sky-500",
+    red: "from-red-600 to-red-700",
   };
 
   return (
@@ -333,8 +332,8 @@ function TabButton({
       onClick={onClick}
       className={`relative px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 group cursor-pointer ${
         active
-          ? "bg-pink-100 text-pink-700 border border-pink-200 shadow-sm"
-          : "bg-white border border-pink-200 text-gray-700 hover:bg-pink-50"
+          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+          : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
       }`}
     >
       {icon && <span className="w-4 h-4 flex items-center justify-center">{icon}</span>}
@@ -350,8 +349,8 @@ function TabButton({
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 p-3 bg-white/60 rounded-xl border border-pink-100">
-      <div className="p-2 bg-pink-100 rounded-lg text-pink-600">{icon}</div>
+    <div className="flex items-center gap-3 p-3 bg-white/60 rounded-xl border border-red-100">
+      <div className="p-2 bg-red-100 rounded-lg text-red-600">{icon}</div>
       <div>
         <div className="text-xs text-gray-500">{label}</div>
         <div className="font-medium text-gray-900">{value}</div>
@@ -392,7 +391,7 @@ function LabeledInput({
           placeholder={placeholder}
           disabled={disabled}
           onChange={(e) => onChange?.(e.target.value)}
-          className={`w-full rounded-xl border border-pink-200 bg-white/60 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all ${
+          className={`w-full rounded-xl border border-red-200 bg-white/60 px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all ${
             icon ? "pl-10" : ""
           } ${disabled ? "bg-transparent cursor-not-allowed" : ""}`}
         />
@@ -423,7 +422,7 @@ function PasswordInput({
           type={show ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-xl border border-pink-200 bg-white/60 pl-10 pr-10 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent transition-all"
+          className="w-full rounded-xl border border-red-200 bg-white/60 pl-10 pr-10 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all"
         />
         <button
           type="button"

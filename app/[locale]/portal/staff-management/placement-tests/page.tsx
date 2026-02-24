@@ -729,14 +729,14 @@ export default function PlacementTestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-pink-50 to-rose-50 p-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-pink-200">
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-red-200">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center shadow-lg">
                   <FileText className="text-white" size={24} />
                 </div>
                 Placement Tests
@@ -761,9 +761,9 @@ export default function PlacementTestsPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-linear-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200">
+            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-linear-to-br from-orange-400 to-amber-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center">
                   <FileText className="text-white" size={20} />
                 </div>
                 <div>
@@ -775,9 +775,9 @@ export default function PlacementTestsPage() {
               </div>
             </div>
 
-            <div className="bg-linear-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-gray-500 to-gray-600 flex items-center justify-center">
                   <FileText className="text-white" size={20} />
                 </div>
                 <div>
@@ -789,9 +789,9 @@ export default function PlacementTestsPage() {
               </div>
             </div>
 
-            <div className="bg-linear-to-br from-rose-50 to-pink-50 rounded-xl p-4 border border-rose-200">
+            <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-4 border border-gray-300">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-linear-to-br from-rose-400 to-pink-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-gray-600 to-gray-700 flex items-center justify-center">
                   <FileText className="text-white" size={20} />
                 </div>
                 <div>
@@ -803,9 +803,9 @@ export default function PlacementTestsPage() {
               </div>
             </div>
 
-            <div className="bg-linear-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
+            <div className="bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl p-4 border border-gray-400">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-linear-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-gray-700 to-gray-800 flex items-center justify-center">
                   <FileText className="text-white" size={20} />
                 </div>
                 <div>

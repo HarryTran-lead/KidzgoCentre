@@ -18,14 +18,15 @@ export default function ChildSelector() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { selectedProfile, setSelectedProfile } = useSelectedStudentProfile();
- const lastSyncedProfileId = useRef<string | null>(null);
+  const lastSyncedProfileId = useRef<string | null>(null);
   const selectedChild = useMemo(
     () =>
       profiles.find((profile) => profile.id === selectedProfile?.id) ??
       selectedProfile,
     [profiles, selectedProfile]
-);
-const syncSelectedProfile = useCallback(
+  );
+
+  const syncSelectedProfile = useCallback(
     async (child: Child) => {
       if (!child?.id) return;
       if (lastSyncedProfileId.current === child.id) return;
@@ -56,7 +57,8 @@ const syncSelectedProfile = useCallback(
       }
     },
     [setSelectedProfile]
-  );  
+  );
+
   useEffect(() => {
     const fetchProfiles = async () => {
       setLoading(true);
@@ -84,7 +86,7 @@ const syncSelectedProfile = useCallback(
           const hasSelected = storedSelected
             ? students.some((profile) => profile.id === storedSelected.id)
             : false;
-const targetProfile = hasSelected ? storedSelected : students[0];
+          const targetProfile = hasSelected ? storedSelected : students[0];
 
           if (targetProfile) {
             if (!hasSelected) {
@@ -102,22 +104,24 @@ const targetProfile = hasSelected ? storedSelected : students[0];
     };
 
     fetchProfiles();
-}, [selectedProfile, setSelectedProfile, syncSelectedProfile]);
+  }, [selectedProfile, setSelectedProfile, syncSelectedProfile]);
+
   const handleSelectChild = async (child: Child) => {
     try {
       const response = await selectStudent({ profileId: child.id });
       const isSuccess = response.isSuccess ?? response.success ?? false;
 
       if (isSuccess) {
-         if (response.data?.accessToken) {
+        if (response.data?.accessToken) {
           setAccessToken(response.data.accessToken);
         }
         const selected = response.data?.selectedProfile ?? child;
-const selectedWithStudentId = {
+        const selectedWithStudentId = {
           ...selected,
           studentId: response.data?.studentId ?? selected.studentId,
         };
-        setSelectedProfile(selectedWithStudentId);      } else {
+        setSelectedProfile(selectedWithStudentId);
+      } else {
         setSelectedProfile(child);
       }
     } catch (error) {
@@ -134,38 +138,38 @@ const selectedWithStudentId = {
         {/* Selected Child Button */}
         <button
           onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all"
+          className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all"
           disabled={loading}
         >
           {selectedChild ? (
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <Avatar className="h-10 w-10 border-2 border-slate-200 shrink-0">
+              <Avatar className="h-10 w-10 border-2 border-gray-200 shrink-0">
                 <AvatarImage src={selectedChild.avatarUrl} alt={selectedChild.displayName} />
-                <AvatarFallback className="bg-slate-100 text-slate-700 font-semibold">
+                <AvatarFallback className="bg-gray-100 text-gray-700 font-semibold">
                   {selectedChild.displayName.charAt(0)}
                 </AvatarFallback>
               </Avatar>
 
               <div className="text-left flex-1 min-w-0">
-                <div className="font-semibold text-slate-900 truncate">
+                <div className="font-semibold text-gray-900 truncate">
                   {selectedChild.displayName}
                 </div>
                 <Badge
                   variant="outline"
-                  className="text-xs border-blue-300 text-blue-700 mt-1"
+                  className="text-xs border-red-300 text-red-700 mt-1"
                 >
                   Học viên
                 </Badge>
               </div>
             </div>
           ) : (
-            <div className="text-sm text-slate-500">
+            <div className="text-sm text-gray-500">
               {loading ? "Đang tải học viên..." : "Chưa có học viên"}
             </div>
           )}
 
           <ChevronDown
-            className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${
+            className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${
               open ? "rotate-180" : ""
             }`}
           />
@@ -175,13 +179,13 @@ const selectedWithStudentId = {
         {open && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-            <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-white rounded-lg border border-slate-200 shadow-lg overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
               {errorMessage && (
-                <div className="px-4 py-3 text-sm text-rose-600">{errorMessage}</div>
+                <div className="px-4 py-3 text-sm text-red-600">{errorMessage}</div>
               )}
 
               {!errorMessage && profiles.length === 0 && !loading && (
-                <div className="px-4 py-3 text-sm text-slate-500">
+                <div className="px-4 py-3 text-sm text-gray-500">
                   Không có học viên để hiển thị.
                 </div>
               )}
@@ -190,22 +194,22 @@ const selectedWithStudentId = {
                 <button
                   key={child.id}
                   onClick={() => handleSelectChild(child)}
-                  className={`w-full flex items-center gap-3 p-3 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 ${
-                    selectedProfile?.id === child.id ? "bg-blue-50" : ""
+                  className={`w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 ${
+                    selectedProfile?.id === child.id ? "bg-red-50" : ""
                   }`}
                 >
-                  <Avatar className="h-10 w-10 border-2 border-slate-200 shrink-0">
+                  <Avatar className="h-10 w-10 border-2 border-gray-200 shrink-0">
                     <AvatarImage src={child.avatarUrl} alt={child.displayName} />
-                    <AvatarFallback className="bg-slate-100 text-slate-700 font-semibold">
+                    <AvatarFallback className="bg-gray-100 text-gray-700 font-semibold">
                       {child.displayName.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
 
                   <div className="text-left flex-1 min-w-0">
-                    <div className="font-medium text-slate-900 truncate">
+                    <div className="font-medium text-gray-900 truncate">
                       {child.displayName}
                     </div>
-                    <div className="text-xs text-slate-500 truncate">ID: {child.id}</div>
+                    <div className="text-xs text-gray-500 truncate">ID: {child.id}</div>
                   </div>
                 </button>
               ))}

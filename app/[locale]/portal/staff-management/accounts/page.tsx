@@ -127,7 +127,7 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
       <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`}></div>
       <div className="relative flex items-center justify-between gap-3">
         <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
@@ -267,7 +267,7 @@ export default function Page() {
       title: 'Tổng tài khoản',
       value: `${stats.total}`,
       icon: <Users size={20} />,
-      color: 'from-pink-500 to-rose-500',
+      color: 'from-red-600 to-red-700',
       subtitle: 'Toàn hệ thống'
     },
     {
@@ -301,15 +301,15 @@ export default function Page() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
       <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <Shield size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Quản lý tài khoản & phân quyền
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -318,10 +318,10 @@ export default function Page() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
+          <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
             <Download size={16} /> Xuất DS
           </button>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
             <UserPlus size={16} /> Tạo tài khoản mới
           </button>
         </div>
@@ -335,11 +335,11 @@ export default function Page() {
       </div>
 
       {/* Filter Bar */}
-      <div className={`rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4 transition-all duration-700 delay-150 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-150 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Role Filter */}
-            <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1">
+            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
               {[
                 { k: 'Tất cả', label: 'Tất cả', count: ACCS.length },
                 ...ROLES.map(role => ({
@@ -352,8 +352,8 @@ export default function Page() {
                   key={item.k}
                   onClick={() => setSelectedRole(item.k)}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${selectedRole === item.k
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
-                    : 'text-gray-700 hover:bg-pink-50'
+                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
+                    : 'text-gray-700 hover:bg-red-50'
                     }`}
                 >
                   {item.label}
@@ -371,7 +371,7 @@ export default function Page() {
               <select
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
-                className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 cursor-pointer"
               >
                 {BRANCHES.map(branch => (
                   <option key={branch} value={branch}>{branch}</option>
@@ -391,13 +391,13 @@ export default function Page() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm..."
-                className="h-10 w-full sm:w-64 rounded-xl border border-pink-200 bg-white pl-9 pr-9 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                className="h-10 w-full sm:w-64 rounded-xl border border-red-200 bg-white pl-9 pr-9 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
               {searchQuery.trim() !== "" && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-pink-50 text-gray-400 hover:text-pink-600 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
                   title="Xóa"
                 >
                   <X size={14} />
@@ -413,9 +413,9 @@ export default function Page() {
       </div>
 
       {/* Main Table */}
-      <div className={`rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
         {/* Table Header */}
-        <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Danh sách tài khoản</h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -427,53 +427,53 @@ export default function Page() {
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
               <tr>
                 <th className="py-3 px-4 text-left w-12">
                   <input
                     type="checkbox"
                     checked={allVisibleSelected}
                     onChange={toggleSelectAllVisible}
-                    className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+                    className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
                     aria-label="Chọn tất cả"
                   />
                 </th>
                 <th className="py-3 px-6 text-left">
                   <button
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                     onClick={() => toggleSort("name")}
                     type="button"
                   >
                     Người dùng{" "}
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "name" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "name" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
                 <th className="py-3 px-6 text-left">
                   <button
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                     onClick={() => toggleSort("role")}
                     type="button"
                   >
                     Vai trò{" "}
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "role" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "role" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
                 <th className="py-3 px-6 text-left">
                   <button
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                     onClick={() => toggleSort("branch")}
                     type="button"
                   >
                     Chi nhánh{" "}
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "branch" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "branch" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -482,14 +482,14 @@ export default function Page() {
                 </th>
                 <th className="py-3 px-6 text-left">
                   <button
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                     onClick={() => toggleSort("status")}
                     type="button"
                   >
                     Trạng thái{" "}
                     <ArrowUpDown
                       size={14}
-                      className={sortKey === "status" ? "text-pink-600" : "text-gray-400"}
+                      className={sortKey === "status" ? "text-red-600" : "text-gray-400"}
                     />
                   </button>
                 </th>
@@ -498,19 +498,19 @@ export default function Page() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-pink-100">
+            <tbody className="divide-y divide-red-100">
               {filteredAndSortedAccounts.length > 0 ? (
                 filteredAndSortedAccounts.map((account) => (
                   <tr
                     key={account.id}
-                    className="group hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200 "
+                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
                     <td className="py-4 px-4">
                       <input
                         type="checkbox"
                         checked={!!selectedIds[account.id]}
                         onChange={() => toggleSelectOne(account.id)}
-                        className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-200 cursor-pointer"
+                        className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
                         aria-label={`Chọn ${account.name}`}
                       />
                     </td>
@@ -575,7 +575,7 @@ export default function Page() {
                           <span>Đang hoạt động</span>
                         </div>
                       ) : (
-                        <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border border-rose-200">
+                        <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200">
                           <XCircle size={12} />
                           <span>Tạm khóa</span>
                         </div>
@@ -584,7 +584,7 @@ export default function Page() {
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-1 transition-opacity duration-200">
                         <button
-                          className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer"
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           title="Xem chi tiết"
                         >
                           <Eye size={14} />
@@ -603,7 +603,7 @@ export default function Page() {
                         </button>
                         {account.status === 'Active' ? (
                           <button
-                            className="p-1.5 rounded-lg hover:bg-rose-50 transition-colors text-gray-400 hover:text-rose-600 cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                             title="Tạm khóa"
                           >
                             <Lock size={14} />
@@ -623,8 +623,8 @@ export default function Page() {
               ) : (
                 <tr>
                   <td colSpan={7} className="py-12 text-center">
-                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-                      <Search size={24} className="text-pink-400" />
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                      <Search size={24} className="text-red-400" />
                     </div>
                     <div className="text-gray-600 font-medium">Không tìm thấy tài khoản</div>
                     <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo tài khoản mới</div>
@@ -637,7 +637,7 @@ export default function Page() {
 
         {/* Table Footer - Pagination */}
         {filteredAndSortedAccounts.length > 0 && (
-          <div className="border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 px-6 py-4">
+          <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-sm text-gray-600">
                 Hiển thị <span className="font-semibold text-gray-900">1-{filteredAndSortedAccounts.length}</span>
@@ -646,7 +646,114 @@ export default function Page() {
             </div>
           </div>
         )}
-      </div>  
+      </div>
+
+      {/* Security Configuration Panel */}
+      <div className={`grid gap-6 lg:grid-cols-3 transition-all duration-700 delay-300 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        {/* Security Settings */}
+        <div className="lg:col-span-2">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
+                <Shield size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Cấu hình Bảo mật</h3>
+                <p className="text-sm text-gray-600">Thiết lập xác thực và quyền truy cập nâng cao</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white">
+                <div>
+                  <div className="font-medium text-gray-900">Xác thực hai lớp (2FA)</div>
+                  <div className="text-sm text-gray-600">Yêu cầu OTP cho thao tác quan trọng</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" defaultChecked />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white">
+                <div>
+                  <div className="font-medium text-gray-900">Tự động khóa tài khoản</div>
+                  <div className="text-sm text-gray-600">Sau 30 ngày không đăng nhập</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white">
+                <div>
+                  <div className="font-medium text-gray-900">Cảnh báo đăng nhập lạ</div>
+                  <div className="text-sm text-gray-600">Thông báo qua email khi có đăng nhập mới</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" defaultChecked />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                </label>
+              </div>
+            </div>
+
+            <button className="mt-6 w-full rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-3 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
+              Lưu cấu hình bảo mật
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Actions & Stats */}
+        <div className="space-y-6">
+          {/* Quick Actions */}
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">Thao tác nhanh</h3>
+            <div className="space-y-2">
+              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer">
+                <Key size={16} />
+                Đặt lại mật khẩu
+              </button>
+              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer">
+                <Users size={16} />
+                Quản lý nhóm quyền
+              </button>
+              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer">
+                <Shield size={16} />
+                Kiểm tra bảo mật
+              </button>
+            </div>
+          </div>
+
+          {/* Role Distribution */}
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+            <h4 className="font-semibold text-gray-900 mb-3">Phân bố vai trò</h4>
+            <div className="space-y-3">
+              {ROLES.map(roleItem => {
+                const count = ACCS.filter(a => a.role === roleItem.value).length;
+                const percentage = ACCS.length > 0 ? Math.round((count / ACCS.length) * 100) : 0;
+                const [fromColor, toColor] = roleItem.color.split(' ')[2].split('-')[1]; // Extract color from class
+
+                return (
+                  <div key={roleItem.value} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">{roleItem.label}</span>
+                      <span className="font-semibold text-gray-900">{count} người</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r from-${fromColor}-500 to-${toColor}-500`}
+                        style={{ width: `${percentage}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-gray-500 text-right">{percentage}%</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

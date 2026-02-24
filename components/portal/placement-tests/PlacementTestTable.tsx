@@ -74,10 +74,10 @@ export default function PlacementTestTable({
 
   const getStatusBadge = (statusText: string) => {
     const statusMap: Record<string, { bg: string; text: string; border: string; icon: any }> = {
-      "Đã lên lịch": { bg: "from-blue-50 to-cyan-50", text: "text-blue-700", border: "border-blue-200", icon: Clock },
-      "Đã hoàn thành": { bg: "from-emerald-50 to-teal-50", text: "text-emerald-700", border: "border-emerald-200", icon: CheckCircle2 },
-      "Đã hủy": { bg: "from-rose-50 to-pink-50", text: "text-rose-700", border: "border-rose-200", icon: XCircle },
-      "Không đến": { bg: "from-amber-50 to-orange-50", text: "text-amber-700", border: "border-amber-200", icon: AlertCircle },
+      "Đã lên lịch": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: Clock },
+      "Đã hoàn thành": { bg: "from-gray-50 to-gray-100", text: "text-gray-700", border: "border-gray-200", icon: CheckCircle2 },
+      "Đã hủy": { bg: "from-gray-100 to-gray-200", text: "text-gray-800", border: "border-gray-300", icon: XCircle },
+      "Không đến": { bg: "from-gray-200 to-gray-300", text: "text-gray-900", border: "border-gray-400", icon: AlertCircle },
     };
     const config = statusMap[statusText] || statusMap["Đã lên lịch"];
     const Icon = config.icon;

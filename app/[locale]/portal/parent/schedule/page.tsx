@@ -123,18 +123,18 @@ const TIME_SLOTS = [
 const TYPE_META = {
   class: {
     text: "Lớp học",
-    badge: "bg-indigo-600 text-white",
-    chip: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+    badge: "bg-red-600 text-white",
+    chip: "bg-red-50 text-red-700 border border-red-200",
   },
   makeup: {
     text: "Buổi bù",
-    badge: "bg-rose-600 text-white",
-    chip: "bg-rose-50 text-rose-700 border border-rose-200",
+    badge: "bg-gray-700 text-white",
+    chip: "bg-gray-100 text-gray-700 border border-gray-200",
   },
   event: {
     text: "Sự kiện",
-    badge: "bg-amber-500 text-white",
-    chip: "bg-amber-50 text-amber-700 border border-amber-200",
+    badge: "bg-gray-600 text-white",
+    chip: "bg-gray-100 text-gray-700 border border-gray-200",
   },
 };
 
@@ -174,44 +174,44 @@ export default function SchedulePage() {
   const getEventColor = (type: string) => {
     switch (type) {
       case "class":
-        return "bg-gradient-to-r from-pink-500 to-rose-500";
+        return "bg-gradient-to-r from-red-600 to-red-700";
       case "makeup":
-        return "bg-gradient-to-r from-fuchsia-500 to-purple-500";
+        return "bg-gradient-to-r from-gray-600 to-gray-700";
       case "event":
-        return "bg-gradient-to-r from-amber-500 to-orange-500";
+        return "bg-gradient-to-r from-gray-600 to-gray-700";
       default:
-        return "bg-gradient-to-r from-blue-500 to-sky-500";
+        return "bg-gradient-to-r from-red-600 to-red-700";
     }
   };
 
   const getLightColor = (type: string) => {
     switch (type) {
       case "class":
-        return "bg-gradient-to-br from-pink-100 to-rose-100";
+        return "bg-gradient-to-br from-red-50 to-red-100";
       case "makeup":
-        return "bg-gradient-to-br from-fuchsia-100 to-purple-100";
+        return "bg-gradient-to-br from-gray-100 to-gray-200";
       case "event":
-        return "bg-gradient-to-br from-amber-100 to-orange-100";
+        return "bg-gradient-to-br from-gray-100 to-gray-200";
       default:
-        return "bg-gradient-to-br from-blue-100 to-sky-100";
+        return "bg-gradient-to-br from-red-50 to-red-100";
     }
   };
 
   const modeDot = (room?: string, location?: string) => {
     const place = room || location || "";
-    return place.toLowerCase().includes("online") ? "bg-emerald-500" : "bg-sky-500";
+    return place.toLowerCase().includes("online") ? "bg-red-600" : "bg-gray-700";
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/30 to-white p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl shadow-lg">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <CalendarDays className="text-white" size={28} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
               Lịch học của con
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -222,7 +222,7 @@ export default function SchedulePage() {
       </div>
 
       {/* Tabs */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-2 inline-flex gap-2">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-2 inline-flex gap-2">
         {["all", "classes", "makeup", "events"].map((tab) => {
           const isActive = activeTab === tab;
           const tabText = {
@@ -238,8 +238,8 @@ export default function SchedulePage() {
               onClick={() => setActiveTab(tab as TabType)}
               className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
                 isActive
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                  : "bg-white border border-pink-200 text-gray-600 hover:bg-pink-50"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                  : "bg-white border border-red-200 text-gray-600 hover:bg-red-50"
               }`}
             >
               {tabText}
@@ -249,13 +249,15 @@ export default function SchedulePage() {
       </div>
 
       {/* Week Navigation - Style giống admin */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 shadow-sm">
-        <div className="flex items-center justify-between p-6 border-b border-pink-200 bg-gradient-to-r from-pink-500/10 to-rose-500/10">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 shadow-sm">
+        <div className="flex items-center justify-between p-6 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100">
           <div className="flex items-center gap-4">
-            <div className="relative p-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg">
+            <div className="relative p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
               <CalendarDays size={24} />
               <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                <span className="text-xs font-bold text-pink-600">02</span>
+                <span className="text-xs font-bold text-red-600">
+                  02
+                </span>
               </div>
             </div>
             <div>
@@ -265,7 +267,7 @@ export default function SchedulePage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 transition-colors cursor-pointer"
+              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
               onClick={goToPreviousWeek}
             >
               <ChevronLeft size={18} className="text-gray-600" />
@@ -274,13 +276,13 @@ export default function SchedulePage() {
               Tuần từ 02/12 đến 08/12
             </div>
             <button
-              className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 transition-colors cursor-pointer"
+              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
               onClick={goToNextWeek}
             >
               <ChevronRight size={18} className="text-gray-600" />
             </button>
             <button
-              className="ml-2 rounded-xl border border-pink-200 bg-white px-4 py-2 text-sm hover:bg-pink-50 transition-colors cursor-pointer text-gray-700"
+              className="ml-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm hover:bg-red-50 transition-colors cursor-pointer text-gray-700"
               onClick={goToCurrentWeek}
             >
               Tuần này
@@ -292,13 +294,13 @@ export default function SchedulePage() {
         <div className="overflow-x-auto">
           <div className="min-w-[1000px]">
             {/* Header Row */}
-            <div className="grid grid-cols-8 border-t border-pink-200 bg-gradient-to-r from-pink-500/5 to-rose-500/5 text-sm font-semibold text-gray-700">
+            <div className="grid grid-cols-8 border-t border-red-200 bg-gradient-to-r from-red-50 to-gray-100 text-sm font-semibold text-gray-700">
               <div className="px-4 py-3">Ca / Ngày</div>
               {DAYS.map((day, index) => (
-                <div key={day} className="px-4 py-3 border-l border-pink-200">
+                <div key={day} className="px-4 py-3 border-l border-red-200">
                   <div className="flex flex-col items-center gap-1">
                     <span className="capitalize">{day}</span>
-                    <span className="h-8 w-8 flex items-center justify-center rounded-full text-sm font-bold bg-white text-gray-700 border border-pink-200">
+                    <span className="h-8 w-8 flex items-center justify-center rounded-full text-sm font-bold bg-white text-gray-700 border border-red-200">
                       {index + 2}
                     </span>
                   </div>
@@ -308,8 +310,8 @@ export default function SchedulePage() {
 
             {/* Time Slots Rows */}
             {TIME_SLOTS.map((slot, rowIdx) => (
-              <div key={slot.key} className="grid grid-cols-8 border-t border-pink-100">
-                <div className="px-4 py-4 text-sm font-semibold text-gray-700 bg-gradient-to-r from-pink-500/5 to-rose-500/5 flex items-center justify-center">
+              <div key={slot.key} className="grid grid-cols-8 border-t border-red-200">
+                <div className="px-4 py-4 text-sm font-semibold text-gray-800 bg-gradient-to-r from-red-50 to-gray-100 flex items-center justify-center">
                   <div className="flex flex-col items-center">
                     <span className="font-bold text-lg">{slot.label}</span>
                     {slot.key === "morning" && <span className="text-xs text-gray-500 mt-1">7:00-12:00</span>}
@@ -326,8 +328,8 @@ export default function SchedulePage() {
                     <div
                       key={`${slot.key}-${day}`}
                       className={`min-h-[130px] p-3 ${
-                        rowIdx % 2 ? "bg-white" : "bg-pink-50/30"
-                      } border-l border-pink-100`}
+                        rowIdx % 2 ? "bg-white" : "bg-gray-50"
+                      } border-l border-red-200`}
                     >
                       <div className="space-y-2">
                         {filteredEvents.map((event) => {
@@ -336,7 +338,7 @@ export default function SchedulePage() {
                             <button
                               key={event.id}
                               onClick={() => setSelectedClass(event)}
-                              className={`w-full text-left rounded-xl p-2.5 text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-pink-200 ${lightColor}`}
+                              className={`w-full text-left rounded-xl p-2.5 text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-red-200 ${lightColor}`}
                             >
                               <div className="flex items-start gap-2">
                                 <div className="flex-1 min-w-0">
@@ -382,10 +384,10 @@ export default function SchedulePage() {
           onClick={() => setSelectedClass(null)}
         >
           <div 
-            className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-pink-200 bg-gradient-to-br from-white to-pink-50"
+            className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-red-200 bg-gradient-to-br from-white to-red-50"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-gradient-to-r from-pink-100 to-rose-100 border-b border-pink-200 px-6 py-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-gradient-to-r from-red-100 to-red-100 border-b border-red-200 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-xl ${getEventColor(selectedClass.type)} text-white shadow-md`}>
                   <CalendarDays size={18} />
@@ -396,7 +398,7 @@ export default function SchedulePage() {
               </div>
               <button
                 onClick={() => setSelectedClass(null)}
-                className="p-2 rounded-lg hover:bg-pink-200/60 bg-white/60 border border-pink-200 transition-colors cursor-pointer"
+                className="p-2 rounded-lg hover:bg-red-200/60 bg-white/60 border border-red-200 transition-colors cursor-pointer"
               >
                 <span className="text-lg">×</span>
               </button>
@@ -413,7 +415,7 @@ export default function SchedulePage() {
 
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-3">
-                    <Clock3 className="w-4 h-4 text-pink-500" />
+                    <Clock3 className="w-4 h-4 text-red-600" />
                     <div>
                       <div className="font-medium text-gray-700">Thời gian</div>
                       <div className="text-gray-600">{selectedClass.time}</div>
@@ -421,7 +423,7 @@ export default function SchedulePage() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <MapPin className="w-4 h-4 text-pink-500" />
+                    <MapPin className="w-4 h-4 text-red-600" />
                     <div>
                       <div className="font-medium text-gray-700">
                         {selectedClass.room ? "Phòng học" : "Địa điểm"}
@@ -432,7 +434,7 @@ export default function SchedulePage() {
 
                   {selectedClass.teacher && (
                     <div className="flex items-center gap-3">
-                      <Users className="w-4 h-4 text-pink-500" />
+                      <Users className="w-4 h-4 text-red-600" />
                       <div>
                         <div className="font-medium text-gray-700">Giáo viên</div>
                         <div className="text-gray-600">{selectedClass.teacher}</div>
@@ -441,7 +443,7 @@ export default function SchedulePage() {
                   )}
 
                   {selectedClass.description && (
-                    <div className="mt-4 pt-4 border-t border-pink-100">
+                    <div className="mt-4 pt-4 border-t border-red-100">
                       <div className="font-medium text-gray-700 mb-2">Mô tả</div>
                       <div className="text-gray-600 bg-white/50 rounded-lg p-3 text-sm">
                         {selectedClass.description}
@@ -451,10 +453,10 @@ export default function SchedulePage() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-pink-200 flex justify-end">
+              <div className="pt-4 border-t border-red-200 flex justify-end">
                 <button
                   onClick={() => setSelectedClass(null)}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all cursor-pointer"
                 >
                   Đóng
                 </button>
@@ -465,27 +467,27 @@ export default function SchedulePage() {
       )}
 
       {/* Legend */}
-      <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-4">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
         <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích:</div>
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
+            <div className="h-3 w-3 rounded-full bg-red-600"></div>
             <span className="text-sm text-gray-600">Online</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-sky-500"></div>
+            <div className="h-3 w-3 rounded-full bg-gray-700"></div>
             <span className="text-sm text-gray-600">Offline</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-4 w-6 rounded bg-gradient-to-r from-pink-500 to-rose-500"></div>
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-red-600 to-red-700"></div>
             <span className="text-sm text-gray-600">Lớp học</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-4 w-6 rounded bg-gradient-to-r from-fuchsia-500 to-purple-500"></div>
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-gray-600 to-gray-700"></div>
             <span className="text-sm text-gray-600">Buổi bù</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-4 w-6 rounded bg-gradient-to-r from-amber-500 to-orange-500"></div>
+            <div className="h-4 w-6 rounded bg-gradient-to-r from-gray-600 to-gray-700"></div>
             <span className="text-sm text-gray-600">Sự kiện</span>
           </div>
         </div>

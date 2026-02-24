@@ -19,8 +19,8 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon: Icon, color, subtitle }: StatCardProps) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`}></div>
+    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:border-red-300">
+      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-5 blur-xl bg-gradient-to-r ${color}`}></div>
       <div className="relative flex items-center justify-between gap-3">
         <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
           <Icon size={20} />
@@ -46,17 +46,17 @@ export default function LeadStats({ leads, isLoading }: LeadStatsProps) {
   }, [leads]);
 
   const funnel = useMemo(() => [
-    { title: "Lead mới", value: stats.new.toString(), icon: Sparkles, color: "from-amber-500 to-orange-500", subtitle: "Chưa xử lý" },
-    { title: "Đang tư vấn", value: stats.contacted.toString(), icon: Phone, color: "from-blue-500 to-cyan-500", subtitle: "Đang liên hệ" },
-    { title: "Đã test", value: stats.testDone.toString(), icon: FileText, color: "from-purple-500 to-violet-500", subtitle: "Đã kiểm tra" },
-    { title: "Đã ghi danh", value: stats.enrolled.toString(), icon: CheckCircle2, color: "from-emerald-500 to-teal-500", subtitle: "Thành công" },
+    { title: "Lead mới", value: stats.new.toString(), icon: Sparkles, color: "from-red-600 to-red-700", subtitle: "Chưa xử lý" },
+    { title: "Đang tư vấn", value: stats.contacted.toString(), icon: Phone, color: "from-gray-600 to-gray-700", subtitle: "Đang liên hệ" },
+    { title: "Đã test", value: stats.testDone.toString(), icon: FileText, color: "from-gray-700 to-gray-800", subtitle: "Đã kiểm tra" },
+    { title: "Đã ghi danh", value: stats.enrolled.toString(), icon: CheckCircle2, color: "from-red-500 to-red-600", subtitle: "Thành công" },
   ], [stats]);
 
   if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-24 rounded-2xl border border-pink-200 bg-gradient-to-br from-white to-pink-50 animate-pulse" />
+      <div className="h-24 rounded-2xl border border-gray-200 bg-white animate-pulse" />
         ))}
       </div>
     );
