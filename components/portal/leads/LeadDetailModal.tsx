@@ -21,9 +21,10 @@ interface LeadDetailModalProps {
   lead: Lead | null;
   onClose: () => void;
   onEdit: (lead: Lead) => void;
+  readOnly?: boolean;
 }
 
-export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadDetailModalProps) {
+export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnly = false }: LeadDetailModalProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'children'>('info');
   
   if (!isOpen || !lead) return null;
@@ -264,6 +265,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
           </div>
 
           {/* Actions - Only show in info tab */}
+          {!readOnly && (
           <div className="flex items-center justify-end gap-3 pt-4 border-t">
             <button
               onClick={onClose}
@@ -281,13 +283,24 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit }: LeadD
               Chỉnh sửa
             </button>
           </div>
+          )}
+          {readOnly && (
+          <div className="flex items-center justify-end gap-3 pt-4 border-t">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all"
+            >
+              Đóng
+            </button>
+          </div>
+          )}
             </>
           )}
 
           {/* Tab: Children */}
           {activeTab === 'children' && (
             <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-              <LeadChildrenManager leadId={lead.id} isEditable={true} />
+              <LeadChildrenManager leadId={lead.id} isEditable={!readOnly} />
             </div>
           )}
         </div>

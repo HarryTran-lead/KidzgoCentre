@@ -65,6 +65,7 @@ export interface CreateLeadPublicRequest {
   email: string;
   phone: string;
   zaloId?: string;
+  branchPreference?: string;
 }
 
 export interface CreateLeadRequest extends CreateLeadPublicRequest {

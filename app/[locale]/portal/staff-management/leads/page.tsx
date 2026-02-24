@@ -190,10 +190,10 @@ export default function Page() {
       // Only fetch if user data is loaded and has branchId
       if (!currentUser || isLoadingUser) return;
       
-      // Fetch all leads without filters for stats and filter options, but filtered by branch
+      // Fetch all leads without filters for stats and filter options, but filtered by branch preference
       const response = await getAllLeads({ 
         pageSize: 1000,
-        branchId: currentUser.branchId // Filter by staff's branch
+        branchPreference: currentUser.branchId // Filter by staff's branch preference
       });
       
       if (response.isSuccess && response.data.leads) {
@@ -375,7 +375,7 @@ export default function Page() {
         searchTerm: debouncedSearchQuery || undefined,
         status: getEnglishStatus(selectedStatus),
         source: selectedSource !== "Tất cả" ? selectedSource : undefined,
-        branchId: currentUser.branchId, // Filter by staff's branch
+        branchPreference: currentUser.branchId, // Filter by staff's branch preference
         ownerStaffId: myLeadsOnly ? currentUser.id : undefined, // Filter chỉ lead của tôi
       });
       
@@ -584,7 +584,6 @@ export default function Page() {
                 if (childrenRes.isSuccess && childrenRes.data) {
                   // Response structure: { children: LeadChild[] }
                   children = childrenRes.data.children || (Array.isArray(childrenRes.data) ? childrenRes.data : []);
-                  console.log(`📋 [Modal] Children for ${lead.contactName}:`, children);
                 }
               } catch { /* ignore */ }
             }

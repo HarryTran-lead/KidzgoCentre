@@ -46,6 +46,7 @@ interface LeadTableProps {
   onAction: (lead: Lead, action: string) => void;
   onStatusChange?: (lead: Lead, newStatus: StatusType) => void;
   currentUserId?: string; // ID của staff hiện tại để kiểm tra quyền
+  readOnly?: boolean; // Chế độ chỉ xem, ẩn các action buttons
   // Pagination props
   currentPage?: number;
   totalPages?: number;
@@ -69,6 +70,7 @@ export default function LeadTable({
   onAction,
   onStatusChange,
   currentUserId,
+  readOnly = false,
   currentPage = 1,
   totalPages = 1,
   pageSize = 10,
@@ -134,15 +136,17 @@ export default function LeadTable({
         <table className="w-full">
           <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
             <tr>
-              <th className="py-3 px-4 text-left w-12">
-                <input
-                  type="checkbox"
-                  checked={allVisibleSelected}
-                  onChange={onSelectAll}
-                  className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                  aria-label="Chọn tất cả"
-                />
-              </th>
+              {!readOnly && (
+                <th className="py-3 px-4 text-left w-12">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={onSelectAll}
+                    className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                    aria-label="Chọn tất cả"
+                  />
+                </th>
+              )}
 
               <th className="py-3 px-6 text-left">
                 <button
@@ -203,15 +207,17 @@ export default function LeadTable({
                 key={lead.id}
                 className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
               >
-                <td className="py-4 px-4">
-                  <input
-                    type="checkbox"
-                    checked={!!selectedIds[lead.id]}
-                    onChange={() => onSelectOne(lead.id)}
-                    className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                    aria-label={`Chọn ${lead.contactName || 'Lead'}`}
-                  />
-                </td>
+                {!readOnly && (
+                  <td className="py-4 px-4">
+                    <input
+                      type="checkbox"
+                      checked={!!selectedIds[lead.id]}
+                      onChange={() => onSelectOne(lead.id)}
+                      className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                      aria-label={`Chọn ${lead.contactName || 'Lead'}`}
+                    />
+                  </td>
+                )}
                 <td className="py-4 px-6">
                   <div className="space-y-1 min-w-[220px]">
                     <div className="flex items-center gap-2">
@@ -272,8 +278,8 @@ export default function LeadTable({
                   <StatusSelect
                     value={lead.status || "New"}
                     onChange={(newStatus) => onStatusChange?.(lead, newStatus)}
-                    disabled={!lead.ownerStaffId || lead.ownerStaffId !== currentUserId}
-                    title={!lead.ownerStaffId ? "Lead chưa được phân công" : lead.ownerStaffId !== currentUserId ? "Chỉ nhân viên phụ trách mới có thể thay đổi trạng thái" : ""}
+                    disabled={readOnly || !lead.ownerStaffId || lead.ownerStaffId !== currentUserId}
+                    title={readOnly ? "Chế độ chỉ xem" : !lead.ownerStaffId ? "Lead chưa được phân công" : lead.ownerStaffId !== currentUserId ? "Chỉ nhân viên phụ trách mới có thể thay đổi trạng thái" : ""}
                   />
                 </td>
                 
@@ -286,29 +292,33 @@ export default function LeadTable({
                     >
                       <Eye size={14} />
                     </button>
-                    <button
-                      onClick={() => onEdit(lead)}
-                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                      title="Chỉnh sửa"
-                    >
-                      <Edit size={14} />
-                    </button>
-                    {/* Chỉ hiển thị nút nhận lead nếu chưa có owner */}
-                    {!lead.ownerStaffId && (
-                      <button
-                        onClick={() => onAction(lead, "self-assign")}
-                        className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                        title="Nhận lead"
-                      >
-                        <UserCheck size={14} />
-                      </button>
+                    {!readOnly && (
+                      <>
+                        <button
+                          onClick={() => onEdit(lead)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          title="Chỉnh sửa"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        {/* Chỉ hiển thị nút nhận lead nếu chưa có owner */}
+                        {!lead.ownerStaffId && (
+                          <button
+                            onClick={() => onAction(lead, "self-assign")}
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                            title="Nhận lead"
+                          >
+                            <UserCheck size={14} />
+                          </button>
+                        )}
+                        <button
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          title="Thêm"
+                        >
+                          <MoreVertical size={14} />
+                        </button>
+                      </>
                     )}
-                    <button
-                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                      title="Thêm"
-                    >
-                      <MoreVertical size={14} />
-                    </button>
                   </div>
                 </td>
               </tr>

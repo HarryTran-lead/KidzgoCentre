@@ -42,6 +42,7 @@ interface PlacementTestTableProps {
   sortKey?: string | null;
   sortDir?: "asc" | "desc";
   onSort?: (key: string) => void;
+  readOnly?: boolean;
   onEdit?: (test: PlacementTest) => void;
   onAddResult?: (test: PlacementTest) => void;
   onAddNote?: (test: PlacementTest) => void;
@@ -62,6 +63,7 @@ export default function PlacementTestTable({
   sortKey,
   sortDir,
   onSort,
+  readOnly = false,
   onEdit,
   onAddResult,
   onAddNote,
@@ -267,89 +269,93 @@ export default function PlacementTestTable({
                       <Eye size={14} />
                     </button>
 
-                    {test.status === "Scheduled" && onEdit && (
-                      <button
-                        onClick={() => onEdit(test)}
-                        className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer"
-                        title="Chỉnh sửa"
-                      >
-                        <Edit size={14} />
-                      </button>
-                    )}
+                    {!readOnly && (
+                      <>
+                        {test.status === "Scheduled" && onEdit && (
+                          <button
+                            onClick={() => onEdit(test)}
+                            className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit size={14} />
+                          </button>
+                        )}
 
-                    {test.status === "Scheduled" && onAddResult && (
-                      <button
-                        onClick={() => onAddResult(test)}
-                        className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-gray-400 hover:text-green-600 cursor-pointer"
-                        title="Nhập kết quả"
-                      >
-                        <FileText size={14} />
-                      </button>
-                    )}
+                        {test.status === "Scheduled" && onAddResult && (
+                          <button
+                            onClick={() => onAddResult(test)}
+                            className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-gray-400 hover:text-green-600 cursor-pointer"
+                            title="Nhập kết quả"
+                          >
+                            <FileText size={14} />
+                          </button>
+                        )}
 
-                    {/* More actions dropdown */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === test.id ? null : test.id)}
-                        className="p-1.5 rounded-lg hover:bg-gray-50 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
-                        title="Thêm"
-                      >
-                        <MoreVertical size={14} />
-                      </button>
+                        {/* More actions dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenMenuId(openMenuId === test.id ? null : test.id)}
+                            className="p-1.5 rounded-lg hover:bg-gray-50 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
+                            title="Thêm"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
 
-                      {openMenuId === test.id && (
-                        <>
-                          {/* Backdrop */}
-                          <div
-                            className="fixed inset-0 z-40"
-                            onClick={() => setOpenMenuId(null)}
-                          />
-                          {/* Menu */}
-                          <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl border border-pink-200 bg-white shadow-lg py-1">
-                            {test.status === "Scheduled" && (
-                              <>
-                                {onNoShow && (
+                          {openMenuId === test.id && (
+                            <>
+                              {/* Backdrop */}
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => setOpenMenuId(null)}
+                              />
+                              {/* Menu */}
+                              <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl border border-pink-200 bg-white shadow-lg py-1">
+                                {test.status === "Scheduled" && (
+                                  <>
+                                    {onNoShow && (
+                                      <button
+                                        onClick={() => { onNoShow(test); setOpenMenuId(null); }}
+                                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                                      >
+                                        <AlertCircle size={14} />
+                                        Đánh dấu không đến
+                                      </button>
+                                    )}
+                                    {onCancel && (
+                                      <button
+                                        onClick={() => { onCancel(test); setOpenMenuId(null); }}
+                                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+                                      >
+                                        <Ban size={14} />
+                                        Hủy lịch test
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                                {onAddNote && (
                                   <button
-                                    onClick={() => { onNoShow(test); setOpenMenuId(null); }}
-                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                                    onClick={() => { onAddNote(test); setOpenMenuId(null); }}
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                                   >
-                                    <AlertCircle size={14} />
-                                    Đánh dấu không đến
+                                    <MessageSquare size={14} />
+                                    Thêm ghi chú
                                   </button>
                                 )}
-                                {onCancel && (
+                                {test.status === "Completed" && onConvertToEnrolled && (
                                   <button
-                                    onClick={() => { onCancel(test); setOpenMenuId(null); }}
-                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+                                    onClick={() => { onConvertToEnrolled(test); setOpenMenuId(null); }}
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
                                   >
-                                    <Ban size={14} />
-                                    Hủy lịch test
+                                    <UserCheck size={14} />
+                                    Chuyển thành học viên
                                   </button>
                                 )}
-                              </>
-                            )}
-                            {onAddNote && (
-                              <button
-                                onClick={() => { onAddNote(test); setOpenMenuId(null); }}
-                                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                              >
-                                <MessageSquare size={14} />
-                                Thêm ghi chú
-                              </button>
-                            )}
-                            {test.status === "Completed" && onConvertToEnrolled && (
-                              <button
-                                onClick={() => { onConvertToEnrolled(test); setOpenMenuId(null); }}
-                                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
-                              >
-                                <UserCheck size={14} />
-                                Chuyển thành học viên
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>

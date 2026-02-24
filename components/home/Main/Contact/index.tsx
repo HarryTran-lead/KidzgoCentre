@@ -1,7 +1,7 @@
 // components/sections/Contact.tsx (CLIENT — có form state)
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, cubicBezier } from "framer-motion";
 import Image from "next/image";
 import {
@@ -23,6 +23,8 @@ import {
   Users,
 } from "lucide-react";
 import { createLeadPublic } from "@/lib/api/leadService";
+import { getAllBranchesPublic } from "@/lib/api/branchService";
+import type { Branch } from "@/types/branch";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Contact() {
@@ -32,9 +34,29 @@ export default function Contact() {
     email: "",
     phone: "",
     zaloId: "",
+    branchPreference: "",
   });
 
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const response = await getAllBranchesPublic({ isActive: true });
+        if (response.success && response.data) {
+          setBranches(response.data.items || []);
+        }
+      } catch (error) {
+        console.error("Error fetching branches:", error);
+      } finally {
+        setIsLoadingBranches(false);
+      }
+    };
+
+    fetchBranches();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +68,7 @@ export default function Contact() {
         email: form.email,
         phone: form.phone,
         zaloId: form.zaloId || undefined,
+        branchPreference: form.branchPreference || undefined,
       });
 
       if (response.success) {
@@ -61,6 +84,7 @@ export default function Contact() {
           email: "",
           phone: "",
           zaloId: "",
+          branchPreference: "",
         });
       }
     } catch (error: any) {
@@ -353,6 +377,28 @@ export default function Contact() {
                         onChange={(e) => setForm({ ...form, zaloId: e.target.value })}
                       />
                     </div>
+                  </div>
+
+                  <div className="group">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <div className="flex items-center gap-2">
+                        <Building className="w-4 h-4" />
+                        Chi nhánh mong muốn
+                      </div>
+                    </label>
+                    <select
+                      className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                      value={form.branchPreference}
+                      onChange={(e) => setForm({ ...form, branchPreference: e.target.value })}
+                      disabled={isLoadingBranches}
+                    >
+                      <option value="">Chọn chi nhánh</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="flex items-center justify-between pt-6 border-t border-gray-100">
