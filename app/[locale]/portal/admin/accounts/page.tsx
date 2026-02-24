@@ -359,24 +359,31 @@ export default function AccountsPage() {
   const [selectedParentForView, setSelectedParentForView] = useState<{ id: string; name: string } | null>(null);
   const [selectedProfileForDelete, setSelectedProfileForDelete] = useState<{ id: string; name: string } | null>(null);
 
-  // Fetch users from API once (no server-side filtering for smooth UX)
+  // Fetch users and profiles from API once (no server-side filtering for smooth UX)
   useEffect(() => {
-    async function fetchUsers() {
+    async function fetchUsersAndProfiles() {
       try {
         setLoading(true);
+        setProfilesLoading(true);
         setError(null);
         
-        const response = await getAllUsers({
-          pageNumber: 1,
-          pageSize: 1000, // Get all users for client-side filtering
-        });
+        // Fetch both accounts and profiles in parallel
+        const [usersResponse, profilesResponse] = await Promise.all([
+          getAllUsers({
+            pageNumber: 1,
+            pageSize: 1000, // Get all users for client-side filtering
+          }),
+          getAllStudents({
+            pageSize: 100,
+          })
+        ]);
 
-        // Check both success and isSuccess for compatibility
-        const isSuccessful = response.success || response.isSuccess;
+        // Process users response
+        const isSuccessful = usersResponse.success || usersResponse.isSuccess;
         
-        if (isSuccessful && response.data) {
+        if (isSuccessful && usersResponse.data) {
           // Transform API users to Account format
-          const transformedAccounts: Account[] = response.data.items.map((user) => ({
+          const transformedAccounts: Account[] = usersResponse.data.items.map((user) => ({
             ...user,
             name: user.name || user.username || user.email || 'Unknown User', // Multiple fallbacks
             phone: user.branchContactPhone || '',
@@ -401,18 +408,25 @@ export default function AccountsPage() {
           };
           setFixedCounts(counts);
         } else {
-          setError(response.message || 'Không thể tải danh sách người dùng');
+          setError(usersResponse.message || 'Không thể tải danh sách người dùng');
+        }
+
+        // Process profiles response
+        if (profilesResponse.data?.items) {
+          setProfiles(profilesResponse.data.items);
+          setFilteredProfiles(profilesResponse.data.items);
         }
       } catch (err) {
-        console.error('Error fetching users:', err);
-        setError('Đã xảy ra lỗi khi tải danh sách người dùng'); 
+        console.error('Error fetching data:', err);
+        setError('Đã xảy ra lỗi khi tải dữ liệu'); 
       } finally {
         setLoading(false);
+        setProfilesLoading(false);
         setIsPageLoaded(true);
       }
     }
 
-    fetchUsers();
+    fetchUsersAndProfiles();
   }, []); // Only fetch once on mount
 
   // Debounce search
@@ -633,13 +647,6 @@ export default function AccountsPage() {
       setProfilesLoading(false);
     }
   };
-
-  // Load profiles when switching to profiles tab
-  useEffect(() => {
-    if (activeTab === "profiles") {
-      fetchProfiles();
-    }
-  }, [activeTab]);
 
   // Filter profiles
   useEffect(() => {

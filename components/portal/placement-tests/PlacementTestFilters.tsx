@@ -32,7 +32,7 @@ export default function PlacementTestFilters({
   onPageSizeChange,
 }: PlacementTestFiltersProps) {
   const statusOptions = [
-    { value: "Tất cả", label: "Tất cả", count: statusCounts["Tất cả"] || 0 },
+    { value: "Tất cả", label: "Tất cả", count: totalCount },
     { value: "Scheduled", label: "Đã đặt lịch", count: statusCounts["Scheduled"] || 0 },
     { value: "Completed", label: "Hoàn thành", count: statusCounts["Completed"] || 0 },
     { value: "Cancelled", label: "Đã hủy", count: statusCounts["Cancelled"] || 0 },
