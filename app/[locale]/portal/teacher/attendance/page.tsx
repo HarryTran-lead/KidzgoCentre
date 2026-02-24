@@ -34,7 +34,7 @@ import {
 
 import type { AttendanceStatus, LessonDetail, SessionApiItem, Student } from "@/types/teacher/attendance";
 import type { SessionReportItem } from "@/types/teacher/sessionReport";
-import { createSessionReport, updateSessionReport } from "@/app/api/teacher/sessionReport";
+import { createSessionReport, fetchSessionReports, updateSessionReport } from "@/app/api/teacher/sessionReport";
 import SessionNoteModal from "@/components/teacher/attendance/SessionNoteModal";
 
 type FilterField = {
@@ -450,8 +450,27 @@ export default function TeacherAttendancePage() {
     setAttendanceLoadingError(null);
 
     try {
-      const result = await fetchAttendance(selectedSessionId);
+const [result, reports] = await Promise.all([
+        fetchAttendance(selectedSessionId),
+        fetchSessionReports(selectedSessionId).catch((err) => {
+          console.warn("Fetch session reports warning:", err);
+          return [] as SessionReportItem[];
+        }),
+      ]);
 
+      const reportsByStudentId = reports.reduce<Record<string, SessionReportState>>((acc, report) => {
+        const reportStudentId = String(report?.studentProfileId ?? "").trim();
+        if (!reportStudentId) {
+          return acc;
+        }
+
+        acc[reportStudentId] = {
+          reportId: String(report?.id ?? "").trim(),
+          feedback: String(report?.feedback ?? "").trim(),
+        };
+
+        return acc;
+      }, {});
       const nextSessionReports: Record<string, SessionReportState> = {};
       const students: StudentRow[] = (result.students ?? []).map((s: any, idx: number) => {
         const rawStudentId = String(s.studentProfileId ?? s.studentId ?? s.userId ?? s.id ?? "");
@@ -474,11 +493,15 @@ export default function TeacherAttendancePage() {
 
         const uniqueIdForUI = safeStudentId || rowKey;
         
-const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId);
-        const note = persistedSessionReport.feedback;
-        const reportId = persistedSessionReport.reportId;
+  const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId);
+        const reportFromList = safeStudentId ? reportsByStudentId[safeStudentId] : undefined;
 
-        if (note) {
+        const note = (persistedSessionReport.feedback || reportFromList?.feedback || "").trim();
+        const reportId = String(
+          persistedSessionReport.reportId || reportFromList?.reportId || "",
+        ).trim();
+
+        if (note || reportId) {
           const reportKey = buildSessionReportKey(selectedSessionId, safeStudentId, rowKey);
           nextSessionReports[reportKey] = {
             reportId,
@@ -500,7 +523,7 @@ const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId
       });
 
       setAttendanceList(students);
-            setAttendanceList(students);
+      setSessionReports(nextSessionReports);
 
       setHasAnyMarked(Boolean(result.hasAnyMarked));
 
