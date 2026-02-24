@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { X, Mail, User as UserIcon, Lock, Shield, Building, Loader2, Phone } from "lucide-react";
 import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
+import { getAllBranchesPublic } from "@/lib/api/branchService";
+import type { Branch } from "@/types/branch";
 
 interface AccountFormModalProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface AccountFormModalProps {
 
 export default function AccountFormModal({ isOpen, onClose, onSubmit, account, mode }: AccountFormModalProps) {
   const [loading, setLoading] = useState(false);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -23,6 +26,22 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     branchId: '',
     phoneNumber: '',
   });
+
+  // Fetch branches on component mount
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const response = await getAllBranchesPublic({ isActive: true });
+        if (response.isSuccess && response.data?.branches) {
+          setBranches(response.data.branches);
+        }
+      } catch (error) {
+        console.error("Error fetching branches:", error);
+      }
+    };
+    
+    fetchBranches();
+  }, []);
 
   useEffect(() => {
     // Only load data when modal opens
@@ -232,13 +251,18 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
               <Building size={16} className="text-pink-600" />
               Chi nhánh (tùy chọn)
             </label>
-            <input
-              type="text"
+            <select
               value={formData.branchId}
               onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
               className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              placeholder="Nhập chi nhánh"
-            />
+            >
+              <option value="">-- Chọn chi nhánh --</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Footer */}
