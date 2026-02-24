@@ -220,9 +220,9 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
               className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
             >
               <option value="Admin">Quản trị</option>
+              <option value="ManagementStaff">Nhân viên quản lý</option>
               <option value="Teacher">Giáo viên</option>
               <option value="Parent">Phụ huynh</option>
-              <option value="Staff">Nhân viên</option>
             </select>
           </div>
 

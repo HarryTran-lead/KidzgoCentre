@@ -71,7 +71,7 @@ export default function PlacementTestFilters({
       {/* Search and Date Filters */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
-        <div className="relative flex-1 min-w-[250px]">
+        <div className="relative flex-1 min-w-62.5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"

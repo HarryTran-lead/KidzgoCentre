@@ -85,7 +85,7 @@ export default function PlacementTestStats({ tests, isLoading }: PlacementTestSt
                 <Icon size={24} className={stat.textColor} />
               </div>
             </div>
-            <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.color}`} />
+            <div className={`absolute bottom-0 left-0 right-0 h-1 bg-linear-to-r ${stat.color}`} />
           </div>
         );
       })}

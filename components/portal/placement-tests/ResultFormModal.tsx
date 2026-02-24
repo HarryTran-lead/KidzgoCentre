@@ -1,19 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { X, FileText, Award, TrendingUp, TrendingDown } from "lucide-react";
-import { Button } from "@/components/lightswind/button";
-import { Input } from "@/components/lightswind/input";
-import { Label } from "@/components/lightswind/label";
-import { Textarea } from "@/components/lightswind/textarea";
-import type { PlacementTestResult } from "@/types/placement-test";
+import { X, FileText, Award, BookOpen, Paperclip } from "lucide-react";
+import type { PlacementTestResultRequest } from "@/types/placement-test";
 
 interface ResultFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: PlacementTestResult) => Promise<void>;
+  onSubmit: (data: Omit<PlacementTestResultRequest, "id">) => Promise<void>;
   testId: string;
-  initialData?: PlacementTestResult | null;
+  initialData?: Partial<PlacementTestResultRequest> | null;
 }
 
 export default function ResultFormModal({
@@ -28,11 +24,10 @@ export default function ResultFormModal({
     speakingScore: initialData?.speakingScore?.toString() || "",
     readingScore: initialData?.readingScore?.toString() || "",
     writingScore: initialData?.writingScore?.toString() || "",
-    overallScore: initialData?.overallScore?.toString() || "",
-    suggestedLevel: initialData?.suggestedLevel || "",
-    strengths: initialData?.strengths || "",
-    weaknesses: initialData?.weaknesses || "",
-    recommendations: initialData?.recommendations || "",
+    resultScore: initialData?.resultScore?.toString() || "",
+    levelRecommendation: initialData?.levelRecommendation || "",
+    programRecommendation: initialData?.programRecommendation || "",
+    attachmentUrl: initialData?.attachmentUrl || "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,17 +36,15 @@ export default function ResultFormModal({
     setIsSubmitting(true);
 
     try {
-      const submitData: PlacementTestResult = {
-        testId,
-        listeningScore: formData.listeningScore ? parseFloat(formData.listeningScore) : undefined,
-        speakingScore: formData.speakingScore ? parseFloat(formData.speakingScore) : undefined,
-        readingScore: formData.readingScore ? parseFloat(formData.readingScore) : undefined,
-        writingScore: formData.writingScore ? parseFloat(formData.writingScore) : undefined,
-        overallScore: formData.overallScore ? parseFloat(formData.overallScore) : undefined,
-        suggestedLevel: formData.suggestedLevel || undefined,
-        strengths: formData.strengths || undefined,
-        weaknesses: formData.weaknesses || undefined,
-        recommendations: formData.recommendations || undefined,
+      const submitData: Omit<PlacementTestResultRequest, "id"> = {
+        listeningScore: formData.listeningScore ? parseFloat(formData.listeningScore) : 0,
+        speakingScore: formData.speakingScore ? parseFloat(formData.speakingScore) : 0,
+        readingScore: formData.readingScore ? parseFloat(formData.readingScore) : 0,
+        writingScore: formData.writingScore ? parseFloat(formData.writingScore) : 0,
+        resultScore: formData.resultScore ? parseFloat(formData.resultScore) : 0,
+        levelRecommendation: formData.levelRecommendation || "",
+        programRecommendation: formData.programRecommendation || "",
+        attachmentUrl: formData.attachmentUrl || "",
       };
 
       await onSubmit(submitData);
@@ -66,7 +59,7 @@ export default function ResultFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-linear-to-r from-pink-500 to-rose-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
@@ -76,7 +69,7 @@ export default function ResultFormModal({
           </h2>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-white/10 transition-colors text-white"
           >
             <X size={24} />
           </button>
@@ -87,8 +80,8 @@ export default function ResultFormModal({
           {/* Scores Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="listeningScore">Điểm Nghe (Listening)</Label>
-              <Input
+              <label htmlFor="listeningScore" className="block text-sm font-medium text-gray-700">Điểm Nghe (Listening)</label>
+              <input
                 id="listeningScore"
                 type="number"
                 step="0.1"
@@ -97,12 +90,13 @@ export default function ResultFormModal({
                 value={formData.listeningScore}
                 onChange={(e) => setFormData(prev => ({ ...prev, listeningScore: e.target.value }))}
                 placeholder="0.0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="speakingScore">Điểm Nói (Speaking)</Label>
-              <Input
+              <label htmlFor="speakingScore" className="block text-sm font-medium text-gray-700">Điểm Nói (Speaking)</label>
+              <input
                 id="speakingScore"
                 type="number"
                 step="0.1"
@@ -111,12 +105,13 @@ export default function ResultFormModal({
                 value={formData.speakingScore}
                 onChange={(e) => setFormData(prev => ({ ...prev, speakingScore: e.target.value }))}
                 placeholder="0.0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="readingScore">Điểm Đọc (Reading)</Label>
-              <Input
+              <label htmlFor="readingScore" className="block text-sm font-medium text-gray-700">Điểm Đọc (Reading)</label>
+              <input
                 id="readingScore"
                 type="number"
                 step="0.1"
@@ -125,12 +120,13 @@ export default function ResultFormModal({
                 value={formData.readingScore}
                 onChange={(e) => setFormData(prev => ({ ...prev, readingScore: e.target.value }))}
                 placeholder="0.0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="writingScore">Điểm Viết (Writing)</Label>
-              <Input
+              <label htmlFor="writingScore" className="block text-sm font-medium text-gray-700">Điểm Viết (Writing)</label>
+              <input
                 id="writingScore"
                 type="number"
                 step="0.1"
@@ -139,106 +135,95 @@ export default function ResultFormModal({
                 value={formData.writingScore}
                 onChange={(e) => setFormData(prev => ({ ...prev, writingScore: e.target.value }))}
                 placeholder="0.0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
             </div>
           </div>
 
-          {/* Overall Score */}
+          {/* Result Score (Overall) */}
           <div className="space-y-2">
-            <Label htmlFor="overallScore" className="flex items-center gap-2">
+            <label htmlFor="resultScore" className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <Award size={16} />
-              Điểm Tổng (Overall)
-            </Label>
-            <Input
-              id="overallScore"
+              Điểm Tổng (Result Score)
+            </label>
+            <input
+              id="resultScore"
               type="number"
               step="0.1"
               min="0"
               max="10"
-              value={formData.overallScore}
-              onChange={(e) => setFormData(prev => ({ ...prev, overallScore: e.target.value }))}
+              value={formData.resultScore}
+              onChange={(e) => setFormData(prev => ({ ...prev, resultScore: e.target.value }))}
               placeholder="0.0"
-              className="font-semibold text-lg"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none font-semibold text-lg"
             />
           </div>
 
-          {/* Suggested Level */}
+          {/* Level Recommendation */}
           <div className="space-y-2">
-            <Label htmlFor="suggestedLevel" className="flex items-center gap-2">
-              <FileText size={16} />
-              Trình độ đề xuất
-            </Label>
-            <Input
-              id="suggestedLevel"
-              value={formData.suggestedLevel}
-              onChange={(e) => setFormData(prev => ({ ...prev, suggestedLevel: e.target.value }))}
+            <label htmlFor="levelRecommendation" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <BookOpen size={16} />
+              Đề xuất trình độ (Level Recommendation)
+            </label>
+            <input
+              id="levelRecommendation"
+              type="text"
+              value={formData.levelRecommendation}
+              onChange={(e) => setFormData(prev => ({ ...prev, levelRecommendation: e.target.value }))}
               placeholder="VD: Beginner, Elementary, Pre-Intermediate, ..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
             />
           </div>
 
-          {/* Strengths */}
+          {/* Program Recommendation */}
           <div className="space-y-2">
-            <Label htmlFor="strengths" className="flex items-center gap-2">
-              <TrendingUp size={16} className="text-green-600" />
-              Điểm mạnh
-            </Label>
-            <Textarea
-              id="strengths"
-              value={formData.strengths}
-              onChange={(e) => setFormData(prev => ({ ...prev, strengths: e.target.value }))}
-              placeholder="Mô tả điểm mạnh của học viên..."
-              rows={3}
-            />
-          </div>
-
-          {/* Weaknesses */}
-          <div className="space-y-2">
-            <Label htmlFor="weaknesses" className="flex items-center gap-2">
-              <TrendingDown size={16} className="text-rose-600" />
-              Điểm yếu
-            </Label>
-            <Textarea
-              id="weaknesses"
-              value={formData.weaknesses}
-              onChange={(e) => setFormData(prev => ({ ...prev, weaknesses: e.target.value }))}
-              placeholder="Mô tả điểm yếu cần cải thiện..."
-              rows={3}
-            />
-          </div>
-
-          {/* Recommendations */}
-          <div className="space-y-2">
-            <Label htmlFor="recommendations" className="flex items-center gap-2">
+            <label htmlFor="programRecommendation" className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <FileText size={16} />
-              Gợi ý và đề xuất
-            </Label>
-            <Textarea
-              id="recommendations"
-              value={formData.recommendations}
-              onChange={(e) => setFormData(prev => ({ ...prev, recommendations: e.target.value }))}
-              placeholder="Đề xuất lộ trình học, khóa học phù hợp..."
-              rows={4}
+              Đề xuất chương trình (Program Recommendation)
+            </label>
+            <input
+              id="programRecommendation"
+              type="text"
+              value={formData.programRecommendation}
+              onChange={(e) => setFormData(prev => ({ ...prev, programRecommendation: e.target.value }))}
+              placeholder="VD: English Communication, IELTS Preparation, ..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+            />
+          </div>
+
+          {/* Attachment URL */}
+          <div className="space-y-2">
+            <label htmlFor="attachmentUrl" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <Paperclip size={16} />
+              Link tài liệu đính kèm (Attachment URL)
+            </label>
+            <input
+              id="attachmentUrl"
+              type="url"
+              value={formData.attachmentUrl}
+              onChange={(e) => setFormData(prev => ({ ...prev, attachmentUrl: e.target.value }))}
+              placeholder="https://..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
             />
           </div>
 
           {/* Actions */}
           <div className="flex gap-3 pt-4">
-            <Button
+            <button
               type="button"
-              variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1"
+              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               Hủy
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 bg-linear-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700"
+              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
             >
               {isSubmitting ? "Đang lưu..." : "Lưu kết quả"}
-            </Button>
+            </button>
           </div>
         </form>
       </div>

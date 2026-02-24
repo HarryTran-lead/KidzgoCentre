@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Megaphone,
   BookOpenCheck,
+  BookOpen,
   Image,
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
@@ -35,6 +36,7 @@ export function staffManagerMenu(
     [t.notifications, Megaphone, "/notifications"],
     [t.media, Image, "/media"],
     [t.studentProfiles, NotebookText, "/students"],
+    [t.enrollments, BookOpen, "/enrollments"],
     [t.templates, FileText, "/templates"],
   ];
 
