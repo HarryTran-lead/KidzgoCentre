@@ -14,8 +14,18 @@ type SessionReportListApiResponse = {
     | SessionReportItem[]
     | {
         items?: SessionReportItem[];
-        sessionReports?: SessionReportItem[];
+        sessionReports?:
+          | SessionReportItem[]
+          | {
+              items?: SessionReportItem[];
+            };
       };
+};
+
+type FetchSessionReportsParams = {
+  sessionId?: string;
+  pageNumber?: number;
+  pageSize?: number;
 };
 
 function extractSessionReport(data?: SessionReportApiResponse["data"]): SessionReportItem | null {
@@ -29,9 +39,23 @@ function extractSessionReports(data?: SessionReportListApiResponse["data"]): Ses
 
   if (Array.isArray(data)) return data;
 
-  if (Array.isArray((data as any).items)) return (data as any).items;
+  const payload = data as {
+    items?: SessionReportItem[];
+    sessionReports?: SessionReportItem[] | { items?: SessionReportItem[] };
+  };
 
-  if (Array.isArray((data as any).sessionReports)) return (data as any).sessionReports;
+  if (Array.isArray(payload.items)) return payload.items;
+
+  if (Array.isArray(payload.sessionReports)) return payload.sessionReports;
+
+  if (
+    payload.sessionReports &&
+    typeof payload.sessionReports === "object" &&
+    "items" in payload.sessionReports &&
+    Array.isArray(payload.sessionReports.items)
+  ) {
+    return payload.sessionReports.items;
+  }
 
   return [];
 }
@@ -60,7 +84,9 @@ function normalizeUpdatePayload(payload: UpdateSessionReportRequest): any {
   };
 }
 
-export async function createSessionReport(payload: CreateSessionReportRequest): Promise<SessionReportItem | null> {
+export async function createSessionReport(
+  payload: CreateSessionReportRequest,
+): Promise<SessionReportItem | null> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
@@ -80,7 +106,7 @@ export async function createSessionReport(payload: CreateSessionReportRequest): 
   if (!res.ok) {
     const text = await res.text();
     console.error("Create session report error", res.status, text, normalizedPayload);
-    throw new Error("Không thể gửi nhận xét buổi học.");
+    throw new Error("Không thể tạo nhận xét buổi học.");
   }
 
   const json: SessionReportApiResponse = await res.json();
@@ -117,15 +143,28 @@ export async function updateSessionReport(
   return extractSessionReport(json?.data);
 }
 
-export async function fetchSessionReports(sessionId?: string): Promise<SessionReportItem[]> {
+export async function fetchSessionReports(
+  sessionReportParams?: string | FetchSessionReportsParams,
+): Promise<SessionReportItem[]> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
   }
 
+  const normalizedParams: FetchSessionReportsParams =
+    typeof sessionReportParams === "string"
+      ? { sessionId: sessionReportParams }
+      : sessionReportParams ?? {};
+
   const query = new URLSearchParams();
-  if (sessionId) {
-    query.set("sessionId", sessionId);
+  if (normalizedParams.sessionId) {
+    query.set("sessionId", normalizedParams.sessionId);
+  }
+  if (normalizedParams.pageNumber) {
+    query.set("pageNumber", String(normalizedParams.pageNumber));
+  }
+  if (normalizedParams.pageSize) {
+    query.set("pageSize", String(normalizedParams.pageSize));
   }
 
   const url = query.toString()

@@ -452,8 +452,7 @@ export default function TeacherAttendancePage() {
     try {
 const [result, reports] = await Promise.all([
         fetchAttendance(selectedSessionId),
-        fetchSessionReports(selectedSessionId).catch((err) => {
-          console.warn("Fetch session reports warning:", err);
+fetchSessionReports({ sessionId: selectedSessionId, pageNumber: 1, pageSize: 500 }).catch((err) => {          console.warn("Fetch session reports warning:", err);
           return [] as SessionReportItem[];
         }),
       ]);
@@ -493,13 +492,10 @@ const [result, reports] = await Promise.all([
 
         const uniqueIdForUI = safeStudentId || rowKey;
         
-  const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId);
-        const reportFromList = safeStudentId ? reportsByStudentId[safeStudentId] : undefined;
+const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId);        const reportFromList = safeStudentId ? reportsByStudentId[safeStudentId] : undefined;
 
-        const note = (persistedSessionReport.feedback || reportFromList?.feedback || "").trim();
-        const reportId = String(
-          persistedSessionReport.reportId || reportFromList?.reportId || "",
-        ).trim();
+ const note = (reportFromList?.feedback || persistedSessionReport.feedback || "").trim();        const reportId = String(
+ reportFromList?.reportId || persistedSessionReport.reportId || "",        ).trim();
 
         if (note || reportId) {
           const reportKey = buildSessionReportKey(selectedSessionId, safeStudentId, rowKey);
@@ -581,66 +577,95 @@ const [result, reports] = await Promise.all([
   const handleSubmitStudentNote = async (feedback: string) => {
     if (!selectedSessionId || !selectedStudentForNote) return;
 
-    if (!feedback.trim()) {
-      setNoteModalError("Vui lòng nhập nội dung nhận xét.");
-      return;
-    }
-
-    // vì studentId có thể fallback => chỉ cho gửi nếu là GUID thật
-    if (!selectedStudentForNote.studentId || !GUID_REGEX.test(selectedStudentForNote.studentId)) {
-      setNoteModalError("Không tìm thấy StudentProfileId hợp lệ để gửi nhận xét.");
-      return;
-    }
-
-    const reportKey = buildSessionReportKey(
-      selectedSessionId,
-      selectedStudentForNote.studentId,
-      selectedStudentForNote.rowKey,
-    );
+   const normalizedFeedback = feedback.trim();
+    const reportKey = buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey);
     const existingReport = sessionReports[reportKey];
 
     try {
       setIsSubmittingNote(true);
       setNoteModalError(null);
 
-      let report: SessionReportItem | null = null;
-
-      if (existingReport?.reportId) {
-        report = await updateSessionReport(existingReport.reportId, { feedback });
-      } else {
-        report = await createSessionReport({
-          sessionId: selectedSessionId,
-          studentProfileId: selectedStudentForNote.studentId,
-          reportDate: new Date().toISOString().slice(0, 10),
-          feedback,
-        });
-      }
-
-      const reportId = String(report?.id ?? existingReport?.reportId ?? "").trim();
+  
 
       setSessionReports((prev) => ({
         ...prev,
         [reportKey]: {
-          reportId,
-          feedback,
+            reportId: existingReport?.reportId ?? "",
+          feedback: normalizedFeedback,
         },
       }));
 
       setAttendanceList((prev) =>
-        prev.map((r) =>
-          r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: feedback.trim() } : r,
-        ),
+       prev.map((r) => (r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: normalizedFeedback || undefined } : r)),
       );
 
       handleCloseNoteModal();
     } catch (err: any) {
-      console.error("Save session report error:", err);
-      setNoteModalError(err.message || "Không thể lưu nhận xét buổi học.");
+  console.error("Update local note error:", err);
+      setNoteModalError(err.message || "Không thể cập nhật note.");
     } finally {
       setIsSubmittingNote(false);
     }
   };
+const syncSessionReportsWithAttendance = useCallback(async () => {
+    if (!selectedSessionId) return;
 
+    const reportSyncTasks = attendanceList
+      .map((student) => {
+        const studentProfileId = String(student.studentId ?? "").trim();
+        if (!GUID_REGEX.test(studentProfileId)) return null;
+
+        const reportKey = buildSessionReportKey(selectedSessionId, studentProfileId, student.rowKey);
+        const existingReport = sessionReports[reportKey];
+        const note = String(student.note ?? "").trim();
+        const existingFeedback = String(existingReport?.feedback ?? "").trim();
+        const existingReportId = String(existingReport?.reportId ?? "").trim();
+
+        if (!note) return null;
+        if (note === existingFeedback && existingReportId) return null;
+
+        return async () => {
+          let report: SessionReportItem | null = null;
+          if (existingReportId) {
+            report = await updateSessionReport(existingReportId, { feedback: note });
+          } else {
+            report = await createSessionReport({
+              sessionId: selectedSessionId,
+              studentProfileId,
+              reportDate: new Date().toISOString().slice(0, 10),
+              feedback: note,
+            });
+          }
+
+          const reportId = String(report?.id ?? existingReportId ?? "").trim();
+          return { reportKey, reportId, feedback: note };
+        };
+      })
+      .filter(Boolean) as Array<() => Promise<{ reportKey: string; reportId: string; feedback: string }>>;
+
+    if (!reportSyncTasks.length) return;
+
+    const results = await Promise.allSettled(reportSyncTasks.map((task) => task()));
+    const failedCount = results.filter((result) => result.status === "rejected").length;
+
+    const successItems = results
+      .filter((result): result is PromiseFulfilledResult<{ reportKey: string; reportId: string; feedback: string }> => result.status === "fulfilled")
+      .map((result) => result.value);
+
+    if (successItems.length) {
+      setSessionReports((prev) => {
+        const next = { ...prev };
+        successItems.forEach(({ reportKey, reportId, feedback }) => {
+          next[reportKey] = { reportId, feedback };
+        });
+        return next;
+      });
+    }
+
+    if (failedCount > 0) {
+      throw new Error(`Có ${failedCount} note chưa đồng bộ lên session report. Vui lòng thử lưu lại.`);
+    }
+  }, [attendanceList, selectedSessionId, sessionReports]);
   const handleSaveAll = useCallback(async () => {
     if (!selectedSessionId) return;
 
@@ -649,6 +674,7 @@ const [result, reports] = await Promise.all([
       setSaveError(null);
 
       await saveAttendance(selectedSessionId, attendanceList, !hasAnyMarked);
+      await syncSessionReportsWithAttendance();
       await refreshAttendance();
     } catch (err: any) {
       console.error("Save attendance error:", err);
@@ -656,8 +682,7 @@ const [result, reports] = await Promise.all([
     } finally {
       setIsSaving(false);
     }
-  }, [attendanceList, hasAnyMarked, refreshAttendance, selectedSessionId]);
-
+  }, [attendanceList, hasAnyMarked, refreshAttendance, selectedSessionId, syncSessionReportsWithAttendance]);
   const filteredRecords = useMemo(() => {
     let filtered = [...attendanceList];
 
@@ -1024,7 +1049,6 @@ const [result, reports] = await Promise.all([
 
                   <tbody className="divide-y divide-gray-100">
                     {paginatedRecords.map((record) => {
-                      const canSendNote = Boolean(record.studentId && GUID_REGEX.test(record.studentId));
 
                       return (
                         <tr
@@ -1080,14 +1104,11 @@ const [result, reports] = await Promise.all([
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleOpenNoteModal(record)}
-                                title={canSendNote ? "Thêm nhận xét buổi học" : "Không có StudentProfileId hợp lệ"}
-                                disabled={!canSendNote}
+                                                            title="Thêm nhận xét buổi học"
                                 className={`px-2.5 py-1.5 rounded-lg border transition text-xs font-semibold inline-flex items-center gap-1 ${
-                                  !canSendNote
-                                    ? "border-gray-200 text-gray-300 cursor-not-allowed"
-                                    : record.note
-                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 cursor-pointer"
-                                      : "border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
+                                  record.note
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 cursor-pointer"
+                                    : "border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
                                 }`}
                               >
                                 <MessageSquareText size={14} />
@@ -1097,8 +1118,7 @@ const [result, reports] = await Promise.all([
                               {record.note ? (
                                 <button
                                   onClick={() => handleOpenNoteModal(record)}
-                                  disabled={!canSendNote}
-                                  className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition cursor-pointer"
                                 >
                                   Edit
                                 </button>
