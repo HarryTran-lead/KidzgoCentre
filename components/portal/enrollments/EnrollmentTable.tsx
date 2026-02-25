@@ -37,6 +37,7 @@ interface EnrollmentTableProps {
   sortKey?: string | null;
   sortDir?: "asc" | "desc";
   onSort?: (key: string) => void;
+  readOnly?: boolean;
   onPause?: (enrollment: Enrollment) => void;
   onDrop?: (enrollment: Enrollment) => void;
   onReactivate?: (enrollment: Enrollment) => void;
@@ -54,6 +55,7 @@ export default function EnrollmentTable({
   sortKey,
   sortDir,
   onSort,
+  readOnly = false,
   onPause,
   onDrop,
   onReactivate,
@@ -194,70 +196,80 @@ export default function EnrollmentTable({
                   {getStatusBadge(enrollment.status)}
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <div className="relative inline-block">
+                  {!readOnly ? (
+                    <div className="relative inline-block">
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === enrollment.id ? null : enrollment.id)}
+                        className="p-1.5 rounded-lg hover:bg-pink-100 transition-colors"
+                      >
+                        <MoreVertical size={16} className="text-gray-500" />
+                      </button>
+                      {openMenuId === enrollment.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-9998"
+                            onClick={() => setOpenMenuId(null)}
+                          />
+                          <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-9999 min-w-44">
+                            <button
+                              onClick={() => {
+                                onView(enrollment);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              <Eye size={14} />
+                              Xem chi tiết
+                            </button>
+                            {enrollment.status === "Active" && (
+                              <button
+                                onClick={() => {
+                                  onPause?.(enrollment);
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-amber-600 hover:bg-amber-50"
+                              >
+                                <Pause size={14} />
+                                Tạm nghỉ
+                              </button>
+                            )}
+                            {enrollment.status === "Active" && (
+                              <button
+                                onClick={() => {
+                                  onDrop?.(enrollment);
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50"
+                              >
+                                <Trash2 size={14} />
+                                Cho nghỉ
+                              </button>
+                            )}
+                            {(enrollment.status === "Paused" || enrollment.status === "Dropped") && (
+                              <button
+                                onClick={() => {
+                                  onReactivate?.(enrollment);
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50"
+                              >
+                                <Play size={14} />
+                                Kích hoạt lại
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
                     <button
-                      onClick={() => setOpenMenuId(openMenuId === enrollment.id ? null : enrollment.id)}
-                      className="p-1.5 rounded-lg hover:bg-pink-100 transition-colors"
+                      onClick={() => onView(enrollment)}
+                      className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer"
+                      title="Xem chi tiết"
                     >
-                      <MoreVertical size={16} className="text-gray-500" />
+                      <Eye size={14} />
                     </button>
-                    {openMenuId === enrollment.id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-9998"
-                          onClick={() => setOpenMenuId(null)}
-                        />
-                        <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-9999 min-w-44">
-                          <button
-                            onClick={() => {
-                              onView(enrollment);
-                              setOpenMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                          >
-                            <Eye size={14} />
-                            Xem chi tiết
-                          </button>
-                          {enrollment.status === "Active" && (
-                            <button
-                              onClick={() => {
-                                onPause?.(enrollment);
-                                setOpenMenuId(null);
-                              }}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-amber-600 hover:bg-amber-50"
-                            >
-                              <Pause size={14} />
-                              Tạm nghỉ
-                            </button>
-                          )}
-                          {enrollment.status === "Active" && (
-                            <button
-                              onClick={() => {
-                                onDrop?.(enrollment);
-                                setOpenMenuId(null);
-                              }}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50"
-                            >
-                              <Trash2 size={14} />
-                              Cho nghỉ
-                            </button>
-                          )}
-                          {(enrollment.status === "Paused" || enrollment.status === "Dropped") && (
-                            <button
-                              onClick={() => {
-                                onReactivate?.(enrollment);
-                                setOpenMenuId(null);
-                              }}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50"
-                            >
-                              <Play size={14} />
-                              Kích hoạt lại
-                            </button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  )}
                 </td>
               </tr>
             ))}

@@ -24,7 +24,7 @@ export default function EnrollmentFilters({
   onPageSizeChange,
 }: EnrollmentFiltersProps) {
   const statusOptions = [
-    { value: "Tất cả", label: "Tất cả", count: statusCounts["Tất cả"] || 0 },
+    { value: "Tất cả", label: "Tất cả", count: totalCount },
     { value: "Active", label: "Đang học", count: statusCounts["Active"] || 0 },
     { value: "Paused", label: "Tạm nghỉ", count: statusCounts["Paused"] || 0 },
     { value: "Dropped", label: "Đã nghỉ", count: statusCounts["Dropped"] || 0 },

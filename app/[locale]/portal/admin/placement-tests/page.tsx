@@ -2,35 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Target, Loader2, AlertCircle, RefreshCw } from "lucide-react";
-import { getAllLeads } from "@/lib/api/leadService";
+import { ClipboardCheck, Loader2, AlertCircle, RefreshCw, UserCheck } from "lucide-react";
+import { getAllPlacementTests } from "@/lib/api/placementTestService";
 import { useToast } from "@/hooks/use-toast";
-import type { Lead as LeadType } from "@/types/lead";
+import type { PlacementTest } from "@/types/placement-test";
 import {
-  LeadStats,
-  LeadFilters,
-  LeadTable,
-  LeadDetailModal,
-} from "@/components/portal/leads";
+  PlacementTestStats,
+  PlacementTestFilters,
+  PlacementTestTable,
+  PlacementTestDetailModal,
+} from "@/components/portal/placement-tests";
 
-type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
-
-const STATUS_MAPPING: Record<StatusType, string> = {
-  New: "Mới",
-  Contacted: "Đang tư vấn",
-  BookedTest: "Đã đặt lịch test",
-  TestDone: "Đã test",
-  Enrolled: "Đã ghi danh",
-  Lost: "Đã hủy",
-};
-
-export default function AdminLeadsPage() {
+export default function AdminPlacementTestsPage() {
   const { toast } = useToast();
   const router = useRouter();
   
   // Data state
-  const [leads, setLeads] = useState<LeadType[]>([]); // Filtered leads for table
-  const [allLeads, setAllLeads] = useState<LeadType[]>([]); // All leads for stats (load once)
+  const [tests, setTests] = useState<PlacementTest[]>([]);
+  const [allTests, setAllTests] = useState<PlacementTest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -44,50 +33,25 @@ export default function AdminLeadsPage() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   
   // Filter state
-  const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
-  const [selectedSource, setSelectedSource] = useState<string>("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [availableSources, setAvailableSources] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   
   // Table state
-  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   
   // Modal state
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<LeadType | null>(null);
+  const [selectedTest, setSelectedTest] = useState<PlacementTest | null>(null);
 
   // Handlers
-  const handleViewDetail = (lead: LeadType) => {
-    setSelectedLead(lead);
+  const handleViewDetail = (test: PlacementTest) => {
+    setSelectedTest(test);
     setIsDetailModalOpen(true);
-  };
-
-  const handleSelectAll = () => {
-    if (Object.keys(selectedIds).length === leads.length) {
-      setSelectedIds({});
-    } else {
-      const newSelectedIds: Record<string, boolean> = {};
-      leads.forEach((lead) => {
-        newSelectedIds[lead.id] = true;
-      });
-      setSelectedIds(newSelectedIds);
-    }
-  };
-
-  const handleSelectOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const newSelectedIds = { ...prev };
-      if (newSelectedIds[id]) {
-        delete newSelectedIds[id];
-      } else {
-        newSelectedIds[id] = true;
-      }
-      return newSelectedIds;
-    });
   };
 
   const handleSort = (key: string) => {
@@ -99,62 +63,46 @@ export default function AdminLeadsPage() {
     }
   };
 
-  const handleEdit = (lead: LeadType) => {
-    // Admin read-only, no edit action
-    console.log("Edit not available in admin view");
-  };
-
-  const handleAction = (lead: LeadType, action: string) => {
-    // Admin read-only, no action
-    console.log("Action not available in admin view");
-  };
-
   const handleRefresh = () => {
     setCurrentPage(1);
     setSearchQuery("");
     setSelectedStatus("Tất cả");
-    setSelectedSource("Tất cả");
-    setSelectedIds({});
+    setFromDate("");
+    setToDate("");
     window.location.reload();
   };
 
-  //Fetch all leads on mount (for stats and filtering)
+  // Fetch all tests on mount
   useEffect(() => {
-    const fetchAllLeads = async () => {
+    const fetchAllTests = async () => {
       try {
         setIsLoading(true);
-        const response = await getAllLeads({ pageSize: 1000 });
+        const response = await getAllPlacementTests({ pageSize: 1000 });
         
-        if (response.isSuccess && response.data?.leads) {
-          const leadsData = response.data.leads || [];          
-          setAllLeads(leadsData);
+        if (response.isSuccess && response.data?.items) {
+          const testsData = response.data.items || [];          
+          setAllTests(testsData);
           
           // Calculate status counts - reset to empty object first
           const counts: Record<string, number> = {};
-          leadsData.forEach((lead) => {
-            const statusLabel = STATUS_MAPPING[lead.status as StatusType] || lead.status || '';
-            if (statusLabel) {
-              counts[statusLabel] = (counts[statusLabel] || 0) + 1;
-            }
+          testsData.forEach((test) => {
+            counts[test.status] = (counts[test.status] || 0) + 1;
           });
-          setStatusCounts(counts);
           
-          // Extract unique sources
-          const sources = [...new Set(response.data.leads.map((l) => l.source).filter(Boolean))];
-          setAvailableSources(sources as string[]);
+          setStatusCounts(counts);
         } else {
-          setError(response.message || "Không thể tải danh sách leads");
+          setError(response.message || "Không thể tải danh sách placement tests");
         }
       } catch (err) {
-        console.error("Error fetching leads:", err);
-        setError("Đã xảy ra lỗi khi tải danh sách leads");
+        console.error("Error fetching placement tests:", err);
+        setError("Đã xảy ra lỗi khi tải danh sách placement tests");
       } finally {
         setIsLoading(false);
         setIsPageLoaded(true);
       }
     };
 
-    fetchAllLeads();
+    fetchAllTests();
   }, []);
 
   // Debounce search
@@ -165,9 +113,9 @@ export default function AdminLeadsPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch filtered leads (for pagination)
+  // Fetch filtered tests
   useEffect(() => {
-    const fetchFilteredLeads = async () => {
+    const fetchFilteredTests = async () => {
       try {
         const params: any = {
           pageNumber: currentPage,
@@ -179,37 +127,38 @@ export default function AdminLeadsPage() {
         }
 
         if (selectedStatus !== "Tất cả") {
-          const statusKey = Object.keys(STATUS_MAPPING).find(
-            (key) => STATUS_MAPPING[key as StatusType] === selectedStatus
-          );
-          if (statusKey) params.status = statusKey;
+          params.status = selectedStatus;
         }
 
-        if (selectedSource !== "Tất cả") {
-          params.source = selectedSource;
+        if (fromDate) {
+          params.fromDate = fromDate;
         }
 
-        const response = await getAllLeads(params);
+        if (toDate) {
+          params.toDate = toDate;
+        }
+
+        const response = await getAllPlacementTests(params);
         
         if (response.isSuccess && response.data) {
-          setLeads(response.data.leads || []);
+          setTests(response.data.items || []);
           setTotalCount(response.data.totalCount || 0);
           setTotalPages(response.data.totalPages || 0);
         }
       } catch (err) {
-        console.error("Error fetching filtered leads:", err);
+        console.error("Error fetching filtered tests:", err);
       }
     };
 
     if (!isLoading) {
-      fetchFilteredLeads();
+      fetchFilteredTests();
     }
-  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource, isLoading]);
+  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, fromDate, toDate, isLoading]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, selectedStatus, selectedSource]);
+  }, [debouncedSearchQuery, selectedStatus, fromDate, toDate]);
 
   // Loading state
   if (isLoading) {
@@ -250,14 +199,14 @@ export default function AdminLeadsPage() {
       <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <Target size={28} className="text-white" />
+            <ClipboardCheck size={28} className="text-white" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-              Quản lý Lead & CRM
+              Quản lý Placement Test
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Xem và theo dõi danh sách khách hàng tiềm năng
+              Xem và theo dõi lịch sử kiểm tra đầu vào
             </p>
           </div>
         </div>
@@ -274,87 +223,79 @@ export default function AdminLeadsPage() {
       {/* Navigation Tabs */}
       <div className={`flex gap-2 transition-all duration-700 delay-50 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <button
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-medium shadow-md cursor-pointer"
+          onClick={() => router.push('/vi/portal/admin/leads')}
+          className="flex items-center gap-2 px-4 py-2.5 border border-red-200 bg-white text-gray-700 rounded-xl font-medium hover:bg-red-50 transition-colors cursor-pointer"
         >
-          <Target size={16} />
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
           Leads
         </button>
         <button
-          onClick={() => router.push('/vi/portal/admin/placement-tests')}
-          className="flex items-center gap-2 px-4 py-2.5 border border-red-200 bg-white text-gray-700 rounded-xl font-medium hover:bg-red-50 transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-medium shadow-md cursor-pointer"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+          <ClipboardCheck size={16} />
           Placement Tests
         </button>
         <button
           onClick={() => router.push('/vi/portal/admin/enrollments')}
           className="flex items-center gap-2 px-4 py-2.5 border border-red-200 bg-white text-gray-700 rounded-xl font-medium hover:bg-red-50 transition-colors cursor-pointer"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <UserCheck size={16} />
           Enrollments
         </button>
       </div>
 
       {/* Stats Overview */}
       <div className={`transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <LeadStats 
-          leads={allLeads}
-          isLoading={isLoading}
+        <PlacementTestStats 
+          tests={allTests}
         />
       </div>
 
       {/* Filters */}
       <div className={`transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <LeadFilters
-          leads={allLeads}
-          totalCount={totalCount}
-          statusCounts={statusCounts}
-          availableSources={availableSources}
+        <PlacementTestFilters
           searchQuery={searchQuery}
           selectedStatus={selectedStatus}
-          selectedSource={selectedSource}
+          fromDate={fromDate}
+          toDate={toDate}
           pageSize={pageSize}
+          totalCount={allTests.length}
+          statusCounts={statusCounts}
           onSearchChange={setSearchQuery}
           onStatusChange={setSelectedStatus}
-          onSourceChange={setSelectedSource}
+          onFromDateChange={setFromDate}
+          onToDateChange={setToDate}
           onPageSizeChange={setPageSize}
         />
       </div>
 
       {/* Table */}
       <div className={`transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <LeadTable
-          leads={leads}
+        <PlacementTestTable
+          tests={tests}
           isLoading={isLoading}
-          selectedIds={selectedIds}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onSelectAll={handleSelectAll}
-          onSelectOne={handleSelectOne}
-          onSort={handleSort}
-          onEdit={handleEdit}
-          onView={handleViewDetail}
-          onAction={handleAction}
           currentPage={currentPage}
           totalPages={totalPages}
           totalCount={totalCount}
           pageSize={pageSize}
+          onView={handleViewDetail}
           onPageChange={setCurrentPage}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={handleSort}
           readOnly={true}
         />
       </div>
 
       {/* Detail Modal */}
-      {selectedLead && (
-        <LeadDetailModal
-          lead={selectedLead}
+      {selectedTest && (
+        <PlacementTestDetailModal
+          test={selectedTest}
           isOpen={isDetailModalOpen}
           onClose={() => {
             setIsDetailModalOpen(false);
-            setSelectedLead(null);
+            setSelectedTest(null);
           }}
-          onEdit={handleEdit}
-          readOnly={true}
         />
       )}
     </div>
