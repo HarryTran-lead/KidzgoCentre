@@ -51,6 +51,17 @@ type LeaveRequest = {
   raw?: LeaveRequestRecord;
 };
 
+type StudentLookup = {
+  name?: string;
+  parentName?: string;
+};
+
+type LeaveRequestLookups = {
+  students: Map<string, StudentLookup>;
+  classes: Map<string, string>;
+  parentByUserId: Map<string, string>;
+};
+
 type SessionDetail = {
   id: string;
   classId: string;
@@ -122,6 +133,104 @@ const formatDateTimeVN = (iso: string) => {
   });
 };
 
+const formatDateVN = (value: string) => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+};
+
+const collectIdCandidates = (obj: any, keys: string[]) => {
+  const ids = keys
+    .map((key) => String(obj?.[key] ?? "").trim())
+    .filter(Boolean);
+  return Array.from(new Set(ids));
+};
+
+const extractListItems = (payload: any): any[] => {
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.classes?.items)) return payload.classes.items;
+  if (Array.isArray(payload?.students?.items)) return payload.students.items;
+  if (Array.isArray(payload)) return payload;
+  return [];
+};
+
+const buildLookups = (
+  studentsRaw: any[],
+  classesRaw: any[],
+  parentProfilesRaw: any[]
+): LeaveRequestLookups => {
+  const students = new Map<string, StudentLookup>();
+  const classes = new Map<string, string>();
+  const parentByUserId = new Map<string, string>();
+  const studentUserByProfileId = new Map<string, string>();
+
+  studentsRaw.forEach((student) => {
+    const ids = collectIdCandidates(student, ["id", "profileId", "studentId", "userId"]);
+    if (!ids.length) return;
+
+    const userId = String(student?.userId ?? "").trim();
+
+    const name =
+      (pickValue(student, ["fullName", "displayName", "name", "userName"]) as
+        | string
+        | undefined) ?? undefined;
+
+    const parentName =
+      (pickValue(student, [
+        "parentName",
+        "guardianName",
+        "fatherName",
+        "motherName",
+      ]) as string | undefined) ?? undefined;
+
+    ids.forEach((id) => {
+      students.set(id, { name, parentName });
+      if (userId) studentUserByProfileId.set(id, userId);
+    });
+  });
+
+  parentProfilesRaw.forEach((parent) => {
+    const userId = String(parent?.userId ?? "").trim();
+    if (!userId) return;
+
+    const parentName =
+      (pickValue(parent, ["displayName", "fullName", "name"]) as string | undefined) ??
+      undefined;
+
+    if (!parentName) return;
+    parentByUserId.set(userId, parentName);
+  });
+
+  classesRaw.forEach((classItem) => {
+    const ids = collectIdCandidates(classItem, ["id", "classId"]);
+    if (!ids.length) return;
+
+    const className =
+      (pickValue(classItem, ["name", "className", "title", "code"]) as
+        | string
+        | undefined) ?? undefined;
+
+    if (!className) return;
+    ids.forEach((id) => classes.set(id, className));
+  });
+
+  studentUserByProfileId.forEach((userId, profileId) => {
+    const student = students.get(profileId);
+    if (!student || student.parentName) return;
+
+    const mappedParent = parentByUserId.get(userId);
+    if (!mappedParent) return;
+
+    students.set(profileId, { ...student, parentName: mappedParent });
+  });
+
+  return { students, classes, parentByUserId };
+};
+
 async function getSessionById(sessionId: string): Promise<SessionDetail | null> {
   if (!sessionId) return null;
   try {
@@ -160,7 +269,10 @@ function normalizeStatus(input: unknown): NormalizedStatusKey {
   return "PENDING";
 }
 
-const mapLeaveRequests = (items: LeaveRequestRecord[]): LeaveRequest[] => {
+const mapLeaveRequests = (
+  items: LeaveRequestRecord[],
+  lookups: LeaveRequestLookups
+): LeaveRequest[] => {
   if (!items?.length) return [];
 
   return items.map((item) => {
@@ -171,21 +283,50 @@ const mapLeaveRequests = (items: LeaveRequestRecord[]): LeaveRequest[] => {
     const end = (item as any).endDate ?? (item as any).sessionDate ?? "";
     const isSingleDay = !!start && !!end && start === end;
 
+    const studentId = String((item as any).studentProfileId ?? "").trim();
+    const classId = String((item as any).classId ?? "").trim();
+    const studentLookup = lookups.students.get(studentId);
+
+    const studentName =
+      (pickValue(item, [
+        "studentName",
+        "studentFullName",
+        "studentProfile.fullName",
+        "student.fullName",
+        "student.name",
+      ]) as string | undefined) ?? studentLookup?.name;
+
+    const parentName =
+      (pickValue(item, [
+        "requesterName",
+        "parentName",
+        "guardianName",
+        "studentProfile.parentName",
+        "student.parentName",
+      ]) as string | undefined) ?? studentLookup?.parentName;
+
+    const className =
+      (pickValue(item, ["className", "class.className", "class.name", "class.title"]) as
+        | string
+        | undefined) ?? lookups.classes.get(classId);
+
     return {
       id: (item as any).id,
-      student:
-        (item as any).studentName ??
-        (item as any).studentProfileId ??
-        "Chưa có học viên",
-      parentName: (item as any).requesterName ?? "Chưa có phụ huynh",
-      className: (item as any).className ?? (item as any).classId ?? "Chưa có lớp",
+      student: studentName ?? "Chưa có học viên",
+      parentName: parentName ?? "Chưa có phụ huynh",
+      className: className ?? "Chưa có lớp",
       type: isSingleDay ? "Nghỉ 1 ngày" : "Nghỉ dài ngày",
-      requestTime:
-        (item as any).createdAt ??
-        (item as any).requestedAt ??
-        (item as any).submittedAt ??
-        "-",
-      sessionTime: start ? (end ? `${start} → ${end}` : start) : "-",
+      requestTime: (() => {
+        const created =
+          (item as any).createdAt ?? (item as any).requestedAt ?? (item as any).submittedAt;
+        if (!created) return "-";
+        return formatDateTimeVN(created);
+      })(),
+      sessionTime: start
+        ? end
+          ? `${formatDateVN(start)} → ${formatDateVN(end)}`
+          : formatDateVN(start)
+        : "-",
       status: statusLabel,
       credit: statusLabel === "Auto-approve" && isSingleDay ? 1 : 0,
       note: (item as any).reason ?? "-",
@@ -352,14 +493,49 @@ export default function Page() {
   const [loadingUsedCredits, setLoadingUsedCredits] = useState(false);
   const [usedError, setUsedError] = useState<string | null>(null);
 
-  const fetchLeaveRequests = async () => {
+  const [leaveLookups, setLeaveLookups] = useState<LeaveRequestLookups>({
+    students: new Map(),
+    classes: new Map(),
+    parentByUserId: new Map(),
+  });
+
+  const fetchLeaveLookups = async (): Promise<LeaveRequestLookups> => {
+    try {
+      const [studentsRes, classesRes, parentProfilesRes] = await Promise.allSettled([
+        get<any>("/api/students", { params: { pageNumber: 1, pageSize: 1000 } }),
+        get<any>("/api/students/classes", { params: { pageNumber: 1, pageSize: 1000 } }),
+        get<any>("/api/students", {
+          params: { profileType: "Parent", pageNumber: 1, pageSize: 1000 },
+        }),
+      ]);
+
+      const studentsRaw =
+        studentsRes.status === "fulfilled" ? extractListItems(unwrap(studentsRes.value)) : [];
+
+      const classesRaw =
+        classesRes.status === "fulfilled" ? extractListItems(unwrap(classesRes.value)) : [];
+
+      const parentProfilesRaw =
+        parentProfilesRes.status === "fulfilled"
+          ? extractListItems(unwrap(parentProfilesRes.value))
+          : [];
+
+      return buildLookups(studentsRaw, classesRaw, parentProfilesRaw);
+    } catch {
+      return { students: new Map(), classes: new Map(), parentByUserId: new Map() };
+    }
+  };
+
+  const fetchLeaveRequests = async (lookupsOverride?: LeaveRequestLookups) => {
     setLoadingRequests(true);
     setActionError(null);
     try {
       const response = await getLeaveRequests();
       const api = unwrap(response);
       const items = Array.isArray(api?.items) ? api.items : Array.isArray(api) ? api : [];
-      setRequestItems(mapLeaveRequests(items as LeaveRequestRecord[]));
+      setRequestItems(
+        mapLeaveRequests(items as LeaveRequestRecord[], lookupsOverride ?? leaveLookups)
+      );
     } catch {
       setActionError("Không thể tải danh sách đơn xin nghỉ.");
     } finally {
@@ -406,9 +582,14 @@ export default function Page() {
   };
 
   useEffect(() => {
-    fetchLeaveRequests();
-    fetchUsedCredits();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const init = async () => {
+      const lookups = await fetchLeaveLookups();
+      setLeaveLookups(lookups);
+      await fetchLeaveRequests(lookups);
+      await fetchUsedCredits();
+    };
+
+    init();
   }, []);
 
   const stats = useMemo(() => {
@@ -602,7 +783,10 @@ export default function Page() {
           <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="relative w-full md:max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={16}
+                />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -625,7 +809,7 @@ export default function Page() {
                 </select>
 
                 <button
-                  onClick={fetchLeaveRequests}
+                  onClick={() => fetchLeaveRequests()}
                   className="h-11 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
                 >
                   Reload
@@ -648,13 +832,27 @@ export default function Page() {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200">
                   <tr>
-                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Học viên</th>
-                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Phụ huynh</th>
-                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lớp</th>
-                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Thời gian</th>
-                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ghi chú</th>
-                    <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Học viên
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Phụ huynh
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Lớp
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Thời gian
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Trạng thái
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Ghi chú
+                    </th>
+                    <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
+                      Thao tác
+                    </th>
                   </tr>
                 </thead>
 
@@ -764,11 +962,21 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Học viên</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Buổi nghỉ</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Buổi bù</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Tạo lúc</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Học viên
+                  </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Buổi nghỉ
+                  </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Buổi bù
+                  </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Trạng thái
+                  </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Tạo lúc
+                  </th>
                 </tr>
               </thead>
 
@@ -873,7 +1081,7 @@ export default function Page() {
         open={openLeaveModal}
         onClose={() => setOpenLeaveModal(false)}
         onCreated={(record) => {
-          const mapped = mapLeaveRequests([record]);
+          const mapped = mapLeaveRequests([record], leaveLookups);
           setRequestItems((prev) => [...mapped, ...prev]);
           setActiveTab("leave");
         }}
