@@ -13,11 +13,7 @@ import {
 } from "@/lib/api/makeupCreditService";
 import type { StudentClass } from "@/types/student/class";
 
-import type {
-  MakeupCredit,
-  MakeupCreditStudent,
-  MakeupSuggestion,
-} from "@/types/makeupCredit";
+import type { MakeupCredit, MakeupCreditStudent, MakeupSuggestion } from "@/types/makeupCredit";
 
 export type CreateMakeupPayload = {
   studentProfileId: string;
@@ -62,6 +58,17 @@ const formatDateTimeVN = (iso: string) => {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+  });
+};
+
+const formatDateVN = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
 };
 
@@ -154,6 +161,12 @@ const creditId = (c: MakeupCredit) => (pickValue(c, ["id"]) as string | undefine
 const creditStatus = (c: MakeupCredit) => String(pickValue(c, ["status"]) ?? "").toUpperCase();
 const creditSourceSessionId = (c: MakeupCredit) =>
   (pickValue(c, ["sourceSessionId"]) as string | undefined) ?? "";
+const creditClassName = (c: MakeupCredit) =>
+  (pickValue(c, ["className", "classTitle", "sourceClassName"]) as string | undefined) ?? "";
+const creditCreatedAt = (c: MakeupCredit) =>
+  (pickValue(c, ["createdAt", "createdDate"]) as string | undefined) ?? "";
+const creditExpiresAt = (c: MakeupCredit) =>
+  (pickValue(c, ["expiresAt", "expiredAt", "expiryDate"]) as string | undefined) ?? "";
 
 const isUsableCredit = (c: MakeupCredit) => {
   const st = creditStatus(c);
@@ -218,13 +231,76 @@ const toISODateStart = (dateStr?: string) => {
 
 const toISODateEnd = (dateStr?: string) => {
   const baseDate = dateStr ? new Date(dateStr) : new Date();
-  const base = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 23, 59, 59);
+  const base = new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    baseDate.getDate(),
+    23,
+    59,
+    59
+  );
   return `${toDateInputValue(base)}T23:59:59+07:00`;
+};
+
+const plusDaysInputValue = (dateStr: string | undefined, days: number) => {
+  const baseDate = dateStr ? new Date(dateStr) : new Date();
+  const d = new Date(baseDate);
+  d.setDate(d.getDate() + days);
+  return toDateInputValue(d);
 };
 
 const normalizeSessions = (raw: any[]): any[] => {
   if (!Array.isArray(raw)) return [];
   return raw.filter(Boolean);
+};
+
+const toArrayIfAny = (value: any): any[] => {
+  if (Array.isArray(value)) return value;
+  return [];
+};
+
+const extractClassItems = (api: any): any[] => {
+  return toArrayIfAny(
+    api?.items ??
+      api?.classes?.items ??
+      api?.classes ??
+      api?.data?.items ??
+      api?.data?.classes?.items ??
+      api?.data?.classes ??
+      api
+  );
+};
+
+const extractSessionItems = (api: any): any[] => {
+  return toArrayIfAny(
+    api?.sessions?.items ??
+      api?.sessions ??
+      api?.items ??
+      api?.data?.sessions?.items ??
+      api?.data?.sessions ??
+      api?.data?.items ??
+      api
+  );
+};
+
+const fetchTimetableSessions = async ({
+  classId,
+  from,
+  to,
+}: {
+  classId?: string;
+  from?: string;
+  to?: string;
+}) => {
+  const params = new URLSearchParams();
+  if (classId) params.set("classId", classId);
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+
+  const res = await get<any>(`${TEACHER_ENDPOINTS.TIMETABLE}?${params.toString()}`);
+  const api = unwrap(res);
+  const list = extractSessionItems(api);
+  return normalizeSessions(list);
 };
 
 /* ================= component ================= */
@@ -249,6 +325,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
   const [allClassesLoading, setAllClassesLoading] = useState(false);
 
   const [manualSessions, setManualSessions] = useState<any[]>([]);
+  const [manualFallbackSessions, setManualFallbackSessions] = useState<any[]>([]);
   const [manualSessionsLoading, setManualSessionsLoading] = useState(false);
 
   const [payload, setPayload] = useState<CreateMakeupPayload>({
@@ -273,6 +350,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     setSuggestions([]);
     setAllClasses([]);
     setManualSessions([]);
+    setManualFallbackSessions([]);
     setPayload({
       studentProfileId: "",
       makeupCreditId: "",
@@ -328,6 +406,10 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
       setCredits([]);
       setSourceSession(null);
       setSuggestions([]);
+      setAllClasses([]);
+      setManualSessions([]);
+      setManualFallbackSessions([]);
+
       setPayload((p) => ({
         ...p,
         makeupCreditId: "",
@@ -433,7 +515,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     return suggestions.length === 0;
   }, [payload.makeupCreditId, suggestionsLoading, suggestions.length]);
 
-  // load classes for manual selection when no suggestions
+  // load classes + session pool for manual selection when no suggestions
   useEffect(() => {
     if (!open) return;
     if (!shouldEnableManual) return;
@@ -442,19 +524,30 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
       setAllClassesLoading(true);
       setError(null);
       try {
-        const res = await get<any>("/api/classes");
-        const api = unwrap(res);
-        const list = (api?.items ?? api?.classes ?? api) as any[];
-        setAllClasses(Array.isArray(list) ? (list as StudentClass[]) : []);
+        const classesRes = await get<any>("/api/classes?pageNumber=1&pageSize=200");
+        const api = unwrap(classesRes);
+        const list = extractClassItems(api);
+        setAllClasses(list as StudentClass[]);
       } catch {
         setError("Không thể tải danh sách lớp để chọn thủ công.");
+      }
+
+      try {
+        const fallbackSessions = await fetchTimetableSessions({
+          from: toISODateStart(payload.date),
+          to: toISODateEnd(plusDaysInputValue(payload.date, 90)),
+        });
+        setManualFallbackSessions(Array.isArray(fallbackSessions) ? fallbackSessions : []);
+      } catch {
+        // Không block manual class dropdown nếu endpoint buổi học bị giới hạn quyền.
+        setManualFallbackSessions([]);
       } finally {
         setAllClassesLoading(false);
       }
     };
 
     run();
-  }, [open, shouldEnableManual]);
+  }, [open, shouldEnableManual, payload.date]);
 
   // load sessions for manual class selection
   useEffect(() => {
@@ -469,20 +562,37 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
       setManualSessionsLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams();
-        params.set("classId", payload.targetClassId);
-        params.set("from", toISODateStart(payload.date));
-        params.set("to", toISODateEnd(payload.date));
+        const sessionsFromPool = manualFallbackSessions.filter(
+          (s: any) => suggestionClassId(s) === payload.targetClassId
+        );
+        if (sessionsFromPool.length > 0) {
+          setManualSessions(sessionsFromPool);
+          return;
+        }
 
-        const res = await get<any>(`${TEACHER_ENDPOINTS.TIMETABLE}?${params.toString()}`);
-        const api = unwrap(res);
-        const list =
-          (api?.sessions ??
-            api?.items ??
-            api?.data?.sessions ??
-            api?.data?.items ??
-            api) as any[];
-        setManualSessions(normalizeSessions(Array.isArray(list) ? list : []));
+        // Ưu tiên ngày user đang chọn; nếu trống thì fallback mở rộng để user vẫn thấy các buổi tự do khác.
+        const selectedDateSessions = await fetchTimetableSessions({
+          classId: payload.targetClassId,
+          from: toISODateStart(payload.date),
+          to: toISODateEnd(payload.date),
+        });
+
+        if (selectedDateSessions.length > 0) {
+          setManualSessions(selectedDateSessions);
+          return;
+        }
+
+        const startDate = payload.date ? new Date(payload.date) : new Date();
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 90);
+
+        const expandedSessions = await fetchTimetableSessions({
+          classId: payload.targetClassId,
+          from: toISODateStart(toDateInputValue(startDate)),
+          to: toISODateEnd(toDateInputValue(endDate)),
+        });
+
+        setManualSessions(expandedSessions);
       } catch {
         setError("Không thể tải danh sách buổi học để chọn thủ công.");
       } finally {
@@ -491,7 +601,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     };
 
     run();
-  }, [open, shouldEnableManual, payload.targetClassId, payload.date]);
+  }, [open, shouldEnableManual, payload.targetClassId, payload.date, manualFallbackSessions]);
 
   const studentOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -508,8 +618,23 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
       const id = creditId(c);
       const status = creditStatus(c) || "AVAILABLE";
       const src = creditSourceSessionId(c);
-      // label gọn: Available • 605b340e...
-      return { id, label: `${status} • ${src?.slice(0, 8)}…`, raw: c };
+
+      const className = creditClassName(c);
+      const created = formatDateVN(creditCreatedAt(c));
+      const expires = formatDateVN(creditExpiresAt(c));
+
+      const detailParts = [
+        src ? `Source: ${src.slice(0, 8)}…` : "",
+        className ? `Lớp: ${className}` : "",
+        created ? `Tạo: ${created}` : "",
+        expires ? `Hết hạn: ${expires}` : "",
+      ].filter(Boolean);
+
+      return {
+        id,
+        label: `${status}${detailParts.length ? ` • ${detailParts.join(" • ")}` : ""}`,
+        raw: c,
+      };
     });
   }, [credits]);
 
@@ -528,14 +653,24 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
   const manualClassOptions = useMemo(() => {
     const map = new Map<string, string>();
+
     allClasses.forEach((c) => {
       const id = classIdValue(c);
       if (!id) return;
       const label = [classCodeValue(c), classNameValue(c)].filter(Boolean).join(" - ");
       if (!map.has(id)) map.set(id, label || id);
     });
+
+    manualFallbackSessions.forEach((s: any) => {
+      const id = suggestionClassId(s);
+      if (!id || map.has(id)) return;
+      const code = suggestionClassCode(s);
+      const name = suggestionClassName(s);
+      map.set(id, [code, name].filter(Boolean).join(" - ") || id);
+    });
+
     return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
-  }, [allClasses]);
+  }, [allClasses, manualFallbackSessions]);
 
   const filteredSessions = useMemo(() => {
     if (!payload.targetClassId) return [];
@@ -650,14 +785,13 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                   value={payload.makeupCreditId}
                   disabled={!payload.studentProfileId || creditsLoading}
                   onChange={(e) => {
-                    const creditId = e.target.value;
+                    const creditIdValue = e.target.value;
                     setPayload((p) => ({
                       ...p,
-                      makeupCreditId: creditId,
+                      makeupCreditId: creditIdValue,
                       fromClassId: "",
                       targetClassId: "",
                       targetSessionId: "",
-                      // giữ date/time nếu user đã chọn; nếu chưa thì effect credit sẽ set default theo sourceSession
                       date: p.date,
                       time: p.time,
                     }));
@@ -682,7 +816,9 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                   {creditsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
                 </div>
               </div>
-              <div className="text-xs text-gray-500">Chọn makeup credit để hiện lớp nguồn & gọi suggestions.</div>
+              <div className="text-xs text-gray-500">
+                Chọn makeup credit để hiện lớp nguồn & gọi suggestions.
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -821,7 +957,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
             </div>
           </div>
 
-          {/* Date & time (đổi date/time sẽ refetch suggestions vì useEffect) */}
+          {/* Date & time */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
