@@ -9,6 +9,7 @@ import { ROLES } from "@/lib/role";
 import type { UserProfile } from "@/types/auth";
 import { clearAccessToken, clearRefreshToken, setAccessToken } from "@/lib/store/authToken";
 import * as authService from "@/lib/api/authService";
+import { writeSelectedProfile } from "@/hooks/useSelectedStudentProfile";
 import {
   Avatar,
   AvatarFallback,
@@ -167,6 +168,11 @@ export default function AccountChooser({ locale }: Props) {
  if (response.data?.accessToken) {
         setAccessToken(response.data.accessToken);
       }
+
+      // Save selected student profile to localStorage for portal pages
+      const selected = response.data?.selectedProfile ?? profile;
+      writeSelectedProfile(selected);
+
       // Update server-side role cookie to allow portal access
       await setServerSession({
         role: "STUDENT",

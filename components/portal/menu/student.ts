@@ -100,10 +100,10 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     false
   );
 
-  // 💬 Giao tiếp (Communications)
-  const communicationsGroup = makeGroup(
+  // 💬 Applications
+  const applicationsGroup = makeGroup(
     root,
-    t.groups.communications,
+    t.groups.applications,
     MessageCircle,
     [
       [t.items.messages, MessageSquare, "/messages"],
@@ -120,6 +120,6 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     reportsTestsGroup,
     gamificationGroup,
     mediaGroup,
-    communicationsGroup,
+    applicationsGroup,
   ];
 }
