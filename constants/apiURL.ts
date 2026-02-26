@@ -50,6 +50,10 @@ export const STUDENT_CLASS_ENDPOINTS = {
   GET_BY_TOKEN: "/api/students/classes",
 } as const;
 
+export const STUDENT_HOMEWORK_ENDPOINTS = {
+  GET_MY_HOMEWORK: "api/students/homework/my",
+} as const;
+
 export const BACKEND_STUDENT_ENDPOINTS = {
   GET_ALL: () => `/profiles`,
 } as const;

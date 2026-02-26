@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+
 import {
   ClipboardList,
   UploadCloud,
@@ -32,10 +34,11 @@ import {
   Trash2,
   FileText,
   Upload,
-  Award
+  Award,
+  Edit
 } from "lucide-react";
 
-import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSessions, deleteHomework, fetchHomeworkDetail } from "@/lib/api/homeworkService";
+import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSessions, deleteHomework, fetchHomeworkDetail, updateHomework } from "@/lib/api/homeworkService";
 import type { HomeworkSubmission, CreateHomeworkPayload, ClassOption, SessionOption } from "@/types/teacher/homework";
 
 type SubmissionStatus = "PENDING" | "SUBMITTED" | "REVIEWED" | "OVERDUE";
@@ -61,6 +64,9 @@ type Submission = {
   attachments?: any[];
   content?: string;
   status?: SubmissionStatus;
+  // Session/Buổi học
+  session?: string;
+  sessionId?: string;
 };
 
 const STATUS_CONFIG: Record<SubmissionStatus, {
@@ -192,7 +198,7 @@ function FileTypeBadge({ type }: { type: string }) {
   );
 }
 
-function SubmissionRow({ item, onDelete, onViewDetail }: { item: Submission; onDelete: (id: string) => void; onViewDetail: (item: Submission) => void }) {
+function SubmissionRow({ item, onDelete, onViewDetail, onUpdate }: { item: Submission; onDelete: (id: string) => void; onViewDetail: (item: Submission) => void; onUpdate: (item: Submission) => void }) {
   return (
     <tr className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 border-b border-red-100">
       {/* Student Info */}
@@ -209,6 +215,11 @@ function SubmissionRow({ item, onDelete, onViewDetail }: { item: Submission; onD
       {/* Assignment Title */}
       <td className="py-4 px-6">
         <div className="text-sm font-medium text-gray-900">{item.assignmentTitle}</div>
+      </td>
+
+      {/* Session / Buổi học */}
+      <td className="py-4 px-6">
+        <div className="text-sm text-gray-900">{item.session || "-"}</div>
       </td>
 
       {/* Due Date */}
@@ -241,12 +252,19 @@ function SubmissionRow({ item, onDelete, onViewDetail }: { item: Submission; onD
       {/* Actions */}
       <td className="py-4 px-6">
         <div className="flex items-center gap-1">
-          <button 
+          <button
             onClick={() => onViewDetail(item)}
-            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer" 
+            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
             title="Xem chi tiết"
           >
             <Eye size={14} />
+          </button>
+          <button
+            onClick={() => onUpdate(item)}
+            className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+            title="Cập nhật bài tập"
+          >
+            <Edit size={14} />
           </button>
           <button className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer" title="Tải xuống">
             <Download size={14} />
@@ -700,6 +718,255 @@ function CreateAssignmentModal({
   );
 }
 
+// Update Assignment Modal Component
+function UpdateAssignmentModal({
+  homework,
+  onClose,
+  onSuccess
+}: {
+  homework: Submission;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  // Parse existing due date
+  const parseDueDate = (dueDateStr: string) => {
+    if (!dueDateStr) return { date: "", time: "23:59" };
+    try {
+      // dueDateStr is in format "DD/MM/YYYY, HH:mm" or ISO string
+      let dateObj: Date;
+      if (dueDateStr.includes("/")) {
+        const [datePart, timePart] = dueDateStr.split(", ");
+        const [day, month, year] = datePart.split("/").map(Number);
+        const [hours, minutes] = timePart.split(":").map(Number);
+        dateObj = new Date(year, month - 1, day, hours, minutes);
+      } else {
+        dateObj = new Date(dueDateStr);
+      }
+      return {
+        date: dateObj.toISOString().split("T")[0],
+        time: `${String(dateObj.getHours()).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`
+      };
+    } catch {
+      return { date: "", time: "23:59" };
+    }
+  };
+
+  const initialDue = parseDueDate(homework.dueDate);
+
+  const [title, setTitle] = useState(homework.assignmentTitle || "");
+  const [description, setDescription] = useState(homework.description || "");
+  const [dueDate, setDueDate] = useState(initialDue.date);
+  const [dueTime, setDueTime] = useState(initialDue.time);
+  const [book, setBook] = useState("");
+  const [pages, setPages] = useState("");
+  const [skills, setSkills] = useState(homework.skills || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!title.trim()) {
+      setError("Vui lòng nhập tiêu đề bài tập");
+      return;
+    }
+    if (!dueDate) {
+      setError("Vui lòng chọn ngày hết hạn");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const payload = {
+        title,
+        description: description || undefined,
+        dueAt: `${dueDate}T${dueTime}:00+07:00`,
+        book: book || undefined,
+        pages: pages || undefined,
+        skills: skills || undefined,
+      };
+
+      const homeworkId = homework.assignmentId || homework.id;
+      const result = await updateHomework(homeworkId, payload);
+
+      if (result.ok) {
+        onSuccess();
+      } else {
+        setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");
+      }
+    } catch (err) {
+      setError("Có lỗi xảy ra. Vui lòng thử lại.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-xl">
+              <Edit size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Cập nhật bài tập</h2>
+              <p className="text-sm text-gray-600">Chỉnh sửa thông tin bài tập</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+          >
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tiêu đề bài tập <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-300 focus:border-transparent outline-none"
+              placeholder="Nhập tiêu đề bài tập..."
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Mô tả bài tập
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-300 focus:border-transparent outline-none resize-none"
+              placeholder="Nhập mô tả chi tiết về bài tập..."
+            />
+          </div>
+
+          {/* Due Date & Time */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ngày hết hạn <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-300 focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Giờ hết hạn
+              </label>
+              <input
+                type="time"
+                value={dueTime}
+                onChange={(e) => setDueTime(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-300 focus:border-transparent outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Book, Pages, Skills */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Sách bài tập
+              </label>
+              <input
+                type="text"
+                value={book}
+                onChange={(e) => setBook(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-300 focus:border-transparent outline-none"
+                placeholder="Tên sách..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Trang
+              </label>
+              <input
+                type="text"
+                value={pages}
+                onChange={(e) => setPages(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-300 focus:border-transparent outline-none"
+                placeholder="Trang..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Kỹ năng
+              </label>
+              <input
+                type="text"
+                value={skills}
+                onChange={(e) => setSkills(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-300 focus:border-transparent outline-none"
+                placeholder="Kỹ năng..."
+              />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium cursor-pointer"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:shadow-lg transition-all font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Đang cập nhật...
+                </>
+              ) : (
+                <>
+                  <Edit size={16} />
+                  Cập nhật bài tập
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function Pagination({
   currentPage,
   totalPages,
@@ -801,6 +1068,7 @@ function Pagination({
 }
 
 export default function TeacherAssignmentsPage() {
+  const router = useRouter();
   const [filter, setFilter] = useState<SubmissionStatus | "ALL">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState<string>("ALL");
@@ -812,6 +1080,10 @@ export default function TeacherAssignmentsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [homeworkToDelete, setHomeworkToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // Update modal states
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [homeworkToUpdate, setHomeworkToUpdate] = useState<Submission | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [meta, setMeta] = useState<{ totalItems: number; totalPages: number; pageNumber: number; pageSize: number }>({
@@ -830,6 +1102,7 @@ export default function TeacherAssignmentsPage() {
   // Fetch homework from API
   const loadHomework = useCallback(async (page: number = 1) => {
     setIsLoading(true);
+    setCurrentPage(page);
     try {
       const result = await fetchHomework({
         pageNumber: page,
@@ -864,41 +1137,17 @@ export default function TeacherAssignmentsPage() {
     setDeleteModalOpen(true);
   };
 
-  // Handle view homework detail
-  const handleViewDetail = async (item: Submission) => {
-    setSelectedHomework(item);
-    setDetailModalOpen(true);
-    setIsLoadingDetail(true);
-    
-    try {
-      // Use assignmentId if available, otherwise use id
-      const homeworkId = item.assignmentId || item.id;
-      const result = await fetchHomeworkDetail(homeworkId);
-      
-      if (result.ok && result.data) {
-        // Update selected homework with additional details from API
-        setSelectedHomework({
-          ...item,
-          assignmentId: result.data.assignmentId,
-          submittedAt: result.data.submittedAt,
-          attachments: result.data.attachments,
-          content: result.data.content,
-          status: result.data.status,
-          description: result.data.description || item.description,
-          skills: result.data.skills || item.skills,
-        });
-      }
-    } catch (error) {
-      console.error("Error loading homework detail:", error);
-    } finally {
-      setIsLoadingDetail(false);
-    }
+  // Handle view homework detail - navigate to detail page
+  const handleViewDetail = (item: Submission) => {
+    // Use assignmentId if available, otherwise use id
+    const homeworkId = item.assignmentId || item.id;
+    router.push(`/vi/portal/teacher/assignments/${homeworkId}`);
   };
 
   // Xác nhận xóa homework
   const confirmDeleteHomework = async () => {
     if (!homeworkToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       const result = await deleteHomework(homeworkToDelete);
@@ -914,6 +1163,44 @@ export default function TeacherAssignmentsPage() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  // Mở modal cập nhật homework
+  const handleUpdateHomework = (item: Submission) => {
+    setHomeworkToUpdate(item);
+    setUpdateModalOpen(true);
+  };
+
+  // Xác nhận cập nhật homework
+  const confirmUpdateHomework = async (updatedData: {
+    title: string;
+    description: string;
+    dueAt: string;
+    book?: string;
+    pages?: string;
+    skills?: string;
+  }) => {
+    if (!homeworkToUpdate) return;
+
+    setIsUpdating(true);
+    try {
+      const homeworkId = homeworkToUpdate.assignmentId || homeworkToUpdate.id;
+      const result = await updateHomework(homeworkId, updatedData);
+      if (result.ok) {
+        setUpdateModalOpen(false);
+        setHomeworkToUpdate(null);
+        loadHomework(1);
+      } else {
+        console.error("Failed to update homework:", result.error);
+        return { ok: false, error: result.error };
+      }
+    } catch (error) {
+      console.error("Error updating homework:", error);
+      return { ok: false, error: "Có lỗi xảy ra" };
+    } finally {
+      setIsUpdating(false);
+    }
+    return { ok: true };
   };
 
   // Initial load
@@ -977,11 +1264,8 @@ export default function TeacherAssignmentsPage() {
     setCurrentPage(1);
   }, [filter, searchQuery, selectedClass]);
 
-  // Pagination calculations
+  // Pagination calculations - API handles pagination, no client-side slicing needed
   const totalPages = Math.ceil(meta.totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedSubmissions = filtered.slice(startIndex, endIndex);
 
   const stats = useMemo(() => {
     const total = submissions.length;
@@ -1114,7 +1398,7 @@ export default function TeacherAssignmentsPage() {
                 <tr>
                   <th className="py-3 px-6 text-left">
                     <SortableHeader
-                      label="Học viên & Lớp"
+                      label="Lớp"
                       column="student"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
@@ -1130,6 +1414,7 @@ export default function TeacherAssignmentsPage() {
                       onSort={handleSort}
                     />
                   </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Buổi học</th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Hạn nộp</th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Tệp đính kèm</th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Kỹ năng</th>
@@ -1140,18 +1425,18 @@ export default function TeacherAssignmentsPage() {
               <tbody className="divide-y divide-red-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center">
+                    <td colSpan={8} className="py-12 text-center">
                       <Loader2 size={32} className="animate-spin mx-auto text-red-600 mb-4" />
                       <p className="text-gray-600">Đang tải dữ liệu...</p>
                     </td>
                   </tr>
-                ) : paginatedSubmissions.length > 0 ? (
-                  paginatedSubmissions.map((item) => (
-                    <SubmissionRow key={item.id} item={item} onDelete={handleDeleteHomework} onViewDetail={handleViewDetail} />
+                ) : submissions.length > 0 ? (
+                  submissions.map((item) => (
+                    <SubmissionRow key={item.id} item={item} onDelete={handleDeleteHomework} onViewDetail={handleViewDetail} onUpdate={handleUpdateHomework} />
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center">
+                    <td colSpan={8} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                         <Search size={24} className="text-red-400" />
                       </div>
@@ -1169,12 +1454,12 @@ export default function TeacherAssignmentsPage() {
             <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-gray-600">
-                  Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, filtered.length)}</span> trong tổng số{" "}
-                  <span className="font-semibold text-gray-900">{filtered.length}</span> bài nộp
+                  Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, meta.totalItems)}</span> trong tổng số{" "}
+                  <span className="font-semibold text-gray-900">{meta.totalItems}</span> bài nộp
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    onClick={() => loadHomework(currentPage - 1)}
                     disabled={currentPage === 1}
                     className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
@@ -1184,7 +1469,7 @@ export default function TeacherAssignmentsPage() {
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                       <button
                         key={page}
-                        onClick={() => setCurrentPage(page)}
+                        onClick={() => loadHomework(page)}
                         className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                           page === currentPage
                             ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
@@ -1196,7 +1481,7 @@ export default function TeacherAssignmentsPage() {
                     ))}
                   </div>
                   <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    onClick={() => loadHomework(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
@@ -1289,6 +1574,22 @@ export default function TeacherAssignmentsPage() {
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={() => {
             setIsCreateModalOpen(false);
+            loadHomework(1);
+          }}
+        />
+      )}
+
+      {/* Update Homework Modal */}
+      {updateModalOpen && homeworkToUpdate && (
+        <UpdateAssignmentModal
+          homework={homeworkToUpdate}
+          onClose={() => {
+            setUpdateModalOpen(false);
+            setHomeworkToUpdate(null);
+          }}
+          onSuccess={() => {
+            setUpdateModalOpen(false);
+            setHomeworkToUpdate(null);
             loadHomework(1);
           }}
         />

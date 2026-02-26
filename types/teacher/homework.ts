@@ -54,28 +54,33 @@ export interface HomeworkSubmission {
   classTitle: string;
   branchId?: string;
   branchName?: string;
-  
+
+  // Session/Buổi học info
+  sessionId?: string;
+  sessionName?: string;
+  plannedDateTime?: string;
+
   // Submission details
   submittedAt?: string;
   content?: string;
   attachments?: HomeworkAttachment[];
-  
+
   // Status
   status: SubmissionStatus;
   isLate: boolean;
-  
+
   // Grading
   score?: number;
   maxScore?: number;
   feedback?: string;
   gradedAt?: string;
   gradedBy?: string;
-  
+
   // Assignment info
   dueAt: string;
   description?: string;
   skills?: string;
-  
+
   // Timestamps
   createdAt: string;
   updatedAt: string;
@@ -127,6 +132,7 @@ export interface SessionOption {
   id: string;
   name: string;
   date?: string;
+  plannedDateTime?: string;
 }
 
 // ============ Action Result Types ============
