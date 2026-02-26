@@ -45,8 +45,10 @@ export default function Contact() {
     const fetchBranches = async () => {
       try {
         const response = await getAllBranchesPublic({ isActive: true });
-        if (response.success && response.data) {
-          setBranches(response.data.branches || []);
+        // Check both success and isSuccess fields
+        if ((response.success || response.isSuccess) && response.data) {
+          const branchList = response.data.branches || [];
+          setBranches(branchList);
         }
       } catch (error) {
         console.error("Error fetching branches:", error);
@@ -392,12 +394,17 @@ export default function Contact() {
                       onChange={(e) => setForm({ ...form, branchPreference: e.target.value })}
                       disabled={isLoadingBranches}
                     >
-                      <option value="">Chọn chi nhánh</option>
-                      {branches.map((branch) => (
+                      <option value="">
+                        {isLoadingBranches ? "Đang tải chi nhánh..." : "Chọn chi nhánh"}
+                      </option>
+                      {!isLoadingBranches && branches.length > 0 && branches.map((branch) => (
                         <option key={branch.id} value={branch.id}>
                           {branch.name}
                         </option>
                       ))}
+                      {!isLoadingBranches && branches.length === 0 && (
+                        <option value="" disabled>Không có chi nhánh nào</option>
+                      )}
                     </select>
                   </div>
 

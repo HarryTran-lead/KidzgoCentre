@@ -12,6 +12,7 @@ import {
   Settings,
   Building,
   BarChart3,
+  FileText,
 } from "lucide-react";
 import { makeMenu, makeGroup, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -47,6 +48,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.system.accounts, Settings, "/accounts"],
     [t.groups.system.teachers, Users, "/teachers"],
     [t.groups.system.branches, Building2, "/branches"],
+    [t.groups.system.blogs, FileText, "/blogs"],
     [t.groups.system.reports, BarChart3, "/reports"],
     [t.groups.system.settings, Settings, "/settings"],
   ];

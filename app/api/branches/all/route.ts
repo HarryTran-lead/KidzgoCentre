@@ -4,38 +4,33 @@ import type { GetAllBranchesApiResponse } from "@/types/branch";
 
 /**
  * GET /api/branches/all
- * Public endpoint for all roles to get branches
- * Different from /api/branches which requires admin role
+ * Public endpoint - accessible without authentication
+ * Used by customers on contact form to select branches
  */
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get("authorization");
-
-    if (!authHeader) {
-      return NextResponse.json(
-        {
-          success: false,
-          data: null,
-          message: "Chưa đăng nhập",
-        },
-        { status: 401 }
-      );
-    }
-
     // Get query params from URL
     const { searchParams } = new URL(req.url);
     const queryString = searchParams.toString();
     
-    // Use the /all endpoint from backend
+    // Use the /all endpoint from backend (public endpoint)
     const url = buildApiUrl(`${BACKEND_BRANCH_ENDPOINTS.GET_ALL}/all`);
     const fullUrl = queryString ? `${url}?${queryString}` : url;
 
+    // Optional: Include auth header if available (for logged-in users)
+    // But don't require it (for public access)
+    const authHeader = req.headers.get("authorization");
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
+    }
+
     const upstream = await fetch(fullUrl, {
       method: "GET",
-      headers: {
-        "Authorization": authHeader,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
 
     const data: GetAllBranchesApiResponse = await upstream.json();
