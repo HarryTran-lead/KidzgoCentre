@@ -1,6 +1,6 @@
 export type ClassRow = {
-  id: string; // UUID for API calls
-  code: string; // Display code like "TS12"
+  id: string; 
+  code: string; 
   name: string;
   sub: string;
   teacher: string;

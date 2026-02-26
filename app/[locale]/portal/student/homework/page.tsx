@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   Search,
@@ -12,6 +12,7 @@ import {
   CheckCircle,
   BookOpen,
   Award,
+  Loader2,
 } from "lucide-react";
 import { Card } from "@/components/lightswind/card";
 import { Button } from "@/components/lightswind/button";
@@ -22,6 +23,7 @@ import type {
   AssignmentType,
   SortOption,
 } from "@/types/student/homework";
+import { getStudentHomework } from "@/lib/api/studentService";
 
 // --- Components con ---
 
@@ -70,62 +72,6 @@ function StatusBadge({
   );
 }
 
-// Sample Data (Giữ nguyên hoặc mock thêm để test)
-const SAMPLE_ASSIGNMENTS: AssignmentListItem[] = [
-  {
-    id: "1",
-    title: "Thuyết trình nhóm: Daily Routines",
-    subject: "Tiếng Anh",
-    className: "Lớp A1",
-    assignedDate: "05/12/2024",
-    dueDate: "12/12/2024",
-    status: "MISSING",
-    type: "PRESENTATION",
-    submissionCount: 0,
-    hasAttachments: true,
-  },
-  {
-    id: "2",
-    title: "Quiz Grammar - Present Simple",
-    subject: "Tiếng Anh",
-    className: "Lớp A1",
-    assignedDate: "10/12/2024",
-    dueDate: "17/12/2024",
-    status: "LATE",
-    type: "QUIZ",
-    score: 7,
-    maxScore: 10,
-    submissionCount: 1,
-    hasAttachments: false,
-  },
-  {
-    id: "3",
-    title: "Worksheet Unit 5",
-    subject: "Tiếng Anh",
-    className: "Lớp A1",
-    assignedDate: "18/12/2024",
-    dueDate: "21/12/2024",
-    status: "SUBMITTED",
-    type: "FILE_UPLOAD",
-    score: 9.5,
-    maxScore: 10,
-    submissionCount: 1,
-    hasAttachments: false,
-  },
-  {
-    id: "4",
-    title: "Bài viết: Giáng Sinh",
-    subject: "Tiếng Anh",
-    className: "Lớp A1",
-    assignedDate: "15/12/2024",
-    dueDate: "22/12/2024",
-    status: "PENDING", // Giả lập trạng thái chưa nộp trong hình
-    type: "ESSAY",
-    submissionCount: 0,
-    hasAttachments: true,
-  },
-];
-
 export default function HomeworkPage() {
   const router = useRouter();
   const params = useParams();
@@ -134,21 +80,60 @@ export default function HomeworkPage() {
   // Mặc định filter "Tất cả" là array rỗng
   const [statusFilter, setStatusFilter] = useState<string>("ALL"); 
   const [sortBy, setSortBy] = useState<SortOption>("DUE_DATE_ASC");
+  
+  // API state
+  const [assignments, setAssignments] = useState<AssignmentListItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Stats calculation (simplified)
+  // Fetch homework from API
+  useEffect(() => {
+    const fetchHomework = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Map status filter to API status
+        let apiStatus: number | undefined;
+        if (statusFilter === "PENDING") apiStatus = 1;
+        else if (statusFilter === "SUBMITTED") apiStatus = 2;
+        else if (statusFilter === "MISSING") apiStatus = 3;
+        
+        const response = await getStudentHomework({
+          status: apiStatus,
+          pageNumber: 1,
+          pageSize: 100,
+        });
+        
+        if (response.isSuccess && response.data?.homeworkAssignments?.items) {
+          setAssignments(response.data.homeworkAssignments.items);
+        } else {
+          setAssignments([]);
+        }
+      } catch (err) {
+        console.error("Error fetching homework:", err);
+        setAssignments([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHomework();
+  }, [statusFilter]);
+
+  // Stats calculation
   const stats = useMemo(() => {
     return {
-      total: SAMPLE_ASSIGNMENTS.length,
-      notSubmitted: SAMPLE_ASSIGNMENTS.filter(a => a.status === 'PENDING').length,
-      submitted: SAMPLE_ASSIGNMENTS.filter(a => a.status === 'SUBMITTED').length,
-      late: SAMPLE_ASSIGNMENTS.filter(a => a.status === 'LATE').length,
-      missing: SAMPLE_ASSIGNMENTS.filter(a => a.status === 'MISSING').length,
+      total: assignments.length,
+      notSubmitted: assignments.filter(a => a.status === 'PENDING').length,
+      submitted: assignments.filter(a => a.status === 'SUBMITTED').length,
+      late: assignments.filter(a => a.status === 'LATE').length,
+      missing: assignments.filter(a => a.status === 'MISSING').length,
     };
-  }, []);
+  }, [assignments]);
 
   // Filter logic
   const filteredAssignments = useMemo(() => {
-    let result = [...SAMPLE_ASSIGNMENTS];
+    let result = [...assignments];
     if (searchQuery) {
       result = result.filter(a => 
         a.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -160,7 +145,7 @@ export default function HomeworkPage() {
     }
     // Sort logic here...
     return result;
-  }, [searchQuery, statusFilter, sortBy]);
+  }, [searchQuery, statusFilter, sortBy, assignments]);
 
   const getTypeIcon = (type: AssignmentType) => {
     switch (type) {
@@ -240,8 +225,40 @@ export default function HomeworkPage() {
 
       {/* List Content */}
       <div className="flex-1 px-6 pb-6 overflow-y-auto custom-scrollbar">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredAssignments.map((assignment) => {
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-white" />
+            <span className="ml-3 text-white font-semibold">Đang tải bài tập...</span>
+          </div>
+        )}
+
+        {/* Error State */}
+        {!isLoading && error && (
+          <div className="flex flex-col items-center justify-center py-20">
+            <p className="text-white font-semibold mb-2">Đã xảy ra lỗi khi tải bài tập</p>
+            <Button 
+              onClick={() => window.location.reload()}
+              className="bg-white/20 hover:bg-white/30 text-white"
+            >
+              Thử lại
+            </Button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !error && filteredAssignments.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20">
+            <FileText className="w-16 h-16 text-white/50 mb-4" />
+            <p className="text-white font-semibold text-lg">Không có bài tập nào</p>
+            <p className="text-white/70">Danh sách bài tập trống</p>
+          </div>
+        )}
+
+        {/* Assignments List */}
+        {!isLoading && !error && filteredAssignments.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filteredAssignments.map((assignment) => {
             const isMissing = assignment.status === 'MISSING';
             const isSubmitted = assignment.status === 'SUBMITTED' || (assignment.status === 'LATE' && assignment.score);
 
@@ -312,7 +329,8 @@ export default function HomeworkPage() {
               </Card>
             );
           })}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

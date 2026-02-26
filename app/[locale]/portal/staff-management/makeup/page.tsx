@@ -22,8 +22,7 @@ import {
 
 import type { LeaveRequestRecord } from "@/types/leaveRequest";
 
-import { getMakeupCredits } from "@/lib/api/makeupCreditService";
-import type { MakeupCredit } from "@/types/makeupCredit";
+import { getMakeupCredits, useMakeupCredit as applyMakeupCredit } from "@/lib/api/makeupCreditService";import type { MakeupCredit } from "@/types/makeupCredit";
 
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
 import MakeupSessionCreateModal, {
@@ -532,8 +531,7 @@ export default function Page() {
     try {
       const response = await getLeaveRequests();
       const api = unwrap(response);
-      const items = Array.isArray(api?.items) ? api.items : Array.isArray(api) ? api : [];
-      setRequestItems(
+   const items = Array.isArray(api?.items) ? api.items : Array.isArray(api?.data?.items) ? api.data.items : Array.isArray(api) ? api : [];      setRequestItems(
         mapLeaveRequests(items as LeaveRequestRecord[], lookupsOverride ?? leaveLookups)
       );
     } catch {
@@ -547,10 +545,13 @@ export default function Page() {
     setLoadingUsedCredits(true);
     setUsedError(null);
     try {
-      const response = await getMakeupCredits({ status: "used", pageNumber: 1, pageSize: 100 });
-      const api = unwrap(response);
-      const items = Array.isArray(api?.items) ? api.items : Array.isArray(api) ? api : [];
-      const mapped = mapUsedMakeupCredits(items as MakeupCredit[]);
+ const response = await getMakeupCredits({ pageNumber: 1, pageSize: 200 });      const api = unwrap(response);
+      const items = Array.isArray(api?.items) ? api.items : Array.isArray(api?.data?.items) ? api.data.items : Array.isArray(api) ? api : [];
+      const usedItems = (items as MakeupCredit[]).filter((item) => {
+        const st = String(item?.status ?? "").toUpperCase();
+        return st.includes("USED") || Boolean(item?.usedSessionId);
+      });
+      const mapped = mapUsedMakeupCredits(usedItems);
 
       const sessionIds = new Set<string>();
       mapped.forEach((credit) => {
@@ -1091,6 +1092,13 @@ export default function Page() {
         open={openMakeupModal}
         onClose={() => setOpenMakeupModal(false)}
         onCreate={async (payload: CreateMakeupPayload) => {
+            await applyMakeupCredit(payload.makeupCreditId, {
+            classId: payload.targetClassId,
+            targetSessionId: payload.targetSessionId,
+            date: payload.date,
+            time: payload.time,
+            note: payload.note,
+          });
           await fetchUsedCredits();
           setActiveTab("makeup");
         }}

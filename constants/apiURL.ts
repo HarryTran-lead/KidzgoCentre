@@ -15,12 +15,7 @@ export const buildApiUrl = (endpoint: string): string => {
   const base = ep.startsWith("/GetAll/") ? ROOT_BASE_URL : BASE_URL;
 
   return `${base}${ep}`;
-  // Ensure BASE_URL ends with /api if it doesn't already
-  const baseUrl = BASE_URL || '';
-  const apiBase = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
-  return `${apiBase}${endpoint}`;
 };
-
 
 // Build client API URL (from browser to Next.js API Routes)
 export const buildClientApiUrl = (endpoint: string): string => {
@@ -48,14 +43,19 @@ export const AUTH_ENDPOINTS = {
 
 export const STUDENT_ENDPOINTS = {
   GET_ALL: "/api/profiles",
-   GET_CLASSES: () => `/api/students/classes`,
-
+  GET_CLASSES: () => `/api/students/classes`,
 } as const;
+
 export const STUDENT_CLASS_ENDPOINTS = {
   GET_BY_TOKEN: "/api/students/classes",
 } as const;
+
+export const STUDENT_HOMEWORK_ENDPOINTS = {
+  GET_MY_HOMEWORK: "api/students/homework/my",
+} as const;
+
 export const BACKEND_STUDENT_ENDPOINTS = {
-GET_ALL: () => `/profiles`,
+  GET_ALL: () => `/profiles`,
 } as const;
 
 export const CLASS_ENDPOINTS = {
@@ -64,35 +64,39 @@ export const CLASS_ENDPOINTS = {
 } as const;
 
 export const MAKEUP_CREDIT_ENDPOINTS = {
-    STUDENTS: "/api/makeup-credits/students",
+  STUDENTS: "/api/makeup-credits/students",
   GET_ALL: "/api/makeup-credits/all",
-    GET_BY_ID: (id: string) => `/api/makeup-credits/${id}`,
+  GET_BY_ID: (id: string) => `/api/makeup-credits/${id}`,
   SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
   USE: (id: string) => `/api/makeup-credits/${id}/use`,
 } as const;
+
 export const SESSION_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/api/sessions/${id}`,
 } as const;
 
 // Next API → Backend
 export const BACKEND_SESSION_ENDPOINTS = {
-  GET_BY_ID: (id: string) => `/sessions/${id}`, // nếu backend bạn khác path thì sửa chỗ này
+  GET_ALL: '/sessions',
+  GET_BY_ID: (id: string) => `/sessions/${id}`,
+  CREATE: '/sessions',
+  UPDATE: (id: string) => `/sessions/${id}`,
+  DELETE: (id: string) => `/sessions/${id}`,
 } as const;
+
 export const BACKEND_CLASS_ENDPOINTS = {
-  
   GET_ALL: () => "/classes",
   GET_BY_ID: (id: string) => `/classes/${id}`,
 } as const;
 
 export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
-    STUDENTS: "/makeup-credits/students",
-
+  STUDENTS: "/makeup-credits/students",
   GET_ALL: "/makeup-credits/all",
-    GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
-
+  GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
   SUGGESTIONS: (id: string) => `/makeup-credits/${id}/suggestions`,
   USE: (id: string) => `/makeup-credits/${id}/use`,
 } as const;
+
 // Backend Auth Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_AUTH_ENDPOINTS = {
   // Authentication
@@ -185,13 +189,9 @@ export const TEACHER_ENDPOINTS = {
   ATTENDANCE: '/api/attendance',
   ATTENDANCE_STUDENTS: '/api/attendance/students',
   SESSIONS: '/api/sessions',
-   SESSION_REPORTS: '/api/session-reports',
-  SESSION_REPORT_BY_ID: (id: string) => `/api/session-reports/${id}`,
-} as const;
-
-export const BACKEND_SESSION_REPORT_ENDPOINTS = {
-  CREATE: '/session-reports',
-  UPDATE: (id: string) => `/session-reports/${id}`,
+  HOMEWORK: '/api/homework',
+  SESSION_REPORTS: '/api/teacher/session-reports',
+  SESSION_REPORT_BY_ID: (id: string) => `/api/teacher/session-reports/${id}`,
 } as const;
 
 // Admin Endpoints (client-side -> Next.js API Routes)
@@ -208,7 +208,7 @@ export const ADMIN_ENDPOINTS = {
 export const LEAD_ENDPOINTS = {
   // Public endpoint - no authentication required
   CREATE_PUBLIC: '/api/leads/public',
-  
+
   // Authenticated endpoints
   GET_ALL: '/api/leads',
   GET_BY_ID: (id: string) => `/api/leads/${id}`,
@@ -220,7 +220,7 @@ export const LEAD_ENDPOINTS = {
   ADD_NOTE: (id: string) => `/api/leads/${id}/notes`,
   GET_ACTIVITIES: (id: string) => `/api/leads/${id}/activities`,
   GET_SLA: (id: string) => `/api/leads/${id}/sla`,
-  
+
   // Children endpoints
   GET_CHILDREN: (leadId: string) => `/api/leads/${leadId}/children`,
   CREATE_CHILD: (leadId: string) => `/api/leads/${leadId}/children`,
@@ -241,7 +241,7 @@ export const BACKEND_LEAD_ENDPOINTS = {
   ADD_NOTE: (id: string) => `/leads/${id}/notes`,
   GET_ACTIVITIES: (id: string) => `/leads/${id}/activities`,
   GET_SLA: (id: string) => `/leads/${id}/sla`,
-  
+
   // Children endpoints
   GET_CHILDREN: (leadId: string) => `/leads/${leadId}/children`,
   CREATE_CHILD: (leadId: string) => `/leads/${leadId}/children`,
@@ -324,7 +324,6 @@ export const BACKEND_PROFILE_ENDPOINTS = {
 } as const;
 
 // Backend Admin Endpoints (Next.js API Routes → Backend API)
-// Note: buildApiUrl automatically adds /api prefix, so endpoints here should NOT include /api
 export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSES: '/classes',
   CLASSES_BY_ID: (id: string) => `/classes/${id}`,
@@ -365,3 +364,8 @@ export const BACKEND_BLOG_ENDPOINTS = {
   GET_PUBLISHED: '/blogs/published',
 } as const;
 
+// Backend Session Report Endpoints
+export const BACKEND_SESSION_REPORT_ENDPOINTS = {
+  CREATE: '/session-reports',
+  UPDATE: (id: string) => `/session-reports/${id}`,
+} as const;
