@@ -665,7 +665,7 @@ const loadSessionReports = async () => {
   };
   const syncSessionReportsWithAttendance = useCallback(async () => {
     if (!selectedSessionId) return;
-    
+
     const reportSyncTasks = attendanceList
       .map((student) => {
         const studentProfileId = String(student.studentId ?? "").trim();
@@ -681,6 +681,7 @@ const loadSessionReports = async () => {
         if (note === existingFeedback && existingReportId) return null;
 
         return async () => {
+          if (!selectedSessionId) return null;
           let report: SessionReportItem | null = null;
           if (existingReportId) {
             report = await updateSessionReport(existingReportId, { feedback: note });
@@ -697,7 +698,7 @@ const loadSessionReports = async () => {
           return { reportKey, reportId, feedback: note };
         };
       })
-      .filter(Boolean) as Array<() => Promise<{ reportKey: string; reportId: string; feedback: string }>>;
+      .filter((task): task is (() => Promise<{ reportKey: string; reportId: string; feedback: string } | null>) => task !== null);
 
     if (!reportSyncTasks.length) return;
 
@@ -705,7 +706,7 @@ const loadSessionReports = async () => {
     const failedCount = results.filter((result) => result.status === "rejected").length;
 
     const successItems = results
-      .filter((result): result is PromiseFulfilledResult<{ reportKey: string; reportId: string; feedback: string }> => result.status === "fulfilled")
+      .filter((result): result is PromiseFulfilledResult<{ reportKey: string; reportId: string; feedback: string }> => result.status === "fulfilled" && result.value !== null)
       .map((result) => result.value);
 
     if (successItems.length) {

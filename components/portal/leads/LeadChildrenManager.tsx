@@ -188,7 +188,7 @@ export default function LeadChildrenManager({
     );
   }
 
-  console.log('🎨 Rendering children list. Count:', children.length, 'Data:', children);
+  console.log(' Rendering children list. Count:', children.length, 'Data:', children);
 
   return (
     <div className="space-y-4">
