@@ -824,6 +824,38 @@ export default function TeacherFeedbackPage() {
           )}
         </div>
 
+ {/* Monthly Report Workflow (integrated in Feedback) */}
+        <div className="px-6 pb-6">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Monthly Report - Luồng giáo viên</h3>
+                <p className="text-sm text-gray-600">Từ nhận xét theo buổi, tổng hợp thành báo cáo tháng và gửi Staff/Admin duyệt ngay trên trang feedback.</p>
+              </div>
+              <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">Draft → Submitted</span>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {[
+                { id: 'MR-001', student: 'Nguyễn Văn An', status: 'Draft' },
+                { id: 'MR-002', student: 'Trần Thị Bình', status: 'Rejected' },
+                { id: 'MR-003', student: 'Lê Văn Cường', status: 'Submitted' },
+              ].map((item) => (
+                <div key={item.id} className="rounded-xl border border-red-100 bg-white p-4">
+                  <div className="text-sm text-gray-500">{item.id}</div>
+                  <div className="font-semibold text-gray-900">{item.student}</div>
+                  <div className="mb-3 text-sm text-gray-600">Trạng thái: {item.status}</div>
+                  <div className="flex flex-wrap gap-2">
+                    <button className="rounded-lg bg-indigo-600 px-3 py-2 text-xs text-white">Generate draft AI</button>
+                    <button className="rounded-lg bg-slate-700 px-3 py-2 text-xs text-white">Chỉnh sửa</button>
+                    <button className="rounded-lg bg-red-600 px-3 py-2 text-xs text-white">Submit</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* AI Tools Section */}
         <div className="px-6 pb-6">
           <div className="grid lg:grid-cols-2 gap-6">
