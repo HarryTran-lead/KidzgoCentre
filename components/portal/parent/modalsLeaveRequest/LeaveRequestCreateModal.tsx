@@ -270,28 +270,17 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
     return studentClassLabel(selectedStudent);
   }, [selectedStudent]);
 
-  // load classes theo student
+  // load classes theo student (chỉ lấy lớp học sinh đang theo học)
   useEffect(() => {
     if (!open) return;
     if (!formState.studentProfileId) return;
 
     const fetchClasses = async () => {
-      const derived = selectedStudent ? studentClassOptions(selectedStudent) : [];
-      if (derived.length) {
-        setClasses(derived);
-        setClassesLoading(false);
-        setClassesError(null);
-        if (!formState.classId && derived.length === 1 && (derived[0] as any).id) {
-          setFormState((p) => ({ ...p, classId: (derived[0] as any).id }));
-        }
-        return;
-      }
-
       setClassesLoading(true);
       setClassesError(null);
       try {
         const res: any = await getStudentClasses({
-          studentId: formState.studentProfileId,
+          studentProfileId: formState.studentProfileId,
           pageNumber: 1,
           pageSize: 100,
         });
@@ -302,6 +291,9 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
 
         const enriched = await enrichClassNames(data);
         setClasses(enriched);
+        if (!formState.classId && enriched.length === 1 && (enriched[0] as any).id) {
+          setFormState((p) => ({ ...p, classId: (enriched[0] as any).id }));
+        }
       } catch {
         setClassesError("Không thể tải danh sách lớp.");
       } finally {

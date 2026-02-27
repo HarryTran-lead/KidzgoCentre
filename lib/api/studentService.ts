@@ -19,6 +19,7 @@ type StudentClassesParams = {
   pageNumber?: number;
   pageSize?: number;
   studentId?: string;
+  studentProfileId?: string;
 };
 
 type StudentListParams = {

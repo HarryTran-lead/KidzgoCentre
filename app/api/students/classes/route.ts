@@ -18,7 +18,13 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const queryString = searchParams.toString();
-const url = buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_ALL());    const fullUrl = queryString ? `${url}?${queryString}` : url;
+    const hasStudentFilter =
+      searchParams.has("studentId") || searchParams.has("studentProfileId");
+
+    const url = hasStudentFilter
+      ? buildApiUrl("/students/classes")
+      : buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_ALL());
+    const fullUrl = queryString ? `${url}?${queryString}` : url;
 
     const upstream = await fetch(fullUrl, {
       method: "GET",
@@ -27,7 +33,7 @@ const url = buildApiUrl(BACKEND_CLASS_ENDPOINTS.GET_ALL());    const fullUrl = q
         "Content-Type": "application/json",
       },
     });
-  if (upstream.status === 403) {
+    if (upstream.status === 403 && !hasStudentFilter) {
       const studentClassesUrl = buildApiUrl("/students/classes");
       const fallbackUrl = queryString
         ? `${studentClassesUrl}?${queryString}`

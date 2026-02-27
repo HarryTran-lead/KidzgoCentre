@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, CalendarDays, MapPin, Users, Clock3 } from "lucide-react";
+import { getParentTimetable, type ParentTimetableSession } from "@/lib/api/parentScheduleService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 type TabType = "all" | "classes" | "makeup" | "events";
 type TimeSlot = "morning" | "afternoon" | "evening";
@@ -21,99 +23,7 @@ interface DaySchedule {
   [key: string]: ClassEvent[];
 }
 
-const MOCK_WEEKLY_SCHEDULE: { [key in TimeSlot]: DaySchedule } = {
-  morning: {
-    "Thứ 7": [
-      {
-        id: "1",
-        time: "09:00 - 11:00",
-        title: "Họp phụ huynh tháng 12",
-        location: "Hội trường",
-        type: "event",
-        teacher: "Ban quản lý",
-      },
-    ],
-    "CN": [
-      {
-        id: "2",
-        time: "08:00 - 11:30",
-        title: "Mock Test IELTS",
-        room: "Phòng 201",
-        type: "class",
-        teacher: "Academic",
-        description: "Bài kiểm tra thử IELTS toàn diện",
-      },
-    ],
-  },
-  afternoon: {
-    "Thứ 4": [
-      {
-        id: "3",
-        time: "17:30 - 19:00",
-        title: "TOEFL Junior A",
-        room: "Phòng 202",
-        type: "class",
-        teacher: "Thầy Tín",
-      },
-    ],
-    "Thứ 6": [
-      {
-        id: "4",
-        time: "16:00 - 18:00",
-        title: "TOEIC Intermediate",
-        room: "Phòng 205",
-        type: "class",
-        teacher: "Thầy Minh",
-        description: "Bù cho 03/12",
-      },
-    ],
-  },
-  evening: {
-    "Thứ 2": [
-      {
-        id: "5",
-        time: "18:30 - 20:00",
-        title: "PRE-IELTS 11",
-        room: "Phòng 101",
-        type: "class",
-        teacher: "Cô Hạnh",
-      },
-    ],
-    "Thứ 3": [
-      {
-        id: "6",
-        time: "20:15 - 21:15",
-        title: "IELTS Speaking Club",
-        location: "Hội trường",
-        type: "event",
-        teacher: "Academic",
-      },
-    ],
-    "Thứ 5": [
-      {
-        id: "7",
-        time: "19:00 - 21:00",
-        title: "IELTS Foundation - A1",
-        room: "Phòng 301",
-        type: "class",
-        teacher: "Cô Phương",
-      },
-    ],
-    "Thứ 6": [
-      {
-        id: "8",
-        time: "18:30 - 20:00",
-        title: "Kids English F1",
-        room: "Phòng 102",
-        type: "class",
-        teacher: "Cô Vi",
-      },
-    ],
-  },
-};
-
 const DAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
-const DAY_DATES = ["02/12", "03/12", "04/12", "05/12", "06/12", "07/12", "08/12"];
 const TIME_SLOTS = [
   { key: "morning" as TimeSlot, label: "Sáng" },
   { key: "afternoon" as TimeSlot, label: "Chiều" },
@@ -143,10 +53,76 @@ function TypeBadge({ type }: { type: "class" | "makeup" | "event" }) {
   return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge}`}>{text}</span>;
 }
 
+const formatDate = (d?: Date) =>
+  d
+    ? new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(d)
+    : "";
+
+const formatTime = (d: Date) =>
+  d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+
+const getWeekStart = (date: Date) => {
+  const day = (date.getDay() + 6) % 7;
+  const start = new Date(date);
+  start.setDate(date.getDate() - day);
+  start.setHours(0, 0, 0, 0);
+  return start;
+};
+
 export default function SchedulePage() {
+  const { selectedProfile } = useSelectedStudentProfile();
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [selectedClass, setSelectedClass] = useState<ClassEvent | null>(null);
-  const [currentWeek, setCurrentWeek] = useState("02/12/2024 - 08/12/2024");
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getWeekStart(new Date()));
+  const [sessions, setSessions] = useState<ParentTimetableSession[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const weekDates = useMemo(() => {
+    return DAYS.map((_, idx) => {
+      const d = new Date(currentWeekStart);
+      d.setDate(currentWeekStart.getDate() + idx);
+      return d;
+    });
+  }, [currentWeekStart]);
+
+  const currentWeekLabel = useMemo(() => {
+    const start = weekDates[0];
+    const end = weekDates[6];
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  }, [weekDates]);
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const from = new Date(currentWeekStart);
+        const to = new Date(currentWeekStart);
+        to.setDate(currentWeekStart.getDate() + 6);
+        to.setHours(23, 59, 59, 999);
+
+        const res = await getParentTimetable({
+          from: from.toISOString(),
+          to: to.toISOString(),
+        });
+        const list = res?.sessions ?? res?.data?.sessions ?? [];
+        setSessions(Array.isArray(list) ? list : []);
+      } catch (e) {
+        console.error("Fetch parent timetable error:", e);
+        setError("Không thể tải lịch học. Vui lòng thử lại.");
+        setSessions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    run();
+  }, [currentWeekStart, selectedProfile?.id]);
 
   const filterEvents = (events: ClassEvent[]) => {
     if (activeTab === "all") return events;
@@ -157,18 +133,19 @@ export default function SchedulePage() {
   };
 
   const goToPreviousWeek = () => {
-    // Logic to navigate to previous week
-    console.log("Previous week");
+    const next = new Date(currentWeekStart);
+    next.setDate(currentWeekStart.getDate() - 7);
+    setCurrentWeekStart(next);
   };
 
   const goToNextWeek = () => {
-    // Logic to navigate to next week
-    console.log("Next week");
+    const next = new Date(currentWeekStart);
+    next.setDate(currentWeekStart.getDate() + 7);
+    setCurrentWeekStart(next);
   };
 
   const goToCurrentWeek = () => {
-    // Logic to go to current week
-    console.log("Current week");
+    setCurrentWeekStart(getWeekStart(new Date()));
   };
 
   const getEventColor = (type: string) => {
@@ -202,6 +179,63 @@ export default function SchedulePage() {
     return place.toLowerCase().includes("online") ? "bg-red-600" : "bg-gray-700";
   };
 
+  const weekSchedule = useMemo((): { [key in TimeSlot]: DaySchedule } => {
+    const blank: { [key in TimeSlot]: DaySchedule } = {
+      morning: {},
+      afternoon: {},
+      evening: {},
+    };
+    DAYS.forEach((day) => {
+      blank.morning[day] = [];
+      blank.afternoon[day] = [];
+      blank.evening[day] = [];
+    });
+
+    const toSlot = (date: Date): TimeSlot => {
+      const hour = date.getHours();
+      if (hour < 12) return "morning";
+      if (hour < 18) return "afternoon";
+      return "evening";
+    };
+
+    const toDayLabel = (date: Date) => {
+      const idx = (date.getDay() + 6) % 7;
+      return DAYS[idx];
+    };
+
+    const isMakeup = (value?: string | null) => {
+      const v = String(value ?? "").toLowerCase();
+      return v.includes("makeup") || v.includes("make-up") || v.includes("bù");
+    };
+
+    sessions.forEach((s) => {
+      const planned = s.plannedDatetime ?? s.actualDatetime;
+      if (!planned) return;
+      const start = new Date(planned);
+      if (Number.isNaN(start.getTime())) return;
+
+      const duration = Number(s.durationMinutes ?? 0);
+      const end = duration > 0 ? new Date(start.getTime() + duration * 60000) : null;
+      const timeLabel = end ? `${formatTime(start)} - ${formatTime(end)}` : formatTime(start);
+
+      const item: ClassEvent = {
+        id: s.id,
+        time: timeLabel,
+        title: s.classTitle ?? s.classCode ?? "Buổi học",
+        room: s.plannedRoomName ?? s.actualRoomName ?? undefined,
+        type: isMakeup(s.participationType) ? "makeup" : "class",
+        teacher: s.plannedTeacherName ?? s.actualTeacherName ?? undefined,
+        description: s.lessonPlanLink ? `Giáo án: ${s.lessonPlanLink}` : undefined,
+      };
+
+      const slot = toSlot(start);
+      const day = toDayLabel(start);
+      blank[slot][day].push(item);
+    });
+
+    return blank;
+  }, [sessions]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -221,6 +255,12 @@ export default function SchedulePage() {
         </div>
       </div>
 
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
       {/* Tabs */}
       <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-2 inline-flex gap-2">
         {["all", "classes", "makeup", "events"].map((tab) => {
@@ -231,7 +271,7 @@ export default function SchedulePage() {
             makeup: "Buổi bù",
             events: "Sự kiện",
           }[tab];
-          
+
           return (
             <button
               key={tab}
@@ -248,21 +288,19 @@ export default function SchedulePage() {
         })}
       </div>
 
-      {/* Week Navigation - Style giống admin */}
+      {/* Week Navigation */}
       <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 shadow-sm">
         <div className="flex items-center justify-between p-6 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100">
           <div className="flex items-center gap-4">
             <div className="relative p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
               <CalendarDays size={24} />
               <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                <span className="text-xs font-bold text-red-600">
-                  02
-                </span>
+                <span className="text-xs font-bold text-red-600">{weekDates[0]?.getDate?.()}</span>
               </div>
             </div>
             <div>
               <div className="text-2xl font-bold text-gray-900">Lịch tuần</div>
-              <div className="text-gray-600">{currentWeek}</div>
+              <div className="text-gray-600">{currentWeekLabel}</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -273,7 +311,7 @@ export default function SchedulePage() {
               <ChevronLeft size={18} className="text-gray-600" />
             </button>
             <div className="min-w-[220px] text-center text-sm font-semibold text-gray-700">
-              Tuần từ 02/12 đến 08/12
+              Tuần từ {currentWeekLabel}
             </div>
             <button
               className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
@@ -301,7 +339,7 @@ export default function SchedulePage() {
                   <div className="flex flex-col items-center gap-1">
                     <span className="capitalize">{day}</span>
                     <span className="h-8 w-8 flex items-center justify-center rounded-full text-sm font-bold bg-white text-gray-700 border border-red-200">
-                      {index + 2}
+                      {weekDates[index]?.getDate?.() ?? index + 1}
                     </span>
                   </div>
                 </div>
@@ -321,7 +359,7 @@ export default function SchedulePage() {
                 </div>
 
                 {DAYS.map((day) => {
-                  const events = MOCK_WEEKLY_SCHEDULE[slot.key][day] || [];
+                  const events = weekSchedule[slot.key][day] || [];
                   const filteredEvents = filterEvents(events);
 
                   return (
@@ -349,7 +387,7 @@ export default function SchedulePage() {
                                   <div className="text-[11px] text-gray-600 mb-1">{event.time}</div>
                                   <div className="text-[11px] text-gray-500 flex items-center gap-1">
                                     <MapPin size={10} />
-                                    <span className="truncate">{event.room || event.location}</span>
+                                    <span className="truncate">{event.room || event.location || "—"}</span>
                                   </div>
                                   {event.teacher && (
                                     <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
@@ -362,10 +400,11 @@ export default function SchedulePage() {
                             </button>
                           );
                         })}
-                        {filteredEvents.length === 0 && (
-                          <div className="text-[13px] text-gray-400 italic text-center py-4">
-                            Trống
-                          </div>
+                        {filteredEvents.length === 0 && !loading && (
+                          <div className="text-[13px] text-gray-400 italic text-center py-4">Trống</div>
+                        )}
+                        {loading && (
+                          <div className="text-[13px] text-gray-400 italic text-center py-4">Đang tải…</div>
                         )}
                       </div>
                     </div>
@@ -379,11 +418,11 @@ export default function SchedulePage() {
 
       {/* Class Detail Modal */}
       {selectedClass && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => setSelectedClass(null)}
         >
-          <div 
+          <div
             className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-red-200 bg-gradient-to-br from-white to-red-50"
             onClick={(e) => e.stopPropagation()}
           >
@@ -408,9 +447,7 @@ export default function SchedulePage() {
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <TypeBadge type={selectedClass.type} />
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {selectedClass.title}
-                  </h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{selectedClass.title}</h3>
                 </div>
 
                 <div className="space-y-3 text-sm">
@@ -428,7 +465,9 @@ export default function SchedulePage() {
                       <div className="font-medium text-gray-700">
                         {selectedClass.room ? "Phòng học" : "Địa điểm"}
                       </div>
-                      <div className="text-gray-600">{selectedClass.room || selectedClass.location}</div>
+                      <div className="text-gray-600">
+                        {selectedClass.room || selectedClass.location || "—"}
+                      </div>
                     </div>
                   </div>
 
