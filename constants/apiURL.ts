@@ -50,6 +50,10 @@ export const STUDENT_CLASS_ENDPOINTS = {
   GET_BY_TOKEN: "/api/students/classes",
 } as const;
 
+export const STUDENT_HOMEWORK_ENDPOINTS = {
+  GET_MY_HOMEWORK: "api/students/homework/my",
+} as const;
+
 export const BACKEND_STUDENT_ENDPOINTS = {
   GET_ALL: () => `/profiles`,
 } as const;
@@ -337,6 +341,33 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSROOMS_BY_ID: (id: string) => `/classrooms/${id}`,
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/classrooms/${id}/toggle-status`,
   SESSIONS: '/sessions',
+} as const;
+
+// Blog Endpoints (Client-side → Next.js API Routes)
+export const BLOG_ENDPOINTS = {
+  // CRUD Operations
+  GET_ALL: '/api/blogs',
+  GET_BY_ID: (id: string) => `/api/blogs/${id}`,
+  CREATE: '/api/blogs',
+  UPDATE: (id: string) => `/api/blogs/${id}`,
+  DELETE: (id: string) => `/api/blogs/${id}`,
+  
+  // Blog-specific Operations
+  PUBLISH: (id: string) => `/api/blogs/${id}/publish`,
+  UNPUBLISH: (id: string) => `/api/blogs/${id}/unpublish`,
+  GET_PUBLISHED: '/api/blogs/published',
+} as const;
+
+// Backend Blog Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_BLOG_ENDPOINTS = {
+  GET_ALL: '/blogs',
+  GET_BY_ID: (id: string) => `/blogs/${id}`,
+  CREATE: '/blogs',
+  UPDATE: (id: string) => `/blogs/${id}`,
+  DELETE: (id: string) => `/blogs/${id}`,
+  PUBLISH: (id: string) => `/blogs/${id}/publish`,
+  UNPUBLISH: (id: string) => `/blogs/${id}/unpublish`,
+  GET_PUBLISHED: '/blogs/published',
 } as const;
 
 // Backend Session Report Endpoints

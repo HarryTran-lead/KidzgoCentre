@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Target, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { getAllLeads } from "@/lib/api/leadService";
 import { useToast } from "@/hooks/use-toast";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 import type { Lead as LeadType } from "@/types/lead";
 import {
   LeadStats,
@@ -27,6 +28,7 @@ const STATUS_MAPPING: Record<StatusType, string> = {
 export default function AdminLeadsPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { selectedBranchId, isLoaded: isBranchLoaded } = useBranchFilter();
   
   // Data state
   const [leads, setLeads] = useState<LeadType[]>([]); // Filtered leads for table
@@ -123,7 +125,14 @@ export default function AdminLeadsPage() {
     const fetchAllLeads = async () => {
       try {
         setIsLoading(true);
-        const response = await getAllLeads({ pageSize: 1000 });
+        const params: any = { pageSize: 1000 };
+        
+        // Add branch filter if selected
+        if (selectedBranchId) {
+          params.branchPreference = selectedBranchId;
+        }
+        
+        const response = await getAllLeads(params);
         
         if (response.isSuccess && response.data?.leads) {
           const leadsData = response.data.leads || [];          
@@ -154,8 +163,11 @@ export default function AdminLeadsPage() {
       }
     };
 
-    fetchAllLeads();
-  }, []);
+    // Only fetch when branch filter is loaded
+    if (isBranchLoaded) {
+      fetchAllLeads();
+    }
+  }, [selectedBranchId, isBranchLoaded]);
 
   // Debounce search
   useEffect(() => {
@@ -189,6 +201,11 @@ export default function AdminLeadsPage() {
           params.source = selectedSource;
         }
 
+        // Add branch filter if selected
+        if (selectedBranchId) {
+          params.branchPreference = selectedBranchId;
+        }
+
         const response = await getAllLeads(params);
         
         if (response.isSuccess && response.data) {
@@ -204,12 +221,12 @@ export default function AdminLeadsPage() {
     if (!isLoading) {
       fetchFilteredLeads();
     }
-  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource, isLoading]);
+  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource, selectedBranchId, isLoading]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, selectedStatus, selectedSource]);
+  }, [debouncedSearchQuery, selectedStatus, selectedSource, selectedBranchId]);
 
   // Loading state
   if (isLoading) {

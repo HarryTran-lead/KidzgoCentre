@@ -107,7 +107,7 @@ function useHeaderI18n(locale: Locale) {
     roleLabel(role: Role) {
       return locale === "en" ? ROLE_LABEL_EN[role] : ROLE_LABEL[role];
     },
-    titleFor(role: Role, userName?: string, pageTitle?: string) {
+    titleFor(role: Role, userName?: string, pageTitle?: string, pathname?: string) {
       if (pageTitle) return pageTitle;
 
       if (role === "Teacher" && userName) {
@@ -118,6 +118,37 @@ function useHeaderI18n(locale: Locale) {
 
       if (role === "Parent") {
         return locale === "en" ? "Parent Portal" : "Cổng phụ huynh";
+      }
+
+      // Admin pages - detect from pathname
+      if (role === "Admin" && pathname) {
+        const pathMap: Record<string, { vi: string; en: string }> = {
+          "/blogs": { vi: "Quản lý bản tin", en: "Blog Management" },
+          "/accounts": { vi: "Quản lý tài khoản", en: "Account Management" },
+          "/teachers": { vi: "Quản lý giáo viên", en: "Teacher Management" },
+          "/students": { vi: "Quản lý học viên", en: "Student Management" },
+          "/branches": { vi: "Quản lý chi nhánh", en: "Branch Management" },
+          "/courses": { vi: "Quản lý khóa học", en: "Course Management" },
+          "/classes": { vi: "Quản lý lớp học", en: "Class Management" },
+          "/rooms": { vi: "Quản lý phòng học", en: "Room Management" },
+          "/schedule": { vi: "Lịch học & Điểm danh", en: "Schedule & Attendance" },
+          "/feedback": { vi: "Quản lý feedback", en: "Feedback Management" },
+          "/leads": { vi: "Quản lý tuyển sinh", en: "Lead Management" },
+          "/center": { vi: "Tổng quan trung tâm", en: "Center Overview" },
+          "/reports": { vi: "Báo cáo & Thống kê", en: "Reports & Analytics" },
+          "/settings": { vi: "Cài đặt & Chính sách", en: "Settings & Policies" },
+          "/extracurricular": { vi: "Hoạt động ngoại khóa", en: "Extracurricular Activities" },
+        };
+
+        // Strip locale prefix
+        const cleanPath = stripLocalePrefix(pathname);
+        
+        // Find matching admin route
+        for (const [route, titles] of Object.entries(pathMap)) {
+          if (cleanPath.includes(`/portal/admin${route}`)) {
+            return locale === "en" ? titles.en : titles.vi;
+          }
+        }
       }
 
       if (role === "Admin") {
@@ -169,8 +200,8 @@ export default function PortalHeader({
   }, [currentRole, showSearch]);
 
   const title = useMemo(
-    () => i18n.titleFor(currentRole, userName, pageTitle),
-    [i18n, currentRole, userName, pageTitle]
+    () => i18n.titleFor(currentRole, userName, pageTitle, pathname),
+    [i18n, currentRole, userName, pageTitle, pathname]
   );
 
   useEffect(() => {

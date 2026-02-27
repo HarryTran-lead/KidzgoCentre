@@ -16,9 +16,11 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
-      // (optional) nếu bạn load ảnh từ onrender hay domain khác thì thêm ở đây
-      // { protocol: "https", hostname: "kidzgo-be.onrender.com" },
+      // Allow any external image domain for blog featured images
+      { protocol: "https", hostname: "**" },
+      { protocol: "http", hostname: "**" },
     ],
+    unoptimized: false,
   },
 
   experimental: {

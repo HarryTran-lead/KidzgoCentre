@@ -7,7 +7,7 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
-import { get, post, del } from "@/lib/axios";
+import { get, post, del, put } from "@/lib/axios";
 import {
   FetchHomeworkParams,
   HomeworkApiResponse,
@@ -142,6 +142,7 @@ export async function fetchSessions(classId: string): Promise<SessionOption[]> {
       id: item.id || item.sessionId || item.timetableId || "",
       name: item.classTitle || item.className || item.courseName || item.sessionName || `Buổi học`,
       date: item.plannedDatetime || item.actualDatetime || item.date || "",
+      plannedDateTime: item.plannedDatetime || item.plannedDateTime || item.date || "",
     }));
   } catch (error) {
     console.error("Error fetching sessions:", error);
@@ -293,7 +294,7 @@ export async function createHomework(
 
 /**
  * Delete a homework assignment
- * 
+ *
  * @param id - Homework ID to delete
  * @returns Success or error
  */
@@ -314,6 +315,36 @@ export async function deleteHomework(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Failed to delete homework",
+    };
+  }
+}
+
+/**
+ * Update a homework assignment
+ *
+ * @param id - Homework ID to update
+ * @param payload - Homework data to update
+ * @returns Updated homework or error
+ */
+export async function updateHomework(
+  id: string,
+  payload: Partial<CreateHomeworkPayload>
+): Promise<CreateHomeworkResult> {
+  try {
+    const response = await put<HomeworkSubmission>(
+      `${TEACHER_ENDPOINTS.HOMEWORK}/${id}`,
+      payload
+    );
+
+    return {
+      ok: true,
+      data: response,
+    };
+  } catch (error) {
+    console.error("Error updating homework:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Failed to update homework",
     };
   }
 }
@@ -407,6 +438,22 @@ export function mapSubmissionToUi(submission: HomeworkSubmission) {
     return typeMap[ext] || "FILE";
   };
 
+  // Format plannedDateTime (session date)
+  const formatSessionDate = (dateTime?: string): string => {
+    if (!dateTime) return "-";
+    try {
+      return new Date(dateTime).toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateTime;
+    }
+  };
+
   const primaryAttachment = submission.attachments?.[0];
 
   return {
@@ -426,6 +473,12 @@ export function mapSubmissionToUi(submission: HomeworkSubmission) {
     note: submission.feedback,
     score: submission.score,
     color: colorMap[submission.status] || "from-gray-500 to-gray-600",
+
+    // Session/Buổi học mapping
+    sessionId: submission.sessionId,
+    session: submission.sessionName
+      ? `${submission.sessionName} - ${formatSessionDate(submission.plannedDateTime)}`
+      : formatSessionDate(submission.plannedDateTime),
   };
 }
 
