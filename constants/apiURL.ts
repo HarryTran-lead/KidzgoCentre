@@ -393,3 +393,17 @@ export const BACKEND_TICKET_ENDPOINTS = {
   GET_HISTORY: (id: string) => `/tickets/${id}/history`,
   GET_SLA: (id: string) => `/tickets/${id}/sla`,
 } as const;
+
+// File Endpoints (Client-side → Next.js API Routes)
+export const FILE_ENDPOINTS = {
+  UPLOAD: '/api/files/upload',
+  DELETE: '/api/files',
+  TRANSFORM: '/api/files/transform',
+} as const;
+
+// Backend File Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_FILE_ENDPOINTS = {
+  UPLOAD: '/files/upload',
+  DELETE: '/files',
+  TRANSFORM: '/files/transform',
+} as const;

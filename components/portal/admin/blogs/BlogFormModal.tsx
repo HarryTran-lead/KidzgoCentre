@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Save, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Save, Loader2, Upload, ImageIcon, Trash2 } from "lucide-react";
 import type { Blog, CreateBlogRequest, UpdateBlogRequest } from "@/types/admin/blog";
 import { createBlog, updateBlog } from "@/lib/api/blogService";
+import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 import { useToast } from "@/hooks/use-toast";
 
 interface BlogFormModalProps {
@@ -23,6 +24,8 @@ export default function BlogFormModal({
 }: BlogFormModalProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     title: "",
     summary: "",
@@ -47,6 +50,51 @@ export default function BlogFormModal({
       });
     }
   }, [blog, mode]);
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Lỗi",
+        description: "Chỉ hỗ trợ định dạng JPG, PNG, WEBP, GIF",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "Lỗi",
+        description: "File ảnh không được vượt quá 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setImageUploading(true);
+    try {
+      const result = await uploadFile(file, "blogs");
+      if (isUploadSuccess(result)) {
+        setFormData((prev) => ({ ...prev, featuredImageUrl: result.url }));
+        toast({ title: "Thành công", description: "Tải ảnh lên thành công", variant: "success" });
+      } else {
+        const errMsg = result.detail || result.error || result.title || "Không thể tải ảnh lên";
+        toast({
+          title: "Lỗi upload ảnh",
+          description: errMsg,
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Lỗi", description: "Đã xảy ra lỗi khi tải ảnh", variant: "destructive" });
+    } finally {
+      setImageUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +154,7 @@ export default function BlogFormModal({
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-white/20 transition-colors text-white"
-            disabled={loading}
+            disabled={loading || imageUploading}
           >
             <X size={24} />
           </button>
@@ -148,31 +196,88 @@ export default function BlogFormModal({
               />
             </div>
 
-            {/* Featured Image URL */}
+            {/* Featured Image Upload */}
             <div>
-              <label htmlFor="featuredImageUrl" className="block text-sm font-semibold text-gray-700 mb-2">
-                URL ảnh đại diện
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Ảnh đại diện
               </label>
+
+              {/* Hidden file input */}
               <input
-                id="featuredImageUrl"
-                type="url"
-                value={formData.featuredImageUrl}
-                onChange={(e) => setFormData({ ...formData, featuredImageUrl: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
-                placeholder="https://example.com/image.jpg"
-                disabled={loading}
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleImageChange}
+                disabled={loading || imageUploading}
               />
-              {formData.featuredImageUrl && (
-                <div className="mt-3 relative h-48 rounded-lg overflow-hidden border border-gray-200">
+
+              {formData.featuredImageUrl ? (
+                /* Preview area when image is set */
+                <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                   <img
                     src={formData.featuredImageUrl}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
+                    alt="Preview ảnh đại diện"
+                    className="w-full h-52 object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3EImage Error%3C/text%3E%3C/svg%3E";
+                      (e.target as HTMLImageElement).src =
+                        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3EImage Error%3C/text%3E%3C/svg%3E";
                     }}
                   />
+                  <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center gap-3 opacity-0 hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={loading || imageUploading}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-lg text-sm font-medium text-gray-700 shadow hover:bg-gray-50 transition disabled:opacity-50"
+                    >
+                      <Upload size={15} />
+                      Đổi ảnh
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, featuredImageUrl: "" }))}
+                      disabled={loading || imageUploading}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-red-600 rounded-lg text-sm font-medium text-white shadow hover:bg-red-700 transition disabled:opacity-50"
+                    >
+                      <Trash2 size={15} />
+                      Xóa
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                /* Upload drop zone when no image */
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading || imageUploading}
+                  className="w-full flex flex-col items-center justify-center gap-3 px-6 py-10 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-red-400 hover:text-red-500 hover:bg-red-50/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {imageUploading ? (
+                    <>
+                      <Loader2 size={32} className="animate-spin text-red-500" />
+                      <span className="text-sm font-medium text-red-500">Đang tải ảnh lên...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon size={32} />
+                      <div className="text-center">
+                        <p className="text-sm font-medium">Nhấn để chọn ảnh</p>
+                        <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP, GIF · Tối đa 10MB</p>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition">
+                        <Upload size={15} />
+                        Chọn ảnh
+                      </span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {imageUploading && formData.featuredImageUrl && (
+                <p className="mt-2 text-xs text-red-500 flex items-center gap-1">
+                  <Loader2 size={12} className="animate-spin" /> Đang tải ảnh lên...
+                </p>
               )}
             </div>
 
@@ -204,14 +309,14 @@ export default function BlogFormModal({
             type="button"
             onClick={onClose}
             className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
-            disabled={loading}
+            disabled={loading || imageUploading}
           >
             Hủy
           </button>
           <button
             onClick={handleSubmit}
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading}
+            disabled={loading || imageUploading}
           >
             {loading ? (
               <>

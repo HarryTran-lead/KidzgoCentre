@@ -196,14 +196,6 @@ export default function BlogManagementPage() {
     try {
       setLoading(true);
       const response = await getAllBlogs({ page: 1, limit: 1000 });
-        
-        console.log('===== BLOG RESPONSE DEBUG =====');
-        console.log('Full response:', response);
-        console.log('response.data:', response.data);
-        console.log('response.data.blogs:', response.data?.blogs);
-        console.log('response.data.blogs.items:', response.data?.blogs?.items);
-        console.log('===============================');
-        
         if (response.success || response.isSuccess) {
           // Backend returns: response.data.blogs.items
           const blogsData = response.data?.blogs?.items || [];
