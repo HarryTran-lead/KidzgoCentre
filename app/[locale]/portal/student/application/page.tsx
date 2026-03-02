@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
-import { createTicket, getTickets } from "@/lib/api/ticketService";
-import type { TicketCategory, Ticket } from "@/types/student/ticket";
+import { createTicket, getTickets, getTicketById } from "@/lib/api/ticketService";
+import type { TicketCategory, Ticket, TicketComment } from "@/types/student/ticket";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { toast } from "@/hooks/use-toast";
@@ -34,6 +34,7 @@ export default function ApplicationPage() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [latestComments, setLatestComments] = useState<Record<string, TicketComment>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [classId, setClassId] = useState<string | null>(null);
@@ -97,6 +98,25 @@ export default function ApplicationPage() {
           ? allTickets.filter((t: any) => t.openedByProfileId === resolvedProfileId)
           : allTickets;
         setTickets(filtered);
+
+        // Fetch latest comment for tickets that have comments (parallel)
+        const ticketsWithComments = filtered.filter((t: Ticket) => t.commentCount > 0);
+        if (ticketsWithComments.length > 0) {
+          const results = await Promise.allSettled(
+            ticketsWithComments.map((t: Ticket) => getTicketById(t.id))
+          );
+          const map: Record<string, TicketComment> = {};
+          results.forEach((result, i) => {
+            if (result.status === 'fulfilled') {
+              const detail = result.value;
+              const comments: TicketComment[] = (detail as any)?.data?.comments ?? (detail as any)?.comments ?? [];
+              if (comments.length > 0) {
+                map[ticketsWithComments[i].id] = comments[comments.length - 1];
+              }
+            }
+          });
+          setLatestComments(map);
+        }
       }
     } catch (error) {
       console.error('Error loading tickets:', error);
@@ -409,6 +429,7 @@ export default function ApplicationPage() {
                       <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Danh mục</th>
                       <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Tiêu đề</th>
                       <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Nội dung</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Phản hồi</th>
                       <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Ngày tạo</th>
                       <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Trạng thái</th>
                       <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider w-20">Bình luận</th>
@@ -425,6 +446,18 @@ export default function ApplicationPage() {
                         </td>
                         <td className="px-3 py-3">
                           <p className="text-sm text-gray-300 line-clamp-2">{ticket.message}</p>
+                        </td>
+                        <td className="px-3 py-3 max-w-55">
+                          {latestComments[ticket.id] ? (
+                            <div className="space-y-0.5">
+                              <p className="text-xs text-cyan-400 font-medium truncate">
+                                {latestComments[ticket.id].commenterProfileName || latestComments[ticket.id].commenterUserName}
+                              </p>
+                              <p className="text-sm text-gray-300 line-clamp-2">{latestComments[ticket.id].message}</p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-300 italic">Chưa có phản hồi</span>
+                          )}
                         </td>
                         <td className="px-3 py-3">
                           <span className="text-sm text-gray-400">{formatDate(ticket.createdAt)}</span>
