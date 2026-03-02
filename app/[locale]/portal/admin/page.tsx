@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import {
-  Users, UserCog, BookOpen, DollarSign, TrendingUp, Clock,
+  Users, BookOpen, TrendingUp, Clock,
   MapPin, BarChart3, Sparkles, Calendar, AlertCircle,
-  ArrowUpRight, ArrowDownRight, MoreVertical, Target,
-  TrendingDown, Activity
+  MoreVertical, Target, Activity, Building2, GraduationCap,
+  FileText, Ticket, Loader2
 } from "lucide-react";
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, RadarChart, Radar, PolarGrid,
-  PolarAngleAxis, PolarRadiusAxis
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend
 } from "recharts";
+import { getAdminOverview } from "@/lib/api/dashboardService";
+import type { AdminOverviewResponse } from "@/types/dashboard";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 // StatCard Component
 function StatCard({
@@ -28,7 +30,7 @@ function StatCard({
   icon: React.ReactNode;
   label: string;
   value: string;
-  hint: string;
+  hint?: string;
   trend?: "up" | "down" | "stable";
   color?: "red" | "gray" | "black";
   delay?: number;
@@ -61,12 +63,14 @@ function StatCard({
         <div>
           <div className="text-sm text-gray-600">{label}</div>
           <div className="text-2xl font-bold mt-2 text-gray-900">{value}</div>
-          <div className={`text-xs flex items-center gap-1 mt-1 ${trendColors[trend]}`}>
-            {trend === "up" && <TrendingUp size={12} />}
-            {trend === "down" && <TrendingUp size={12} className="rotate-180" />}
-            {trend === "stable" && <span>→</span>}
-            {hint}
-          </div>
+          {hint && (
+            <div className={`text-xs flex items-center gap-1 mt-1 ${trendColors[trend]}`}>
+              {trend === "up" && <TrendingUp size={12} />}
+              {trend === "down" && <TrendingUp size={12} className="rotate-180" />}
+              {trend === "stable" && <span>→</span>}
+              {hint}
+            </div>
+          )}
         </div>
         <div className={`p-3 rounded-xl bg-gradient-to-r ${colorClasses[color]} text-white shadow-lg`}>
           {icon}
@@ -97,54 +101,55 @@ function Badge({
   );
 }
 
-// Chart Data
-const revenueData = [
-  { month: 'T7', revenue: 3200000, target: 3500000 },
-  { month: 'T8', revenue: 4200000, target: 4000000 },
-  { month: 'T9', revenue: 5200000, target: 4500000 },
-  { month: 'T10', revenue: 6800000, target: 5000000 },
-  { month: 'T11', revenue: 8200000, target: 5500000 },
-  { month: 'T12', revenue: 12000000, target: 6000000 },
-];
+// Status badge color
+function getStatusColor(status: string): "red" | "gray" | "black" {
+  const s = status?.toLowerCase();
+  if (["active", "open", "ongoing", "enrolled"].includes(s)) return "red";
+  if (["pending", "upcoming", "scheduled", "draft"].includes(s)) return "gray";
+  return "black";
+}
 
-const studentGrowthData = [
-  { month: 'T7', new: 45, total: 320 },
-  { month: 'T8', new: 52, total: 372 },
-  { month: 'T9', new: 68, total: 440 },
-  { month: 'T10', new: 74, total: 514 },
-  { month: 'T11', new: 85, total: 599 },
-  { month: 'T12', new: 92, total: 691 },
-];
+// Priority color
+function getPriorityColor(priority: string): "red" | "gray" | "black" {
+  const p = priority?.toLowerCase();
+  if (["high", "critical", "urgent"].includes(p)) return "red";
+  if (["medium", "normal"].includes(p)) return "gray";
+  return "black";
+}
 
-const classDistributionData = [
-  { name: 'Beginner', value: 35, color: '#dc2626' },
-  { name: 'Intermediate', value: 28, color: '#404040' },
-  { name: 'Advanced', value: 22, color: '#171717' },
-  { name: 'Business', value: 15, color: '#991b1b' },
-];
+// Loading skeleton
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 animate-pulse">
+      <div className="flex items-center justify-between">
+        <div className="space-y-3 flex-1">
+          <div className="h-3 bg-gray-200 rounded w-24"></div>
+          <div className="h-7 bg-gray-200 rounded w-16"></div>
+          <div className="h-3 bg-gray-200 rounded w-20"></div>
+        </div>
+        <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
+      </div>
+    </div>
+  );
+}
 
-const attendanceData = [
-  { day: 'T2', rate: 92 },
-  { day: 'T3', rate: 88 },
-  { day: 'T4', rate: 95 },
-  { day: 'T5', rate: 90 },
-  { day: 'T6', rate: 94 },
-  { day: 'T7', rate: 89 },
-  { day: 'CN', rate: 85 },
-];
-
-const performanceData = [
-  { subject: 'Listening', score: 85, fullMark: 100 },
-  { subject: 'Reading', score: 78, fullMark: 100 },
-  { subject: 'Writing', score: 65, fullMark: 100 },
-  { subject: 'Speaking', score: 72, fullMark: 100 },
-  { subject: 'Grammar', score: 88, fullMark: 100 },
-];
+function SkeletonChart() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm animate-pulse">
+      <div className="h-5 bg-gray-200 rounded w-48 mb-6"></div>
+      <div className="h-64 bg-gray-100 rounded-xl"></div>
+    </div>
+  );
+}
 
 export default function Page() {
   const pathname = usePathname();
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [data, setData] = useState<AdminOverviewResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { selectedBranchId } = useBranchFilter();
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -154,23 +159,110 @@ export default function Page() {
     setActiveTab("overview");
   }, [pathname]);
 
-  // Custom Tooltip for Revenue Chart
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-lg">
-          <p className="text-sm font-semibold text-gray-900">{label}</p>
-          <p className="text-sm text-red-600">
-            Doanh thu: {new Intl.NumberFormat('vi-VN').format(payload[0].value)} VND
-          </p>
-          <p className="text-sm text-gray-700">
-            Mục tiêu: {new Intl.NumberFormat('vi-VN').format(payload[1].value)} VND
-          </p>
-        </div>
+  // Fetch dashboard data
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await getAdminOverview(
+        selectedBranchId ? { branchId: selectedBranchId } : undefined
       );
+      if (res?.data) {
+        setData(res.data);
+      } else {
+        setError("Không thể tải dữ liệu tổng quan");
+      }
+    } catch (err: any) {
+      console.error("Dashboard fetch error:", err);
+      setError(err?.message || "Đã xảy ra lỗi khi tải dữ liệu");
+    } finally {
+      setLoading(false);
     }
-    return null;
+  }, [selectedBranchId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Derived chart data
+  const branchChartData = data?.branches?.map(b => ({
+    name: b.name,
+    classCount: b.classCount,
+    studentCount: b.studentCount,
+  })) ?? [];
+
+  const classStatusData = (() => {
+    if (!data?.classes) return [];
+    const statusMap: Record<string, number> = {};
+    data.classes.forEach(c => {
+      const s = c.status || "Khác";
+      statusMap[s] = (statusMap[s] || 0) + 1;
+    });
+    const colors = ["#dc2626", "#404040", "#171717", "#991b1b", "#6b7280"];
+    return Object.entries(statusMap).map(([name, value], i) => ({
+      name,
+      value,
+      color: colors[i % colors.length],
+    }));
+  })();
+
+  const classCapacityData = data?.classes
+    ?.filter(c => c.capacity > 0)
+    ?.sort((a, b) => (b.enrollmentCount / b.capacity) - (a.enrollmentCount / a.capacity))
+    ?.slice(0, 8)
+    ?.map(c => ({
+      name: c.code,
+      enrolled: c.enrollmentCount,
+      capacity: c.capacity,
+      fillRate: Math.round((c.enrollmentCount / c.capacity) * 100),
+    })) ?? [];
+
+  const stats = data?.statistics;
+
+  // Format date
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
   };
+
+  const formatDateTime = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Error state
+  if (error && !data) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-red-200 p-8 text-center max-w-md">
+          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Không thể tải dữ liệu</h2>
+          <p className="text-sm text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={fetchData}
+            className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-medium hover:shadow-lg transition-all cursor-pointer"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -194,9 +286,21 @@ export default function Page() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl">
               <Calendar size={16} className="text-red-600" />
-              <span className="text-sm font-medium text-gray-700">Tháng 12/2024</span>
+              <span className="text-sm font-medium text-gray-700">
+                {new Date().toLocaleDateString("vi-VN", { month: "long", year: "numeric" })}
+              </span>
             </div>
-            <button className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
+            {loading && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl">
+                <Loader2 size={16} className="text-red-600 animate-spin" />
+                <span className="text-sm text-gray-600">Đang tải...</span>
+              </div>
+            )}
+            <button
+              onClick={fetchData}
+              className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+              title="Làm mới dữ liệu"
+            >
               <MoreVertical size={20} className="text-gray-600" />
             </button>
           </div>
@@ -204,48 +308,59 @@ export default function Page() {
 
         {/* Main Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard
-            icon={<Users size={20} />}
-            label="Tổng học viên"
-            value="691"
-            hint="+92 (12%)"
-            trend="up"
-            color="red"
-            delay={100}
-          />
-          <StatCard
-            icon={<UserCog size={20} />}
-            label="Giáo viên"
-            value="24"
-            hint="+6 (25%)"
-            trend="up"
-            color="gray"
-            delay={200}
-          />
-          <StatCard
-            icon={<BookOpen size={20} />}
-            label="Lớp học"
-            value="48"
-            hint="+8 (20%)"
-            trend="up"
-            color="black"
-            delay={300}
-          />
-          <StatCard
-            icon={<DollarSign size={20} />}
-            label="Doanh thu tháng"
-            value="12.2M VND"
-            hint="+3.2M (35%)"
-            trend="up"
-            color="red"
-            delay={400}
-          />
+          {loading && !data ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : (
+            <>
+              <StatCard
+                icon={<Users size={20} />}
+                label="Tổng học viên"
+                value={stats?.totalStudents?.toLocaleString("vi-VN") ?? "0"}
+                hint={`${stats?.upcomingSessions ?? 0} buổi sắp tới`}
+                trend="up"
+                color="red"
+                delay={100}
+              />
+              <StatCard
+                icon={<Building2 size={20} />}
+                label="Chi nhánh"
+                value={stats?.totalBranches?.toString() ?? "0"}
+                hint={`${stats?.totalClasses ?? 0} lớp tổng cộng`}
+                trend="stable"
+                color="gray"
+                delay={200}
+              />
+              <StatCard
+                icon={<BookOpen size={20} />}
+                label="Lớp đang hoạt động"
+                value={stats?.activeClasses?.toString() ?? "0"}
+                hint={`/${stats?.totalClasses ?? 0} tổng lớp`}
+                trend="up"
+                color="black"
+                delay={300}
+              />
+              <StatCard
+                icon={<Ticket size={20} />}
+                label="Tickets & Báo cáo chờ"
+                value={`${(stats?.openTickets ?? 0) + (stats?.pendingReports ?? 0)}`}
+                hint={`${stats?.openTickets ?? 0} ticket, ${stats?.pendingReports ?? 0} báo cáo`}
+                trend={(stats?.openTickets ?? 0) > 5 ? "down" : "stable"}
+                color="red"
+                delay={400}
+              />
+            </>
+          )}
         </div>
       </div>
 
       {/* Tab Navigation */}
       <div className={`flex items-center gap-1 mb-6 p-1 bg-white border border-gray-200 rounded-xl w-fit transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        {["overview", "revenue", "students", "performance"].map((tab) => (
+        {["overview", "students", "classes", "operations"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -255,9 +370,9 @@ export default function Page() {
               }`}
           >
             {tab === "overview" && "Tổng quan"}
-            {tab === "revenue" && "Doanh thu"}
             {tab === "students" && "Học viên"}
-            {tab === "performance" && "Hiệu suất"}
+            {tab === "classes" && "Lớp học"}
+            {tab === "operations" && "Vận hành"}
           </button>
         ))}
       </div>
@@ -266,790 +381,645 @@ export default function Page() {
       {activeTab === "overview" && (
         <>
           <div className={`grid lg:grid-cols-2 gap-6 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            {/* Revenue Chart */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <TrendingUp size={20} className="text-red-600" />
-                    Tăng trưởng doanh thu
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">6 tháng gần nhất</p>
-                </div>
-                <Badge color="red">
-                  <Target size={14} />
-                  Đạt 142% mục tiêu
-                </Badge>
-              </div>
-
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <YAxis
-                      tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      name="Doanh thu thực tế"
-                      stroke="#dc2626"
-                      fill="url(#colorRevenue)"
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="target"
-                      name="Mục tiêu"
-                      stroke="#404040"
-                      fill="url(#colorTarget)"
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                    />
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorTarget" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#404040" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#404040" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="flex items-center justify-center gap-4 mt-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-600"></div>
-                  <span className="text-sm text-gray-600">Doanh thu thực tế</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-gray-600 border-2 border-gray-600 border-dashed"></div>
-                  <span className="text-sm text-gray-600">Mục tiêu</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Student Growth Chart */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <Users size={20} className="text-gray-900" />
-                    Tăng trưởng học viên
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">Tổng số và học viên mới</p>
-                </div>
-                <Badge color="red">
-                  +47% so với cùng kỳ
-                </Badge>
-              </div>
-
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={studentGrowthData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <YAxis
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <Tooltip
-                      formatter={(value) => [value, ""]}
-                      labelFormatter={(label) => `Tháng ${label}`}
-                    />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="total"
-                      name="Tổng học viên"
-                      stroke="#171717"
-                      strokeWidth={2}
-                      dot={{ r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="new"
-                      name="Học viên mới"
-                      stroke="#dc2626"
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={{ r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Class Distribution */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                  <BookOpen size={20} className="text-gray-900" />
-                  Phân bố cấp độ lớp
-                </h3>
-                <Badge color="gray">
-                  48 lớp đang hoạt động
-                </Badge>
-              </div>
-
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={classDistributionData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={(entry) => `${entry.name}: ${entry.value}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {classDistributionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value) => [`${value}%`, "Tỷ lệ"]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                {classDistributionData.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      ></div>
-                      <span className="text-sm text-gray-700">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{item.value}%</span>
+            {/* Branch Overview Chart */}
+            {loading && !data ? <SkeletonChart /> : (
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                      <Building2 size={20} className="text-red-600" />
+                      Tổng quan chi nhánh
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">Số lớp & học viên theo chi nhánh</p>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <Badge color="red">
+                    {data?.branches?.length ?? 0} chi nhánh
+                  </Badge>
+                </div>
 
-            {/* Performance Radar Chart */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                  <Target size={20} className="text-red-600" />
-                  Đánh giá hiệu suất
+                <div className="h-64">
+                  {branchChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={branchChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fill: '#6b7280', fontSize: 11 }}
+                          axisLine={{ stroke: '#e5e7eb' }}
+                        />
+                        <YAxis
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                          axisLine={{ stroke: '#e5e7eb' }}
+                        />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="classCount" name="Số lớp" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="studentCount" name="Học viên" fill="#404040" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-400">
+                      Không có dữ liệu chi nhánh
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Class Status Distribution */}
+            {loading && !data ? <SkeletonChart /> : (
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <BookOpen size={20} className="text-gray-900" />
+                    Phân bố trạng thái lớp
+                  </h3>
+                  <Badge color="gray">
+                    {stats?.totalClasses ?? 0} lớp
+                  </Badge>
+                </div>
+
+                <div className="h-64">
+                  {classStatusData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={classStatusData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={(entry) => `${entry.name}: ${entry.value}`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {classStatusData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value) => [value, "Số lớp"]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-400">
+                      Không có dữ liệu lớp học
+                    </div>
+                  )}
+                </div>
+
+                {classStatusData.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 mt-4">
+                    {classStatusData.map((item, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          ></div>
+                          <span className="text-sm text-gray-700">{item.name}</span>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Class Capacity Chart */}
+            {loading && !data ? <SkeletonChart /> : (
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <Target size={20} className="text-red-600" />
+                    Tỷ lệ lấp đầy lớp học
+                  </h3>
+                  <Badge color="red">
+                    Top {classCapacityData.length} lớp
+                  </Badge>
+                </div>
+
+                <div className="h-64">
+                  {classCapacityData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={classCapacityData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tick={{ fill: '#6b7280', fontSize: 11 }}
+                          width={80}
+                        />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="enrolled" name="Đã ghi danh" fill="#dc2626" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="capacity" name="Sức chứa" fill="#e5e7eb" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-400">
+                      Không có dữ liệu
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Stats Summary */}
+            {loading && !data ? <SkeletonChart /> : (
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+                  <Activity size={20} className="text-red-600" />
+                  Thống kê nhanh
                 </h3>
-                <Badge color="red">
-                  Tổng điểm: 78/100
-                </Badge>
-              </div>
-
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={performanceData}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="subject" />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                    <Radar
-                      name="Điểm số"
-                      dataKey="score"
-                      stroke="#dc2626"
-                      fill="#dc2626"
-                      fillOpacity={0.3}
-                    />
-                    <Legend />
-                    <Tooltip />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 mt-4">
-                <div className="text-center p-3 bg-red-50 rounded-xl border border-red-100">
-                  <div className="text-lg font-bold text-red-600">85</div>
-                  <div className="text-xs text-red-700">Listening</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <div className="text-lg font-bold text-gray-900">88</div>
-                  <div className="text-xs text-gray-700">Grammar</div>
-                </div>
-                <div className="text-center p-3 bg-gray-100 rounded-xl border border-gray-200">
-                  <div className="text-lg font-bold text-gray-900">65</div>
-                  <div className="text-xs text-gray-700">Writing</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-red-50 rounded-xl border border-red-100 text-center">
+                    <div className="text-2xl font-bold text-red-600">{stats?.totalStudents ?? 0}</div>
+                    <div className="text-xs text-red-700 mt-1">Tổng học viên</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center">
+                    <div className="text-2xl font-bold text-gray-900">{stats?.activeClasses ?? 0}</div>
+                    <div className="text-xs text-gray-700 mt-1">Lớp hoạt động</div>
+                  </div>
+                  <div className="p-4 bg-gray-100 rounded-xl border border-gray-200 text-center">
+                    <div className="text-2xl font-bold text-gray-900">{stats?.totalSessions ?? 0}</div>
+                    <div className="text-xs text-gray-700 mt-1">Tổng buổi học</div>
+                  </div>
+                  <div className="p-4 bg-red-100 rounded-xl border border-red-200 text-center">
+                    <div className="text-2xl font-bold text-red-700">{stats?.upcomingSessions ?? 0}</div>
+                    <div className="text-xs text-red-800 mt-1">Buổi sắp tới</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center">
+                    <div className="text-2xl font-bold text-gray-900">{stats?.pendingReports ?? 0}</div>
+                    <div className="text-xs text-gray-700 mt-1">Báo cáo chờ</div>
+                  </div>
+                  <div className="p-4 bg-red-50 rounded-xl border border-red-100 text-center">
+                    <div className="text-2xl font-bold text-red-600">{stats?.openTickets ?? 0}</div>
+                    <div className="text-xs text-red-700 mt-1">Ticket mở</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Bottom Row */}
           <div className={`grid md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            {/* Attendance Rate */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Calendar size={20} className="text-red-600" />
-                Tỷ lệ điểm danh tuần
-              </h3>
-
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={attendanceData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <YAxis
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                      domain={[80, 100]}
-                    />
-                    <Tooltip formatter={(value) => [`${value}%`, "Tỷ lệ"]} />
-                    <Bar
-                      dataKey="rate"
-                      name="Tỷ lệ điểm danh"
-                      fill="#dc2626"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="flex items-center justify-center gap-4 mt-4">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-red-600">92%</div>
-                  <div className="text-xs text-gray-600">Cao nhất (T2)</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-gray-600">89%</div>
-                  <div className="text-xs text-gray-600">Trung bình tuần</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-gray-700">85%</div>
-                  <div className="text-xs text-gray-600">Thấp nhất (CN)</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Today's Classes */}
+            {/* Upcoming Sessions */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <Clock size={20} className="text-red-600" />
-                  Lớp học hôm nay
+                  Buổi học sắp tới
                 </h3>
-                <Badge color="red">3 lớp</Badge>
+                <Badge color="red">{data?.upcomingSessions?.length ?? 0} buổi</Badge>
               </div>
 
               <div className="space-y-3">
-                {[
-                  { name: "English B1-01", time: "08:00 - 10:00", room: "P101", status: "active", teacher: "Ms. Anna" },
-                  { name: "IELTS Prep-02", time: "14:00 - 16:00", room: "P203", status: "upcoming", teacher: "Mr. David" },
-                  { name: "TOEIC Advanced", time: "18:00 - 20:00", room: "P105", status: "upcoming", teacher: "Ms. Sarah" },
-                ].map((cls, i) => (
-                  <div key={i} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium text-gray-900">{cls.name}</div>
-                      <Badge color={cls.status === "active" ? "red" : "gray"}>
-                        {cls.status === "active" ? "Đang diễn ra" : "Sắp diễn ra"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <div className="flex items-center gap-3">
+                {loading && !data ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="p-3 border border-gray-200 rounded-xl animate-pulse">
+                        <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-24"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : data?.upcomingSessions?.length ? (
+                  data.upcomingSessions.slice(0, 5).map((session) => (
+                    <div key={session.id} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium text-gray-900">{session.classCode}</div>
+                        <Badge color={getStatusColor(session.status)}>
+                          {session.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
-                          <Clock size={12} />
-                          {cls.time}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MapPin size={12} />
-                          {cls.room}
+                          <Calendar size={12} />
+                          {formatDateTime(session.plannedDatetime)}
                         </div>
                       </div>
-                      <div className="text-gray-700">{cls.teacher}</div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">Không có buổi học sắp tới</div>
+                )}
               </div>
             </div>
 
-            {/* Fee Reminders */}
+            {/* Recent Enrollments */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <GraduationCap size={20} className="text-red-600" />
+                  Ghi danh gần đây
+                </h3>
+                <Badge color="red">{data?.recentEnrollments?.length ?? 0} ghi danh</Badge>
+              </div>
+
+              <div className="space-y-3">
+                {loading && !data ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="p-3 border border-gray-200 rounded-xl animate-pulse">
+                        <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-24"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : data?.recentEnrollments?.length ? (
+                  data.recentEnrollments.slice(0, 5).map((enrollment) => (
+                    <div key={enrollment.id} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium text-gray-900">{enrollment.studentName}</div>
+                        <Badge color={getStatusColor(enrollment.status)}>
+                          {enrollment.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <span>{enrollment.classCode}</span>
+                        <span>{formatDate(enrollment.enrollDate)}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">Không có ghi danh gần đây</div>
+                )}
+              </div>
+            </div>
+
+            {/* Open Tickets */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <AlertCircle size={20} className="text-red-600" />
-                  Nhắc nhở học phí
+                  Ticket đang mở
                 </h3>
-                <Badge color="red">2 quá hạn</Badge>
+                <Badge color="red">{data?.openTickets?.length ?? 0} ticket</Badge>
               </div>
 
               <div className="space-y-3">
-                {[
-                  { name: "Nguyễn Văn A", course: "English B1", due: "Hôm nay", amount: "2,500,000", status: "due" },
-                  { name: "Trần Thị B", course: "IELTS Prep", due: "Quá 3 ngày", amount: "3,200,000", status: "overdue" },
-                  { name: "Lê Văn C", course: "TOEIC", due: "15/12", amount: "2,800,000", status: "upcoming" },
-                ].map((fee, i) => (
-                  <div key={i} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium text-gray-900">{fee.name}</div>
-                      <Badge color={fee.status === "overdue" ? "red" : fee.status === "due" ? "gray" : "black"}>
-                        {fee.due}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{fee.course}</span>
-                      <span className="font-semibold text-gray-900">{fee.amount} VND</span>
-                    </div>
+                {loading && !data ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="p-3 border border-gray-200 rounded-xl animate-pulse">
+                        <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-24"></div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : data?.openTickets?.length ? (
+                  data.openTickets.slice(0, 5).map((ticket) => (
+                    <div key={ticket.id} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium text-gray-900 truncate flex-1 mr-2">{ticket.title}</div>
+                        <Badge color={getPriorityColor(ticket.priority)}>
+                          {ticket.priority}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <Badge color={getStatusColor(ticket.status)}>{ticket.status}</Badge>
+                        <span>{formatDate(ticket.createdAt)}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">Không có ticket đang mở</div>
+                )}
               </div>
-
-              <button className="w-full mt-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-medium hover:shadow-lg transition-all cursor-pointer">
-                Xem tất cả nhắc nhở
-              </button>
             </div>
           </div>
         </>
       )}
 
-      {/* Tab Revenue */}
-      {activeTab === "revenue" && (
-        <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {/* Revenue Chart - Full Width */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-              <div>
-                <h3 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
-                  <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
-                    <TrendingUp size={20} className="text-white" />
-                  </div>
-                  Tăng trưởng doanh thu 6 tháng
-                </h3>
-                <p className="text-sm text-gray-600 mt-2 ml-12">Phân tích chi tiết doanh thu theo tháng</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge color="red">
-                  <Target size={14} />
-                  Đạt 142% mục tiêu
-                </Badge>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 rounded-lg border border-red-200">
-                  <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div>
-                  <span className="text-xs font-medium text-gray-700">Tăng trưởng tích cực</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    axisLine={{ stroke: '#e5e7eb' }}
-                  />
-                  <YAxis
-                    tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    axisLine={{ stroke: '#e5e7eb' }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    name="Doanh thu thực tế"
-                    stroke="#dc2626"
-                    fill="url(#colorRevenue)"
-                    strokeWidth={2}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="target"
-                    name="Mục tiêu"
-                    stroke="#404040"
-                    fill="url(#colorTarget)"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                  />
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorTarget" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#404040" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#404040" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="flex items-center justify-center gap-6 mt-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-600"></div>
-                <span className="text-sm text-gray-600">Doanh thu thực tế</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-gray-600 border-2 border-gray-600 border-dashed"></div>
-                <span className="text-sm text-gray-600">Mục tiêu</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Revenue by Source */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2 text-lg">
-                  <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
-                    <DollarSign size={18} className="text-white" />
-                  </div>
-                  Doanh thu theo nguồn
-                </h3>
-                <Badge color="red">Tổng: 12.2M VND</Badge>
-              </div>
-              <div className="space-y-5">
-                {[
-                  { source: "Học phí", amount: "8.5M", percent: 70, color: "red", icon: "📚" },
-                  { source: "Phí thi", amount: "2.1M", percent: 17, color: "black", icon: "📝" },
-                  { source: "Tài liệu", amount: "1.2M", percent: 10, color: "gray", icon: "📖" },
-                  { source: "Khác", amount: "0.4M", percent: 3, color: "darkRed", icon: "💼" },
-                ].map((item, i) => (
-                  <div key={i} className="group">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl">{item.icon}</span>
-                        <span className="text-sm font-semibold text-gray-800">{item.source}</span>
-                      </div>
-                      <span className="text-sm font-bold text-gray-900 bg-white px-3 py-1 rounded-lg border border-gray-200">{item.amount} VND</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
-                      <div
-                        className={`bg-gradient-to-r ${
-                          item.color === "red" ? "from-red-600 to-red-700" :
-                          item.color === "black" ? "from-gray-900 to-gray-800" :
-                          item.color === "gray" ? "from-gray-600 to-gray-700" :
-                          "from-red-800 to-red-900"
-                        } h-3 rounded-full transition-all duration-700 group-hover:shadow-lg`}
-                        style={{ width: `${item.percent}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="text-xs text-gray-600">{item.percent}% tổng doanh thu</div>
-                      <div className="text-xs font-medium text-gray-700">{(item.percent / 100 * 12.2).toFixed(1)}M VND</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2 text-lg">
-                  <div className="p-2 bg-gradient-to-r from-gray-800 to-gray-900 rounded-lg">
-                    <Calendar size={18} className="text-white" />
-                  </div>
-                  Top 5 khóa học doanh thu cao
-                </h3>
-                <Badge color="red">5 khóa học</Badge>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { course: "IELTS Foundation", revenue: "2.8M", students: 45, rank: 1 },
-                  { course: "TOEIC Advanced", revenue: "2.1M", students: 32, rank: 2 },
-                  { course: "Business English", revenue: "1.9M", students: 28, rank: 3 },
-                  { course: "Academic Writing", revenue: "1.5M", students: 22, rank: 4 },
-                  { course: "Conversation Practice", revenue: "1.2M", students: 18, rank: 5 },
-                ].map((item, i) => (
-                  <div key={i} className="group p-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-all duration-300 cursor-pointer hover:shadow-md hover:border-gray-300">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
-                          item.rank === 1 ? "bg-gradient-to-r from-red-600 to-red-700 text-white" :
-                          item.rank === 2 ? "bg-gradient-to-r from-gray-600 to-gray-700 text-white" :
-                          item.rank === 3 ? "bg-gradient-to-r from-red-800 to-red-900 text-white" :
-                          "bg-gray-100 text-gray-700"
-                        }`}>
-                          {item.rank}
-                        </div>
-                        <div className="flex-1">
-                          <span className="font-semibold text-gray-900 block">{item.course}</span>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Users size={12} className="text-gray-400" />
-                            <span className="text-xs text-gray-600">{item.students} học viên</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-base font-bold text-red-600 block">{item.revenue} VND</span>
-                        <span className="text-xs text-gray-500">{(parseFloat(item.revenue.replace('M', '')) / 12.2 * 100).toFixed(1)}%</span>
-                      </div>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                      <div 
-                        className="bg-gradient-to-r from-red-600 to-red-700 h-1.5 rounded-full transition-all duration-500"
-                        style={{ width: `${(parseFloat(item.revenue.replace('M', '')) / 2.8) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Tab Students */}
       {activeTab === "students" && (
         <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {/* Student Growth Chart */}
+          {/* Students by Branch */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <Users size={20} className="text-red-600" />
-                  Tăng trưởng học viên 6 tháng
+                  Phân bố học viên theo chi nhánh
                 </h3>
-                <p className="text-sm text-gray-600 mt-1">Tổng số và học viên mới theo tháng</p>
+                <p className="text-sm text-gray-600 mt-1">Tổng: {stats?.totalStudents ?? 0} học viên</p>
               </div>
-              <Badge color="red">
-                +47% so với cùng kỳ
-              </Badge>
+              <Badge color="red">{data?.branches?.length ?? 0} chi nhánh</Badge>
             </div>
 
             <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={studentGrowthData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    axisLine={{ stroke: '#e5e7eb' }}
-                  />
-                  <YAxis
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    axisLine={{ stroke: '#e5e7eb' }}
-                  />
-                  <Tooltip
-                    formatter={(value) => [value, ""]}
-                    labelFormatter={(label) => `Tháng ${label}`}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="total"
-                    name="Tổng học viên"
-                    stroke="#171717"
-                    strokeWidth={3}
-                    dot={{ r: 5 }}
-                    activeDot={{ r: 7 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="new"
-                    name="Học viên mới"
-                    stroke="#dc2626"
-                    strokeWidth={3}
-                    strokeDasharray="5 5"
-                    dot={{ r: 5 }}
-                    activeDot={{ r: 7 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {branchChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={branchChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} />
+                    <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={{ stroke: '#e5e7eb' }} />
+                    <Tooltip />
+                    <Bar dataKey="studentCount" name="Số học viên" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-400">
+                  Không có dữ liệu
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Student Distribution */}
+          {/* Student List */}
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <BookOpen size={20} className="text-gray-900" />
-                Phân bố học viên theo cấp độ
+                <Users size={20} className="text-red-600" />
+                Danh sách học viên
               </h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={classDistributionData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={(entry) => `${entry.name}: ${entry.value}%`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {classDistributionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value) => [`${value}%`, "Tỷ lệ"]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {data?.students?.length ? (
+                  data.students.slice(0, 10).map((student) => (
+                    <div key={student.profileId} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-gray-900">{student.displayName}</span>
+                        <Badge color="red">{student.activeEnrollments} lớp</Badge>
+                      </div>
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <MapPin size={12} />
+                        {student.branchName}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu học viên</div>
+                )}
               </div>
             </div>
 
+            {/* Recent Enrollments - Detailed */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Users size={20} className="text-red-600" />
-                Top 5 lớp có nhiều học viên nhất
+                <GraduationCap size={20} className="text-gray-900" />
+                Ghi danh gần đây
               </h3>
-              <div className="space-y-3">
-                {[
-                  { course: "IELTS Foundation", students: 45, capacity: 50 },
-                  { course: "TOEIC Intermediate", students: 38, capacity: 40 },
-                  { course: "Business English", students: 32, capacity: 35 },
-                  { course: "Academic Writing", students: 28, capacity: 30 },
-                  { course: "Conversation Practice", students: 25, capacity: 30 },
-                ].map((item, i) => (
-                  <div key={i} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-gray-900">{item.course}</span>
-                      <span className="text-sm font-bold text-red-600">{item.students}/{item.capacity}</span>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {data?.recentEnrollments?.length ? (
+                  data.recentEnrollments.map((enrollment) => (
+                    <div key={enrollment.id} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-900">{enrollment.studentName}</span>
+                        <Badge color={getStatusColor(enrollment.status)}>
+                          {enrollment.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">{enrollment.classCode}</span>
+                        <span className="font-medium text-gray-700">{formatDate(enrollment.enrollDate)}</span>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-red-600 to-red-700 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${(item.students / item.capacity) * 100}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">{Math.round((item.students / item.capacity) * 100)}% đầy</div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">Không có ghi danh gần đây</div>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Tab Performance */}
-      {activeTab === "performance" && (
+      {/* Tab Classes */}
+      {activeTab === "classes" && (
         <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {/* Performance Radar Chart */}
+          {/* Class Capacity */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                  <Target size={20} className="text-red-600" />
-                  Đánh giá hiệu suất tổng thể
+                  <BookOpen size={20} className="text-red-600" />
+                  Tỷ lệ lấp đầy lớp học
                 </h3>
-                <p className="text-sm text-gray-600 mt-1">Phân tích chi tiết các kỹ năng</p>
+                <p className="text-sm text-gray-600 mt-1">Ghi danh / Sức chứa</p>
               </div>
-              <Badge color="red">
-                Tổng điểm: 78/100
-              </Badge>
+              <Badge color="red">{stats?.activeClasses ?? 0} lớp hoạt động</Badge>
             </div>
 
             <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={performanceData}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="subject" />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                  <Radar
-                    name="Điểm số"
-                    dataKey="score"
-                    stroke="#dc2626"
-                    fill="#dc2626"
-                    fillOpacity={0.3}
-                  />
-                  <Legend />
-                  <Tooltip />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="grid grid-cols-5 gap-3 mt-6">
-              {performanceData.map((item, i) => (
-                <div key={i} className={`text-center p-3 rounded-xl border ${
-                  i === 0 ? "bg-red-50 border-red-100" :
-                  i === 1 ? "bg-gray-50 border-gray-100" :
-                  i === 2 ? "bg-gray-100 border-gray-200" :
-                  i === 3 ? "bg-red-100 border-red-200" :
-                  "bg-gray-50 border-gray-100"
-                }`}>
-                  <div className={`text-lg font-bold ${
-                    i === 0 ? "text-red-600" :
-                    i === 1 ? "text-gray-900" :
-                    i === 2 ? "text-gray-900" :
-                    i === 3 ? "text-red-700" :
-                    "text-gray-900"
-                  }`}>{item.score}</div>
-                  <div className={`text-xs mt-1 ${
-                    i === 0 ? "text-red-700" :
-                    i === 1 ? "text-gray-700" :
-                    i === 2 ? "text-gray-700" :
-                    i === 3 ? "text-red-800" :
-                    "text-gray-700"
-                  }`}>{item.subject}</div>
-                </div>
-              ))}
+              {classCapacityData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={classCapacityData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                    <YAxis type="category" dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="enrolled" name="Đã ghi danh" fill="#dc2626" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="capacity" name="Sức chứa" fill="#e5e7eb" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-400">Không có dữ liệu</div>
+              )}
             </div>
           </div>
 
-          {/* Attendance Chart */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Calendar size={20} className="text-red-600" />
-              Tỷ lệ điểm danh tuần
-            </h3>
-
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={attendanceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    axisLine={{ stroke: '#e5e7eb' }}
-                  />
-                  <YAxis
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    axisLine={{ stroke: '#e5e7eb' }}
-                    domain={[80, 100]}
-                  />
-                  <Tooltip formatter={(value) => [`${value}%`, "Tỷ lệ"]} />
-                  <Bar
-                    dataKey="rate"
-                    name="Tỷ lệ điểm danh"
-                    fill="#dc2626"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* Class List */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <BookOpen size={20} className="text-gray-900" />
+                Danh sách lớp học
+              </h3>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {data?.classes?.length ? (
+                  data.classes.map((cls) => (
+                    <div key={cls.id} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <div className="font-medium text-gray-900">{cls.title}</div>
+                          <div className="text-xs text-gray-500">{cls.code}</div>
+                        </div>
+                        <Badge color={getStatusColor(cls.status)}>
+                          {cls.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          <MapPin size={12} /> {cls.branchName}
+                        </span>
+                        <span className="font-semibold text-red-600">{cls.enrollmentCount}/{cls.capacity}</span>
+                      </div>
+                      {cls.capacity > 0 && (
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                          <div
+                            className="bg-gradient-to-r from-red-600 to-red-700 h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min((cls.enrollmentCount / cls.capacity) * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu lớp học</div>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center justify-center gap-6 mt-4">
-              <div className="text-center">
-                <div className="text-lg font-bold text-red-600">92%</div>
-                <div className="text-xs text-gray-600">Cao nhất (T2)</div>
+            {/* Branch Class Breakdown */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Building2 size={20} className="text-red-600" />
+                Lớp theo chi nhánh
+              </h3>
+              <div className="space-y-3">
+                {data?.branches?.length ? (
+                  data.branches.map((branch) => (
+                    <div key={branch.id} className="p-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-all cursor-pointer">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="font-semibold text-gray-900">{branch.name}</div>
+                          <div className="text-xs text-gray-500">{branch.code}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-2 bg-red-50 rounded-lg text-center border border-red-100">
+                          <div className="text-lg font-bold text-red-600">{branch.classCount}</div>
+                          <div className="text-xs text-red-700">Lớp học</div>
+                        </div>
+                        <div className="p-2 bg-gray-50 rounded-lg text-center border border-gray-100">
+                          <div className="text-lg font-bold text-gray-900">{branch.studentCount}</div>
+                          <div className="text-xs text-gray-700">Học viên</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu chi nhánh</div>
+                )}
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-gray-600">89%</div>
-                <div className="text-xs text-gray-600">Trung bình tuần</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Operations */}
+      {activeTab === "operations" && (
+        <div className={`space-y-6 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          {/* Pending Reports & Tickets Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard
+              icon={<FileText size={20} />}
+              label="Báo cáo chờ duyệt"
+              value={stats?.pendingReports?.toString() ?? "0"}
+              color="red"
+            />
+            <StatCard
+              icon={<Ticket size={20} />}
+              label="Ticket đang mở"
+              value={stats?.openTickets?.toString() ?? "0"}
+              color="gray"
+            />
+            <StatCard
+              icon={<Clock size={20} />}
+              label="Buổi học sắp tới"
+              value={stats?.upcomingSessions?.toString() ?? "0"}
+              color="black"
+            />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Pending Reports */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <FileText size={20} className="text-red-600" />
+                  Báo cáo chờ duyệt
+                </h3>
+                <Badge color="red">{data?.pendingReports?.length ?? 0} báo cáo</Badge>
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-gray-700">85%</div>
-                <div className="text-xs text-gray-600">Thấp nhất (CN)</div>
+
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {data?.pendingReports?.length ? (
+                  data.pendingReports.map((report) => (
+                    <div key={report.id} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium text-gray-900">{report.studentName}</div>
+                        <Badge color={getStatusColor(report.status)}>
+                          {report.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <span>{report.classCode}</span>
+                        <span>{formatDate(report.reportMonth)}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">Không có báo cáo chờ duyệt</div>
+                )}
               </div>
+            </div>
+
+            {/* Open Tickets - Full */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <Ticket size={20} className="text-red-600" />
+                  Ticket đang mở
+                </h3>
+                <Badge color="red">{data?.openTickets?.length ?? 0} ticket</Badge>
+              </div>
+
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {data?.openTickets?.length ? (
+                  data.openTickets.map((ticket) => (
+                    <div key={ticket.id} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium text-gray-900 truncate flex-1 mr-2">{ticket.title}</div>
+                        <Badge color={getPriorityColor(ticket.priority)}>
+                          {ticket.priority}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <Badge color={getStatusColor(ticket.status)}>{ticket.status}</Badge>
+                        <span>{formatDate(ticket.createdAt)}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">Không có ticket đang mở</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Upcoming Sessions - Full */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Calendar size={20} className="text-red-600" />
+                Lịch buổi học sắp tới
+              </h3>
+              <Badge color="red">{data?.upcomingSessions?.length ?? 0} buổi</Badge>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {data?.upcomingSessions?.length ? (
+                data.upcomingSessions.map((session) => (
+                  <div key={session.id} className="p-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors cursor-pointer">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium text-gray-900">{session.classCode}</div>
+                      <Badge color={getStatusColor(session.status)}>
+                        {session.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Calendar size={12} />
+                      {formatDateTime(session.plannedDatetime)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8 text-gray-400 text-sm">Không có buổi học sắp tới</div>
+              )}
             </div>
           </div>
         </div>
@@ -1060,7 +1030,11 @@ export default function Page() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-red-600" />
-            <span>Cập nhật thời gian thực • Dữ liệu được cập nhật lúc 09:30</span>
+            <span>
+              Cập nhật lúc{" "}
+              {new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+              {" "}• Dữ liệu từ API
+            </span>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">

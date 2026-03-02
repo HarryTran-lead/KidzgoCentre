@@ -407,3 +407,13 @@ export const BACKEND_FILE_ENDPOINTS = {
   DELETE: '/files',
   TRANSFORM: '/files/transform',
 } as const;
+
+// Dashboard Overview Endpoints (Client-side → Next.js API Routes)
+export const OVERVIEW_ENDPOINTS = {
+  ADMIN: '/api/me/admin/overview',
+} as const;
+
+// Backend Dashboard Overview Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_OVERVIEW_ENDPOINTS = {
+  ADMIN: '/me/admin/overview',
+} as const;
