@@ -3,9 +3,10 @@ import { BACKEND_TICKET_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
@@ -19,7 +20,7 @@ export async function GET(
       );
     }
 
-    const url = buildApiUrl(BACKEND_TICKET_ENDPOINTS.GET_SLA(params.id));
+    const url = buildApiUrl(BACKEND_TICKET_ENDPOINTS.GET_SLA(id));
 
     const upstream = await fetch(url, {
       method: "GET",

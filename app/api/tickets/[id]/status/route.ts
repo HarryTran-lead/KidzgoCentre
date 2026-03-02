@@ -4,9 +4,10 @@ import type { TicketDetailResponse } from "@/types/student/ticket";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
@@ -21,7 +22,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const url = buildApiUrl(BACKEND_TICKET_ENDPOINTS.UPDATE_STATUS(params.id));
+    const url = buildApiUrl(BACKEND_TICKET_ENDPOINTS.UPDATE_STATUS(id));
 
     const upstream = await fetch(url, {
       method: "PATCH",

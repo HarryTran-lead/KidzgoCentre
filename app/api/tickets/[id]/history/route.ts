@@ -4,9 +4,10 @@ import type { TicketHistoryResponse } from "@/types/student/ticket";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
@@ -20,7 +21,7 @@ export async function GET(
       );
     }
 
-    const url = buildApiUrl(BACKEND_TICKET_ENDPOINTS.GET_HISTORY(params.id));
+    const url = buildApiUrl(BACKEND_TICKET_ENDPOINTS.GET_HISTORY(id));
 
     const upstream = await fetch(url, {
       method: "GET",

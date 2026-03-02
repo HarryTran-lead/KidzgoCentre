@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { BACKEND_TICKET_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
-import type { TicketCommentResponse } from "@/types/student/ticket";
+import type { AddTicketCommentResponse } from "@/types/student/ticket";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
@@ -21,7 +22,7 @@ export async function POST(
     }
 
     const body = await req.json();
-    const url = buildApiUrl(BACKEND_TICKET_ENDPOINTS.ADD_COMMENT(params.id));
+    const url = buildApiUrl(BACKEND_TICKET_ENDPOINTS.ADD_COMMENT(id));
 
     const upstream = await fetch(url, {
       method: "POST",
@@ -32,7 +33,7 @@ export async function POST(
       body: JSON.stringify(body),
     });
 
-    const data: TicketCommentResponse = await upstream.json();
+    const data: AddTicketCommentResponse = await upstream.json();
 
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
