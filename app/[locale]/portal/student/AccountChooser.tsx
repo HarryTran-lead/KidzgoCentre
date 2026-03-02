@@ -266,7 +266,7 @@ export default function AccountChooser({ locale }: Props) {
   /* ================= RENDER ================= */
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-500 to-blue-400 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-red-700 via-red-500 to-rose-200 relative overflow-hidden">
       {/* Decorative background elements */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>

@@ -25,6 +25,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onCreated: (record: LeaveRequestRecord) => void;
+  lockedStudentProfileId?: string | null;
 };
 
 const initialFormState: LeaveRequestPayload = {
@@ -179,7 +180,12 @@ function Banner({
   );
 }
 
-export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Props) {
+export default function LeaveRequestCreateModal({
+  open,
+  onClose,
+  onCreated,
+  lockedStudentProfileId,
+}: Props) {
   const [formState, setFormState] = useState<LeaveRequestPayload>(initialFormState);
   const [creating, setCreating] = useState(false);
 
@@ -195,6 +201,7 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const isStudentLocked = !!lockedStudentProfileId;
 
   // reset khi đóng
   useEffect(() => {
@@ -210,6 +217,21 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
       setParentSearchTerm("");
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!lockedStudentProfileId) return;
+
+    setFormState((prev) => {
+      if (prev.studentProfileId === lockedStudentProfileId) return prev;
+      return {
+        ...prev,
+        studentProfileId: lockedStudentProfileId,
+        classId: "",
+      };
+    });
+    setClasses([]);
+  }, [lockedStudentProfileId, open]);
 
   // load students khi mở
   useEffect(() => {
@@ -243,6 +265,13 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
   }, [open]);
 
   const filteredStudents = useMemo(() => {
+    if (isStudentLocked) {
+      const locked = studentProfiles.find(
+        (student) => studentId(student) === lockedStudentProfileId
+      );
+      return locked ? [locked] : [];
+    }
+
     const studentTerm = searchTerm.trim().toLowerCase();
     const parentTerm = parentSearchTerm.trim().toLowerCase();
 
@@ -257,13 +286,17 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
 
       return matchStudent && matchParent;
     });
-  }, [parentSearchTerm, searchTerm, studentProfiles]);
+  }, [isStudentLocked, lockedStudentProfileId, parentSearchTerm, searchTerm, studentProfiles]);
 
-  const selectedStudent = useMemo(
-    () =>
-      studentProfiles.find((student) => studentId(student) === formState.studentProfileId),
-    [formState.studentProfileId, studentProfiles]
-  );
+  const selectedStudent = useMemo(() => {
+    const id = formState.studentProfileId;
+    if (!id) return undefined;
+
+    return (
+      studentProfiles.find((student) => studentId(student) === id) ??
+      filteredStudents.find((student) => studentId(student) === id)
+    );
+  }, [filteredStudents, formState.studentProfileId, studentProfiles]);
 
   const selectedStudentClassText = useMemo(() => {
     if (!selectedStudent) return "";
@@ -409,20 +442,22 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="relative">
                   <input
-                    className="h-11 w-full rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
+                    className="h-11 w-full rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text disabled:opacity-60 disabled:cursor-not-allowed"
                     placeholder="Tìm theo tên học viên"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    disabled={isStudentLocked}
                   />
                   <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 </div>
                 
                 <div className="relative">
                   <input
-                    className="h-11 w-full rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
+                    className="h-11 w-full rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text disabled:opacity-60 disabled:cursor-not-allowed"
                     placeholder="Tìm theo tên phụ huynh"
                     value={parentSearchTerm}
                     onChange={(e) => setParentSearchTerm(e.target.value)}
+                    disabled={isStudentLocked}
                   />
                   <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 </div>
@@ -430,7 +465,7 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
 
               <div className="relative">
                 <select
-                  className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
+                  className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   value={formState.studentProfileId}
                   onChange={(e) => {
                     const id = e.target.value;
@@ -441,6 +476,7 @@ export default function LeaveRequestCreateModal({ open, onClose, onCreated }: Pr
                     }));
                     setClasses([]);
                   }}
+                  disabled={isStudentLocked}
                 >
                   <option value="">
                     {profilesLoading

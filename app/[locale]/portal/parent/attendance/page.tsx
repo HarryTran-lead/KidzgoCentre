@@ -132,6 +132,7 @@ function Banner({ kind, text }: { kind: "error" | "success"; text: string }) {
 
 export default function ParentAttendancePage() {
   const { selectedProfile } = useSelectedStudentProfile();
+  const isStudentLocked = !!selectedProfile?.id;
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -665,7 +666,7 @@ export default function ParentAttendancePage() {
                 <select
                   className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
                   value={formState.studentProfileId}
-                  disabled={profilesLoading || !studentProfiles.length}
+                  disabled={profilesLoading || !studentProfiles.length || isStudentLocked}
                   onChange={(e) =>
                     setFormState((prev) => ({
                       ...prev,
