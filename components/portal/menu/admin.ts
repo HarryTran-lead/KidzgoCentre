@@ -42,6 +42,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
     [t.groups.ops.feedback, ClipboardCheck, "/feedback"],
     [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
+    [t.groups.ops.documents, FileText, "/documents"],
   ];
 
   const SYSTEM: RawItem[] = [

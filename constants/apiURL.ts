@@ -51,7 +51,9 @@ export const STUDENT_CLASS_ENDPOINTS = {
 } as const;
 
 export const STUDENT_HOMEWORK_ENDPOINTS = {
-  GET_MY_HOMEWORK: "api/students/homework/my",
+  GET_MY_HOMEWORK: "/api/students/homework/my",
+  GET_BY_ID: (homeworkStudentId: string) => `/api/students/homework/${homeworkStudentId}`,
+  SUBMIT: "/api/students/homework/submit",
 } as const;
 
 export const BACKEND_STUDENT_ENDPOINTS = {
@@ -208,6 +210,8 @@ export const ADMIN_ENDPOINTS = {
   CLASSROOMS: '/api/classrooms',
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
   SESSIONS: '/api/sessions',
+  LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
+  LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
 } as const;
 
 // Lead Endpoints (Client-side → Next.js API Routes)
