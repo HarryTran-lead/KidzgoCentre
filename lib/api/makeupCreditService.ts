@@ -12,6 +12,7 @@ import type {
   MakeupCreditsResponse,
   MakeupCreditResponse,
   MakeupCreditStudentsResponse,
+  MakeupAllocationsResponse,
   MakeupSuggestionsResponse,
 
 } from "@/types/makeupCredit";
@@ -49,6 +50,24 @@ export async function getMakeupCreditStudents(): Promise<MakeupCreditStudentsRes
   const endpoint =
     MAKEUP_CREDIT_ENDPOINTS.STUDENTS ?? "/api/makeup-credits/students";
   return get<MakeupCreditStudentsResponse>(endpoint);
+}
+
+export async function getMakeupCreditsList(params: {
+  studentProfileId: string;
+  status?: string;
+  branchId?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}): Promise<MakeupCreditsResponse> {
+  const endpoint = MAKEUP_CREDIT_ENDPOINTS.GET ?? "/api/makeup-credits";
+  const qs = new URLSearchParams();
+  qs.set("studentProfileId", params.studentProfileId);
+  if (params.status) qs.set("status", params.status);
+  if (params.branchId) qs.set("branchId", params.branchId);
+  if (params.pageNumber) qs.set("pageNumber", String(params.pageNumber));
+  if (params.pageSize) qs.set("pageSize", String(params.pageSize));
+  const url = `${endpoint}?${qs.toString()}`;
+  return get<MakeupCreditsResponse>(url);
 }
 
 export async function getMakeupCreditsByStudent(
@@ -91,5 +110,23 @@ export async function useMakeupCredit(
     ? MAKEUP_CREDIT_ENDPOINTS.USE(creditId)
     : `/api/makeup-credits/${creditId}/use`;
   return post<MakeupSuggestionsResponse>(endpoint, payload);
+}
+
+export async function expireMakeupCredit(
+  creditId: string,
+  payload: { expiresAt: string }
+): Promise<MakeupCreditResponse> {
+  const endpoint = MAKEUP_CREDIT_ENDPOINTS.EXPIRE
+    ? MAKEUP_CREDIT_ENDPOINTS.EXPIRE(creditId)
+    : `/api/makeup-credits/${creditId}/expire`;
+  return post<MakeupCreditResponse>(endpoint, payload);
+}
+
+export async function getMakeupAllocations(params: {
+  studentProfileId: string;
+}): Promise<MakeupAllocationsResponse> {
+  const endpoint = MAKEUP_CREDIT_ENDPOINTS.ALLOCATIONS ?? "/api/makeup-credits/allocations";
+  const url = `${endpoint}?studentProfileId=${encodeURIComponent(params.studentProfileId)}`;
+  return get<MakeupAllocationsResponse>(url);
 }
 

@@ -33,15 +33,14 @@ export async function GET(req: Request, { params }: RouteParams) {
     });
 
     const data: MakeupCreditResponse = await upstream.json();
-
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
-    console.error("Get makeup credit detail error:", error);
+    console.error("Get makeup credit error:", error);
     return NextResponse.json(
       {
         success: false,
         data: null,
-        message: "Đã xảy ra lỗi khi lấy thông tin makeup credit",
+        message: "Đã xảy ra lỗi khi lấy chi tiết makeup credit",
       },
       { status: 500 }
     );

@@ -7,7 +7,7 @@
  */
 
 import { BRANCH_ENDPOINTS } from '@/constants/apiURL';
-import { get, post, put, del, patch } from '@/lib/axios';
+import { get, post, put, del, patch, publicGet } from '@/lib/axios';
 import type {
   GetAllBranchesParams,
   GetAllBranchesApiResponse,
@@ -61,7 +61,8 @@ export async function getAllBranchesPublic(params?: GetAllBranchesParams): Promi
   const url = BRANCH_ENDPOINTS.GET_ALL_PUBLIC;
   const fullUrl = queryParams.toString() ? `${url}?${queryParams.toString()}` : url;
   
-  return get<GetAllBranchesApiResponse>(fullUrl);
+  // Use publicGet to avoid sending auth headers
+  return publicGet<GetAllBranchesApiResponse>(fullUrl);
 }
 
 /**

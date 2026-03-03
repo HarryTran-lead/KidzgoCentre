@@ -1,15 +1,8 @@
 import { NextResponse } from "next/server";
 import { BACKEND_MAKEUP_CREDIT_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
-import type { MakeupSuggestionsResponse } from "@/types/makeupCredit";
+import type { MakeupAllocationsResponse } from "@/types/makeupCredit";
 
-type RouteParams = {
-  params: Promise<{
-    id: string;
-  }>;
-};
-
-export async function GET(req: Request, { params }: RouteParams) {
-  const { id } = await params;
+export async function GET(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
 
@@ -26,7 +19,7 @@ export async function GET(req: Request, { params }: RouteParams) {
 
     const { searchParams } = new URL(req.url);
     const queryString = searchParams.toString();
-    const url = buildApiUrl(BACKEND_MAKEUP_CREDIT_ENDPOINTS.SUGGESTIONS(id));
+    const url = buildApiUrl(BACKEND_MAKEUP_CREDIT_ENDPOINTS.ALLOCATIONS);
     const fullUrl = queryString ? `${url}?${queryString}` : url;
 
     const upstream = await fetch(fullUrl, {
@@ -37,15 +30,16 @@ export async function GET(req: Request, { params }: RouteParams) {
       },
     });
 
-    const data: MakeupSuggestionsResponse = await upstream.json();
+    const data: MakeupAllocationsResponse = await upstream.json();
+
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
-    console.error("Get makeup suggestions error:", error);
+    console.error("Get makeup allocations error:", error);
     return NextResponse.json(
       {
         success: false,
         data: null,
-        message: "Đã xảy ra lỗi khi lấy gợi ý học bù",
+        message: "Đã xảy ra lỗi khi lấy danh sách phân bổ makeup",
       },
       { status: 500 }
     );

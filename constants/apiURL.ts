@@ -67,10 +67,13 @@ export const CLASS_ENDPOINTS = {
 
 export const MAKEUP_CREDIT_ENDPOINTS = {
   STUDENTS: "/api/makeup-credits/students",
+  GET: "/api/makeup-credits",
   GET_ALL: "/api/makeup-credits/all",
   GET_BY_ID: (id: string) => `/api/makeup-credits/${id}`,
   SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
   USE: (id: string) => `/api/makeup-credits/${id}/use`,
+  EXPIRE: (id: string) => `/api/makeup-credits/${id}/expire`,
+  ALLOCATIONS: "/api/makeup-credits/allocations",
 } as const;
 
 export const SESSION_ENDPOINTS = {
@@ -93,10 +96,13 @@ export const BACKEND_CLASS_ENDPOINTS = {
 
 export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
   STUDENTS: "/makeup-credits/students",
+  GET: "/makeup-credits",
   GET_ALL: "/makeup-credits/all",
   GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
   SUGGESTIONS: (id: string) => `/makeup-credits/${id}/suggestions`,
   USE: (id: string) => `/makeup-credits/${id}/use`,
+  EXPIRE: (id: string) => `/makeup-credits/${id}/expire`,
+  ALLOCATIONS: "/makeup-credits/allocations",
 } as const;
 
 // Backend Auth Endpoints (Next.js API Routes → Backend API)
@@ -341,8 +347,47 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   SESSIONS: '/sessions',
 } as const;
 
+// Blog Endpoints (Client-side → Next.js API Routes)
+export const BLOG_ENDPOINTS = {
+  // CRUD Operations
+  GET_ALL: '/api/blogs',
+  GET_BY_ID: (id: string) => `/api/blogs/${id}`,
+  CREATE: '/api/blogs',
+  UPDATE: (id: string) => `/api/blogs/${id}`,
+  DELETE: (id: string) => `/api/blogs/${id}`,
+  
+  // Blog-specific Operations
+  PUBLISH: (id: string) => `/api/blogs/${id}/publish`,
+  UNPUBLISH: (id: string) => `/api/blogs/${id}/unpublish`,
+  GET_PUBLISHED: '/api/blogs/published',
+} as const;
+
+// Backend Blog Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_BLOG_ENDPOINTS = {
+  GET_ALL: '/blogs',
+  GET_BY_ID: (id: string) => `/blogs/${id}`,
+  CREATE: '/blogs',
+  UPDATE: (id: string) => `/blogs/${id}`,
+  DELETE: (id: string) => `/blogs/${id}`,
+  PUBLISH: (id: string) => `/blogs/${id}/publish`,
+  UNPUBLISH: (id: string) => `/blogs/${id}/unpublish`,
+  GET_PUBLISHED: '/blogs/published',
+} as const;
+
 // Backend Session Report Endpoints
 export const BACKEND_SESSION_REPORT_ENDPOINTS = {
   CREATE: '/session-reports',
   UPDATE: (id: string) => `/session-reports/${id}`,
+} as const;
+
+// Parent Endpoints (Client-side -> Next.js API Routes)
+export const PARENT_ENDPOINTS = {
+  TIMETABLE: "/api/parent/timetable",
+  OVERVIEW: "/api/parent/overview",
+} as const;
+
+// Backend Parent Endpoints (Next.js API Routes -> Backend API)
+export const BACKEND_PARENT_ENDPOINTS = {
+  TIMETABLE: "/parent/timetable",
+  OVERVIEW: "/parent/overview",
 } as const;

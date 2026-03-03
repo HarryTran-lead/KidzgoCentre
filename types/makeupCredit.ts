@@ -44,7 +44,19 @@ export type MakeupSuggestion = {
   [key: string]: unknown;
 };
 
+export type MakeupAllocation = {
+  id?: string;
+  makeupCreditId?: string;
+  targetSessionId?: string;
+  classId?: string;
+  allocatedAt?: string;
+  usedAt?: string | null;
+  [key: string]: unknown;
+};
+
 export type MakeupCreditsResponse = ApiResponse<ListData<MakeupCredit>>;
 export type MakeupCreditResponse = ApiResponse<MakeupCredit>;
 export type MakeupCreditStudentsResponse = ApiResponse<ListData<MakeupCreditStudent>>;
 export type MakeupSuggestionsResponse = ApiResponse<ListData<MakeupSuggestion>>;
+export type MakeupAllocationsResponse = ApiResponse<ListData<MakeupAllocation>>;
+export type MakeupAllocationResponse = ApiResponse<MakeupAllocation>;

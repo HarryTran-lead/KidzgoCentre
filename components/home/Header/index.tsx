@@ -155,7 +155,7 @@ export default function Navbar() {
   const activeKey = useMemo(() => {
     if (pathname.includes("/contact")) return "contact";
     if (pathname.includes("/faqs")) return "faqs";
-    if (pathname.includes("/blogs")) return "blogs";
+    if (pathname.includes("/blogs") || pathname.includes("/bantin")) return "bantin";
     if (pathname.includes("/pricing")) return "pricing";
     return activeSectionId;
   }, [pathname, activeSectionId]);

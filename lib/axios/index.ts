@@ -199,5 +199,65 @@ export async function request<T = any>(
   return response.data;
 }
 
+/* ================= PUBLIC API METHODS (No Auth) ================= */
+
+/**
+ * Create axios instance for public API calls (without auth interceptor)
+ */
+const publicAxiosInstance = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || '',
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add only response interceptor for logging (no auth)
+publicAxiosInstance.interceptors.response.use(
+  (response: AxiosResponse) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Public API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+        status: response.status,
+        data: response.data,
+      });
+    }
+    return response;
+  },
+  (error: AxiosError) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Public API Error]', {
+        url: error.config?.url,
+        status: error.response?.status,
+        message: error.message,
+        data: error.response?.data,
+      });
+    }
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * GET request for public endpoints (no authentication)
+ */
+export async function publicGet<T = any>(
+  url: string,
+  config?: AxiosRequestConfig
+): Promise<T> {
+  const response = await publicAxiosInstance.get<T>(url, config);
+  return response.data;
+}
+
+/**
+ * POST request for public endpoints (no authentication)
+ */
+export async function publicPost<T = any>(
+  url: string,
+  data?: any,
+  config?: AxiosRequestConfig
+): Promise<T> {
+  const response = await publicAxiosInstance.post<T>(url, data, config);
+  return response.data;
+}
+
 // Export axios instance for advanced usage
 export default axiosInstance;

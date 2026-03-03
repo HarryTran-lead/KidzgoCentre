@@ -21,6 +21,7 @@ type StudentClassesParams = {
   pageNumber?: number;
   pageSize?: number;
   studentId?: string;
+  studentProfileId?: string;
 };
 
 type StudentListParams = {
@@ -55,14 +56,28 @@ export async function getAllStudents(
 export async function getStudentClasses(
   params?: StudentClassesParams
 ): Promise<StudentClassesResponse> {
- const endpoint =
+  const safeParams = params ?? {};
+  const fallbackEndpoint =
     typeof STUDENT_ENDPOINTS.GET_CLASSES === "function"
       ? STUDENT_ENDPOINTS.GET_CLASSES()
       : "/api/students/classes";
+  const classEndpoint = CLASS_ENDPOINTS.GET_ALL ?? "/api/classes";
 
-  return get<StudentClassesResponse>(endpoint, {
-    params: params ?? {},
-  });
+  const studentParam =
+    safeParams.studentId ?? safeParams.studentProfileId ?? undefined;
+
+  try {
+    return await get<StudentClassesResponse>(classEndpoint, {
+      params: {
+        ...safeParams,
+        ...(studentParam ? { studentId: studentParam } : {}),
+      },
+    });
+  } catch (error) {
+    return get<StudentClassesResponse>(fallbackEndpoint, {
+      params: safeParams,
+    });
+  }
 }
 
 // Student Homework Types

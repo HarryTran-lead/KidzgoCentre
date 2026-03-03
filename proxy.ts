@@ -47,6 +47,13 @@ export function proxy(req: NextRequest) {
   const effectiveLocale: Locale = segLocale ?? cookieLocale ?? DEFAULT_LOCALE;
   const baseFromEffective = `/${effectiveLocale}`;
 
+  // === AUTO-REDIRECT: Nếu chưa có locale prefix, redirect về locale ===
+  if (!segLocale && pathname !== "/" && !pathname.startsWith("/_next")) {
+    const url = req.nextUrl.clone();
+    url.pathname = `/${effectiveLocale}${pathname}`;
+    return setLocaleCookie(NextResponse.redirect(url), effectiveLocale);
+  }
+
   // === DEV BYPASS CHO /auth/login ===
   if (isDevBypass()) {
     const isLogin =
@@ -171,23 +178,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except:
-     * - API routes that should bypass proxy
+     * - API routes
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public files (images, etc)
      */
-    "/",
-    "/(vi|en)/:path*",
-    "/auth/:path*",
-    "/(vi|en)/auth/:path*",
-    "/portal/:path*",
-    "/(vi|en)/portal/:path*",
-    "/contact",
-    "/faqs",
-    "/blogs",
-    "/(vi|en)/contact",
-    "/(vi|en)/faqs",
-    "/(vi|en)/blogs",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|_next).*)",
   ],
 };
