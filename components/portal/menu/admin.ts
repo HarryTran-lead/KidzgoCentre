@@ -12,6 +12,7 @@ import {
   Settings,
   Building,
   BarChart3,
+  FileText,
 } from "lucide-react";
 import { makeMenu, makeGroup, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -41,6 +42,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
     [t.groups.ops.feedback, ClipboardCheck, "/feedback"],
     [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
+    [t.groups.ops.documents, FileText, "/documents"],
   ];
 
   const SYSTEM: RawItem[] = [

@@ -29,6 +29,7 @@ export const menuAdmin = {
         fees: "Học phí & Công nợ",
         feedback: "Feedback lớp học",
         extracurricular: "Ngoại khóa & Trại hè",
+        documents: "Quản lý tài liệu",
       },
       finance: {
         title: "Tài chính",
@@ -75,6 +76,7 @@ export const menuAdmin = {
         fees: "Tuition & Receivables",
         feedback: "Class Feedback",
         extracurricular: "Extracurricular & Camps",
+        documents: "Document Management",
       },
       finance: {
         title: "Finance",
