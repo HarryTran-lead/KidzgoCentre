@@ -12,10 +12,10 @@ import {
   STUDENT_ENDPOINTS,
   STUDENT_HOMEWORK_ENDPOINTS,
 } from "@/constants/apiURL";
-import { get } from "@/lib/axios";
+import { get, post } from "@/lib/axios";
 import type { StudentClassesResponse } from "@/types/student/class";
 import type { StudentsResponse } from "@/types/student/student";
-import type { AssignmentListItem, HomeworkStats } from "@/types/student/homework";
+import type { AssignmentListItem, HomeworkStats, AssignmentDetail } from "@/types/student/homework";
 
 type StudentClassesParams = {
   pageNumber?: number;
@@ -160,8 +160,18 @@ export async function getStudentHomework(
 
   // Map items if present
   let items: AssignmentListItem[] = [];
-  if (responseData?.data?.homeworkAssignments?.items) {
+  
+  // Handle multiple possible response formats
+  // Format 1: response.data.homeworks.items (API mới)
+  // Format 2: response.data.homeworkAssignments.items (API cũ)
+  // Format 3: response.homeworks.items
+  // Format 4: Array directly in data
+  if (responseData?.data?.homeworks?.items) {
+    items = responseData.data.homeworks.items.map(mapToAssignmentListItem);
+  } else if (responseData?.data?.homeworkAssignments?.items) {
     items = responseData.data.homeworkAssignments.items.map(mapToAssignmentListItem);
+  } else if (responseData?.homeworks?.items) {
+    items = responseData.homeworks.items.map(mapToAssignmentListItem);
   } else if (responseData?.homeworkAssignments?.items) {
     items = responseData.homeworkAssignments.items.map(mapToAssignmentListItem);
   } else if (Array.isArray(responseData?.data)) {
@@ -192,4 +202,175 @@ export async function getStudentHomework(
     isSuccess: responseData?.isSuccess ?? true,
     message: responseData?.message,
   };
+}
+
+/**
+ * Get student homework detail by ID
+ */
+export async function getStudentHomeworkById(
+  homeworkStudentId: string
+): Promise<{ data: AssignmentDetail | null; isSuccess: boolean; message?: string }> {
+  const endpoint = STUDENT_HOMEWORK_ENDPOINTS.GET_BY_ID(homeworkStudentId);
+
+  try {
+    const response = await get<any>(endpoint);
+    const responseData = response?.data || response;
+
+    // Debug log
+    console.log("Homework detail response:", responseData);
+
+    // Handle different response formats
+    let item = responseData?.data;
+    
+    // If data is nested differently
+    if (!item && responseData) {
+      // Maybe responseData itself is the data
+      if (responseData.id || responseData.homeworkStudentId) {
+        item = responseData;
+      }
+    }
+
+    if (!item) {
+      return {
+        data: null,
+        isSuccess: false,
+        message: responseData?.message || "Không có dữ liệu bài tập",
+      };
+    }
+
+    // Map to AssignmentDetail
+    const assignment: AssignmentDetail = {
+      id: item.id || item.homeworkStudentId || "",
+      title: item.title || item.homeworkTitle || item.assignmentTitle || "",
+      className: item.className || item.classTitle || "",
+      subject: item.subjectName || item.subject || "",
+      teacher: item.teacherName || item.teacher || "",
+      assignedDate: item.assignedDate
+        ? new Date(item.assignedDate).toLocaleDateString("vi-VN")
+        : "",
+      dueDate: item.dueDate
+        ? new Date(item.dueDate).toLocaleDateString("vi-VN")
+        : "",
+      status: mapApiStatusToUiStatus(item.status) as AssignmentDetail["status"],
+      description: item.description || "",
+      requirements: item.requirements || [],
+      rubric: item.rubric || [],
+      teacherAttachments: item.teacherAttachments || item.attachments || [],
+      allowResubmit: item.allowResubmit ?? true,
+      maxResubmissions: item.maxResubmissions,
+      editCount: item.editCount || 0,
+      submission: item.submission ? {
+        id: item.submission.id,
+        submittedAt: item.submission.submittedAt
+          ? new Date(item.submission.submittedAt).toLocaleString("vi-VN")
+          : "",
+        status: item.submission.status === 1 ? "ON_TIME" : "LATE",
+        content: item.submission.content,
+        version: item.submission.version || 1,
+      } : undefined,
+      submissionHistory: item.submissionHistory?.map((sub: any) => ({
+        id: sub.id,
+        submittedAt: sub.submittedAt
+          ? new Date(sub.submittedAt).toLocaleString("vi-VN")
+          : "",
+        status: sub.status === 1 ? "ON_TIME" : "LATE",
+        content: sub.content,
+        version: sub.version || 1,
+      })),
+      grading: item.grading ? {
+        score: item.grading.score || 0,
+        maxScore: item.grading.maxScore || item.grading.totalScore || 10,
+        percentage: item.grading.percentage || 0,
+        teacherComment: item.grading.teacherComment,
+        aiSuggestions: item.grading.aiSuggestions,
+        gradedFiles: item.grading.gradedFiles,
+        rubricScores: item.grading.rubricScores,
+      } : undefined,
+      submittedAt: item.submittedAt
+        ? new Date(item.submittedAt).toLocaleString("vi-VN")
+        : undefined,
+      gradedAt: item.gradedAt
+        ? new Date(item.gradedAt).toLocaleString("vi-VN")
+        : undefined,
+    };
+
+    return {
+      data: assignment,
+      isSuccess: true,
+      message: responseData?.message,
+    };
+  } catch (error: any) {
+    console.error("Error fetching homework detail:", error);
+    return {
+      data: null,
+      isSuccess: false,
+      message: error?.message || "Lỗi khi tải bài tập",
+    };
+  }
+}
+
+// Submit Homework Types
+export type SubmitHomeworkPayload = {
+  homeworkStudentId: string;
+  textAnswer?: string;
+  attachmentUrls?: string[];
+  linkUrl?: string;
+};
+// Submit Homework Response
+export type SubmitHomeworkResponse = {
+  data?: {
+    id: string;
+    submittedAt: string;
+    status: number;
+  };
+  isSuccess: boolean;
+  message?: string;
+};
+
+/**
+ * Submit student homework
+ */
+export async function submitHomework(
+  payload: SubmitHomeworkPayload
+): Promise<SubmitHomeworkResponse> {
+  const endpoint = STUDENT_HOMEWORK_ENDPOINTS.SUBMIT;
+
+  // Build body - only include fields with values
+  const body: Record<string, any> = {
+    homeworkStudentId: payload.homeworkStudentId,
+  };
+
+  // Only add textAnswer if it has value
+  if (payload.textAnswer && payload.textAnswer.trim()) {
+    body.textAnswer = payload.textAnswer;
+  }
+
+  // Only add attachmentUrls if there are URLs
+  if (payload.attachmentUrls && payload.attachmentUrls.length > 0) {
+    body.attachmentUrls = payload.attachmentUrls;
+  }
+
+  // Only add linkUrl if it has value
+  if (payload.linkUrl && payload.linkUrl.trim()) {
+    body.linkUrl = payload.linkUrl;
+  }
+
+  try {
+    const response = await post<any>(endpoint, body);
+    const responseData = response?.data || response;
+
+    return {
+      data: responseData?.data,
+      isSuccess: responseData?.isSuccess ?? true,
+      message: responseData?.message,
+    };
+  } catch (error: any) {
+    return {
+      isSuccess: false,
+      message:
+        error?.response?.data?.message ||
+        error?.message ||
+        "Lỗi khi nộp bài tập",
+    };
+  }
 }
