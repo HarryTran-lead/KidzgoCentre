@@ -104,8 +104,9 @@ function getPaginatedItems<T>(
   if (Array.isArray(direct.items)) return direct.items;
   if (Array.isArray(direct.data)) return direct.data;
 
-  if (key && key in payload) {
-    const nested = payload[key] as Paginated<T> | undefined;
+  if (key) {
+    const payloadObj = payload as Record<string, unknown>;
+    const nested = payloadObj[key] as Paginated<T> | undefined;
     if (Array.isArray(nested?.items)) return nested.items;
     if (Array.isArray(nested?.data)) return nested.data;
   }
@@ -483,9 +484,12 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
       });
       setMessage(`Đã xử lý ${action}`);
       if (action === "comments" && reportId === activeReportId && result) {
+        const newComment = result as MonthlyComment;
         setActiveReportDetail((prev) => {
           if (!prev) return prev;
-          const nextComments = Array.isArray(prev.comments) ? [...prev.comments, result] : [result];
+          const nextComments = Array.isArray(prev.comments)
+            ? [...prev.comments, newComment]
+            : [newComment];
           return { ...prev, comments: nextComments };
         });
       }
@@ -535,6 +539,11 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     closeCommentDialog();
   };
 
+  const teacherClassIdSet = useMemo(
+    () => new Set(teacherClassItems.map((item) => item.id)),
+    [teacherClassItems],
+  );
+
   const filteredReports = useMemo(() => {
     return reports.filter((r) => {
       const q = searchQuery.trim().toLowerCase();
@@ -550,9 +559,24 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
         r.classId === selectedClassId ||
         (isTeacher && Boolean(selectedStudentId) && r.studentProfileId === selectedStudentId);
       const studentOk = !selectedStudentId || r.studentProfileId === selectedStudentId;
-      return statusOk && textOk && classOk && studentOk;
+      const classId = r.classId ?? "";
+      const teacherScopeOk = !isTeacher || (Boolean(classId) && teacherClassIdSet.has(classId));
+      return statusOk && textOk && classOk && studentOk && teacherScopeOk;
     });
-  }, [isTeacher, reports, searchQuery, selectedClassId, selectedStudentId, statusFilter]);
+  }, [isTeacher, reports, searchQuery, selectedClassId, selectedStudentId, statusFilter, teacherClassIdSet]);
+
+  const teacherWorkflowReports = useMemo(() => {
+    return reports.filter((r) => {
+      const classOk =
+        !selectedClassId ||
+        r.classId === selectedClassId ||
+        (Boolean(selectedStudentId) && r.studentProfileId === selectedStudentId);
+      const studentOk = !selectedStudentId || r.studentProfileId === selectedStudentId;
+      const classId = r.classId ?? "";
+      const teacherScopeOk = !isTeacher || (Boolean(classId) && teacherClassIdSet.has(classId));
+      return classOk && studentOk && teacherScopeOk;
+    });
+  }, [isTeacher, reports, selectedClassId, selectedStudentId, teacherClassIdSet]);
 
   const teacherClasses = useMemo(() => {
     const q = classQuery.trim().toLowerCase();
@@ -645,9 +669,11 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   }, [reports]);
 
 
+  const activeReportSource = isTeacher ? teacherWorkflowReports : filteredReports;
+
   const activeReport = useMemo(
-    () => filteredReports.find((r) => r.id === activeReportId) || filteredReports[0],
-    [filteredReports, activeReportId],
+    () => activeReportSource.find((r) => r.id === activeReportId) || activeReportSource[0],
+    [activeReportId, activeReportSource],
   );
 
   const displayReport = activeReportDetail ?? activeReport;
@@ -748,6 +774,55 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   }, [isTeacher, month, selectedClassId, selectedStudentId, year]);
 
   useEffect(() => {
+    if (!isTeacher) return;
+    if (!selectedStudentId || !selectedClassId) return;
+
+    let alive = true;
+    const resolveTeacherReport = async () => {
+      const baseParams = {
+        studentProfileId: selectedStudentId,
+        month: `${month}`,
+        year: `${year}`,
+        pageNumber: "1",
+        pageSize: "20",
+      };
+
+      const attempts: Array<Record<string, string>> = [{ ...baseParams, classId: selectedClassId }];
+
+      for (const params of attempts) {
+        const query = new URLSearchParams(params);
+        const result = await apiFetch<ReportPayload>(`/api/monthly-reports?${query.toString()}`);
+        const items = getPaginatedItems<MonthlyReport>(result, "reports");
+        if (!items.length) continue;
+
+        const matched =
+          items.find(
+            (item) =>
+              item.studentProfileId === selectedStudentId &&
+              item.classId === selectedClassId,
+          ) ?? items[0];
+
+        if (!matched || !alive) return;
+
+        setReports((prev) => {
+          const next = prev.filter((r) => r.id !== matched.id);
+          return [matched, ...next];
+        });
+        setActiveReportId(matched.id);
+        return;
+      }
+    };
+
+    resolveTeacherReport().catch(() => {
+      // Keep UI usable with existing local list if lookup endpoint fails.
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [isTeacher, month, selectedClassId, selectedStudentId, year]);
+
+  useEffect(() => {
     if (!activeReportId) {
       setActiveReportDetail(null);
       setDraftInput("");
@@ -781,15 +856,15 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   }, [activeReportId]);
 
   useEffect(() => {
-    if (!filteredReports.length) {
+    if (!activeReportSource.length) {
       setActiveReportId(null);
       return;
     }
 
-    if (activeReportId && filteredReports.some((r) => r.id === activeReportId)) return;
+    if (activeReportId && activeReportSource.some((r) => r.id === activeReportId)) return;
 
-    setActiveReportId(filteredReports[0].id);
-  }, [activeReportId, filteredReports]);
+    setActiveReportId(activeReportSource[0].id);
+  }, [activeReportId, activeReportSource]);
 
   useEffect(() => {
     if (!reports.length) {
@@ -1476,8 +1551,8 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                     )}
                     {!activeReport && (
                       <p className="text-xs text-amber-700">
-                        Chưa có monthly report cho học sinh này ở {month}/{year}. Vui lòng chọn tháng khác
-                        hoặc nhờ Staff/Admin tạo job và aggregate trước.
+                        Không tìm thấy monthly report của học sinh này trong phạm vi lớp bạn phụ trách ở{" "}
+                        {month}/{year}. Vui lòng kiểm tra lại lớp/teacher phụ trách hoặc nhờ Staff/Admin hỗ trợ.
                       </p>
                     )}
                     {sessionReports.map((report) => (
