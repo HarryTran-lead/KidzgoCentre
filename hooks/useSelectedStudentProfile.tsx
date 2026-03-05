@@ -19,7 +19,7 @@ const readSelectedProfile = (): SelectedProfile => {
   }
 };
 
-const writeSelectedProfile = (profile: SelectedProfile) => {
+export const writeSelectedProfile = (profile: SelectedProfile) => {
   if (typeof window === "undefined") return;
   if (profile) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
