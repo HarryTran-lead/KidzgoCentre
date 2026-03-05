@@ -34,7 +34,18 @@ async function proxy(req: Request, { params }: RouteParams) {
     });
 
     const text = await upstream.text();
-    const data = text ? JSON.parse(text) : { success: upstream.ok };
+    let data: unknown = { success: upstream.ok };
+
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = {
+          success: upstream.ok,
+          message: text,
+        };
+      }
+    }
 
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {

@@ -44,6 +44,14 @@ type MonthlyComment = {
   content: string;
   createdAt?: string;
   authorName?: string;
+  commenterName?: string;
+};
+
+type BranchOption = {
+  id: string;
+  name?: string;
+  code?: string;
+  isActive?: boolean;
 };
 
 type MonthlyReport = {
@@ -53,11 +61,23 @@ type MonthlyReport = {
   teacherName?: string;
   classId?: string;
   className?: string;
+  jobId?: string;
   status: ReportStatus;
   month: number;
   year: number;
   draftContent?: string;
   comments?: MonthlyComment[];
+  updatedAt?: string;
+};
+
+type RecentCommentItem = {
+  id: string;
+  content: string;
+  createdAt?: string;
+  authorName?: string;
+  reportId: string;
+  studentName?: string;
+  className?: string;
 };
 
 type DraftPayload = {
@@ -71,6 +91,8 @@ type JobPayload = Paginated<MonthlyJob> & { jobs?: Paginated<MonthlyJob> };
 type SessionReportPayload = Paginated<SessionReportItem> & {
   sessionReports?: Paginated<SessionReportItem> | SessionReportItem[];
 };
+const REPORT_PAGE_SIZE = 200;
+const REPORT_MAX_PAGES = 50;
 
 function getPaginatedItems<T>(
   payload: Paginated<T> | { [key: string]: unknown } | undefined,
@@ -142,6 +164,13 @@ function getMonthRange(year: number, month: number) {
   return { fromDate: formatDateYMD(start), toDate: formatDateYMD(end) };
 }
 
+function formatDateTime(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("vi-VN");
+}
+
 async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const response = await fetch(url, {
@@ -155,7 +184,14 @@ async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T
   });
 
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : {};
+  let payload: any = {};
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { message: text };
+    }
+  }
 
   if (!response.ok) {
     throw new Error(payload?.message || "Không thể xử lý monthly report");
@@ -228,42 +264,124 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState("");
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [commentReportId, setCommentReportId] = useState<string | null>(null);
+  const [commentInput, setCommentInput] = useState("");
+  const [commentRejectAfterSend, setCommentRejectAfterSend] = useState(true);
+  const [recentComments, setRecentComments] = useState<RecentCommentItem[]>([]);
+  const [recentCommentsLoading, setRecentCommentsLoading] = useState(false);
+  const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
 
   const canManage = role === "management";
   const isTeacher = role === "teacher";
   const isViewer = role === "viewer";
+
+  useEffect(() => {
+    if (!canManage || typeof window === "undefined") return;
+    if (branchId) return;
+    const selectedBranchId = localStorage.getItem("kidzgo_selected_branch_id");
+    if (selectedBranchId && selectedBranchId !== "all") {
+      setBranchId(selectedBranchId);
+    }
+  }, [branchId, canManage]);
+
+  useEffect(() => {
+    if (!canManage || typeof window === "undefined") return;
+
+    const syncBranchId = (value: string | null) => {
+      if (!value || value === "all") {
+        setBranchId("");
+        return;
+      }
+      setBranchId(value);
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== "kidzgo_selected_branch_id") return;
+      syncBranchId(event.newValue);
+    };
+
+    const onLocalStorageChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ key?: string; newValue?: string | null }>;
+      if (customEvent.detail?.key !== "kidzgo_selected_branch_id") return;
+      syncBranchId(customEvent.detail?.newValue ?? null);
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("localStorageChange", onLocalStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("localStorageChange", onLocalStorageChange);
+    };
+  }, [canManage]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      const reportQuery = new URLSearchParams({
+      const reportBaseQuery = new URLSearchParams({
+        month: `${month}`,
+        year: `${year}`,
+        pageSize: `${REPORT_PAGE_SIZE}`,
+      });
+
+      if (isViewer) reportBaseQuery.set("status", "Published");
+
+      const jobsQuery = new URLSearchParams({
         month: `${month}`,
         year: `${year}`,
         pageNumber: "1",
-        pageSize: "50",
+        pageSize: "200",
       });
+      if (canManage && branchId) jobsQuery.set("branchId", branchId);
 
-      if (isViewer) reportQuery.set("status", "Published");
+      const fetchAllReports = async () => {
+        const collected: MonthlyReport[] = [];
+        for (let page = 1; page <= REPORT_MAX_PAGES; page += 1) {
+          const reportQuery = new URLSearchParams(reportBaseQuery);
+          reportQuery.set("pageNumber", `${page}`);
+          const pageResult = await apiFetch<ReportPayload>(
+            `/api/monthly-reports?${reportQuery.toString()}`,
+          );
+          const pageItems = getPaginatedItems<MonthlyReport>(pageResult, "reports");
+          if (!pageItems.length) break;
+          collected.push(...pageItems);
+          if (pageItems.length < REPORT_PAGE_SIZE) break;
+        }
+        return Array.from(new Map(collected.map((report) => [report.id, report])).values());
+      };
 
       const [jobResult, reportResult] = await Promise.all([
         canManage
           ? apiFetch<JobPayload>(
-              `/api/monthly-reports/jobs?month=${month}&year=${year}&pageNumber=1&pageSize=20`,
+              `/api/monthly-reports/jobs?${jobsQuery.toString()}`,
             )
           : Promise.resolve({ items: [] } as JobPayload),
-        apiFetch<ReportPayload>(`/api/monthly-reports?${reportQuery.toString()}`),
+        fetchAllReports(),
       ]);
 
-      setJobs(getPaginatedItems<MonthlyJob>(jobResult, "jobs"));
-      setReports(getPaginatedItems<MonthlyReport>(reportResult, "reports"));
+      const jobItems = getPaginatedItems<MonthlyJob>(jobResult, "jobs");
+      const reportItems = reportResult;
+      const scopedReports =
+        canManage && branchId
+          ? (() => {
+              const jobIdSet = new Set(jobItems.map((job) => job.id));
+              if (!jobIdSet.size) return [];
+              return reportItems.filter((report) => report.jobId && jobIdSet.has(report.jobId));
+            })()
+          : reportItems;
+
+      setJobs(jobItems);
+      setReports(scopedReports);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Không thể tải dữ liệu.");
     } finally {
       setLoading(false);
     }
-  }, [canManage, isViewer, month, year]);
+  }, [branchId, canManage, isViewer, month, year]);
 
   useEffect(() => {
     fetchData();
@@ -297,8 +415,45 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     };
   }, [isTeacher]);
 
+  useEffect(() => {
+    if (!canManage) return;
+
+    let alive = true;
+    setBranchesLoading(true);
+
+    apiFetch<{ branches?: BranchOption[] } | BranchOption[]>(`/api/branches/all`)
+      .then((result) => {
+        if (!alive) return;
+        const list = Array.isArray(result) ? result : result?.branches ?? [];
+        const activeBranches = list.filter((item) => item?.isActive !== false);
+        setBranchOptions(activeBranches);
+        if (!branchId && typeof window !== "undefined") {
+          const selectedBranchId = localStorage.getItem("kidzgo_selected_branch_id");
+          const matched =
+            selectedBranchId && selectedBranchId !== "all"
+              ? activeBranches.find((item) => item.id === selectedBranchId)
+              : null;
+          if (matched) {
+            setBranchId(matched.id);
+          }
+        }
+      })
+      .catch(() => {
+        if (!alive) return;
+        setBranchOptions([]);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setBranchesLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [canManage]);
+
   const createJob = async () => {
-    if (!branchId.trim()) return setError("Vui lòng nhập branchId.");
+    if (!branchId.trim()) return setError("Vui lòng chọn chi nhánh.");
     try {
       await apiFetch("/api/monthly-reports/jobs", {
         method: "POST",
@@ -319,6 +474,8 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   ) => {
     const actionKey = `${reportId}:${action}`;
     setActionLoading((prev) => ({ ...prev, [actionKey]: true }));
+    setError("");
+    setMessage("");
     try {
       const result = await apiFetch(`/api/monthly-reports/${reportId}/${action}`, {
         method,
@@ -332,12 +489,50 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
           return { ...prev, comments: nextComments };
         });
       }
-      fetchData();
+      await fetchData();
+      if (reportId === activeReportId) {
+        const detail = await apiFetch<MonthlyReport>(`/api/monthly-reports/${reportId}`);
+        setActiveReportDetail(detail ?? null);
+        setDraftInput(normalizeDraftContent(detail?.draftContent));
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : `Không thể ${action}`);
     } finally {
       setActionLoading((prev) => ({ ...prev, [actionKey]: false }));
     }
+  };
+
+  const openCommentDialog = (reportId: string) => {
+    setActiveReportId(reportId);
+    setCommentReportId(reportId);
+    setCommentInput("Vui lòng bổ sung phần điểm mạnh/điểm yếu.");
+    setCommentRejectAfterSend(true);
+    setCommentModalOpen(true);
+  };
+
+  const closeCommentDialog = () => {
+    setCommentModalOpen(false);
+    setCommentReportId(null);
+    setCommentInput("");
+    setCommentRejectAfterSend(true);
+  };
+
+  const submitComment = async () => {
+    if (!commentReportId) return;
+    const content = commentInput.trim();
+    if (!content) {
+      setError("Vui lòng nhập nội dung comment.");
+      return;
+    }
+    const report = reports.find((item) => item.id === commentReportId);
+    await runAction(commentReportId, "comments", "POST", { content });
+    if (commentRejectAfterSend && report && normalizeStatus(report.status) === "Submitted") {
+      await runAction(commentReportId, "reject");
+      setMessage("Đã gửi góp ý và chuyển report về Rejected để teacher chỉnh sửa.");
+    } else if (commentRejectAfterSend && report) {
+      setMessage("Đã gửi góp ý. Report không ở trạng thái Submitted nên chưa thể Reject.");
+    }
+    closeCommentDialog();
   };
 
   const filteredReports = useMemo(() => {
@@ -350,11 +545,14 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
         (r.teacherName || "").toLowerCase().includes(q) ||
         (r.className || "").toLowerCase().includes(q) ||
         r.id.toLowerCase().includes(q);
-      const classOk = !selectedClassId || r.classId === selectedClassId;
+      const classOk =
+        !selectedClassId ||
+        r.classId === selectedClassId ||
+        (isTeacher && Boolean(selectedStudentId) && r.studentProfileId === selectedStudentId);
       const studentOk = !selectedStudentId || r.studentProfileId === selectedStudentId;
       return statusOk && textOk && classOk && studentOk;
     });
-  }, [reports, searchQuery, selectedClassId, selectedStudentId, statusFilter]);
+  }, [isTeacher, reports, searchQuery, selectedClassId, selectedStudentId, statusFilter]);
 
   const teacherClasses = useMemo(() => {
     const q = classQuery.trim().toLowerCase();
@@ -593,6 +791,66 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     setActiveReportId(filteredReports[0].id);
   }, [activeReportId, filteredReports]);
 
+  useEffect(() => {
+    if (!reports.length) {
+      setRecentComments([]);
+      return;
+    }
+
+    let alive = true;
+    setRecentCommentsLoading(true);
+
+    const reportIds = reports.slice(0, 20).map((report) => report.id);
+    Promise.all(
+      reportIds.map((reportId) =>
+        apiFetch<MonthlyReport>(`/api/monthly-reports/${reportId}`).catch(() => null),
+      ),
+    )
+      .then((details) => {
+        if (!alive) return;
+        const items: RecentCommentItem[] = details
+          .filter((detail): detail is MonthlyReport => Boolean(detail))
+          .flatMap((detail) =>
+            (detail.comments ?? []).map((comment) => ({
+              id: comment.id,
+              content: comment.content,
+              createdAt: comment.createdAt,
+              authorName: comment.authorName || comment.commenterName,
+              reportId: detail.id,
+              studentName: detail.studentName,
+              className: detail.className,
+            })),
+          )
+          .sort((a, b) => {
+            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return timeB - timeA;
+          })
+          .slice(0, 10);
+
+        setRecentComments(items);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setRecentCommentsLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [reports]);
+
+  const focusReport = (reportId: string) => {
+    const targetReport = reports.find((report) => report.id === reportId);
+    if (targetReport?.classId) setSelectedClassId(targetReport.classId);
+    if (targetReport?.studentProfileId) setSelectedStudentId(targetReport.studentProfileId);
+    setActiveReportId(reportId);
+  };
+
+  const openReportFromComment = (reportId: string) => {
+    focusReport(reportId);
+  };
+
   const stats = useMemo(() => {
     const total = reports.length;
     const drafts = reports.filter((r) => normalizeStatus(r.status) === "Draft").length;
@@ -600,6 +858,143 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     const approved = reports.filter((r) => normalizeStatus(r.status) === "Approved").length;
     return { total, drafts, submitted, approved };
   }, [reports]);
+
+  const teacherTaskSummary = useMemo(() => {
+    const draftCount = reports.filter((r) => normalizeStatus(r.status) === "Draft").length;
+    const rejectedCount = reports.filter((r) => normalizeStatus(r.status) === "Rejected").length;
+    const commentedReportIds = new Set(recentComments.map((c) => c.reportId));
+    const hasCommentCount = reports.filter((r) => commentedReportIds.has(r.id)).length;
+    return { draftCount, rejectedCount, hasCommentCount };
+  }, [recentComments, reports]);
+
+  const adminSummary = useMemo(() => {
+    if (!canManage) {
+      return { pendingReview: 0, needTeacherFix: 0, readyToPublish: 0, published: 0 };
+    }
+    return {
+      pendingReview: reports.filter((r) => normalizeStatus(r.status) === "Submitted").length,
+      needTeacherFix: reports.filter((r) => normalizeStatus(r.status) === "Rejected").length,
+      readyToPublish: reports.filter((r) => normalizeStatus(r.status) === "Approved").length,
+      published: reports.filter((r) => normalizeStatus(r.status) === "Published").length,
+    };
+  }, [canManage, reports]);
+
+  const adminPriorityReports = useMemo(() => {
+    if (!canManage) return [];
+    return reports
+      .filter((report) => {
+        const status = normalizeStatus(report.status);
+        return status === "Submitted" || status === "Rejected" || status === "Approved";
+      })
+      .sort((a, b) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 8);
+  }, [canManage, reports]);
+
+  const teacherPriorityReports = useMemo(() => {
+    if (!isTeacher) return [];
+    const commentedReportIds = new Set(recentComments.map((c) => c.reportId));
+    const needAction = reports.filter((r) => {
+      const status = normalizeStatus(r.status);
+      return status === "Draft" || status === "Rejected" || commentedReportIds.has(r.id);
+    });
+    return needAction
+      .sort((a, b) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 6);
+  }, [isTeacher, recentComments, reports]);
+
+  const teacherClassSummary = useMemo(() => {
+    if (!isTeacher) {
+      return { total: 0, noReport: 0, inProgress: 0, completed: 0 };
+    }
+
+    const byClass = new Map<string, MonthlyReport[]>();
+    reports.forEach((report) => {
+      if (!report.classId) return;
+      const current = byClass.get(report.classId) ?? [];
+      current.push(report);
+      byClass.set(report.classId, current);
+    });
+
+    const result = { total: teacherClassItems.length, noReport: 0, inProgress: 0, completed: 0 };
+
+    teacherClassItems.forEach((classItem) => {
+      const classReports = byClass.get(classItem.id) ?? [];
+      if (!classReports.length) {
+        result.noReport += 1;
+        return;
+      }
+
+      const expectedStudents = Number(classItem.students ?? 0);
+      const hasEnoughReports = expectedStudents > 0 ? classReports.length >= expectedStudents : true;
+      const allReviewedOrPublished = classReports.every((report) => {
+        const status = normalizeStatus(report.status);
+        return status === "Submitted" || status === "Approved" || status === "Published";
+      });
+
+      if (hasEnoughReports && allReviewedOrPublished) {
+        result.completed += 1;
+      } else {
+        result.inProgress += 1;
+      }
+    });
+
+    return result;
+  }, [isTeacher, reports, teacherClassItems]);
+
+  const teacherClassStatusRows = useMemo(() => {
+    if (!isTeacher) return [];
+
+    const byClass = new Map<string, MonthlyReport[]>();
+    reports.forEach((report) => {
+      if (!report.classId) return;
+      const current = byClass.get(report.classId) ?? [];
+      current.push(report);
+      byClass.set(report.classId, current);
+    });
+
+    return teacherClassItems.map((classItem) => {
+      const classReports = byClass.get(classItem.id) ?? [];
+      const expectedStudents = Number(classItem.students ?? 0);
+      const reviewedCount = classReports.filter((report) => {
+        const status = normalizeStatus(report.status);
+        return status === "Submitted" || status === "Approved" || status === "Published";
+      }).length;
+
+      let statusLabel = "Chưa có báo cáo";
+      let statusClass = "bg-rose-50 text-rose-700";
+      if (classReports.length > 0) {
+        statusLabel = "Đang làm";
+        statusClass = "bg-amber-50 text-amber-700";
+      }
+      if (
+        classReports.length > 0 &&
+        (expectedStudents === 0 || classReports.length >= expectedStudents) &&
+        reviewedCount === classReports.length
+      ) {
+        statusLabel = "Đã báo cáo";
+        statusClass = "bg-emerald-50 text-emerald-700";
+      }
+
+      return {
+        id: classItem.id,
+        name: classItem.name,
+        code: classItem.code,
+        expectedStudents,
+        reportCount: classReports.length,
+        reviewedCount,
+        statusLabel,
+        statusClass,
+      };
+    });
+  }, [isTeacher, reports, teacherClassItems]);
 
   const canTeacherSubmit = (status: ReportStatus) =>
     normalizeStatus(status) === "Draft" || normalizeStatus(status) === "Rejected";
@@ -711,12 +1106,22 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
               </>
             )}
             {canManage && (
-              <input
-                className="rounded-xl border px-3 py-2 text-sm"
+              <select
+                className="rounded-xl border px-3 py-2 text-sm min-w-56"
                 value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-                placeholder="Branch ID"
-              />
+                onChange={() => {}}
+                disabled
+                title="Chi nhánh đồng bộ theo bộ lọc ở sidebar"
+              >
+                <option value="">
+                  {branchesLoading ? "Đang tải chi nhánh..." : "Chọn chi nhánh"}
+                </option>
+                {branchOptions.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name || branch.code || branch.id}
+                  </option>
+                ))}
+              </select>
             )}
             <button
               onClick={fetchData}
@@ -760,6 +1165,185 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
         </div>
       </div>
 
+      {isTeacher && (
+        <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-3">
+          <h3 className="font-semibold">Tổng quan lớp trong tháng {month}/{year}</h3>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-xl border border-red-100 bg-red-50/40 p-3">
+              <div className="text-xs text-gray-600">Tổng lớp dạy</div>
+              <div className="text-xl font-bold">{teacherClassSummary.total}</div>
+            </div>
+            <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-3">
+              <div className="text-xs text-gray-600">Chưa có báo cáo</div>
+              <div className="text-xl font-bold">{teacherClassSummary.noReport}</div>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3">
+              <div className="text-xs text-gray-600">Đang làm</div>
+              <div className="text-xl font-bold">{teacherClassSummary.inProgress}</div>
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+              <div className="text-xs text-gray-600">Đã báo cáo</div>
+              <div className="text-xl font-bold">{teacherClassSummary.completed}</div>
+            </div>
+          </div>
+
+          <div className="max-h-52 overflow-auto rounded-xl border border-red-100">
+            <table className="w-full text-xs">
+              <thead className="bg-red-50/60 text-left text-gray-600">
+                <tr>
+                  <th className="px-3 py-2">Lớp</th>
+                  <th className="px-3 py-2">Tiến độ</th>
+                  <th className="px-3 py-2">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-red-100">
+                {teacherClassStatusRows.map((row) => (
+                  <tr key={row.id}>
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-gray-900">{row.name}</div>
+                      <div className="text-gray-500">{row.code || row.id.slice(0, 8)}</div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {row.reportCount}/{row.expectedStudents || "?"} học sinh có báo cáo
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`rounded-full px-2 py-1 text-[11px] ${row.statusClass}`}>
+                        {row.statusLabel}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {!teacherClassStatusRows.length && (
+                  <tr>
+                    <td className="px-3 py-3 text-gray-500" colSpan={3}>
+                      Chưa có dữ liệu lớp trong tháng này.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {isTeacher && (
+        <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-3">
+          <h3 className="font-semibold">Việc cần làm nhanh</h3>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <button
+              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-left"
+              onClick={() => setStatusFilter("Draft")}
+            >
+              <div className="text-xs text-gray-600">Đang là nháp</div>
+              <div className="text-xl font-bold text-amber-700">{teacherTaskSummary.draftCount}</div>
+            </button>
+            <button
+              className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-left"
+              onClick={() => setStatusFilter("Rejected")}
+            >
+              <div className="text-xs text-gray-600">Bị trả về sửa</div>
+              <div className="text-xl font-bold text-rose-700">{teacherTaskSummary.rejectedCount}</div>
+            </button>
+            <button
+              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-left"
+              onClick={() => setStatusFilter("Tất cả")}
+            >
+              <div className="text-xs text-gray-600">Có góp ý từ admin/staff</div>
+              <div className="text-xl font-bold text-blue-700">{teacherTaskSummary.hasCommentCount}</div>
+            </button>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-gray-700">Danh sách ưu tiên xử lý</div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {teacherPriorityReports.map((report) => (
+                <button
+                  key={report.id}
+                  onClick={() => focusReport(report.id)}
+                  className="rounded-lg border border-red-100 bg-red-50/40 p-2 text-left text-xs hover:bg-red-100/60"
+                >
+                  <div className="font-semibold text-gray-900">
+                    {report.studentName || report.studentProfileId || report.id}
+                  </div>
+                  <div className="text-gray-600">{report.className || report.classId || "N/A"}</div>
+                  <div className="mt-1">
+                    <StatusBadge status={report.status} />
+                  </div>
+                </button>
+              ))}
+              {teacherPriorityReports.length === 0 && (
+                <p className="text-xs text-gray-500">Không có report cần ưu tiên xử lý.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {canManage && (
+        <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <h3 className="font-semibold">Bảng điều phối review Admin/Staff</h3>
+            <div className="text-xs text-gray-600">
+              Ưu tiên xử lý theo thứ tự: Submitted → Rejected → Approved.
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <button
+              className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-left"
+              onClick={() => setStatusFilter("Submitted")}
+            >
+              <div className="text-xs text-gray-600">Chờ duyệt</div>
+              <div className="text-xl font-bold text-blue-700">{adminSummary.pendingReview}</div>
+            </button>
+            <button
+              className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-left"
+              onClick={() => setStatusFilter("Rejected")}
+            >
+              <div className="text-xs text-gray-600">Đã trả teacher sửa</div>
+              <div className="text-xl font-bold text-rose-700">{adminSummary.needTeacherFix}</div>
+            </button>
+            <button
+              className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-left"
+              onClick={() => setStatusFilter("Approved")}
+            >
+              <div className="text-xs text-gray-600">Sẵn sàng publish</div>
+              <div className="text-xl font-bold text-emerald-700">{adminSummary.readyToPublish}</div>
+            </button>
+            <button
+              className="rounded-xl border border-purple-200 bg-purple-50 p-3 text-left"
+              onClick={() => setStatusFilter("Published")}
+            >
+              <div className="text-xs text-gray-600">Đã publish</div>
+              <div className="text-xl font-bold text-purple-700">{adminSummary.published}</div>
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-red-100 bg-red-50/40 p-3">
+            <div className="mb-2 text-xs font-semibold text-gray-700">Hàng đợi xử lý nhanh</div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {adminPriorityReports.map((report) => (
+                <button
+                  key={report.id}
+                  onClick={() => focusReport(report.id)}
+                  className="rounded-lg border border-red-100 bg-white p-2 text-left text-xs hover:bg-red-50"
+                >
+                  <div className="font-semibold text-gray-900">
+                    {report.studentName || report.studentProfileId || report.id}
+                  </div>
+                  <div className="text-gray-600">{report.className || report.classId || "N/A"}</div>
+                  <div className="mt-1">
+                    <StatusBadge status={report.status} />
+                  </div>
+                </button>
+              ))}
+              {!adminPriorityReports.length && (
+                <p className="text-xs text-gray-500">Không có report cần xử lý ngay.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           {isTeacher && (
@@ -782,29 +1366,26 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                   />
                 </div>
                 <div className="text-xs text-gray-600">
-                  {selectedClassId ? (
-                    <div className="space-y-2">
-                      <div className="font-medium text-gray-700">Chọn thời gian</div>
-                      <div className="flex gap-2">
-                        <input
-                          className="w-24 rounded-xl border px-3 py-2 text-sm"
-                          type="number"
-                          min={1}
-                          max={12}
-                          value={month}
-                          onChange={(e) => setMonth(Number(e.target.value))}
-                        />
-                        <input
-                          className="w-28 rounded-xl border px-3 py-2 text-sm"
-                          type="number"
-                          value={year}
-                          onChange={(e) => setYear(Number(e.target.value))}
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <div className="font-medium text-gray-700">Chọn thời gian trước</div>
+                    <div className="flex gap-2">
+                      <input
+                        className="w-24 rounded-xl border px-3 py-2 text-sm"
+                        type="number"
+                        min={1}
+                        max={12}
+                        value={month}
+                        onChange={(e) => setMonth(Number(e.target.value))}
+                      />
+                      <input
+                        className="w-28 rounded-xl border px-3 py-2 text-sm"
+                        type="number"
+                        value={year}
+                        onChange={(e) => setYear(Number(e.target.value))}
+                      />
                     </div>
-                  ) : (
-                    <span>Chọn lớp trước để chọn thời gian.</span>
-                  )}
+                    <div>Khuyến nghị chọn tháng/năm trước rồi mới chọn lớp và học sinh.</div>
+                  </div>
                 </div>
               </div>
 
@@ -893,6 +1474,12 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                     {!sessionsLoading && !sessionReports.length && (
                       <p className="text-xs text-gray-500">Chưa có nhận xét buổi học.</p>
                     )}
+                    {!activeReport && (
+                      <p className="text-xs text-amber-700">
+                        Chưa có monthly report cho học sinh này ở {month}/{year}. Vui lòng chọn tháng khác
+                        hoặc nhờ Staff/Admin tạo job và aggregate trước.
+                      </p>
+                    )}
                     {sessionReports.map((report) => (
                       <div key={report.id ?? report.sessionId} className="rounded-lg border bg-white p-2 text-xs">
                         <div className="font-semibold">
@@ -904,11 +1491,13 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                       </div>
                     ))}
                     <button
-                      disabled={!activeReport}
+                      disabled={!activeReport || actionLoading[`${displayReport?.id}:generate-draft`]}
                       onClick={() => activeReport && runAction(displayReport.id, "generate-draft")}
                       className="w-full rounded bg-purple-600 px-3 py-2 text-xs text-white disabled:bg-slate-300"
                     >
-                      AI tổng hợp và tạo nháp báo cáo tháng
+                      {actionLoading[`${displayReport?.id}:generate-draft`]
+                        ? "Đang tổng hợp AI..."
+                        : "AI tổng hợp và tạo nháp báo cáo tháng"}
                     </button>
                   </div>
                 )}
@@ -1111,6 +1700,35 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
             </div>
           </div>
 
+          {isTeacher && (
+            <div className="flex flex-wrap gap-2 text-xs">
+              <button
+                className={`rounded-full border px-3 py-1 ${statusFilter === "Tất cả" ? "bg-red-600 text-white border-red-600" : "bg-white"}`}
+                onClick={() => setStatusFilter("Tất cả")}
+              >
+                Tất cả
+              </button>
+              <button
+                className={`rounded-full border px-3 py-1 ${statusFilter === "Draft" ? "bg-amber-600 text-white border-amber-600" : "bg-white"}`}
+                onClick={() => setStatusFilter("Draft")}
+              >
+                Cần submit
+              </button>
+              <button
+                className={`rounded-full border px-3 py-1 ${statusFilter === "Rejected" ? "bg-rose-600 text-white border-rose-600" : "bg-white"}`}
+                onClick={() => setStatusFilter("Rejected")}
+              >
+                Cần sửa lại
+              </button>
+              <button
+                className={`rounded-full border px-3 py-1 ${statusFilter === "Submitted" ? "bg-blue-600 text-white border-blue-600" : "bg-white"}`}
+                onClick={() => setStatusFilter("Submitted")}
+              >
+                Đang chờ duyệt
+              </button>
+            </div>
+          )}
+
           {canManage && (
             <div className="rounded-2xl border border-red-200 bg-white p-3 text-xs text-gray-700 flex flex-wrap items-center gap-2">
               <span>Đã chọn: {selectedReportIds.size}</span>
@@ -1222,11 +1840,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                           {canManage && (
                             <button
                               className="rounded bg-pink-600 px-2 py-1 text-xs text-white"
-                              onClick={() =>
-                                runAction(report.id, "comments", "POST", {
-                                  content: "Vui lòng bổ sung phần điểm mạnh/điểm yếu.",
-                                })
-                              }
+                              onClick={() => openCommentDialog(report.id)}
                             >
                               Comment
                             </button>
@@ -1316,6 +1930,28 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                   </div>
                 )}
                 {isTeacher && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-gray-700">
+                    <div className="font-semibold text-gray-900">Góp ý từ Staff/Admin</div>
+                    {displayReport.comments?.length ? (
+                      <ul className="mt-2 space-y-2">
+                        {(displayReport.comments ?? []).slice().reverse().map((c) => (
+                          <li key={c.id} className="rounded border border-amber-100 bg-white p-2">
+                            <div className="font-medium text-gray-900">
+                              {c.authorName || c.commenterName || "Staff/Admin"}
+                            </div>
+                            <div className="mt-1 whitespace-pre-line">{c.content}</div>
+                            {c.createdAt && (
+                              <div className="mt-1 text-[11px] text-gray-500">{formatDateTime(c.createdAt)}</div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1 text-gray-600">Chưa có góp ý.</p>
+                    )}
+                  </div>
+                )}
+                {isTeacher && (
                   <div className="rounded-lg border border-red-100 bg-red-50 p-2 text-xs text-gray-700">
                     <div className="font-semibold text-gray-900">Dữ liệu theo buổi học</div>
                     <p className="mt-1">
@@ -1366,11 +2002,22 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
             <h3 className="mb-2 font-semibold flex items-center gap-2">
               <MessageSquare size={16} /> Bình luận gần nhất
             </h3>
-            {activeReport?.comments?.length ? (
+            {recentCommentsLoading && <p className="text-xs text-gray-500">Đang tải bình luận...</p>}
+            {!recentCommentsLoading && recentComments.length ? (
               <ul className="space-y-2 text-xs">
-                {displayReport.comments.slice(0, 3).map((c) => (
-                  <li key={c.id} className="rounded border p-2">
-                    {c.authorName || "Staff/Admin"}: {c.content}
+                {recentComments.slice(0, 3).map((c) => (
+                  <li
+                    key={c.id}
+                    className="rounded border p-2 cursor-pointer hover:bg-red-50/40"
+                    onClick={() => openReportFromComment(c.reportId)}
+                  >
+                    <div className="font-medium text-gray-900">
+                      {c.studentName || "Học viên"} • {c.className || "N/A"}
+                    </div>
+                    <div className="mt-1">
+                      {c.authorName || "Staff/Admin"}: {c.content}
+                    </div>
+                    {c.createdAt && <div className="mt-1 text-[11px] text-gray-500">{formatDateTime(c.createdAt)}</div>}
                   </li>
                 ))}
               </ul>
@@ -1414,6 +2061,54 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
               <div className="rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-gray-700 whitespace-pre-line">
                 {draftInput || "Chưa có nội dung nháp."}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {commentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Gửi comment cho giáo viên</h3>
+              <button className="rounded border px-3 py-1 text-sm" onClick={closeCommentDialog}>
+                Đóng
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Nội dung này sẽ hiển thị ở phần bình luận của report.
+            </p>
+            <textarea
+              value={commentInput}
+              onChange={(e) => setCommentInput(e.target.value)}
+              rows={5}
+              className="mt-3 w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
+              placeholder="Nhập góp ý..."
+            />
+            <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={commentRejectAfterSend}
+                onChange={(e) => setCommentRejectAfterSend(e.target.checked)}
+              />
+              Đồng thời trả report về teacher để sửa lại (Reject)
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                className="rounded border px-3 py-2 text-sm"
+                onClick={closeCommentDialog}
+              >
+                Hủy
+              </button>
+              <button
+                className="rounded bg-pink-600 px-3 py-2 text-sm text-white disabled:bg-slate-300"
+                disabled={!commentReportId || actionLoading[`${commentReportId}:comments`]}
+                onClick={submitComment}
+              >
+                {commentReportId && actionLoading[`${commentReportId}:comments`]
+                  ? "Đang gửi..."
+                  : "Gửi comment"}
+              </button>
             </div>
           </div>
         </div>
