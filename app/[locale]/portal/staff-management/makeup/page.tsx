@@ -22,7 +22,12 @@ import {
 
 import type { LeaveRequestRecord } from "@/types/leaveRequest";
 
-import { getMakeupCredits, useMakeupCredit as applyMakeupCredit } from "@/lib/api/makeupCreditService";import type { MakeupCredit } from "@/types/makeupCredit";
+import {
+  getMakeupCreditStudents,
+  getMakeupCredits,
+  useMakeupCredit as applyMakeupCredit,
+} from "@/lib/api/makeupCreditService";
+import type { MakeupCredit, MakeupCreditStudent } from "@/types/makeupCredit";
 
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
 import MakeupSessionCreateModal, {
@@ -334,24 +339,35 @@ const mapLeaveRequests = (
   });
 };
 
-const mapUsedMakeupCredits = (items: MakeupCredit[]): UsedMakeupCredit[] => {
+const mapUsedMakeupCredits = (
+  items: MakeupCredit[],
+  studentLookup?: Map<string, StudentLookup>,
+  makeupStudentNames?: Map<string, string>
+): UsedMakeupCredit[] => {
   if (!items?.length) return [];
 
-  return items.map((item) => ({
-    id: String(pickValue(item, ["id"]) ?? ""),
-    student:
+  return items.map((item) => {
+    const studentId = pickValue(item, ["studentProfileId", "studentId"]) as string | undefined;
+    const studentName =
       (pickValue(item, ["studentName", "studentFullName", "studentProfileName"]) as
         | string
         | undefined) ??
-      (pickValue(item, ["studentProfileId", "studentId"]) as string | undefined) ??
-      "Chưa rõ học viên",
-    status: String(pickValue(item, ["status"]) ?? "Used"),
-    createdReason: (pickValue(item, ["createdReason"]) as string | undefined) ?? undefined,
-    createdAt: (pickValue(item, ["createdAt"]) as string | undefined) ?? undefined,
-    sourceSessionId: (pickValue(item, ["sourceSessionId"]) as string | undefined) ?? undefined,
-    usedSessionId: (pickValue(item, ["usedSessionId"]) as string | undefined) ?? undefined,
-    raw: item,
-  }));
+      (studentId
+        ? studentLookup?.get(studentId)?.name ?? makeupStudentNames?.get(studentId)
+        : undefined) ??
+      "Chưa có tên học viên";
+
+    return {
+      id: String(pickValue(item, ["id"]) ?? ""),
+      student: studentName,
+      status: String(pickValue(item, ["status"]) ?? "Used"),
+      createdReason: (pickValue(item, ["createdReason"]) as string | undefined) ?? undefined,
+      createdAt: (pickValue(item, ["createdAt"]) as string | undefined) ?? undefined,
+      sourceSessionId: (pickValue(item, ["sourceSessionId"]) as string | undefined) ?? undefined,
+      usedSessionId: (pickValue(item, ["usedSessionId"]) as string | undefined) ?? undefined,
+      raw: item,
+    };
+  });
 };
 
 const sessionTitle = (session: SessionDetail | null | undefined) =>
@@ -502,7 +518,7 @@ export default function Page() {
     try {
       const [studentsRes, classesRes, parentProfilesRes] = await Promise.allSettled([
         get<any>("/api/students", { params: { pageNumber: 1, pageSize: 1000 } }),
-        get<any>("/api/students/classes", { params: { pageNumber: 1, pageSize: 1000 } }),
+        get<any>("/api/classes", { params: { pageNumber: 1, pageSize: 1000 } }),
         get<any>("/api/students", {
           params: { profileType: "Parent", pageNumber: 1, pageSize: 1000 },
         }),
@@ -541,17 +557,48 @@ export default function Page() {
     }
   };
 
-  const fetchUsedCredits = async () => {
+  const fetchUsedCredits = async (lookupsOverride?: LeaveRequestLookups) => {
     setLoadingUsedCredits(true);
     setUsedError(null);
     try {
- const response = await getMakeupCredits({ pageNumber: 1, pageSize: 200 });      const api = unwrap(response);
+      const [creditsResponse, studentsResponse] = await Promise.all([
+        getMakeupCredits({ pageNumber: 1, pageSize: 200 }),
+        getMakeupCreditStudents(),
+      ]);
+      const api = unwrap(creditsResponse);
       const items = Array.isArray(api?.items) ? api.items : Array.isArray(api?.data?.items) ? api.data.items : Array.isArray(api) ? api : [];
       const usedItems = (items as MakeupCredit[]).filter((item) => {
         const st = String(item?.status ?? "").toUpperCase();
         return st.includes("USED") || Boolean(item?.usedSessionId);
       });
-      const mapped = mapUsedMakeupCredits(usedItems);
+      const studentApi = unwrap(studentsResponse);
+      const studentItems = Array.isArray(studentApi?.items)
+        ? studentApi.items
+        : Array.isArray(studentApi?.data?.items)
+          ? studentApi.data.items
+          : Array.isArray(studentApi)
+            ? studentApi
+            : [];
+
+      const makeupStudentNames = new Map<string, string>();
+      (studentItems as MakeupCreditStudent[]).forEach((student) => {
+        const id = String(
+          pickValue(student, ["studentProfileId", "studentId", "id"]) ?? ""
+        ).trim();
+        if (!id) return;
+        const name =
+          (pickValue(student, ["name", "fullName", "studentName", "studentFullName"]) as
+            | string
+            | undefined) ?? "";
+        if (!name.trim()) return;
+        makeupStudentNames.set(id, name.trim());
+      });
+
+      const mapped = mapUsedMakeupCredits(
+        usedItems,
+        lookupsOverride?.students ?? leaveLookups.students,
+        makeupStudentNames
+      );
 
       const sessionIds = new Set<string>();
       mapped.forEach((credit) => {
@@ -587,7 +634,7 @@ export default function Page() {
       const lookups = await fetchLeaveLookups();
       setLeaveLookups(lookups);
       await fetchLeaveRequests(lookups);
-      await fetchUsedCredits();
+      await fetchUsedCredits(lookups);
     };
 
     init();
@@ -940,7 +987,9 @@ export default function Page() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={fetchUsedCredits}
+                  onClick={() => {
+                    void fetchUsedCredits();
+                  }}
                   className="h-11 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
                 >
                   Reload
@@ -1001,7 +1050,6 @@ export default function Page() {
                       >
                         <td className="py-4 px-6">
                           <div className="text-sm font-medium text-gray-900">{credit.student}</div>
-                          <div className="text-xs text-gray-500 font-mono">{credit.id}</div>
                         </td>
 
                         <td className="py-4 px-6">
@@ -1011,7 +1059,7 @@ export default function Page() {
                           <div className="text-xs text-gray-500">{sourceTime}</div>
                           {sourceMeta && <div className="text-xs text-gray-500">{sourceMeta}</div>}
                           {!credit.sourceSession && credit.sourceSessionId && (
-                            <div className="text-xs text-gray-400">ID: {credit.sourceSessionId}</div>
+                            <div className="text-xs text-gray-400">Chưa có thông tin buổi nghỉ</div>
                           )}
                         </td>
 
@@ -1022,7 +1070,7 @@ export default function Page() {
                           <div className="text-xs text-gray-500">{usedTime}</div>
                           {usedMeta && <div className="text-xs text-gray-500">{usedMeta}</div>}
                           {!credit.usedSession && credit.usedSessionId && (
-                            <div className="text-xs text-gray-400">ID: {credit.usedSessionId}</div>
+                            <div className="text-xs text-gray-400">Chưa có thông tin buổi bù</div>
                           )}
                         </td>
 

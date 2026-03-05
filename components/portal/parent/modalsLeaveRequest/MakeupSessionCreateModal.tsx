@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Send, X, Calendar, Clock } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Send,
+  X,
+  Calendar,
+  Clock,
+  ChevronDown,
+} from "lucide-react";
 
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
@@ -214,9 +223,7 @@ const suggestionPlannedDatetime = (s: any) =>
     "datetime",
     "dateTime",
     "startTime",
-  ]) as
-    | string
-    | undefined) ?? "";
+  ]) as string | undefined) ?? "";
 
 const classIdValue = (c: any) => (pickValue(c, ["id", "classId"]) as string | undefined) ?? "";
 const classNameValue = (c: any) =>
@@ -308,6 +315,7 @@ const fetchTimetableSessions = async ({
 export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   const [students, setStudents] = useState<MakeupCreditStudent[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
@@ -317,6 +325,9 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
   const [sourceSession, setSourceSession] = useState<SessionDetail | null>(null);
   const [sourceSessionLoading, setSourceSessionLoading] = useState(false);
+  const [creditSourceSessions, setCreditSourceSessions] = useState<Map<string, SessionDetail>>(
+    new Map()
+  );
 
   const [suggestions, setSuggestions] = useState<MakeupSuggestion[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -344,9 +355,11 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     if (open) return;
     setSubmitting(false);
     setError(null);
+    setStep(1);
     setStudents([]);
     setCredits([]);
     setSourceSession(null);
+    setCreditSourceSessions(new Map());
     setSuggestions([]);
     setAllClasses([]);
     setManualSessions([]);
@@ -405,6 +418,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
       // reset downstream
       setCredits([]);
       setSourceSession(null);
+      setCreditSourceSessions(new Map());
       setSuggestions([]);
       setAllClasses([]);
       setManualSessions([]);
@@ -435,6 +449,54 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
     run();
   }, [open, payload.studentProfileId]);
+
+  // prefetch source session detail for credit list
+  useEffect(() => {
+    if (!open) return;
+    if (!credits.length) return;
+
+    let alive = true;
+    const run = async () => {
+      const ids = Array.from(
+        new Set(
+          credits
+            .map((c) => creditSourceSessionId(c))
+            .filter((id) => typeof id === "string" && id.trim().length > 0)
+        )
+      );
+
+      if (!ids.length) {
+        if (alive) setCreditSourceSessions(new Map());
+        return;
+      }
+
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const detail = await getSessionById(id);
+            return detail ? ([id, detail] as const) : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      if (!alive) return;
+
+      const map = new Map<string, SessionDetail>();
+      results.filter(Boolean).forEach((pair) => {
+        const [id, detail] = pair as [string, SessionDetail];
+        map.set(id, detail);
+      });
+      setCreditSourceSessions(map);
+    };
+
+    run();
+
+    return () => {
+      alive = false;
+    };
+  }, [credits, open]);
 
   // when select credit -> fetch source session detail (để hiện lớp nguồn)
   useEffect(() => {
@@ -613,19 +675,31 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [students]);
 
+  const selectedStudentName = useMemo(() => {
+    if (!payload.studentProfileId) return "";
+    return (
+      studentOptions.find((s) => s.id === payload.studentProfileId)?.name ?? payload.studentProfileId
+    );
+  }, [payload.studentProfileId, studentOptions]);
+
+  // ✅ FIX TOÀN BỘ TEXT BỊ LỖI TRONG CREDIT LABEL
   const creditOptions = useMemo(() => {
     return credits.map((c) => {
       const id = creditId(c);
       const status = creditStatus(c) || "AVAILABLE";
-      const src = creditSourceSessionId(c);
-
       const className = creditClassName(c);
       const created = formatDateVN(creditCreatedAt(c));
       const expires = formatDateVN(creditExpiresAt(c));
+      const src = creditSourceSessionId(c);
+
+      const srcDetail = src ? creditSourceSessions.get(src) : undefined;
+      const srcClassText = srcDetail
+        ? [srcDetail.classCode, srcDetail.classTitle].filter(Boolean).join(" - ")
+        : "";
 
       const detailParts = [
         src ? `Source: ${src.slice(0, 8)}…` : "",
-        className ? `Lớp: ${className}` : "",
+        className ? `Lớp: ${className}` : srcClassText ? `Lớp: ${srcClassText}` : "",
         created ? `Tạo: ${created}` : "",
         expires ? `Hết hạn: ${expires}` : "",
       ].filter(Boolean);
@@ -636,7 +710,12 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
         raw: c,
       };
     });
-  }, [credits]);
+  }, [credits, creditSourceSessions]);
+
+  const selectedCreditLabel = useMemo(() => {
+    if (!payload.makeupCreditId) return "";
+    return creditOptions.find((c) => c.id === payload.makeupCreditId)?.label ?? "";
+  }, [creditOptions, payload.makeupCreditId]);
 
   const targetClassOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -689,6 +768,9 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     );
   }, [payload]);
 
+  const canGoStep2 = !!payload.studentProfileId && !!payload.makeupCreditId;
+  const canGoStep3 = canSubmit;
+
   const handleSubmit = async () => {
     setSubmitting(true);
     setError(null);
@@ -722,7 +804,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Tạo lịch học bù</h2>
                 <div className="text-sm text-gray-600">
-                  Chọn học viên → makeup credit → lớp nguồn → gợi ý hoặc chọn thủ công
+                  Bước {step}/3 • Chọn credit • Chọn buổi bù • Xác nhận
                 </div>
               </div>
             </div>
@@ -741,310 +823,377 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
         <div className="p-6 space-y-6 bg-gradient-to-b from-white to-red-50/20">
           {error && <Banner kind="error" text={error} />}
 
-          {/* Student */}
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-gray-800">Học viên</div>
-            <div className="relative">
-              <select
-                className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
-                value={payload.studentProfileId}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setPayload((p) => ({
-                    ...p,
-                    studentProfileId: id,
-                    makeupCreditId: "",
-                    fromClassId: "",
-                    targetClassId: "",
-                    targetSessionId: "",
-                    date: "",
-                    time: "",
-                  }));
-                }}
-              >
-                <option value="">{studentsLoading ? "Đang tải học viên..." : "Chọn học viên"}</option>
-                {studentOptions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                {studentsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
-              </div>
-            </div>
-          </div>
-
-          {/* Credit + Target class */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-gray-800">Makeup credit</div>
-              <div className="relative">
-                <select
-                  className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
-                  value={payload.makeupCreditId}
-                  disabled={!payload.studentProfileId || creditsLoading}
-                  onChange={(e) => {
-                    const creditIdValue = e.target.value;
-                    setPayload((p) => ({
-                      ...p,
-                      makeupCreditId: creditIdValue,
-                      fromClassId: "",
-                      targetClassId: "",
-                      targetSessionId: "",
-                      date: p.date,
-                      time: p.time,
-                    }));
-                  }}
-                >
-                  <option value="">
-                    {!payload.studentProfileId
-                      ? "Chọn học viên trước"
-                      : creditsLoading
-                        ? "Đang tải makeup credit..."
-                        : creditOptions.length
-                          ? "Chọn makeup credit"
-                          : "Không có credit"}
-                  </option>
-                  {creditOptions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
+          {step === 1 && (
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="text-sm font-semibold text-gray-800">Bước 1 • Chọn học viên</div>
+                <div className="relative">
+                  <select
+                    className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
+                    value={payload.studentProfileId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setPayload((p) => ({
+                        ...p,
+                        studentProfileId: id,
+                        makeupCreditId: "",
+                        fromClassId: "",
+                        targetClassId: "",
+                        targetSessionId: "",
+                        date: "",
+                        time: "",
+                      }));
+                      setStep(1);
+                    }}
+                  >
+                    <option value="">
+                      {studentsLoading ? "Đang tải học viên..." : "Chọn học viên"}
                     </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  {creditsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
+                    {studentOptions.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    {studentsLoading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <ChevronDown size={16} />
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="text-xs text-gray-500">
-                Chọn makeup credit để hiện lớp nguồn & gọi suggestions.
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-gray-800">Lớp học bù (đích)</div>
-              <div className="relative">
-                <select
-                  className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
-                  value={payload.targetClassId}
-                  disabled={!payload.makeupCreditId || isClassLoading}
-                  onChange={(e) =>
-                    setPayload((p) => ({
-                      ...p,
-                      targetClassId: e.target.value,
-                      targetSessionId: "",
-                    }))
-                  }
-                >
-                  <option value="">
-                    {!payload.makeupCreditId
-                      ? "Chọn makeup credit trước"
-                      : isClassLoading
-                        ? shouldEnableManual
-                          ? "Đang tải lớp học..."
-                          : "Đang tải gợi ý..."
-                        : classOptionsToShow.length
-                          ? shouldEnableManual
-                            ? "Chọn lớp bất kỳ"
-                            : "Chọn lớp bù"
-                          : shouldEnableManual
-                            ? "Chưa có lớp để chọn"
-                            : "Chưa có gợi ý"}
-                  </option>
-                  {classOptionsToShow.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  {isClassLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
+              <div className="space-y-3">
+                <div className="text-sm font-semibold text-gray-800">
+                  Bước 1 • Chọn makeup credit
                 </div>
-              </div>
-              <div className="text-xs text-gray-500">
-                {shouldEnableManual ? (
-                  <>Không có gợi ý, bạn có thể chọn lớp bất kỳ để bù.</>
-                ) : (
-                  <>
-                    Suggestions đang filter theo: <b>makeupDate={payload.date || "(chưa chọn)"}</b>,{" "}
-                    <b>timeOfDay={deriveTimeOfDay(payload.time) || "(n/a)"}</b>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+                <div className="relative">
+                  <select
+                    className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
+                    value={payload.makeupCreditId}
+                    disabled={!payload.studentProfileId || creditsLoading}
+                    onChange={(e) => {
+                      const creditIdValue = e.target.value;
+                      setPayload((p) => ({
+                        ...p,
+                        makeupCreditId: creditIdValue,
+                        fromClassId: "",
+                        targetClassId: "",
+                        targetSessionId: "",
+                        date: p.date,
+                        time: p.time,
+                      }));
+                    }}
+                  >
+                    <option value="">
+                      {!payload.studentProfileId
+                        ? "Chọn học viên trước"
+                        : creditsLoading
+                          ? "Đang tải makeup credit..."
+                          : creditOptions.length
+                            ? "Chọn makeup credit"
+                            : "Không có credit"}
+                    </option>
+                    {creditOptions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    {creditsLoading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <ChevronDown size={16} />
+                    )}
+                  </div>
+                </div>
 
-          {/* Source class + session */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-gray-800">Lớp nguồn</div>
-              <div className="p-3 rounded-xl border border-red-300 bg-gradient-to-r from-red-50 to-red-100/50">
-                <div className="text-sm text-gray-700 min-h-[44px] flex items-center">
+                <div className="p-3 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 text-sm text-gray-700">
                   {payload.makeupCreditId
                     ? sourceClassDisplay(sourceSession) ||
-                      (sourceSessionLoading ? "Đang lấy lớp nguồn..." : "Không có dữ liệu lớp nguồn")
-                    : "Chọn makeup credit để hiện lớp nguồn"}
+                      (sourceSessionLoading
+                        ? "Đang lấy lớp nguồn..."
+                        : "Không có dữ liệu lớp nguồn")
+                    : "Chọn makeup credit để hiển thị lớp nguồn"}
                 </div>
               </div>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-gray-800">Buổi học bù</div>
-              <div className="relative">
-                <select
-                  className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
-                  value={payload.targetSessionId}
-                  disabled={!payload.targetClassId || isSessionsLoading}
-                  onChange={(e) => {
-                    const sid = e.target.value;
-                    const chosen = sessionsToShow.find((s: any) => suggestionSessionId(s) === sid);
-
-                    const planned = chosen ? suggestionPlannedDatetime(chosen) : "";
-                    let nextDate = payload.date;
-                    let nextTime = payload.time;
-
-                    if (planned) {
-                      const d = new Date(planned);
-                      if (!Number.isNaN(d.getTime())) {
-                        nextDate = toDateInputValue(d);
-                        nextTime = toTimeInputValue(d);
-                      }
+          {step === 2 && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <Calendar size={16} className="text-red-600" />
+                    Ngày học bù
+                  </div>
+                  <input
+                    type="date"
+                    className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
+                    value={payload.date}
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        date: e.target.value,
+                        targetClassId: "",
+                        targetSessionId: "",
+                      }))
                     }
+                  />
+                </div>
 
-                    setPayload((p) => ({
-                      ...p,
-                      targetSessionId: sid,
-                      date: nextDate,
-                      time: nextTime,
-                    }));
-                  }}
-                >
-                  <option value="">
-                    {!payload.targetClassId
-                      ? "Chọn lớp bù trước"
-                      : isSessionsLoading
-                        ? "Đang tải buổi học..."
-                        : sessionsToShow.length
-                          ? shouldEnableManual
-                            ? "Chọn buổi học bất kỳ"
-                            : "Chọn buổi học bù"
-                          : "Không có buổi học"}
-                  </option>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <Clock size={16} className="text-red-600" />
+                    Giờ dự kiến
+                  </div>
+                  <input
+                    type="time"
+                    className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
+                    value={payload.time}
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        time: e.target.value,
+                        targetClassId: "",
+                        targetSessionId: "",
+                      }))
+                    }
+                  />
+                </div>
+              </div>
 
-                  {sessionsToShow.map((s: any) => {
-                    const id = suggestionSessionId(s);
-                    const code = suggestionClassCode(s);
-                    const name = suggestionClassName(s);
-                    const planned = suggestionPlannedDatetime(s);
-                    const label = [
-                      [code, name].filter(Boolean).join(" - "),
-                      planned ? formatDateTimeVN(planned) : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" • ");
-                    return (
-                      <option key={id} value={id}>
-                        {label || id}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-gray-800">Bước 2 • Chọn lớp bù</div>
+                  <div className="relative">
+                    <select
+                      className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
+                      value={payload.targetClassId}
+                      disabled={!payload.makeupCreditId || isClassLoading}
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          targetClassId: e.target.value,
+                          targetSessionId: "",
+                        }))
+                      }
+                    >
+                      <option value="">
+                        {!payload.makeupCreditId
+                          ? "Chọn makeup credit trước"
+                          : isClassLoading
+                            ? shouldEnableManual
+                              ? "Đang tải lớp học..."
+                              : "Đang tải gợi ý..."
+                            : classOptionsToShow.length
+                              ? shouldEnableManual
+                                ? "Chọn lớp bất kỳ"
+                                : "Chọn lớp bù"
+                              : shouldEnableManual
+                                ? "Chưa có lớp để chọn"
+                                : "Chưa có gợi ý"}
                       </option>
-                    );
-                  })}
-                </select>
+                      {classOptionsToShow.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      {isClassLoading ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {shouldEnableManual ? (
+                      <>Không có gợi ý, bạn có thể chọn lớp bất kỳ để bù.</>
+                    ) : (
+                      <>
+                        Gợi ý theo: <b>ngày {payload.date || "(chưa chọn)"}</b>,{" "}
+                        <b>buổi {deriveTimeOfDay(payload.time) || "(n/a)"}</b>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  {isSessionsLoading ? <Loader2 size={16} className="animate-spin" /> : "▾"}
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-gray-800">Bước 2 • Chọn buổi bù</div>
+                  <div className="relative">
+                    <select
+                      className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
+                      value={payload.targetSessionId}
+                      disabled={!payload.targetClassId || isSessionsLoading}
+                      onChange={(e) => {
+                        const sid = e.target.value;
+                        const chosen = sessionsToShow.find((s: any) => suggestionSessionId(s) === sid);
+
+                        const planned = chosen ? suggestionPlannedDatetime(chosen) : "";
+                        let nextDate = payload.date;
+                        let nextTime = payload.time;
+
+                        if (planned) {
+                          const d = new Date(planned);
+                          if (!Number.isNaN(d.getTime())) {
+                            nextDate = toDateInputValue(d);
+                            nextTime = toTimeInputValue(d);
+                          }
+                        }
+
+                        setPayload((p) => ({
+                          ...p,
+                          targetSessionId: sid,
+                          date: nextDate,
+                          time: nextTime,
+                        }));
+                      }}
+                    >
+                      <option value="">
+                        {!payload.targetClassId
+                          ? "Chọn lớp bù trước"
+                          : isSessionsLoading
+                            ? "Đang tải buổi học..."
+                            : sessionsToShow.length
+                              ? shouldEnableManual
+                                ? "Chọn buổi học bất kỳ"
+                                : "Chọn buổi học bù"
+                              : "Không có buổi học"}
+                      </option>
+
+                      {sessionsToShow.map((s: any) => {
+                        const id = suggestionSessionId(s);
+                        const code = suggestionClassCode(s);
+                        const name = suggestionClassName(s);
+                        const planned = suggestionPlannedDatetime(s);
+                        const label = [
+                          [code, name].filter(Boolean).join(" - "),
+                          planned ? formatDateTimeVN(planned) : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" • ");
+                        return (
+                          <option key={id} value={id}>
+                            {label || id}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      {isSessionsLoading ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Date & time */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                <Calendar size={16} className="text-red-600" />
-                Ngày học bù (makeupDate)
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-red-200 bg-white p-4 space-y-2 text-sm text-gray-700">
+                <div className="font-semibold text-gray-900">Xác nhận lịch bù</div>
+                <div>
+                  Học viên: <b>{selectedStudentName || "?"}</b>
+                </div>
+                <div>
+                  Credit: <b>{selectedCreditLabel || "?"}</b>
+                </div>
+                <div>
+                  Lớp nguồn: <b>{sourceClassDisplay(sourceSession) || "?"}</b>
+                </div>
+                <div>
+                  Lớp bù: <b>{payload.targetClassId || "?"}</b>
+                </div>
+                <div>
+                  Buổi bù: <b>{payload.targetSessionId || "?"}</b>
+                </div>
+                <div>
+                  Ngày/Giờ:{" "}
+                  <b>
+                    {payload.date || "?"} {payload.time || ""}
+                  </b>
+                </div>
               </div>
-              <input
-                type="date"
-                className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
-                value={payload.date}
-                onChange={(e) =>
-                  setPayload((p) => ({
-                    ...p,
-                    date: e.target.value,
-                    targetClassId: "",
-                    targetSessionId: "",
-                  }))
-                }
-              />
-            </div>
 
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                <Clock size={16} className="text-red-600" />
-                Giờ (derive timeOfDay)
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-gray-800">Ghi chú (tuỳ chọn)</div>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
+                  value={payload.note ?? ""}
+                  onChange={(e) => setPayload((p) => ({ ...p, note: e.target.value }))}
+                  placeholder="Nhập ghi chú..."
+                />
               </div>
-              <input
-                type="time"
-                className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
-                value={payload.time}
-                onChange={(e) =>
-                  setPayload((p) => ({
-                    ...p,
-                    time: e.target.value,
-                    targetClassId: "",
-                    targetSessionId: "",
-                  }))
-                }
-              />
             </div>
-          </div>
-
-          {/* Note */}
-          <div className="space-y-2">
-            <div className="text-sm font-semibold text-gray-800">Ghi chú (tuỳ chọn)</div>
-            <textarea
-              rows={3}
-              className="w-full rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
-              value={payload.note ?? ""}
-              onChange={(e) => setPayload((p) => ({ ...p, note: e.target.value }))}
-              placeholder="Nhập ghi chú..."
-            />
-          </div>
+          )}
 
           {/* footer */}
           <div className="pt-4 border-t border-red-200 flex items-center justify-end gap-3">
+            {step > 1 && (
+              <button
+                onClick={() => setStep((s) => (s === 1 ? 1 : ((s - 1) as 1 | 2 | 3)))}
+                disabled={submitting}
+                className="px-5 py-2.5 rounded-xl border border-red-300 bg-white text-gray-700 font-medium hover:bg-red-50 transition-all disabled:opacity-60 cursor-pointer"
+              >
+                Quay lại
+              </button>
+            )}
+
             <button
               onClick={onClose}
               disabled={submitting}
               className="px-5 py-2.5 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 text-gray-700 font-medium hover:bg-red-50 transition-all disabled:opacity-60 cursor-pointer"
             >
-              Hủy
+              Huỷ
             </button>
 
-            <button
-              onClick={handleSubmit}
-              disabled={!canSubmit || submitting}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all disabled:opacity-70 cursor-pointer"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Đang tạo...
-                </>
-              ) : (
-                <>
-                  <Send size={16} />
-                  Tạo lịch bù
-                </>
-              )}
-            </button>
+            {step < 3 ? (
+              <button
+                onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as 1 | 2 | 3)))}
+                disabled={(step === 1 && !canGoStep2) || (step === 2 && !canGoStep3)}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all disabled:opacity-70 cursor-pointer"
+              >
+                Tiếp tục
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!canSubmit || submitting}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all disabled:opacity-70 cursor-pointer"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Đang tạo...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} />
+                    Tạo lịch bù
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
-          <div className="text-xs text-gray-500 p-3 rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
-            *Gợi ý lớp/buổi học bù (suggestions) phụ thuộc <b>makeupDate</b> + <b>timeOfDay</b>. Nếu không có gợi ý, bạn có
-            thể chọn lớp/buổi bất kỳ.
-          </div>
+          {step === 2 && (
+            <div className="text-xs text-gray-500 p-3 rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
+              Gợi ý buổi bù phụ thuộc <b>ngày</b> + <b>buổi</b>. Nếu không có gợi ý, bạn có thể chọn
+              lớp/buổi bất kỳ.
+            </div>
+          )}
         </div>
       </div>
     </div>

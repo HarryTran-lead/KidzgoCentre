@@ -16,10 +16,14 @@ import { createLeaveRequest, getLeaveRequests } from "@/lib/api/leaveRequestServ
 import { getProfiles } from "@/lib/api/authService";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getStudentClasses } from "@/lib/api/studentService";
+import { getMakeupAllocations } from "@/lib/api/makeupCreditService";
+import { getSessionById } from "@/lib/api/sessionService";
 
 import type { UserProfile } from "@/types/auth";
 import type { StudentClass } from "@/types/student/class";
 import type { LeaveRequestPayload, LeaveRequestRecord, LeaveRequestStatus } from "@/types/leaveRequest";
+import type { MakeupAllocation } from "@/types/makeupCredit";
+import type { SourceSession } from "@/lib/api/sessionService";
 
 /* ===================== Types ===================== */
 
@@ -76,6 +80,19 @@ function toVNDateLabel(value?: string | null) {
   }).format(d);
 }
 
+function toVNDateTimeLabel(value?: string | null) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return new Intl.DateTimeFormat("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
 function extractClasses(payload: unknown): StudentClass[] {
   if (!payload || typeof payload !== "object") return [];
 
@@ -115,6 +132,7 @@ function Banner({ kind, text }: { kind: "error" | "success"; text: string }) {
 
 export default function ParentAttendancePage() {
   const { selectedProfile } = useSelectedStudentProfile();
+  const isStudentLocked = !!selectedProfile?.id;
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -138,6 +156,14 @@ export default function ParentAttendancePage() {
   // Leave Requests
   const [requests, setRequests] = useState<LeaveRequestRecord[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
+
+  // Makeup Sessions
+  const [makeupAllocations, setMakeupAllocations] = useState<MakeupAllocation[]>([]);
+  const [makeupSessionsById, setMakeupSessionsById] = useState<Map<string, SourceSession>>(
+    new Map()
+  );
+  const [makeupLoading, setMakeupLoading] = useState(false);
+  const [makeupError, setMakeupError] = useState<string | null>(null);
 
   // Form state (used inside modal)
   const [formState, setFormState] = useState<FormState>(initialFormState);
@@ -204,7 +230,7 @@ export default function ParentAttendancePage() {
 
       try {
         const response = await getStudentClasses({
-          studentId: formState.studentProfileId,
+          studentProfileId: formState.studentProfileId,
           pageNumber: 1,
           pageSize: 100,
         });
@@ -260,9 +286,69 @@ export default function ParentAttendancePage() {
     fetchRequests();
   }, [formState.studentProfileId]);
 
+  /* ===================== Fetch Makeup Allocations ===================== */
+
+  useEffect(() => {
+    const fetchMakeup = async () => {
+      if (!formState.studentProfileId) return;
+      setMakeupLoading(true);
+      setMakeupError(null);
+
+      try {
+        const response: any = await getMakeupAllocations({
+          studentProfileId: formState.studentProfileId,
+        });
+
+        const raw = response?.data ?? response;
+        const list: MakeupAllocation[] = Array.isArray(raw)
+          ? raw
+          : raw?.items ?? raw?.allocations?.items ?? raw?.data ?? [];
+
+        setMakeupAllocations(Array.isArray(list) ? list : []);
+
+        const sessionIds = Array.from(
+          new Set(
+            (Array.isArray(list) ? list : [])
+              .map((item) => item?.targetSessionId)
+              .filter((id): id is string => Boolean(id))
+          )
+        );
+
+        if (!sessionIds.length) {
+          setMakeupSessionsById(new Map());
+          return;
+        }
+
+        const entries = await Promise.all(
+          sessionIds.map(async (id) => {
+            try {
+              const res = await getSessionById(id);
+              const session = res?.data?.session ?? null;
+              return session?.id ? [session.id, session] : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        const map = new Map(entries.filter(Boolean) as [string, SourceSession][]);
+        setMakeupSessionsById(map);
+      } catch (err) {
+        console.error("Fetch makeup allocations error:", err);
+        setMakeupAllocations([]);
+        setMakeupError("Không thể tải danh sách buổi bù.");
+      } finally {
+        setMakeupLoading(false);
+      }
+    };
+
+    fetchMakeup();
+  }, [formState.studentProfileId]);
+
   /* ===================== Memos ===================== */
 
   const displayRequests = useMemo(() => requests.slice(0, 5), [requests]);
+  const displayMakeup = useMemo(() => makeupAllocations.slice(0, 5), [makeupAllocations]);
 
   const classLabel = (c: StudentClass) => c.name ?? c.className ?? c.title ?? c.code ?? c.id;
 
@@ -473,6 +559,76 @@ export default function ParentAttendancePage() {
         )}
       </div>
 
+      {/* Makeup Sessions */}
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div>
+            <div className="text-lg font-semibold text-gray-900">Buổi học bù đã sắp xếp</div>
+            {makeupLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
+          </div>
+          <div className="text-sm text-gray-600 font-medium">{displayMakeup.length} buổi</div>
+        </div>
+
+        {makeupError ? <div className="px-6 py-4 text-sm text-red-600">{makeupError}</div> : null}
+
+        {!displayMakeup.length ? (
+          <div className="px-6 py-10 text-sm text-gray-600">Chưa có buổi bù nào.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
+                <tr>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Thời gian bù
+                  </th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lớp</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Trạng thái
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-gray-100">
+                {displayMakeup.map((m) => {
+                  const session = m.targetSessionId
+                    ? makeupSessionsById.get(m.targetSessionId)
+                    : undefined;
+                  const sessionTime = session?.plannedDatetime ?? session?.actualDatetime ?? null;
+                  const classText =
+                    session?.classTitle ??
+                    session?.classCode ??
+                    (m.classId ? classNameById(m.classId) : null) ??
+                    m.classId ??
+                    "—";
+                  const statusText = m.usedAt ? "Đã học bù" : "Đã xếp lịch";
+
+                  return (
+                    <tr
+                      key={m.id ?? `${m.makeupCreditId}-${m.targetSessionId}-${m.allocatedAt}`}
+                      className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
+                    >
+                      <td className="py-4 px-6 whitespace-nowrap text-sm text-gray-700">
+                        {toVNDateTimeLabel(sessionTime) ||
+                          toVNDateTimeLabel(m.allocatedAt) ||
+                          "—"}
+                      </td>
+
+                      <td className="py-4 px-6 text-sm text-gray-700">{classText}</td>
+
+                      <td className="py-4 px-6">
+                        <span className="inline-flex items-center rounded-xl px-2.5 py-1 text-xs font-semibold border border-sky-200 bg-sky-50 text-sky-700">
+                          {statusText}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Info */}
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex gap-3">
         <div className="h-9 w-9 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 flex items-center justify-center shadow">
@@ -510,7 +666,7 @@ export default function ParentAttendancePage() {
                 <select
                   className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
                   value={formState.studentProfileId}
-                  disabled={profilesLoading || !studentProfiles.length}
+                  disabled={profilesLoading || !studentProfiles.length || isStudentLocked}
                   onChange={(e) =>
                     setFormState((prev) => ({
                       ...prev,
