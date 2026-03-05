@@ -30,6 +30,7 @@ export async function getAllEnrollments(
   if (params?.pageNumber) queryParams.append("pageNumber", params.pageNumber.toString());
   if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString());
   if (params?.searchTerm) queryParams.append("searchTerm", params.searchTerm);
+  if (params?.branchId) queryParams.append("branchId", params.branchId);
 
   const response = await get<any>(
     `${ENROLLMENT_ENDPOINTS.GET_ALL}?${queryParams.toString()}`
