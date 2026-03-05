@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardCheck, Loader2, AlertCircle, RefreshCw, UserCheck } from "lucide-react";
 import { getAllPlacementTests } from "@/lib/api/placementTestService";
+import { getAllLeads } from "@/lib/api/leadService";
 import { useToast } from "@/hooks/use-toast";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 import type { PlacementTest } from "@/types/placement-test";
 import {
   PlacementTestStats,
@@ -16,18 +18,19 @@ import {
 export default function AdminPlacementTestsPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { selectedBranchId, isLoaded: isBranchLoaded } = useBranchFilter();
   
   // Data state
-  const [tests, setTests] = useState<PlacementTest[]>([]);
   const [allTests, setAllTests] = useState<PlacementTest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Branch lead IDs for filtering PT by branch via lead's branchPreference
+  const [branchLeadIds, setBranchLeadIds] = useState<Set<string> | null>(null);
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   
   // UI state
   const [isPageLoaded, setIsPageLoaded] = useState(false);
@@ -77,7 +80,9 @@ export default function AdminPlacementTestsPage() {
     const fetchAllTests = async () => {
       try {
         setIsLoading(true);
-        const response = await getAllPlacementTests({ pageSize: 1000 });
+        const params: any = { pageSize: 1000 };
+        
+        const response = await getAllPlacementTests(params);
         
         if (response.isSuccess && response.data?.items) {
           const testsData = response.data.items || [];          
@@ -102,63 +107,100 @@ export default function AdminPlacementTestsPage() {
       }
     };
 
-    fetchAllTests();
-  }, []);
+    if (isBranchLoaded) {
+      fetchAllTests();
+    }
+  }, [isBranchLoaded]);
+
+  // Fetch lead IDs for branch filtering (PT references leadId -> lead has branchPreference)
+  useEffect(() => {
+    const fetchBranchLeadIds = async () => {
+      if (!selectedBranchId) {
+        setBranchLeadIds(null);
+        return;
+      }
+      try {
+        const response = await getAllLeads({ pageSize: 1000, branchPreference: selectedBranchId });
+        if (response.isSuccess && response.data?.leads) {
+          const ids = new Set(response.data.leads.map((l: any) => l.id));
+          setBranchLeadIds(ids);
+        } else {
+          setBranchLeadIds(new Set());
+        }
+      } catch {
+        setBranchLeadIds(new Set());
+      }
+    };
+    fetchBranchLeadIds();
+  }, [selectedBranchId]);
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-    }, 500);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch filtered tests
-  useEffect(() => {
-    const fetchFilteredTests = async () => {
-      try {
-        const params: any = {
-          pageNumber: currentPage,
-          pageSize: pageSize,
-        };
-
-        if (debouncedSearchQuery) {
-          params.search = debouncedSearchQuery;
-        }
-
-        if (selectedStatus !== "Tất cả") {
-          params.status = selectedStatus;
-        }
-
-        if (fromDate) {
-          params.fromDate = fromDate;
-        }
-
-        if (toDate) {
-          params.toDate = toDate;
-        }
-
-        const response = await getAllPlacementTests(params);
-        
-        if (response.isSuccess && response.data) {
-          setTests(response.data.items || []);
-          setTotalCount(response.data.totalCount || 0);
-          setTotalPages(response.data.totalPages || 0);
-        }
-      } catch (err) {
-        console.error("Error fetching filtered tests:", err);
-      }
-    };
-
-    if (!isLoading) {
-      fetchFilteredTests();
+  // Client-side filtering (profiles style)
+  const filteredTests = useMemo(() => {
+    let result = [...allTests];
+    
+    // Apply branch filter via leadId -> lead's branchPreference
+    if (branchLeadIds !== null) {
+      result = result.filter(test => branchLeadIds.has(test.leadId));
     }
-  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, fromDate, toDate, isLoading]);
+    
+    // Apply status filter
+    if (selectedStatus !== "Tất cả") {
+      result = result.filter(test => test.status === selectedStatus);
+    }
+    
+    // Apply search filter
+    if (debouncedSearchQuery) {
+      const query = debouncedSearchQuery.toLowerCase();
+      result = result.filter(test =>
+        (test.childName?.toLowerCase().includes(query)) ||
+        (test.leadContactName?.toLowerCase().includes(query)) ||
+        (test.invigilatorName?.toLowerCase().includes(query))
+      );
+    }
+    
+    // Apply date filters
+    if (fromDate) {
+      result = result.filter(test => test.scheduledAt >= fromDate);
+    }
+    if (toDate) {
+      const toDateEnd = toDate + "T23:59:59";
+      result = result.filter(test => test.scheduledAt <= toDateEnd);
+    }
+    
+    return result;
+  }, [allTests, branchLeadIds, selectedStatus, debouncedSearchQuery, fromDate, toDate]);
+
+  // Recompute status counts based on branch-filtered data
+  const displayStatusCounts = useMemo(() => {
+    const dataToCount = branchLeadIds !== null
+      ? allTests.filter(test => branchLeadIds.has(test.leadId))
+      : allTests;
+    const counts: Record<string, number> = {};
+    dataToCount.forEach((test) => {
+      counts[test.status] = (counts[test.status] || 0) + 1;
+    });
+    return counts;
+  }, [allTests, branchLeadIds]);
+
+  // Client-side pagination
+  const totalPages = Math.ceil(filteredTests.length / pageSize);
+  const totalCount = filteredTests.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentTests = filteredTests.slice(startIndex, endIndex);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, selectedStatus, fromDate, toDate]);
+  }, [debouncedSearchQuery, selectedStatus, fromDate, toDate, selectedBranchId, pageSize]);
 
   // Loading state
   if (isLoading) {
@@ -247,7 +289,7 @@ export default function AdminPlacementTestsPage() {
       {/* Stats Overview */}
       <div className={`transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <PlacementTestStats 
-          tests={allTests}
+          tests={branchLeadIds !== null ? allTests.filter(t => branchLeadIds.has(t.leadId)) : allTests}
         />
       </div>
 
@@ -259,8 +301,8 @@ export default function AdminPlacementTestsPage() {
           fromDate={fromDate}
           toDate={toDate}
           pageSize={pageSize}
-          totalCount={allTests.length}
-          statusCounts={statusCounts}
+          totalCount={branchLeadIds !== null ? allTests.filter(t => branchLeadIds.has(t.leadId)).length : allTests.length}
+          statusCounts={displayStatusCounts}
           onSearchChange={setSearchQuery}
           onStatusChange={setSelectedStatus}
           onFromDateChange={setFromDate}
@@ -272,7 +314,7 @@ export default function AdminPlacementTestsPage() {
       {/* Table */}
       <div className={`transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <PlacementTestTable
-          tests={tests}
+          tests={currentTests}
           isLoading={isLoading}
           currentPage={currentPage}
           totalPages={totalPages}

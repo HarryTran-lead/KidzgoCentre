@@ -428,6 +428,26 @@ export const BACKEND_OVERVIEW_ENDPOINTS = {
   ADMIN: '/me/admin/overview',
 } as const;
 
+// Dashboard Endpoints (Client-side → Next.js API Routes)
+export const DASHBOARD_ENDPOINTS = {
+  OVERALL: '/api/dashboard/overall',
+  STUDENT: '/api/dashboard/student',
+  ACADEMIC: '/api/dashboard/academic',
+  FINANCE: '/api/dashboard/finance',
+  HR: '/api/dashboard/hr',
+  LEADS: '/api/dashboard/leads',
+} as const;
+
+// Backend Dashboard Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_DASHBOARD_ENDPOINTS = {
+  OVERALL: '/dashboard/overall',
+  STUDENT: '/dashboard/student',
+  ACADEMIC: '/dashboard/academic',
+  FINANCE: '/dashboard/finance',
+  HR: '/dashboard/hr',
+  LEADS: '/dashboard/leads',
+} as const;
+
 // Parent Endpoints (Client-side -> Next.js API Routes)
 export const PARENT_ENDPOINTS = {
   TIMETABLE: "/api/parent/timetable",

@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserCheck, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { getAllEnrollments } from "@/lib/api/enrollmentService";
+import { getAllClasses } from "@/lib/api/classService";
 import { useToast } from "@/hooks/use-toast";
+import { useBranchFilter } from "@/hooks/useBranchFilter";
 import type { Enrollment } from "@/types/enrollment";
 import {
   EnrollmentStats,
@@ -16,18 +18,19 @@ import {
 export default function AdminEnrollmentsPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { selectedBranchId, isLoaded: isBranchLoaded } = useBranchFilter();
   
   // Data state
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Branch class IDs for filtering enrollment by branch via class's branchId
+  const [branchClassIds, setBranchClassIds] = useState<Set<string> | null>(null);
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   
   // UI state
   const [isPageLoaded, setIsPageLoaded] = useState(false);
@@ -73,7 +76,9 @@ export default function AdminEnrollmentsPage() {
     const fetchAllEnrollments = async () => {
       try {
         setIsLoading(true);
-        const response = await getAllEnrollments({ pageSize: 1000 });
+        const params: any = { pageSize: 1000 };
+        
+        const response = await getAllEnrollments(params);
         
         if (response.isSuccess && response.data?.items) {
           const enrollmentsData = response.data.items || [];
@@ -98,55 +103,97 @@ export default function AdminEnrollmentsPage() {
       }
     };
 
-    fetchAllEnrollments();
-  }, []);
+    if (isBranchLoaded) {
+      fetchAllEnrollments();
+    }
+  }, [isBranchLoaded]);
+
+  // Fetch class IDs for branch filtering (enrollment references classId -> class has branchId)
+  useEffect(() => {
+    const fetchBranchClassIds = async () => {
+      if (!selectedBranchId) {
+        setBranchClassIds(null);
+        return;
+      }
+      try {
+        const response = await getAllClasses({ pageSize: 1000 });
+        const rawData = response?.data || response || {};
+        const responseData = rawData?.data || rawData;
+        // Response structure: data.classes.items  (or data.items as fallback)
+        const classes = responseData?.classes?.items || responseData?.items || (Array.isArray(responseData) ? responseData : []);
+        const ids = new Set<string>(
+          classes
+            .filter((c: any) => c.branchId === selectedBranchId)
+            .map((c: any) => c.id as string)
+        );
+        setBranchClassIds(ids);
+      } catch {
+        setBranchClassIds(new Set<string>());
+      }
+    };
+    fetchBranchClassIds();
+  }, [selectedBranchId]);
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-    }, 500);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch filtered enrollments
-  useEffect(() => {
-    const fetchFilteredEnrollments = async () => {
-      try {
-        const params: any = {
-          pageNumber: currentPage,
-          pageSize: pageSize,
-        };
-
-        if (debouncedSearchQuery) {
-          params.search = debouncedSearchQuery;
-        }
-
-        if (selectedStatus !== "Tất cả") {
-          params.status = selectedStatus;
-        }
-
-        const response = await getAllEnrollments(params);
-        
-        if (response.isSuccess && response.data) {
-          setEnrollments(response.data.items || []);
-          setTotalCount(response.data.totalCount || 0);
-          setTotalPages(response.data.totalPages || 0);
-        }
-      } catch (err) {
-        console.error("Error fetching filtered enrollments:", err);
-      }
-    };
-
-    if (!isLoading) {
-      fetchFilteredEnrollments();
+  // Client-side filtering (profiles style)
+  const filteredEnrollments = useMemo(() => {
+    let result = [...allEnrollments];
+    
+    // Apply branch filter via classId -> class's branchId
+    if (branchClassIds !== null) {
+      result = result.filter(enrollment => branchClassIds.has(enrollment.classId));
     }
-  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, isLoading]);
+    
+    // Apply status filter
+    if (selectedStatus !== "Tất cả") {
+      result = result.filter(enrollment => enrollment.status === selectedStatus);
+    }
+    
+    // Apply search filter
+    if (debouncedSearchQuery) {
+      const query = debouncedSearchQuery.toLowerCase();
+      result = result.filter(enrollment =>
+        (enrollment.studentName?.toLowerCase().includes(query)) ||
+        (enrollment.classTitle?.toLowerCase().includes(query)) ||
+        (enrollment.classCode?.toLowerCase().includes(query)) ||
+        (enrollment.programName?.toLowerCase().includes(query)) ||
+        (enrollment.mainTeacherName?.toLowerCase().includes(query))
+      );
+    }
+    
+    return result;
+  }, [allEnrollments, branchClassIds, selectedStatus, debouncedSearchQuery]);
+
+  // Recompute status counts based on branch-filtered data
+  const displayStatusCounts = useMemo(() => {
+    const dataToCount = branchClassIds !== null
+      ? allEnrollments.filter(e => branchClassIds.has(e.classId))
+      : allEnrollments;
+    const counts: Record<string, number> = {};
+    dataToCount.forEach((enrollment) => {
+      counts[enrollment.status] = (counts[enrollment.status] || 0) + 1;
+    });
+    return counts;
+  }, [allEnrollments, branchClassIds]);
+
+  // Client-side pagination
+  const totalPages = Math.ceil(filteredEnrollments.length / pageSize);
+  const totalCount = filteredEnrollments.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentEnrollments = filteredEnrollments.slice(startIndex, endIndex);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, selectedStatus]);
+  }, [debouncedSearchQuery, selectedStatus, selectedBranchId, pageSize]);
 
   // Loading state
   if (isLoading) {
@@ -235,7 +282,7 @@ export default function AdminEnrollmentsPage() {
       {/* Stats Overview */}
       <div className={`transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <EnrollmentStats
-          enrollments={allEnrollments}
+          enrollments={branchClassIds !== null ? allEnrollments.filter(e => branchClassIds.has(e.classId)) : allEnrollments}
         />
       </div>
 
@@ -245,8 +292,8 @@ export default function AdminEnrollmentsPage() {
           searchQuery={searchQuery}
           selectedStatus={selectedStatus}
           pageSize={pageSize}
-          totalCount={allEnrollments.length}
-          statusCounts={statusCounts}
+          totalCount={branchClassIds !== null ? allEnrollments.filter(e => branchClassIds.has(e.classId)).length : allEnrollments.length}
+          statusCounts={displayStatusCounts}
           onSearchChange={setSearchQuery}
           onStatusChange={setSelectedStatus}
           onPageSizeChange={setPageSize}
@@ -256,7 +303,7 @@ export default function AdminEnrollmentsPage() {
       {/* Table */}
       <div className={`transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <EnrollmentTable
-          enrollments={enrollments}
+          enrollments={currentEnrollments}
           isLoading={isLoading}
           currentPage={currentPage}
           totalPages={totalPages}
