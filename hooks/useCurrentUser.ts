@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { getUserMe } from '@/lib/api/authService';
-import type { UserMeApiResponse } from '@/types/auth';
+import type { UserMeApiResponse, UserProfile } from '@/types/auth';
 
 export interface CurrentUser {
   id: string;
@@ -15,6 +15,8 @@ export interface CurrentUser {
   branchId?: string;
   branchName?: string;
   isActive: boolean;
+  profiles?: UserProfile[];
+  selectedProfile?: UserProfile;
 }
 
 export function useCurrentUser() {

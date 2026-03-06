@@ -366,7 +366,7 @@ export default function PlacementTestTable({
 
       {/* Pagination Footer */}
       {totalPages > 0 && (
-        <div className="bg-linear-to-r from-pink-500/5 to-rose-500/5 border-t border-pink-200 px-6 py-4">
+        <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-600">
               Hiển thị <span className="font-semibold text-gray-900">
@@ -379,7 +379,7 @@ export default function PlacementTestTable({
               <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 aria-label="Trang trước"
               >
                 <ChevronLeft size={18} />
@@ -391,12 +391,12 @@ export default function PlacementTestTable({
                     key={idx}
                     onClick={() => typeof page === "number" && onPageChange(page)}
                     disabled={page === "..."}
-                    className={`min-w-9 h-9 px-3 rounded-lg text-sm font-medium transition-all ${
+                    className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                       page === currentPage
-                        ? "bg-linear-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
                         : page === "..."
                         ? "cursor-default text-gray-400"
-                        : "border border-pink-200 hover:bg-pink-50 text-gray-700"
+                        : "border border-red-200 hover:bg-red-50 text-gray-700"
                     }`}
                   >
                     {page}
@@ -407,7 +407,7 @@ export default function PlacementTestTable({
               <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-pink-200 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 aria-label="Trang sau"
               >
                 <ChevronRight size={18} />

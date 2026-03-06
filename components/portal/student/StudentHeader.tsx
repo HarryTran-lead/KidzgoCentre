@@ -118,7 +118,7 @@ export default function StudentHeader({
               <button
                 ref={btnRef}
                 onClick={() => !isLoggingOut && setIsDropdownOpen(!isDropdownOpen)}
-                className={`group relative flex items-center gap-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2 transition-all duration-300 ${
+                className={`group relative flex items-center gap-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 px-5 py-3 transition-all duration-300 ${
                   isLoggingOut ? "cursor-wait opacity-90" : "hover:bg-white/20 hover:shadow-lg"
                 }`}
                 aria-haspopup="menu"
@@ -191,14 +191,14 @@ export default function StudentHeader({
                   {/* Experience bar thu gọn */}
                   <div className="w-full">
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[10px] font-bold text-yellow-300">Level 12</span>
+                      <span className="text-[13px] font-bold text-yellow-300">Level 12</span>
                     </div>
-                    <div className="relative h-1.5 w-[140px] bg-white/20 rounded-full overflow-hidden">
+                    <div className="relative h-2 w-[140px] bg-white/20 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-gradient-to-r from-yellow-400 via-orange-400 to-pink-500 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"
                         style={{ width: '85%' }}
                       />
-                      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                         850 / 1000
                       </span>
                     </div>
@@ -215,7 +215,7 @@ export default function StudentHeader({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="fixed inset-0 z-40 bg-black/20"
+                      className="fixed inset-0 z-40 bg-black/30"
                       onClick={() => setIsDropdownOpen(false)}
                     />
 
@@ -240,7 +240,7 @@ export default function StudentHeader({
                         damping: 30,
                         mass: 0.8,
                       }}
-                      className="absolute -right-2 mt-4 w-[280px] rounded-4xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden"
+                      className="absolute -right-2 mt-11 w-[280px] rounded-4xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden"
                     >
                       {/* Header */}
                       <div className="relative px-6 py-4 bg-linear-to-br from-purple-500 via-blue-500 to-purple-600 border-b border-gray-100">

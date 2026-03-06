@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Target, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { getAllLeads } from "@/lib/api/leadService";
@@ -31,7 +31,6 @@ export default function AdminLeadsPage() {
   const { selectedBranchId, isLoaded: isBranchLoaded } = useBranchFilter();
   
   // Data state
-  const [leads, setLeads] = useState<LeadType[]>([]); // Filtered leads for table
   const [allLeads, setAllLeads] = useState<LeadType[]>([]); // All leads for stats (load once)
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +38,6 @@ export default function AdminLeadsPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   
   // UI state
   const [isPageLoaded, setIsPageLoaded] = useState(false);
@@ -62,6 +59,45 @@ export default function AdminLeadsPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadType | null>(null);
 
+  // Client-side filtering (profiles style)
+  const filteredLeads = useMemo(() => {
+    let result = [...allLeads];
+    
+    // Apply status filter
+    if (selectedStatus !== "Tất cả") {
+      const statusKey = Object.keys(STATUS_MAPPING).find(
+        (key) => STATUS_MAPPING[key as StatusType] === selectedStatus
+      );
+      if (statusKey) {
+        result = result.filter(lead => lead.status === statusKey);
+      }
+    }
+    
+    // Apply source filter
+    if (selectedSource !== "Tất cả") {
+      result = result.filter(lead => lead.source === selectedSource);
+    }
+    
+    // Apply search filter
+    if (debouncedSearchQuery) {
+      const query = debouncedSearchQuery.toLowerCase();
+      result = result.filter(lead => 
+        (lead.contactName?.toLowerCase().includes(query)) ||
+        (lead.phone?.toLowerCase().includes(query)) ||
+        (lead.email?.toLowerCase().includes(query))
+      );
+    }
+    
+    return result;
+  }, [allLeads, selectedStatus, selectedSource, debouncedSearchQuery]);
+
+  // Client-side pagination
+  const totalPages = Math.ceil(filteredLeads.length / pageSize);
+  const totalCount = filteredLeads.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentLeads = filteredLeads.slice(startIndex, endIndex);
+
   // Handlers
   const handleViewDetail = (lead: LeadType) => {
     setSelectedLead(lead);
@@ -69,11 +105,11 @@ export default function AdminLeadsPage() {
   };
 
   const handleSelectAll = () => {
-    if (Object.keys(selectedIds).length === leads.length) {
+    if (Object.keys(selectedIds).length === currentLeads.length) {
       setSelectedIds({});
     } else {
       const newSelectedIds: Record<string, boolean> = {};
-      leads.forEach((lead) => {
+      currentLeads.forEach((lead) => {
         newSelectedIds[lead.id] = true;
       });
       setSelectedIds(newSelectedIds);
@@ -173,60 +209,14 @@ export default function AdminLeadsPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-    }, 500);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [searchQuery]);
-
-  // Fetch filtered leads (for pagination)
-  useEffect(() => {
-    const fetchFilteredLeads = async () => {
-      try {
-        const params: any = {
-          pageNumber: currentPage,
-          pageSize: pageSize,
-        };
-
-        if (debouncedSearchQuery) {
-          params.search = debouncedSearchQuery;
-        }
-
-        if (selectedStatus !== "Tất cả") {
-          const statusKey = Object.keys(STATUS_MAPPING).find(
-            (key) => STATUS_MAPPING[key as StatusType] === selectedStatus
-          );
-          if (statusKey) params.status = statusKey;
-        }
-
-        if (selectedSource !== "Tất cả") {
-          params.source = selectedSource;
-        }
-
-        // Add branch filter if selected
-        if (selectedBranchId) {
-          params.branchPreference = selectedBranchId;
-        }
-
-        const response = await getAllLeads(params);
-        
-        if (response.isSuccess && response.data) {
-          setLeads(response.data.leads || []);
-          setTotalCount(response.data.totalCount || 0);
-          setTotalPages(response.data.totalPages || 0);
-        }
-      } catch (err) {
-        console.error("Error fetching filtered leads:", err);
-      }
-    };
-
-    if (!isLoading) {
-      fetchFilteredLeads();
-    }
-  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource, selectedBranchId, isLoading]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, selectedStatus, selectedSource, selectedBranchId]);
+  }, [debouncedSearchQuery, selectedStatus, selectedSource, pageSize]);
 
   // Loading state
   if (isLoading) {
@@ -341,7 +331,7 @@ export default function AdminLeadsPage() {
       {/* Table */}
       <div className={`transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <LeadTable
-          leads={leads}
+          leads={currentLeads}
           isLoading={isLoading}
           selectedIds={selectedIds}
           sortKey={sortKey}
@@ -357,6 +347,7 @@ export default function AdminLeadsPage() {
           totalCount={totalCount}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
           readOnly={true}
         />
       </div>

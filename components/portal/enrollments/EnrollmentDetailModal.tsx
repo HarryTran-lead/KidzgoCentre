@@ -159,7 +159,7 @@ export default function EnrollmentDetailModal({
                   <div>
                     <p className="text-xs text-gray-500">Mã hồ sơ</p>
                     <p className="text-sm font-medium text-gray-600">
-                      {enrollment.studentProfileId?.slice(0, 8)}...
+                      {enrollment.studentProfileId}
                     </p>
                   </div>
                 </div>
