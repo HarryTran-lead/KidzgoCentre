@@ -181,8 +181,8 @@ export default function StudentSidebar({
       iconSrc: "/icons/gallery.png",
     },
     { 
-      label: "Giao tiếp", 
-      href: `${roleRoot}/comunication`,
+      label: "Application", 
+      href: `${roleRoot}/application`,
       iconSrc: "/icons/comunication.png",
     },
   ];

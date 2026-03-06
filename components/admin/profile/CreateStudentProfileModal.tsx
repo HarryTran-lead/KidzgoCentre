@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, User as UserIcon, Loader2, Mail } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, User as UserIcon, Loader2, Search, ChevronDown } from "lucide-react";
 import type { CreateStudentProfileRequest } from "@/types/profile";
+import { getAllUsers } from "@/lib/api/userService";
+import type { User } from "@/types/admin/user";
 
 interface CreateStudentProfileModalProps {
   isOpen: boolean;
@@ -16,11 +18,18 @@ export default function CreateStudentProfileModal({
   onSubmit 
 }: CreateStudentProfileModalProps) {
   const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     userId: '',
     displayName: '',
   });
 
+  // Fetch Parent users when modal opens
   useEffect(() => {
     if (!isOpen) return;
     
@@ -29,11 +38,58 @@ export default function CreateStudentProfileModal({
       userId: '',
       displayName: '',
     });
+    setSelectedUser(null);
+    setSearchTerm('');
+    setShowDropdown(false);
+
+    const fetchUsers = async () => {
+      setLoadingUsers(true);
+      try {
+        const response = await getAllUsers({ role: 'Parent', isActive: true, pageSize: 100 });
+        if (response?.data?.items) {
+          setUsers(response.data.items);
+        }
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+    fetchUsers();
   }, [isOpen]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredUsers = users.filter(user =>
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSelectUser = (user: User) => {
+    setSelectedUser(user);
+    setFormData({ ...formData, userId: user.id });
+    setSearchTerm(user.email);
+    setShowDropdown(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate userId
+    if (!formData.userId) {
+      alert('Vui lòng chọn Email của Parent');
+      return;
+    }
+
     setLoading(true);
     try {
       // Prepare profile data (Student uses parent's userId)
@@ -86,23 +142,74 @@ export default function CreateStudentProfileModal({
               Thông tin Profile
             </h3>
 
-            {/* User ID */}
-            <div>
+            {/* User Email Selection (Parent's account) */}
+            <div ref={dropdownRef} className="relative">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Mail size={16} />
-                User ID (Account của Parent) <span className="text-red-500">*</span>
+                <Search size={16} />
+                Email Account của Parent <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                required
-                value={formData.userId}
-                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="3fa85f64-5717-4562-b3fc-2c963f66afa6"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                ID của tài khoản Parent dùng để đăng nhập hệ thống
-              </p>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={16} className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setShowDropdown(true);
+                    if (selectedUser && e.target.value !== selectedUser.email) {
+                      setSelectedUser(null);
+                      setFormData({ ...formData, userId: '' });
+                    }
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                  className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  placeholder={loadingUsers ? 'Đang tải danh sách...' : 'Tìm kiếm email Parent...'}
+                  disabled={loadingUsers}
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  {loadingUsers ? (
+                    <Loader2 size={16} className="animate-spin text-gray-400" />
+                  ) : (
+                    <ChevronDown size={16} className="text-gray-400" />
+                  )}
+                </div>
+              </div>
+              {/* Dropdown list */}
+              {showDropdown && !loadingUsers && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {filteredUsers.length > 0 ? (
+                    filteredUsers.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => handleSelectUser(user)}
+                        className={`w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors flex flex-col ${
+                          selectedUser?.id === user.id ? 'bg-blue-50 border-l-2 border-blue-500' : ''
+                        }`}
+                      >
+                        <span className="text-sm font-medium text-gray-800">{user.email}</span>
+                        <span className="text-xs text-gray-500">{user.name} {user.branchName ? `• ${user.branchName}` : ''}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                      Không tìm thấy user nào
+                    </div>
+                  )}
+                </div>
+              )}
+              {selectedUser ? (
+                <p className="text-xs text-green-600 mt-1">
+                  ✓ Đã chọn: {selectedUser.email} ({selectedUser.name})
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">
+                  Chọn email tài khoản Parent dùng để đăng nhập hệ thống
+                </p>
+              )}
             </div>
 
             {/* Display Name */}
