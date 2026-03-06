@@ -172,31 +172,56 @@ export default function AssignmentDetailPage() {
   };
 
   const handleConfirmSubmit = async () => {
-    if (!homeworkId) return;
+    if (!homeworkId || !assignment) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      // Combine text answer with links
-      let fullTextAnswer = submissionText.trim();
+      const submissionType = (assignment.submissionType || "").toUpperCase();
+      const isFileRequired =
+        submissionType === "FILE" ||
+        submissionType === "IMAGE" ||
+        submissionType === "FILE_AND_TEXT";
+      const isTextRequired = submissionType === "TEXT" || submissionType === "FILE_AND_TEXT";
+      const isLinkRequired = submissionType === "LINK";
 
-      // Add links to text if present
-      if (submissionLinks.length > 0) {
-        const linksText = submissionLinks.map(link => `- ${link}`).join("\n");
-        fullTextAnswer = fullTextAnswer
-          ? `${fullTextAnswer}\n\n---Links---\n${linksText}`
-          : `---Links---\n${linksText}`;
+      const cleanText = submissionText.trim();
+      const cleanLinks = submissionLinks.map((x) => x.trim()).filter(Boolean);
+
+      if (isFileRequired && cleanLinks.length === 0) {
+        setSubmitError(
+          "Bài này yêu cầu file. Hãy thêm ít nhất 1 URL file (Drive/Cloudinary) ở mục Link trước khi nộp."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+      if (isTextRequired && !cleanText) {
+        setSubmitError("Bài này yêu cầu câu trả lời dạng văn bản.");
+        setIsSubmitting(false);
+        return;
+      }
+      if (isLinkRequired && cleanLinks.length === 0) {
+        setSubmitError("Bài này yêu cầu ít nhất 1 link.");
+        setIsSubmitting(false);
+        return;
       }
 
-      // Only include attachmentUrls if there are files
       const payload: SubmitHomeworkPayload = {
         homeworkStudentId: homeworkId,
       };
 
-      // Add textAnswer if there's content
-      if (fullTextAnswer) {
-        payload.textAnswer = fullTextAnswer;
+      if (cleanText) {
+        payload.textAnswer = cleanText;
+      }
+
+      // Current FE has no upload API yet. Use entered links as attachmentUrls for FILE type.
+      if (isFileRequired && cleanLinks.length > 0) {
+        payload.attachmentUrls = cleanLinks;
+      }
+
+      if (isLinkRequired && cleanLinks.length > 0) {
+        payload.linkUrl = cleanLinks[0];
       }
 
       console.log("Submit payload:", JSON.stringify(payload));

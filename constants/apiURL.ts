@@ -52,8 +52,11 @@ export const STUDENT_CLASS_ENDPOINTS = {
 
 export const STUDENT_HOMEWORK_ENDPOINTS = {
   GET_MY_HOMEWORK: "/api/students/homework/my",
+  GET_SUBMITTED: "/api/students/homework/submitted",
+  GET_FEEDBACK_MY: "/api/students/homework/feedback/my",
   GET_BY_ID: (homeworkStudentId: string) => `/api/students/homework/${homeworkStudentId}`,
   SUBMIT: "/api/students/homework/submit",
+  SUBMIT_MULTIPLE_CHOICE: "/api/students/homework/multiple-choice/submit",
 } as const;
 
 export const BACKEND_STUDENT_ENDPOINTS = {
@@ -198,6 +201,7 @@ export const TEACHER_ENDPOINTS = {
   ATTENDANCE_STUDENTS: '/api/attendance/students',
   SESSIONS: '/api/sessions',
   HOMEWORK: '/api/homework',
+  HOMEWORK_SUBMISSIONS: '/api/homework/submissions',
   SESSION_REPORTS: '/api/teacher/session-reports',
   SESSION_REPORT_BY_ID: (id: string) => `/api/teacher/session-reports/${id}`,
 } as const;
