@@ -21,8 +21,20 @@ import {
   Users,
   X,
   Upload,
+  Download,
+  User,
+  Hash,
+  CalendarDays,
+  AlignLeft,
+  Home,
+  BookMarked,
+  Save,
+  AlertTriangle,
+  HelpCircle,
+  CheckSquare,
+  Square,
 } from "lucide-react";
-import { createLessonPlan, CreateLessonPlanRequest } from "@/lib/api/lessonPlanService";
+import { createLessonPlan, getAllLessonPlans, updateLessonPlan, deleteLessonPlan, CreateLessonPlanRequest, LessonPlan } from "@/lib/api/lessonPlanService";
 import { getTeacherClasses, getTeacherTimetable, TeacherSession, TeacherClass } from "@/lib/api/teacherService";
 import { getAllDocuments } from "@/lib/api/documentService";
 
@@ -58,43 +70,6 @@ function SortableHeader<T extends string>({
         <span aria-hidden className="text-gray-300">↕</span>
       )}
     </button>
-  );
-}
-
-// Tab Navigation Component
-function TabNav({
-  activeTab,
-  onChange,
-  items,
-}: {
-  activeTab: string;
-  onChange: (key: string) => void;
-  items: { key: string; label: string; icon: React.ReactNode; count?: number }[];
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-red-200 p-1 inline-flex gap-1">
-      {items.map((item) => (
-        <button
-          key={item.key}
-          onClick={() => onChange(item.key)}
-          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === item.key
-              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-              : "text-gray-600 hover:bg-red-50"
-          }`}
-        >
-          {item.icon}
-          <span>{item.label}</span>
-          {item.count !== undefined && (
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              activeTab === item.key ? "bg-white/20" : "bg-gray-100"
-            }`}>
-              {item.count}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -139,25 +114,19 @@ function StatCard({
   );
 }
 
-type Exam = {
-  id: string;
-  title: string;
-  subject: string;
-  class: string;
-  date: string;
-  duration: string;
-  status: string;
-  color: string;
-};
-
 type Material = {
   id: string;
   name: string;
-  subject: string;
-  kind: string;
-  size: string;
-  date: string;
-  color: string;
+  sessionTitle: string;
+  classCode: string;
+  templateLevel: string;
+  plannedContent: string;
+  actualContent: string;
+  actualHomework: string;
+  teacherNotes: string;
+  submittedByName: string | null;
+  submittedAt: string | null;
+  createdAt: string;
 };
 
 type Subject = {
@@ -172,26 +141,40 @@ type Subject = {
 };
 
 export default function TeacherSubjectsPage() {
-  const [tab, setTab] = useState<"dekiemtra" | "tailieu">("dekiemtra");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
-  const [sortColumnExam, setSortColumnExam] = useState<"title" | "date" | "duration" | null>(null);
-  const [sortDirectionExam, setSortDirectionExam] = useState<"asc" | "desc">("asc");
-  const [sortColumnMaterial, setSortColumnMaterial] = useState<"name" | "size" | "date" | null>(null);
+  const [sortColumnMaterial, setSortColumnMaterial] = useState<"name" | "date" | null>(null);
   const [sortDirectionMaterial, setSortDirectionMaterial] = useState<"asc" | "desc">("asc");
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  
+  // State for bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Form state for creating lesson plan
   const [formData, setFormData] = useState({
     classId: "",
     sessionId: "",
     templateId: "",
+    plannedContent: "",
+    actualContent: "",
+    actualHomework: "",
+    teacherNotes: "",
+  });
+
+  // Update form state
+  const [updateFormData, setUpdateFormData] = useState({
     plannedContent: "",
     actualContent: "",
     actualHomework: "",
@@ -231,9 +214,8 @@ export default function TeacherSubjectsPage() {
             pageSize: 100
           });
           if (sessionsResponse.isSuccess && sessionsResponse.data) {
-            const sessionsDataObj = sessionsResponse.data.sessions;
-            // Handle both array and paginated object structure
-            const sessions = sessionsDataObj?.items || sessionsDataObj;
+            const sessionsDataObj = sessionsResponse.data.sessions as { items: TeacherSession[] } | TeacherSession[];
+            const sessions = sessionsDataObj && 'items' in sessionsDataObj ? sessionsDataObj.items : sessionsDataObj;
             setSessionsData(Array.isArray(sessions) ? sessions : []);
           }
 
@@ -275,7 +257,7 @@ export default function TeacherSubjectsPage() {
   // Reset page when search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, tab]);
+  }, [debouncedSearch]);
 
   const subjectsData: Subject[] = [
     {
@@ -330,171 +312,46 @@ export default function TeacherSubjectsPage() {
     },
   ];
 
-  const examsData: Exam[] = [
-    {
-      id: "1",
-      title: "Kiểm tra giữa kỳ - IELTS",
-      subject: "IELTS Foundation",
-      class: "IELTS Foundation - A1",
-      date: "15/10/2025",
-      duration: "90 phút",
-      status: "Sắp tới",
-      color: "from-red-600 to-red-700",
-    },
-    {
-      id: "2",
-      title: "Kiểm tra cuối kỳ - TOEIC",
-      subject: "TOEIC Intermediate",
-      class: "TOEIC Intermediate",
-      date: "25/10/2025",
-      duration: "120 phút",
-      status: "Sắp tới",
-      color: "from-gray-600 to-gray-700",
-    },
-    {
-      id: "3",
-      title: "Bài kiểm tra 1 - Business",
-      subject: "Business English",
-      class: "Business English",
-      date: "05/10/2025",
-      duration: "60 phút",
-      status: "Đã hoàn thành",
-      color: "from-amber-500 to-orange-500",
-    },
-    {
-      id: "4",
-      title: "Writing Assessment",
-      subject: "Academic Writing",
-      class: "Academic Writing",
-      date: "12/10/2025",
-      duration: "45 phút",
-      status: "Sắp tới",
-      color: "from-emerald-500 to-teal-500",
-    },
-    {
-      id: "5",
-      title: "Test 5 - IELTS",
-      subject: "IELTS Foundation",
-      class: "IELTS Foundation - A2",
-      date: "30/10/2025",
-      duration: "90 phút",
-      status: "Sắp tới",
-      color: "from-red-600 to-red-700",
-    },
-    {
-      id: "6",
-      title: "Final Exam - TOEIC",
-      subject: "TOEIC Intermediate",
-      class: "TOEIC Intermediate",
-      date: "01/11/2025",
-      duration: "120 phút",
-      status: "Sắp tới",
-      color: "from-gray-600 to-gray-700",
-    },
-  ];
+  const [materialsData, setMaterialsData] = useState<Material[]>([]);
+  const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
 
-  const materialsData: Material[] = [
-    {
-      id: "1",
-      name: "IELTS Speaking Module 1-5",
-      subject: "IELTS Foundation",
-      kind: "PDF",
-      size: "2.5 MB",
-      date: "01/10/2025",
-      color: "from-red-600 to-red-700",
-    },
-    {
-      id: "2",
-      name: "TOEIC Practice Test Vol.1",
-      subject: "TOEIC Intermediate",
-      kind: "PDF",
-      size: "1.8 MB",
-      date: "05/09/2025",
-      color: "from-gray-600 to-gray-700",
-    },
-    {
-      id: "3",
-      name: "Business Vocabulary List",
-      subject: "Business English",
-      kind: "DOCX",
-      size: "0.5 MB",
-      date: "15/09/2025",
-      color: "from-amber-500 to-orange-500",
-    },
-    {
-      id: "4",
-      name: "IELTS Writing Task 2 Samples",
-      subject: "IELTS Foundation",
-      kind: "PDF",
-      size: "3.2 MB",
-      date: "20/09/2025",
-      color: "from-emerald-500 to-teal-500",
-    },
-    {
-      id: "5",
-      name: "Business Email Templates",
-      subject: "Business English",
-      kind: "DOCX",
-      size: "1.2 MB",
-      date: "25/09/2025",
-      color: "from-amber-500 to-orange-500",
-    },
-    {
-      id: "6",
-      name: "Grammar Review Sheet",
-      subject: "English Conversation",
-      kind: "PDF",
-      size: "0.8 MB",
-      date: "28/09/2025",
-      color: "from-sky-500 to-blue-500",
-    },
-  ];
-
-  const handleSortExam = (column: "title" | "date" | "duration") => {
-    if (sortColumnExam === column) {
-      setSortDirectionExam(sortDirectionExam === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumnExam(column);
-      setSortDirectionExam("asc");
+  // Fetch lesson plans (materials) on mount
+  const fetchMaterials = async () => {
+    setIsLoadingMaterials(true);
+    try {
+      const response = await getAllLessonPlans({ pageSize: 100 });
+      if (response.isSuccess && response.data) {
+        // Handle both array and paginated object structure (API may return LessonPlans with capital L)
+        const data = response.data as any;
+        const lessonPlansData = data.LessonPlans || data.lessonPlans;
+        const plans = lessonPlansData?.items || lessonPlansData || [];
+        setMaterialsData(Array.isArray(plans) ? plans.map((plan: any) => ({
+          id: plan.id,
+          name: plan.templateLevel ? `Level ${plan.templateLevel} - Session ${plan.templateSessionIndex}` : "Lesson Plan",
+          sessionTitle: plan.sessionTitle || "",
+          classCode: plan.classCode || "",
+          templateLevel: plan.templateLevel || "",
+          plannedContent: plan.plannedContent || "",
+          actualContent: plan.actualContent || "",
+          actualHomework: plan.actualHomework || "",
+          teacherNotes: plan.teacherNotes || "",
+          submittedByName: plan.submittedByName,
+          submittedAt: plan.submittedAt,
+          createdAt: plan.createdAt,
+        })) : []);
+      }
+    } catch (error) {
+      console.error("Error fetching lesson plans:", error);
+    } finally {
+      setIsLoadingMaterials(false);
     }
   };
 
-  const sortedExams = useMemo(() => {
-    let result = [...examsData];
+  useEffect(() => {
+    fetchMaterials();
+  }, []);
 
-    // Filter
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      result = result.filter(
-        (exam) =>
-          exam.title.toLowerCase().includes(searchLower) ||
-          exam.subject.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Sort
-    if (sortColumnExam) {
-      result.sort((a, b) => {
-        let comparison = 0;
-        if (sortColumnExam === "title") {
-          comparison = a.title.localeCompare(b.title);
-        } else if (sortColumnExam === "date") {
-          const dateA = new Date(a.date.split("/").reverse().join("-"));
-          const dateB = new Date(b.date.split("/").reverse().join("-"));
-          comparison = dateA.getTime() - dateB.getTime();
-        } else if (sortColumnExam === "duration") {
-          const durationA = parseFloat(a.duration.replace(" phút", ""));
-          const durationB = parseFloat(b.duration.replace(" phút", ""));
-          comparison = durationA - durationB;
-        }
-        return sortDirectionExam === "asc" ? comparison : -comparison;
-      });
-    }
-
-    return result;
-  }, [examsData, debouncedSearch, sortColumnExam, sortDirectionExam]);
-
-  const handleSortMaterial = (column: "name" | "size" | "date") => {
+  const handleSortMaterial = (column: "name" | "date") => {
     if (sortColumnMaterial === column) {
       setSortDirectionMaterial(sortDirectionMaterial === "asc" ? "desc" : "asc");
     } else {
@@ -512,7 +369,8 @@ export default function TeacherSubjectsPage() {
       result = result.filter(
         (material) =>
           material.name.toLowerCase().includes(searchLower) ||
-          material.subject.toLowerCase().includes(searchLower)
+          material.sessionTitle.toLowerCase().includes(searchLower) ||
+          material.classCode.toLowerCase().includes(searchLower)
       );
     }
 
@@ -522,14 +380,10 @@ export default function TeacherSubjectsPage() {
         let comparison = 0;
         if (sortColumnMaterial === "name") {
           comparison = a.name.localeCompare(b.name);
-        } else if (sortColumnMaterial === "size") {
-          const sizeA = parseFloat(a.size.replace(" MB", ""));
-          const sizeB = parseFloat(b.size.replace(" MB", ""));
-          comparison = sizeA - sizeB;
         } else if (sortColumnMaterial === "date") {
-          const dateA = new Date(a.date.split("/").reverse().join("-"));
-          const dateB = new Date(b.date.split("/").reverse().join("-"));
-          comparison = dateA.getTime() - dateB.getTime();
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          comparison = dateA - dateB;
         }
         return sortDirectionMaterial === "asc" ? comparison : -comparison;
       });
@@ -538,17 +392,56 @@ export default function TeacherSubjectsPage() {
     return result;
   }, [materialsData, debouncedSearch, sortColumnMaterial, sortDirectionMaterial]);
 
-  // Pagination - separate variables for exams and materials
-  const sortedExamData = sortedExams;
+  // Pagination
   const sortedMaterialData = sortedMaterials;
-  const totalExamPages = Math.ceil(sortedExamData.length / itemsPerPage);
   const totalMaterialPages = Math.ceil(sortedMaterialData.length / itemsPerPage);
-  const examStartIndex = (currentPage - 1) * itemsPerPage;
-  const examEndIndex = examStartIndex + itemsPerPage;
   const materialStartIndex = (currentPage - 1) * itemsPerPage;
   const materialEndIndex = materialStartIndex + itemsPerPage;
-  const paginatedExams = sortedExamData.slice(examStartIndex, examEndIndex);
   const paginatedMaterials = sortedMaterialData.slice(materialStartIndex, materialEndIndex);
+
+  // Bulk selection handlers
+  const handleSelectAll = () => {
+    if (selectedIds.size === paginatedMaterials.length) {
+      setSelectedIds(new Set());
+    } else {
+      const newSelected = new Set<string>();
+      paginatedMaterials.forEach(material => newSelected.add(material.id));
+      setSelectedIds(newSelected);
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    setSubmitError(null);
+
+    try {
+      // Delete each selected material
+      const deletePromises = Array.from(selectedIds).map(id => deleteLessonPlan(id));
+      await Promise.all(deletePromises);
+      
+      await fetchMaterials(); // Refresh data
+      setSelectedIds(new Set()); // Clear selection
+      setIsBulkDeleteModalOpen(false);
+      
+      setSubmitSuccess(true);
+      setTimeout(() => setSubmitSuccess(false), 1500);
+    } catch (error: any) {
+      console.error("Error deleting materials:", error);
+      setSubmitError(error.response?.data?.message || "Có lỗi xảy ra khi xóa tài liệu");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   const stats = {
     total: subjectsData.length,
@@ -584,6 +477,7 @@ export default function TeacherSubjectsPage() {
       };
 
       await createLessonPlan(requestData);
+      await fetchMaterials(); // Refresh data
 
       setSubmitSuccess(true);
       setFormData({
@@ -609,11 +503,126 @@ export default function TeacherSubjectsPage() {
     }
   };
 
+  // Handle form submission for updating lesson plan
+  const handleUpdateLessonPlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedMaterial) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const requestData = {
+        plannedContent: updateFormData.plannedContent,
+        actualContent: updateFormData.actualContent,
+        actualHomework: updateFormData.actualHomework,
+        teacherNotes: updateFormData.teacherNotes,
+      };
+
+      await updateLessonPlan(selectedMaterial.id, requestData);
+      await fetchMaterials(); // Refresh data
+
+      setSubmitSuccess(true);
+      
+      // Close modal after short delay
+      setTimeout(() => {
+        setIsUpdateModalOpen(false);
+        setSubmitSuccess(false);
+        setSelectedMaterial(null);
+        setUpdateFormData({
+          plannedContent: "",
+          actualContent: "",
+          actualHomework: "",
+          teacherNotes: "",
+        });
+      }, 1500);
+    } catch (error: any) {
+      console.error("Error updating lesson plan:", error);
+      setSubmitError(error.response?.data?.message || "Có lỗi xảy ra khi cập nhật tài liệu");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle delete lesson plan
+  const handleDeleteLessonPlan = async () => {
+    if (!selectedMaterial) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await deleteLessonPlan(selectedMaterial.id);
+      await fetchMaterials(); // Refresh data
+
+      setSubmitSuccess(true);
+      
+      // Close modal after short delay
+      setTimeout(() => {
+        setIsDeleteModalOpen(false);
+        setSubmitSuccess(false);
+        setSelectedMaterial(null);
+      }, 1500);
+    } catch (error: any) {
+      console.error("Error deleting lesson plan:", error);
+      setSubmitError(error.response?.data?.message || "Có lỗi xảy ra khi xóa tài liệu");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Close modal and reset form
   const handleCloseModal = () => {
     setIsCreateModalOpen(false);
     setSubmitError(null);
     setSubmitSuccess(false);
+  };
+
+  // Handle view detail
+  const handleViewDetail = (material: Material) => {
+    setSelectedMaterial(material);
+    setIsDetailModalOpen(true);
+  };
+
+  // Handle update material
+  const handleUpdateMaterial = (material: Material) => {
+    setSelectedMaterial(material);
+    setUpdateFormData({
+      plannedContent: material.plannedContent || "",
+      actualContent: material.actualContent || "",
+      actualHomework: material.actualHomework || "",
+      teacherNotes: material.teacherNotes || "",
+    });
+    setIsUpdateModalOpen(true);
+  };
+
+  // Handle delete material - open confirm modal
+  const handleDeleteClick = (material: Material) => {
+    setSelectedMaterial(material);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Close update modal
+  const handleCloseUpdateModal = () => {
+    setIsUpdateModalOpen(false);
+    setSubmitError(null);
+    setSubmitSuccess(false);
+    setSelectedMaterial(null);
+    setUpdateFormData({
+      plannedContent: "",
+      actualContent: "",
+      actualHomework: "",
+      teacherNotes: "",
+    });
+  };
+
+  // Close delete modal
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setSubmitError(null);
+    setSubmitSuccess(false);
+    setSelectedMaterial(null);
   };
 
   return (
@@ -630,10 +639,10 @@ export default function TeacherSubjectsPage() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-              Quản lý môn học
+              Quản lý tài liệu
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Quản lý tài liệu giảng dạy và bài kiểm tra
+              Quản lý tài liệu giảng dạy
             </p>
           </div>
         </div>
@@ -642,39 +651,13 @@ export default function TeacherSubjectsPage() {
             <Filter size={16} /> Lọc
           </button>
           <button
-            onClick={() => tab === "tailieu" && setIsCreateModalOpen(true)}
+            onClick={() => setIsCreateModalOpen(true)}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
           >
             <Plus size={16} />
-            {tab === "dekiemtra" ? "Tạo đề thi" : "Tải lên tài liệu"}
+            Tải lên tài liệu
           </button>
         </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div
-        className={`transition-all duration-700 delay-100 ${
-          isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-      >
-        <TabNav
-          activeTab={tab}
-          onChange={(key) => setTab(key as "dekiemtra" | "tailieu")}
-          items={[
-            {
-              key: "dekiemtra",
-              label: "Đề kiểm tra",
-              icon: <ClipboardList size={16} />,
-              count: examsData.length,
-            },
-            {
-              key: "tailieu",
-              label: "Tài liệu",
-              icon: <FileText size={16} />,
-              count: materialsData.length,
-            },
-          ]}
-        />
       </div>
 
       {/* Stats Cards */}
@@ -724,8 +707,22 @@ export default function TeacherSubjectsPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="text-sm text-gray-600 font-medium">
-              {tab === "dekiemtra" ? "Danh sách đề kiểm tra" : "Danh sách tài liệu"}
+              Danh sách tài liệu
             </div>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-red-200">
+                <span className="text-sm text-gray-600">
+                  Đã chọn <span className="font-semibold text-red-600">{selectedIds.size}</span> tài liệu
+                </span>
+                <button
+                  onClick={() => setIsBulkDeleteModalOpen(true)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium"
+                >
+                  <Trash2 size={14} />
+                  Xóa đã chọn
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Search and Items Per Page */}
@@ -734,11 +731,7 @@ export default function TeacherSubjectsPage() {
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={
-                  tab === "dekiemtra"
-                    ? "Tìm kiếm đề thi, bài kiểm tra..."
-                    : "Tìm kiếm tài liệu, tên file..."
-                }
+                placeholder="Tìm kiếm tài liệu, tên file..."
                 className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -770,11 +763,11 @@ export default function TeacherSubjectsPage() {
         <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">
-              {tab === "dekiemtra" ? "Danh sách đề kiểm tra" : "Danh sách tài liệu"}
+              Danh sách tài liệu
             </h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-medium">
-                {tab === "dekiemtra" ? sortedExamData.length : sortedMaterialData.length} {tab === "dekiemtra" ? "đề thi" : "tài liệu"}
+                {sortedMaterialData.length} tài liệu
               </span>
             </div>
           </div>
@@ -782,373 +775,222 @@ export default function TeacherSubjectsPage() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          {tab === "dekiemtra" ? (
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
+              <tr>
+                <th className="py-3 px-4 text-left">
+                  <button
+                    onClick={handleSelectAll}
+                    className="flex items-center justify-center text-gray-500 hover:text-red-600 transition-colors"
+                  >
+                    {selectedIds.size === paginatedMaterials.length && paginatedMaterials.length > 0 ? (
+                      <CheckSquare size={18} className="text-red-600" />
+                    ) : (
+                      <Square size={18} />
+                    )}
+                  </button>
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <SortableHeader
+                    label="Tên tài liệu"
+                    column="name"
+                    sortColumn={sortColumnMaterial}
+                    sortDirection={sortDirectionMaterial}
+                    onSort={handleSortMaterial}
+                  />
+                </th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  Lớp học
+                </th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  Buổi học
+                </th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  Level
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <SortableHeader
+                    label="Ngày tạo"
+                    column="date"
+                    sortColumn={sortColumnMaterial}
+                    sortDirection={sortDirectionMaterial}
+                    onSort={handleSortMaterial}
+                  />
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <span className="text-sm font-semibold text-gray-700">Thao tác</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-red-100">
+              {isLoadingMaterials ? (
                 <tr>
-                  <th className="py-3 px-6 text-left">
-                    <SortableHeader
-                      label="Tên bài kiểm tra"
-                      column="title"
-                      sortColumn={sortColumnExam}
-                      sortDirection={sortDirectionExam}
-                      onSort={handleSortExam}
-                    />
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Môn học
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Lớp
-                  </th>
-                  <th className="py-3 px-6 text-left">
-                    <SortableHeader
-                      label="Ngày thi"
-                      column="date"
-                      sortColumn={sortColumnExam}
-                      sortDirection={sortDirectionExam}
-                      onSort={handleSortExam}
-                    />
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Thời lượng
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Trạng thái
-                  </th>
-                  <th className="py-3 px-6 text-left">
-                    <span className="text-sm font-semibold text-gray-700">Thao tác</span>
-                  </th>
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="flex justify-center">
+                      <div className="w-8 h-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
+                    </div>
+                    <div className="text-gray-600 font-medium mt-2">Đang tải dữ liệu...</div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-red-100">
-                {paginatedExams.length > 0 ? (
-                  paginatedExams.map((exam) => (
-                    <tr
-                      key={exam.id}
-                      className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
-                    >
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2.5 rounded-lg bg-gradient-to-r ${exam.color} shadow-sm`}>
-                            <ClipboardList size={18} className="text-white" />
+              ) : paginatedMaterials.length > 0 ? (
+                paginatedMaterials.map((material) => (
+                  <tr
+                    key={material.id}
+                    className={`group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 ${
+                      selectedIds.has(material.id) ? 'bg-red-50/50' : ''
+                    }`}
+                  >
+                    <td className="py-4 px-4">
+                      <button
+                        onClick={() => handleSelectOne(material.id)}
+                        className="flex items-center justify-center text-gray-500 hover:text-red-600 transition-colors"
+                      >
+                        {selectedIds.has(material.id) ? (
+                          <CheckSquare size={18} className="text-red-600" />
+                        ) : (
+                          <Square size={18} />
+                        )}
+                      </button>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-lg bg-gradient-to-r from-red-600 to-red-700 shadow-sm">
+                          <FileText size={18} className="text-white" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">{material.name}</div>
+                          <div className="text-xs text-gray-500 truncate max-w-[200px]">
+                            {material.plannedContent.substring(0, 50)}...
                           </div>
-                          <div>
-                            <div className="font-semibold text-gray-900">{exam.title}</div>
-                            <div className="text-xs text-gray-500">{exam.subject}</div>
-                          </div>
                         </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">{exam.subject}</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700 font-medium">{exam.class}</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Calendar size={14} className="text-gray-400" />
-                          <span>{exam.date}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                          <Clock size={14} className="text-gray-400" />
-                          <span className="font-medium">{exam.duration}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span
-                          className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${
-                            exam.status === "Sắp tới"
-                              ? "bg-amber-100 text-amber-700 border-amber-200"
-                              : exam.status === "Đã hoàn thành"
-                              ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                              : "bg-sky-100 text-sky-700 border-sky-200"
-                          }`}
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="text-sm text-gray-700">{material.classCode || "-"}</div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="text-sm text-gray-700">{material.sessionTitle || "-"}</div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-medium border border-red-200">
+                        {material.templateLevel ? `Level ${material.templateLevel}` : "-"}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Calendar size={14} className="text-gray-400" />
+                        <span>{material.createdAt ? new Date(material.createdAt).toLocaleDateString("vi-VN") : "-"}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleViewDetail(material)}
+                          className="p-2 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer group relative"
+                          title="Xem chi tiết"
                         >
-                          {exam.status === "Sắp tới" ? (
-                            <Clock size={10} className="mr-1" />
-                          ) : exam.status === "Đã hoàn thành" ? (
-                            <CheckCircle size={10} className="mr-1" />
-                          ) : (
-                            <Clock size={10} className="mr-1" />
-                          )}
-                          {exam.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-1">
-                          <button className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer">
-                            <Eye size={14} />
-                          </button>
-                          <button className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer">
-                            <Edit size={14} />
-                          </button>
-                          <button className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
-                        <Search size={24} className="text-red-400" />
+                          <Eye size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleUpdateMaterial(material)}
+                          className="p-2 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer group relative"
+                          title="Cập nhật"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteClick(material)}
+                          className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer group relative" 
+                          title="Xóa"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
-                      <div className="text-gray-600 font-medium">Không tìm thấy dữ liệu</div>
-                      <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</div>
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
+                ))
+              ) : (
                 <tr>
-                  <th className="py-3 px-6 text-left">
-                    <SortableHeader
-                      label="Tên tài liệu"
-                      column="name"
-                      sortColumn={sortColumnMaterial}
-                      sortDirection={sortDirectionMaterial}
-                      onSort={handleSortMaterial}
-                    />
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Môn học
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Loại
-                  </th>
-                  <th className="py-3 px-6 text-left">
-                    <SortableHeader
-                      label="Kích thước"
-                      column="size"
-                      sortColumn={sortColumnMaterial}
-                      sortDirection={sortDirectionMaterial}
-                      onSort={handleSortMaterial}
-                    />
-                  </th>
-                  <th className="py-3 px-6 text-left">
-                    <SortableHeader
-                      label="Ngày tải lên"
-                      column="date"
-                      sortColumn={sortColumnMaterial}
-                      sortDirection={sortDirectionMaterial}
-                      onSort={handleSortMaterial}
-                    />
-                  </th>
-                  <th className="py-3 px-6 text-left">
-                    <span className="text-sm font-semibold text-gray-700">Thao tác</span>
-                  </th>
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                      <Search size={24} className="text-red-400" />
+                    </div>
+                    <div className="text-gray-600 font-medium">Không tìm thấy dữ liệu</div>
+                    <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-red-100">
-                {paginatedMaterials.length > 0 ? (
-                  paginatedMaterials.map((material) => (
-                    <tr
-                      key={material.id}
-                      className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
-                    >
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2.5 rounded-lg bg-gradient-to-r ${material.color} shadow-sm`}>
-                            <FileText size={18} className="text-white" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-900">{material.name}</div>
-                            <div className="text-xs text-gray-500">{material.subject}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">{material.subject}</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-medium border border-red-200">
-                          {material.kind}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                          <span className="font-medium">{material.size}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Calendar size={14} className="text-gray-400" />
-                          <span>{material.date}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-1">
-                          <button className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer">
-                            <Eye size={14} />
-                          </button>
-                          <button className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
-                        <Search size={24} className="text-red-400" />
-                      </div>
-                      <div className="text-gray-600 font-medium">Không tìm thấy dữ liệu</div>
-                      <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
+              )}
+            </tbody>
+          </table>
         </div>
 
         {/* Table Footer - Pagination */}
-        {tab === "dekiemtra" ? (
-          sortedExamData.length > 0 && (
-            <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-sm text-gray-600">
-                  Hiển thị <span className="font-semibold text-gray-900">{examStartIndex + 1}-{Math.min(examEndIndex, sortedExamData.length)}</span> trong tổng số{" "}
-                  <span className="font-semibold text-gray-900">{sortedExamData.length}</span> đề thi
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <div className="flex items-center gap-1">
-                    {(() => {
-                      const pages: (number | string)[] = [];
-                      const maxVisible = 7;
-                      if (totalExamPages <= maxVisible) {
-                        for (let i = 1; i <= totalExamPages; i++) pages.push(i);
+        {sortedMaterialData.length > 0 && (
+          <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-gray-600">
+                Hiển thị <span className="font-semibold text-gray-900">{materialStartIndex + 1}-{Math.min(materialEndIndex, sortedMaterialData.length)}</span> trong tổng số{" "}
+                <span className="font-semibold text-gray-900">{sortedMaterialData.length}</span> tài liệu
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const pages: (number | string)[] = [];
+                    const maxVisible = 7;
+                    if (totalMaterialPages <= maxVisible) {
+                      for (let i = 1; i <= totalMaterialPages; i++) pages.push(i);
+                    } else {
+                      if (currentPage <= 3) {
+                        for (let i = 1; i <= 5; i++) pages.push(i);
+                        pages.push("...");
+                        pages.push(totalMaterialPages);
+                      } else if (currentPage >= totalMaterialPages - 2) {
+                        pages.push(1);
+                        pages.push("...");
+                        for (let i = totalMaterialPages - 4; i <= totalMaterialPages; i++) pages.push(i);
                       } else {
-                        if (currentPage <= 3) {
-                          for (let i = 1; i <= 5; i++) pages.push(i);
-                          pages.push("...");
-                          pages.push(totalExamPages);
-                        } else if (currentPage >= totalExamPages - 2) {
-                          pages.push(1);
-                          pages.push("...");
-                          for (let i = totalExamPages - 4; i <= totalExamPages; i++) pages.push(i);
-                        } else {
-                          pages.push(1);
-                          pages.push("...");
-                          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-                          pages.push("...");
-                          pages.push(totalExamPages);
-                        }
+                        pages.push(1);
+                        pages.push("...");
+                        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                        pages.push("...");
+                        pages.push(totalMaterialPages);
                       }
-                      return pages.map((page, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => typeof page === "number" && setCurrentPage(page)}
-                          disabled={page === "..."}
-                          className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                            page === currentPage
-                              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                              : page === "..."
-                              ? "cursor-default text-gray-400"
-                              : "border border-red-200 hover:bg-red-50 text-gray-700"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ));
-                    })()}
-                  </div>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalExamPages, prev + 1))}
-                    disabled={currentPage === totalExamPages}
-                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
+                    }
+                    return pages.map((page, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => typeof page === "number" && setCurrentPage(page)}
+                        disabled={page === "..."}
+                        className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                          page === currentPage
+                            ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                            : page === "..."
+                            ? "cursor-default text-gray-400"
+                            : "border border-red-200 hover:bg-red-50 text-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ));
+                  })()}
                 </div>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalMaterialPages, prev + 1))}
+                  disabled={currentPage === totalMaterialPages}
+                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  <ChevronRight size={18} />
+                </button>
               </div>
             </div>
-          )
-        ) : (
-          sortedMaterialData.length > 0 && (
-            <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-sm text-gray-600">
-                  Hiển thị <span className="font-semibold text-gray-900">{materialStartIndex + 1}-{Math.min(materialEndIndex, sortedMaterialData.length)}</span> trong tổng số{" "}
-                  <span className="font-semibold text-gray-900">{sortedMaterialData.length}</span> tài liệu
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <div className="flex items-center gap-1">
-                    {(() => {
-                      const pages: (number | string)[] = [];
-                      const maxVisible = 7;
-                      if (totalMaterialPages <= maxVisible) {
-                        for (let i = 1; i <= totalMaterialPages; i++) pages.push(i);
-                      } else {
-                        if (currentPage <= 3) {
-                          for (let i = 1; i <= 5; i++) pages.push(i);
-                          pages.push("...");
-                          pages.push(totalMaterialPages);
-                        } else if (currentPage >= totalMaterialPages - 2) {
-                          pages.push(1);
-                          pages.push("...");
-                          for (let i = totalMaterialPages - 4; i <= totalMaterialPages; i++) pages.push(i);
-                        } else {
-                          pages.push(1);
-                          pages.push("...");
-                          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-                          pages.push("...");
-                          pages.push(totalMaterialPages);
-                        }
-                      }
-                      return pages.map((page, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => typeof page === "number" && setCurrentPage(page)}
-                          disabled={page === "..."}
-                          className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                            page === currentPage
-                              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                              : page === "..."
-                              ? "cursor-default text-gray-400"
-                              : "border border-red-200 hover:bg-red-50 text-gray-700"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ));
-                    })()}
-                  </div>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalMaterialPages, prev + 1))}
-                    disabled={currentPage === totalMaterialPages}
-                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
+          </div>
         )}
       </div>
 
@@ -1157,20 +999,19 @@ export default function TeacherSubjectsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCloseModal} />
           <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
-            <div className="sticky top-0 bg-white border-b border-red-100 px-6 py-4 rounded-t-2xl flex items-center justify-between">
+            <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-xl">
-                  <FileText size={20} className="text-white" />
-                </div>
+                <FileText size={24} />
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Tạo giáo án mới</h2>
-                  <p className="text-sm text-gray-500">Tạo tài liệu giảng dạy cho buổi học</p>
+                  <h2 className="text-xl font-bold">Tạo giáo án mới</h2>
+                  <p className="text-sm text-red-100">Tạo tài liệu giảng dạy cho buổi học</p>
                 </div>
               </div>
-              <button onClick={handleCloseModal} className="p-2 hover:bg-red-50 rounded-xl transition-colors cursor-pointer">
-                <X size={20} className="text-gray-500" />
+              <button onClick={handleCloseModal} className="p-2 hover:bg-white/20 rounded-xl transition-colors cursor-pointer">
+                <X size={20} />
               </button>
             </div>
+            
             <form onSubmit={handleSubmitLessonPlan} className="p-6 space-y-5">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Lớp học <span className="text-red-500">*</span></label>
@@ -1189,6 +1030,7 @@ export default function TeacherSubjectsPage() {
                   ))}
                 </select>
               </div>
+              
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Buổi học <span className="text-red-500">*</span></label>
                 <select
@@ -1208,6 +1050,7 @@ export default function TeacherSubjectsPage() {
                     ))}
                 </select>
               </div>
+              
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Mẫu giáo án <span className="text-red-500">*</span></label>
                 <select
@@ -1223,6 +1066,7 @@ export default function TeacherSubjectsPage() {
                   ))}
                 </select>
               </div>
+              
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Nội dung dự kiến</label>
                 <textarea
@@ -1233,6 +1077,7 @@ export default function TeacherSubjectsPage() {
                   className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
                 />
               </div>
+              
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Nội dung thực tế</label>
                 <textarea
@@ -1243,6 +1088,7 @@ export default function TeacherSubjectsPage() {
                   className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
                 />
               </div>
+              
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Bài tập về nhà</label>
                 <textarea
@@ -1253,6 +1099,7 @@ export default function TeacherSubjectsPage() {
                   className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
                 />
               </div>
+              
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Ghi chú của giáo viên</label>
                 <textarea
@@ -1263,15 +1110,426 @@ export default function TeacherSubjectsPage() {
                   className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
                 />
               </div>
-              {submitError && <div className="p-4 bg-red-50 border border-red-200 rounded-xl"><p className="text-sm text-red-600 font-medium">{submitError}</p></div>}
-              {submitSuccess && <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl"><div className="flex items-center gap-2"><CheckCircle size={18} className="text-emerald-600" /><p className="text-sm text-emerald-600 font-medium">Tạo tài liệu thành công!</p></div></div>}
+
+              {submitError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-sm text-red-600 font-medium">{submitError}</p>
+                </div>
+              )}
+              
+              {submitSuccess && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle size={18} className="text-emerald-600" />
+                    <p className="text-sm text-emerald-600 font-medium">Tạo tài liệu thành công!</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-red-100">
-                <button type="button" onClick={handleCloseModal} className="px-5 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors cursor-pointer">Hủy</button>
-                <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer">
-                  {isSubmitting ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Đang tạo...</> : <><Upload size={16} />Tạo tài liệu</>}
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-5 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Đang tạo...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={16} />
+                      Tạo tài liệu
+                    </>
+                  )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {isDetailModalOpen && selectedMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsDetailModalOpen(false)} />
+          <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
+            <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText size={24} />
+                <div>
+                  <h2 className="text-xl font-bold">Chi tiết tài liệu</h2>
+                  <p className="text-sm text-red-100">{selectedMaterial.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setIsDetailModalOpen(false)} className="p-2 hover:bg-white/20 rounded-xl transition-colors cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Thông tin cơ bản */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-red-50/50 rounded-xl p-4 border border-red-100">
+                  <div className="flex items-center gap-2 text-red-600 mb-1">
+                    <BookMarked size={16} />
+                    <span className="text-xs font-medium uppercase">Lớp học</span>
+                  </div>
+                  <div className="text-lg font-semibold text-gray-900">{selectedMaterial.classCode || "-"}</div>
+                </div>
+                <div className="bg-red-50/50 rounded-xl p-4 border border-red-100">
+                  <div className="flex items-center gap-2 text-red-600 mb-1">
+                    <ClipboardList size={16} />
+                    <span className="text-xs font-medium uppercase">Buổi học</span>
+                  </div>
+                  <div className="text-lg font-semibold text-gray-900">{selectedMaterial.sessionTitle || "-"}</div>
+                </div>
+                <div className="bg-red-50/50 rounded-xl p-4 border border-red-100">
+                  <div className="flex items-center gap-2 text-red-600 mb-1">
+                    <BarChart size={16} />
+                    <span className="text-xs font-medium uppercase">Level</span>
+                  </div>
+                  <div className="text-lg font-semibold text-gray-900">
+                    {selectedMaterial.templateLevel ? `Level ${selectedMaterial.templateLevel}` : "-"}
+                  </div>
+                </div>
+                <div className="bg-red-50/50 rounded-xl p-4 border border-red-100">
+                  <div className="flex items-center gap-2 text-red-600 mb-1">
+                    <CalendarDays size={16} />
+                    <span className="text-xs font-medium uppercase">Ngày tạo</span>
+                  </div>
+                  <div className="text-lg font-semibold text-gray-900">
+                    {selectedMaterial.createdAt ? new Date(selectedMaterial.createdAt).toLocaleDateString("vi-VN") : "-"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Nội dung chi tiết */}
+              <div className="space-y-4">
+                <div className="bg-white border border-red-100 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-red-600 mb-2 flex items-center gap-2">
+                    <AlignLeft size={16} />
+                    Nội dung dự kiến
+                  </h3>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedMaterial.plannedContent || "Chưa có nội dung"}</p>
+                </div>
+
+                <div className="bg-white border border-red-100 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-emerald-600 mb-2 flex items-center gap-2">
+                    <CheckCircle size={16} />
+                    Nội dung thực tế
+                  </h3>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedMaterial.actualContent || "Chưa có nội dung"}</p>
+                </div>
+
+                <div className="bg-white border border-red-100 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-amber-600 mb-2 flex items-center gap-2">
+                    <BookOpen size={16} />
+                    Bài tập về nhà
+                  </h3>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedMaterial.actualHomework || "Chưa có bài tập"}</p>
+                </div>
+
+                <div className="bg-white border border-red-100 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2">
+                    <FileText size={16} />
+                    Ghi chú giáo viên
+                  </h3>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedMaterial.teacherNotes || "Chưa có ghi chú"}</p>
+                </div>
+              </div>
+
+              {/* Footer - chỉ còn nút Đóng */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-red-100">
+                <button
+                  onClick={() => setIsDetailModalOpen(false)}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold hover:shadow-lg transition-all cursor-pointer"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Modal */}
+      {isUpdateModalOpen && selectedMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCloseUpdateModal} />
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
+            <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Edit size={24} />
+                <div>
+                  <h2 className="text-xl font-bold">Cập nhật tài liệu</h2>
+                  <p className="text-sm text-red-100">{selectedMaterial.name}</p>
+                </div>
+              </div>
+              <button onClick={handleCloseUpdateModal} className="p-2 hover:bg-white/20 rounded-xl transition-colors cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateLessonPlan} className="p-6 space-y-5">
+              {/* Thông tin cơ bản (chỉ để hiển thị, không thể sửa) */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-red-50/50 rounded-xl p-4 border border-red-100">
+                  <div className="flex items-center gap-2 text-red-600 mb-1">
+                    <BookMarked size={16} />
+                    <span className="text-xs font-medium uppercase">Lớp học</span>
+                  </div>
+                  <div className="text-base font-semibold text-gray-900">{selectedMaterial.classCode || "-"}</div>
+                </div>
+                <div className="bg-red-50/50 rounded-xl p-4 border border-red-100">
+                  <div className="flex items-center gap-2 text-red-600 mb-1">
+                    <ClipboardList size={16} />
+                    <span className="text-xs font-medium uppercase">Buổi học</span>
+                  </div>
+                  <div className="text-base font-semibold text-gray-900">{selectedMaterial.sessionTitle || "-"}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Nội dung dự kiến</label>
+                <textarea
+                  value={updateFormData.plannedContent}
+                  onChange={(e) => setUpdateFormData({ ...updateFormData, plannedContent: e.target.value })}
+                  placeholder="Nhập nội dung dự kiến..."
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Nội dung thực tế</label>
+                <textarea
+                  value={updateFormData.actualContent}
+                  onChange={(e) => setUpdateFormData({ ...updateFormData, actualContent: e.target.value })}
+                  placeholder="Nhập nội dung thực tế..."
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Bài tập về nhà</label>
+                <textarea
+                  value={updateFormData.actualHomework}
+                  onChange={(e) => setUpdateFormData({ ...updateFormData, actualHomework: e.target.value })}
+                  placeholder="Nhập bài tập về nhà..."
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Ghi chú của giáo viên</label>
+                <textarea
+                  value={updateFormData.teacherNotes}
+                  onChange={(e) => setUpdateFormData({ ...updateFormData, teacherNotes: e.target.value })}
+                  placeholder="Nhập ghi chú..."
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
+                />
+              </div>
+
+              {submitError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-sm text-red-600 font-medium">{submitError}</p>
+                </div>
+              )}
+              
+              {submitSuccess && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle size={18} className="text-emerald-600" />
+                    <p className="text-sm text-emerald-600 font-medium">Cập nhật tài liệu thành công!</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-red-100">
+                <button
+                  type="button"
+                  onClick={handleCloseUpdateModal}
+                  className="px-5 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Đang cập nhật...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      Lưu thay đổi
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal - Single */}
+      {isDeleteModalOpen && selectedMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCloseDeleteModal} />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <AlertTriangle size={20} />
+                Xác nhận xóa
+              </h3>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-red-100 rounded-full">
+                  <Trash2 size={24} className="text-red-600" />
+                </div>
+                <div>
+                  <p className="text-gray-700">
+                    Bạn có chắc chắn muốn xóa tài liệu này?
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 mt-1">
+                    {selectedMaterial.name}
+                  </p>
+                </div>
+              </div>
+
+              {submitError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">{submitError}</p>
+                </div>
+              )}
+              
+              {submitSuccess && (
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle size={18} className="text-emerald-600" />
+                    <p className="text-sm text-emerald-600 font-medium">Xóa tài liệu thành công!</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={handleCloseDeleteModal}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleDeleteLessonPlan}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Đang xóa...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      Xóa
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {isBulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !isBulkDeleting && setIsBulkDeleteModalOpen(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <AlertTriangle size={20} />
+                Xác nhận xóa hàng loạt
+              </h3>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-red-100 rounded-full">
+                  <Trash2 size={24} className="text-red-600" />
+                </div>
+                <div>
+                  <p className="text-gray-700">
+                    Bạn có chắc chắn muốn xóa <span className="font-semibold text-red-600">{selectedIds.size}</span> tài liệu đã chọn?
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Hành động này không thể hoàn tác.
+                  </p>
+                </div>
+              </div>
+
+              {submitError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">{submitError}</p>
+                </div>
+              )}
+              
+              {submitSuccess && (
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle size={18} className="text-emerald-600" />
+                    <p className="text-sm text-emerald-600 font-medium">Xóa tài liệu thành công!</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setIsBulkDeleteModalOpen(false)}
+                  disabled={isBulkDeleting}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                >
+                  {isBulkDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Đang xóa...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      Xóa {selectedIds.size} tài liệu
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
