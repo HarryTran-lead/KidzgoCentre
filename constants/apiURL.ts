@@ -192,11 +192,13 @@ export const BACKEND_USER_ENDPOINTS = {
 
 // Teacher Endpoints
 export const TEACHER_ENDPOINTS = {
-  ENROLLMENTS: '/api/enrollments',
+  CLASSES: '/api/teacher/classes',
   TIMETABLE: '/api/teacher/timetable',
+  ENROLLMENTS: '/api/enrollments',
   ATTENDANCE: '/api/attendance',
   ATTENDANCE_STUDENTS: '/api/attendance/students',
   SESSIONS: '/api/sessions',
+  SESSIONS_BY_ID: (id: string) => `/api/sessions/${id}`,
   HOMEWORK: '/api/homework',
   SESSION_REPORTS: '/api/teacher/session-reports',
   SESSION_REPORT_BY_ID: (id: string) => `/api/teacher/session-reports/${id}`,
@@ -212,6 +214,7 @@ export const ADMIN_ENDPOINTS = {
   SESSIONS: '/api/sessions',
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
+  LESSON_PLANS: '/api/lesson-plans',
 } as const;
 
 // Lead Endpoints (Client-side → Next.js API Routes)

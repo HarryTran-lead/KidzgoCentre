@@ -36,3 +36,18 @@ export async function getClassById(id: string): Promise<StudentClassResponse> {
 
   return get<StudentClassResponse>(endpoint);
 }
+
+export async function getAllClasses(params?: {
+  pageNumber?: number;
+  pageSize?: number;
+}): Promise<ClassListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.pageNumber) queryParams.append('pageNumber', params.pageNumber.toString());
+    if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
+  }
+
+  const url = `${CLASS_ENDPOINTS.GET_ALL}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  return get<ClassListResponse>(url);
+}
