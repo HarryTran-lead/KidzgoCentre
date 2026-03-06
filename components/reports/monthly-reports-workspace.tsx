@@ -1566,8 +1566,16 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                       </div>
                     ))}
                     <button
-                      disabled={!activeReport || actionLoading[`${displayReport?.id}:generate-draft`]}
-                      onClick={() => activeReport && runAction(displayReport.id, "generate-draft")}
+                      disabled={
+                        !activeReport ||
+                        sessionReports.length === 0 ||
+                        actionLoading[`${displayReport?.id}:generate-draft`]
+                      }
+                      onClick={() =>
+                        activeReport &&
+                        sessionReports.length > 0 &&
+                        runAction(displayReport.id, "generate-draft")
+                      }
                       className="w-full rounded bg-purple-600 px-3 py-2 text-xs text-white disabled:bg-slate-300"
                     >
                       {actionLoading[`${displayReport?.id}:generate-draft`]
