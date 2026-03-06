@@ -277,47 +277,55 @@ export default function EnrollmentTable({
         </table>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-pink-100 px-4 py-3">
-          <p className="text-sm text-gray-500">
-            Hiển thị {(currentPage - 1) * pageSize + 1} -{" "}
-            {Math.min(currentPage * pageSize, totalCount)} / {totalCount} kết quả
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="p-2 rounded-lg hover:bg-pink-50 transition-colors disabled:opacity-50"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            {getPageNumbers().map((page, idx) =>
-              typeof page === "string" ? (
-                <span key={`dots-${idx}`} className="px-2 text-gray-400">
-                  ...
-                </span>
-              ) : (
-                <button
-                  key={page}
-                  onClick={() => onPageChange(page)}
-                  className={`min-w-8 h-8 rounded-lg text-sm font-medium transition-all ${
-                    currentPage === page
-                      ? "bg-linear-to-r from-pink-500 to-rose-500 text-white shadow-sm"
-                      : "text-gray-600 hover:bg-pink-50"
-                  }`}
-                >
-                  {page}
-                </button>
-              )
-            )}
-            <button
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="p-2 rounded-lg hover:bg-pink-50 transition-colors disabled:opacity-50"
-            >
-              <ChevronRight size={16} />
-            </button>
+      {/* Pagination Footer */}
+      {totalPages > 0 && (
+        <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-gray-600">
+              Hiển thị <span className="font-semibold text-gray-900">
+                {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)}
+              </span> trong tổng số{" "}
+              <span className="font-semibold text-gray-900">{totalCount}</span> ghi danh
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onPageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                aria-label="Trang trước"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <div className="flex items-center gap-1">
+                {getPageNumbers().map((page, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => typeof page === "number" && onPageChange(page)}
+                    disabled={page === "..."}
+                    className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                      page === currentPage
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                        : page === "..."
+                        ? "cursor-default text-gray-400"
+                        : "border border-red-200 hover:bg-red-50 text-gray-700"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => onPageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                aria-label="Trang sau"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -383,6 +383,74 @@ export const BACKEND_SESSION_REPORT_ENDPOINTS = {
   UPDATE: (id: string) => `/session-reports/${id}`,
 } as const;
 
+// Ticket Endpoints (Client-side → Next.js API Routes)
+export const TICKET_ENDPOINTS = {
+  GET_ALL: '/api/tickets',
+  GET_BY_ID: (id: string) => `/api/tickets/${id}`,
+  CREATE: '/api/tickets',
+  ASSIGN: (id: string) => `/api/tickets/${id}/assign`,
+  UPDATE_STATUS: (id: string) => `/api/tickets/${id}/status`,
+  ADD_COMMENT: (id: string) => `/api/tickets/${id}/comments`,
+  GET_HISTORY: (id: string) => `/api/tickets/${id}/history`,
+  GET_SLA: (id: string) => `/api/tickets/${id}/sla`,
+} as const;
+
+// Backend Ticket Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_TICKET_ENDPOINTS = {
+  GET_ALL: '/tickets',
+  GET_BY_ID: (id: string) => `/tickets/${id}`,
+  CREATE: '/tickets',
+  ASSIGN: (id: string) => `/tickets/${id}/assign`,
+  UPDATE_STATUS: (id: string) => `/tickets/${id}/status`,
+  ADD_COMMENT: (id: string) => `/tickets/${id}/comments`,
+  GET_HISTORY: (id: string) => `/tickets/${id}/history`,
+  GET_SLA: (id: string) => `/tickets/${id}/sla`,
+} as const;
+
+// File Endpoints (Client-side → Next.js API Routes)
+export const FILE_ENDPOINTS = {
+  UPLOAD: '/api/files/upload',
+  DELETE: '/api/files',
+  TRANSFORM: '/api/files/transform',
+} as const;
+
+// Backend File Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_FILE_ENDPOINTS = {
+  UPLOAD: '/files/upload',
+  DELETE: '/files',
+  TRANSFORM: '/files/transform',
+} as const;
+
+// Dashboard Overview Endpoints (Client-side → Next.js API Routes)
+export const OVERVIEW_ENDPOINTS = {
+  ADMIN: '/api/me/admin/overview',
+} as const;
+
+// Backend Dashboard Overview Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_OVERVIEW_ENDPOINTS = {
+  ADMIN: '/me/admin/overview',
+} as const;
+
+// Dashboard Endpoints (Client-side → Next.js API Routes)
+export const DASHBOARD_ENDPOINTS = {
+  OVERALL: '/api/dashboard/overall',
+  STUDENT: '/api/dashboard/student',
+  ACADEMIC: '/api/dashboard/academic',
+  FINANCE: '/api/dashboard/finance',
+  HR: '/api/dashboard/hr',
+  LEADS: '/api/dashboard/leads',
+} as const;
+
+// Backend Dashboard Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_DASHBOARD_ENDPOINTS = {
+  OVERALL: '/dashboard/overall',
+  STUDENT: '/dashboard/student',
+  ACADEMIC: '/dashboard/academic',
+  FINANCE: '/dashboard/finance',
+  HR: '/dashboard/hr',
+  LEADS: '/dashboard/leads',
+} as const;
+
 // Parent Endpoints (Client-side -> Next.js API Routes)
 export const PARENT_ENDPOINTS = {
   TIMETABLE: "/api/parent/timetable",

@@ -50,6 +50,7 @@ export interface EnrollmentFilterParams {
   pageNumber?: number;
   pageSize?: number;
   searchTerm?: string;
+  branchId?: string;
 }
 
 export interface EnrollmentPaginatedResponse {

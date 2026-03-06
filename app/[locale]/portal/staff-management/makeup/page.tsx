@@ -987,7 +987,9 @@ export default function Page() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={fetchUsedCredits}
+                  onClick={() => {
+                    void fetchUsedCredits();
+                  }}
                   className="h-11 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
                 >
                   Reload

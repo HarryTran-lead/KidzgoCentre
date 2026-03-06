@@ -6,7 +6,7 @@ export const menuStudent = {
       reportsTests: "Báo cáo",
       gamification: "Gamification",
       media: "Media",
-      communications: "Giao tiếp",
+      applications: "Đơn yêu cầu",
     },
     items: {
       all: "Tất cả",
@@ -40,7 +40,7 @@ export const menuStudent = {
       reportsTests: "Reports",
       gamification: "Gamification",
       media: "Media",
-      communications: "Communications",
+      applications: "Applications",
     },
     items: {
       all: "All",

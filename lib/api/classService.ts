@@ -9,25 +9,25 @@ import { CLASS_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
 import type { StudentClassResponse } from "@/types/student/class";
 
-export type ClassInfo = {
-  id: string;
-  code?: string;
-  name?: string;
-  title?: string;
-  programName?: string;
-  branchName?: string;
-  level?: string;
-};
+/**
+ * Get all classes with optional pagination
+ */
+export async function getAllClasses(params?: {
+  pageNumber?: number;
+  pageSize?: number;
+  branchId?: string;
+}): Promise<any> {
+  const queryParams = new URLSearchParams();
+  if (params?.pageNumber) queryParams.append("pageNumber", params.pageNumber.toString());
+  if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString());
+  if (params?.branchId) queryParams.append("branchId", params.branchId);
 
-export type ClassListResponse = {
-  isSuccess: boolean;
-  data: {
-    classes: ClassInfo[];
-    totalCount: number;
-    pageNumber: number;
-    pageSize: number;
-  };
-};
+  const url = queryParams.toString()
+    ? `${CLASS_ENDPOINTS.GET_ALL}?${queryParams.toString()}`
+    : CLASS_ENDPOINTS.GET_ALL;
+  
+  return get<any>(url);
+}
 
 export async function getClassById(id: string): Promise<StudentClassResponse> {
   const endpoint = CLASS_ENDPOINTS.GET_BY_ID
