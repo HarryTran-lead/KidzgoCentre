@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { 
   FileCheck, 
   BarChart3, 
@@ -24,8 +24,38 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/lightswind/card";
 import { Button } from "@/components/lightswind/button";
+import { getProfiles } from "@/lib/api/authService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
+import type { UserProfile } from "@/types/auth";
 
 type TabType = "placement" | "periodic" | "monthly" | "history";
+type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "Published" | string;
+
+type MonthlyReport = {
+  id: string;
+  studentProfileId?: string;
+  studentName?: string;
+  teacherName?: string;
+  className?: string;
+  status?: ReportStatus;
+  month?: number;
+  year?: number;
+  draftContent?: string;
+  updatedAt?: string;
+};
+
+type Paginated<T> = {
+  items?: T[];
+  data?: T[];
+};
+
+type ReportPayload = Paginated<MonthlyReport> & {
+  reports?: Paginated<MonthlyReport>;
+};
+
+const STATUS_ALIAS: Record<string, string> = {
+  Review: "Submitted",
+};
 
 const MOCK_TEST_RESULTS = [
   {
@@ -79,42 +109,6 @@ const MOCK_TEST_RESULTS = [
       { name: "Structure", score: 80, max: 100 },
       { name: "Content", score: 78, max: 100 },
     ],
-  },
-];
-
-const MOCK_MONTHLY_REPORTS = [
-  {
-    month: "Tháng 12/2024",
-    attendance: 95,
-    homework: 90,
-    participation: 88,
-    overall: "Xuất sắc",
-    comments:
-      "Học viên có sự tiến bộ rõ rệt trong kỹ năng Speaking. Cần rèn luyện thêm về Writing.",
-  },
-  {
-    month: "Tháng 11/2024",
-    attendance: 90,
-    homework: 85,
-    participation: 85,
-    overall: "Tốt",
-    comments: "Học viên tham gia tích cực và hoàn thành tốt các bài tập.",
-  },
-  {
-    month: "Tháng 10/2024",
-    attendance: 88,
-    homework: 82,
-    participation: 80,
-    overall: "Khá",
-    comments: "Cần cải thiện kỹ năng Listening và Speaking.",
-  },
-  {
-    month: "Tháng 09/2024",
-    attendance: 92,
-    homework: 88,
-    participation: 85,
-    overall: "Tốt",
-    comments: "Học viên có tiến bộ trong kỹ năng Reading.",
   },
 ];
 
@@ -234,13 +228,202 @@ function StatCard({
 
 export default function TestsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("periodic");
+  const [studentProfiles, setStudentProfiles] = useState<UserProfile[]>([]);
+  const [publishedReports, setPublishedReports] = useState<MonthlyReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [activeReport, setActiveReport] = useState<MonthlyReport | null>(null);
+  const { selectedProfile, setSelectedProfile } = useSelectedStudentProfile();
+
+  const activeStudentProfileId = selectedProfile?.id ?? studentProfiles[0]?.id ?? "";
+
+  useEffect(() => {
+    let alive = true;
+    getProfiles({ profileType: "Student" })
+      .then((response) => {
+        if (!alive) return;
+        const raw = Array.isArray(response.data) ? response.data : response.data?.profiles ?? [];
+        const students = raw.filter((profile) => profile.profileType === "Student");
+        setStudentProfiles(students);
+        if (!selectedProfile && students.length > 0) {
+          setSelectedProfile(students[0]);
+        }
+      })
+      .catch(() => {
+        if (!alive) return;
+        setStudentProfiles([]);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [selectedProfile, setSelectedProfile]);
+
+  const getToken = () => {
+    if (typeof window === "undefined") return "";
+
+    const localToken =
+      localStorage.getItem("kidzgo.accessToken") ||
+      localStorage.getItem("accessToken") ||
+      localStorage.getItem("token");
+
+    if (localToken) return localToken;
+
+    const cookieToken = document.cookie
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith("kidzgo.accessToken="))
+      ?.split("=")
+      .slice(1)
+      .join("=");
+
+    return cookieToken || "";
+  };
+
+  useEffect(() => {
+    if (!activeStudentProfileId) {
+      setPublishedReports([]);
+      return;
+    }
+
+    const normalizeStatus = (status?: ReportStatus) =>
+      STATUS_ALIAS[status ?? ""] ?? status ?? "";
+
+    const getPaginatedItems = <T,>(
+      payload: Paginated<T> | { [key: string]: unknown } | undefined,
+      key?: string,
+    ): T[] => {
+      if (!payload) return [];
+      const direct = payload as Paginated<T>;
+      if (Array.isArray(direct.items)) return direct.items;
+      if (Array.isArray(direct.data)) return direct.data;
+      if (!key) return [];
+      const payloadObj = payload as Record<string, unknown>;
+      const nested = payloadObj[key] as Paginated<T> | undefined;
+      if (Array.isArray(nested?.items)) return nested.items;
+      if (Array.isArray(nested?.data)) return nested.data;
+      return [];
+    };
+
+    const loadPublishedReports = async () => {
+      setReportsLoading(true);
+      setReportsError(null);
+      try {
+        const query = new URLSearchParams({
+          status: "Published",
+          studentProfileId: activeStudentProfileId,
+          pageNumber: "1",
+          pageSize: "200",
+        });
+
+        const token = getToken();
+        const response = await fetch(`/api/monthly-reports?${query.toString()}`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          cache: "no-store",
+        });
+
+        const text = await response.text();
+        const payload = text ? JSON.parse(text) : {};
+        if (!response.ok) {
+          throw new Error(payload?.message || "Không thể tải báo cáo đã publish.");
+        }
+
+        const root = (payload?.data ?? payload) as ReportPayload;
+        const reports = getPaginatedItems<MonthlyReport>(root, "reports")
+          .filter((item) => item.studentProfileId === activeStudentProfileId)
+          .filter((item) => normalizeStatus(item.status) === "Published")
+          .sort((a, b) => {
+            const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+            const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+            return bTime - aTime;
+          });
+
+        setPublishedReports(reports);
+      } catch (error) {
+        setPublishedReports([]);
+        setReportsError(error instanceof Error ? error.message : "Không thể tải báo cáo đã publish.");
+      } finally {
+        setReportsLoading(false);
+      }
+    };
+
+    loadPublishedReports();
+  }, [activeStudentProfileId]);
+
+  const selectedStudentName = useMemo(() => {
+    if (selectedProfile?.displayName) return selectedProfile.displayName;
+    return studentProfiles.find((profile) => profile.id === activeStudentProfileId)?.displayName ?? "Học viên";
+  }, [activeStudentProfileId, selectedProfile?.displayName, studentProfiles]);
+
+
+  const normalizeDraftContent = (raw?: string | null): string => {
+    if (!raw) return "";
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed) as { draft_text?: string; draftText?: string };
+        return parsed?.draft_text ?? parsed?.draftText ?? trimmed;
+      } catch {
+        return trimmed;
+      }
+    }
+
+    return trimmed;
+  };
+
+  const openReportDetail = async (report: MonthlyReport) => {
+    setActiveReport(report);
+    setDetailError(null);
+    setDetailOpen(true);
+    setDetailLoading(true);
+
+    try {
+      const token = getToken();
+      const response = await fetch(`/api/monthly-reports/${report.id}`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        cache: "no-store",
+      });
+
+      const text = await response.text();
+      const payload = text ? JSON.parse(text) : {};
+      if (!response.ok) {
+        throw new Error(payload?.message || "Không thể tải chi tiết báo cáo.");
+      }
+
+      const detail = (payload?.data ?? payload) as MonthlyReport;
+      setActiveReport({ ...report, ...detail });
+    } catch (error) {
+      setDetailError(error instanceof Error ? error.message : "Không thể tải chi tiết báo cáo.");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return "—";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString("vi-VN");
+  };
 
   // Calculate stats
   const totalTests = MOCK_TEST_RESULTS.length;
   const averageScore = (MOCK_TEST_RESULTS.reduce((acc, test) => acc + (test.score / test.maxScore * 100), 0) / totalTests).toFixed(1);
   const bestScore = Math.max(...MOCK_TEST_RESULTS.map(test => (test.score / test.maxScore * 100)));
-  const totalReports = MOCK_MONTHLY_REPORTS.length;
-  const averageAttendance = (MOCK_MONTHLY_REPORTS.reduce((acc, report) => acc + report.attendance, 0) / totalReports).toFixed(1);
+  const totalReports = publishedReports.length;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
@@ -289,7 +472,7 @@ export default function TestsPage() {
           icon={<Users size={20} />}
           label="Báo cáo tháng"
           value={totalReports.toString()}
-          hint={`Tỉ lệ điểm danh TB: ${averageAttendance}%`}
+          hint={totalReports > 0 ? "Đã phát hành cho phụ huynh" : "Chưa có báo cáo đã phát hành"}
           trend="stable"
           color="red"
         />
@@ -397,57 +580,86 @@ export default function TestsPage() {
 
       {activeTab === "monthly" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {MOCK_MONTHLY_REPORTS.map((report, idx) => (
-            <Card key={idx} className="border-gray-200 shadow-sm overflow-hidden">
-              {/* Header */}
-              <div className="p-3 border-b border-gray-200 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-white rounded-lg border border-gray-200">
-                    <PieChart className="w-4 h-4 text-gray-700" />
-                  </div>
-                  <h3 className="font-semibold text-sm text-gray-900">{report.month}</h3>
-                </div>
-              </div>
-
-              {/* Body */}
-              <CardContent className="p-3 space-y-3">
-                {/* Stats with Pie Charts */}
-                <div className="grid grid-cols-4 gap-2">
-                  <div className="text-center">
-                    <SimplePieChart value={report.attendance} size={50} color="gray" />
-                    <div className="text-xs text-gray-500 mt-1">Điểm danh</div>
-                  </div>
-                  <div className="text-center">
-                    <SimplePieChart value={report.homework} size={50} color="red" />
-                    <div className="text-xs text-gray-500 mt-1">Bài tập</div>
-                  </div>
-                  <div className="text-center">
-                    <SimplePieChart value={report.participation} size={50} color="gray" />
-                    <div className="text-xs text-gray-500 mt-1">Tham gia</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-[50px] h-[50px] mx-auto bg-red-50 rounded-full flex items-center justify-center border border-red-200">
-                      <span className="text-sm font-bold text-red-600">
-                        {report.overall === "Xuất sắc" ? "A" : report.overall === "Tốt" ? "B" : "C"}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">Đánh giá</div>
-                  </div>
-                </div>
-
-                {/* Comments */}
-                <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-xs text-gray-600 line-clamp-2">{report.comments}</p>
-                </div>
-
-                {/* Action */}
-                <Button size="sm" className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white h-8 text-xs">
-                  <Download className="w-3.5 h-3.5 mr-1" />
-                  Tải báo cáo PDF
-                </Button>
+          {reportsLoading && (
+            <Card className="border-gray-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
+              <CardContent className="p-8 text-center text-sm text-gray-600">
+                Đang tải báo cáo đã phát hành...
               </CardContent>
             </Card>
-          ))}
+          )}
+
+          {!reportsLoading && reportsError && (
+            <Card className="border-red-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
+              <CardContent className="p-6">
+                <div className="text-sm text-red-700">{reportsError}</div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!reportsLoading && !reportsError && publishedReports.length === 0 && (
+            <Card className="border-gray-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                  <FileText className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Chưa có báo cáo đã phát hành</h3>
+                <p className="text-sm text-gray-600">
+                  Học viên {selectedStudentName} chưa có báo cáo tháng ở trạng thái Published.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!reportsLoading &&
+            !reportsError &&
+            publishedReports.map((report) => (
+              <Card key={report.id} className="border-gray-200 shadow-sm overflow-hidden">
+                <div className="p-3 border-b border-gray-200 bg-gray-50/50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-white rounded-lg border border-gray-200">
+                      <PieChart className="w-4 h-4 text-gray-700" />
+                    </div>
+                    <h3 className="font-semibold text-sm text-gray-900">
+                      Tháng {report.month ?? "?"}/{report.year ?? "?"}
+                    </h3>
+                  </div>
+                </div>
+
+                <CardContent className="p-3 space-y-3">
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <div>Học viên: {report.studentName ?? selectedStudentName}</div>
+                    <div>Lớp: {report.className ?? "—"}</div>
+                    <div>Giáo viên: {report.teacherName ?? "—"}</div>
+                    <div>Cập nhật: {formatDateTime(report.updatedAt)}</div>
+                  </div>
+
+                  <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-600 line-clamp-3">
+                      {normalizeDraftContent(report.draftContent) || "Published report"}
+                    </p>
+                  </div>
+
+                                    <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white h-8 text-xs"
+                      onClick={() => openReportDetail(report)}
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      View report
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="w-full bg-gradient-to-r from-red-200 to-red-300 text-white h-8 text-xs"
+                      disabled
+                    >
+                      <Download className="w-3.5 h-3.5 mr-1" />
+                      PDF soon
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
         </div>
       )}
 
@@ -461,12 +673,62 @@ export default function TestsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-2">
-              <HistoryItem title="Báo cáo tháng 12/2024" date="31/12/2024" size="2.4 MB" />
-              <HistoryItem title="Báo cáo tháng 11/2024" date="30/11/2024" size="2.1 MB" />
-              <HistoryItem title="Báo cáo tháng 10/2024" date="31/10/2024" size="2.3 MB" />
-              <HistoryItem title="Báo cáo tháng 09/2024" date="30/09/2024" size="2.0 MB" />
+              {reportsLoading && <div className="text-sm text-gray-600">Đang tải lịch sử...</div>}
+              {!reportsLoading && publishedReports.length === 0 && (
+                <div className="text-sm text-gray-600">Chưa có báo cáo đã phát hành.</div>
+              )}
+              {!reportsLoading &&
+                publishedReports.map((report) => (
+                  <HistoryItem
+                    key={report.id}
+                    title={`Báo cáo tháng ${report.month ?? "?"}/${report.year ?? "?"}`}
+                    date={formatDateTime(report.updatedAt)}
+                    size="Published"
+                  />
+                ))}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+
+      {detailOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl border border-gray-200 max-h-[85vh] overflow-hidden">
+            <div className="p-4 border-b border-gray-200 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-lg font-bold text-gray-900">Report details</div>
+                <div className="text-sm text-gray-600 mt-1">
+                  {activeReport?.studentName ?? selectedStudentName} - {activeReport?.month ?? "?"}/{activeReport?.year ?? "?"}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailOpen(false)}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto max-h-[70vh] space-y-3">
+              {detailLoading && <div className="text-sm text-gray-600">Loading report details...</div>}
+              {detailError && <div className="text-sm text-red-700">{detailError}</div>}
+
+              <div className="text-xs text-gray-600 space-y-1">
+                <div>Class: {activeReport?.className ?? "-"}</div>
+                <div>Teacher: {activeReport?.teacherName ?? "-"}</div>
+                <div>Updated: {formatDateTime(activeReport?.updatedAt)}</div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="text-sm font-semibold text-gray-900 mb-2">Content</div>
+                <div className="text-sm text-gray-700 whitespace-pre-line leading-6">
+                  {normalizeDraftContent(activeReport?.draftContent) || "Published report has no visible content."}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -542,3 +804,5 @@ function HistoryItem({ title, date, size }: { title: string; date: string; size:
     </div>
   );
 }
+
+

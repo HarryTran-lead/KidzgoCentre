@@ -1,31 +1,25 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  Download,
-  Eye,
   FileBarChart,
-  FileCheck,
   FileText,
-  Filter,
-  MessageSquare,
-  Search,
   Send,
-  Sparkles,
-  TrendingUp,
-  User,
-  Users,
-  Zap,
 } from "lucide-react";
 import type { ClassItem, Student } from "@/types/teacher/classes";
 import { fetchClassDetail, fetchTeacherClasses } from "@/app/api/teacher/classes";
 import type { SessionReportItem } from "@/types/teacher/sessionReport";
+import OverviewTab from "@/components/reports/monthly-tabs/overview-tab";
+import TeacherToolsTab from "@/components/reports/monthly-tabs/teacher-tools-tab";
+import ManageToolsTab from "@/components/reports/monthly-tabs/manage-tools-tab";
+import ReportsTab from "@/components/reports/monthly-tabs/reports-tab";
 
 type MonthlyRole = "teacher" | "management" | "viewer";
 type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "Published" | string;
+type WorkspaceTab = "overview" | "reports" | "teacher-tools" | "manage-tools";
 
 const STATUS_ALIAS: Record<string, string> = {
   Review: "Submitted",
@@ -137,19 +131,39 @@ function getToken() {
 
 function normalizeDraftContent(raw?: string | null): string {
   if (!raw) return "";
-  const trimmed = raw.trim();
-  if (!trimmed) return "";
+  let normalized = raw.trim();
+  if (!normalized) return "";
 
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+  for (let i = 0; i < 3; i += 1) {
+    const canTryJson =
+      normalized.startsWith("{") ||
+      normalized.startsWith("[") ||
+      normalized.startsWith('"');
+
+    if (!canTryJson) break;
+
     try {
-      const parsed = JSON.parse(trimmed) as DraftPayload;
-      return parsed?.draft_text ?? parsed?.draftText ?? trimmed;
+      const parsed = JSON.parse(normalized) as DraftPayload | string;
+      if (typeof parsed === "string") {
+        normalized = parsed.trim();
+        continue;
+      }
+      const candidate = parsed?.draft_text ?? parsed?.draftText;
+      if (typeof candidate === "string") {
+        normalized = candidate.trim();
+      }
+      break;
     } catch {
-      return trimmed;
+      break;
     }
   }
 
-  return trimmed;
+  return normalized
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\"/g, '"')
+    .replace(/\\t/g, "\t")
+    .trim();
 }
 
 function formatDateYMD(date: Date) {
@@ -176,6 +190,7 @@ async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T
   const token = getToken();
   const response = await fetch(url, {
     ...init,
+    cache: "no-store",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -273,10 +288,36 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   const [recentCommentsLoading, setRecentCommentsLoading] = useState(false);
   const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
   const [branchesLoading, setBranchesLoading] = useState(false);
+  const [showTeacherTools, setShowTeacherTools] = useState(false);
+  const [showManageTools, setShowManageTools] = useState(false);
+  const [showRecentComments, setShowRecentComments] = useState(false);
 
   const canManage = role === "management";
   const isTeacher = role === "teacher";
   const isViewer = role === "viewer";
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(isViewer ? "reports" : "overview");
+
+  const workspaceTabs = useMemo(() => {
+    const tabs: Array<{ id: WorkspaceTab; label: string }> = [
+      { id: "overview", label: "Tổng quan" },
+      { id: "reports", label: "Danh sách báo cáo" },
+    ];
+    if (isTeacher) tabs.push({ id: "teacher-tools", label: "Công cụ giáo viên" });
+    if (canManage) tabs.push({ id: "manage-tools", label: "Điều phối quản lý" });
+    return tabs;
+  }, [canManage, isTeacher]);
+
+  useEffect(() => {
+    const isValid = workspaceTabs.some((tab) => tab.id === activeTab);
+    if (!isValid && workspaceTabs.length > 0) {
+      setActiveTab(workspaceTabs[0].id);
+    }
+  }, [activeTab, workspaceTabs]);
+
+  useEffect(() => {
+    if (activeTab === "teacher-tools") setShowTeacherTools(true);
+    if (activeTab === "manage-tools") setShowManageTools(true);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!canManage || typeof window === "undefined") return;
@@ -384,6 +425,22 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     }
   }, [branchId, canManage, isViewer, month, year]);
 
+  const refreshActiveReportDetail = useCallback(async () => {
+    if (!activeReportId) return;
+    try {
+      const detail = await apiFetch<MonthlyReport>(`/api/monthly-reports/${activeReportId}`);
+      setActiveReportDetail(detail ?? null);
+      setDraftInput(normalizeDraftContent(detail?.draftContent));
+    } catch {
+      // Keep existing detail if explicit refresh detail fails.
+    }
+  }, [activeReportId]);
+
+  const handleManualRefresh = useCallback(async () => {
+    await fetchData();
+    await refreshActiveReportDetail();
+  }, [fetchData, refreshActiveReportDetail]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -460,10 +517,10 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
         method: "POST",
         body: JSON.stringify({ month, year, branchId }),
       });
-      setMessage("Đã tạo monthly report job.");
+      setMessage("Đã khởi tạo đợt báo cáo tháng.");
       fetchData();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Không thể tạo job.");
+      setError(e instanceof Error ? e.message : "Không thể khởi tạo đợt báo cáo.");
     }
   };
 
@@ -627,6 +684,32 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
       });
     return Array.from(seen.values());
   }, [reports, selectedClassId]);
+
+  const classFilterOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    reports.forEach((report) => {
+      if (!report.classId) return;
+      if (map.has(report.classId)) return;
+      map.set(report.classId, report.className || `Lớp ${report.classId.slice(0, 8)}`);
+    });
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  }, [reports]);
+
+  const selectedClassName = useMemo(() => {
+    if (!selectedClassId) return "";
+    const fromList = managementClasses.find((item) => item.id === selectedClassId)?.name;
+    if (fromList) return fromList;
+    return reports.find((report) => report.classId === selectedClassId)?.className || selectedClassId;
+  }, [managementClasses, reports, selectedClassId]);
+
+  const selectedStudentName = useMemo(() => {
+    if (!selectedStudentId) return "";
+    const fromList = managementStudents.find((item) => item.id === selectedStudentId)?.name;
+    if (fromList) return fromList;
+    return reports.find((report) => report.studentProfileId === selectedStudentId)?.studentName || selectedStudentId;
+  }, [managementStudents, reports, selectedStudentId]);
 
   const normalizeStatus = (status: ReportStatus) => STATUS_ALIAS[status] ?? status;
 
@@ -922,8 +1005,40 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     setActiveReportId(reportId);
   };
 
+  const openReportDetail = useCallback(
+    (reportId: string) => {
+      focusReport(reportId);
+      setActiveTab("reports");
+    },
+    [focusReport],
+  );
+
+  const syncScopeToReports = useCallback((classId: string | null, studentId: string | null, openReports = true) => {
+    setSelectedClassId(classId);
+    setSelectedStudentId(studentId);
+    setSearchQuery("");
+    setStatusFilter("Tất cả");
+    if (openReports) setActiveTab("reports");
+  }, []);
+
+  const clearScopeFilter = useCallback(() => {
+    setSelectedClassId(null);
+    setSelectedStudentId(null);
+  }, []);
+
+  const openClassScope = useCallback(
+    (classId: string) => {
+      setSelectedClassId(classId);
+      setSelectedStudentId(null);
+      setSearchQuery("");
+      setStatusFilter("Tất cả");
+      setActiveTab(isTeacher ? "teacher-tools" : "reports");
+    },
+    [isTeacher],
+  );
+
   const openReportFromComment = (reportId: string) => {
-    focusReport(reportId);
+    openReportDetail(reportId);
   };
 
   const stats = useMemo(() => {
@@ -1145,18 +1260,18 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6 space-y-6">
-      <div className="rounded-2xl border border-red-200 bg-white p-5">
+    <div className="min-h-screen bg-gradient-to-b from-rose-50/40 via-white to-white p-4 md:p-6 space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white">
               <FileBarChart size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Báo cáo tháng (workflow chuẩn)</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Feedback lớp học theo tháng</h1>
               <p className="text-sm text-gray-600">
-                Gom dữ liệu buổi học → Teacher draft/edit/submit → Staff/Admin review (comment nếu
-                cần chỉnh) → Teacher sửa lại → Staff/Admin approve → Publish cho parent/student.
+                Quy trình dễ dùng: Giáo viên nộp báo cáo &rarr; Quản lý duyệt/góp ý &rarr; Công bố cho phụ huynh và học viên.
+
               </p>
             </div>
           </div>
@@ -1199,7 +1314,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
               </select>
             )}
             <button
-              onClick={fetchData}
+              onClick={handleManualRefresh}
               className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm"
             >
               Làm mới
@@ -1209,7 +1324,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                 onClick={createJob}
                 className="rounded-xl bg-red-600 px-3 py-2 text-sm text-white"
               >
-                Tạo Job
+                Khởi tạo đợt báo cáo
               </button>
             )}
           </div>
@@ -1221,903 +1336,174 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-red-200 bg-white p-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="rounded-2xl border border-red-100 bg-white p-4 shadow-sm">
           <div className="text-sm text-red-600">Tổng báo cáo</div>
           <div className="text-2xl font-bold">{stats.total}</div>
         </div>
-        <div className="rounded-2xl border border-red-200 bg-white p-4">
+        <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
           <div className="text-sm text-amber-600">Bản nháp</div>
           <div className="text-2xl font-bold">{stats.drafts}</div>
         </div>
-        <div className="rounded-2xl border border-red-200 bg-white p-4">
+        <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
           <div className="text-sm text-blue-600">Đã nộp</div>
           <div className="text-2xl font-bold">{stats.submitted}</div>
         </div>
-        <div className="rounded-2xl border border-red-200 bg-white p-4">
+        <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
           <div className="text-sm text-emerald-600">Đã duyệt</div>
           <div className="text-2xl font-bold">{stats.approved}</div>
         </div>
       </div>
 
-      {isTeacher && (
-        <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-3">
-          <h3 className="font-semibold">Tổng quan lớp trong tháng {month}/{year}</h3>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-xl border border-red-100 bg-red-50/40 p-3">
-              <div className="text-xs text-gray-600">Tổng lớp dạy</div>
-              <div className="text-xl font-bold">{teacherClassSummary.total}</div>
-            </div>
-            <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-3">
-              <div className="text-xs text-gray-600">Chưa có báo cáo</div>
-              <div className="text-xl font-bold">{teacherClassSummary.noReport}</div>
-            </div>
-            <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3">
-              <div className="text-xs text-gray-600">Đang làm</div>
-              <div className="text-xl font-bold">{teacherClassSummary.inProgress}</div>
-            </div>
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
-              <div className="text-xs text-gray-600">Đã báo cáo</div>
-              <div className="text-xl font-bold">{teacherClassSummary.completed}</div>
-            </div>
-          </div>
-
-          <div className="max-h-52 overflow-auto rounded-xl border border-red-100">
-            <table className="w-full text-xs">
-              <thead className="bg-red-50/60 text-left text-gray-600">
-                <tr>
-                  <th className="px-3 py-2">Lớp</th>
-                  <th className="px-3 py-2">Tiến độ</th>
-                  <th className="px-3 py-2">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-red-100">
-                {teacherClassStatusRows.map((row) => (
-                  <tr key={row.id}>
-                    <td className="px-3 py-2">
-                      <div className="font-medium text-gray-900">{row.name}</div>
-                      <div className="text-gray-500">{row.code || row.id.slice(0, 8)}</div>
-                    </td>
-                    <td className="px-3 py-2 text-gray-700">
-                      {row.reportCount}/{row.expectedStudents || "?"} học sinh có báo cáo
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className={`rounded-full px-2 py-1 text-[11px] ${row.statusClass}`}>
-                        {row.statusLabel}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {!teacherClassStatusRows.length && (
-                  <tr>
-                    <td className="px-3 py-3 text-gray-500" colSpan={3}>
-                      Chưa có dữ liệu lớp trong tháng này.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          {workspaceTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                activeTab === tab.id
+                  ? "bg-red-600 text-white shadow-sm"
+                  : "bg-slate-50 text-slate-700 hover:bg-red-50 hover:text-red-700"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-      )}
-
-      {isTeacher && (
-        <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-3">
-          <h3 className="font-semibold">Việc cần làm nhanh</h3>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <button
-              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-left"
-              onClick={() => setStatusFilter("Draft")}
-            >
-              <div className="text-xs text-gray-600">Đang là nháp</div>
-              <div className="text-xl font-bold text-amber-700">{teacherTaskSummary.draftCount}</div>
-            </button>
-            <button
-              className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-left"
-              onClick={() => setStatusFilter("Rejected")}
-            >
-              <div className="text-xs text-gray-600">Bị trả về sửa</div>
-              <div className="text-xl font-bold text-rose-700">{teacherTaskSummary.rejectedCount}</div>
-            </button>
-            <button
-              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-left"
-              onClick={() => setStatusFilter("Tất cả")}
-            >
-              <div className="text-xs text-gray-600">Có góp ý từ admin/staff</div>
-              <div className="text-xl font-bold text-blue-700">{teacherTaskSummary.hasCommentCount}</div>
-            </button>
-          </div>
-          <div className="space-y-2">
-            <div className="text-xs font-semibold text-gray-700">Danh sách ưu tiên xử lý</div>
-            <div className="grid gap-2 md:grid-cols-2">
-              {teacherPriorityReports.map((report) => (
-                <button
-                  key={report.id}
-                  onClick={() => focusReport(report.id)}
-                  className="rounded-lg border border-red-100 bg-red-50/40 p-2 text-left text-xs hover:bg-red-100/60"
-                >
-                  <div className="font-semibold text-gray-900">
-                    {report.studentName || report.studentProfileId || report.id}
-                  </div>
-                  <div className="text-gray-600">{report.className || report.classId || "N/A"}</div>
-                  <div className="mt-1">
-                    <StatusBadge status={report.status} />
-                  </div>
-                </button>
-              ))}
-              {teacherPriorityReports.length === 0 && (
-                <p className="text-xs text-gray-500">Không có report cần ưu tiên xử lý.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {canManage && (
-        <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-4">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <h3 className="font-semibold">Bảng điều phối review Admin/Staff</h3>
-            <div className="text-xs text-gray-600">
-              Ưu tiên xử lý theo thứ tự: Submitted → Rejected → Approved.
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <button
-              className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-left"
-              onClick={() => setStatusFilter("Submitted")}
-            >
-              <div className="text-xs text-gray-600">Chờ duyệt</div>
-              <div className="text-xl font-bold text-blue-700">{adminSummary.pendingReview}</div>
-            </button>
-            <button
-              className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-left"
-              onClick={() => setStatusFilter("Rejected")}
-            >
-              <div className="text-xs text-gray-600">Đã trả teacher sửa</div>
-              <div className="text-xl font-bold text-rose-700">{adminSummary.needTeacherFix}</div>
-            </button>
-            <button
-              className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-left"
-              onClick={() => setStatusFilter("Approved")}
-            >
-              <div className="text-xs text-gray-600">Sẵn sàng publish</div>
-              <div className="text-xl font-bold text-emerald-700">{adminSummary.readyToPublish}</div>
-            </button>
-            <button
-              className="rounded-xl border border-purple-200 bg-purple-50 p-3 text-left"
-              onClick={() => setStatusFilter("Published")}
-            >
-              <div className="text-xs text-gray-600">Đã publish</div>
-              <div className="text-xl font-bold text-purple-700">{adminSummary.published}</div>
-            </button>
-          </div>
-
-          <div className="rounded-xl border border-red-100 bg-red-50/40 p-3">
-            <div className="mb-2 text-xs font-semibold text-gray-700">Hàng đợi xử lý nhanh</div>
-            <div className="grid gap-2 md:grid-cols-2">
-              {adminPriorityReports.map((report) => (
-                <button
-                  key={report.id}
-                  onClick={() => focusReport(report.id)}
-                  className="rounded-lg border border-red-100 bg-white p-2 text-left text-xs hover:bg-red-50"
-                >
-                  <div className="font-semibold text-gray-900">
-                    {report.studentName || report.studentProfileId || report.id}
-                  </div>
-                  <div className="text-gray-600">{report.className || report.classId || "N/A"}</div>
-                  <div className="mt-1">
-                    <StatusBadge status={report.status} />
-                  </div>
-                </button>
-              ))}
-              {!adminPriorityReports.length && (
-                <p className="text-xs text-gray-500">Không có report cần xử lý ngay.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          {isTeacher && (
-            <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-4">
-              <h3 className="font-semibold">Luồng làm việc Teacher</h3>
-              <p className="text-xs text-gray-600">
-                1) Chọn lớp đang dạy → 2) Chọn tháng/năm → 3) Chọn học sinh → 4) Xem dữ liệu theo
-                buổi và Generate AI draft → 5) Chỉnh sửa rồi Submit → 6) Nhận comment (nếu có) →
-                7) Sửa lại và Submit → 8) Staff/Admin approve → 9) Publish cho parent/student.
-              </p>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">Tìm lớp</label>
-                  <input
-                    value={classQuery}
-                    onChange={(e) => setClassQuery(e.target.value)}
-                    placeholder="Nhập tên lớp..."
-                    className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div className="text-xs text-gray-600">
-                  <div className="space-y-2">
-                    <div className="font-medium text-gray-700">Chọn thời gian trước</div>
-                    <div className="flex gap-2">
-                      <input
-                        className="w-24 rounded-xl border px-3 py-2 text-sm"
-                        type="number"
-                        min={1}
-                        max={12}
-                        value={month}
-                        onChange={(e) => setMonth(Number(e.target.value))}
-                      />
-                      <input
-                        className="w-28 rounded-xl border px-3 py-2 text-sm"
-                        type="number"
-                        value={year}
-                        onChange={(e) => setYear(Number(e.target.value))}
-                      />
-                    </div>
-                    <div>Khuyến nghị chọn tháng/năm trước rồi mới chọn lớp và học sinh.</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border border-red-100 p-3">
-                  <div className="mb-2 text-xs font-semibold text-gray-700">
-                    Danh sách lớp ({teacherClasses.length})
-                  </div>
-                  <div className="max-h-40 space-y-1 overflow-auto">
-                    {classesLoading && (
-                      <p className="text-xs text-gray-500">Đang tải lớp...</p>
-                    )}
-                    {classesError && <p className="text-xs text-red-500">{classesError}</p>}
-                    {teacherClasses.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setSelectedClassId(item.id);
-                          setSelectedStudentId(null);
-                          setSessionReports([]);
-                        }}
-                        className={`w-full rounded-lg px-2 py-2 text-left text-xs ${
-                          selectedClassId === item.id
-                            ? "bg-red-600 text-white"
-                            : "bg-red-50 text-gray-700"
-                        }`}
-                      >
-                        <div className="font-medium">{item.name}</div>
-                        <div>{item.students} học sinh • {item.code}</div>
-                      </button>
-                    ))}
-                    {!classesLoading && !teacherClasses.length && (
-                      <p className="text-xs text-gray-500">Chưa có lớp phù hợp.</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-red-100 p-3">
-                  <div className="mb-2 text-xs font-semibold text-gray-700">
-                    Danh sách học sinh {selectedClassId ? `(${classStudents.length})` : ""}
-                  </div>
-                  <div className="max-h-40 space-y-1 overflow-auto">
-                    {studentsLoading && (
-                      <p className="text-xs text-gray-500">Đang tải học sinh...</p>
-                    )}
-                    {studentsError && <p className="text-xs text-red-500">{studentsError}</p>}
-                    {classStudents.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => setSelectedStudentId(item.id)}
-                        className={`w-full rounded-lg px-2 py-2 text-left text-xs ${
-                          selectedStudentId === item.id
-                            ? "bg-indigo-600 text-white"
-                            : "bg-indigo-50 text-gray-700"
-                        }`}
-                      >
-                        <div className="font-medium">{item.name}</div>
-                        <div>Student ID: {item.id.slice(0, 8)}</div>
-                      </button>
-                    ))}
-                    {selectedClassId && !studentsLoading && !classStudents.length && (
-                      <p className="text-xs text-gray-500">Lớp này chưa có monthly report.</p>
-                    )}
-                    {!selectedClassId && (
-                      <p className="text-xs text-gray-500">Vui lòng chọn lớp trước.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-red-100 bg-red-50/30 p-3">
-                <div className="mb-2 text-xs font-semibold text-gray-700">
-                  Buổi học trong thời gian đã chọn
-                </div>
-                {!selectedStudentId && (
-                  <p className="text-xs text-gray-500">
-                    Chọn học sinh để xem nhận xét buổi học.
-                  </p>
-                )}
-                {selectedStudentId && (
-                  <div className="space-y-2">
-                    {sessionsLoading && (
-                      <p className="text-xs text-gray-500">Đang tải nhận xét buổi học...</p>
-                    )}
-                    {sessionsError && <p className="text-xs text-red-500">{sessionsError}</p>}
-                    {!sessionsLoading && !sessionReports.length && (
-                      <p className="text-xs text-gray-500">Chưa có nhận xét buổi học.</p>
-                    )}
-                    {!activeReport && (
-                      <p className="text-xs text-amber-700">
-                        Không tìm thấy monthly report của học sinh này trong phạm vi lớp bạn phụ trách ở{" "}
-                        {month}/{year}. Vui lòng kiểm tra lại lớp/teacher phụ trách hoặc nhờ Staff/Admin hỗ trợ.
-                      </p>
-                    )}
-                    {sessionReports.map((report) => (
-                      <div key={report.id ?? report.sessionId} className="rounded-lg border bg-white p-2 text-xs">
-                        <div className="font-semibold">
-                          {report.reportDate ? `Ngày: ${report.reportDate}` : "Buổi học"}
-                        </div>
-                        <div className="text-gray-600">
-                          {report.feedback || "Chưa có nhận xét."}
-                        </div>
-                      </div>
-                    ))}
-                    <button
-                      disabled={
-                        !activeReport ||
-                        sessionReports.length === 0 ||
-                        actionLoading[`${displayReport?.id}:generate-draft`]
-                      }
-                      onClick={() =>
-                        activeReport &&
-                        sessionReports.length > 0 &&
-                        runAction(displayReport.id, "generate-draft")
-                      }
-                      className="w-full rounded bg-purple-600 px-3 py-2 text-xs text-white disabled:bg-slate-300"
-                    >
-                      {actionLoading[`${displayReport?.id}:generate-draft`]
-                        ? "Đang tổng hợp AI..."
-                        : "AI tổng hợp và tạo nháp báo cáo tháng"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          {canManage && (
-            <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-3">
-              <h3 className="font-semibold">Luồng làm việc Staff/Admin</h3>
-              <p className="text-xs text-gray-600">
-                1) Xem danh sách báo cáo đã nộp (Submitted/Review) → 2) Comment nếu cần chỉnh sửa →
-                3) Chờ teacher sửa và submit lại → 4) Approve → 5) Publish cho parent/student.
-              </p>
-              <div className="rounded-xl border border-red-100 bg-red-50/40 p-3 text-xs text-gray-700">
-                Nếu cần góp ý: dùng nút Comment để gửi phản hồi. Báo cáo chỉ Publish khi đã Approve.
-              </div>
-            </div>
-          )}
-          {canManage && (
-            <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-4">
-              <h3 className="font-semibold">Lọc theo lớp/học viên</h3>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">Tìm lớp</label>
-                  <input
-                    value={classQuery}
-                    onChange={(e) => setClassQuery(e.target.value)}
-                    placeholder="Nhập tên lớp..."
-                    className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div className="text-xs text-gray-600">
-                  Đang xem thời gian: <span className="font-semibold">{month}/{year}</span>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border border-red-100 p-3">
-                  <div className="mb-2 text-xs font-semibold text-gray-700">
-                    Danh sách lớp ({managementClasses.length})
-                  </div>
-                  <div className="max-h-40 space-y-1 overflow-auto">
-                    {managementClasses.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setSelectedClassId(item.id);
-                          setSelectedStudentId(null);
-                        }}
-                        className={`w-full rounded-lg px-2 py-2 text-left text-xs ${
-                          selectedClassId === item.id
-                            ? "bg-red-600 text-white"
-                            : "bg-red-50 text-gray-700"
-                        }`}
-                      >
-                        <div className="font-medium">{item.name}</div>
-                        <div>{item.reportCount} báo cáo</div>
-                      </button>
-                    ))}
-                    {!managementClasses.length && (
-                      <p className="text-xs text-gray-500">Chưa có lớp phù hợp.</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-red-100 p-3">
-                  <div className="mb-2 text-xs font-semibold text-gray-700">
-                    Danh sách học sinh {selectedClassId ? `(${managementStudents.length})` : ""}
-                  </div>
-                  <div className="max-h-40 space-y-1 overflow-auto">
-                    {managementStudents.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => setSelectedStudentId(item.id)}
-                        className={`w-full rounded-lg px-2 py-2 text-left text-xs ${
-                          selectedStudentId === item.id
-                            ? "bg-indigo-600 text-white"
-                            : "bg-indigo-50 text-gray-700"
-                        }`}
-                      >
-                        <div className="font-medium">{item.name}</div>
-                        <div>{item.reportCount} báo cáo</div>
-                      </button>
-                    ))}
-                    {selectedClassId && !managementStudents.length && (
-                      <p className="text-xs text-gray-500">Lớp này chưa có báo cáo.</p>
-                    )}
-                    {!selectedClassId && (
-                      <p className="text-xs text-gray-500">Vui lòng chọn lớp trước.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          {canManage && (
-            <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-3">
-              <h3 className="font-semibold">Hành động nhanh</h3>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  disabled={!selectedClassId || bulkLoading !== ""}
-                  className="rounded bg-emerald-600 px-3 py-2 text-xs text-white disabled:bg-slate-300"
-                  onClick={() => {
-                    const classIds = reports
-                      .filter((report) => report.classId === selectedClassId)
-                      .map((report) => report.id);
-                    runBulkAction("approve", classIds);
-                  }}
-                >
-                  {bulkLoading === "approve" ? "Đang approve lớp..." : "Approve lớp"}
-                </button>
-                <button
-                  disabled={!selectedClassId || bulkLoading !== ""}
-                  className="rounded bg-sky-600 px-3 py-2 text-xs text-white disabled:bg-slate-300"
-                  onClick={() => {
-                    const classIds = reports
-                      .filter((report) => report.classId === selectedClassId)
-                      .map((report) => report.id);
-                    runBulkAction("publish", classIds);
-                  }}
-                >
-                  {bulkLoading === "publish" ? "Đang publish lớp..." : "Publish lớp"}
-                </button>
-              </div>
-              <p className="text-xs text-gray-600">
-                Chọn lớp ở trên để áp dụng approve/publish toàn bộ học viên trong lớp đó.
-              </p>
-            </div>
-          )}
-          {canManage && (
-            <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-3">
-              <h3 className="font-semibold">Tiến độ lớp theo tháng</h3>
-              <p className="text-xs text-gray-600">
-                Tổng hợp theo báo cáo tháng {month}/{year}. Hoàn thành khi tất cả báo cáo trong lớp
-                đã Publish.
-              </p>
-              <div className="max-h-48 space-y-2 overflow-auto">
-                {managementClassProgress.map((item) => {
-                  const completed = item.total > 0 && item.published === item.total;
-                  return (
-                    <div key={item.id} className="rounded-lg border p-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <div className="font-semibold">{item.name}</div>
-                        <span
-                          className={`rounded-full px-2 py-1 text-[11px] ${
-                            completed
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          {completed ? "Đã hoàn thành" : "Chưa hoàn thành"}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-gray-600">
-                        Tổng: {item.total} • Published: {item.published} • Approved: {item.approved} • Chờ xử lý:{" "}
-                        {item.pending}
-                      </div>
-                    </div>
-                  );
-                })}
-                {!managementClassProgress.length && (
-                  <p className="text-xs text-gray-500">Chưa có dữ liệu báo cáo trong tháng này.</p>
-                )}
-              </div>
-            </div>
-          )}
-          {isViewer && (
-            <div className="rounded-2xl border border-red-200 bg-white p-4 space-y-3">
-              <h3 className="font-semibold">Luồng xem Parent/Student</h3>
-              <p className="text-xs text-gray-600">
-                Chỉ xem được báo cáo đã Publish. Dùng bộ lọc để tìm theo tháng/năm hoặc học sinh.
-              </p>
-            </div>
-          )}
-
-          <div className="rounded-2xl border border-red-200 bg-white p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-xl">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={16}
-              />
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm theo học sinh, giáo viên, mã report..."
-                className="w-full rounded-xl border border-red-200 py-2 pl-9 pr-3 text-sm"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-500" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-xl border border-red-200 px-3 py-2 text-sm"
-              >
-                {["Tất cả", "Draft", "Submitted", "Approved", "Rejected", "Published", "Review"].map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {isTeacher && (
-            <div className="flex flex-wrap gap-2 text-xs">
-              <button
-                className={`rounded-full border px-3 py-1 ${statusFilter === "Tất cả" ? "bg-red-600 text-white border-red-600" : "bg-white"}`}
-                onClick={() => setStatusFilter("Tất cả")}
-              >
-                Tất cả
-              </button>
-              <button
-                className={`rounded-full border px-3 py-1 ${statusFilter === "Draft" ? "bg-amber-600 text-white border-amber-600" : "bg-white"}`}
-                onClick={() => setStatusFilter("Draft")}
-              >
-                Cần submit
-              </button>
-              <button
-                className={`rounded-full border px-3 py-1 ${statusFilter === "Rejected" ? "bg-rose-600 text-white border-rose-600" : "bg-white"}`}
-                onClick={() => setStatusFilter("Rejected")}
-              >
-                Cần sửa lại
-              </button>
-              <button
-                className={`rounded-full border px-3 py-1 ${statusFilter === "Submitted" ? "bg-blue-600 text-white border-blue-600" : "bg-white"}`}
-                onClick={() => setStatusFilter("Submitted")}
-              >
-                Đang chờ duyệt
-              </button>
-            </div>
-          )}
-
-          {canManage && (
-            <div className="rounded-2xl border border-red-200 bg-white p-3 text-xs text-gray-700 flex flex-wrap items-center gap-2">
-              <span>Đã chọn: {selectedReportIds.size}</span>
-              <button
-                className="rounded border px-2 py-1"
-                onClick={selectAllVisible}
-                disabled={!filteredReports.length}
-              >
-                Chọn tất cả
-              </button>
-              <button className="rounded border px-2 py-1" onClick={clearSelection}>
-                Bỏ chọn
-              </button>
-              <button
-                className="rounded bg-emerald-600 px-2 py-1 text-white disabled:bg-slate-300"
-                disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
-                onClick={() => runBulkAction("approve", Array.from(selectedReportIds))}
-              >
-                {bulkLoading === "approve" ? "Đang approve..." : "Approve selected"}
-              </button>
-              <button
-                className="rounded bg-sky-600 px-2 py-1 text-white disabled:bg-slate-300"
-                disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
-                onClick={() => runBulkAction("publish", Array.from(selectedReportIds))}
-              >
-                {bulkLoading === "publish" ? "Đang publish..." : "Publish selected"}
-              </button>
-            </div>
-          )}
-
-          <div className="rounded-2xl border border-red-200 bg-white overflow-hidden">
-            <div className="border-b border-red-100 p-4 flex items-center justify-between">
-              <h3 className="font-semibold">Danh sách báo cáo ({filteredReports.length})</h3>
-              {loading && <span className="text-sm text-gray-500">Đang tải...</span>}
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-red-50/60 text-left text-xs uppercase text-gray-600">
-                  <tr>
-                    {canManage && <th className="px-4 py-3">Chọn</th>}
-                    <th className="px-4 py-3">Báo cáo</th>
-                    <th className="px-4 py-3">Giáo viên</th>
-                    <th className="px-4 py-3">Trạng thái</th>
-                    <th className="px-4 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-red-100">
-                  {filteredReports.map((report) => (
-                    <tr
-                      key={report.id}
-                      className="hover:bg-red-50/40 cursor-pointer"
-                      onClick={() => setActiveReportId(report.id)}
-                    >
-                      {canManage && (
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedReportIds.has(report.id)}
-                            onChange={() => toggleReportSelection(report.id)}
-                          />
-                        </td>
-                      )}
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-gray-900">
-                          {report.studentName || report.studentProfileId || report.id}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {report.className || report.classId || "N/A"} • {report.month}/{report.year}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="inline-flex items-center gap-1">
-                          <User size={12} />
-                          {report.teacherName || "Teacher"}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={report.status} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            className="rounded border px-2 py-1 text-xs"
-                            onClick={() => {
-                              setActiveReportId(report.id);
-                              setDetailModalOpen(true);
-                            }}
-                          >
-                            <Eye size={12} />
-                          </button>
-                          {isTeacher && (
-                            <button
-                              className="rounded bg-purple-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                              disabled={actionLoading[`${report.id}:generate-draft`]}
-                              onClick={() => runAction(report.id, "generate-draft")}
-                            >
-                              {actionLoading[`${report.id}:generate-draft`] ? "Đang tạo..." : <Sparkles size={12} />}
-                            </button>
-                          )}
-                          {isTeacher && (
-                            <button
-                              disabled={!canTeacherSubmit(report.status)}
-                              className="rounded bg-indigo-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                              onClick={() => runAction(report.id, "submit")}
-                            >
-                              Submit
-                            </button>
-                          )}
-                          {canManage && (
-                            <button
-                              className="rounded bg-pink-600 px-2 py-1 text-xs text-white"
-                              onClick={() => openCommentDialog(report.id)}
-                            >
-                              Comment
-                            </button>
-                          )}
-                          {canManage && (
-                            <button
-                              disabled={!canManagementApprove(report.status)}
-                              className="rounded bg-emerald-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                              onClick={() => runAction(report.id, "approve")}
-                            >
-                              Approve
-                            </button>
-                          )}
-                          {canManage && (
-                            <button
-                              disabled={!canManagementApprove(report.status)}
-                              className="rounded bg-amber-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                              onClick={() => runAction(report.id, "reject")}
-                            >
-                              Reject
-                            </button>
-                          )}
-                          {canManage && (
-                            <button
-                              disabled={!canManagementPublish(report.status)}
-                              className="rounded bg-sky-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                              onClick={() => runAction(report.id, "publish")}
-                            >
-                              Publish
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredReports.length === 0 && (
-                <div className="p-8 text-center text-sm text-gray-500">Không có báo cáo phù hợp.</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-red-200 bg-white p-4">
-            <h3 className="mb-2 font-semibold flex items-center gap-2">
-              <FileCheck size={16} /> Chi tiết report
-            </h3>
-            {displayReport ? (
-              <div className="space-y-2 text-sm">
-                {detailLoading && <div className="text-xs text-gray-500">Đang tải chi tiết...</div>}
-                {detailError && <div className="text-xs text-red-500">{detailError}</div>}
-                <div className="font-semibold">
-                  {displayReport.studentName || displayReport.studentProfileId}
-                </div>
-                <div className="text-gray-600">
-                  {displayReport.className || displayReport.classId || "N/A"}
-                </div>
-                <StatusBadge status={displayReport.status} />
-                <div className="text-xs text-gray-500">Teacher: {displayReport.teacherName || "N/A"}</div>
-                {isTeacher && (
-                  <button
-                    disabled={!canTeacherSubmit(displayReport.status)}
-                    className="mt-2 w-full rounded bg-cyan-700 px-3 py-2 text-xs font-medium text-white disabled:bg-slate-300"
-                    onClick={() =>
-                      runAction(displayReport.id, "draft", "PUT", {
-                        draftContent: draftInput || "",
-                      })
-                    }
-                  >
-                    {actionLoading[`${displayReport.id}:draft`] ? "Đang lưu..." : "Update Draft (manual)"}
-                  </button>
-                )}
-                {isTeacher && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-gray-700">
-                      Nội dung nháp (có thể edit)
-                    </label>
-                    <textarea
-                      value={draftInput}
-                      onChange={(e) => setDraftInput(e.target.value)}
-                      rows={6}
-                      placeholder="Nhập nội dung nháp..."
-                      className="w-full rounded-xl border border-red-200 px-3 py-2 text-xs"
-                    />
-                  </div>
-                )}
-                {isTeacher && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-gray-700">
-                    <div className="font-semibold text-gray-900">Góp ý từ Staff/Admin</div>
-                    {displayReport.comments?.length ? (
-                      <ul className="mt-2 space-y-2">
-                        {(displayReport.comments ?? []).slice().reverse().map((c) => (
-                          <li key={c.id} className="rounded border border-amber-100 bg-white p-2">
-                            <div className="font-medium text-gray-900">
-                              {c.authorName || c.commenterName || "Staff/Admin"}
-                            </div>
-                            <div className="mt-1 whitespace-pre-line">{c.content}</div>
-                            {c.createdAt && (
-                              <div className="mt-1 text-[11px] text-gray-500">{formatDateTime(c.createdAt)}</div>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-1 text-gray-600">Chưa có góp ý.</p>
-                    )}
-                  </div>
-                )}
-                {isTeacher && (
-                  <div className="rounded-lg border border-red-100 bg-red-50 p-2 text-xs text-gray-700">
-                    <div className="font-semibold text-gray-900">Dữ liệu theo buổi học</div>
-                    <p className="mt-1">
-                      Sau khi bấm AI Generate Draft, Teacher có thể đọc bản nháp, chỉnh sửa nội dung theo góp ý comment
-                      của Staff/Admin rồi Submit lại.
-                    </p>
-                  </div>
-                )}
-                <button className="w-full rounded border border-red-200 px-3 py-2 text-xs">
-                  <Download size={12} className="inline mr-1" /> Export/PDF
-                </button>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">Chọn report để xem chi tiết.</p>
-            )}
-          </div>
-
-          {canManage && (
-            <div className="rounded-2xl border border-red-200 bg-white p-4">
-              <h3 className="mb-2 font-semibold flex items-center gap-2">
-                <TrendingUp size={16} /> Tiến độ thu thập
-              </h3>
-              <p className="text-sm text-gray-600">
-                Jobs tháng {month}/{year}: {jobs.length}
-              </p>
-              <div className="mt-2 space-y-2">
-                {jobs.map((job) => (
-                  <div key={job.id} className="rounded-lg border p-2 text-xs">
-                    <div>
-                      {job.month}/{job.year} • {job.status}
-                    </div>
-                    <button
-                      className="mt-1 rounded bg-blue-600 px-2 py-1 text-white"
-                      onClick={() =>
-                        apiFetch(`/api/monthly-reports/jobs/${job.id}/aggregate`, { method: "POST" }).then(fetchData)
-                      }
-                    >
-                      Aggregate
-                    </button>
-                  </div>
-                ))}
-                {jobs.length === 0 && <p className="text-xs text-gray-500">Chưa có job.</p>}
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-2xl border border-red-200 bg-white p-4">
-            <h3 className="mb-2 font-semibold flex items-center gap-2">
-              <MessageSquare size={16} /> Bình luận gần nhất
-            </h3>
-            {recentCommentsLoading && <p className="text-xs text-gray-500">Đang tải bình luận...</p>}
-            {!recentCommentsLoading && recentComments.length ? (
-              <ul className="space-y-2 text-xs">
-                {recentComments.slice(0, 3).map((c) => (
-                  <li
-                    key={c.id}
-                    className="rounded border p-2 cursor-pointer hover:bg-red-50/40"
-                    onClick={() => openReportFromComment(c.reportId)}
-                  >
-                    <div className="font-medium text-gray-900">
-                      {c.studentName || "Học viên"} • {c.className || "N/A"}
-                    </div>
-                    <div className="mt-1">
-                      {c.authorName || "Staff/Admin"}: {c.content}
-                    </div>
-                    {c.createdAt && <div className="mt-1 text-[11px] text-gray-500">{formatDateTime(c.createdAt)}</div>}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-gray-500">Chưa có bình luận.</p>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-red-200 bg-white p-3 text-xs text-gray-600 flex items-center gap-2">
-            <Zap size={14} className="text-red-500" /> Report flow đã gắn role: Teacher / Staff-Admin / Viewer.
-          </div>
-        </div>
+        <p className="px-2 pt-2 text-xs text-slate-600">
+          {activeTab === "overview" && "Tổng quan: xem số liệu nhanh và hạng mục ưu tiên."}
+          {activeTab === "reports" && "Danh sách báo cáo: tìm kiếm, lọc, duyệt và xem chi tiết từng báo cáo."}
+          {activeTab === "teacher-tools" && "Công cụ giáo viên: chọn lớp/học sinh, xem dữ liệu buổi học, tạo nháp AI."}
+          {activeTab === "manage-tools" && "Điều phối quản lý: lọc theo lớp, duyệt/công bố hàng loạt, theo dõi tiến độ."}
+        </p>
       </div>
 
-      <div className="text-xs text-gray-500 flex items-center gap-2">
-        <Users size={12} /> Viewer chỉ thấy Published là do API filter theo role viewer.
-      </div>
+            {activeTab === "overview" && (
+        <OverviewTab
+          isTeacher={isTeacher}
+          canManage={canManage}
+          isViewer={isViewer}
+          month={month}
+          year={year}
+          showManageTools={showManageTools}
+          setShowManageTools={setShowManageTools}
+          setStatusFilter={setStatusFilter}
+          openClassScope={openClassScope}
+          openReportDetail={openReportDetail}
+          focusReport={focusReport}
+          teacherClassSummary={teacherClassSummary}
+          teacherClassStatusRows={teacherClassStatusRows}
+          teacherTaskSummary={teacherTaskSummary}
+          teacherPriorityReports={teacherPriorityReports}
+          adminSummary={adminSummary}
+          adminPriorityReports={adminPriorityReports}
+          renderStatusBadge={(status) => <StatusBadge status={status} />}
+        />
+      )}
+
+      {activeTab === "teacher-tools" && isTeacher && (
+        <TeacherToolsTab
+          month={month}
+          year={year}
+          classQuery={classQuery}
+          setClassQuery={setClassQuery}
+          setMonth={setMonth}
+          setYear={setYear}
+          showTeacherTools={showTeacherTools}
+          setShowTeacherTools={setShowTeacherTools}
+          teacherClasses={teacherClasses}
+          classesLoading={classesLoading}
+          classesError={classesError}
+          selectedClassId={selectedClassId}
+          setSelectedClassId={setSelectedClassId}
+          setSelectedStudentId={setSelectedStudentId}
+          setSessionReports={setSessionReports}
+          classStudents={classStudents}
+          studentsLoading={studentsLoading}
+          studentsError={studentsError}
+          selectedStudentId={selectedStudentId}
+          activeReport={activeReport}
+          displayReport={displayReport}
+          sessionReports={sessionReports}
+          sessionsLoading={sessionsLoading}
+          sessionsError={sessionsError}
+          actionLoading={actionLoading}
+          runAction={(reportId, action) => runAction(reportId, action)}
+          openReportDetail={openReportDetail}
+        />
+      )}
+
+      {activeTab === "manage-tools" && canManage && showManageTools && (
+        <ManageToolsTab
+          month={month}
+          year={year}
+          classQuery={classQuery}
+          setClassQuery={setClassQuery}
+          selectedClassId={selectedClassId}
+          selectedStudentId={selectedStudentId}
+          managementClasses={managementClasses}
+          managementStudents={managementStudents}
+          managementClassProgress={managementClassProgress}
+          reports={reports}
+          bulkLoading={bulkLoading}
+          setActiveTab={() => setActiveTab("reports")}
+          syncScopeToReports={syncScopeToReports}
+          runBulkAction={runBulkAction}
+        />
+      )}
+
+      {activeTab === "reports" && (
+        <ReportsTab
+          canManage={canManage}
+          isTeacher={isTeacher}
+          month={month}
+          year={year}
+          jobs={jobs}
+          loading={loading}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          selectedClassId={selectedClassId}
+          selectedStudentId={selectedStudentId}
+          setSelectedClassId={setSelectedClassId}
+          setSelectedStudentId={setSelectedStudentId}
+          selectedClassName={selectedClassName}
+          selectedStudentName={selectedStudentName}
+          classFilterOptions={classFilterOptions}
+          clearScopeFilter={clearScopeFilter}
+          selectedReportIds={selectedReportIds}
+          selectAllVisible={selectAllVisible}
+          clearSelection={clearSelection}
+          bulkLoading={bulkLoading}
+          runBulkAction={runBulkAction}
+          filteredReports={filteredReports}
+          displayReport={displayReport}
+          detailLoading={detailLoading}
+          detailError={detailError}
+          draftInput={draftInput}
+          setDraftInput={setDraftInput}
+          actionLoading={actionLoading}
+          runAction={runAction}
+          canTeacherSubmit={canTeacherSubmit}
+          canManagementApprove={canManagementApprove}
+          canManagementPublish={canManagementPublish}
+          setActiveReportId={setActiveReportId}
+          setDetailModalOpen={setDetailModalOpen}
+          toggleReportSelection={toggleReportSelection}
+          openCommentDialog={openCommentDialog}
+          recentCommentsLoading={recentCommentsLoading}
+          recentComments={recentComments}
+          openReportFromComment={openReportFromComment}
+          showRecentComments={showRecentComments}
+          setShowRecentComments={setShowRecentComments}
+          formatDateTime={formatDateTime}
+          fetchData={fetchData}
+          apiFetch={apiFetch}
+          renderStatusBadge={(status) => <StatusBadge status={status} />}
+        />
+      )}
 
       {detailModalOpen && displayReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -2199,3 +1585,5 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     </div>
   );
 }
+
+
