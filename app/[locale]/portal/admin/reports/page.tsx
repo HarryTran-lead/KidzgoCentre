@@ -1,1059 +1,782 @@
-"use client";
+﻿"use client";
 
-import React, { useMemo, useState, useEffect } from "react";
-import {
-  Users,
-  DollarSign,
-  GraduationCap,
-  CheckCircle2,
+import { useMemo, useState, useEffect } from "react";
+import { 
+  Search, 
+  CheckCircle2, 
+  Download, 
+  Send, 
+  MessageSquare, 
+  FileText,
   Calendar,
-  Filter,
-  Download,
-  TrendingUp,
-  TrendingDown,
-  Eye,
-  BookOpen,
   Clock,
-  MapPin,
-  UserCheck,
-  Building,
-  BarChart3,
-  Target,
-  Activity,
-  ChevronRight,
-  Star,
-  Percent,
-  Layers,
-  CreditCard,
-  Shield,
+  Eye,
+  MoreVertical,
+  Upload,
+  Bell,
+  Check,
+  AlertCircle,
+  Mail,
   Zap,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
-import clsx from "clsx";
 
-/* ------------------------ UI Components ------------------------ */
-type SummaryCardProps = {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  hint?: string;
-  trend?: "up" | "down" | "neutral";
-  trendValue?: string;
+type Status = "PENDING" | "APPROVED" | "REJECTED";
+
+type FeedbackReport = {
+  id: string;
+  className: string;
+  month: string;
+  teacher: string;
+  totalStudents: number;
+  status: Status;
+  updatedAt: string;
+  submittedBy: string;
+  progress: number;
+  color: string;
+  submittedDate: string;
 };
-function SummaryCard({ icon, label, value, hint, trend = "neutral", trendValue }: SummaryCardProps) {
+
+const REPORTS: FeedbackReport[] = [
+  {
+    id: "FB001",
+    className: "IELTS Foundation - A1",
+    month: "12/2024",
+    teacher: "CÃ´ PhÆ°Æ¡ng",
+    totalStudents: 18,
+    status: "PENDING",
+    updatedAt: "05/12/2024 09:00",
+    submittedBy: "Tráº§n VÄƒn A",
+    progress: 75,
+    color: "from-red-600 to-red-700",
+    submittedDate: "04/12/2024"
+  },
+  {
+    id: "FB002",
+    className: "TOEIC Intermediate",
+    month: "12/2024",
+    teacher: "Tháº§y Minh",
+    totalStudents: 15,
+    status: "APPROVED",
+    updatedAt: "04/12/2024 21:30",
+    submittedBy: "Nguyá»…n Thá»‹ B",
+    progress: 100,
+    color: "from-emerald-500 to-teal-500",
+    submittedDate: "03/12/2024"
+  },
+  {
+    id: "FB003",
+    className: "Ká»¹ nÄƒng sá»‘ng cuá»‘i tuáº§n",
+    month: "11/2024",
+    teacher: "CÃ´ Lan",
+    totalStudents: 12,
+    status: "APPROVED",
+    updatedAt: "28/11/2024 16:20",
+    submittedBy: "LÃª VÄƒn C",
+    progress: 100,
+    color: "from-blue-500 to-cyan-500",
+    submittedDate: "27/11/2024"
+  },
+  {
+    id: "FB004",
+    className: "Business English",
+    month: "12/2024",
+    teacher: "Tháº§y TÃ¹ng",
+    totalStudents: 20,
+    status: "REJECTED",
+    updatedAt: "02/12/2024 14:15",
+    submittedBy: "Pháº¡m Thá»‹ D",
+    progress: 60,
+    color: "from-amber-500 to-orange-500",
+    submittedDate: "01/12/2024"
+  },
+  {
+    id: "FB005",
+    className: "Kids English F1",
+    month: "12/2024",
+    teacher: "CÃ´ Vi",
+    totalStudents: 16,
+    status: "PENDING",
+    updatedAt: "03/12/2024 11:30",
+    submittedBy: "HoÃ ng VÄƒn E",
+    progress: 85,
+    color: "from-violet-500 to-purple-500",
+    submittedDate: "02/12/2024"
+  },
+  {
+    id: "FB006",
+    className: "IELTS Speaking Club",
+    month: "12/2024",
+    teacher: "Tháº§y Háº£i",
+    totalStudents: 25,
+    status: "APPROVED",
+    updatedAt: "01/12/2024 18:45",
+    submittedBy: "Tráº§n Thá»‹ F",
+    progress: 100,
+    color: "from-indigo-500 to-blue-500",
+    submittedDate: "30/11/2024"
+  },
+];
+
+const STATUS_INFO: Record<Status, { 
+  text: string; 
+  cls: string;
+  bg: string;
+  icon: React.ReactNode;
+}> = {
+  PENDING: { 
+    text: "Chá» duyá»‡t", 
+    cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
+    bg: "from-amber-400 to-orange-500",
+    icon: <Clock size={14} />
+  },
+  APPROVED: { 
+    text: "ÄÃ£ duyá»‡t", 
+    cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
+    bg: "from-emerald-400 to-teal-500",
+    icon: <CheckCircle2 size={14} />
+  },
+  REJECTED: { 
+    text: "YÃªu cáº§u bá»• sung", 
+    cls: "bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border border-rose-200",
+    bg: "from-rose-400 to-pink-500",
+    icon: <AlertCircle size={14} />
+  },
+};
+
+function StatusBadge({ status }: { status: Status }) {
+  const { text, cls, icon } = STATUS_INFO[status];
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-300 hover:border-red-300 hover:shadow-lg">
-      <div className="flex items-start justify-between">
-        <div>
+    <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${cls}`}>
+      {icon}
+      <span>{text}</span>
+    </div>
+  );
+}
+
+function StatCard({ 
+  title, 
+  value, 
+  icon, 
+  color,
+  trend,
+  subtitle 
+}: { 
+  title: string; 
+  value: string; 
+  icon: React.ReactNode;
+  color: string;
+  trend?: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+      <div className={`absolute right-0 top-0 h-20 w-20 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`}></div>
+      <div className="relative flex items-start justify-between">
+        <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 grid place-items-center rounded-xl bg-gradient-to-br from-red-100 to-red-200 text-red-600">
+            <div className={`p-2.5 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm`}>
               {icon}
             </div>
-            <div className="text-sm font-medium text-red-600">{label}</div>
-          </div>
-          <div className="mt-3 text-2xl font-extrabold tracking-tight text-gray-900">
-            {value}
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            {trend === "up" && (
-              <div className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
-                <TrendingUp size={12} />
-                {trendValue || hint}
-              </div>
-            )}
-            {trend === "down" && (
-              <div className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
-                <TrendingDown size={12} />
-                {trendValue || hint}
-              </div>
-            )}
-            {trend === "neutral" && hint && (
-              <div className="text-xs text-gray-500">{hint}</div>
+            {trend && (
+              <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                {trend}
+              </span>
             )}
           </div>
-        </div>
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          <Eye size={18} className="text-red-400" />
+          <div className="text-sm font-medium text-gray-600">{title}</div>
+          <div className="text-2xl font-bold text-gray-900">{value}</div>
+          {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
         </div>
       </div>
     </div>
   );
 }
 
-function SectionCard({
-  title,
-  children,
-  action,
-}: {
-  title: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
+function ProgressPieChart({ progress, color }: { progress: number; color: string }) {
+  const radius = 20;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (progress / 100) * circumference;
+  
+  // Extract color from gradient string (e.g., "from-amber-400 to-orange-500" -> "amber")
+  const getColorClass = () => {
+    if (color.includes('emerald')) return 'text-emerald-500';
+    if (color.includes('amber')) return 'text-amber-500';
+    if (color.includes('rose')) return 'text-rose-500';
+    if (color.includes('blue')) return 'text-blue-500';
+    if (color.includes('purple') || color.includes('violet')) return 'text-purple-500';
+    if (color.includes('indigo')) return 'text-indigo-500';
+    return 'text-red-600';
+  };
+  
   return (
-    <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-        {action && <div className="text-sm text-red-600">{action}</div>}
+    <div className="flex items-center gap-3">
+      <div className="relative w-12 h-12">
+        <svg className="transform -rotate-90 w-12 h-12">
+          <circle
+            cx="24"
+            cy="24"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth="4"
+            fill="none"
+            className="text-gray-100"
+          />
+          <circle
+            cx="24"
+            cy="24"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth="4"
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className={`transition-all duration-500 ${getColorClass()}`}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-semibold text-gray-700">{progress}%</span>
+        </div>
       </div>
-      {children}
+
     </div>
   );
 }
 
-function ProgressBar({
-  value,
-  className,
-  color = "pink",
-}: {
-  value: number;
-  className?: string;
-  color?: "pink" | "emerald" | "blue" | "amber" | "purple";
-}) {
-  const colorClasses = {
-    pink: "bg-gradient-to-r from-red-600 to-red-700",
-    emerald: "bg-gradient-to-r from-emerald-500 to-teal-500",
-    blue: "bg-gradient-to-r from-blue-500 to-sky-500",
-    amber: "bg-gradient-to-r from-amber-500 to-orange-500",
-    purple: "bg-gradient-to-r from-purple-500 to-indigo-500",
-  };
-
+function ReportTableRow({ report }: { report: FeedbackReport }) {
+  const statusInfo = STATUS_INFO[report.status];
+  
   return (
-    <div className={clsx("h-2 w-full rounded-full bg-red-100", className)}>
-      <div
-        className={clsx("h-2 rounded-full transition-all duration-500", colorClasses[color])}
-        style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
-      />
-    </div>
+    <tr className="group border-b border-red-100 hover:bg-red-50/50 transition-colors">
+      <td className="px-4 py-4 align-top">
+        <div className="flex items-center gap-3">
+          <div className={`h-3 w-3 rounded-full bg-gradient-to-r ${report.color}`}></div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-900">{report.className}</span>
+            </div>
+            <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+              <span className="flex items-center gap-1">
+                <Calendar size={12} />
+                ThÃ¡ng {report.month}
+              </span>
+            </div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-4 align-top">
+        <div className="flex items-center gap-2 text-sm text-gray-700">
+          <span>{report.teacher}</span>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-center align-top">
+        <div className="flex items-center justify-center gap-2 text-sm text-gray-700">
+          <span>{report.totalStudents} há»c viÃªn</span>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-center align-top">
+        <div className="flex justify-center">
+          <ProgressPieChart progress={report.progress} color={statusInfo.bg} />
+        </div>
+      </td>
+      <td className="px-4 py-4 align-top">
+        <div className="text-sm">
+          <div className="font-medium text-gray-900">{report.submittedBy}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{report.submittedDate}</div>
+        </div>
+      </td>
+      <td className="px-4 py-4 align-top">
+        <StatusBadge status={report.status} />
+      </td>
+      <td className="px-4 py-4 align-top">
+        <div className="text-xs text-gray-500 whitespace-nowrap">
+          {report.updatedAt}
+        </div>
+      </td>
+      <td className="px-4 py-4 align-top">
+        <div className="flex items-center justify-end gap-1">
+          <button className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-500 hover:text-red-600" title="Xem chi tiáº¿t">
+            <Eye size={16} />
+          </button>
+          {report.status === "PENDING" && (
+            <>
+              <button className="p-2 rounded-lg hover:bg-emerald-50 transition-colors text-gray-500 hover:text-emerald-600" title="Duyá»‡t">
+                <Check size={16} />
+              </button>
+              <button className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-500 hover:text-red-600" title="Tá»« chá»‘i">
+                <AlertCircle size={16} />
+              </button>
+            </>
+          )}
+          <button className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-500 hover:text-red-600" title="Gá»­i">
+            <Send size={16} />
+          </button>
+          <button className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-500 hover:text-red-600 opacity-0 group-hover:opacity-100" title="ThÃªm">
+            <MoreVertical size={16} />
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
 
-function StatBadge({
-  children,
-  color = "blue",
-}: {
-  children: React.ReactNode;
-  color?: "pink" | "emerald" | "blue" | "amber" | "purple" | "rose";
-}) {
-  const colorClasses = {
-    pink: "bg-red-50 text-red-700 border border-red-200",
-    emerald: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-    blue: "bg-blue-50 text-blue-700 border border-blue-200",
-    amber: "bg-amber-50 text-amber-700 border border-amber-200",
-    purple: "bg-purple-50 text-purple-700 border border-purple-200",
-    rose: "bg-red-50 text-red-700 border border-red-200",
-  };
+type SortColumn = "className" | "teacher" | "totalStudents" | "progress" | "submittedBy" | "status" | "updatedAt" | null;
+type SortDirection = "asc" | "desc";
 
-  return (
-    <span className={clsx("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium", colorClasses[color])}>
-      {children}
-    </span>
-  );
-}
-
-/* ------------------------------- Page Component ------------------------------- */
-export default function ReportsPage() {
-  const [tab, setTab] = useState<
-    "tuyensinh" | "doanhthu" | "khoahoc" | "giaovien" | "cosovatchat"
-  >("tuyensinh");
+export default function AdminSystemReportsPage() {
+  const [status, setStatus] = useState<Status | "ALL">("ALL");
+  const [search, setSearch] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("Táº¥t cáº£");
+  const [sortColumn, setSortColumn] = useState<SortColumn>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   useEffect(() => {
     setIsPageLoaded(true);
   }, []);
 
-  // Demo data
-  const months = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"];
-  
-  // Enrollment data
-  const enrollSeries = [45, 52, 48, 61, 56, 59, 63, 58, 70, 76, 82, 90];
-  const maxEnroll = Math.max(...enrollSeries);
-  
-  // Revenue data
-  const revenueData = months.map((month, i) => ({
-    month,
-    revenue: [320, 420, 520, 680, 820, 950, 1200, 1350, 1500, 1680, 1850, 2000][i] * 1000,
-    target: [350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900][i] * 1000,
-  }));
-
-  // Course distribution
-  const distribution = useMemo(
-    () => [
-      { name: "English B1", pct: 35, color: "bg-violet-500", students: 72, revenue: "48M" },
-      { name: "IELTS Prep", pct: 19, color: "bg-emerald-500", students: 38, revenue: "32M" },
-      { name: "TOEIC", pct: 11, color: "bg-amber-500", students: 22, revenue: "18M" },
-      { name: "Business English", pct: 9, color: "bg-orange-500", students: 18, revenue: "15M" },
-      { name: "English A2", pct: 12, color: "bg-green-500", students: 25, revenue: "16M" },
-      { name: "English B2", pct: 14, color: "bg-blue-600", students: 28, revenue: "20M" },
-    ],
-    []
-  );
-
-  // Teacher data
-  const teachers = [
-    { name: "Ms. Anna", subject: "IELTS", rating: 4.9, students: 45, status: "active" },
-    { name: "Mr. David", subject: "Business", rating: 4.8, students: 38, status: "active" },
-    { name: "Ms. Sarah", subject: "TOEIC", rating: 4.7, students: 32, status: "active" },
-    { name: "Mr. John", subject: "General", rating: 4.6, students: 28, status: "on-leave" },
-    { name: "Ms. Lisa", subject: "Speaking", rating: 4.9, students: 42, status: "active" },
+  const stats = [
+    {
+      title: "Tá»•ng bÃ¡o cÃ¡o",
+      value: "35",
+      icon: <FileText size={20} />,
+      color: "from-red-600 to-red-700",
+      subtitle: "ThÃ¡ng 12/2024",
+      trend: "+12%"
+    },
+    {
+      title: "Chá» duyá»‡t",
+      value: "12",
+      icon: <Clock size={20} />,
+      color: "from-amber-500 to-orange-500",
+      subtitle: "Cáº§n xá»­ lÃ½",
+      trend: "+3"
+    },
+    {
+      title: "ÄÃ£ duyá»‡t",
+      value: "18",
+      icon: <CheckCircle2 size={20} />,
+      color: "from-emerald-500 to-teal-500",
+      subtitle: "ÄÃ£ gá»­i phá»¥ huynh",
+      trend: "+8"
+    },
+    {
+      title: "Pháº£n há»“i",
+      value: "42",
+      icon: <MessageSquare size={20} />,
+      color: "from-blue-500 to-cyan-500",
+      subtitle: "Tá»« phá»¥ huynh",
+      trend: "+15"
+    }
   ];
 
-  // Facility data
-  const facilities = [
-    { name: "Phòng học P101", type: "Classroom", capacity: 25, status: "available", usage: 92 },
-    { name: "Lab 201", type: "Computer Lab", capacity: 20, status: "in-use", usage: 100 },
-    { name: "Thư viện", type: "Library", capacity: 30, status: "available", usage: 65 },
-    { name: "Hội trường", type: "Auditorium", capacity: 100, status: "maintenance", usage: 40 },
-    { name: "Phòng tự học", type: "Study Room", capacity: 15, status: "available", usage: 78 },
-  ];
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
 
-  // Course performance
-  const coursePerformance = [
-    { course: "IELTS Foundation", completion: 92, satisfaction: 4.8, revenue: "28.5M" },
-    { course: "TOEIC Advanced", completion: 88, satisfaction: 4.7, revenue: "21.2M" },
-    { course: "Business English", completion: 85, satisfaction: 4.6, revenue: "19.8M" },
-    { course: "Academic Writing", completion: 90, satisfaction: 4.9, revenue: "15.5M" },
-    { course: "Conversation Practice", completion: 82, satisfaction: 4.5, revenue: "12.1M" },
-  ];
+  const list = useMemo(() => {
+    let result = REPORTS;
+    
+    if (status !== "ALL") {
+      result = result.filter((item) => item.status === status);
+    }
+    
+    if (search) {
+      const searchLower = search.toLowerCase();
+      result = result.filter((item) => 
+        item.className.toLowerCase().includes(searchLower) ||
+        item.teacher.toLowerCase().includes(searchLower) ||
+        item.id.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    if (selectedMonth !== "Táº¥t cáº£") {
+      result = result.filter((item) => item.month === selectedMonth);
+    }
+    
+    // Sorting
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+        
+        switch (sortColumn) {
+          case "className":
+            aValue = a.className.toLowerCase();
+            bValue = b.className.toLowerCase();
+            break;
+          case "teacher":
+            aValue = a.teacher.toLowerCase();
+            bValue = b.teacher.toLowerCase();
+            break;
+          case "totalStudents":
+            aValue = a.totalStudents;
+            bValue = b.totalStudents;
+            break;
+          case "progress":
+            aValue = a.progress;
+            bValue = b.progress;
+            break;
+          case "submittedBy":
+            aValue = a.submittedBy.toLowerCase();
+            bValue = b.submittedBy.toLowerCase();
+            break;
+          case "status":
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          case "updatedAt":
+            aValue = a.updatedAt;
+            bValue = b.updatedAt;
+            break;
+          default:
+            return 0;
+        }
+        
+        if (typeof aValue === "string" && typeof bValue === "string") {
+          return sortDirection === "asc" 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        } else {
+          return sortDirection === "asc" 
+            ? aValue - bValue
+            : bValue - aValue;
+        }
+      });
+    }
+    
+    return result;
+  }, [status, search, selectedMonth, sortColumn, sortDirection]);
+
+  const months = ["Táº¥t cáº£", "12/2024", "11/2024", "10/2024"];
+  const pendingCount = REPORTS.filter(r => r.status === "PENDING").length;
+  const approvedCount = REPORTS.filter(r => r.status === "APPROVED").length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-              <BarChart3 size={28} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                Báo cáo & Thống kê KidzGo
-              </h1>
-              <p className="text-gray-600 mt-1 flex items-center gap-2">
-                <Shield size={14} className="text-red-600" />
-                Tổng hợp báo cáo và phân tích dữ liệu thời gian thực
-              </p>
-            </div>
+      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+            <MessageSquare size={28} className="text-white" />
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 px-4 py-2 bg-white border border-red-200 rounded-xl">
-              <Calendar size={16} className="text-red-600" />
-              <span className="text-sm font-medium text-gray-700">01/01/2025</span>
-              <ChevronRight size={14} className="text-gray-400" />
-              <span className="text-sm font-medium text-gray-700">31/10/2025</span>
-            </div>
-
-            <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors">
-              <Filter size={16} />
-              Lọc
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all">
-              <Download size={16} />
-              Xuất báo cáo
-            </button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              Bao cao he thong
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Theo doi, phan loai va xu ly bao cao su co van hanh theo lop va chi nhanh.
+            </p>
           </div>
         </div>
-
-        {/* Summary Cards */}
-        <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <SummaryCard
-            icon={<Users className="text-red-600" />}
-            label="Tổng học viên"
-            value="487"
-            trend="up"
-            trendValue="+8.2%"
-          />
-          <SummaryCard
-            icon={<DollarSign className="text-emerald-600" />}
-            label="Doanh thu YTD"
-            value="1.48B VND"
-            trend="up"
-            trendValue="+15.3%"
-          />
-          <SummaryCard
-            icon={<GraduationCap className="text-blue-600" />}
-            label="Khóa học hoạt động"
-            value="7"
-            trend="up"
-            trendValue="+1"
-          />
-          <SummaryCard
-            icon={<CheckCircle2 className="text-amber-600" />}
-            label="Tỷ lệ hoàn thành"
-            value="94.2%"
-            trend="up"
-            trendValue="+2.1%"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-red-600">
+              <Bell size={16} />
+            </div>
+            <div className="pl-10 pr-4 py-2.5 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 text-amber-700 text-sm font-medium">
+              <span className="font-bold">{pendingCount}</span> su co dang cho xu ly</div>
+          </div>
+          <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all">
+            <Upload size={16} /> Tao bao cao su co</button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className={`mb-6 rounded-2xl border border-red-200 bg-white p-1 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="flex flex-wrap">
-          {[
-            { key: "tuyensinh", label: "Tuyển sinh", icon: Users },
-            { key: "doanhthu", label: "Doanh thu", icon: DollarSign },
-            { key: "khoahoc", label: "Khóa học", icon: BookOpen },
-            { key: "giaovien", label: "Giáo viên", icon: UserCheck },
-            { key: "cosovatchat", label: "Cơ sở vật chất", icon: Building },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key as typeof tab)}
-              className={clsx(
-                "flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-xl transition-all",
-                tab === (t.key as typeof tab)
-                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                  : "text-gray-700 hover:bg-red-50"
-              )}
-            >
-              <t.icon size={16} />
-              {t.label}
-            </button>
-          ))}
-        </div>
+      {/* Stats */}
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {stats.map((stat, idx) => (
+          <StatCard key={idx} {...stat} />
+        ))}
       </div>
 
-      {/* Content - Tuyển sinh */}
-      {tab === "tuyensinh" && (
-        <div className={`grid gap-6 xl:grid-cols-2 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {/* Enrollment Trend Chart */}
-          <SectionCard 
-            title="Xu hướng tuyển sinh theo tháng"
-            action={<StatBadge color="pink"><TrendingUp size={12} /> +24% so với năm trước</StatBadge>}
-          >
-            <div className="mt-6 grid grid-cols-12 items-end gap-3">
-              {enrollSeries.map((v, i) => (
-                <div key={i} className="flex flex-col items-center gap-3">
-                  <div className="relative w-8">
-                    <div
-                      className="w-8 rounded-t-xl bg-gradient-to-t from-red-600 to-red-500 transition-all hover:from-red-700 hover:to-red-600"
-                      style={{
-                        height: `${(v / maxEnroll) * 200 + 30}px`,
-                      }}
-                      title={`${months[i]}: ${v} học viên`}
-                    />
-                    <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-medium text-gray-600">
-                      {v}
-                    </div>
-                  </div>
-                  <div className="text-xs font-medium text-gray-500 mt-4">{months[i]}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-8 pt-4 border-t border-red-100">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-red-600 to-red-700"></div>
-                  <span className="text-gray-600">Học viên mới</span>
-                </div>
-                <div className="text-gray-900 font-semibold">Tổng: 723 học viên</div>
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* Course Distribution */}
-          <SectionCard title="Phân bố học viên theo khóa học">
-            <div className="space-y-4">
-              {distribution.map((d) => (
-                <div key={d.name} className="group p-3 rounded-xl border border-red-100 hover:border-red-300 hover:bg-red-50/50 transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className={`h-10 w-10 rounded-lg ${d.color} flex items-center justify-center text-white font-bold`}>
-                      {d.pct}%
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-semibold text-gray-900">{d.name}</div>
-                        <div className="text-sm font-bold text-gray-900">{d.students} HV</div>
-                      </div>
-                      <ProgressBar value={d.pct} color={
-                        d.color.includes("violet") ? "purple" :
-                        d.color.includes("emerald") ? "emerald" :
-                        d.color.includes("amber") ? "amber" :
-                        d.color.includes("orange") ? "amber" :
-                        d.color.includes("green") ? "emerald" : "blue"
-                      } />
-                      <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                        <span>Doanh thu: {d.revenue} VND</span>
-                        <span>{d.pct}% tổng số</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          {/* Enrollment Details */}
-          <SectionCard title="Chi tiết tuyển sinh theo khóa học">
-            <div className="grid gap-4 md:grid-cols-2">
-              {distribution.map((c) => (
-                <div
-                  key={c.name}
-                  className="group rounded-xl border border-red-200 bg-white p-4 hover:border-red-300 hover:shadow-md transition-all"
-                >
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className={`h-3 w-3 rounded-full ${c.color}`}></div>
-                      <div className="font-semibold text-gray-900">{c.name}</div>
-                    </div>
-                    <StatBadge color="pink">{c.students} HV</StatBadge>
-                  </div>
-                  <div className="text-3xl font-extrabold text-gray-900">
-                    {c.students}
-                  </div>
-                  <div className="text-sm text-gray-500 mb-3">học viên đang theo học</div>
-                  <div className="mb-2">
-                    <ProgressBar value={(c.students / 80) * 100} color={
-                      c.color.includes("violet") ? "purple" :
-                      c.color.includes("emerald") ? "emerald" :
-                      c.color.includes("amber") ? "amber" :
-                      c.color.includes("orange") ? "amber" :
-                      c.color.includes("green") ? "emerald" : "blue"
-                    } />
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Tỷ lệ lấp đầy</span>
-                    <span className="font-semibold text-gray-900">
-                      {Math.min(Math.round((c.students / 80) * 100), 100)}%
+      {/* Filter Bar */}
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Status Tabs */}
+            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
+              {["ALL", "PENDING", "APPROVED", "REJECTED"].map((item) => {
+                const count = item === "ALL" ? REPORTS.length : REPORTS.filter(r => r.status === item).length;
+                return (
+                  <button
+                    key={item}
+                    onClick={() => setStatus(item as typeof status)}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                      status === item 
+                        ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm' 
+                        : 'text-gray-700 hover:bg-red-50'
+                    }`}
+                  >
+                    {item === "ALL" ? "Táº¥t cáº£" : STATUS_INFO[item as Status].text}
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                      status === item ? 'bg-white/20' : 'bg-gray-100'
+                    }`}>
+                      {count}
                     </span>
-                  </div>
-                </div>
-              ))}
+                  </button>
+                );
+              })}
             </div>
-          </SectionCard>
 
-          {/* Monthly Comparison */}
-          <SectionCard title="So sánh tháng hiện tại vs cùng kỳ">
+            {/* Month Filter */}
+            <div className="flex items-center gap-2">
+              <Calendar size={16} className="text-gray-500" />
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              >
+                {months.map(month => (
+                  <option key={month} value={month}>{month}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tim theo lop, giao vien, ma su co..."
+              className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+            />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Reports Table */}
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed min-w-[1200px]">
+            <thead className="bg-gradient-to-r from-red-50 to-red-100 border-b border-red-200">
+              <tr>
+                <th 
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[320px]"
+                  onClick={() => handleSort("className")}
+                >
+                  <div className="flex items-center gap-2">
+                    Lá»›p há»c
+                    {sortColumn === "className" ? (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[180px]"
+                  onClick={() => handleSort("teacher")}
+                >
+                  <div className="flex items-center gap-2">
+                    GiÃ¡o viÃªn
+                    {sortColumn === "teacher" ? (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-4 py-3 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[140px]"
+                  onClick={() => handleSort("totalStudents")}
+                >
+                  <div className="flex items-center gap-2">
+                    Há»c viÃªn
+                    {sortColumn === "totalStudents" ? (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-4 py-3 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[120px]"
+                  onClick={() => handleSort("progress")}
+                >
+                  <div className="flex items-center gap-2">
+                    Tiáº¿n Ä‘á»™
+                    {sortColumn === "progress" ? (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[180px]"
+                  onClick={() => handleSort("submittedBy")}
+                >
+                  <div className="flex items-center gap-2">
+                    NgÆ°á»i gá»­i
+                    {sortColumn === "submittedBy" ? (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[180px]"
+                  onClick={() => handleSort("status")}
+                >
+                  <div className="flex items-center gap-2">
+                    Tráº¡ng thÃ¡i
+                    {sortColumn === "status" ? (
+                      sortDirection === "asc" ? <ArrowUp size={14} className="text-red-600" /> : <ArrowDown size={14} className="text-red-600" />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-red-100 transition-colors w-[200px]"
+                  onClick={() => handleSort("updatedAt")}
+                >
+                  <div className="flex items-center gap-2">
+                    Cáº­p nháº­t
+                    {sortColumn === "updatedAt" ? (
+                      sortDirection === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 w-[160px]">
+                  Thao tÃ¡c
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-red-100">
+              {list.length > 0 ? (
+                list.map((report) => (
+                  <ReportTableRow key={report.id} report={report} />
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center">
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                      <Search size={24} className="text-red-400" />
+                    </div>
+                    <div className="text-gray-600 font-medium">KhÃ´ng tÃ¬m tháº¥y bÃ¡o cÃ¡o phÃ¹ há»£p</div>
+                    <div className="text-sm text-gray-500 mt-1">Thá»­ thay Ä‘á»•i bá»™ lá»c hoáº·c tÃ¬m kiáº¿m khÃ¡c</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Quick Actions Panel */}
+      <div className={`grid gap-6 lg:grid-cols-3 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {/* Export Section */}
+        <div className="lg:col-span-2">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
+                <Download size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Xuáº¥t bÃ¡o cÃ¡o tá»•ng há»£p</h3>
+                <p className="text-sm text-gray-600">Táº£i file Excel/PDF cho toÃ n bá»™ phá»¥ huynh</p>
+              </div>
+            </div>
+            
             <div className="space-y-4">
-              {[
-                { metric: "Học viên mới", current: 76, previous: 58, change: "+31%" },
-                { metric: "Đăng ký trực tuyến", current: 45, previous: 32, change: "+40%" },
-                { metric: "Đăng ký trực tiếp", current: 31, previous: 26, change: "+19%" },
-                { metric: "Tỷ lệ chuyển đổi", current: "68%", previous: "62%", change: "+6%" },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-red-100 hover:bg-red-50/50">
-                  <div className="font-medium text-gray-900">{item.metric}</div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-gray-900">{item.current}</div>
-                      <div className="text-xs text-gray-500">Hiện tại</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-gray-900">{item.previous}</div>
-                      <div className="text-xs text-gray-500">Cùng kỳ</div>
-                    </div>
-                    <StatBadge color={item.change.startsWith("+") ? "emerald" : "rose"}>
-                      {item.change}
-                    </StatBadge>
-                  </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors flex items-center gap-2">
+                  <FileText size={16} />
+                  Excel tá»•ng há»£p
+                </button>
+                <button className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 hover:bg-rose-100 transition-colors flex items-center gap-2">
+                  <FileText size={16} />
+                  PDF tá»«ng lá»›p
+                </button>
+              </div>
+              
+              <div className="text-sm text-gray-600 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-emerald-500" />
+                  <span>Tá»± Ä‘á»™ng Ä‘Ã³ng dáº¥u trung tÃ¢m</span>
                 </div>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
-      )}
-
-      {/* Content - Doanh thu */}
-      {tab === "doanhthu" && (
-        <div className={`grid gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {/* Revenue Overview */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <SectionCard title="Doanh thu tháng này">
-              <div className="text-4xl font-bold text-gray-900 mb-2">248M VND</div>
-              <div className="flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-600" />
-                <span className="text-emerald-600 font-medium">+15.3%</span>
-                <span className="text-gray-500 text-sm">so với tháng trước</span>
-              </div>
-              <ProgressBar value={85} color="emerald" className="mt-4" />
-              <div className="text-xs text-gray-500 mt-2">Đạt 85% mục tiêu tháng</div>
-            </SectionCard>
-
-            <SectionCard title="Doanh thu trung bình/ngày">
-              <div className="text-4xl font-bold text-gray-900 mb-2">8.27M VND</div>
-              <div className="flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-600" />
-                <span className="text-emerald-600 font-medium">+8.2%</span>
-                <span className="text-gray-500 text-sm">tăng trưởng</span>
-              </div>
-              <div className="mt-4 text-sm text-gray-600">
-                <div className="flex justify-between mb-1">
-                  <span>Cao nhất:</span>
-                  <span className="font-semibold">12.5M VND</span>
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-emerald-500" />
+                  <span>Äá»‹nh dáº¡ng chuáº©n cho phá»¥ huynh</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Thấp nhất:</span>
-                  <span className="font-semibold">5.2M VND</span>
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Tỷ lệ hoàn thành mục tiêu">
-              <div className="text-4xl font-bold text-gray-900 mb-2">142%</div>
-              <div className="flex items-center gap-2">
-                <Target size={16} className="text-red-600" />
-                <span className="text-red-600 font-medium">Vượt 42%</span>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="text-center p-2 rounded-lg bg-emerald-50">
-                  <div className="text-lg font-bold text-emerald-700">12</div>
-                  <div className="text-xs text-emerald-600">Tháng liên tiếp</div>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-red-50">
-                  <div className="text-lg font-bold text-red-700">1.48B</div>
-                  <div className="text-xs text-red-600">Tổng YTD</div>
-                </div>
-              </div>
-            </SectionCard>
-          </div>
-
-          {/* Revenue Chart */}
-          <SectionCard 
-            title="Biểu đồ doanh thu theo tháng"
-            action={<StatBadge color="emerald"><TrendingUp size={12} /> Tăng trưởng ổn định</StatBadge>}
-          >
-            <div className="mt-6">
-              <div className="grid grid-cols-12 gap-4">
-                {revenueData.map((item, i) => (
-                  <div key={i} className="flex flex-col items-center gap-4">
-                    <div className="relative w-8 h-40 flex items-end">
-                      {/* Actual Revenue */}
-                      <div
-                        className="absolute w-8 rounded-t-lg bg-gradient-to-t from-blue-500 to-sky-400"
-                        style={{ height: `${(item.revenue / 2000000) * 160}px` }}
-                        title={`${item.month}: ${(item.revenue / 1000000).toFixed(1)}M`}
-                      />
-                      {/* Target */}
-                      <div
-                        className="absolute w-8 rounded-t-lg border-2 border-amber-500 border-dashed"
-                        style={{ height: `${(item.target / 2000000) * 160}px` }}
-                      />
-                    </div>
-                    <div className="text-xs font-medium text-gray-500">{item.month}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 pt-4 border-t border-red-100">
-                <div className="flex items-center justify-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-sky-500"></div>
-                    <span className="text-sm text-gray-600">Doanh thu thực tế</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full border-2 border-amber-500 border-dashed"></div>
-                    <span className="text-sm text-gray-600">Mục tiêu</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-emerald-500" />
+                  <span>Export theo tá»«ng khá»‘i lá»›p</span>
                 </div>
               </div>
             </div>
-          </SectionCard>
-
-          {/* Revenue by Source */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <SectionCard title="Doanh thu theo nguồn">
-              <div className="space-y-4">
-                {[
-                  { source: "Học phí khóa học", amount: "85%", value: "1.26B", color: "blue" },
-                  { source: "Phí thi chứng chỉ", amount: "8%", value: "118M", color: "emerald" },
-                  { source: "Tài liệu học tập", amount: "4%", value: "59M", color: "purple" },
-                  { source: "Dịch vụ bổ trợ", amount: "3%", value: "44M", color: "amber" },
-                ].map((item, i) => (
-                  <div key={i} className="group p-3 rounded-xl border border-red-100 hover:bg-red-50/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium text-gray-900">{item.source}</div>
-                      <div className="font-bold text-gray-900">{item.value} VND</div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <ProgressBar value={parseInt(item.amount)} color={item.color as any} />
-                      <div className="ml-4 text-sm font-semibold text-gray-900">{item.amount}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Top khóa học doanh thu cao">
-              <div className="space-y-3">
-                {[
-                  { course: "IELTS Foundation", revenue: "285M", students: 45, growth: "+32%" },
-                  { course: "TOEIC Advanced", revenue: "212M", students: 32, growth: "+28%" },
-                  { course: "Business English", revenue: "198M", students: 28, growth: "+24%" },
-                  { course: "Academic Writing", revenue: "155M", students: 22, growth: "+19%" },
-                  { course: "Conversation Practice", revenue: "121M", students: 18, growth: "+15%" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-red-100 hover:bg-red-50/50">
-                    <div>
-                      <div className="font-medium text-gray-900">{item.course}</div>
-                      <div className="text-xs text-gray-500">{item.students} học viên</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-gray-900">{item.revenue} VND</div>
-                      <StatBadge color="emerald">{item.growth}</StatBadge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
           </div>
         </div>
-      )}
 
-      {/* Content - Khóa học */}
-      {tab === "khoahoc" && (
-        <div className={`grid gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {/* Course Performance Overview */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <SectionCard title="Số khóa học đang hoạt động">
-              <div className="text-4xl font-bold text-gray-900 mb-2">7</div>
-              <div className="flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-600" />
-                <span className="text-emerald-600 font-medium">+1 khóa</span>
-                <span className="text-gray-500 text-sm">so với quý trước</span>
+        {/* Notification Section */}
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
+                <Send size={20} />
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="text-center p-2 rounded-lg bg-blue-50">
-                  <div className="text-lg font-bold text-blue-700">4</div>
-                  <div className="text-xs text-blue-600">Đang mở</div>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-amber-50">
-                  <div className="text-lg font-bold text-amber-700">3</div>
-                  <div className="text-xs text-amber-600">Sắp khai giảng</div>
-                </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Gá»­i thÃ´ng bÃ¡o</h3>
+                <p className="text-sm text-gray-600">Äá»“ng bá»™ Ä‘áº¿n phá»¥ huynh</p>
               </div>
-            </SectionCard>
-
-            <SectionCard title="Tỷ lệ hoàn thành trung bình">
-              <div className="text-4xl font-bold text-gray-900 mb-2">94.2%</div>
-              <div className="flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-600" />
-                <span className="text-emerald-600 font-medium">+2.1%</span>
-                <span className="text-gray-500 text-sm">cải thiện</span>
-              </div>
-              <ProgressBar value={94.2} color="emerald" className="mt-4" />
-              <div className="text-xs text-gray-500 mt-2">Mục tiêu: 95%</div>
-            </SectionCard>
-
-            <SectionCard title="Đánh giá học viên">
-              <div className="text-4xl font-bold text-gray-900 mb-2">4.7/5</div>
-              <div className="flex items-center gap-1 mb-4">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star key={star} size={20} className="fill-amber-400 text-amber-400" />
-                ))}
-              </div>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">5 sao:</span>
-                  <span className="font-semibold">68%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">4 sao:</span>
-                  <span className="font-semibold">26%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">3 sao trở xuống:</span>
-                  <span className="font-semibold">6%</span>
-                </div>
-              </div>
-            </SectionCard>
-          </div>
-
-          {/* Course Performance Table */}
-          <SectionCard title="Hiệu suất các khóa học">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-red-100">
-                    <th className="pb-3 text-left font-semibold text-gray-900">Khóa học</th>
-                    <th className="pb-3 text-left font-semibold text-gray-900">Tỷ lệ hoàn thành</th>
-                    <th className="pb-3 text-left font-semibold text-gray-900">Đánh giá</th>
-                    <th className="pb-3 text-left font-semibold text-gray-900">Doanh thu</th>
-                    <th className="pb-3 text-left font-semibold text-gray-900">Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {coursePerformance.map((course, i) => (
-                    <tr key={i} className="border-b border-red-50 hover:bg-red-50/50">
-                      <td className="py-3">
-                        <div className="font-medium text-gray-900">{course.course}</div>
-                      </td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-2">
-                          <ProgressBar value={course.completion} color="emerald" className="w-24" />
-                          <span className="font-semibold">{course.completion}%</span>
-                        </div>
-                      </td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-2">
-                          <Star size={14} className="fill-amber-400 text-amber-400" />
-                          <span className="font-semibold">{course.satisfaction}</span>
-                          <span className="text-sm text-gray-500">/5</span>
-                        </div>
-                      </td>
-                      <td className="py-3 font-bold text-gray-900">{course.revenue} VND</td>
-                      <td className="py-3">
-                        <StatBadge color={
-                          course.completion >= 90 ? "emerald" :
-                          course.completion >= 80 ? "blue" : "amber"
-                        }>
-                          {course.completion >= 90 ? "Xuất sắc" :
-                           course.completion >= 80 ? "Tốt" : "Cần cải thiện"}
-                        </StatBadge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
-          </SectionCard>
-
-          {/* Course Distribution Chart */}
-          <SectionCard title="Phân bổ học viên theo khóa học">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {distribution.map((course) => (
-                <div key={course.name} className="text-center p-4 rounded-xl border border-red-200 bg-white hover:shadow-md transition-all">
-                  <div className={`h-16 w-16 rounded-full ${course.color} flex items-center justify-center mx-auto mb-3 text-white text-2xl font-bold`}>
-                    {course.pct}%
-                  </div>
-                  <div className="font-semibold text-gray-900 mb-1">{course.name}</div>
-                  <div className="text-2xl font-bold text-gray-900 mb-1">{course.students}</div>
-                  <div className="text-sm text-gray-500">học viên</div>
-                  <ProgressBar value={course.pct} className="mt-3" color={
-                    course.color.includes("violet") ? "purple" :
-                    course.color.includes("emerald") ? "emerald" :
-                    course.color.includes("amber") ? "amber" :
-                    course.color.includes("orange") ? "amber" :
-                    course.color.includes("green") ? "emerald" : "blue"
-                  } />
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
-      )}
-
-      {/* Content - Giáo viên */}
-      {tab === "giaovien" && (
-        <div className={`grid gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {/* Teacher Stats */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <SectionCard title="Tổng số giáo viên">
-              <div className="text-4xl font-bold text-gray-900 mb-2">24</div>
-              <div className="flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-600" />
-                <span className="text-emerald-600 font-medium">+6</span>
-                <span className="text-gray-500 text-sm">so với năm ngoái</span>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="text-center p-2 rounded-lg bg-emerald-50">
-                  <div className="text-lg font-bold text-emerald-700">20</div>
-                  <div className="text-xs text-emerald-600">Đang dạy</div>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-blue-50">
-                  <div className="text-lg font-bold text-blue-700">4</div>
-                  <div className="text-xs text-blue-600">Part-time</div>
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Đánh giá trung bình">
-              <div className="text-4xl font-bold text-gray-900 mb-2">4.8/5</div>
-              <div className="flex items-center gap-1 mb-4">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star key={star} size={20} className="fill-amber-400 text-amber-400" />
-                ))}
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Giáo viên 5 sao:</span>
-                  <span className="font-semibold">16 người</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Giáo viên 4 sao:</span>
-                  <span className="font-semibold">8 người</span>
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Tỷ lệ giữ chân">
-              <div className="text-4xl font-bold text-gray-900 mb-2">96%</div>
-              <div className="flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-600" />
-                <span className="text-emerald-600 font-medium">+3%</span>
-                <span className="text-gray-500 text-sm">cải thiện</span>
-              </div>
-              <ProgressBar value={96} color="emerald" className="mt-4" />
-              <div className="text-xs text-gray-500 mt-2">Tỷ lệ cao nhất trong 3 năm</div>
-            </SectionCard>
-          </div>
-
-          {/* Teacher List */}
-          <SectionCard title="Danh sách giáo viên">
+            
             <div className="space-y-3">
-              {teachers.map((teacher, i) => (
-                <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white hover:border-red-300 hover:shadow-sm transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center text-red-600 font-bold">
-                      {teacher.name.split(" ")[1].charAt(0)}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">{teacher.name}</div>
-                      <div className="text-sm text-gray-600">{teacher.subject}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-6">
-                    <div className="text-center">
-                      <div className="flex items-center gap-1">
-                        <Star size={14} className="fill-amber-400 text-amber-400" />
-                        <span className="font-bold text-gray-900">{teacher.rating}</span>
-                      </div>
-                      <div className="text-xs text-gray-500">Đánh giá</div>
-                    </div>
-                    
-                    <div className="text-center">
-                      <div className="font-bold text-gray-900">{teacher.students}</div>
-                      <div className="text-xs text-gray-500">Học viên</div>
-                    </div>
-                    
-                    <StatBadge color={teacher.status === "active" ? "emerald" : "amber"}>
-                      {teacher.status === "active" ? "Đang dạy" : "Nghỉ phép"}
-                    </StatBadge>
-                  </div>
-                </div>
-              ))}
+              <button className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-sm font-semibold text-white hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                <Send size={16} />
+                Gá»­i cho {approvedCount} lá»›p Ä‘Ã£ duyá»‡t
+              </button>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <button className="rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors flex items-center gap-2">
+                  <Mail size={16} />
+                  Email
+                </button>
+                <button className="rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors flex items-center gap-2">
+                  <Zap size={16} />
+                  Zalo OA
+                </button>
+              </div>
             </div>
-          </SectionCard>
-
-          {/* Teacher Performance */}
-          <SectionCard title="Hiệu suất giảng dạy">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                { name: "Ms. Anna", completion: 95, satisfaction: 4.9, students: 45 },
-                { name: "Mr. David", completion: 92, satisfaction: 4.8, students: 38 },
-                { name: "Ms. Sarah", completion: 88, satisfaction: 4.7, students: 32 },
-                { name: "Mr. John", completion: 85, satisfaction: 4.6, students: 28 },
-                { name: "Ms. Lisa", completion: 90, satisfaction: 4.9, students: 42 },
-                { name: "Mr. Robert", completion: 87, satisfaction: 4.7, students: 35 },
-              ].map((teacher, i) => (
-                <div key={i} className="p-4 rounded-xl border border-red-200 bg-white hover:shadow-md transition-all">
-                  <div className="font-semibold text-gray-900 mb-3">{teacher.name}</div>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600">Tỷ lệ hoàn thành</span>
-                        <span className="font-semibold">{teacher.completion}%</span>
-                      </div>
-                      <ProgressBar value={teacher.completion} color="emerald" />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600">Đánh giá học viên</span>
-                        <div className="flex items-center gap-1">
-                          <Star size={12} className="fill-amber-400 text-amber-400" />
-                          <span className="font-semibold">{teacher.satisfaction}</span>
-                        </div>
-                      </div>
-                      <ProgressBar value={teacher.satisfaction * 20} color="amber" />
-                    </div>
-                    <div className="pt-2 border-t border-red-100">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Số học viên:</span>
-                        <span className="font-bold text-gray-900">{teacher.students}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
-      )}
-
-      {/* Content - Cơ sở vật chất */}
-      {tab === "cosovatchat" && (
-        <div className={`grid gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {/* Facility Stats */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <SectionCard title="Tổng số phòng">
-              <div className="text-4xl font-bold text-gray-900 mb-2">18</div>
-              <div className="flex items-center gap-2">
-                <Building size={16} className="text-blue-600" />
-                <span className="text-blue-600 font-medium">+2 phòng mới</span>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="text-center p-2 rounded-lg bg-blue-50">
-                  <div className="text-lg font-bold text-blue-700">14</div>
-                  <div className="text-xs text-blue-600">Đang sử dụng</div>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-amber-50">
-                  <div className="text-lg font-bold text-amber-700">4</div>
-                  <div className="text-xs text-amber-600">Bảo trì</div>
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Tỷ lệ sử dụng">
-              <div className="text-4xl font-bold text-gray-900 mb-2">78%</div>
-              <div className="flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-600" />
-                <span className="text-emerald-600 font-medium">+12%</span>
-                <span className="text-gray-500 text-sm">so với quý trước</span>
-              </div>
-              <ProgressBar value={78} color="blue" className="mt-4" />
-              <div className="text-xs text-gray-500 mt-2">Hiệu quả sử dụng cao</div>
-            </SectionCard>
-
-            <SectionCard title="Sức chứa tổng">
-              <div className="text-4xl font-bold text-gray-900 mb-2">310</div>
-              <div className="flex items-center gap-2">
-                <Users size={16} className="text-red-600" />
-                <span className="text-red-600 font-medium">Đáp ứng 100%</span>
-              </div>
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Phòng học:</span>
-                  <span className="font-semibold">250 chỗ</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Phòng chức năng:</span>
-                  <span className="font-semibold">60 chỗ</span>
-                </div>
-              </div>
-            </SectionCard>
           </div>
 
-          {/* Facility List */}
-          <SectionCard title="Danh sách cơ sở vật chất">
-            <div className="space-y-3">
-              {facilities.map((facility, i) => (
-                <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white hover:border-red-300 hover:shadow-sm transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className={`h-12 w-12 rounded-xl grid place-items-center ${
-                      facility.status === "available" ? "bg-emerald-50 text-emerald-600" :
-                      facility.status === "in-use" ? "bg-blue-50 text-blue-600" :
-                      "bg-amber-50 text-amber-600"
-                    }`}>
-                      <Building size={20} />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">{facility.name}</div>
-                      <div className="text-sm text-gray-600">{facility.type} • {facility.capacity} chỗ</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-6">
-                    <div className="text-center">
-                      <div className="font-bold text-gray-900">{facility.usage}%</div>
-                      <div className="text-xs text-gray-500">Sử dụng</div>
-                    </div>
-                    
-                    <StatBadge color={
-                      facility.status === "available" ? "emerald" :
-                      facility.status === "in-use" ? "blue" : "amber"
-                    }>
-                      {facility.status === "available" ? "Sẵn sàng" :
-                       facility.status === "in-use" ? "Đang dùng" : "Bảo trì"}
-                    </StatBadge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          {/* Facility Usage Chart */}
-          <SectionCard title="Tỷ lệ sử dụng theo phòng">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {facilities.map((facility, i) => (
-                <div key={i} className="p-4 rounded-xl border border-red-200 bg-white hover:shadow-md transition-all">
-                  <div className="font-semibold text-gray-900 mb-3">{facility.name}</div>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600">Tỷ lệ sử dụng</span>
-                        <span className="font-semibold">{facility.usage}%</span>
-                      </div>
-                      <ProgressBar 
-                        value={facility.usage} 
-                        color={
-                          facility.usage >= 80 ? "emerald" :
-                          facility.usage >= 60 ? "blue" : "amber"
-                        }
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-red-100">
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-gray-900">{facility.capacity}</div>
-                        <div className="text-xs text-gray-500">Sức chứa</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-gray-900">
-                          {Math.round(facility.capacity * facility.usage / 100)}
-                        </div>
-                        <div className="text-xs text-gray-500">Sử dụng TB</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          {/* Maintenance Schedule */}
-          <SectionCard title="Lịch bảo trì">
-            <div className="space-y-3">
-              {[
-                { facility: "Phòng học P101", type: "Vệ sinh định kỳ", date: "15/11/2024", status: "planned" },
-                { facility: "Lab 201", type: "Nâng cấp máy tính", date: "20/11/2024", status: "in-progress" },
-                { facility: "Hội trường", type: "Sửa chữa âm thanh", date: "25/11/2024", status: "planned" },
-                { facility: "Thư viện", type: "Bổ sung sách", date: "30/11/2024", status: "planned" },
-                { facility: "Phòng tự học", type: "Thay đèn", date: "05/12/2024", status: "planned" },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-red-100 hover:bg-red-50/50">
-                  <div className="flex items-center gap-3">
-                    <div className={`h-8 w-8 rounded-lg grid place-items-center ${
-                      item.status === "in-progress" ? "bg-blue-50 text-blue-600" :
-                      "bg-amber-50 text-amber-600"
-                    }`}>
-                      <Clock size={14} />
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900">{item.facility}</div>
-                      <div className="text-sm text-gray-600">{item.type}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm font-medium text-gray-700">{item.date}</div>
-                    <StatBadge color={item.status === "in-progress" ? "blue" : "amber"}>
-                      {item.status === "in-progress" ? "Đang thực hiện" : "Đã lên lịch"}
-                    </StatBadge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
+         
         </div>
-      )}
+      </div>
 
-      {/* Footer */}
-      <div className={`mt-8 pt-6 border-t border-red-200 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm text-gray-600">
+      {/* Legend */}
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="text-sm font-semibold text-gray-900 mb-3">ChÃº thÃ­ch tráº¡ng thÃ¡i</div>
+        <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
-            <Zap size={16} className="text-red-600" />
-            <span>Cập nhật thời gian thực • Dữ liệu được cập nhật lúc 14:30</span>
+            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-amber-400 to-orange-500"></div>
+            <span className="text-sm text-gray-600">Chá» duyá»‡t</span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-              <span>Hoạt động tốt</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-              <span>Cần chú ý</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-rose-500"></div>
-              <span>Cần hành động</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+            <span className="text-sm text-gray-600">ÄÃ£ duyá»‡t</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-rose-400 to-pink-500"></div>
+            <span className="text-sm text-gray-600">YÃªu cáº§u bá»• sung</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500"></div>
+            <span className="text-sm text-gray-600">ÄÃ£ gá»­i phá»¥ huynh</span>
           </div>
         </div>
       </div>
