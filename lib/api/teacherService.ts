@@ -48,10 +48,16 @@ export type TeacherSession = {
 export type TeacherTimetableResponse = {
   isSuccess: boolean;
   data: {
-    sessions: TeacherSession[];
-    totalCount: number;
-    pageNumber: number;
-    pageSize: number;
+    sessions: {
+      items: TeacherSession[];
+      totalCount: number;
+      pageNumber: number;
+      pageSize: number;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      length: number;
+      totalPages: number;
+    };
   };
 };
 
