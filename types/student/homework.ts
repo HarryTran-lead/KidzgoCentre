@@ -1,24 +1,16 @@
 // types/student/homework.ts
 
-// Assignment Status Types
-export type AssignmentStatus = 
-  | "SUBMITTED"    // 🟢 Đã nộp
-  | "PENDING"      // 🟡 Chưa nộp
-  | "MISSING"      // 🔴 Quá hạn chưa nộp
-  | "LATE";        // 🟠 Nộp trễ
+export type AssignmentStatus = "SUBMITTED" | "PENDING" | "MISSING" | "LATE";
 
-// Assignment Type
-export type AssignmentType = 
-  | "ESSAY"        // Bài viết
-  | "FILE_UPLOAD"  // Upload file
-  | "QUIZ"         // Trắc nghiệm
-  | "PROJECT"      // Dự án
-  | "PRESENTATION"; // Thuyết trình
+export type AssignmentType =
+  | "ESSAY"
+  | "FILE_UPLOAD"
+  | "QUIZ"
+  | "PROJECT"
+  | "PRESENTATION";
 
-// Attachment Type
 export type AttachmentType = "PDF" | "DOC" | "DOCX" | "LINK" | "VIDEO" | "IMAGE";
 
-// Assignment List Item
 export interface AssignmentListItem {
   id: string;
   title: string;
@@ -27,6 +19,7 @@ export interface AssignmentListItem {
   assignedDate: string;
   dueDate: string;
   status: AssignmentStatus;
+  submissionType?: "FILE" | "IMAGE" | "TEXT" | "LINK" | "QUIZ" | "FILE_AND_TEXT";
   type: AssignmentType;
   score?: number;
   maxScore?: number;
@@ -35,9 +28,7 @@ export interface AssignmentListItem {
   attachmentTypes?: AttachmentType[];
 }
 
-// Assignment Detail
 export interface AssignmentDetail {
-  // Header Info
   id: string;
   title: string;
   className: string;
@@ -46,32 +37,27 @@ export interface AssignmentDetail {
   assignedDate: string;
   dueDate: string;
   status: AssignmentStatus;
-  timeRemaining?: string; // "2 ngày 5 giờ" or "Quá hạn 3 ngày"
-  
-  // Content
+  submissionType?: "FILE" | "IMAGE" | "TEXT" | "LINK" | "QUIZ" | "FILE_AND_TEXT";
+  timeRemaining?: string;
+
   description: string;
   requirements: string[];
   rubric?: RubricCriteria[];
-  
-  // Attachments from teacher
+
   teacherAttachments?: Attachment[];
-  
-  // Submission
+
   submission?: Submission;
   submissionHistory?: Submission[];
   allowResubmit: boolean;
   maxResubmissions?: number;
-  
-  // Grading
+
   grading?: Grading;
-  
-  // System Info
+
   submittedAt?: string;
   gradedAt?: string;
   editCount: number;
 }
 
-// Rubric Criteria
 export interface RubricCriteria {
   id: string;
   criteria: string;
@@ -80,17 +66,15 @@ export interface RubricCriteria {
   earnedPoints?: number;
 }
 
-// Attachment
 export interface Attachment {
   id: string;
   name: string;
   type: AttachmentType;
   url: string;
-  size?: string; // "2.5 MB"
+  size?: string;
   uploadedAt?: string;
 }
 
-// Submission
 export interface Submission {
   id: string;
   submittedAt: string;
@@ -103,7 +87,6 @@ export interface Submission {
   version: number;
 }
 
-// Grading
 export interface Grading {
   score: number;
   maxScore: number;
@@ -118,7 +101,6 @@ export interface Grading {
   }[];
 }
 
-// Stats for list page
 export interface HomeworkStats {
   total: number;
   submitted: number;
@@ -128,7 +110,6 @@ export interface HomeworkStats {
   averageScore?: number;
 }
 
-// Filter Options
 export interface HomeworkFilter {
   status?: AssignmentStatus[];
   subject?: string[];
@@ -140,8 +121,7 @@ export interface HomeworkFilter {
   type?: AssignmentType[];
 }
 
-// Sort Options
-export type SortOption = 
+export type SortOption =
   | "DUE_DATE_ASC"
   | "DUE_DATE_DESC"
   | "ASSIGNED_DATE_ASC"
@@ -149,7 +129,6 @@ export type SortOption =
   | "STATUS"
   | "SUBJECT";
 
-// Badge Config
 export interface StatusBadgeConfig {
   variant: "success" | "warning" | "danger" | "info";
   label: string;
@@ -157,3 +136,4 @@ export interface StatusBadgeConfig {
 }
 
 export type AssignmentStatusConfig = Record<AssignmentStatus, StatusBadgeConfig>;
+

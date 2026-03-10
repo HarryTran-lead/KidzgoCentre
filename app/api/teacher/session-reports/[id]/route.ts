@@ -1,0 +1,1 @@
+export { PUT } from "@/app/api/session-reports/[id]/route";

@@ -52,8 +52,11 @@ export const STUDENT_CLASS_ENDPOINTS = {
 
 export const STUDENT_HOMEWORK_ENDPOINTS = {
   GET_MY_HOMEWORK: "/api/students/homework/my",
+  GET_SUBMITTED: "/api/students/homework/submitted",
+  GET_FEEDBACK_MY: "/api/students/homework/feedback/my",
   GET_BY_ID: (homeworkStudentId: string) => `/api/students/homework/${homeworkStudentId}`,
   SUBMIT: "/api/students/homework/submit",
+  SUBMIT_MULTIPLE_CHOICE: "/api/students/homework/multiple-choice/submit",
 } as const;
 
 export const BACKEND_STUDENT_ENDPOINTS = {
@@ -192,14 +195,34 @@ export const BACKEND_USER_ENDPOINTS = {
 
 // Teacher Endpoints
 export const TEACHER_ENDPOINTS = {
-  ENROLLMENTS: '/api/enrollments',
+  CLASSES: '/api/teacher/classes',
   TIMETABLE: '/api/teacher/timetable',
+  ENROLLMENTS: '/api/enrollments',
   ATTENDANCE: '/api/attendance',
   ATTENDANCE_STUDENTS: '/api/attendance/students',
   SESSIONS: '/api/sessions',
+  SESSIONS_BY_ID: (id: string) => `/api/sessions/${id}`,
   HOMEWORK: '/api/homework',
-  SESSION_REPORTS: '/api/teacher/session-reports',
-  SESSION_REPORT_BY_ID: (id: string) => `/api/teacher/session-reports/${id}`,
+  HOMEWORK_SUBMISSIONS: '/api/homework/submissions',
+  SESSION_REPORTS: '/api/session-reports',
+  SESSION_REPORT_BY_ID: (id: string) => `/api/session-reports/${id}`,
+} as const;
+
+// Monthly Report Endpoints (Client-side → Next.js API Routes)
+export const MONTHLY_REPORT_ENDPOINTS = {
+  BASE: '/api/monthly-reports',
+  JOBS: '/api/monthly-reports/jobs',
+  JOB_BY_ID: (jobId: string) => `/api/monthly-reports/jobs/${jobId}`,
+  AGGREGATE_JOB: (jobId: string) => `/api/monthly-reports/jobs/${jobId}/aggregate`,
+  REPORT_BY_ID: (reportId: string) => `/api/monthly-reports/${reportId}`,
+  GENERATE_DRAFT: (reportId: string) => `/api/monthly-reports/${reportId}/generate-draft`,
+  UPDATE_DRAFT: (reportId: string) => `/api/monthly-reports/${reportId}/draft`,
+  SUBMIT: (reportId: string) => `/api/monthly-reports/${reportId}/submit`,
+  COMMENTS: (reportId: string) => `/api/monthly-reports/${reportId}/comments`,
+  APPROVE: (reportId: string) => `/api/monthly-reports/${reportId}/approve`,
+  REJECT: (reportId: string) => `/api/monthly-reports/${reportId}/reject`,
+  PUBLISH: (reportId: string) => `/api/monthly-reports/${reportId}/publish`,
+  GENERATE_PDF: (reportId: string) => `/api/monthly-reports/${reportId}/generate-pdf`,
 } as const;
 
 // Admin Endpoints (client-side -> Next.js API Routes)
@@ -212,6 +235,7 @@ export const ADMIN_ENDPOINTS = {
   SESSIONS: '/api/sessions',
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
+  LESSON_PLANS: '/api/lesson-plans',
 } as const;
 
 // Lead Endpoints (Client-side → Next.js API Routes)
@@ -372,6 +396,22 @@ export const BACKEND_BLOG_ENDPOINTS = {
   PUBLISH: (id: string) => `/blogs/${id}/publish`,
   UNPUBLISH: (id: string) => `/blogs/${id}/unpublish`,
   GET_PUBLISHED: '/blogs/published',
+} as const;
+// Backend Monthly Report Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_MONTHLY_REPORT_ENDPOINTS = {
+  BASE: '/monthly-reports',
+  JOBS: '/monthly-reports/jobs',
+  JOB_BY_ID: (jobId: string) => `/monthly-reports/jobs/${jobId}`,
+  AGGREGATE_JOB: (jobId: string) => `/monthly-reports/jobs/${jobId}/aggregate`,
+  REPORT_BY_ID: (reportId: string) => `/monthly-reports/${reportId}`,
+  GENERATE_DRAFT: (reportId: string) => `/monthly-reports/${reportId}/generate-draft`,
+  UPDATE_DRAFT: (reportId: string) => `/monthly-reports/${reportId}/draft`,
+  SUBMIT: (reportId: string) => `/monthly-reports/${reportId}/submit`,
+  COMMENTS: (reportId: string) => `/monthly-reports/${reportId}/comments`,
+  APPROVE: (reportId: string) => `/monthly-reports/${reportId}/approve`,
+  REJECT: (reportId: string) => `/monthly-reports/${reportId}/reject`,
+  PUBLISH: (reportId: string) => `/monthly-reports/${reportId}/publish`,
+  GENERATE_PDF: (reportId: string) => `/monthly-reports/${reportId}/generate-pdf`,
 } as const;
 
 // Backend Session Report Endpoints

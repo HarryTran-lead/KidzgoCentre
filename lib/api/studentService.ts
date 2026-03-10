@@ -103,17 +103,29 @@ export type StudentHomeworkResponse = {
 };
 
 // Map API status to UI status
-function mapApiStatusToUiStatus(apiStatus?: number): AssignmentListItem["status"] {
-  switch (apiStatus) {
-    case 1:
-      return "PENDING";
-    case 2:
-      return "SUBMITTED";
-    case 3:
-      return "MISSING";
-    default:
-      return "PENDING";
+function mapApiStatusToUiStatus(
+  apiStatus?: number | string
+): AssignmentListItem["status"] {
+  const normalized =
+    typeof apiStatus === "string" ? apiStatus.trim().toUpperCase() : apiStatus;
+
+  if (normalized === "ASSIGNED" || normalized === 0 || normalized === 1) {
+    return "PENDING";
   }
+  if (normalized === "SUBMITTED" || normalized === 2) {
+    return "SUBMITTED";
+  }
+  if (normalized === "GRADED" || normalized === "REVIEWED") {
+    return "SUBMITTED";
+  }
+  if (normalized === "LATE" || normalized === 3) {
+    return "LATE";
+  }
+  if (normalized === "MISSING" || normalized === 4) {
+    return "MISSING";
+  }
+
+  return "PENDING";
 }
 
 // Map API response to AssignmentListItem
@@ -193,10 +205,24 @@ export async function getStudentHomework(
     data: {
       homeworkAssignments: {
         items,
-        pageNumber: responseData?.data?.homeworkAssignments?.pageNumber || params?.pageNumber || 1,
-        pageSize: responseData?.data?.homeworkAssignments?.pageSize || params?.pageSize || 10,
-        totalCount: responseData?.data?.homeworkAssignments?.totalCount || items.length,
-        totalPages: responseData?.data?.homeworkAssignments?.totalPages || 1,
+        pageNumber:
+          responseData?.data?.homeworkAssignments?.pageNumber ||
+          responseData?.data?.homeworks?.pageNumber ||
+          params?.pageNumber ||
+          1,
+        pageSize:
+          responseData?.data?.homeworkAssignments?.pageSize ||
+          responseData?.data?.homeworks?.pageSize ||
+          params?.pageSize ||
+          10,
+        totalCount:
+          responseData?.data?.homeworkAssignments?.totalCount ||
+          responseData?.data?.homeworks?.totalCount ||
+          items.length,
+        totalPages:
+          responseData?.data?.homeworkAssignments?.totalPages ||
+          responseData?.data?.homeworks?.totalPages ||
+          1,
       },
     },
     isSuccess: responseData?.isSuccess ?? true,
@@ -239,6 +265,11 @@ export async function getStudentHomeworkById(
     }
 
     // Map to AssignmentDetail
+    const submissionTypeRaw =
+      item.submissionType ||
+      item.assignmentSubmissionType ||
+      item.homeworkSubmissionType;
+
     const assignment: AssignmentDetail = {
       id: item.id || item.homeworkStudentId || "",
       title: item.title || item.homeworkTitle || item.assignmentTitle || "",
@@ -252,6 +283,10 @@ export async function getStudentHomeworkById(
         ? new Date(item.dueDate).toLocaleDateString("vi-VN")
         : "",
       status: mapApiStatusToUiStatus(item.status) as AssignmentDetail["status"],
+      submissionType:
+        typeof submissionTypeRaw === "string"
+          ? (submissionTypeRaw.toUpperCase() as AssignmentDetail["submissionType"])
+          : undefined,
       description: item.description || "",
       requirements: item.requirements || [],
       rubric: item.rubric || [],

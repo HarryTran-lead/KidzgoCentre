@@ -184,8 +184,8 @@ export async function fetchHomework(
 
     const queryString = searchParams.toString();
     const endpoint = queryString 
-      ? `${TEACHER_ENDPOINTS.HOMEWORK}?${queryString}` 
-      : TEACHER_ENDPOINTS.HOMEWORK;
+      ? `${TEACHER_ENDPOINTS.HOMEWORK_SUBMISSIONS}?${queryString}` 
+      : TEACHER_ENDPOINTS.HOMEWORK_SUBMISSIONS;
     
     const response = await get<any>(endpoint);
     
