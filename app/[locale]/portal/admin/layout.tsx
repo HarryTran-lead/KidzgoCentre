@@ -39,7 +39,6 @@ export default async function PortalLayout({ children, params }: Props) {
         // Gọi trực tiếp backend API (không qua Next.js API route)
         const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
         const apiUrl = `${BASE_URL}${BACKEND_BRANCH_ENDPOINTS.GET_ALL}/all?isActive=true`;
-        console.log("Fetching branches from:", apiUrl);
         
         const response = await fetch(apiUrl, {
           method: "GET",
@@ -51,11 +50,9 @@ export default async function PortalLayout({ children, params }: Props) {
         });
 
         const data: GetAllBranchesApiResponse = await response.json();
-        console.log("Branch API Response:", data);
         
         if (data.isSuccess && data.data) {
           branches = data.data.branches;
-          console.log("Fetched branches successfully:", branches?.length, "branches");
         } else {
           console.log("No branches data or API failed:", data);
         }
@@ -65,8 +62,6 @@ export default async function PortalLayout({ children, params }: Props) {
     }
   }
   
-  console.log("Admin Layout - Role:", role, "Branches count:", branches ? branches.length : 0);
-
   return (
     <div className="h-dvh w-full">
       <div className="flex h-full">
