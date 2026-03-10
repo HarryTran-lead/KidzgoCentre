@@ -13,7 +13,8 @@ import {
   getAllStudents, 
   createParentAccount, 
   createStudentProfile,
-  deleteProfile
+  deleteProfile,
+  reactivateProfile,
 } from "@/lib/api/profileService";
 import type { CreateParentProfileRequest, CreateStudentProfileRequest } from "@/types/profile";
 import CreateParentProfileModal from "@/components/admin/profile/CreateParentProfileModal";
@@ -84,6 +85,7 @@ import {
   Eye,
   Edit,
   RefreshCw,
+  RotateCcw,
   ChevronLeft,
   ChevronRight,
   AlertCircle,
@@ -355,9 +357,11 @@ export default function AccountsPage() {
   const [showViewLinkedModal, setShowViewLinkedModal] = useState(false);
   const [showProfileDetailModal, setShowProfileDetailModal] = useState(false);
   const [showProfileDeleteModal, setShowProfileDeleteModal] = useState(false);
+  const [showReactivateProfileModal, setShowReactivateProfileModal] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [selectedParentForView, setSelectedParentForView] = useState<{ id: string; name: string } | null>(null);
   const [selectedProfileForDelete, setSelectedProfileForDelete] = useState<{ id: string; name: string } | null>(null);
+  const [selectedProfileForReactivate, setSelectedProfileForReactivate] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch users and profiles from API once (no server-side filtering for smooth UX)
   useEffect(() => {
@@ -712,6 +716,37 @@ export default function AccountsPage() {
         variant: "destructive",
       });
       throw error;
+    }
+  };
+
+  // Handle reactivate locked profile
+  const handleOpenReactivateProfileModal = (id: string, displayName: string) => {
+    setSelectedProfileForReactivate({ id, name: displayName });
+    setShowReactivateProfileModal(true);
+  };
+
+  const handleConfirmReactivateProfile = async () => {
+    if (!selectedProfileForReactivate) return;
+
+    try {
+      await reactivateProfile(selectedProfileForReactivate.id);
+
+      toast({
+        title: "Thành công",
+        description: `Profile "${selectedProfileForReactivate.name}" đã được kích hoạt lại`,
+        variant: "success",
+      });
+
+      setShowReactivateProfileModal(false);
+      setSelectedProfileForReactivate(null);
+      fetchProfiles();
+    } catch (error: any) {
+      console.error("Error reactivating profile:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể kích hoạt lại profile",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1646,6 +1681,15 @@ export default function AccountsPage() {
                                 <Users size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
                             )}
+                            {!profile.isActive && (
+                              <button
+                                onClick={() => handleOpenReactivateProfileModal(profile.id, profile.displayName)}
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group cursor-pointer"
+                                title="Kích hoạt lại"
+                              >
+                                <RotateCcw size={18} className="group-hover:scale-110 transition-transform" />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleOpenDeleteProfileModal(profile.id, profile.displayName)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors group cursor-pointer"
@@ -1791,6 +1835,20 @@ export default function AccountsPage() {
             confirmText="Xóa"
             cancelText="Hủy"
             variant="danger"
+          />
+
+          <ConfirmModal
+            isOpen={showReactivateProfileModal}
+            onClose={() => {
+              setShowReactivateProfileModal(false);
+              setSelectedProfileForReactivate(null);
+            }}
+            onConfirm={handleConfirmReactivateProfile}
+            title="Xác nhận kích hoạt lại profile"
+            message={`Bạn có chắc chắn muốn kích hoạt lại profile "${selectedProfileForReactivate?.name}"?`}
+            confirmText="Kích hoạt"
+            cancelText="Hủy"
+            variant="success"
           />
         </>
       )}
