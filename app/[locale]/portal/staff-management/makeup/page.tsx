@@ -39,7 +39,7 @@ import { get } from "@/lib/axios";
 
 /* ===================== Types ===================== */
 
-type LeaveRequestStatusLabel = "Auto-approve" | "Đã duyệt" | "Chờ duyệt" | "Từ chối";
+type LeaveRequestStatusLabel = "Đã duyệt" | "Chờ duyệt" | "Từ chối";
 
 type LeaveRequest = {
   id: string;
@@ -95,7 +95,7 @@ const statusMap = {
   PENDING: "Chờ duyệt",
   APPROVED: "Đã duyệt",
   REJECTED: "Từ chối",
-  AUTO_APPROVED: "Auto-approve",
+  AUTO_APPROVED: "Đã duyệt",
 } as const;
 
 type NormalizedStatusKey = keyof typeof statusMap;
@@ -105,7 +105,6 @@ const statusOptions: (LeaveRequestStatusLabel | "Tất cả")[] = [
   "Chờ duyệt",
   "Đã duyệt",
   "Từ chối",
-  "Auto-approve",
 ];
 
 /* ===================== Helpers ===================== */
@@ -116,6 +115,19 @@ const pickValue = (obj: any, paths: string[]) => {
     if (v !== undefined && v !== null && v !== "") return v;
   }
   return undefined;
+};
+
+const isAutoApprovedLeaveRequest = (item: LeaveRequestRecord) => {
+  const status = String((item as any).status ?? "").trim().toUpperCase();
+  if (status === "AUTO_APPROVED" || status === "AUTOAPPROVED" || status === "AUTO_APPROVE") {
+    return true;
+  }
+
+  const requestedAt = (item as any).requestedAt;
+  const approvedAt = (item as any).approvedAt;
+  const noticeHours = Number((item as any).noticeHours ?? Number.NaN);
+
+  return !!requestedAt && !!approvedAt && requestedAt === approvedAt && Number.isFinite(noticeHours) && noticeHours >= 24;
 };
 
 const unwrap = (res: any) => {
@@ -332,7 +344,7 @@ const mapLeaveRequests = (
           : formatDateVN(start)
         : "-",
       status: statusLabel,
-      credit: statusLabel === "Auto-approve" && isSingleDay ? 1 : 0,
+      credit: statusKey !== "REJECTED" && isSingleDay ? 1 : 0,
       note: (item as any).reason ?? "-",
       raw: item,
     };
@@ -645,7 +657,7 @@ export default function Page() {
     const pending = requestItems.filter((r) => r.status === "Chờ duyệt").length;
     const approved = requestItems.filter((r) => r.status === "Đã duyệt").length;
     const rejected = requestItems.filter((r) => r.status === "Từ chối").length;
-    const auto = requestItems.filter((r) => r.status === "Auto-approve").length;
+    const auto = requestItems.filter((r) => r.raw && isAutoApprovedLeaveRequest(r.raw)).length;
     return { total, pending, approved, rejected, auto };
   }, [requestItems]);
 
@@ -1140,12 +1152,10 @@ export default function Page() {
         open={openMakeupModal}
         onClose={() => setOpenMakeupModal(false)}
         onCreate={async (payload: CreateMakeupPayload) => {
-            await applyMakeupCredit(payload.makeupCreditId, {
+          await applyMakeupCredit(payload.makeupCreditId, {
+            studentProfileId: payload.studentProfileId,
             classId: payload.targetClassId,
             targetSessionId: payload.targetSessionId,
-            date: payload.date,
-            time: payload.time,
-            note: payload.note,
           });
           await fetchUsedCredits();
           setActiveTab("makeup");

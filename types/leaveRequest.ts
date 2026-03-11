@@ -7,13 +7,16 @@ export interface LeaveRequestPayload {
   studentProfileId: string;
   classId: string;
   sessionDate: string;
-  endDate: string;
+  endDate?: string | null;
   reason: string;
 }
 
 export interface LeaveRequestRecord extends LeaveRequestPayload {
   id: string;
   status?: LeaveRequestStatus;
+  noticeHours?: number;
+  requestedAt?: string;
+  approvedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
   submittedAt?: string;
