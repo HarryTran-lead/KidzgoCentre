@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Search,
@@ -78,10 +78,10 @@ export default function PlacementTestsPage() {
   const [invigilators, setInvigilators] = useState<any[]>([]);
   const [isLoadingDropdownData, setIsLoadingDropdownData] = useState(false);
 
-  // Fetch placement tests when filters change
+  // Single effect — re-runs whenever any relevant dep changes (same pattern as leads page)
   useEffect(() => {
     fetchPlacementTests();
-  }, [filters, sortKey, sortDir]);
+  }, [filters, sortKey, sortDir, currentPage, pageSize]);
 
   // Fetch dropdown data once on mount
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function PlacementTestsPage() {
     fetchLeads();
     fetchStudentProfiles();
     fetchClasses();
-  }, []); // Empty dependency array - only run once
+  }, []);
 
   const fetchPlacementTests = async () => {
     setIsLoading(true);
@@ -103,6 +103,8 @@ export default function PlacementTestsPage() {
         queryParams.append("sortBy", sortKey);
         queryParams.append("sortOrder", sortDir);
       }
+      queryParams.append("page", String(currentPage));
+      queryParams.append("pageSize", String(pageSize));
 
       const response = await fetch(
         `${PLACEMENT_TEST_ENDPOINTS.GET_ALL}?${queryParams.toString()}`,
@@ -116,7 +118,7 @@ export default function PlacementTestsPage() {
       if (!response.ok) throw new Error("Failed to fetch placement tests");
 
       const data = await response.json();
-      setTests(data.data?.items || data.data || []);
+      setTests(data.data?.placementTests || data.data?.items || []);
       setTotalCount(data.data?.totalCount || 0);
       setTotalPages(data.data?.totalPages || 0);
     } catch (error) {
@@ -854,9 +856,10 @@ export default function PlacementTestsPage() {
             {/* Status Filter */}
             <Select
               value={filters.status}
-              onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, status: value }))
-              }
+              onValueChange={(value) => {
+                setCurrentPage(1);
+                setFilters((prev) => ({ ...prev, status: value }));
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Trạng thái" />
@@ -870,10 +873,22 @@ export default function PlacementTestsPage() {
               </SelectContent>
             </Select>
 
+            {/* Page Size */}
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            >
+              <option value={5}>5 / trang</option>
+              <option value={10}>10 / trang</option>
+              <option value={20}>20 / trang</option>
+              <option value={50}>50 / trang</option>
+            </select>
+
             {/* Refresh Button */}
             <Button
               variant="outline"
-              onClick={fetchPlacementTests}
+              onClick={() => fetchPlacementTests()}
               className="flex items-center gap-2"
             >
               <RefreshCw size={16} />
