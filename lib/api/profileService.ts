@@ -97,6 +97,13 @@ export async function deleteProfile(id: string): Promise<DeleteProfileApiRespons
 }
 
 /**
+ * Reactivate a locked profile
+ */
+export async function reactivateProfile(id: string): Promise<{ success: boolean; message?: string }> {
+  return put<{ success: boolean; message?: string }>(PROFILE_ENDPOINTS.REACTIVATE(id), {});
+}
+
+/**
  * Link Student Profile to Parent Profile
  * Step 3: Admin links the Student profile to a Parent profile
  */

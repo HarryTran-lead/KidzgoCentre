@@ -7,12 +7,14 @@ export const dynamic = "force-dynamic";
 
 export default async function LoginPage(props: {
   params: Promise<{ locale: Locale }>;
+  searchParams: Promise<{ redirect?: string }>;
 }) {
   const { locale } = await props.params;
+  const { redirect } = await props.searchParams;
 
   return (
     <div className="w-full">
-      <LoginCard locale={locale} />
+      <LoginCard locale={locale} returnTo={redirect ?? ""} />
     </div>
   );
 }

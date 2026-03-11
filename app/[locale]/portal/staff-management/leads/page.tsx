@@ -730,30 +730,44 @@ export default function Page() {
     }
   };
 
-  const handleTestResultSubmit = async (data: Omit<PlacementTestResultRequest, "id">) => {
+  const handleTestResultSubmit = async (data: Omit<PlacementTestResultRequest, "id">, note: string) => {
     if (!selectedTest) return;
 
     try {
-      const response = await fetch(
-        PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(selectedTest.id),
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAccessToken()}`,
-          },
-          body: JSON.stringify(data),
-        }
-      );
+      const token = getAccessToken();
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
+      const apiCalls: Promise<Response>[] = [
+        fetch(PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(selectedTest.id), {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(data),
+        }),
+      ];
+
+      if (note) {
+        apiCalls.push(
+          fetch(PLACEMENT_TEST_ENDPOINTS.ADD_NOTE(selectedTest.id), {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ note }),
+          })
+        );
+      }
+
+      const responses = await Promise.all(apiCalls);
+      const failedRes = responses.find((r) => !r.ok);
+      if (failedRes) {
+        const errorData = await failedRes.json().catch(() => null);
         throw new Error(errorData?.message || "Failed to save results");
       }
 
       toast({
         title: "Thành công",
-        description: "Đã lưu kết quả placement test",
+        description: note ? "Đã lưu kết quả và ghi chú placement test" : "Đã lưu kết quả placement test",
         variant: "success",
       });
 
