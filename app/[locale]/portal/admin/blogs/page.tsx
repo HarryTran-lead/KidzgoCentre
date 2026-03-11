@@ -516,7 +516,7 @@ export default function BlogManagementPage() {
       </div>
 
       {/* Filters */}
-      <div className={`bg-white rounded-2xl border border-red-100 shadow-sm p-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="flex-1 relative">
@@ -567,17 +567,35 @@ export default function BlogManagementPage() {
       </div>
 
       {/* Table */}
-      <div className={`bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+      <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {/* Table Header */}
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-gray-900">Danh sách bài viết</h2>
+              {selectedRows.length > 0 && (
+                <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                  {selectedRows.length} đã chọn
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="font-medium">{list.length} bài viết</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-red-100">
-            <thead className="bg-gradient-to-r from-red-50/50 to-red-100/30">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
               <tr>
-                <th className="py-3 px-6 text-left">
+                <th className="py-3 px-4 text-center">
                   <input
                     type="checkbox"
-                    checked={selectedRows.length === currentRows.length && currentRows.length > 0}
+                    checked={currentRows.length > 0 && selectedRows.length === currentRows.length}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                    className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
                   />
                 </th>
                 <th className="py-3 px-6 text-left">
@@ -600,19 +618,19 @@ export default function BlogManagementPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-red-100">
+            <tbody className="divide-y divide-gray-100">
               {currentRows.length > 0 ? (
                 currentRows.map((blog) => (
                   <tr
                     key={blog.id}
                     className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4 text-center">
                       <input
                         type="checkbox"
                         checked={selectedRows.includes(blog.id)}
                         onChange={() => toggleSelectRow(blog.id)}
-                        className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                        className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
                       />
                     </td>
                     <td className="py-4 px-6">
