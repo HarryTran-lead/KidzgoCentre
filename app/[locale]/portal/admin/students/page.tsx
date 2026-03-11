@@ -349,24 +349,68 @@ export default function Page(){
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  className="p-1.5 rounded-lg border border-red-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-50 transition-colors"
-                  onClick={() => goPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  aria-label="Trang trước"
-                >
-                  <ChevronLeft size={16} className="text-gray-600" />
-                </button>
-                <div className="text-sm font-semibold text-gray-900 px-3">
-                  {currentPage} / {totalPages}
-                </div>
-                <button
-                  className="p-1.5 rounded-lg border border-red-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-50 transition-colors"
-                  onClick={() => goPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  aria-label="Trang sau"
-                >
-                  <ChevronRight size={16} className="text-gray-600" />
-                </button>
+                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    onClick={() => goPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages: (number | string)[] = [];
+                      const maxVisible = 7;
+
+                      if (totalPages <= maxVisible) {
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        if (currentPage <= 3) {
+                          for (let i = 1; i <= 5; i++) pages.push(i);
+                          pages.push("...");
+                          pages.push(totalPages);
+                        } else if (currentPage >= totalPages - 2) {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                        } else {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                          pages.push("...");
+                          pages.push(totalPages);
+                        }
+                      }
+
+                      return pages.map((p, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => typeof p === "number" && goPage(p)}
+                          disabled={p === "..."}
+                          className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                            p === currentPage
+                              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                              : p === "..."
+                              ? "cursor-default text-gray-400"
+                              : "border border-red-200 hover:bg-red-50 text-gray-700"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+
+                  <button
+                    onClick={() => goPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
               </div>
             </div>
           </div>

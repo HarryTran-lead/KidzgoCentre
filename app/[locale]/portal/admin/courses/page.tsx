@@ -608,6 +608,7 @@ export default function Page() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedCourseDetail, setSelectedCourseDetail] = useState<any | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -711,6 +712,23 @@ export default function Page() {
       setSortDirection("asc");
     }
     setPage(1);
+  };
+
+  // Handle checkbox selection
+  const handleSelectAll = () => {
+    if (selectedCourses.length === pagedRows.length) {
+      setSelectedCourses([]);
+    } else {
+      setSelectedCourses(pagedRows.map(c => c.id));
+    }
+  };
+
+  const handleSelectCourse = (courseId: string) => {
+    setSelectedCourses(prev =>
+      prev.includes(courseId)
+        ? prev.filter(id => id !== courseId)
+        : [...prev, courseId]
+    );
   };
 
   const goPage = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
@@ -980,7 +998,7 @@ export default function Page() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-                Quản lý môn học
+                Quản lý chương trình học
               </h1>
               <p className="text-sm text-gray-600">Quản lý chương trình học và khóa học</p>
             </div>
@@ -1056,7 +1074,7 @@ export default function Page() {
         )}
 
         {/* Search & Filters */}
-        <div className={`rounded-2xl border border-gray-200 bg-white p-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="relative flex-1 max-w-3xl min-w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
@@ -1099,7 +1117,14 @@ export default function Page() {
           {/* Table Header */}
           <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Danh sách khóa học</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold text-gray-900">Danh sách khóa học</h2>
+                {selectedCourses.length > 0 && (
+                  <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                    {selectedCourses.length} đã chọn
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-medium">{rows.length} khóa học</span>
               </div>
@@ -1111,6 +1136,14 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
+                  <th className="py-3 px-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={pagedRows.length > 0 && selectedCourses.length === pagedRows.length}
+                      onChange={handleSelectAll}
+                      className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
+                    />
+                  </th>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên khóa học</SortableHeader>
                   <SortableHeader field="level" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trình độ</SortableHeader>
                   <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời lượng</SortableHeader>
@@ -1128,6 +1161,14 @@ export default function Page() {
                       key={c.id}
                       className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                     >
+                      <td className="py-3 px-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedCourses.includes(c.id)}
+                          onChange={() => handleSelectCourse(c.id)}
+                          className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
+                        />
+                      </td>
                       <td className="py-3 px-6">
                         <div className="text-sm text-gray-900 truncate">{c.name}</div>
                         <div className="text-xs text-gray-500 truncate">{c.desc}</div>
@@ -1191,7 +1232,7 @@ export default function Page() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center">
+                    <td colSpan={9} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
@@ -1214,23 +1255,67 @@ export default function Page() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                     onClick={() => goPage(currentPage - 1)}
                     disabled={currentPage === 1}
-                    aria-label="Trang trước"
+                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    aria-label="Previous page"
                   >
-                    <ChevronLeft size={16} className="text-gray-600" />
+                    <ChevronLeft size={18} />
                   </button>
-                  <div className="text-sm font-semibold text-gray-900 px-3">
-                    {currentPage} / {totalPages}
+
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages: (number | string)[] = [];
+                      const maxVisible = 7;
+
+                      if (totalPages <= maxVisible) {
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        if (currentPage <= 3) {
+                          for (let i = 1; i <= 5; i++) pages.push(i);
+                          pages.push("...");
+                          pages.push(totalPages);
+                        } else if (currentPage >= totalPages - 2) {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                        } else {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                          pages.push("...");
+                          pages.push(totalPages);
+                        }
+                      }
+
+                      return pages.map((p, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => typeof p === "number" && goPage(p)}
+                          disabled={p === "..."}
+                          className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                            p === currentPage
+                              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                              : p === "..."
+                              ? "cursor-default text-gray-400"
+                              : "border border-red-200 hover:bg-red-50 text-gray-700"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ));
+                    })()}
                   </div>
+
                   <button
-                    className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                     onClick={() => goPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    aria-label="Trang sau"
+                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    aria-label="Next page"
                   >
-                    <ChevronRight size={16} className="text-gray-600" />
+                    <ChevronRight size={18} />
                   </button>
                 </div>
               </div>

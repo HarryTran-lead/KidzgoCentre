@@ -214,6 +214,7 @@ export default function ClassDetailPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -271,6 +272,23 @@ export default function ClassDetailPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, statusFilter]);
+
+  // Handle checkbox selection
+  const handleSelectAll = () => {
+    if (selectedStudents.length === paginatedStudents.length) {
+      setSelectedStudents([]);
+    } else {
+      setSelectedStudents(paginatedStudents.map(s => s.id));
+    }
+  };
+
+  const handleSelectStudent = (studentId: string) => {
+    setSelectedStudents(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
 
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -472,11 +490,18 @@ export default function ClassDetailPage() {
       <div className={`bg-white rounded-2xl border border-gray-200 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="p-6 border-b border-gray-200">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">Danh sách học viên</h2>
-              <p className="text-sm text-gray-600">
-                {filteredStudents.length} / {allStudents.length} học viên
-              </p>
+            <div className="flex items-center gap-3">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">Danh sách học viên</h2>
+                <p className="text-sm text-gray-600">
+                  {filteredStudents.length} / {allStudents.length} học viên
+                </p>
+              </div>
+              {selectedStudents.length > 0 && (
+                <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                  {selectedStudents.length} đã chọn
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -539,6 +564,14 @@ export default function ClassDetailPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-gradient-to-r from-red-50 to-red-100 border-b border-gray-200">
+                <th className="px-4 py-4 text-center">
+                  <input
+                    type="checkbox"
+                    checked={paginatedStudents.length > 0 && selectedStudents.length === paginatedStudents.length}
+                    onChange={handleSelectAll}
+                    className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
+                  />
+                </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Học viên</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Liên hệ</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Đã vắng</th>
@@ -555,6 +588,14 @@ export default function ClassDetailPage() {
                     className={`border-b border-gray-100 transition-colors hover:bg-red-50/30 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"
                       }`}
                   >
+                    <td className="px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudents.includes(student.id)}
+                        onChange={() => handleSelectStudent(student.id)}
+                        className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <StudentAvatar name={student.name} />
@@ -611,7 +652,7 @@ export default function ClassDetailPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-6 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-6 text-center text-sm text-gray-500">
                     {/* intentionally left blank when không có kết quả lọc; empty state chung phía dưới sẽ xử lý khi thật sự chưa có học viên */}
                   </td>
                 </tr>
