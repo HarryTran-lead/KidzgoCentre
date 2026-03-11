@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, X } from "lucide-react";
@@ -10,9 +10,14 @@ type SessionNoteModalProps = {
   initialFeedback?: string;
   canEdit?: boolean;
   isSubmitting?: boolean;
+  isEnhancing?: boolean;
+  canSubmitForReview?: boolean;
+  isSubmittingForReview?: boolean;
   error?: string | null;
   onClose: () => void;
   onSubmit: (feedback: string) => Promise<void> | void;
+  onEnhance?: (draft: string) => Promise<string | null> | string | null;
+  onSubmitForReview?: () => Promise<void> | void;
 };
 
 export default function SessionNoteModal({
@@ -22,19 +27,41 @@ export default function SessionNoteModal({
   initialFeedback = "",
   canEdit = false,
   isSubmitting = false,
+  isEnhancing = false,
+  canSubmitForReview = false,
+  isSubmittingForReview = false,
   error,
   onClose,
   onSubmit,
+  onEnhance,
+  onSubmitForReview,
 }: SessionNoteModalProps) {
   const [feedback, setFeedback] = useState(initialFeedback);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setFeedback(initialFeedback ?? "");
+      setEnhanceError(null);
     }
   }, [initialFeedback, open]);
 
   const actionLabel = useMemo(() => (canEdit ? "Lưu chỉnh sửa" : "Gửi nhận xét"), [canEdit]);
+
+  const handleEnhance = async () => {
+    if (!onEnhance) return;
+    const draft = feedback.trim();
+    if (!draft) return;
+    try {
+      setEnhanceError(null);
+      const enhanced = await onEnhance(draft);
+      if (enhanced && enhanced.trim()) {
+        setFeedback(enhanced.trim());
+      }
+    } catch (err: any) {
+      setEnhanceError(err?.message || "Không thể AI enhance feedback.");
+    }
+  };
 
   if (!open) return null;
 
@@ -76,6 +103,17 @@ export default function SessionNoteModal({
             placeholder="Nhập nhận xét cho học sinh của buổi học này..."
             className="w-full rounded-xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300"
           />
+          {onEnhance ? (
+            <button
+              type="button"
+              onClick={handleEnhance}
+              disabled={isEnhancing || isSubmitting || !feedback.trim()}
+              className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-60 cursor-pointer"
+            >
+              {isEnhancing ? "Đang AI enhance..." : "AI enhance feedback"}
+            </button>
+          ) : null}
+          {enhanceError ? <p className="text-sm text-red-600">{enhanceError}</p> : null}
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
         </div>
 
@@ -91,12 +129,23 @@ export default function SessionNoteModal({
           <button
             type="button"
             onClick={() => onSubmit(feedback.trim())}
-            disabled={isSubmitting || !feedback.trim()}
+            disabled={isSubmitting || isSubmittingForReview || !feedback.trim()}
             className="px-4 py-2 rounded-lg text-sm text-white bg-gradient-to-r from-red-600 to-red-700 hover:opacity-95 disabled:opacity-60 inline-flex items-center gap-2 cursor-pointer"
           >
             {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : null}
             {actionLabel}
           </button>
+          {onSubmitForReview ? (
+            <button
+              type="button"
+              onClick={() => onSubmitForReview()}
+              disabled={!canSubmitForReview || isSubmitting || isSubmittingForReview}
+              className="px-4 py-2 rounded-lg text-sm text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:opacity-95 disabled:opacity-60 inline-flex items-center gap-2 cursor-pointer"
+            >
+              {isSubmittingForReview ? <Loader2 size={14} className="animate-spin" /> : null}
+              Submit review
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

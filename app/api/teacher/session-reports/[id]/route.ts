@@ -1,1 +1,1 @@
-export { PUT } from "@/app/api/session-reports/[id]/route";
+export { GET, PUT } from "@/app/api/session-reports/[id]/route";

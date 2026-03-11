@@ -1,7 +1,10 @@
-import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
+﻿import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 import type {
   CreateSessionReportRequest,
+  EnhanceSessionFeedbackRequest,
+  EnhanceSessionFeedbackResult,
+  RejectSessionReportRequest,
   SessionReportApiResponse,
   SessionReportItem,
   UpdateSessionReportRequest,
@@ -24,8 +27,20 @@ type SessionReportListApiResponse = {
 
 type FetchSessionReportsParams = {
   sessionId?: string;
+  studentProfileId?: string;
+  teacherUserId?: string;
+  classId?: string;
+  fromDate?: string;
+  toDate?: string;
   pageNumber?: number;
   pageSize?: number;
+};
+
+type EnhanceFeedbackApiResponse = {
+  success?: boolean;
+  isSuccess?: boolean;
+  message?: string;
+  data?: EnhanceSessionFeedbackResult;
 };
 
 function extractSessionReport(data?: SessionReportApiResponse["data"]): SessionReportItem | null {
@@ -63,15 +78,10 @@ function extractSessionReports(data?: SessionReportListApiResponse["data"]): Ses
 function normalizeCreatePayload(payload: CreateSessionReportRequest): any {
   const p: any = payload as any;
   return {
-    // giữ các field cũ (nếu BE ignore thì OK)
     ...p,
-
-    // map camelCase -> PascalCase để BE nhận đúng
     SessionId: p.SessionId ?? p.sessionId,
     StudentProfileId: p.StudentProfileId ?? p.studentProfileId,
     ReportDate: p.ReportDate ?? p.reportDate,
-
-    // QUAN TRỌNG: BE validate "Feedback"
     Feedback: p.Feedback ?? p.feedback,
   };
 }
@@ -84,13 +94,25 @@ function normalizeUpdatePayload(payload: UpdateSessionReportRequest): any {
   };
 }
 
-export async function createSessionReport(
-  payload: CreateSessionReportRequest,
-): Promise<SessionReportItem | null> {
+function normalizeRejectPayload(payload: RejectSessionReportRequest): any {
+  const p: any = payload as any;
+  return {
+    reason: p.reason ?? p.Reason,
+  };
+}
+
+function ensureToken() {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
   }
+  return token;
+}
+
+export async function createSessionReport(
+  payload: CreateSessionReportRequest,
+): Promise<SessionReportItem | null> {
+  const token = ensureToken();
 
   const normalizedPayload = normalizeCreatePayload(payload);
 
@@ -117,10 +139,7 @@ export async function updateSessionReport(
   reportId: string,
   payload: UpdateSessionReportRequest,
 ): Promise<SessionReportItem | null> {
-  const token = getAccessToken();
-  if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
-  }
+  const token = ensureToken();
 
   const normalizedPayload = normalizeUpdatePayload(payload);
 
@@ -146,10 +165,7 @@ export async function updateSessionReport(
 export async function fetchSessionReports(
   sessionReportParams?: string | FetchSessionReportsParams,
 ): Promise<SessionReportItem[]> {
-  const token = getAccessToken();
-  if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
-  }
+  const token = ensureToken();
 
   const normalizedParams: FetchSessionReportsParams =
     typeof sessionReportParams === "string"
@@ -159,6 +175,21 @@ export async function fetchSessionReports(
   const query = new URLSearchParams();
   if (normalizedParams.sessionId) {
     query.set("sessionId", normalizedParams.sessionId);
+  }
+  if (normalizedParams.studentProfileId) {
+    query.set("studentProfileId", normalizedParams.studentProfileId);
+  }
+  if (normalizedParams.teacherUserId) {
+    query.set("teacherUserId", normalizedParams.teacherUserId);
+  }
+  if (normalizedParams.classId) {
+    query.set("classId", normalizedParams.classId);
+  }
+  if (normalizedParams.fromDate) {
+    query.set("fromDate", normalizedParams.fromDate);
+  }
+  if (normalizedParams.toDate) {
+    query.set("toDate", normalizedParams.toDate);
   }
   if (normalizedParams.pageNumber) {
     query.set("pageNumber", String(normalizedParams.pageNumber));
@@ -187,3 +218,125 @@ export async function fetchSessionReports(
   const json: SessionReportListApiResponse = await res.json();
   return extractSessionReports(json?.data);
 }
+
+export async function getSessionReportById(reportId: string): Promise<SessionReportItem | null> {
+  const token = ensureToken();
+
+  const res = await fetch(TEACHER_ENDPOINTS.SESSION_REPORT_BY_ID(reportId), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Get session report detail error", res.status, text);
+    throw new Error("Không thể tải chi tiết session report.");
+  }
+
+  const json: SessionReportApiResponse = await res.json();
+  return extractSessionReport(json?.data);
+}
+
+async function postSessionReportAction(url: string, body?: unknown): Promise<SessionReportItem | null> {
+  const token = ensureToken();
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Session report action error", res.status, text, url);
+    throw new Error("Không thể xử lý session report.");
+  }
+
+  const json: SessionReportApiResponse = await res.json();
+  return extractSessionReport(json?.data);
+}
+
+export async function submitSessionReport(reportId: string): Promise<SessionReportItem | null> {
+  return postSessionReportAction(TEACHER_ENDPOINTS.SESSION_REPORT_SUBMIT(reportId));
+}
+
+export async function approveSessionReport(reportId: string): Promise<SessionReportItem | null> {
+  return postSessionReportAction(TEACHER_ENDPOINTS.SESSION_REPORT_APPROVE(reportId));
+}
+
+export async function rejectSessionReport(
+  reportId: string,
+  payload: RejectSessionReportRequest,
+): Promise<SessionReportItem | null> {
+  return postSessionReportAction(
+    TEACHER_ENDPOINTS.SESSION_REPORT_REJECT(reportId),
+    normalizeRejectPayload(payload),
+  );
+}
+
+export async function publishSessionReport(reportId: string): Promise<SessionReportItem | null> {
+  return postSessionReportAction(TEACHER_ENDPOINTS.SESSION_REPORT_PUBLISH(reportId));
+}
+
+export async function fetchTeacherMonthlySessionReports(
+  teacherUserId: string,
+  params: { year: number; month: number; pageNumber?: number; pageSize?: number },
+): Promise<SessionReportItem[]> {
+  const token = ensureToken();
+  const query = new URLSearchParams({
+    year: String(params.year),
+    month: String(params.month),
+    pageNumber: String(params.pageNumber ?? 1),
+    pageSize: String(params.pageSize ?? 10),
+  });
+
+  const url = `${TEACHER_ENDPOINTS.SESSION_REPORT_TEACHER_MONTHLY(teacherUserId)}?${query.toString()}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Fetch teacher monthly session reports error", res.status, text);
+    throw new Error("Không thể tải session report theo tháng.");
+  }
+
+  const json: SessionReportListApiResponse = await res.json();
+  return extractSessionReports(json?.data);
+}
+
+export async function enhanceSessionFeedback(
+  payload: EnhanceSessionFeedbackRequest,
+): Promise<EnhanceSessionFeedbackResult | null> {
+  const token = ensureToken();
+
+  const res = await fetch(TEACHER_ENDPOINTS.SESSION_REPORT_AI_ENHANCE_FEEDBACK, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Enhance session feedback error", res.status, text);
+    throw new Error("Không thể AI enhance feedback.");
+  }
+
+  const json: EnhanceFeedbackApiResponse = await res.json();
+  return json?.data ?? null;
+}
+

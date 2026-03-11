@@ -1,6 +1,6 @@
 ﻿"use client";
-import MonthlyReportsWorkspace from "@/components/reports/monthly-reports-workspace";
+import ManagementFeedbackWorkspace from "@/components/reports/management-feedback-workspace";
 
 export default function AdminFeedbackMonthlyReportPage() {
-  return <MonthlyReportsWorkspace role="management" />;
+  return <ManagementFeedbackWorkspace />;
 }
