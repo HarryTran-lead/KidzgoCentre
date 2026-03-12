@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     }
 
     const { search } = new URL(req.url);
-    const upstream = await fetch(`${buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.CREATE)}${search}`, {
+    const upstream = await fetch(`${buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.BASE)}${search}`, {
       method: "GET",
       headers: {
         Authorization: authHeader,
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     const normalizedPayload = normalizeCreatePayload(payload);
 
     // ✅ IMPORTANT: send payload FLAT (no { request: ... })
-    const upstream = await fetch(buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.CREATE), {
+    const upstream = await fetch(buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.BASE), {
       method: "POST",
       headers: {
         Authorization: authHeader,
