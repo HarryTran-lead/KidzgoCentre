@@ -1,7 +1,6 @@
-
-"use client";
-import MonthlyReportsWorkspace from "@/components/reports/monthly-reports-workspace";
+﻿"use client";
+import TeacherFeedbackWorkspace from "@/components/reports/teacher-feedback-workspace";
 
 export default function TeacherFeedbackPage() {
- return <MonthlyReportsWorkspace role="teacher" />;
+ return <TeacherFeedbackWorkspace />;
 }

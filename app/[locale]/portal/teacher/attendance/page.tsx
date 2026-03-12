@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
@@ -34,7 +34,13 @@ import {
 
 import type { AttendanceStatus, LessonDetail, SessionApiItem, Student } from "@/types/teacher/attendance";
 import type { SessionReportItem } from "@/types/teacher/sessionReport";
-import { createSessionReport, fetchSessionReports, updateSessionReport } from "@/app/api/teacher/sessionReport";
+import {
+  createSessionReport,
+  enhanceSessionFeedback,
+  fetchSessionReports,
+  submitSessionReport,
+  updateSessionReport,
+} from "@/app/api/teacher/sessionReport";
 import SessionNoteModal from "@/components/teacher/attendance/SessionNoteModal";
 
 type FilterField = {
@@ -91,6 +97,7 @@ const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 type SessionReportState = {
   reportId: string;
   feedback: string;
+  status?: string;
 };
 const SESSION_REPORT_PAGE_SIZE = 100;
 const SESSION_REPORT_MAX_PAGES = 20;
@@ -124,6 +131,7 @@ function pickSessionReportFromStudent(student: any, sessionId: string): SessionR
     singleReport?.feedback ?? singleReport?.Feedback ?? singleReport?.note ?? singleReport?.comment ?? "",
   ).trim();
   const singleReportId = String(singleReport?.id ?? singleReport?.reportId ?? singleReport?.Id ?? "").trim();
+  const singleReportStatus = String(singleReport?.status ?? singleReport?.Status ?? "").trim();
 
   const reportList = Array.isArray(student?.sessionReports)
     ? student.sessionReports
@@ -142,10 +150,12 @@ function pickSessionReportFromStudent(student: any, sessionId: string): SessionR
   const listReportId = String(
     reportFromList?.id ?? reportFromList?.reportId ?? reportFromList?.Id ?? "",
   ).trim();
+  const listStatus = String(reportFromList?.status ?? reportFromList?.Status ?? "").trim();
 
   return {
     feedback: listFeedback || singleReportFeedback || directNote,
     reportId: listReportId || singleReportId || directReportId,
+    status: listStatus || singleReportStatus || undefined,
   };
 }
 const buildSessionReportKey = (sessionId: string, studentId: string, rowKey: string): string => {
@@ -230,7 +240,7 @@ function Pagination({
           disabled={currentPage === 1}
           className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          ←
+          â†
         </button>
 
         {pages.map((page) => (
@@ -252,7 +262,7 @@ function Pagination({
           disabled={currentPage === totalPages}
           className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          →
+          â†’
         </button>
       </div>
     </div>
@@ -309,6 +319,8 @@ export default function TeacherAttendancePage() {
   const [selectedStudentForNote, setSelectedStudentForNote] = useState<StudentRow | null>(null);
   const [noteModalError, setNoteModalError] = useState<string | null>(null);
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+  const [isEnhancingNote, setIsEnhancingNote] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   // State for multi-select checkboxes
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
@@ -511,6 +523,7 @@ const loadSessionReports = async () => {
         acc[reportStudentId] = {
           reportId: String(report?.id ?? "").trim(),
           feedback: String(report?.feedback ?? "").trim(),
+          status: String(report?.status ?? "").trim() || undefined,
         };
         reportTimestampByStudentId[reportStudentId] = currentTs;
         return acc;
@@ -542,12 +555,14 @@ const loadSessionReports = async () => {
 
         const note = (reportFromList?.feedback || persistedSessionReport.feedback || "").trim();
         const reportId = String(reportFromList?.reportId || persistedSessionReport.reportId || "").trim();
+        const reportStatus = String(reportFromList?.status || persistedSessionReport.status || "").trim();
 
         if (note || reportId) {
           const reportKey = buildSessionReportKey(selectedSessionId, safeStudentId, rowKey);
           nextSessionReports[reportKey] = {
             reportId,
             feedback: note,
+            status: reportStatus || undefined,
           };
         }
         return {
@@ -624,16 +639,22 @@ const loadSessionReports = async () => {
     if (!selectedSessionId || !selectedStudentForNote) return;
 
     const normalizedFeedback = feedback.trim();
-        const reportKey = buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey);
+    const reportKey = buildSessionReportKey(
+      selectedSessionId,
+      selectedStudentForNote.studentId,
+      selectedStudentForNote.rowKey,
+    );
     const existingReport = sessionReports[reportKey];
- const existingReportId = String(existingReport?.reportId ?? "").trim();
+    const existingReportId = String(existingReport?.reportId ?? "").trim();
     const studentProfileId = String(selectedStudentForNote.studentId ?? "").trim();
     const canSyncWithApi = GUID_REGEX.test(studentProfileId);
+
     try {
       setIsSubmittingNote(true);
       setNoteModalError(null);
 
-  let reportId = existingReportId;
+      let reportId = existingReportId;
+      let reportStatus = existingReport?.status;
       if (canSyncWithApi) {
         const report = existingReportId
           ? await updateSessionReport(existingReportId, { feedback: normalizedFeedback })
@@ -645,28 +666,94 @@ const loadSessionReports = async () => {
             });
 
         reportId = String(report?.id ?? existingReportId ?? "").trim();
+        reportStatus = String(report?.status ?? "").trim() || reportStatus || "DRAFT";
       }
 
       setSessionReports((prev) => ({
         ...prev,
         [reportKey]: {
-          reportId,          feedback: normalizedFeedback,
+          reportId,
+          feedback: normalizedFeedback,
+          status: reportStatus,
         },
       }));
 
       setAttendanceList((prev) =>
-  prev.map((r) => (r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: normalizedFeedback || undefined } : r)),      );
+        prev.map((r) =>
+          r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: normalizedFeedback || undefined } : r,
+        ),
+      );
 
       handleCloseNoteModal();
     } catch (err: any) {
- console.error("Submit note error:", err);
-      setNoteModalError(err.message || "Không thể lưu note.");
+      console.error("Submit note error:", err);
+      setNoteModalError(err.message || "Khong the luu note.");
     } finally {
       setIsSubmittingNote(false);
     }
   };
+
+  const handleEnhanceStudentNote = async (draft: string) => {
+    if (!selectedSessionId || !selectedStudentForNote) return null;
+
+    const studentProfileId = String(selectedStudentForNote.studentId ?? "").trim();
+    if (!GUID_REGEX.test(studentProfileId)) {
+      throw new Error("Hoc sinh chua co profile hop le de AI enhance.");
+    }
+
+    setIsEnhancingNote(true);
+    try {
+      const result = await enhanceSessionFeedback({
+        draft,
+        sessionId: selectedSessionId,
+        studentProfileId,
+      });
+      return result?.enhancedFeedback?.trim() || null;
+    } finally {
+      setIsEnhancingNote(false);
+    }
+  };
+
+  const handleSubmitStudentNoteForReview = async () => {
+    if (!selectedSessionId || !selectedStudentForNote) return;
+
+    const reportKey = buildSessionReportKey(
+      selectedSessionId,
+      selectedStudentForNote.studentId,
+      selectedStudentForNote.rowKey,
+    );
+    const existingReportId = String(sessionReports[reportKey]?.reportId ?? "").trim();
+    if (!existingReportId) {
+      setNoteModalError("Vui long luu note truoc khi submit review.");
+      return;
+    }
+
+    try {
+      setIsSubmittingReview(true);
+      setNoteModalError(null);
+      const updated = await submitSessionReport(existingReportId);
+      const nextStatus = String(updated?.status ?? "").trim() || "REVIEW";
+
+      setSessionReports((prev) => ({
+        ...prev,
+        [reportKey]: {
+          ...(prev[reportKey] ?? { reportId: existingReportId, feedback: "" }),
+          reportId: existingReportId,
+          status: nextStatus,
+        },
+      }));
+
+      handleCloseNoteModal();
+    } catch (err: any) {
+      setNoteModalError(err?.message || "Khong the submit session report de review.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   const syncSessionReportsWithAttendance = useCallback(async () => {
     if (!selectedSessionId) return;
+    type ReportSyncResult = { reportKey: string; reportId: string; feedback: string; status: string };
 
     const reportSyncTasks = attendanceList
       .map((student) => {
@@ -697,25 +784,32 @@ const loadSessionReports = async () => {
           }
 
           const reportId = String(report?.id ?? existingReportId ?? "").trim();
-          return { reportKey, reportId, feedback: note };
+          const status = String(report?.status ?? "").trim() || existingReport?.status || "DRAFT";
+          return { reportKey, reportId, feedback: note, status };
         };
       })
-      .filter((task): task is (() => Promise<{ reportKey: string; reportId: string; feedback: string } | null>) => task !== null);
+      .filter(
+        (task): task is (() => Promise<ReportSyncResult | null>) =>
+          task !== null,
+      );
 
     if (!reportSyncTasks.length) return;
 
     const results = await Promise.allSettled(reportSyncTasks.map((task) => task()));
     const failedCount = results.filter((result) => result.status === "rejected").length;
 
-    const successItems = results
-      .filter((result): result is PromiseFulfilledResult<{ reportKey: string; reportId: string; feedback: string }> => result.status === "fulfilled" && result.value !== null)
-      .map((result) => result.value);
+    const successItems: ReportSyncResult[] = [];
+    results.forEach((result) => {
+      if (result.status === "fulfilled" && result.value) {
+        successItems.push(result.value);
+      }
+    });
 
     if (successItems.length) {
       setSessionReports((prev) => {
         const next = { ...prev };
-        successItems.forEach(({ reportKey, reportId, feedback }) => {
-          next[reportKey] = { reportId, feedback };
+        successItems.forEach(({ reportKey, reportId, feedback, status }) => {
+          next[reportKey] = { reportId, feedback, status };
         });
         return next;
       });
@@ -862,7 +956,7 @@ const loadSessionReports = async () => {
                   onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
                 />
-                <span className="text-gray-400 text-sm">→</span>
+                <span className="text-gray-400 text-sm">â†’</span>
                 <input
                   type="date"
                   value={dateRange.to}
@@ -961,7 +1055,7 @@ const loadSessionReports = async () => {
                         <div className="flex items-center gap-1.5">
                           <CalendarDays size={16} className="text-red-600" />
                           <span className="font-medium">{selectedLesson.date}</span>
-                          <span>•</span>
+                          <span>â€¢</span>
                           <span>{selectedLesson.time}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1059,7 +1153,7 @@ const loadSessionReports = async () => {
 
               <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tỉ lệ chuyên cần</div>
+                  <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tỷ lệ chuyên cần</div>
                   <div className="p-2 rounded-lg bg-gray-100">
                     <TrendingUp size={20} className="text-gray-600" />
                   </div>
@@ -1259,7 +1353,7 @@ const loadSessionReports = async () => {
           <SessionNoteModal
             open={noteModalOpen}
             studentName={selectedStudentForNote?.name || "Học sinh"}
-            sessionLabel={selectedLesson ? `${selectedLesson.lesson} • ${selectedLesson.date} • ${selectedLesson.time}` : undefined}
+            sessionLabel={selectedLesson ? `${selectedLesson.lesson} â€¢ ${selectedLesson.date} â€¢ ${selectedLesson.time}` : undefined}
             initialFeedback={
               selectedStudentForNote && selectedSessionId
                 ? sessionReports[
@@ -1277,12 +1371,31 @@ const loadSessionReports = async () => {
                 ]?.reportId,
             )}
             isSubmitting={isSubmittingNote}
+            isEnhancing={isEnhancingNote}
+            canSubmitForReview={Boolean(
+              selectedStudentForNote &&
+                selectedSessionId &&
+                sessionReports[
+                  buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
+                ]?.reportId &&
+                String(
+                  sessionReports[
+                    buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
+                  ]?.status ?? "",
+                ).toUpperCase() !== "REVIEW",
+            )}
+            isSubmittingForReview={isSubmittingReview}
             error={noteModalError}
             onClose={handleCloseNoteModal}
             onSubmit={handleSubmitStudentNote}
+            onEnhance={handleEnhanceStudentNote}
+            onSubmitForReview={handleSubmitStudentNoteForReview}
           />
         </div>
       ) : null}
     </div>
   );
 }
+
+
+

@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
+  Building2,
+  CalendarDays,
   CheckCircle2,
   Clock,
   FileBarChart,
   FileText,
+  RefreshCw,
   Send,
 } from "lucide-react";
 import type { ClassItem, Student } from "@/types/teacher/classes";
@@ -291,6 +294,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   const [showTeacherTools, setShowTeacherTools] = useState(false);
   const [showManageTools, setShowManageTools] = useState(false);
   const [showRecentComments, setShowRecentComments] = useState(false);
+  const [jobFlowLoading, setJobFlowLoading] = useState(false);
 
   const canManage = role === "management";
   const isTeacher = role === "teacher";
@@ -510,19 +514,71 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     };
   }, [canManage]);
 
-  const createJob = async () => {
-    if (!branchId.trim()) return setError("Vui lòng chọn chi nhánh.");
+  const aggregateJob = useCallback(async (jobId: string) => {
+    await apiFetch(`/api/monthly-reports/jobs/${jobId}/aggregate`, { method: "POST" });
+  }, []);
+
+  const resolveJobIdFromPayload = (payload: unknown) => {
+    if (!payload || typeof payload !== "object") return "";
+    const job = payload as { id?: string; job?: { id?: string }; data?: { id?: string } };
+    return job.id || job.job?.id || job.data?.id || "";
+  };
+
+  const createJob = useCallback(async () => {
+    if (!branchId.trim()) {
+      setError("Vui lòng chọn chi nhánh.");
+      return;
+    }
+
+    setJobFlowLoading(true);
+    setError("");
+    setMessage("");
+
     try {
-      await apiFetch("/api/monthly-reports/jobs", {
+      const created = await apiFetch("/api/monthly-reports/jobs", {
         method: "POST",
         body: JSON.stringify({ month, year, branchId }),
       });
-      setMessage("Đã khởi tạo đợt báo cáo tháng.");
-      fetchData();
+
+      let jobId = resolveJobIdFromPayload(created);
+
+      if (!jobId) {
+        const jobsQuery = new URLSearchParams({
+          month: `${month}`,
+          year: `${year}`,
+          branchId,
+          pageNumber: "1",
+          pageSize: "200",
+        });
+        const refreshedJobs = await apiFetch<JobPayload>(
+          `/api/monthly-reports/jobs?${jobsQuery.toString()}`,
+        );
+        const matchingJobs = getPaginatedItems<MonthlyJob>(refreshedJobs, "jobs").filter(
+          (job) => job.branchId === branchId && job.month === month && job.year === year,
+        );
+        jobId =
+          (matchingJobs.length > 0 ? matchingJobs[0]?.id : "") ||
+          (matchingJobs.length > 0 ? matchingJobs[matchingJobs.length - 1]?.id : "") ||
+          "";
+      }
+
+      if (!jobId) {
+        throw new Error("Không tìm thấy đợt báo cáo vừa khởi tạo để đồng bộ dữ liệu.");
+      }
+
+      await aggregateJob(jobId);
+      setMessage("Đã khởi tạo đợt báo cáo và đồng bộ dữ liệu.");
+      await fetchData();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Không thể khởi tạo đợt báo cáo.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Không thể khởi tạo đợt báo cáo và đồng bộ dữ liệu.",
+      );
+    } finally {
+      setJobFlowLoading(false);
     }
-  };
+  }, [aggregateJob, branchId, fetchData, month, year]);
 
   const runAction = async (
     reportId: string,
@@ -1260,118 +1316,178 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50/40 via-white to-white p-4 md:p-6 space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white">
-              <FileBarChart size={24} />
+    <div className="min-h-screen space-y-5 bg-[radial-gradient(circle_at_top_left,_rgba(254,226,226,0.9),_transparent_34%),linear-gradient(180deg,_#fff7f7_0%,_#ffffff_42%,_#fffdf8_100%)] p-4 md:p-6">
+      <div className="overflow-hidden rounded-[28px] border border-rose-100 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
+        <div className="grid gap-0 xl:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)]">
+          <div className="bg-gradient-to-br from-red-700 via-rose-700 to-orange-500 p-6 text-white md:p-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/90">
+              <FileBarChart size={14} />
+              Monthly Reports
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Feedback lớp học theo tháng</h1>
-              <p className="text-sm text-gray-600">
-                Quy trình dễ dùng: Giáo viên nộp báo cáo &rarr; Quản lý duyệt/góp ý &rarr; Công bố cho phụ huynh và học viên.
-
-              </p>
+            <div className="mt-5 flex items-start gap-4">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-lg shadow-red-950/20">
+                <FileBarChart size={28} />
+              </div>
+              <div className="space-y-3">
+                <h1 className="text-2xl font-bold leading-tight md:text-3xl">
+                  Feedback lớp học theo tháng
+                </h1>
+                <p className="max-w-2xl text-sm leading-6 text-white/85">
+                  Giao diện này gom toàn bộ luồng của teacher, staff và admin vào một workspace dễ theo dõi:
+                  chọn kỳ báo cáo, xem tiến độ, rồi đi thẳng vào tab thao tác phù hợp với vai trò.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                <div className="text-xs uppercase tracking-[0.18em] text-white/70">Teacher</div>
+                <div className="mt-2 text-sm font-semibold">Soạn nháp, nhận góp ý, submit lại</div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                <div className="text-xs uppercase tracking-[0.18em] text-white/70">Staff/Admin</div>
+                <div className="mt-2 text-sm font-semibold">Duyệt, reject có góp ý, publish</div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                <div className="text-xs uppercase tracking-[0.18em] text-white/70">Parent/Student</div>
+                <div className="mt-2 text-sm font-semibold">Chỉ xem báo cáo đã công bố</div>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {!isTeacher && (
-              <>
-                <input
-                  className="rounded-xl border px-3 py-2 text-sm"
-                  type="number"
-                  min={1}
-                  max={12}
-                  value={month}
-                  onChange={(e) => setMonth(Number(e.target.value))}
-                />
-                <input
-                  className="rounded-xl border px-3 py-2 text-sm"
-                  type="number"
-                  value={year}
-                  onChange={(e) => setYear(Number(e.target.value))}
-                />
-              </>
-            )}
-            {canManage && (
-              <select
-                className="rounded-xl border px-3 py-2 text-sm min-w-56"
-                value={branchId}
-                onChange={() => {}}
-                disabled
-                title="Chi nhánh đồng bộ theo bộ lọc ở sidebar"
-              >
-                <option value="">
-                  {branchesLoading ? "Đang tải chi nhánh..." : "Chọn chi nhánh"}
-                </option>
-                {branchOptions.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name || branch.code || branch.id}
-                  </option>
-                ))}
-              </select>
-            )}
-            <button
-              onClick={handleManualRefresh}
-              className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm"
-            >
-              Làm mới
-            </button>
-            {canManage && (
-              <button
-                onClick={createJob}
-                className="rounded-xl bg-red-600 px-3 py-2 text-sm text-white"
-              >
-                Khởi tạo đợt báo cáo
-              </button>
-            )}
+          <div className="bg-gradient-to-b from-white to-rose-50/60 p-6 md:p-8">
+            <div className="rounded-[24px] border border-rose-100 bg-white/95 p-5 shadow-[0_14px_40px_rgba(244,63,94,0.08)]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Thiết lập kỳ báo cáo</div>
+                  <div className="mt-1 text-xs leading-5 text-slate-500">
+                    Chọn tháng, năm và chi nhánh trước khi xem hoặc khởi tạo dữ liệu.
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-rose-50 p-3 text-rose-600">
+                  <CalendarDays size={18} />
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                {!isTeacher && (
+                  <>
+                    <label className="space-y-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tháng</span>
+                      <input
+                        className="w-full rounded-2xl border-2 border-rose-100 bg-rose-50/30 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:bg-white"
+                        type="number"
+                        min={1}
+                        max={12}
+                        value={month}
+                        onChange={(e) => setMonth(Number(e.target.value))}
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Năm</span>
+                      <input
+                        className="w-full rounded-2xl border-2 border-rose-100 bg-rose-50/30 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:bg-white"
+                        type="number"
+                        value={year}
+                        onChange={(e) => setYear(Number(e.target.value))}
+                      />
+                    </label>
+                  </>
+                )}
+                {canManage && (
+                  <label className={`space-y-2 ${!isTeacher ? "sm:col-span-2" : ""}`}>
+                    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      <Building2 size={13} />
+                      Chi nhánh
+                    </span>
+                    <select
+                      className="w-full rounded-2xl border-2 border-rose-100 bg-slate-50 px-4 py-3 text-sm text-slate-500 outline-none"
+                      value={branchId}
+                      onChange={() => {}}
+                      disabled
+                      title="Chi nhánh đồng bộ theo bộ lọc ở sidebar"
+                    >
+                      <option value="">
+                        {branchesLoading ? "Đang tải chi nhánh..." : "Chọn chi nhánh"}
+                      </option>
+                      {branchOptions.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name || branch.code || branch.id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  onClick={handleManualRefresh}
+                  className="inline-flex items-center gap-2 rounded-2xl border-2 border-rose-200 bg-white px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                >
+                  <RefreshCw size={16} />
+                  Làm mới dữ liệu
+                </button>
+                {canManage && (
+                  <button
+                    onClick={createJob}
+                    disabled={jobFlowLoading}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:from-red-700 hover:to-rose-700 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
+                  >
+                    <FileBarChart size={16} />
+                    {jobFlowLoading ? "Đang khởi tạo và đồng bộ..." : "Khởi tạo và đồng bộ báo cáo"}
+                  </button>
+                )}
+              </div>
+
+              {error && <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+              {message && (
+                <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p>
+              )}
+            </div>
           </div>
         </div>
-
-        {error && <p className="mt-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-        {message && (
-          <p className="mt-3 rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-2xl border border-red-100 bg-white p-4 shadow-sm">
-          <div className="text-sm text-red-600">Tổng báo cáo</div>
-          <div className="text-2xl font-bold">{stats.total}</div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-[24px] border border-rose-100 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">Tổng báo cáo</div>
+          <div className="mt-3 text-3xl font-bold text-slate-900">{stats.total}</div>
+          <div className="mt-2 text-sm text-slate-500">Toàn bộ báo cáo trong kỳ đang chọn.</div>
         </div>
-        <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
-          <div className="text-sm text-amber-600">Bản nháp</div>
-          <div className="text-2xl font-bold">{stats.drafts}</div>
+        <div className="rounded-[24px] border border-amber-100 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-500">Bản nháp</div>
+          <div className="mt-3 text-3xl font-bold text-slate-900">{stats.drafts}</div>
+          <div className="mt-2 text-sm text-slate-500">Những báo cáo teacher còn đang hoàn thiện.</div>
         </div>
-        <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
-          <div className="text-sm text-blue-600">Đã nộp</div>
-          <div className="text-2xl font-bold">{stats.submitted}</div>
+        <div className="rounded-[24px] border border-sky-100 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-500">Đã nộp</div>
+          <div className="mt-3 text-3xl font-bold text-slate-900">{stats.submitted}</div>
+          <div className="mt-2 text-sm text-slate-500">Đang chờ staff hoặc admin review.</div>
         </div>
-        <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-          <div className="text-sm text-emerald-600">Đã duyệt</div>
-          <div className="text-2xl font-bold">{stats.approved}</div>
+        <div className="rounded-[24px] border border-emerald-100 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-500">Đã duyệt</div>
+          <div className="mt-3 text-3xl font-bold text-slate-900">{stats.approved}</div>
+          <div className="mt-2 text-sm text-slate-500">Sẵn sàng công bố cho phụ huynh và học viên.</div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+      <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
         <div className="flex flex-wrap gap-2">
           {workspaceTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                 activeTab === tab.id
-                  ? "bg-red-600 text-white shadow-sm"
-                  : "bg-slate-50 text-slate-700 hover:bg-red-50 hover:text-red-700"
+                  ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-rose-100"
+                  : "bg-slate-50 text-slate-700 hover:bg-rose-50 hover:text-rose-700"
               }`}
             >
               {tab.label}
             </button>
           ))}
         </div>
-        <p className="px-2 pt-2 text-xs text-slate-600">
+        <p className="px-2 pt-3 text-sm text-slate-500">
           {activeTab === "overview" && "Tổng quan: xem số liệu nhanh và hạng mục ưu tiên."}
           {activeTab === "reports" && "Danh sách báo cáo: tìm kiếm, lọc, duyệt và xem chi tiết từng báo cáo."}
           {activeTab === "teacher-tools" && "Công cụ giáo viên: chọn lớp/học sinh, xem dữ liệu buổi học, tạo nháp AI."}

@@ -207,6 +207,13 @@ export const TEACHER_ENDPOINTS = {
   HOMEWORK_SUBMISSIONS: '/api/homework/submissions',
   SESSION_REPORTS: '/api/session-reports',
   SESSION_REPORT_BY_ID: (id: string) => `/api/session-reports/${id}`,
+  SESSION_REPORT_SUBMIT: (id: string) => `/api/session-reports/${id}/submit`,
+  SESSION_REPORT_APPROVE: (id: string) => `/api/session-reports/${id}/approve`,
+  SESSION_REPORT_REJECT: (id: string) => `/api/session-reports/${id}/reject`,
+  SESSION_REPORT_PUBLISH: (id: string) => `/api/session-reports/${id}/publish`,
+  SESSION_REPORT_TEACHER_MONTHLY: (teacherUserId: string) =>
+    `/api/session-reports/teachers/${teacherUserId}/monthly`,
+  SESSION_REPORT_AI_ENHANCE_FEEDBACK: '/api/session-reports/ai/enhance-feedback',
 } as const;
 
 // Monthly Report Endpoints (Client-side → Next.js API Routes)
@@ -420,8 +427,15 @@ export const BACKEND_MONTHLY_REPORT_ENDPOINTS = {
 
 // Backend Session Report Endpoints
 export const BACKEND_SESSION_REPORT_ENDPOINTS = {
-  CREATE: '/session-reports',
-  UPDATE: (id: string) => `/session-reports/${id}`,
+  BASE: '/session-reports',
+  REPORT_BY_ID: (id: string) => `/session-reports/${id}`,
+  SUBMIT: (id: string) => `/session-reports/${id}/submit`,
+  APPROVE: (id: string) => `/session-reports/${id}/approve`,
+  REJECT: (id: string) => `/session-reports/${id}/reject`,
+  PUBLISH: (id: string) => `/session-reports/${id}/publish`,
+  TEACHER_MONTHLY: (teacherUserId: string) =>
+    `/session-reports/teachers/${teacherUserId}/monthly`,
+  AI_ENHANCE_FEEDBACK: '/session-reports/ai/enhance-feedback',
 } as const;
 
 // Ticket Endpoints (Client-side → Next.js API Routes)
