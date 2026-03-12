@@ -90,6 +90,7 @@ export const BACKEND_SESSION_ENDPOINTS = {
   CREATE: '/sessions',
   UPDATE: (id: string) => `/sessions/${id}`,
   DELETE: (id: string) => `/sessions/${id}`,
+  GENERATE_FROM_PATTERN: '/sessions/generate-from-pattern',
 } as const;
 
 export const BACKEND_CLASS_ENDPOINTS = {
@@ -240,6 +241,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSROOMS: '/api/classrooms',
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
   SESSIONS: '/api/sessions',
+  SESSIONS_GENERATE_FROM_PATTERN: '/api/sessions/generate-from-pattern',
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
   LESSON_PLANS: '/api/lesson-plans',

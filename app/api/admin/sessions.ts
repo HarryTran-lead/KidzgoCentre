@@ -7,6 +7,54 @@ import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
 import type { CreateSessionRequest, Session } from "@/types/admin/sessions";
 
+/**
+ * Generate sessions from class schedule pattern
+ */
+export async function generateSessionsFromPattern(
+  payload: {
+    classId: string;
+    roomId?: string;
+    onlyFutureSessions?: boolean;
+  }
+): Promise<{ isSuccess: boolean; data?: any; message?: string }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để tạo lịch học.");
+  }
+
+  const res = await fetch(ADMIN_ENDPOINTS.SESSIONS_GENERATE_FROM_PATTERN, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg =
+      json?.message ||
+      json?.error ||
+      (typeof text === "string" && text.trim() ? text : null) ||
+      "Không thể tạo lịch học tự động từ máy chủ.";
+    throw new Error(msg);
+  }
+
+  return {
+    isSuccess: json?.isSuccess ?? true,
+    data: json?.data ?? json,
+    message: json?.message,
+  };
+}
+
 export async function createAdminSession(
   payload: CreateSessionRequest
 ): Promise<Session> {
