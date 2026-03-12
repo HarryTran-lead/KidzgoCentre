@@ -44,7 +44,10 @@ export async function getLeaveRequestById(id: string): Promise<LeaveRequestDetai
 }
 
 export async function createLeaveRequest(data: LeaveRequestPayload): Promise<LeaveRequestDetailResponse> {
-  return post<LeaveRequestDetailResponse>(LEAVE_REQUEST_ENDPOINTS.CREATE, data);
+  return post<LeaveRequestDetailResponse>(LEAVE_REQUEST_ENDPOINTS.CREATE, {
+    ...data,
+    endDate: data.endDate?.trim() ? data.endDate : null,
+  });
 }
 
 export async function approveLeaveRequest(id: string): Promise<LeaveRequestActionResponse> {

@@ -7,7 +7,7 @@ import type { PlacementTestResultRequest } from "@/types/placement-test";
 interface ResultFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<PlacementTestResultRequest, "id">) => Promise<void>;
+  onSubmit: (data: Omit<PlacementTestResultRequest, "id">, note: string) => Promise<void>;
   testId: string;
   initialData?: Partial<PlacementTestResultRequest> | null;
 }
@@ -28,6 +28,7 @@ export default function ResultFormModal({
     levelRecommendation: initialData?.levelRecommendation || "",
     programRecommendation: initialData?.programRecommendation || "",
     attachmentUrl: initialData?.attachmentUrl || "",
+    note: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,7 +48,7 @@ export default function ResultFormModal({
         attachmentUrl: formData.attachmentUrl || "",
       };
 
-      await onSubmit(submitData);
+      await onSubmit(submitData, formData.note.trim());
       onClose();
     } catch (error) {
       console.error("Error submitting result:", error);
@@ -204,6 +205,22 @@ export default function ResultFormModal({
               onChange={(e) => setFormData(prev => ({ ...prev, attachmentUrl: e.target.value }))}
               placeholder="https://..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+            />
+          </div>
+
+          {/* Note */}
+          <div className="space-y-2">
+            <label htmlFor="note" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <FileText size={16} />
+              Ghi chú (Note)
+            </label>
+            <textarea
+              id="note"
+              rows={3}
+              value={formData.note}
+              onChange={(e) => setFormData(prev => ({ ...prev, note: e.target.value }))}
+              placeholder="Nhập ghi chú cho placement test..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none resize-none"
             />
           </div>
 

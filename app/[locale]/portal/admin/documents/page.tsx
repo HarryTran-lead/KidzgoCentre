@@ -29,6 +29,12 @@ import {
   Loader2,
   X,
   RefreshCw,
+  BookOpen,
+  Clock,
+  GraduationCap,
+  Power,
+  PowerOff,
+  Tag
 } from "lucide-react";
 
 type SortDirection = "asc" | "desc";
@@ -114,6 +120,11 @@ function StatCard({
       </div>
     </div>
   );
+}
+
+/* -------------------------- helpers -------------------------- */
+function cn(...a: Array<string | false | null | undefined>) {
+  return a.filter(Boolean).join(" ");
 }
 
 export default function DocumentsPage() {
@@ -611,7 +622,7 @@ export default function DocumentsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center">
+                  <td colSpan={7} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                       <FileText size={24} className="text-red-400" />
                     </div>
@@ -708,130 +719,220 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      {/* Detail Modal */}
+      {/* Detail Modal - Updated style to match course modal */}
       {showDetailModal && selectedDocument && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div 
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowDetailModal(false)}
-          />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-red-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Chi tiết tài liệu</h3>
-              <button 
-                onClick={() => setShowDetailModal(false)}
-                className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-red-100 to-red-200">
-                  <FileText size={32} className="text-red-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-xl font-semibold text-gray-900">{selectedDocument.programName || 'N/A'}</h4>
-                  <p className="text-sm text-gray-500 mt-1">Chương trình học</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Level</label>
-                  <div className="mt-1 text-sm text-gray-900">{selectedDocument.level || 'N/A'}</div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Session</label>
-                  <div className="mt-1 text-sm text-gray-900">Session {selectedDocument.sessionIndex ?? '-'}</div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">File đính kèm</label>
-                  <div className="mt-1 text-sm text-gray-900">{selectedDocument.attachment && selectedDocument.attachment !== 'string' ? selectedDocument.attachment : 'Chưa có file'}</div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Trạng thái</label>
-                  <div className="mt-1">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      selectedDocument.isActive 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {selectedDocument.isActive ? 'Hoạt động' : 'Không hoạt động'}
-                    </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+            {/* Modal Header - Gradient from course modal */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <FileText size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Chi tiết tài liệu</h2>
+                    <p className="text-sm text-red-100">Thông tin chi tiết về tài liệu giáo án</p>
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Người tạo</label>
-                  <div className="mt-1 text-sm text-gray-900">{selectedDocument.createdByName || 'N/A'}</div>
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <X size={24} className="text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body - Updated styling */}
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <div className="space-y-6">
+                {/* Program Info */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <BookOpen size={16} className="text-red-600" />
+                    Chương trình học
+                  </label>
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                    {selectedDocument.programName || 'N/A'}
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Ngày tạo</label>
-                  <div className="mt-1 text-sm text-gray-900">{formatDate(selectedDocument.createdAt)}</div>
+
+                {/* Grid: Level, Session, Status */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <GraduationCap size={16} className="text-red-600" />
+                      Level
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      {selectedDocument.level || 'N/A'}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Clock size={16} className="text-red-600" />
+                      Session
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      Session {selectedDocument.sessionIndex ?? '-'}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Tag size={16} className="text-red-600" />
+                      Trạng thái
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        selectedDocument.isActive 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedDocument.isActive ? 'Hoạt động' : 'Không hoạt động'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Lần sử dụng</label>
-                  <div className="mt-1 text-sm text-gray-900">{selectedDocument.usedCount ?? 0}</div>
+
+                {/* File Attachment */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Upload size={16} className="text-red-600" />
+                    File đính kèm
+                  </label>
+                  <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                    {selectedDocument.attachment && selectedDocument.attachment !== 'string' ? (
+                      <div className="flex items-center gap-2">
+                        <File size={16} className="text-gray-400" />
+                        <span>{selectedDocument.attachment}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic">Chưa có file</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Grid: Created By, Created At, Used Count */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      Người tạo
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      {selectedDocument.createdByName || 'N/A'}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      Ngày tạo
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      {formatDate(selectedDocument.createdAt)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      Lần sử dụng
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      {selectedDocument.usedCount ?? 0}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 flex justify-end gap-2 border-t border-red-200">
-              <button 
-                onClick={() => setShowDetailModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl cursor-pointer"
-              >
-                Đóng
-              </button>
-              <button 
-                onClick={() => {
-                  setShowDetailModal(false);
-                  handleEdit(selectedDocument);
-                }}
-                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-red-700 rounded-xl hover:shadow-lg cursor-pointer"
-              >
-                Chỉnh sửa
-              </button>
+
+            {/* Modal Footer - Updated to match course modal */}
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowDetailModal(false)}
+                  className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    handleEdit(selectedDocument);
+                  }}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                >
+                  Chỉnh sửa
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal - Updated to match course modal style */}
       {showDeleteModal && selectedDocument && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div 
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowDeleteModal(false)}
-          />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+            {/* Modal Header - Gradient from course modal */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <Trash2 size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Xóa tài liệu</h2>
+                    <p className="text-sm text-red-100">Xác nhận xóa tài liệu giáo án</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <X size={24} className="text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
             <div className="p-6 text-center">
               <div className="mx-auto h-16 w-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <Trash2 size={32} className="text-red-600" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Xác nhận xóa tài liệu</h3>
               <p className="text-gray-600">
-                Bạn có chắc chắn muốn xóa tài liệu "{selectedDocument.programId || 'N/A'}"? Hành động này không thể hoàn tác.
+                Bạn có chắc chắn muốn xóa tài liệu "{selectedDocument.programName || selectedDocument.programId || "N/A"}"? Hành động này không thể hoàn tác.
               </p>
             </div>
-            <div className="flex gap-2 px-6 pb-6">
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button 
-                onClick={handleConfirmDelete}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 cursor-pointer"
-              >
-                Xóa
-              </button>
+
+            {/* Modal Footer - Updated to match course modal */}
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button 
+                  onClick={handleConfirmDelete}
+                  className="flex-1 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-red-700 rounded-xl hover:shadow-lg cursor-pointer"
+                >
+                  Xóa
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Create/Edit Modal - Updated to match course modal style */}
       {showCreateModal && (
         <DocumentFormModal
           document={selectedDocument}
@@ -846,7 +947,7 @@ export default function DocumentsPage() {
   );
 }
 
-// Document Form Modal Component
+// Document Form Modal Component - Redesigned to match course modal style
 function DocumentFormModal({
   document,
   onClose,
@@ -865,6 +966,8 @@ function DocumentFormModal({
   const [loading, setLoading] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
+  const [selectedProgramId, setSelectedProgramId] = useState<string>('');
+  const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
 
   // Fetch programs on mount (only for create mode)
   useEffect(() => {
@@ -886,18 +989,38 @@ function DocumentFormModal({
     }
   }, [document]);
 
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!document && !selectedProgramId) {
+      newErrors.programId = "Vui lòng chọn chương trình học";
+    }
+    if (!formData.level.trim()) {
+      newErrors.level = "Vui lòng nhập level";
+    }
+    if (formData.sessionIndex < 0) {
+      newErrors.sessionIndex = "Session index phải lớn hơn hoặc bằng 0";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
     try {
       if (document) {
         // Update mode - use UpdateDocumentRequest
         await onSubmit(formData as UpdateDocumentRequest);
       } else {
-        // Create mode - need programId from select
-        const programSelect = (e.target as HTMLFormElement).elements.namedItem('programId') as HTMLSelectElement;
-        const programId = programSelect?.value;
-        if (!programId) {
+        // Create mode - need programId
+        if (!selectedProgramId) {
           toast({
             title: "Lỗi",
             description: "Vui lòng chọn chương trình học",
@@ -907,7 +1030,7 @@ function DocumentFormModal({
           return;
         }
         await onSubmit({
-          programId,
+          programId: selectedProgramId,
           ...formData,
         } as CreateDocumentRequest);
       }
@@ -917,112 +1040,209 @@ function DocumentFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-red-200 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">
-            {document ? 'Chỉnh sửa tài liệu' : 'Tạo tài liệu mới'}
-          </h3>
-          <button 
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 cursor-pointer"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-4">
-            {/* Program selection - only show in create mode */}
-            {!document && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        {/* Modal Header - Gradient from course modal */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <FileText size={24} className="text-white" />
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Chương trình học *</label>
-                <select 
-                  name="programId"
-                  className="w-full px-4 py-2.5 rounded-xl border border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200 bg-white"
-                  required
-                  disabled={loadingPrograms}
-                >
-                  <option value="">Chọn chương trình học</option>
-                  {programs.map((program) => (
-                    <option key={program.id} value={program.id}>
-                      {program.name} - {program.level}
-                    </option>
-                  ))}
-                </select>
+                <h2 className="text-2xl font-bold text-white">
+                  {document ? "Chỉnh sửa tài liệu" : "Tạo tài liệu mới"}
+                </h2>
+                <p className="text-sm text-red-100">
+                  {document ? "Chỉnh sửa thông tin tài liệu giáo án" : "Nhập thông tin chi tiết về tài liệu mới"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label="Đóng"
+            >
+              <X size={24} className="text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Program selection - only show in create mode */}
+            {!document ? (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <BookOpen size={16} className="text-red-600" />
+                  Chương trình học *
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedProgramId}
+                    onChange={(e) => {
+                      setSelectedProgramId(e.target.value);
+                      if (errors.programId) {
+                        setErrors(prev => ({ ...prev, programId: undefined }));
+                      }
+                    }}
+                    disabled={loadingPrograms}
+                    className={cn(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                      errors.programId ? "border-red-500" : "border-gray-200",
+                      loadingPrograms ? "opacity-50 cursor-not-allowed" : ""
+                    )}
+                  >
+                    <option value="">Chọn chương trình học</option>
+                    {programs.map((program) => (
+                      <option key={program.id} value={program.id}>
+                        {program.name} - {program.level}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.programId && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-red-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.programId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.programId}
+                  </p>
+                )}
                 {loadingPrograms && (
-                  <p className="text-xs text-gray-500 mt-1">Đang tải dữ liệu chương trình...</p>
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <Loader2 size={12} className="animate-spin" /> Đang tải dữ liệu chương trình...
+                  </p>
                 )}
               </div>
-            )}
-
-            {/* Display program name in edit mode */}
-            {document && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Chương trình học</label>
-                <div className="px-4 py-2.5 rounded-xl border border-red-100 bg-red-50 text-gray-700">
+            ) : (
+              /* Display program name in edit mode */
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <BookOpen size={16} className="text-red-600" />
+                  Chương trình học
+                </label>
+                <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-700">
                   {document.programName || 'N/A'}
                 </div>
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Level *</label>
-              <input 
-                type="text" 
-                value={formData.level}
-                onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Nhập level (VD: Beginner, Intermediate)"
-                required
-              />
+            {/* Level input */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <GraduationCap size={16} className="text-red-600" />
+                Level *
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.level}
+                  onChange={(e) => {
+                    setFormData({ ...formData, level: e.target.value });
+                    if (errors.level) {
+                      setErrors(prev => ({ ...prev, level: undefined }));
+                    }
+                  }}
+                  className={cn(
+                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    errors.level ? "border-red-500" : "border-gray-200"
+                  )}
+                  placeholder="VD: Beginner, Intermediate, Advanced"
+                />
+                {errors.level && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-red-500" />
+                  </div>
+                )}
+              </div>
+              {errors.level && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle size={14} /> {errors.level}
+                </p>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Session Index *</label>
-              <input 
-                type="number" 
-                min="0"
-                value={formData.sessionIndex}
-                onChange={(e) => setFormData({ ...formData, sessionIndex: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-2.5 rounded-xl border border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Nhập số thứ tự session"
-                required
-              />
+            {/* Session Index input */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Clock size={16} className="text-red-600" />
+                Session Index *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.sessionIndex}
+                  onChange={(e) => {
+                    setFormData({ ...formData, sessionIndex: parseInt(e.target.value) || 0 });
+                    if (errors.sessionIndex) {
+                      setErrors(prev => ({ ...prev, sessionIndex: undefined }));
+                    }
+                  }}
+                  className={cn(
+                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    errors.sessionIndex ? "border-red-500" : "border-gray-200"
+                  )}
+                  placeholder="Nhập số thứ tự session"
+                />
+                {errors.sessionIndex && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-red-500" />
+                  </div>
+                )}
+              </div>
+              {errors.sessionIndex && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle size={14} /> {errors.sessionIndex}
+                </p>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="isActive"
-                    checked={formData.isActive === true}
-                    onChange={() => setFormData({ ...formData, isActive: true })}
-                    className="h-4 w-4 text-red-600 border-red-300 focus:ring-red-200"
-                  />
-                  <span className="text-sm text-gray-700">Hoạt động</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="isActive"
-                    checked={formData.isActive === false}
-                    onChange={() => setFormData({ ...formData, isActive: false })}
-                    className="h-4 w-4 text-red-600 border-red-300 focus:ring-red-200"
-                  />
-                  <span className="text-sm text-gray-700">Không hoạt động</span>
-                </label>
+            {/* Status */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Tag size={16} className="text-red-600" />
+                Trạng thái
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: true, label: "Hoạt động", icon: <Power size={16} /> },
+                  { value: false, label: "Không hoạt động", icon: <PowerOff size={16} /> }
+                ].map((status) => (
+                  <button
+                    key={status.label}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, isActive: status.value })}
+                    className={cn(
+                      "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all flex items-center justify-center gap-2",
+                      formData.isActive === status.value
+                        ? status.value
+                          ? "bg-green-100 border-green-300 text-green-700"
+                          : "bg-gray-100 border-gray-300 text-gray-700"
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                    )}
+                  >
+                    {status.icon}
+                    {status.label}
+                  </button>
+                ))}
               </div>
             </div>
 
+            {/* File upload section - only in create mode */}
             {!document && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">File tài liệu *</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Upload size={16} className="text-red-600" />
+                  File tài liệu *
+                </label>
                 <div className="border-2 border-dashed border-red-200 rounded-xl p-8 text-center hover:bg-red-50 transition-colors cursor-pointer">
                   <Upload size={32} className="mx-auto text-gray-400 mb-2" />
                   <p className="text-sm text-gray-600">Kéo thả file hoặc click để chọn</p>
@@ -1030,24 +1250,83 @@ function DocumentFormModal({
                 </div>
               </div>
             )}
-          </div>
-          <div className="sticky bottom-0 bg-gray-50 px-6 py-4 flex justify-end gap-2 border-t border-red-200">
-            <button 
+
+            {/* Attachment info in edit mode */}
+            {document && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Upload size={16} className="text-red-600" />
+                  File đính kèm
+                </label>
+                <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-700">
+                  {document.attachment && document.attachment !== 'string' ? (
+                    <div className="flex items-center gap-2">
+                      <File size={16} className="text-gray-400" />
+                      <span>{document.attachment}</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400 italic">Chưa có file</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </form>
+        </div>
+
+        {/* Modal Footer - Updated to match course modal */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex items-center justify-between">
+            <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl cursor-pointer"
+              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
             >
-              Hủy
+              Hủy bỏ
             </button>
-            <button 
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-red-700 rounded-xl hover:shadow-lg cursor-pointer disabled:opacity-50"
-            >
-              {loading ? 'Đang lưu...' : (document ? 'Lưu thay đổi' : 'Tạo tài liệu')}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (document) {
+                    setFormData({
+                      level: document.level || '',
+                      sessionIndex: document.sessionIndex ?? 0,
+                      attachment: document.attachment || '',
+                      isActive: document.isActive ?? true,
+                    });
+                  } else {
+                    setFormData({
+                      level: '',
+                      sessionIndex: 0,
+                      attachment: '',
+                      isActive: true,
+                    });
+                    setSelectedProgramId('');
+                  }
+                  setErrors({});
+                }}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                {document ? "Khôi phục" : "Đặt lại"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin" />
+                    Đang lưu...
+                  </div>
+                ) : (
+                  document ? "Lưu thay đổi" : "Tạo tài liệu"
+                )}
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

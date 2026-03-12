@@ -32,7 +32,7 @@ const initialFormState: LeaveRequestPayload = {
   studentProfileId: "",
   classId: "",
   sessionDate: "",
-  endDate: "",
+  endDate: null,
   reason: "",
 };
 
@@ -350,7 +350,6 @@ export default function LeaveRequestCreateModal({
       !!formState.studentProfileId &&
       !!formState.classId &&
       !!formState.sessionDate &&
-      !!formState.endDate &&
       formState.reason.trim().length > 0
     );
   }, [formState]);
@@ -369,14 +368,37 @@ export default function LeaveRequestCreateModal({
         return;
       }
 
-      const record = res?.data?.record ?? res?.data ?? res?.record;
+      const record =
+        res?.data?.leaveRequests?.[0] ??
+        res?.data?.record ??
+        res?.data ??
+        res?.record;
       if (record) onCreated(record as LeaveRequestRecord);
 
-      setActionMessage("Tạo đơn xin nghỉ thành công.");
+      const statusText = String((record as LeaveRequestRecord | undefined)?.status ?? "").toUpperCase();
+      setActionMessage(
+        statusText === "APPROVED" || statusText === "AUTO_APPROVED"
+          ? "Tạo đơn xin nghỉ thành công. Hệ thống đã duyệt và sẽ tự động xếp lịch bù nếu có suất phù hợp."
+          : "Tạo đơn xin nghỉ thành công."
+      );
       onClose();
     } catch (error) {
       console.error("Create leave request error:", error);
-      setActionError("Không thể tạo đơn xin nghỉ.");
+      const apiError = (error as any)?.response?.data;
+      const code = apiError?.code ?? apiError?.title ?? apiError?.data?.code ?? apiError?.data?.title;
+      const description =
+        apiError?.description ??
+        apiError?.detail ??
+        apiError?.message ??
+        apiError?.data?.description ??
+        apiError?.data?.detail ??
+        apiError?.data?.message;
+
+      if (code === "LeaveRequest.ExceededMonthlyLeaveLimit") {
+        setActionError("Học viên đã vượt quá giới hạn 2 buổi nghỉ trong tháng.");
+      } else {
+        setActionError(description ?? "Không thể tạo đơn xin nghỉ.");
+      }
     } finally {
       setCreating(false);
     }
@@ -571,7 +593,7 @@ export default function LeaveRequestCreateModal({
                 <input
                   type="date"
                   className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
-                  value={formState.endDate}
+                  value={formState.endDate ?? ""}
                   onChange={(e) => setFormState((p) => ({ ...p, endDate: e.target.value }))}
                 />
               </div>
