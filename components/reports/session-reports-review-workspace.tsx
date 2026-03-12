@@ -14,6 +14,8 @@ type SessionReport = {
   reportDate?: string | null;
   feedback?: string | null;
   reason?: string | null;
+  comment?: string | null;
+  comments?: Array<{ id?: string | null; content?: string | null; comment?: string | null; createdAt?: string | null; authorName?: string | null; commenterName?: string | null }>;
   status?: SessionReportStatus | null;
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -127,12 +129,69 @@ function resolveRejectReason(report: SessionReport): string {
   const raw = report as Record<string, unknown>;
   const reason =
     report.reason ??
+    report.comment ??
     (typeof raw.rejectReason === "string" ? raw.rejectReason : undefined) ??
     (typeof raw.rejectionReason === "string" ? raw.rejectionReason : undefined) ??
+    (typeof raw.comment === "string" ? raw.comment : undefined) ??
+    (typeof raw.latestComment === "string" ? raw.latestComment : undefined) ??
     (typeof raw.Reason === "string" ? raw.Reason : undefined) ??
     (typeof raw.RejectReason === "string" ? raw.RejectReason : undefined) ??
     (typeof raw.RejectionReason === "string" ? raw.RejectionReason : undefined);
+  if (String(reason ?? "").trim()) return String(reason ?? "").trim();
+
+  if (Array.isArray(report.comments)) {
+    const latest = report.comments
+      .map((item) => String(item?.content ?? item?.comment ?? "").trim())
+      .filter(Boolean)
+      .at(-1);
+    if (latest) return latest;
+  }
+
   return String(reason ?? "").trim();
+}
+
+function unwrapReportRecord(payload: unknown): SessionReport | null {
+  if (!payload || typeof payload !== "object") return null;
+  const raw = payload as Record<string, unknown>;
+  if (raw.item && typeof raw.item === "object") return raw.item as SessionReport;
+  if (raw.sessionReport && typeof raw.sessionReport === "object") return raw.sessionReport as SessionReport;
+  if (raw.data && typeof raw.data === "object") return unwrapReportRecord(raw.data) ?? (raw.data as SessionReport);
+  return raw as SessionReport;
+}
+
+function buildLocalRejectedReport(reportId: string, commentText: string): Partial<SessionReport> {
+  const trimmed = commentText.trim();
+  if (!trimmed) return { id: reportId };
+
+  return {
+    id: reportId,
+    status: "REJECTED",
+    reason: trimmed,
+    comment: trimmed,
+    comments: [
+      {
+        id: `local-${reportId}`,
+        content: trimmed,
+        comment: trimmed,
+        createdAt: new Date().toISOString(),
+        authorName: "Admin",
+        commenterName: "Admin",
+      },
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function buildLocalComment(commentText: string) {
+  const trimmed = commentText.trim();
+  return {
+    id: `local-comment-${Date.now()}`,
+    content: trimmed,
+    comment: trimmed,
+    createdAt: new Date().toISOString(),
+    authorName: "Admin",
+    commenterName: "Admin",
+  };
 }
 
 function StatusBadge({ status }: { status?: string | null }) {
@@ -188,6 +247,22 @@ export default function SessionReportsReviewWorkspace() {
   const [studentNameMap, setStudentNameMap] = useState<Record<string, string>>({});
   const [classNameMap, setClassNameMap] = useState<Record<string, string>>({});
   const [teacherNameMap, setTeacherNameMap] = useState<Record<string, string>>({});
+
+  const openDetail = useCallback(async (report: SessionReport) => {
+    setDetailReport(report);
+    const reportId = String(report.id ?? "");
+    if (!reportId) return;
+
+    try {
+      const detail = await apiFetch<Record<string, unknown>>(`/api/session-reports/${reportId}`);
+      const normalized = unwrapReportRecord(detail);
+      if (normalized) {
+        setDetailReport((prev) => ({ ...(prev ?? {}), ...normalized }));
+      }
+    } catch {
+      // keep list data if detail fetch fails
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -300,18 +375,70 @@ export default function SessionReportsReviewWorkspace() {
   }, [reports, searchQuery, statusFilter, studentNameMap, classNameMap, teacherNameMap]);
 
   const runAction = useCallback(
-    async (reportId: string, action: "approve" | "reject" | "publish", body?: Record<string, string>) => {
+    async (
+      reportId: string,
+      action: "approve" | "reject" | "publish" | "comments",
+      body?: Record<string, string>,
+    ) => {
       const key = `${reportId}:${action}`;
       setActionLoading((prev) => ({ ...prev, [key]: true }));
       setError("");
       setMessage("");
       try {
-        await apiFetch(`/api/session-reports/${reportId}/${action}`, {
+        const actionResult = await apiFetch<Record<string, unknown>>(`/api/session-reports/${reportId}/${action}`, {
           method: "POST",
           ...(body ? { body: JSON.stringify(body) } : {}),
         });
-        setMessage(`Đã ${action} session report.`);
+        const normalizedActionResult = unwrapReportRecord(actionResult);
+
+        if (normalizedActionResult) {
+          setReports((prev) =>
+            prev.map((item) =>
+              String(item.id ?? "") === reportId ? { ...item, ...normalizedActionResult } : item,
+            ),
+          );
+          setDetailReport((prev) => {
+            if (!prev || String(prev.id ?? "") !== reportId) return prev;
+            return { ...prev, ...normalizedActionResult };
+          });
+        } else if (action === "comments" && body?.content) {
+          const optimisticComment = buildLocalComment(body.content);
+          setReports((prev) =>
+            prev.map((item) =>
+              String(item.id ?? "") === reportId
+                ? { ...item, comments: [...(item.comments ?? []), optimisticComment] }
+                : item,
+            ),
+          );
+          setDetailReport((prev) => {
+            if (!prev || String(prev.id ?? "") !== reportId) return prev;
+            return { ...prev, comments: [...(prev.comments ?? []), optimisticComment] };
+          });
+        } else if (action === "reject" && body?.reason) {
+          const optimistic = buildLocalRejectedReport(reportId, body.reason);
+          setReports((prev) =>
+            prev.map((item) => (String(item.id ?? "") === reportId ? { ...item, ...optimistic } : item)),
+          );
+          setDetailReport((prev) => {
+            if (!prev || String(prev.id ?? "") !== reportId) return prev;
+            return { ...prev, ...optimistic };
+          });
+        }
+
+        setMessage(action === "comments" ? "Đã gửi comment cho session report." : `Đã ${action} session report.`);
         await fetchData();
+        try {
+          const detail = await apiFetch<Record<string, unknown>>(`/api/session-reports/${reportId}`);
+          const normalized = unwrapReportRecord(detail);
+          if (normalized) {
+            setDetailReport((prev) => {
+              if (!prev || String(prev.id ?? "") !== reportId) return prev;
+              return { ...prev, ...normalized };
+            });
+          }
+        } catch {
+          // ignore detail refresh failure
+        }
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Không thể xử lý session report.");
       } finally {
@@ -335,6 +462,7 @@ export default function SessionReportsReviewWorkspace() {
     const reportId = String(rejectTarget?.id ?? "");
     const reason = rejectReasonInput.trim();
     if (!reportId || !reason) return;
+    await runAction(reportId, "comments", { content: reason });
     await runAction(reportId, "reject", { reason });
     closeRejectModal();
   };
@@ -416,7 +544,7 @@ export default function SessionReportsReviewWorkspace() {
                   </td>
                   <td className="px-3 py-2 max-w-md">
                     <button
-                      onClick={() => setDetailReport(report)}
+                      onClick={() => void openDetail(report)}
                       className="w-full text-left"
                       title="Bấm để xem đầy đủ"
                     >
@@ -435,7 +563,7 @@ export default function SessionReportsReviewWorkspace() {
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-1">
                       <button
-                        onClick={() => setDetailReport(report)}
+                        onClick={() => void openDetail(report)}
                         className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-50"
                       >
                         <Eye size={12} />
@@ -540,11 +668,11 @@ export default function SessionReportsReviewWorkspace() {
           <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
             <div className="mb-3">
               <h3 className="text-lg font-semibold text-gray-900">Từ chối Session Report</h3>
-              <p className="text-sm text-gray-600">Vui lòng nhập lý do để giáo viên chỉnh sửa và gửi lại.</p>
+              <p className="text-sm text-gray-600">Nội dung này sẽ được lưu thành comment và sau đó report sẽ bị reject để giáo viên sửa lại.</p>
             </div>
             <div className="space-y-2">
               <label htmlFor="reject-reason" className="block text-sm font-medium text-gray-700">
-                Lý do từ chối
+                Comment / lý do từ chối
               </label>
               <textarea
                 id="reject-reason"

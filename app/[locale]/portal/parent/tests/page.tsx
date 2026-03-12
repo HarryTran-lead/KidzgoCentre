@@ -450,7 +450,7 @@ export default function TestsPage() {
       setSessionReportsError(null);
       try {
         const query = new URLSearchParams({
-          status: "PUBLISHED",
+          status: "Published",
           studentProfileId: activeStudentProfileId,
           pageNumber: "1",
           pageSize: "200",

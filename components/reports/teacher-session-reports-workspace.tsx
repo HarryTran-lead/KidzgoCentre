@@ -17,6 +17,8 @@ type SessionReport = {
   reportDate?: string;
   feedback?: string;
   reason?: string;
+  comment?: string;
+  comments?: Array<{ id?: string; content?: string; comment?: string; createdAt?: string; authorName?: string; commenterName?: string }>;
   status?: SessionReportStatus;
   createdAt?: string;
   updatedAt?: string;
@@ -84,8 +86,15 @@ function pick(raw: Record<string, unknown>, ...keys: string[]) {
 }
 
 function extractErrorMessage(payload: any, fallback: string) {
+  const title = typeof payload?.title === "string" ? payload.title.trim() : "";
+  const detail = typeof payload?.detail === "string" ? payload.detail.trim() : "";
+  if (title === "SessionReport.InvalidStatus" && detail) {
+    return "Không thể gửi duyệt session report đã ở trạng thái Published.";
+  }
+
   const message =
     payload?.message ||
+    payload?.detail ||
     payload?.error?.message ||
     payload?.error ||
     payload?.title ||
@@ -96,6 +105,17 @@ function extractErrorMessage(payload: any, fallback: string) {
 function normalizeReport(raw: Record<string, unknown>): SessionReport | null {
   const id = pick(raw, "id", "Id", "reportId", "ReportId");
   if (!id) return null;
+  const comments = Array.isArray(raw.comments)
+    ? (raw.comments as Record<string, unknown>[]).map((item) => ({
+        id: pick(item, "id", "Id"),
+        content: pick(item, "content", "Content", "comment", "Comment"),
+        comment: pick(item, "comment", "Comment", "content", "Content"),
+        createdAt: pick(item, "createdAt", "CreatedAt"),
+        authorName: pick(item, "authorName", "AuthorName", "commenterName", "CommenterName"),
+        commenterName: pick(item, "commenterName", "CommenterName", "authorName", "AuthorName"),
+      }))
+    : [];
+
   return {
     id,
     sessionId: pick(raw, "sessionId", "SessionId"),
@@ -108,10 +128,36 @@ function normalizeReport(raw: Record<string, unknown>): SessionReport | null {
     reportDate: pick(raw, "reportDate", "ReportDate"),
     feedback: pick(raw, "feedback", "Feedback"),
     reason: pick(raw, "reason", "Reason", "rejectReason", "RejectReason", "rejectionReason", "RejectionReason"),
+    comment: pick(raw, "comment", "Comment", "latestComment", "LatestComment"),
+    comments,
     status: pick(raw, "status", "Status"),
     createdAt: pick(raw, "createdAt", "CreatedAt"),
     updatedAt: pick(raw, "updatedAt", "UpdatedAt"),
   };
+}
+
+function resolveAdminComment(report?: SessionReport | null) {
+  if (!report) return "";
+
+  const direct = String(report.comment ?? "").trim();
+  if (direct) return direct;
+
+  const latest = (report.comments ?? [])
+    .map((item) => String(item.content ?? item.comment ?? "").trim())
+    .filter(Boolean)
+    .at(-1);
+  if (latest) return latest;
+
+  return String(report.reason ?? "").trim();
+}
+
+function unwrapReportRecord(payload: unknown): Record<string, unknown> | null {
+  if (!payload || typeof payload !== "object") return null;
+  const raw = payload as Record<string, unknown>;
+  if (raw.item && typeof raw.item === "object") return raw.item as Record<string, unknown>;
+  if (raw.sessionReport && typeof raw.sessionReport === "object") return raw.sessionReport as Record<string, unknown>;
+  if (raw.data && typeof raw.data === "object") return unwrapReportRecord(raw.data) ?? (raw.data as Record<string, unknown>);
+  return raw;
 }
 
 function getPaginatedItems(payload: SessionReportPayload | undefined): SessionReport[] {
@@ -248,7 +294,7 @@ export default function TeacherSessionReportsWorkspace() {
   const refreshActiveReport = useCallback(async (reportId: string) => {
     try {
       const detail = await apiFetch<Record<string, unknown>>(`/api/session-reports/${reportId}`);
-      const normalized = normalizeReport(detail);
+      const normalized = normalizeReport(unwrapReportRecord(detail) ?? detail);
       if (normalized) {
         setActiveReport(normalized);
         setDraftInput(normalized.feedback || "");
@@ -443,9 +489,9 @@ export default function TeacherSessionReportsWorkspace() {
                 <div><span className="font-medium text-gray-900">Học sinh:</span> {activeReport.studentName || activeReport.studentProfileId || "N/A"}</div>
                 <div><span className="font-medium text-gray-900">Lớp:</span> {activeReport.className || activeReport.classId || "N/A"}</div>
                 <div><span className="font-medium text-gray-900">Trạng thái:</span> <StatusBadge status={activeReport.status} /></div>
-                {activeReport.reason ? (
+                {resolveAdminComment(activeReport) ? (
                   <div className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700">
-                    <span className="font-medium">Lý do từ chối:</span> {activeReport.reason}
+                    <span className="font-medium">Comment từ admin:</span> {resolveAdminComment(activeReport)}
                   </div>
                 ) : null}
               </div>

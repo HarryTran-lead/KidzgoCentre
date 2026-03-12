@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { BACKEND_SESSION_REPORT_ENDPOINTS, buildApiUrl } from "@/constants/apiURL";
 
-type RejectSessionReportPayload = {
-  reason?: string;
-  comment?: string;
+type AddSessionReportCommentPayload = {
   content?: string;
-  Reason?: string;
+  comment?: string;
 };
 
 type RouteParams = {
@@ -14,12 +12,13 @@ type RouteParams = {
   }>;
 };
 
-function normalizeRejectPayload(payload: RejectSessionReportPayload) {
-  const text = payload.reason ?? payload.comment ?? payload.content ?? payload.Reason;
+function buildCommentsUrl(id: string) {
+  return `${buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.REPORT_BY_ID(id))}/comments`;
+}
+
+function normalizeCommentPayload(payload: AddSessionReportCommentPayload) {
   return {
-    reason: text,
-    comment: text,
-    content: text,
+    content: payload.content ?? payload.comment ?? "",
   };
 }
 
@@ -32,25 +31,23 @@ export async function POST(req: Request, { params }: RouteParams) {
       return NextResponse.json({ success: false, message: "Chưa đăng nhập" }, { status: 401 });
     }
 
-    const payload = (await req.json()) as RejectSessionReportPayload;
-    const normalizedPayload = normalizeRejectPayload(payload);
-
-    const upstream = await fetch(buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.REJECT(id)), {
+    const payload = (await req.json()) as AddSessionReportCommentPayload;
+    const upstream = await fetch(buildCommentsUrl(id), {
       method: "POST",
       headers: {
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(normalizedPayload),
+      body: JSON.stringify(normalizeCommentPayload(payload)),
     });
 
     const text = await upstream.text();
     const data = text ? JSON.parse(text) : { success: upstream.ok };
     return NextResponse.json(data, { status: upstream.status });
   } catch (error) {
-    console.error("Reject session report error:", error);
+    console.error("Add session report comment error:", error);
     return NextResponse.json(
-      { success: false, message: "Đã xảy ra lỗi khi từ chối session report" },
+      { success: false, message: "Đã xảy ra lỗi khi thêm comment cho session report" },
       { status: 500 },
     );
   }
