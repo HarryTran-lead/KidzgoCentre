@@ -1301,7 +1301,7 @@ export default function AdminSchedulePage() {
             teacher: teacherName.trim(),
             room: String(s.plannedRoomName ?? s.roomName ?? ""),
             date: formatVNDate(planned),
-            time: formatTimeRangeFromISO(planned.toISOString(), durationMinutes),
+            time: formatTimeRangeFromISO(s.plannedDatetime, durationMinutes),
             note: s.participationType ?? "",
             color: TYPE_META.CLASS.defaultColor,
           };
