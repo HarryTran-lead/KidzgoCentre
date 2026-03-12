@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   CalendarDays,
@@ -72,7 +72,6 @@ type StudentRow = Student & {
 
 const STATUS_LABELS: Record<AttendanceStatus, string> = {
   present: "Có mặt",
-  late: "Đi muộn",
   absent: "Vắng mặt",
 };
 
@@ -310,6 +309,9 @@ export default function TeacherAttendancePage() {
   const [selectedStudentForNote, setSelectedStudentForNote] = useState<StudentRow | null>(null);
   const [noteModalError, setNoteModalError] = useState<string | null>(null);
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+
+  // State for multi-select checkboxes
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 
   const recordsPerPage = 8;
 
@@ -575,7 +577,7 @@ const loadSessionReports = async () => {
         setAttendanceSummary({ total, present, absent, makeup });
       } else {
         const total = students.length;
-        const present = students.filter((s) => s.status === "present" || s.status === "late").length;
+        const present = students.filter((s) => s.status === "present").length;
         const absent = students.filter((s) => s.status === "absent").length;
         setAttendanceSummary({ total, present, absent, makeup: 0 });
       }
@@ -770,6 +772,38 @@ const loadSessionReports = async () => {
 
     return filtered;
   }, [attendanceList, filterStatus, searchQuery, sortColumn, sortDirection]);
+
+  // Checkbox handlers
+  const handleToggleStudent = (rowKey: string) => {
+    setSelectedStudents((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) {
+        next.delete(rowKey);
+      } else {
+        next.add(rowKey);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAll = () => {
+    if (selectedStudents.size === filteredRecords.length) {
+      setSelectedStudents(new Set());
+    } else {
+      setSelectedStudents(new Set(filteredRecords.map((r) => r.rowKey)));
+    }
+  };
+
+  const isAllSelected = filteredRecords.length > 0 && selectedStudents.size === filteredRecords.length;
+  const isIndeterminate = selectedStudents.size > 0 && selectedStudents.size < filteredRecords.length;
+
+  const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * recordsPerPage;
@@ -1041,7 +1075,7 @@ const loadSessionReports = async () => {
 
       {/* Main Content */}
       {selectedSessionId ? (
-        <div className={`grid lg:grid-cols-3 gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        <div className={` transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           {/* Student Table */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -1066,7 +1100,6 @@ const loadSessionReports = async () => {
                     >
                       <option value="ALL">Tất cả trạng thái</option>
                       <option value="present">Có mặt</option>
-                      <option value="late">Đi muộn</option>
                       <option value="absent">Vắng mặt</option>
                     </select>
                     <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
@@ -1080,6 +1113,17 @@ const loadSessionReports = async () => {
                 <table className="w-full">
                   <thead className="bg-gradient-to-r from-red-50 to-red-100 border-b border-gray-200">
                     <tr>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-12">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            ref={selectAllRef}
+                            checked={isAllSelected}
+                            onChange={handleToggleAll}
+                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                          />
+                        </div>
+                      </th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
                         <SortableHeader
                           label="Học viên"
@@ -1113,6 +1157,14 @@ const loadSessionReports = async () => {
                           className="hover:bg-gradient-to-r hover:from-red-50/50 hover:to-red-100/50 transition-colors border-b border-gray-100"
                         >
                           <td className="px-4 py-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedStudents.has(record.rowKey)}
+                              onChange={() => handleToggleStudent(record.rowKey)}
+                              className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                            />
+                          </td>
+                          <td className="px-4 py-4">
                             <div className="flex items-center gap-3">
                               <StudentAvatar name={record.name ?? ""} />
                               <div>
@@ -1126,7 +1178,7 @@ const loadSessionReports = async () => {
 
                           <td className="px-4 py-4">
                             <div className="flex flex-wrap items-center gap-2">
-                              {(["present", "late", "absent"] as AttendanceStatus[]).map((status) => (
+                              {(["present", "absent"] as AttendanceStatus[]).map((status) => (
                                 <button
                                   key={status}
                                   onClick={() => handleStatusChange(record.rowKey, status)}
@@ -1134,8 +1186,6 @@ const loadSessionReports = async () => {
                                     record.status === status
                                       ? status === "present"
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        : status === "late"
-                                          ? "bg-amber-50 text-amber-700 border-amber-200"
                                           : "bg-red-50 text-red-700 border-red-200"
                                       : "border-gray-200 text-gray-600 hover:bg-gray-50"
                                   }`}
@@ -1201,71 +1251,6 @@ const loadSessionReports = async () => {
                 {totalPages > 1 && (
                   <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
                 )}
-              </div>
-            </div>
-          </div>
-
-          {/* Side Panel */}
-          <div className="space-y-4">
-            {/* Makeup Card */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-gradient-to-r from-sky-500 to-blue-500 rounded-lg">
-                  <ArrowRightLeft size={18} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">Buổi bù</h3>
-                  <p className="text-sm text-gray-600">Đề xuất lịch bù</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <button className="w-full px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition cursor-pointer">
-                  Tạo đề xuất buổi bù
-                </button>
-                <button className="w-full px-4 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-500 text-white hover:shadow-md transition cursor-pointer">
-                  <span className="inline-flex items-center justify-center gap-2">
-                    <Send size={16} /> Gửi đề xuất
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Summary Card */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h3 className="font-bold text-gray-900 mb-4">Thống kê nhanh</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                    <span>Tỉ lệ chuyên cần</span>
-                    <span className="font-semibold text-emerald-600">
-                      {stats ? Math.round((stats.present / stats.total) * 100) : 0}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full"
-                      style={{ width: `${stats ? (stats.present / stats.total) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200">
-                  <div>
-                    <div className="text-lg font-bold text-red-600">
-                      {attendanceList.filter((r) => r.status === "absent").length || 0}
-                    </div>
-                    <div className="text-xs text-gray-600">Vắng mặt</div>
-                  </div>
-
-                  <div>
-                    <div className="text-lg font-bold text-amber-500">
-                      {attendanceList.filter((r) => r.status === "late").length || 0}
-                    </div>
-                    <div className="text-xs text-gray-600">Đi muộn</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

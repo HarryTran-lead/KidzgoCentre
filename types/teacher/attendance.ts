@@ -4,8 +4,8 @@
  * Type definitions for teacher attendance related data structures
  */
 
-export type AttendanceStatus = "present" | "late" | "absent";
-export type AttendanceRawStatus = "Present" | "Late" | "Absent" | "NotMarked";
+export type AttendanceStatus = "present" | "absent";
+export type AttendanceRawStatus = "Present"| "Absent" | "NotMarked";
 
 export type Student = {
   id: string;

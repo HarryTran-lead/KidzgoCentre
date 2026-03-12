@@ -17,6 +17,8 @@ import {
   updateAdminClass,
   updateClassStatus
 } from "@/app/api/admin/classes";
+import { fetchAdminRooms } from "@/app/api/admin/rooms";
+import { generateSessionsFromPattern } from "@/app/api/admin/sessions";
 import { fetchClassFormSelectData, fetchTeacherOptionsByBranch, fetchProgramOptionsByBranch } from "@/app/api/admin/classFormData";
 import type { ClassRow, CreateClassRequest } from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
@@ -41,7 +43,102 @@ type SortField = "id" | "name" | "program" | "teacher" | "branch" | "capacity" |
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 5;
 
-/* ----------------------------- API HELPERS ------------------------------ */
+type ScheduleDisplayProps = {
+  schedule: string;
+};
+
+function ScheduleDisplay({ schedule }: ScheduleDisplayProps) {
+  // Parse schedule string format: "Thứ 2,4,6 (18:00 - 20:00)" or "Thứ 2,4,6 & CN (18:00 - 20:00)"
+  const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+  
+  if (!match) {
+    return (
+      <div className="inline-flex items-center gap-1.5 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
+        <Clock size={14} className="text-gray-400" />
+        <span className="text-xs italic">Chưa có lịch</span>
+      </div>
+    );
+  }
+
+  const [, dayPart, startTime, endTime] = match;
+  
+  // Parse days into array
+  const dayNumbers: string[] = [];
+  const hasSunday = dayPart.includes("CN");
+  
+  // Extract day numbers from "Thứ 2,4,6" or "Thứ 2,4,6 & CN"
+  const thuMatch = dayPart.match(/Thứ\s*([\d,]+)/);
+  if (thuMatch) {
+    dayNumbers.push(...thuMatch[1].split(","));
+  }
+  
+  // Day display configuration with better colors
+  const dayConfig: Record<string, { label: string; bg: string; text: string; }> = {
+    "2": { label: "T2", bg: "bg-blue-100", text: "text-blue-700" },
+    "3": { label: "T3", bg: "bg-indigo-100", text: "text-indigo-700" },
+    "4": { label: "T4", bg: "bg-purple-100", text: "text-purple-700" },
+    "5": { label: "T5", bg: "bg-pink-100", text: "text-pink-700" },
+    "6": { label: "T6", bg: "bg-amber-100", text: "text-amber-700" },
+    "7": { label: "T7", bg: "bg-orange-100", text: "text-orange-700" },
+  };
+  
+  const sundayConfig = { label: "CN", bg: "bg-rose-100", text: "text-rose-700" };
+
+  // Combine all days for display
+  const allDays = [
+    ...dayNumbers.map(day => ({ 
+      day, 
+      ...(dayConfig[day] || { label: `T${day}`, bg: "bg-gray-100", text: "text-gray-700" })
+    })),
+    ...(hasSunday ? [{ day: "CN", ...sundayConfig }] : [])
+  ];
+
+  // Format time range
+  const timeRange = `${startTime} - ${endTime}`;
+  
+  // Calculate duration in hours
+  const startHour = parseInt(startTime.split(':')[0]);
+  const startMin = parseInt(startTime.split(':')[1]);
+  const endHour = parseInt(endTime.split(':')[0]);
+  const endMin = parseInt(endTime.split(':')[1]);
+  const durationHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+  const durationText = durationHours === Math.floor(durationHours) 
+    ? `${durationHours}h` 
+    : `${durationHours.toFixed(1)}h`;
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-[140px]">
+      {/* Days row - colorful pills */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {allDays.map((dayInfo) => (
+          <span
+            key={dayInfo.day}
+            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dayInfo.bg} ${dayInfo.text} shadow-sm`}
+          >
+            {dayInfo.label}
+          </span>
+        ))}
+      </div>
+      
+      {/* Time row with duration */}
+      <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
+          <Clock size={12} className="text-gray-500" />
+          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+            {timeRange}
+          </span>
+        </div>
+        <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+          {durationText}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Parse RRULE to human-readable schedule string
+ */
 function parseRRULEToSchedule(rrule: string): string {
   if (!rrule || !rrule.trim()) {
     return "Chưa có lịch";
@@ -61,49 +158,52 @@ function parseRRULEToSchedule(rrule: string): string {
 
     const freq = parts.FREQ || "";
     const byDay = parts.BYDAY || "";
-    const byHour = parts.BYHOUR || "";
+    const byHour = parts.BYHOUR || "18";
     const byMinute = parts.BYMINUTE || "0";
-    const duration = parseInt(parts.DURATION || "60", 10);
+    const duration = parseInt(parts.DURATION || "120", 10);
 
     if (freq !== "WEEKLY" || !byDay) {
-      return rrule; // Return original if can't parse
+      return rrule;
     }
 
-    // Map day abbreviations to Vietnamese
+    // Map RRULE days to Vietnamese
     const dayMap: Record<string, string> = {
-      MO: "Thứ 2",
-      TU: "Thứ 3",
-      WE: "Thứ 4",
-      TH: "Thứ 5",
-      FR: "Thứ 6",
-      SA: "Thứ 7",
-      SU: "CN",
+      "MO": "Thứ 2",
+      "TU": "Thứ 3",
+      "WE": "Thứ 4",
+      "TH": "Thứ 5",
+      "FR": "Thứ 6",
+      "SA": "Thứ 7",
+      "SU": "CN",
     };
 
-    // Format days
-    const days = byDay.split(",").map((d) => dayMap[d.trim()] || d.trim());
+    // Parse days và sắp xếp theo thứ tự
+    const days = byDay.split(",").map((d) => d.trim());
+    const dayOrder = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+    days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
     
-    // Shorten day display (e.g., "Thứ 2,4,6" instead of "Thứ 2, Thứ 4, Thứ 6")
+    // Format days
+    const vietnameseDays = days.map(d => dayMap[d] || d);
+    
+    // Nhóm các ngày Thứ
+    const thuDays = vietnameseDays.filter(d => d.startsWith("Thứ")).map(d => d.replace("Thứ ", ""));
+    const hasSunday = vietnameseDays.includes("CN");
+    
     let dayString = "";
-    if (days.every(d => d.startsWith("Thứ"))) {
-      // Extract numbers from "Thứ X"
-      const numbers = days.map(d => d.replace("Thứ ", ""));
-      dayString = `Thứ ${numbers.join(",")}`;
-    } else if (days.includes("CN")) {
-      // Handle cases with Sunday
-      const otherDays = days.filter(d => d !== "CN").map(d => d.replace("Thứ ", ""));
-      if (otherDays.length > 0) {
-        dayString = `Thứ ${otherDays.join(",")} & CN`;
-      } else {
-        dayString = "CN";
+    if (thuDays.length > 0) {
+      dayString = `Thứ ${thuDays.join(",")}`;
+      if (hasSunday) {
+        dayString += " & CN";
       }
+    } else if (hasSunday) {
+      dayString = "CN";
     } else {
-      dayString = days.join(", ");
+      dayString = vietnameseDays.join(", ");
     }
     
     // Format time
-    const hour = parseInt(byHour, 10) || 8;
-    const minute = parseInt(byMinute, 10) || 0;
+    const hour = parseInt(byHour, 10);
+    const minute = parseInt(byMinute, 10);
     const startTime = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
     
     // Calculate end time
@@ -113,8 +213,9 @@ function parseRRULEToSchedule(rrule: string): string {
     const endTime = `${endHour.toString().padStart(2, "0")}:${endMin.toString().padStart(2, "0")}`;
 
     return `${dayString} (${startTime} - ${endTime})`;
-  } catch {
-    return rrule; // Return original if parsing fails
+  } catch (error) {
+    console.error("Error parsing RRULE:", error);
+    return rrule;
   }
 }
 
@@ -183,15 +284,111 @@ function SortableHeader({
   );
 }
 
+/**
+ * Tính ngày kết thúc dựa trên ngày bắt đầu, lịch học và số buổi học
+ * Sử dụng thuật toán chính xác hơn để đếm đúng số buổi
+ */
+function calculateEndDate(startDate: string, schedule: string, totalSessions: number): string {
+  if (!startDate || !schedule || totalSessions <= 0) {
+    return "";
+  }
+
+  try {
+    // Map ngày trong tuần (0 = Chủ nhật, 1 = Thứ 2, ..., 6 = Thứ 7)
+    const dayMap: Record<string, number> = {
+      "2": 1, // Thứ 2
+      "3": 2, // Thứ 3
+      "4": 3, // Thứ 4
+      "5": 4, // Thứ 5
+      "6": 5, // Thứ 6
+      "7": 6, // Thứ 7
+      "CN": 0, // Chủ nhật
+    };
+
+    // Parse schedule
+    const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    if (!match) return "";
+
+    const dayPart = match[1];
+    const daysInWeek: number[] = [];
+
+    // Parse các ngày trong tuần
+    if (dayPart.includes("Thứ")) {
+      // Lấy các số từ "Thứ 2,4,6"
+      const dayNumbers = dayPart.match(/\d+/g) || [];
+      dayNumbers.forEach((d) => {
+        if (dayMap[d] !== undefined) daysInWeek.push(dayMap[d]);
+      });
+      
+      // Kiểm tra có CN không
+      if (dayPart.includes("CN")) {
+        daysInWeek.push(0);
+      }
+    } else if (dayPart === "CN") {
+      daysInWeek.push(0);
+    }
+
+    if (daysInWeek.length === 0) return "";
+
+    // Sắp xếp các ngày trong tuần để dễ xử lý
+    daysInWeek.sort((a, b) => a - b);
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0); // Đặt về đầu ngày để tránh lệch múi giờ
+    
+    let sessionsRemaining = totalSessions;
+    let currentDate = new Date(start);
+    
+    // Nếu ngày bắt đầu không phải là ngày học, tìm ngày học đầu tiên
+    while (!daysInWeek.includes(currentDate.getDay()) && sessionsRemaining > 0) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Đếm số buổi học
+    while (sessionsRemaining > 0) {
+      const currentDayOfWeek = currentDate.getDay();
+      
+      if (daysInWeek.includes(currentDayOfWeek)) {
+        sessionsRemaining--;
+        if (sessionsRemaining > 0) {
+          // Tìm ngày học tiếp theo
+          let nextDate = new Date(currentDate);
+          nextDate.setDate(nextDate.getDate() + 1);
+          
+          while (!daysInWeek.includes(nextDate.getDay())) {
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          currentDate = nextDate;
+        }
+      } else {
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+
+    // Format ngày kết thúc
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+    const day = String(currentDate.getDate()).padStart(2, "0");
+    
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error("Error calculating end date:", error);
+    return "";
+  }
+}
+
 /* ----------------------------- CREATE CLASS MODAL ------------------------------ */
 
+/**
+ * Convert schedule string to RRULE format
+ */
 function convertScheduleToRRULE(schedule: string, startDate: string): string {
   if (!schedule || !startDate) {
     return "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=18;BYMINUTE=0;DURATION=120";
   }
 
   try {
-    // Parse schedule string format: "Thứ 2,4,6 (18:00 - 20:00)" or "Thứ 2,4,6 & CN (18:00 - 20:00)"
+    // Parse schedule string format
     const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
     if (!match) {
       return "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=18;BYMINUTE=0;DURATION=120";
@@ -199,7 +396,7 @@ function convertScheduleToRRULE(schedule: string, startDate: string): string {
 
     const [, dayPart, startTime, endTime] = match;
     
-    // Parse days
+    // Map ngày Việt Nam sang RRULE
     const dayMap: Record<string, string> = {
       "2": "MO",
       "3": "TU",
@@ -212,14 +409,14 @@ function convertScheduleToRRULE(schedule: string, startDate: string): string {
 
     const days: string[] = [];
     
-    // Handle "Thứ 2,4,6" format
+    // Xử lý định dạng "Thứ 2,4,6" hoặc "Thứ 2,4,6 & CN"
     if (dayPart.includes("Thứ")) {
       const dayNumbers = dayPart.match(/\d+/g) || [];
       dayNumbers.forEach((d) => {
         if (dayMap[d]) days.push(dayMap[d]);
       });
       
-      // Handle "& CN" part
+      // Xử lý phần "& CN"
       if (dayPart.includes("CN")) {
         days.push("SU");
       }
@@ -227,17 +424,24 @@ function convertScheduleToRRULE(schedule: string, startDate: string): string {
       days.push("SU");
     }
 
+    // Sắp xếp các ngày theo thứ tự (MO, TU, WE, TH, FR, SA, SU)
+    const dayOrder = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+    days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+    
     const byDay = days.length > 0 ? days.join(",") : "MO,WE,FR";
 
-    // Parse times
+    // Parse thời gian
     const [startHour, startMinute] = startTime.split(":").map(Number);
     const [endHour, endMinute] = endTime.split(":").map(Number);
 
+    // Tính duration
     const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
     const durationMinutes = duration > 0 ? duration : 120;
 
+    // Tạo RRULE
     return `RRULE:FREQ=WEEKLY;BYDAY=${byDay};BYHOUR=${startHour || 18};BYMINUTE=${startMinute || 0};DURATION=${durationMinutes}`;
-  } catch {
+  } catch (error) {
+    console.error("Error converting schedule to RRULE:", error);
     return "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=18;BYMINUTE=0;DURATION=120";
   }
 }
@@ -262,6 +466,7 @@ interface ClassFormData {
   status: "Đang học" | "Sắp khai giảng" | "Đã kết thúc";
   startDate: string;
   endDate: string;
+  totalSessions: number;
   description: string;
 }
 
@@ -277,6 +482,7 @@ const initialFormData: ClassFormData = {
   status: "Sắp khai giảng",
   startDate: "",
   endDate: "",
+  totalSessions: 0,
   description: "",
 };
 
@@ -400,7 +606,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
     if (!formData.mainTeacherId) newErrors.mainTeacherId = "Giáo viên chính là bắt buộc";
     if (formData.capacity <= 0) newErrors.capacity = "Sĩ số phải lớn hơn 0";
     if (!formData.startDate) newErrors.startDate = "Ngày bắt đầu là bắt buộc";
-    if (!formData.endDate) newErrors.endDate = "Ngày kết thúc là bắt buộc";
+    // endDate không còn required vì sẽ tự tính từ startDate + schedule + totalSessions
     if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
       newErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
     }
@@ -418,7 +624,34 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
   };
 
   const handleChange = (field: keyof ClassFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Khi chọn program -> lấy totalSessions
+      if (field === "programId" && value) {
+        const selectedProgram = programOptions.find(p => p.id === value);
+        if (selectedProgram) {
+          newData.totalSessions = selectedProgram.totalSessions || 0;
+          console.log(`Program selected: ${selectedProgram.name}, total sessions: ${newData.totalSessions}`);
+        }
+      }
+      
+      // Khi thay đổi startDate, schedule hoặc totalSessions -> tự tính endDate
+      if ((field === "startDate" || field === "schedule" || field === "totalSessions" || field === "programId") && 
+          newData.startDate && newData.schedule && newData.totalSessions > 0) {
+        
+        console.log(`Calculating end date: start=${newData.startDate}, schedule=${newData.schedule}, sessions=${newData.totalSessions}`);
+        
+        const calculatedEndDate = calculateEndDate(newData.startDate, newData.schedule, newData.totalSessions);
+        if (calculatedEndDate) {
+          newData.endDate = calculatedEndDate;
+          console.log(`Calculated end date: ${calculatedEndDate}`);
+        }
+      }
+      
+      return newData;
+    });
+    
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
@@ -568,7 +801,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                   >
                     <option value="">{loadingOptions ? "Đang tải..." : "Chọn chương trình"}</option>
                     {programOptions.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                      <option key={p.id} value={p.id}>{p.name} ({p.totalSessions || 0} buổi)</option>
                     ))}
                   </select>
                   {errors.programId && (
@@ -708,6 +941,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                       "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
                       errors.endDate ? "border-red-500" : "border-gray-200"
                     )}
+                    readOnly
                   />
                   {errors.endDate && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -716,6 +950,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                   )}
                 </div>
                 {errors.endDate && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.endDate}</p>}
+                <p className="text-xs text-gray-500">Tự động tính từ lịch học và số buổi</p>
               </div>
             </div>
 
@@ -724,7 +959,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Clock size={16} className="text-red-600" />
-                  Lịch học
+                  Lịch học *
                 </label>
                 <select
                   value={formData.schedule}
@@ -732,11 +967,19 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300"
                 >
                   <option value="">Chọn lịch học</option>
-                  <option value="Thứ 2,4,6 (18:00 - 20:00)">Thứ 2,4,6 (18:00 - 20:00)</option>
-                  <option value="Thứ 3,5,7 (18:00 - 20:00)">Thứ 3,5,7 (18:00 - 20:00)</option>
-                  <option value="Thứ 7 & CN (08:00 - 11:00)">Thứ 7 & CN (08:00 - 11:00)</option>
-                  <option value="Thứ 7 & CN (14:00 - 17:00)">Thứ 7 & CN (14:00 - 17:00)</option>
+                  <option value="Thứ 2,4,6 (18:00 - 20:00)">Thứ 2,4,6 (18:00 - 20:00) - 3 buổi/tuần</option>
+                  <option value="Thứ 3,5,7 (18:00 - 20:00)">Thứ 3,5,7 (18:00 - 20:00) - 3 buổi/tuần</option>
+                  <option value="Thứ 2,4 (18:00 - 20:00)">Thứ 2,4 (18:00 - 20:00) - 2 buổi/tuần</option>
+                  <option value="Thứ 3,5 (18:00 - 20:00)">Thứ 3,5 (18:00 - 20:00) - 2 buổi/tuần</option>
+                  <option value="Thứ 7 & CN (08:00 - 11:00)">Thứ 7 & CN (08:00 - 11:00) - 2 buổi/tuần</option>
+                  <option value="Thứ 7 & CN (14:00 - 17:00)">Thứ 7 & CN (14:00 - 17:00) - 2 buổi/tuần</option>
+                  <option value="Chủ nhật (08:00 - 11:00)">Chủ nhật (08:00 - 11:00) - 1 buổi/tuần</option>
                 </select>
+                {formData.totalSessions > 0 && formData.schedule && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ {formData.totalSessions} buổi, {Math.ceil(formData.totalSessions / (formData.schedule.includes("2,4,6") || formData.schedule.includes("3,5,7") ? 3 : formData.schedule.includes("&") ? 2 : 1))} tuần
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -986,7 +1229,17 @@ export default function Page() {
         });
         return;
       }
+
+      console.log("Creating class with data:", {
+        ...data,
+        totalSessions: data.totalSessions,
+        schedule: data.schedule,
+        startDate: data.startDate,
+        endDate: data.endDate
+      });
+      
       const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
+      console.log("Generated RRULE:", schedulePattern);
 
       const payload: CreateClassRequest = {
         branchId: data.branchId,
@@ -1005,13 +1258,26 @@ export default function Page() {
 
       const created = await createAdminClass(payload);
 
+      // Sau khi tao lop thanh cong, tao cac session/lich hoc tu dong
+      if (created?.id) {
+        try {
+          console.log("Generating sessions for class:", created.id);
+          await generateSessionsFromPattern({
+            classId: created.id,
+            onlyFutureSessions: true,
+          });
+          console.log("Sessions generated successfully");
+        } catch (sessionErr: any) {
+          console.error("Failed to generate sessions:", sessionErr);
+        }
+      }
 
       const updatedClasses = await fetchAdminClasses();
       setClasses(updatedClasses);
 
       toast.success({
         title: "Tạo lớp học thành công",
-        description: `Lớp ${data.name} đã được tạo.`,
+        description: `Lớp ${data.name} đã được tạo với ${data.totalSessions} buổi học.`,
       });
     } catch (err: any) {
       console.error("Failed to create class:", err);
@@ -1052,6 +1318,7 @@ export default function Page() {
         status,
         startDate: (detail?.startDate as string | undefined)?.slice(0, 10) ?? "",
         endDate: (detail?.endDate as string | undefined)?.slice(0, 10) ?? "",
+        totalSessions: detail?.totalSessions ?? 0,
         description: detail?.description ?? "",
       };
 
@@ -1406,10 +1673,7 @@ export default function Page() {
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2 text-gray-900">
-                          <Clock size={16} className="text-gray-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-600">{c.schedule}</span>
-                        </div>
+                        <ScheduleDisplay schedule={c.schedule} />
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">

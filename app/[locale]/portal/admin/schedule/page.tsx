@@ -1162,8 +1162,27 @@ export default function AdminSchedulePage() {
     return `${dd}/${mm}/${yy}`;
   };
 
+  // Helper để parse ISO string thành Date object mà không bị ảnh hưởng bởi timezone
+  const parseISODate = (isoString: string): Date => {
+    const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+    if (match) {
+      // Parse trực tiếp các thành phần và tạo Date
+      return new Date(
+        parseInt(match[1]),
+        parseInt(match[2]) - 1,
+        parseInt(match[3]),
+        parseInt(match[4]),
+        parseInt(match[5]),
+        parseInt(match[6])
+      );
+    }
+    return new Date(isoString);
+  };
+
   const formatTimeRangeFromISO = (plannedDatetimeISO: string, durationMinutes: number) => {
-    const start = new Date(plannedDatetimeISO);
+    // Parse trực tiếp từ ISO string để tránh vấn đề timezone
+    const start = parseISODate(plannedDatetimeISO);
+    
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
     const sh = String(start.getHours()).padStart(2, "0");
     const sm = String(start.getMinutes()).padStart(2, "0");
@@ -1210,15 +1229,27 @@ export default function AdminSchedulePage() {
     const loadInitialSchedule = async () => {
       try {
         const branchId = getBranchQueryParam();
+
+        // Tính ngày bắt đầu và kết thúc của tuần hiện tại
+        const weekStart = new Date(weekCursor);
+        const weekEnd = new Date(weekCursor);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        const fromDate = weekStart.toISOString().split('T')[0];
+        const toDate = weekEnd.toISOString().split('T')[0];
+
         console.log("📅 Fetching schedule for branch:", branchId || "All branches");
+        console.log("📅 Date range:", fromDate, "to", toDate);
 
         const sessions = await fetchAdminSessions({
           branchId,
+          from: fromDate,
+          to: toDate,
           pageNumber: 1,
           pageSize: 200,
         });
 
-        console.log("✅ Loaded", sessions.length, "sessions");
+        console.log("✅ Loaded", sessions.length, "sessions for week", fromDate, "-", toDate);
 
         // Collect ALL teacher IDs (both with and without names) to ensure we get all teacher names
         const teacherIdsToFetch = new Set<string>();
@@ -1240,7 +1271,7 @@ export default function AdminSchedulePage() {
         }
 
         const mappedSlots: Slot[] = sessions.map((s: Session): Slot => {
-          const planned = new Date(s.plannedDatetime);
+          const planned = parseISODate(s.plannedDatetime);
           const durationMinutes =
             typeof s.durationMinutes === "number" && s.durationMinutes > 0
               ? s.durationMinutes
@@ -1287,7 +1318,7 @@ export default function AdminSchedulePage() {
     };
 
     loadInitialSchedule();
-  }, [selectedBranchId, isLoaded]);
+  }, [selectedBranchId, isLoaded, weekCursor]);
 
   const stats = useMemo(() => {
     const total = slots.length;
@@ -1383,93 +1414,7 @@ export default function AdminSchedulePage() {
         />
         </div>
 
-        {/* Legend (Chú thích) */}
-        <div className={`rounded-2xl border border-gray-200 bg-white p-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="text-sm font-semibold text-gray-900 mb-3">Chú thích:</div>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-red-600"></div>
-              <span className="text-sm text-gray-700">Online</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-gray-700"></div>
-              <span className="text-sm text-gray-700">Offline</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-6 rounded bg-gradient-to-r from-red-600 to-red-700"></div>
-              <span className="text-sm text-gray-700">PRE-IELTS</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-6 rounded bg-gradient-to-r from-red-500 to-red-600"></div>
-              <span className="text-sm text-gray-700">TOEFL/General</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-6 rounded bg-gradient-to-r from-gray-600 to-gray-700"></div>
-              <span className="text-sm text-gray-700">IELTS Foundation</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Danh sách thẻ chi tiết */}
-        <div className={`space-y-4 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="text-lg font-semibold text-gray-900">Chi tiết lịch tháng 12</div>
-          {sortedList.map((slot) => {
-            const lightColor = getLightColor(slot.color);
-
-            return (
-              <div
-                key={slot.id}
-                onClick={() => handleSlotClick(slot.id)}
-                className={`rounded-2xl border border-gray-200 p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between hover:shadow-md transition-all cursor-pointer ${lightColor}`}
-              >
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-3">
-                    <TypeBadge type={slot.type} />
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-semibold text-gray-900">{slot.title}</span>
-                      <ColorPicker
-                        lessonId={slot.id}
-                        currentColor={slot.color || TYPE_META[slot.type].defaultColor}
-                        onColorChange={handleColorChange}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="text-sm text-gray-700 inline-flex items-center gap-2">
-                      <CalendarRange size={16} className="text-red-600" /> {slot.date}
-                    </div>
-                    <div className="text-sm text-gray-700 inline-flex items-center gap-2">
-                      <Clock3 size={16} className="text-red-600" /> {slot.time}
-                    </div>
-                    <div className="text-sm text-gray-700 inline-flex items-center gap-2">
-                      <Users size={16} className="text-red-600" /> {slot.teacher}
-                    </div>
-                    <div className="text-sm text-gray-700 inline-flex items-center gap-2">
-                      <MapPin size={16} className="text-red-600" /> {slot.room}
-                    </div>
-                  </div>
-                  {slot.note && (
-                    <div className="text-xs text-gray-600 bg-white/50 rounded-lg p-2 inline-block">
-                      📝 {slot.note}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {slot.type === "MAKEUP" ? (
-                    <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
-                      <ArrowLeftRight size={16} /> Phân bổ buổi bù
-                    </button>
-                  ) : null}
-                  <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-medium text-white hover:shadow-md transition-colors cursor-pointer">
-                    <Send size={16} /> Gửi thông báo
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer note */}
+        {/* Footer note
         <div className={`rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-5 space-y-3 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="font-semibold text-gray-900 flex items-center gap-2">
             <div className="h-6 w-1 bg-gradient-to-r from-red-600 to-red-700 rounded-full"></div>
@@ -1480,7 +1425,7 @@ export default function AdminSchedulePage() {
             • Nhấn vào biểu tượng <Palette size={12} className="inline ml-1" /> để đổi màu phân biệt các khóa học<br />
             • Lịch học có thể xuất file Excel/PDF bằng nút "Xuất lịch"
           </p>
-        </div>
+        </div> */}
       </div>
 
       {/* Create Schedule Modal */}

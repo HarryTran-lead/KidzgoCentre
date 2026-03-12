@@ -290,7 +290,7 @@ export default function LessonAttendancePage() {
   const checkedCount =
     attendanceSummary?.totalStudents != null && attendanceSummary?.notMarkedCount != null
       ? Math.max(0, attendanceSummary.totalStudents - attendanceSummary.notMarkedCount)
-      : list.filter((s) => s.status === "present" || s.status === "late" || s.status === "absent").length;
+      : list.filter((s) => s.status === "present" || s.status === "absent").length;
 
   const updateStatus = (id: string, status: AttendanceStatus) => {
     if (!isEditing) return;
