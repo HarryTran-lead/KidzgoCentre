@@ -379,6 +379,46 @@ function calculateEndDate(startDate: string, schedule: string, totalSessions: nu
 
 /* ----------------------------- CREATE CLASS MODAL ------------------------------ */
 
+// Thêm interfaces mới
+interface WeekDay {
+  value: string;
+  label: string;
+  shortLabel: string;
+}
+
+interface TimeSlot {
+  value: string;
+  label: string;
+  timeRange: string;
+}
+
+// Danh sách các ngày trong tuần
+const WEEK_DAYS: WeekDay[] = [
+  { value: "2", label: "Thứ 2", shortLabel: "T2" },
+  { value: "3", label: "Thứ 3", shortLabel: "T3" },
+  { value: "4", label: "Thứ 4", shortLabel: "T4" },
+  { value: "5", label: "Thứ 5", shortLabel: "T5" },
+  { value: "6", label: "Thứ 6", shortLabel: "T6" },
+  { value: "7", label: "Thứ 7", shortLabel: "T7" },
+  { value: "CN", label: "Chủ nhật", shortLabel: "CN" },
+];
+
+// Các khung giờ mẫu
+const TIME_SLOTS: TimeSlot[] = [
+  { value: "08:00-10:00", label: "Sáng (08:00 - 10:00)", timeRange: "08:00 - 10:00" },
+  { value: "10:00-12:00", label: "Trưa (10:00 - 12:00)", timeRange: "10:00 - 12:00" },
+  { value: "14:00-16:00", label: "Chiều (14:00 - 16:00)", timeRange: "14:00 - 16:00" },
+  { value: "16:00-18:00", label: "Chiều tối (16:00 - 18:00)", timeRange: "16:00 - 18:00" },
+  { value: "18:00-20:00", label: "Tối (18:00 - 20:00)", timeRange: "18:00 - 20:00" },
+  { value: "19:30-21:30", label: "Tối muộn (19:30 - 21:30)", timeRange: "19:30 - 21:30" },
+];
+
+// Các tùy chọn số buổi/tuần
+const SESSIONS_PER_WEEK_OPTIONS = [
+  { value: 2, label: "2 buổi/tuần" },
+  { value: 3, label: "3 buổi/tuần" },
+];
+
 /**
  * Convert schedule string to RRULE format
  */
@@ -494,6 +534,13 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
   const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
+  
+  // States mới cho UI chọn lịch học
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("");
+  const [sessionsPerWeek, setSessionsPerWeek] = useState<number>(2);
+  const [customTimeRange, setCustomTimeRange] = useState<string>("");
+  const [useCustomTime, setUseCustomTime] = useState<boolean>(false);
 
   const fetchSelectData = async () => {
     try {
@@ -509,6 +556,69 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
       setLoadingOptions(false);
     }
   };
+
+  // Helper function to format days string
+  const formatDaysString = (days: string[]): string => {
+    const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
+    const sortedDays = [...days].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+    
+    const thuDays = sortedDays.filter(d => d !== "CN");
+    const hasSunday = sortedDays.includes("CN");
+
+    if (thuDays.length > 0) {
+      return `Thứ ${thuDays.join(",")}${hasSunday ? " & CN" : ""}`;
+    } else if (hasSunday) {
+      return "CN";
+    }
+    return "";
+  };
+
+  // Hàm xử lý chọn/bỏ chọn ngày
+  const toggleDay = (dayValue: string) => {
+    setSelectedDays(prev => {
+      if (prev.includes(dayValue)) {
+        return prev.filter(d => d !== dayValue);
+      } else {
+        // Nếu số ngày đã chọn >= sessionsPerWeek, không cho chọn thêm
+        if (prev.length >= sessionsPerWeek) {
+          return prev;
+        }
+        return [...prev, dayValue];
+      }
+    });
+  };
+
+  // Hàm xử lý chọn số buổi/tuần
+  const handleSessionsPerWeekChange = (value: number) => {
+    setSessionsPerWeek(value);
+    // Nếu số ngày đã chọn nhiều hơn sessionsPerWeek, cắt bớt
+    if (selectedDays.length > value) {
+      setSelectedDays(prev => prev.slice(0, value));
+    }
+  };
+
+  // Reset các state khi đóng modal
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedDays([]);
+      setSelectedTimeSlot("");
+      setSessionsPerWeek(2);
+      setCustomTimeRange("");
+      setUseCustomTime(false);
+    }
+  }, [isOpen]);
+
+  // Cập nhật schedule string khi các lựa chọn thay đổi
+  useEffect(() => {
+    if (selectedDays.length > 0 && (selectedTimeSlot || (useCustomTime && customTimeRange))) {
+      const timeRange = useCustomTime ? customTimeRange : (TIME_SLOTS.find(t => t.value === selectedTimeSlot)?.timeRange || "");
+      const dayString = formatDaysString(selectedDays);
+      const schedule = `${dayString} (${timeRange})`;
+      handleChange("schedule", schedule);
+    } else {
+      handleChange("schedule", "");
+    }
+  }, [selectedDays, selectedTimeSlot, useCustomTime, customTimeRange]);
 
   // Khi chọn chi nhánh -> load programs và giáo viên thuộc chi nhánh đó
   useEffect(() => {
@@ -589,8 +699,46 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
     if (isOpen) {
       if (mode === "edit" && initialData) {
         setFormData(initialData);
+        // Parse initial schedule để set selectedDays, time slot nếu có
+        if (initialData.schedule) {
+          const match = initialData.schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+          if (match) {
+            const dayPart = match[1];
+            const timeRange = `${match[2]} - ${match[3]}`;
+            
+            // Parse days
+            const days: string[] = [];
+            if (dayPart.includes("Thứ")) {
+              const dayNumbers = dayPart.match(/\d+/g) || [];
+              days.push(...dayNumbers);
+              if (dayPart.includes("CN")) {
+                days.push("CN");
+              }
+            } else if (dayPart === "CN") {
+              days.push("CN");
+            }
+            
+            setSelectedDays(days);
+            setSessionsPerWeek(days.length);
+            
+            // Try to match time slot
+            const timeSlot = TIME_SLOTS.find(t => t.timeRange === timeRange);
+            if (timeSlot) {
+              setSelectedTimeSlot(timeSlot.value);
+              setUseCustomTime(false);
+            } else {
+              setCustomTimeRange(timeRange);
+              setUseCustomTime(true);
+            }
+          }
+        }
       } else {
         setFormData(initialFormData);
+        setSelectedDays([]);
+        setSelectedTimeSlot("");
+        setSessionsPerWeek(2);
+        setCustomTimeRange("");
+        setUseCustomTime(false);
       }
       setErrors({});
     }
@@ -606,7 +754,9 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
     if (!formData.mainTeacherId) newErrors.mainTeacherId = "Giáo viên chính là bắt buộc";
     if (formData.capacity <= 0) newErrors.capacity = "Sĩ số phải lớn hơn 0";
     if (!formData.startDate) newErrors.startDate = "Ngày bắt đầu là bắt buộc";
-    // endDate không còn required vì sẽ tự tính từ startDate + schedule + totalSessions
+    if (selectedDays.length === 0) newErrors.schedule = "Vui lòng chọn ít nhất 1 ngày học";
+    if (!selectedTimeSlot && !useCustomTime) newErrors.schedule = "Vui lòng chọn khung giờ học";
+    if (useCustomTime && !customTimeRange.trim()) newErrors.schedule = "Vui lòng nhập khung giờ học";
     if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
       newErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
     }
@@ -954,64 +1104,196 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               </div>
             </div>
 
-            {/* Row 5: Lịch học & Trạng thái */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Clock size={16} className="text-red-600" />
-                  Lịch học *
-                </label>
-                <select
-                  value={formData.schedule}
-                  onChange={(e) => handleChange("schedule", e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300"
-                >
-                  <option value="">Chọn lịch học</option>
-                  <option value="Thứ 2,4,6 (18:00 - 20:00)">Thứ 2,4,6 (18:00 - 20:00) - 3 buổi/tuần</option>
-                  <option value="Thứ 3,5,7 (18:00 - 20:00)">Thứ 3,5,7 (18:00 - 20:00) - 3 buổi/tuần</option>
-                  <option value="Thứ 2,4 (18:00 - 20:00)">Thứ 2,4 (18:00 - 20:00) - 2 buổi/tuần</option>
-                  <option value="Thứ 3,5 (18:00 - 20:00)">Thứ 3,5 (18:00 - 20:00) - 2 buổi/tuần</option>
-                  <option value="Thứ 7 & CN (08:00 - 11:00)">Thứ 7 & CN (08:00 - 11:00) - 2 buổi/tuần</option>
-                  <option value="Thứ 7 & CN (14:00 - 17:00)">Thứ 7 & CN (14:00 - 17:00) - 2 buổi/tuần</option>
-                  <option value="Chủ nhật (08:00 - 11:00)">Chủ nhật (08:00 - 11:00) - 1 buổi/tuần</option>
-                </select>
-                {formData.totalSessions > 0 && formData.schedule && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✓ {formData.totalSessions} buổi, {Math.ceil(formData.totalSessions / (formData.schedule.includes("2,4,6") || formData.schedule.includes("3,5,7") ? 3 : formData.schedule.includes("&") ? 2 : 1))} tuần
-                  </p>
-                )}
-              </div>
+            {/* Row 5: Lịch học - UI MỚI */}
+            <div className="space-y-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Clock size={16} className="text-red-600" />
+                Lịch học *
+              </label>
 
+              {/* Chọn số buổi/tuần */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <BookOpen size={16} className="text-red-600" />
-                  Trạng thái
-                </label>
-                <div className="flex gap-2">
-                  {(["Sắp khai giảng", "Đang học", "Đã kết thúc"] as const).map((status) => (
+                <label className="text-sm text-gray-600">Số buổi học mỗi tuần</label>
+                <div className="flex flex-wrap gap-2">
+                  {SESSIONS_PER_WEEK_OPTIONS.map((option) => (
                     <button
-                      key={status}
+                      key={option.value}
                       type="button"
-                      onClick={() => handleChange("status", status)}
+                      onClick={() => handleSessionsPerWeekChange(option.value)}
                       className={clsx(
-                        "flex-1 px-4 py-3 rounded-xl border text-sm font-semibold transition-all",
-                        formData.status === status
-                          ? status === "Sắp khai giảng"
-                            ? "bg-amber-100 border-amber-300 text-amber-700"
-                            : status === "Đang học"
-                            ? "bg-red-100 border-red-300 text-red-700"
-                            : "bg-gray-100 border-gray-300 text-gray-600"
-                          : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                        "px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer",
+                        sessionsPerWeek === option.value
+                          ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
                       )}
                     >
-                      {status}
+                      {option.label}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {/* Chọn các ngày trong tuần */}
+              <div className="space-y-2">
+                <label className="text-sm text-gray-600">
+                  Chọn ngày học (tối đa {sessionsPerWeek} ngày) <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {WEEK_DAYS.map((day) => {
+                    const isSelected = selectedDays.includes(day.value);
+                    const isDisabled = !isSelected && selectedDays.length >= sessionsPerWeek;
+                    
+                    return (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => toggleDay(day.value)}
+                        disabled={isDisabled}
+                        className={clsx(
+                          "px-4 py-2.5 rounded-xl border text-sm font-medium transition-all cursor-pointer",
+                          "min-w-[80px]",
+                          isSelected
+                            ? day.value === "CN"
+                              ? "bg-rose-100 border-rose-300 text-rose-700"
+                              : "bg-blue-100 border-blue-300 text-blue-700"
+                            : isDisabled
+                            ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                        )}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span className="font-semibold">{day.shortLabel}</span>
+                          <span className="text-xs">{day.label}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedDays.length > 0 && (
+                  <p className="text-xs text-green-600">
+                    ✓ Đã chọn {selectedDays.length}/{sessionsPerWeek} ngày: {formatDaysString(selectedDays)}
+                  </p>
+                )}
+                {selectedDays.length > 0 && selectedDays.length < sessionsPerWeek && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    Chỉ chọn {selectedDays.length} ngày nhưng đã set {sessionsPerWeek} buổi/tuần. Lịch học sẽ bị gián đoạn.
+                  </p>
+                )}
+                {errors.schedule && selectedDays.length === 0 && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> Vui lòng chọn ít nhất 1 ngày học
+                  </p>
+                )}
+              </div>
+
+              {/* Chọn khung giờ */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-gray-600">
+                    Khung giờ học <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setUseCustomTime(!useCustomTime)}
+                    className="text-xs text-red-600 hover:text-red-700 font-medium cursor-pointer"
+                  >
+                    {useCustomTime ? "Chọn khung giờ mẫu" : "Nhập giờ tùy chỉnh"}
+                  </button>
+                </div>
+
+                {!useCustomTime ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {TIME_SLOTS.map((slot) => (
+                      <button
+                        key={slot.value}
+                        type="button"
+                        onClick={() => setSelectedTimeSlot(slot.value)}
+                        className={clsx(
+                          "px-3 py-2.5 rounded-xl border text-sm transition-all cursor-pointer",
+                          selectedTimeSlot === slot.value
+                            ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                        )}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span className="font-medium">{slot.label.split(" ")[0]}</span>
+                          <span className="text-xs">{slot.timeRange}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={customTimeRange}
+                      onChange={(e) => setCustomTimeRange(e.target.value)}
+                      placeholder="VD: 18:00 - 20:00"
+                      className={clsx(
+                        "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300",
+                        errors.schedule && useCustomTime && !customTimeRange ? "border-red-500" : "border-gray-200"
+                      )}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Nhập theo định dạng HH:MM - HH:MM (ví dụ: 18:00 - 20:00)
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Preview lịch học */}
+              {formData.schedule && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200">
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Calendar size={16} className="text-red-600" />
+                    <span className="font-medium">Lịch học đã chọn:</span>
+                    <span className="text-red-700 font-semibold">{formData.schedule}</span>
+                  </div>
+                  {formData.totalSessions > 0 && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      ✓ Tổng số buổi: {formData.totalSessions} buổi
+                      {formData.schedule && selectedDays.length > 0 && (
+                        <span>
+                          {' '}(~{Math.ceil(formData.totalSessions / selectedDays.length)} tuần)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Row 6: Mô tả */}
+            {/* Row 6: Trạng thái */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <BookOpen size={16} className="text-red-600" />
+                Trạng thái
+              </label>
+              <div className="flex gap-2">
+                {(["Sắp khai giảng", "Đang học", "Đã kết thúc"] as const).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => handleChange("status", status)}
+                    className={clsx(
+                      "flex-1 px-4 py-3 rounded-xl border text-sm font-semibold transition-all cursor-pointer",
+                      formData.status === status
+                        ? status === "Sắp khai giảng"
+                          ? "bg-amber-100 border-amber-300 text-amber-700"
+                          : status === "Đang học"
+                          ? "bg-red-100 border-red-300 text-red-700"
+                          : "bg-gray-100 border-gray-300 text-gray-600"
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 7: Mô tả */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <BookOpen size={16} className="text-red-600" />
@@ -1046,6 +1328,11 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     setFormData(initialData);
                   } else {
                     setFormData(initialFormData);
+                    setSelectedDays([]);
+                    setSelectedTimeSlot("");
+                    setSessionsPerWeek(2);
+                    setCustomTimeRange("");
+                    setUseCustomTime(false);
                   }
                   setErrors({});
                 }}

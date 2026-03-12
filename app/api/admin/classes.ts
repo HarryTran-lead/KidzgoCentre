@@ -7,6 +7,89 @@ import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS, USER_ENDPOINTS } from "@/constants/apiURL";
 import type { ClassRow, CreateClassRequest, Class, ClassDetail, Track } from "@/types/admin/classes";
 
+/**
+ * Parse RRULE to human-readable schedule string
+ */
+function parseRRULEToSchedule(rrule: string): string {
+  if (!rrule || !rrule.trim()) {
+    return "Chưa có lịch";
+  }
+
+  try {
+    // Remove RRULE: prefix if present
+    const rule = rrule.replace(/^RRULE:/i, "");
+    const parts: Record<string, string> = {};
+
+    rule.split(";").forEach((part) => {
+      const [key, value] = part.split("=");
+      if (key && value) {
+        parts[key.toUpperCase()] = value;
+      }
+    });
+
+    const freq = parts.FREQ || "";
+    const byDay = parts.BYDAY || "";
+    const byHour = parts.BYHOUR || "18";
+    const byMinute = parts.BYMINUTE || "0";
+    const duration = parseInt(parts.DURATION || "120", 10);
+
+    if (freq !== "WEEKLY" || !byDay) {
+      return rrule;
+    }
+
+    // Map RRULE days to Vietnamese
+    const dayMap: Record<string, string> = {
+      "MO": "Thứ 2",
+      "TU": "Thứ 3",
+      "WE": "Thứ 4",
+      "TH": "Thứ 5",
+      "FR": "Thứ 6",
+      "SA": "Thứ 7",
+      "SU": "CN",
+    };
+
+    // Parse days và sắp xếp theo thứ tự
+    const days = byDay.split(",").map((d) => d.trim());
+    const dayOrder = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+    days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+
+    // Format days
+    const vietnameseDays = days.map(d => dayMap[d] || d);
+
+    // Nhóm các ngày Thứ
+    const thuDays = vietnameseDays.filter(d => d.startsWith("Thứ")).map(d => d.replace("Thứ ", ""));
+    const hasSunday = vietnameseDays.includes("CN");
+
+    let dayString = "";
+    if (thuDays.length > 0) {
+      dayString = `Thứ ${thuDays.join(",")}`;
+      if (hasSunday) {
+        dayString += " & CN";
+      }
+    } else if (hasSunday) {
+      dayString = "CN";
+    } else {
+      dayString = vietnameseDays.join(", ");
+    }
+
+    // Format time
+    const hour = parseInt(byHour, 10);
+    const minute = parseInt(byMinute, 10);
+    const startTime = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+
+    // Calculate end time
+    const endMinutes = hour * 60 + minute + duration;
+    const endHour = Math.floor(endMinutes / 60);
+    const endMin = endMinutes % 60;
+    const endTime = `${endHour.toString().padStart(2, "0")}:${endMin.toString().padStart(2, "0")}`;
+
+    return `${dayString} (${startTime} - ${endTime})`;
+  } catch (error) {
+    console.error("Error parsing RRULE:", error);
+    return rrule;
+  }
+}
+
 function mapApiClassToRow(item: any): ClassRow {
   // Use UUID as id for API calls, code for display
   const id = String(item?.id ?? item?.classId ?? "");
@@ -18,7 +101,7 @@ function mapApiClassToRow(item: any): ClassRow {
   const current = item?.currentEnrollmentCount ?? 0;
   const capacity = item?.capacity ?? 0;
   const schedulePattern = (item?.schedulePattern as string | undefined) ?? "";
-  const schedule = schedulePattern.trim() || "Chưa có lịch";
+  const schedule = schedulePattern ? parseRRULEToSchedule(schedulePattern) : "Chưa có lịch";
   
   const rawStatus: string = (item?.status as string | undefined) ?? "";
   let status: ClassRow["status"] = "Sắp khai giảng";
