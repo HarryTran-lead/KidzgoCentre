@@ -377,6 +377,86 @@ function calculateEndDate(startDate: string, schedule: string, totalSessions: nu
   }
 }
 
+/* ----------------------------- TIME PICKER COMPONENT ------------------------------ */
+function TimePicker({ 
+  value, 
+  onChange, 
+  label 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  label: string;
+}) {
+  const [hours, setHours] = useState(() => {
+    const [h] = value.split(':').map(Number);
+    return isNaN(h) ? 18 : h;
+  });
+  const [minutes, setMinutes] = useState(() => {
+    const [, m] = value.split(':').map(Number);
+    return isNaN(m) ? 0 : m;
+  });
+
+  useEffect(() => {
+    onChange(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+  }, [hours, minutes, onChange]);
+
+  const incrementHours = () => setHours(prev => (prev + 1) % 24);
+  const decrementHours = () => setHours(prev => (prev - 1 + 24) % 24);
+  const incrementMinutes = () => setMinutes(prev => (prev + 1) % 60);
+  const decrementMinutes = () => setMinutes(prev => (prev - 1 + 60) % 60);
+
+  return (
+    <div className="space-y-1">
+      <span className="text-xs text-gray-500">{label}</span>
+      <div className="flex items-center gap-1">
+        {/* Giờ */}
+        <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={incrementHours}
+            className="w-14 h-8 rounded-t-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 cursor-pointer transition-colors"
+          >
+            ▲
+          </button>
+          <div className="w-14 h-12 bg-white border-x border-gray-200 flex items-center justify-center font-mono text-lg font-semibold text-gray-900">
+            {hours.toString().padStart(2, '0')}
+          </div>
+          <button
+            type="button"
+            onClick={decrementHours}
+            className="w-14 h-8 rounded-b-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 cursor-pointer transition-colors"
+          >
+            ▼
+          </button>
+        </div>
+
+        <span className="text-xl font-bold text-gray-400 mx-1">:</span>
+
+        {/* Phút */}
+        <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={incrementMinutes}
+            className="w-14 h-8 rounded-t-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 cursor-pointer transition-colors"
+          >
+            ▲
+          </button>
+          <div className="w-14 h-12 bg-white border-x border-gray-200 flex items-center justify-center font-mono text-lg font-semibold text-gray-900">
+            {minutes.toString().padStart(2, '0')}
+          </div>
+          <button
+            type="button"
+            onClick={decrementMinutes}
+            className="w-14 h-8 rounded-b-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 cursor-pointer transition-colors"
+          >
+            ▼
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------- CREATE CLASS MODAL ------------------------------ */
 
 // Thêm interfaces mới
@@ -539,8 +619,9 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("");
   const [sessionsPerWeek, setSessionsPerWeek] = useState<number>(2);
-  const [customTimeRange, setCustomTimeRange] = useState<string>("");
   const [useCustomTime, setUseCustomTime] = useState<boolean>(false);
+  const [startTime, setStartTime] = useState("18:00");
+  const [endTime, setEndTime] = useState("20:00");
 
   const fetchSelectData = async () => {
     try {
@@ -603,22 +684,30 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
       setSelectedDays([]);
       setSelectedTimeSlot("");
       setSessionsPerWeek(2);
-      setCustomTimeRange("");
       setUseCustomTime(false);
+      setStartTime("18:00");
+      setEndTime("20:00");
     }
   }, [isOpen]);
 
   // Cập nhật schedule string khi các lựa chọn thay đổi
   useEffect(() => {
-    if (selectedDays.length > 0 && (selectedTimeSlot || (useCustomTime && customTimeRange))) {
-      const timeRange = useCustomTime ? customTimeRange : (TIME_SLOTS.find(t => t.value === selectedTimeSlot)?.timeRange || "");
-      const dayString = formatDaysString(selectedDays);
-      const schedule = `${dayString} (${timeRange})`;
-      handleChange("schedule", schedule);
+    if (selectedDays.length > 0) {
+      if (!useCustomTime && selectedTimeSlot) {
+        const timeRange = TIME_SLOTS.find(t => t.value === selectedTimeSlot)?.timeRange || "";
+        const dayString = formatDaysString(selectedDays);
+        const schedule = `${dayString} (${timeRange})`;
+        handleChange("schedule", schedule);
+      } else if (useCustomTime) {
+        const timeRange = `${startTime} - ${endTime}`;
+        const dayString = formatDaysString(selectedDays);
+        const schedule = `${dayString} (${timeRange})`;
+        handleChange("schedule", schedule);
+      }
     } else {
       handleChange("schedule", "");
     }
-  }, [selectedDays, selectedTimeSlot, useCustomTime, customTimeRange]);
+  }, [selectedDays, selectedTimeSlot, useCustomTime, startTime, endTime]);
 
   // Khi chọn chi nhánh -> load programs và giáo viên thuộc chi nhánh đó
   useEffect(() => {
@@ -727,7 +816,10 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               setSelectedTimeSlot(timeSlot.value);
               setUseCustomTime(false);
             } else {
-              setCustomTimeRange(timeRange);
+              // Parse start and end time for custom time
+              const [start, end] = timeRange.split(' - ');
+              setStartTime(start);
+              setEndTime(end);
               setUseCustomTime(true);
             }
           }
@@ -737,8 +829,9 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
         setSelectedDays([]);
         setSelectedTimeSlot("");
         setSessionsPerWeek(2);
-        setCustomTimeRange("");
         setUseCustomTime(false);
+        setStartTime("18:00");
+        setEndTime("20:00");
       }
       setErrors({});
     }
@@ -755,8 +848,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
     if (formData.capacity <= 0) newErrors.capacity = "Sĩ số phải lớn hơn 0";
     if (!formData.startDate) newErrors.startDate = "Ngày bắt đầu là bắt buộc";
     if (selectedDays.length === 0) newErrors.schedule = "Vui lòng chọn ít nhất 1 ngày học";
-    if (!selectedTimeSlot && !useCustomTime) newErrors.schedule = "Vui lòng chọn khung giờ học";
-    if (useCustomTime && !customTimeRange.trim()) newErrors.schedule = "Vui lòng nhập khung giờ học";
+    if (!useCustomTime && !selectedTimeSlot) newErrors.schedule = "Vui lòng chọn khung giờ học";
     if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
       newErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
     }
@@ -849,7 +941,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Tag size={16} className="text-red-600" />
-                  Mã lớp *
+                  Mã lớp <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -875,7 +967,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <BookOpen size={16} className="text-red-600" />
-                  Tên lớp *
+                  Tên lớp <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -904,7 +996,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Building2 size={16} className="text-red-600" />
-                  Chi nhánh *
+                  Chi nhánh <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -935,7 +1027,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Tag size={16} className="text-red-600" />
-                  Chương trình *
+                  Chương trình <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -969,7 +1061,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <User size={16} className="text-red-600" />
-                  Giáo viên chính *
+                  Giáo viên chính <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -1025,7 +1117,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Users size={16} className="text-red-600" />
-                Sĩ số tối đa *
+                Sĩ số tối đa <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -1054,7 +1146,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Calendar size={16} className="text-red-600" />
-                  Ngày bắt đầu *
+                  Ngày bắt đầu <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -1079,7 +1171,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Calendar size={16} className="text-red-600" />
-                  Ngày kết thúc *
+                  Ngày kết thúc
                 </label>
                 <div className="relative">
                   <input
@@ -1087,11 +1179,13 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     value={formData.endDate}
                     onChange={(e) => handleChange("endDate", e.target.value)}
                     className={clsx(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                      "w-full px-4 py-3 rounded-xl border bg-gray-100 text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-red-300",
+                      "cursor-not-allowed",
                       errors.endDate ? "border-red-500" : "border-gray-200"
                     )}
                     readOnly
+                    disabled
                   />
                   {errors.endDate && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -1108,7 +1202,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
             <div className="space-y-4">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Clock size={16} className="text-red-600" />
-                Lịch học *
+                Lịch học <span className="text-red-500">*</span>
               </label>
 
               {/* Chọn số buổi/tuần */}
@@ -1224,19 +1318,22 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     ))}
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={customTimeRange}
-                      onChange={(e) => setCustomTimeRange(e.target.value)}
-                      placeholder="VD: 18:00 - 20:00"
-                      className={clsx(
-                        "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300",
-                        errors.schedule && useCustomTime && !customTimeRange ? "border-red-500" : "border-gray-200"
-                      )}
-                    />
+                  <div className="space-y-4">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                      <TimePicker 
+                        value={startTime} 
+                        onChange={setStartTime} 
+                        label="Giờ bắt đầu"
+                      />
+                      <span className="text-gray-400 font-bold hidden md:block">→</span>
+                      <TimePicker 
+                        value={endTime} 
+                        onChange={setEndTime} 
+                        label="Giờ kết thúc"
+                      />
+                    </div>
                     <p className="text-xs text-gray-500">
-                      Nhập theo định dạng HH:MM - HH:MM (ví dụ: 18:00 - 20:00)
+                      Sử dụng các nút ▲▼ để điều chỉnh giờ và phút
                     </p>
                   </div>
                 )}
@@ -1331,8 +1428,9 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     setSelectedDays([]);
                     setSelectedTimeSlot("");
                     setSessionsPerWeek(2);
-                    setCustomTimeRange("");
                     setUseCustomTime(false);
+                    setStartTime("18:00");
+                    setEndTime("20:00");
                   }
                   setErrors({});
                 }}

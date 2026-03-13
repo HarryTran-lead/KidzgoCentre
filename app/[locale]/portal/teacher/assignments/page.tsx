@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import clsx from "clsx";
 
 import {
   ClipboardList,
@@ -44,10 +45,12 @@ import {
   AlignLeft,
   CalendarDays,
   AlertTriangle,
+  Tag,
+  Star,
 } from "lucide-react";
 
-import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSessions, deleteHomework, fetchHomeworkDetail, updateHomework } from "@/lib/api/homeworkService";
-import type { HomeworkSubmission, CreateHomeworkPayload, ClassOption, SessionOption } from "@/types/teacher/homework";
+import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSessions, deleteHomework, fetchHomeworkDetail, updateHomework, createMultipleChoiceHomework } from "@/lib/api/homeworkService";
+import type { HomeworkSubmission, CreateHomeworkPayload, ClassOption, SessionOption, MultipleChoiceQuestion } from "@/types/teacher/homework";
 
 type SubmissionStatus = "PENDING" | "SUBMITTED" | "REVIEWED" | "OVERDUE";
 
@@ -75,6 +78,7 @@ type Submission = {
   // Session/Buổi học
   session?: string;
   sessionId?: string;
+  submissionType?: string;
 };
 
 const STATUS_CONFIG: Record<SubmissionStatus, {
@@ -222,9 +226,14 @@ function SubmissionRow({ item, onDelete, onViewDetail, onUpdate, isSelected, onS
         <div className="text-sm font-medium text-gray-900">{item.assignmentTitle}</div>
       </td>
 
+      {/* Class / Lớp học */}
+      <td className="py-4 px-6">
+        <div className="text-sm text-gray-600">{item.className || "-"}</div>
+      </td>
+
       {/* Session / Buổi học */}
       <td className="py-4 px-6">
-        <div className="text-sm text-gray-900">{item.session || "-"}</div>
+        <div className="text-sm text-gray-900">{item.sessionId || "-"}</div>
       </td>
 
       {/* Due Date */}
@@ -235,19 +244,25 @@ function SubmissionRow({ item, onDelete, onViewDetail, onUpdate, isSelected, onS
         </div>
       </td>
 
-      {/* File Info */}
-      <td className="py-4 px-6">
-        <div className="text-sm text-gray-900 truncate max-w-[150px]">{item.file}</div>
-        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-          <FileTypeBadge type={item.fileType} />
-          <span>{item.fileSize}</span>
-        </div>
-      </td>
-
       {/* Skills */}
       <td className="py-4 px-6">
         <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-medium border border-red-200">
           {item.skills || "-"}
+        </span>
+      </td>
+
+      {/* Submission Type */}
+      <td className="py-4 px-6">
+        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${
+          item.submissionType === "Quiz" 
+            ? "bg-purple-50 text-purple-700 border-purple-200"
+            : item.submissionType === "FILE"
+              ? "bg-blue-50 text-blue-700 border-blue-200"
+              : item.submissionType === "TEXT"
+                ? "bg-green-50 text-green-700 border-green-200"
+                : "bg-gray-50 text-gray-700 border-gray-200"
+        }`}>
+          {item.submissionType || "File"}
         </span>
       </td>
 
@@ -294,12 +309,15 @@ function SubmissionRow({ item, onDelete, onViewDetail, onUpdate, isSelected, onS
 
 // Create Assignment Modal Component
 function CreateAssignmentModal({
+  isOpen,
   onClose,
   onSuccess
 }: {
+  isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"UPLOAD" | "MULTIPLE_CHOICE">("UPLOAD");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
@@ -311,18 +329,58 @@ function CreateAssignmentModal({
   const [book, setBook] = useState("");
   const [pages, setPages] = useState("");
   const [skills, setSkills] = useState("");
-  const [submissionType, setSubmissionType] = useState<"FILE" | "TEXT" | "FILE_AND_TEXT">("FILE");
+  const [submissionType, setSubmissionType] = useState<"FILE" | "TEXT" | "FILE_AND_TEXT" | "MULTIPLE_CHOICE">("FILE");
   const [missionId, setMissionId] = useState("");
   const [instructions, setInstructions] = useState("");
   const [expectedAnswer, setExpectedAnswer] = useState("");
   const [rubric, setRubric] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
+  
+  // Multiple choice specific states
+  const [questions, setQuestions] = useState<Array<{
+    id: string;
+    question: string;
+    options: Array<{ id: string; text: string; isCorrect: boolean }>;
+    explanation?: string;
+    points: number;
+  }>>([]);
+  const [currentQuestion, setCurrentQuestion] = useState("");
+  const [currentOptions, setCurrentOptions] = useState<Array<{ id: string; text: string; isCorrect: boolean }>>([
+    { id: crypto.randomUUID(), text: "", isCorrect: false },
+    { id: crypto.randomUUID(), text: "", isCorrect: false }
+  ]);
+  const [currentExplanation, setCurrentExplanation] = useState("");
+  const [currentPoints, setCurrentPoints] = useState("10");
+  const [showQuestionForm, setShowQuestionForm] = useState(false);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [isLoadingClasses, setIsLoadingClasses] = useState(true);
   const [sessions, setSessions] = useState<SessionOption[]>([]);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
 
   // Fetch classes from API
   useEffect(() => {
@@ -362,6 +420,67 @@ function CreateAssignmentModal({
     loadSessions();
   }, [selectedClass]);
 
+  const addOption = () => {
+    setCurrentOptions([...currentOptions, { id: crypto.randomUUID(), text: "", isCorrect: false }]);
+  };
+
+  const removeOption = (id: string) => {
+    if (currentOptions.length > 2) {
+      setCurrentOptions(currentOptions.filter(opt => opt.id !== id));
+    }
+  };
+
+  const updateOptionText = (id: string, text: string) => {
+    setCurrentOptions(currentOptions.map(opt => 
+      opt.id === id ? { ...opt, text } : opt
+    ));
+  };
+
+  const toggleCorrectOption = (id: string) => {
+    setCurrentOptions(currentOptions.map(opt => ({
+      ...opt,
+      isCorrect: opt.id === id
+    })));
+  };
+
+  const addQuestion = () => {
+    if (!currentQuestion.trim()) {
+      setError("Vui lòng nhập câu hỏi");
+      return;
+    }
+    if (currentOptions.some(opt => !opt.text.trim())) {
+      setError("Vui lòng nhập đầy đủ nội dung các lựa chọn");
+      return;
+    }
+    if (!currentOptions.some(opt => opt.isCorrect)) {
+      setError("Vui lòng chọn đáp án đúng");
+      return;
+    }
+
+    setQuestions([...questions, {
+      id: crypto.randomUUID(),
+      question: currentQuestion,
+      options: [...currentOptions],
+      explanation: currentExplanation || undefined,
+      points: parseInt(currentPoints) || 10
+    }]);
+
+    // Reset form
+    setCurrentQuestion("");
+    setCurrentOptions([
+      { id: crypto.randomUUID(), text: "", isCorrect: false },
+      { id: crypto.randomUUID(), text: "", isCorrect: false }
+    ]);
+    setCurrentExplanation("");
+    setCurrentPoints("10");
+    setShowQuestionForm(false);
+    setError("");
+  };
+
+  const removeQuestion = (id: string) => {
+    setQuestions(questions.filter(q => q.id !== id));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -377,36 +496,76 @@ function CreateAssignmentModal({
       setError("Vui lòng chọn ngày hết hạn");
       return;
     }
+    if (activeTab === "MULTIPLE_CHOICE" && questions.length === 0) {
+      setError("Vui lòng thêm ít nhất 1 câu hỏi");
+      return;
+    }
 
     setIsSubmitting(true);
     setError("");
 
     // Call API to create homework
     try {
-      const payload: CreateHomeworkPayload = {
-        title,
-        description,
-        classId: selectedClass,
-        sessionId: selectedSession || undefined,
-        dueAt: `${dueDate}T${dueTime}:00+07:00`,
-        book: book || undefined,
-        pages: pages || undefined,
-        skills: skills || undefined,
-        submissionType,
-        maxScore: maxScore ? parseInt(maxScore) : undefined,
-        rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
-        missionId: missionId || undefined,
-        instructions: instructions || undefined,
-        expectedAnswer: expectedAnswer || undefined,
-        rubric: rubric || undefined,
-      };
+      // Determine which API to call based on tab
+      if (activeTab === "MULTIPLE_CHOICE") {
+        // Prepare questions for API - convert from UI format to API format
+        // correctAnswer should be the INDEX of the correct option (as string/number)
+        const apiQuestions: MultipleChoiceQuestion[] = questions.map(q => {
+          const correctIndex = q.options.findIndex(opt => opt.isCorrect);
+          return {
+            questionText: q.question,
+            questionType: "multipleChoice",
+            options: q.options.map(opt => opt.text),
+            correctAnswer: correctIndex, 
+            points: q.points || 10,
+            explanation: q.explanation,
+          };
+        });
 
-      const result = await createHomework(payload);
+        const result = await createMultipleChoiceHomework({
+          title,
+          description: description || undefined,
+          classId: selectedClass,
+          sessionId: selectedSession || undefined,
+          dueAt: `${dueDate}T${dueTime}:00+07:00`,
+          rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
+          missionId: missionId || undefined,
+          instructions: instructions || undefined,
+          questions: apiQuestions,
+        });
 
-      if (result.ok) {
-        onSuccess();
+        if (result.ok) {
+          onSuccess();
+        } else {
+          setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");
+        }
       } else {
-        setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");
+        // Upload tab - use regular homework API
+        const payload: CreateHomeworkPayload = {
+          title,
+          description,
+          classId: selectedClass,
+          sessionId: selectedSession || undefined,
+          dueAt: `${dueDate}T${dueTime}:00+07:00`,
+          book: book || undefined,
+          pages: pages || undefined,
+          skills: skills || undefined,
+          submissionType: submissionType as "FILE" | "TEXT" | "FILE_AND_TEXT" | undefined,
+          maxScore: maxScore ? parseInt(maxScore) : undefined,
+          rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
+          missionId: missionId || undefined,
+          instructions: instructions || undefined,
+          expectedAnswer: expectedAnswer || undefined,
+          rubric: rubric || undefined,
+        };
+
+        const result = await createHomework(payload);
+
+        if (result.ok) {
+          onSuccess();
+        } else {
+          setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");
+        }
       }
     } catch (err) {
       setError("Có lỗi xảy ra. Vui lòng thử lại.");
@@ -416,284 +575,635 @@ function CreateAssignmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
-        <div className="sticky top-0 bg-white border-b border-red-100 px-6 py-4 rounded-t-2xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-xl">
-              <TimerReset size={20} className="text-white" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div
+        ref={modalRef}
+        className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+      >
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <TimerReset size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Giao bài tập mới
+                </h2>
+                <p className="text-sm text-red-100">
+                  Tạo bài tập cho học viên
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Giao bài tập mới</h2>
-              <p className="text-sm text-gray-500">Tạo bài tập cho học viên</p>
-            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label="Đóng"
+            >
+              <X size={24} className="text-white" />
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-red-50 rounded-xl transition-colors cursor-pointer">
-            <X size={20} className="text-gray-500" />
-          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-              <p className="text-sm text-red-600 font-medium">{error}</p>
-            </div>
-          )}
-
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Tiêu đề bài tập <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Nhập tiêu đề bài tập..."
-            />
-          </div>
-
-          {/* Class, Session */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Lớp học <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                disabled={isLoadingClasses}
-                className="w-full h-11 px-4 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:bg-gray-100"
-              >
-                <option value="">{isLoadingClasses ? "Đang tải..." : "Chọn lớp học..."}</option>
-                {classes.map((cls) => (
-                  <option key={cls.id} value={cls.id}>{cls.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Buổi học
-              </label>
-              <select
-                value={selectedSession}
-                onChange={(e) => setSelectedSession(e.target.value)}
-                disabled={!selectedClass || isLoadingSessions}
-                className="w-full h-11 px-4 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:bg-gray-100"
-              >
-                <option value="">
-                  {!selectedClass
-                    ? "Chọn lớp trước"
-                    : isLoadingSessions
-                      ? "Đang tải..."
-                      : "Chọn buổi học..."}
-                </option>
-                {sessions.map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.name} {session.date ? `(${session.date})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* MaxScore & RewardStars */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Điểm tối đa
-              </label>
-              <input
-                type="number"
-                value={maxScore}
-                onChange={(e) => setMaxScore(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                min="0"
-                placeholder="10"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Sao thưởng
-              </label>
-              <input
-                type="number"
-                value={rewardStars}
-                onChange={(e) => setRewardStars(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                min="0"
-                placeholder="0"
-              />
-            </div>
-          </div>
-
-          {/* Due Date & Time */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Ngày hết hạn <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Giờ hết hạn
-              </label>
-              <input
-                type="time"
-                value={dueTime}
-                onChange={(e) => setDueTime(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              />
-            </div>
-          </div>
-
-          {/* Book, Pages, Skills */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Sách bài tập
-              </label>
-              <input
-                type="text"
-                value={book}
-                onChange={(e) => setBook(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Tên sách..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Trang
-              </label>
-              <input
-                type="text"
-                value={pages}
-                onChange={(e) => setPages(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Trang..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Kỹ năng
-              </label>
-              <input
-                type="text"
-                value={skills}
-                onChange={(e) => setSkills(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Kỹ năng..."
-              />
-            </div>
-          </div>
-
-          {/* Submission Type */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Hình thức nộp bài
-            </label>
-            <select
-              value={submissionType}
-              onChange={(e) => setSubmissionType(e.target.value as "FILE" | "TEXT" | "FILE_AND_TEXT")}
-              className="w-full h-11 px-4 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+        {/* Tabs */}
+        <div className="border-b border-gray-200 bg-gray-50/50 px-6">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab("UPLOAD")}
+              className={clsx(
+                "py-3 px-4 text-sm font-medium border-b-2 transition-all cursor-pointer",
+                activeTab === "UPLOAD"
+                  ? "border-red-600 text-red-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              )}
             >
-              <option value="FILE">Nộp file</option>
-              <option value="TEXT">Nhập text</option>
-              <option value="FILE_AND_TEXT">File và text</option>
-            </select>
+              <div className="flex items-center gap-2">
+                <Upload size={18} />
+                Upload file đề
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab("MULTIPLE_CHOICE")}
+              className={clsx(
+                "py-3 px-4 text-sm font-medium border-b-2 transition-all cursor-pointer",
+                activeTab === "MULTIPLE_CHOICE"
+                  ? "border-red-600 text-red-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <ClipboardList size={18} />
+                Multiple choice
+              </div>
+            </button>
           </div>
+        </div>
 
-          {/* Mission ID */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Mission ID
-            </label>
-            <input
-              type="text"
-              value={missionId}
-              onChange={(e) => setMissionId(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="ID nhiệm vụ (UUID)"
-            />
-          </div>
+        {/* Modal Body */}
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+                <AlertCircle size={18} className="text-red-600" />
+                <p className="text-sm text-red-600 font-medium">{error}</p>
+              </div>
+            )}
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Mô tả bài tập
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
-              placeholder="Nhập mô tả chi tiết về bài tập..."
-            />
-          </div>
+            {/* Common Fields */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <BookOpen size={16} className="text-red-600" />
+                Tiêu đề bài tập <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                placeholder="Nhập tiêu đề bài tập..."
+              />
+            </div>
 
-          {/* Instructions */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Hướng dẫn
-            </label>
-            <textarea
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
-              placeholder="Hướng dẫn chi tiết cho học viên..."
-            />
-          </div>
+            {/* Class, Session */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Users size={16} className="text-red-600" />
+                  Lớp học <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  disabled={isLoadingClasses}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">{isLoadingClasses ? "Đang tải..." : "Chọn lớp học..."}</option>
+                  {classes.map((cls) => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Calendar size={16} className="text-red-600" />
+                  Buổi học
+                </label>
+                <select
+                  value={selectedSession}
+                  onChange={(e) => setSelectedSession(e.target.value)}
+                  disabled={!selectedClass || isLoadingSessions}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">
+                    {!selectedClass
+                      ? "Chọn lớp trước"
+                      : isLoadingSessions
+                        ? "Đang tải..."
+                        : "Chọn buổi học..."}
+                  </option>
+                  {sessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.name} {session.date ? `(${session.date})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-          {/* Expected Answer */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Đáp án kỳ vọng
-            </label>
-            <textarea
-              value={expectedAnswer}
-              onChange={(e) => setExpectedAnswer(e.target.value)}
-              rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
-              placeholder="Đáp án mẫu / đáp án kỳ vọng..."
-            />
-          </div>
+            {/* MaxScore & RewardStars */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Award size={16} className="text-red-600" />
+                  Điểm tối đa
+                </label>
+                <input
+                  type="number"
+                  value={maxScore}
+                  onChange={(e) => setMaxScore(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                  min="0"
+                  placeholder="10"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Star size={16} className="text-red-600" />
+                  Sao thưởng
+                </label>
+                <input
+                  type="number"
+                  value={rewardStars}
+                  onChange={(e) => setRewardStars(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                  min="0"
+                  placeholder="0"
+                />
+              </div>
+            </div>
 
-          {/* Rubric */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Rubric (Tiêu chí chấm điểm)
-            </label>
-            <textarea
-              value={rubric}
-              onChange={(e) => setRubric(e.target.value)}
-              rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
-              placeholder="Tiêu chí và cách chấm điểm..."
-            />
-          </div>
+            {/* Due Date & Time */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Calendar size={16} className="text-red-600" />
+                  Ngày hết hạn <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Clock size={16} className="text-red-600" />
+                  Giờ hết hạn
+                </label>
+                <input
+                  type="time"
+                  value={dueTime}
+                  onChange={(e) => setDueTime(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                />
+              </div>
+            </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-red-100">
+            {/* Tab Content */}
+            {activeTab === "UPLOAD" ? (
+              /* Upload tab content */
+              <>
+                {/* Book, Pages, Skills */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <BookOpen size={16} className="text-red-600" />
+                      Sách bài tập
+                    </label>
+                    <input
+                      type="text"
+                      value={book}
+                      onChange={(e) => setBook(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                      placeholder="Tên sách..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <FileText size={16} className="text-red-600" />
+                      Trang
+                    </label>
+                    <input
+                      type="text"
+                      value={pages}
+                      onChange={(e) => setPages(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                      placeholder="Trang..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Sparkles size={16} className="text-red-600" />
+                      Kỹ năng
+                    </label>
+                    <input
+                      type="text"
+                      value={skills}
+                      onChange={(e) => setSkills(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                      placeholder="Kỹ năng..."
+                    />
+                  </div>
+                </div>
+
+                {/* Submission Type */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Upload size={16} className="text-red-600" />
+                    Hình thức nộp bài
+                  </label>
+                  <select
+                    value={submissionType}
+                    onChange={(e) => setSubmissionType(e.target.value as "FILE" | "TEXT" | "FILE_AND_TEXT")}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300"
+                  >
+                    <option value="FILE">Nộp file</option>
+                    <option value="TEXT">Nhập text</option>
+                    <option value="FILE_AND_TEXT">File và text</option>
+                  </select>
+                </div>
+
+                {/* Mission ID */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Tag size={16} className="text-red-600" />
+                    Mission ID
+                  </label>
+                  <input
+                    type="text"
+                    value={missionId}
+                    onChange={(e) => setMissionId(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    placeholder="ID nhiệm vụ (UUID)"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <AlignLeft size={16} className="text-red-600" />
+                    Mô tả bài tập
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                    placeholder="Nhập mô tả chi tiết về bài tập..."
+                  />
+                </div>
+
+                {/* Instructions */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <BookMarked size={16} className="text-red-600" />
+                    Hướng dẫn
+                  </label>
+                  <textarea
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                    placeholder="Hướng dẫn chi tiết cho học viên..."
+                  />
+                </div>
+
+                {/* Expected Answer */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <CheckCircle size={16} className="text-red-600" />
+                    Đáp án kỳ vọng
+                  </label>
+                  <textarea
+                    value={expectedAnswer}
+                    onChange={(e) => setExpectedAnswer(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                    placeholder="Đáp án mẫu / đáp án kỳ vọng..."
+                  />
+                </div>
+
+                {/* Rubric */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <BarChart3 size={16} className="text-red-600" />
+                    Rubric (Tiêu chí chấm điểm)
+                  </label>
+                  <textarea
+                    value={rubric}
+                    onChange={(e) => setRubric(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                    placeholder="Tiêu chí và cách chấm điểm..."
+                  />
+                </div>
+
+                {/* File Upload */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Paperclip size={16} className="text-red-600" />
+                    Tệp đính kèm
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-red-300 transition-colors cursor-pointer">
+                    <input type="file" multiple className="hidden" />
+                    <UploadCloud size={32} className="mx-auto text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600">Kéo thả file vào đây hoặc click để chọn</p>
+                    <p className="text-xs text-gray-500 mt-1">PDF, DOCX, MP3, ZIP (tối đa 50MB)</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Multiple Choice tab content - Fields matching API: classId, sessionId, title, description, dueAt, rewardStars, missionId, instructions, questions */
+              <div className="space-y-4">
+                {/* Instructions for Multiple Choice */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <BookMarked size={16} className="text-red-600" />
+                    Hướng dẫn làm bài
+                  </label>
+                  <textarea
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    rows={2}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                    placeholder="Hướng dẫn học viên làm bài trắc nghiệm..."
+                  />
+                </div>
+
+                {/* Mission ID for Multiple Choice */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Tag size={16} className="text-red-600" />
+                    Mission ID
+                  </label>
+                  <input
+                    type="text"
+                    value={missionId}
+                    onChange={(e) => setMissionId(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    placeholder="ID nhiệm vụ (UUID)"
+                  />
+                </div>
+
+                {/* Description for Multiple Choice */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <AlignLeft size={16} className="text-red-600" />
+                    Mô tả bài tập
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={2}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                    placeholder="Mô tả chi tiết về bài tập trắc nghiệm..."
+                  />
+                </div>
+
+                {/* Questions List */}
+                {questions.length > 0 && (
+                  <div className="space-y-3 mb-4">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <ClipboardList size={16} className="text-red-600" />
+                      Danh sách câu hỏi ({questions.length})
+                    </label>
+                    <div className="space-y-3">
+                      {questions.map((q, index) => (
+                        <div key={q.id} className="p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-bold">
+                                  {index + 1}
+                                </span>
+                                <span className="font-medium text-gray-900">{q.question}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 ml-8">
+                                {q.options.map((opt) => (
+                                  <div
+                                    key={opt.id}
+                                    className={clsx(
+                                      "px-3 py-2 rounded-lg text-sm border",
+                                      opt.isCorrect
+                                        ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                                        : "bg-white border-gray-200 text-gray-600"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {opt.isCorrect && <CheckCircle size={14} className="text-emerald-600" />}
+                                      <span className={opt.isCorrect ? "font-medium" : ""}>{opt.text}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {q.explanation && (
+                                <div className="mt-2 ml-8 text-xs text-gray-500 bg-white p-2 rounded-lg border border-gray-200">
+                                  <span className="font-medium">Giải thích:</span> {q.explanation}
+                                </div>
+                              )}
+                              <div className="mt-2 ml-8 text-xs font-medium text-red-600">
+                                Điểm: {q.points}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeQuestion(q.id)}
+                              className="p-1.5 rounded-lg hover:bg-red-100 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add Question Button */}
+                {!showQuestionForm && (
+                  <button
+                    type="button"
+                    onClick={() => setShowQuestionForm(true)}
+                    className="w-full py-4 border-2 border-dashed border-red-300 rounded-xl text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Plus size={20} />
+                    Thêm câu hỏi
+                  </button>
+                )}
+
+                {/* Question Form */}
+                {showQuestionForm && (
+                  <div className="p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-gray-900">Thêm câu hỏi mới</h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowQuestionForm(false);
+                          setCurrentQuestion("");
+                          setCurrentOptions([
+                            { id: crypto.randomUUID(), text: "", isCorrect: false },
+                            { id: crypto.randomUUID(), text: "", isCorrect: false }
+                          ]);
+                          setCurrentExplanation("");
+                          setCurrentPoints("10");
+                          setError("");
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                      >
+                        <X size={16} className="text-gray-500" />
+                      </button>
+                    </div>
+
+                    {/* Question Input */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Câu hỏi</label>
+                      <textarea
+                        value={currentQuestion}
+                        onChange={(e) => setCurrentQuestion(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                        placeholder="Nhập nội dung câu hỏi..."
+                      />
+                    </div>
+
+                    {/* Options */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Các lựa chọn</label>
+                      {currentOptions.map((opt, index) => (
+                        <div key={opt.id} className="flex items-center gap-2">
+                          <div className="flex-1 flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs flex items-center justify-center">
+                              {String.fromCharCode(65 + index)}
+                            </span>
+                            <input
+                              type="text"
+                              value={opt.text}
+                              onChange={(e) => updateOptionText(opt.id, e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                              placeholder={`Lựa chọn ${String.fromCharCode(65 + index)}`}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleCorrectOption(opt.id)}
+                            className={clsx(
+                              "p-2 rounded-lg transition-colors cursor-pointer",
+                              opt.isCorrect
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                            )}
+                            title="Đánh dấu là đáp án đúng"
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                          {currentOptions.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => removeOption(opt.id)}
+                              className="p-2 rounded-lg hover:bg-red-100 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={addOption}
+                        className="mt-2 text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus size={14} />
+                        Thêm lựa chọn
+                      </button>
+                    </div>
+
+                    {/* Explanation */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Giải thích (không bắt buộc)</label>
+                      <textarea
+                        value={currentExplanation}
+                        onChange={(e) => setCurrentExplanation(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                        placeholder="Giải thích đáp án đúng..."
+                      />
+                    </div>
+
+                    {/* Points */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Điểm</label>
+                      <input
+                        type="number"
+                        value={currentPoints}
+                        onChange={(e) => setCurrentPoints(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                        placeholder="Điểm cho câu hỏi này"
+                        min="1"
+                      />
+                    </div>
+
+                    {/* Form Actions */}
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowQuestionForm(false);
+                          setCurrentQuestion("");
+                          setCurrentOptions([
+                            { id: crypto.randomUUID(), text: "", isCorrect: false },
+                            { id: crypto.randomUUID(), text: "", isCorrect: false }
+                          ]);
+                          setCurrentExplanation("");
+                          setCurrentPoints("10");
+                        }}
+                        className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={addQuestion}
+                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all cursor-pointer"
+                      >
+                        Thêm câu hỏi
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </form>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors cursor-pointer"
+              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
             >
-              Hủy
+              Hủy bỏ
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
             >
               {isSubmitting ? (
                 <>
@@ -708,7 +1218,7 @@ function CreateAssignmentModal({
               )}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -1400,16 +1910,19 @@ export default function TeacherAssignmentsPage() {
                   />
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  Lớp học
+                </th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                   Buổi học
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                   Hạn nộp
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Tệp đính kèm
+                  Kỹ năng
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Kỹ năng
+                  Loại nộp
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                   Mô tả
@@ -1422,7 +1935,7 @@ export default function TeacherAssignmentsPage() {
             <tbody className="divide-y divide-red-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={9} className="py-12 text-center">
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
                     </div>
@@ -1443,7 +1956,7 @@ export default function TeacherAssignmentsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={9} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                       <Search size={24} className="text-red-400" />
                     </div>
@@ -1579,6 +2092,7 @@ export default function TeacherAssignmentsPage() {
       {/* Create Assignment Modal */}
       {isCreateModalOpen && (
         <CreateAssignmentModal
+          isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={() => {
             setIsCreateModalOpen(false);
