@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Building2, MapPin } from "lucide-react";
+import { X, Building2, MapPin, Phone, Mail, FileText } from "lucide-react";
 import type { Branch } from "@/types/branch";
 
 interface BranchDetailModalProps {
@@ -25,8 +25,8 @@ function StatusIndicator({ isActive }: { isActive: boolean }) {
 
 function InfoRow({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-      <div className="text-pink-500 mt-0.5">{icon}</div>
+    <div className="flex items-start gap-3 p-4 bg-red-50/50 rounded-xl border border-red-100">
+      <div className="text-red-600 mt-0.5">{icon}</div>
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium text-gray-500 mb-1">{label}</div>
         <div className="text-sm text-gray-900">{value}</div>
@@ -41,7 +41,7 @@ export default function BranchDetailModal({ isOpen, onClose, branch }: BranchDet
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-rose-500 p-6 flex items-center justify-between">
+        <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Building2 className="w-6 h-6 text-white" />
             <h2 className="text-xl font-bold text-white">Chi tiết chi nhánh</h2>
@@ -55,7 +55,7 @@ export default function BranchDetailModal({ isOpen, onClose, branch }: BranchDet
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-pink-50 text-pink-700 text-sm font-medium rounded-full border border-pink-200">
+                <span className="px-3 py-1 bg-red-50 text-red-700 text-sm font-medium rounded-full border border-red-200">
                   {branch.code}
                 </span>
                 <StatusIndicator isActive={branch.isActive} />
@@ -66,37 +66,37 @@ export default function BranchDetailModal({ isOpen, onClose, branch }: BranchDet
 
           <div className="grid gap-4">
             <InfoRow label="Địa chỉ" value={branch.address} icon={<MapPin size={16} />} />
-            <InfoRow label="Số liên hệ" value={branch.contactPhone} icon="📞" />
-            <InfoRow label="Email liên hệ" value={branch.contactEmail} icon="📧" />
-            {branch.description && <InfoRow label="Mô tả" value={branch.description} icon="📝" />}
+            <InfoRow label="Số liên hệ" value={branch.contactPhone || 'Chưa cập nhật'} icon={<Phone size={16} />} />
+            <InfoRow label="Email liên hệ" value={branch.contactEmail || 'Chưa cập nhật'} icon={<Mail size={16} />} />
+            {branch.description && <InfoRow label="Mô tả" value={branch.description} icon={<FileText size={16} />} />}
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-            <div className="text-center p-4 bg-blue-50 rounded-xl">
-              <div className="text-2xl font-bold text-blue-600">{branch.totalStudents || 0}</div>
+          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-red-100">
+            <div className="text-center p-4 bg-red-50 rounded-xl border border-red-100">
+              <div className="text-2xl font-bold text-red-600">{branch.totalStudents || 0}</div>
               <div className="text-xs text-gray-600 mt-1">Học viên</div>
             </div>
-            <div className="text-center p-4 bg-purple-50 rounded-xl">
-              <div className="text-2xl font-bold text-purple-600">{branch.totalClasses || 0}</div>
+            <div className="text-center p-4 bg-red-50 rounded-xl border border-red-100">
+              <div className="text-2xl font-bold text-red-600">{branch.totalClasses || 0}</div>
               <div className="text-xs text-gray-600 mt-1">Lớp học</div>
             </div>
-            <div className="text-center p-4 bg-pink-50 rounded-xl">
-              <div className="text-2xl font-bold text-pink-600">{branch.totalTeachers || 0}</div>
+            <div className="text-center p-4 bg-red-50 rounded-xl border border-red-100">
+              <div className="text-2xl font-bold text-red-600">{branch.totalTeachers || 0}</div>
               <div className="text-xs text-gray-600 mt-1">Giáo viên</div>
             </div>
           </div>
 
-          <div className="text-xs text-gray-500 space-y-1 pt-4 border-t">
+          <div className="text-xs text-gray-500 space-y-1 pt-4 border-t border-red-100">
             <div>Ngày tạo: {new Date(branch.createdAt).toLocaleString('vi-VN')}</div>
             {branch.updatedAt && <div>Cập nhật: {new Date(branch.updatedAt).toLocaleString('vi-VN')}</div>}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t flex justify-end">
+        <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-red-100 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium transition-colors"
+            className="px-6 py-2.5 rounded-xl border border-red-200 text-gray-700 font-medium hover:bg-red-50 transition-colors"
           >
             Đóng
           </button>

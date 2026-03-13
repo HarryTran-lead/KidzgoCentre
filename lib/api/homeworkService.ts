@@ -19,6 +19,7 @@ import {
   HomeworkAttachment,
   ClassOption,
   SessionOption,
+  MultipleChoiceQuestion,
 } from "@/types/teacher/homework";
 
 /**
@@ -184,8 +185,8 @@ export async function fetchHomework(
 
     const queryString = searchParams.toString();
     const endpoint = queryString 
-      ? `${TEACHER_ENDPOINTS.HOMEWORK_SUBMISSIONS}?${queryString}` 
-      : TEACHER_ENDPOINTS.HOMEWORK_SUBMISSIONS;
+      ? `${TEACHER_ENDPOINTS.HOMEWORK}?${queryString}` 
+      : TEACHER_ENDPOINTS.HOMEWORK;
     
     const response = await get<any>(endpoint);
     
@@ -288,6 +289,46 @@ export async function createHomework(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Failed to create homework",
+    };
+  }
+}
+
+/**
+ * Create a new multiple choice homework assignment
+ * 
+ * @param payload - Multiple choice homework data to create
+ * @returns Created homework or error
+ */
+export async function createMultipleChoiceHomework(
+  payload: {
+    classId: string;
+    sessionId?: string;
+    title: string;
+    description?: string;
+    dueAt: string;
+    rewardStars?: number;
+    missionId?: string;
+    instructions?: string;
+    questions: MultipleChoiceQuestion[];
+  }
+): Promise<CreateHomeworkResult> {
+  try {
+    console.log("📤 [API] Sending payload:", JSON.stringify(payload, null, 2));
+    
+    const response = await post<HomeworkSubmission>(
+      `${TEACHER_ENDPOINTS.HOMEWORK}/multiple-choice`, 
+      payload
+    );
+
+    return {
+      ok: true,
+      data: response,
+    };
+  } catch (error: any) {
+    console.error("❌ [API] Error response:", error.response?.data);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Failed to create multiple choice homework",
     };
   }
 }
@@ -438,23 +479,97 @@ export function mapSubmissionToUi(submission: HomeworkSubmission) {
     return typeMap[ext] || "FILE";
   };
 
-  // Format plannedDateTime (session date)
-  const formatSessionDate = (dateTime?: string): string => {
-    if (!dateTime) return "-";
+  // Format date with explicit timezone handling for Vietnam (+07:00)
+  const formatDueDate = (dateStr?: string): string => {
+    if (!dateStr) return "";
     try {
-      return new Date(dateTime).toLocaleString("vi-VN", {
+      // Create date in Vietnam timezone
+      const date = new Date(dateStr);
+      // Extract date parts manually to avoid timezone issues
+      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+      if (match) {
+        const [, year, month, day, hours, minutes] = match;
+        // Parse as Vietnam time (UTC+7)
+        const vnDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
+        const vnTime = vnDate.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+        const vnDateStr = vnDate.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+        return `${vnTime} ${vnDateStr}`;
+      }
+      // Fallback: use toLocaleString with explicit timezone
+      return date.toLocaleString("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh",
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Format plannedDateTime (session date) - shows just the date
+  const formatSessionDate = (dateTime?: string): string => {
+    if (!dateTime) return "-";
+    try {
+      const date = new Date(dateTime);
+      // Check if it's a valid date
+      if (isNaN(date.getTime())) return dateTime;
+      
+      return date.toLocaleDateString("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
       });
     } catch {
       return dateTime;
     }
   };
 
+  // Format session time (shows time only)
+  const formatSessionTime = (dateTime?: string): string => {
+    if (!dateTime) return "";
+    try {
+      const date = new Date(dateTime);
+      if (isNaN(date.getTime())) return "";
+      
+      return date.toLocaleTimeString("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    } catch {
+      return "";
+    }
+  };
+
   const primaryAttachment = submission.attachments?.[0];
+
+  // Build session display - show session name with date
+  const sessionDisplay = (() => {
+    const sessionDate = formatSessionDate(submission.plannedDateTime);
+    const sessionTime = formatSessionTime(submission.plannedDateTime);
+    
+    if (submission.sessionName) {
+      // If has session name and date, show: "Buổi X - DD/MM/YYYY"
+      if (sessionDate !== "-") {
+        return `${submission.sessionName} - ${sessionDate}${sessionTime ? ` (${sessionTime})` : ""}`;
+      }
+      return submission.sessionName;
+    }
+    
+    // If no sessionName but has plannedDateTime, show the date
+    if (submission.plannedDateTime) {
+      return `${sessionDate}${sessionTime ? ` (${sessionTime})` : ""}`;
+    }
+    
+    return "-";
+  })();
 
   return {
     id: submission.id,
@@ -465,20 +580,17 @@ export function mapSubmissionToUi(submission: HomeworkSubmission) {
     fileSize: primaryAttachment?.size || formatFileSize(primaryAttachment?.sizeInBytes),
     fileType: getFileType(primaryAttachment),
     assignmentTitle: submission.title,
-    dueDate: submission.dueAt 
-      ? new Date(submission.dueAt).toLocaleString("vi-VN")
-      : "",
+    dueDate: formatDueDate(submission.dueAt),
     skills: submission.skills,
     description: submission.description,
     note: submission.feedback,
     score: submission.score,
     color: colorMap[submission.status] || "from-gray-500 to-gray-600",
+    submissionType: submission.submissionType,
 
-    // Session/Buổi học mapping
+    // Session/Buổi học mapping - explicitly show session info
     sessionId: submission.sessionId,
-    session: submission.sessionName
-      ? `${submission.sessionName} - ${formatSessionDate(submission.plannedDateTime)}`
-      : formatSessionDate(submission.plannedDateTime),
+    session: sessionDisplay,
   };
 }
 

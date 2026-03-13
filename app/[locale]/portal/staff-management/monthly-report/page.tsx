@@ -1,7 +1,6 @@
-
-"use client";
-import MonthlyReportsWorkspace from "@/components/reports/monthly-reports-workspace";
+﻿"use client";
+import ManagementFeedbackWorkspace from "@/components/reports/management-feedback-workspace";
 
 export default function StaffManagementMonthlyReportPage() {
-  return <MonthlyReportsWorkspace role="management" />;
+  return <ManagementFeedbackWorkspace />;
 }

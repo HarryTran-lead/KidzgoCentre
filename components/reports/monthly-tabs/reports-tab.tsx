@@ -127,6 +127,20 @@ export default function ReportsTab({
 }: Props) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [submitFlowLoading, setSubmitFlowLoading] = useState(false);
+  const fieldClassName =
+    "w-full rounded-2xl border-2 border-rose-100 bg-rose-50/30 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:bg-white";
+  const softCardClassName =
+    "rounded-[24px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)]";
+  const ghostButtonClassName =
+    "rounded-2xl border-2 border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400";
+
+  const normalizeStatus = (value?: string) => {
+    const normalized = String(value ?? "").trim();
+    if (normalized === "Review") return "Submitted";
+    return normalized;
+  };
+
+  const isRejectedReport = normalizeStatus(displayReport?.status) === "Rejected";
 
   const handleSubmitFromModal = async () => {
     if (!displayReport || !canTeacherSubmit(displayReport.status)) return;
@@ -145,17 +159,17 @@ export default function ReportsTab({
   return (
     <div className="grid lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+        <div className={`${softCardClassName} bg-gradient-to-r from-rose-50/70 via-white to-orange-50/70 p-5 flex flex-col gap-4`}>
           <div className="relative w-full md:max-w-xl">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm theo học sinh, giáo viên, mã report..."
-              className="w-full rounded-xl border border-red-200 py-2 pl-9 pr-3 text-sm"
+              className={`${fieldClassName} pl-11`}
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="grid gap-3 sm:grid-cols-2 md:flex md:items-center">
             <select
               value={selectedClassId || ""}
               onChange={(e) => {
@@ -163,7 +177,7 @@ export default function ReportsTab({
                 setSelectedClassId(classId);
                 setSelectedStudentId(null);
               }}
-              className="rounded-xl border border-red-200 px-3 py-2 text-sm min-w-44"
+              className={`${fieldClassName} min-w-44`}
             >
               <option value="">Tất cả lớp</option>
               {classFilterOptions.map((item) => (
@@ -176,7 +190,7 @@ export default function ReportsTab({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-xl border border-red-200 px-3 py-2 text-sm"
+              className={fieldClassName}
             >
               {["Tất cả", "Draft", "Submitted", "Approved", "Rejected", "Published", "Review"].map((s) => (
                 <option key={s}>{s}</option>
@@ -185,20 +199,20 @@ export default function ReportsTab({
           </div>
         </div>
         {(selectedClassId || selectedStudentId) && (
-          <div className="rounded-2xl border border-blue-100 bg-blue-50/40 px-3 py-2 text-xs text-blue-900 flex flex-wrap items-center gap-2">
+          <div className="rounded-[22px] border border-blue-100 bg-blue-50/40 px-4 py-3 text-xs text-blue-900 flex flex-wrap items-center gap-2 shadow-[0_10px_24px_rgba(14,165,233,0.08)]">
             <span className="font-medium">Đang lọc theo:</span>
             {selectedClassId && (
-              <span className="rounded-full border border-blue-200 bg-white px-2 py-1">
+              <span className="rounded-full border border-blue-200 bg-white px-3 py-1.5">
                 Lớp: {selectedClassName}
               </span>
             )}
             {selectedStudentId && (
-              <span className="rounded-full border border-blue-200 bg-white px-2 py-1">
+              <span className="rounded-full border border-blue-200 bg-white px-3 py-1.5">
                 Học viên: {selectedStudentName}
               </span>
             )}
             <button
-              className="ml-auto rounded border border-blue-200 bg-white px-2 py-1 hover:bg-blue-50"
+              className="ml-auto rounded-full border border-blue-200 bg-white px-3 py-1.5 font-semibold hover:bg-blue-50"
               onClick={clearScopeFilter}
             >
               Xóa lọc lớp/học viên
@@ -207,7 +221,9 @@ export default function ReportsTab({
         )}
 
         {isTeacher && (
-          <div className="flex flex-wrap gap-2 text-xs">
+          <div className={`${softCardClassName} p-4`}>
+            <div className="mb-3 text-sm font-semibold text-slate-900">Lối tắt cho giáo viên</div>
+            <div className="flex flex-wrap gap-2 text-xs">
             <button
               className={`rounded-full border px-3 py-1 ${statusFilter === "Tất cả" ? "bg-red-600 text-white border-red-600" : "bg-white"}`}
               onClick={() => setStatusFilter("Tất cả")}
@@ -232,27 +248,28 @@ export default function ReportsTab({
             >
               Đang chờ duyệt
             </button>
+            </div>
           </div>
         )}
 
         {canManage && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-3 text-xs text-gray-700 shadow-sm flex flex-wrap items-center gap-2">
+          <div className={`${softCardClassName} p-4 text-xs text-gray-700 flex flex-wrap items-center gap-2`}>
             <span>Đã chọn: {selectedReportIds.size}</span>
-            <button className="rounded border px-2 py-1" onClick={selectAllVisible} disabled={!filteredReports.length}>
+            <button className={ghostButtonClassName} onClick={selectAllVisible} disabled={!filteredReports.length}>
               Chọn tất cả
             </button>
-            <button className="rounded border px-2 py-1" onClick={clearSelection}>
+            <button className={ghostButtonClassName} onClick={clearSelection}>
               Bỏ chọn
             </button>
             <button
-              className="rounded bg-emerald-600 px-2 py-1 text-white disabled:bg-slate-300"
+              className="rounded-2xl bg-emerald-600 px-3 py-2 font-semibold text-white disabled:bg-slate-300"
               disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
               onClick={() => runBulkAction("approve", Array.from(selectedReportIds))}
             >
               {bulkLoading === "approve" ? "Đang duyệt..." : "Duyệt mục đã chọn"}
             </button>
             <button
-              className="rounded bg-sky-600 px-2 py-1 text-white disabled:bg-slate-300"
+              className="rounded-2xl bg-sky-600 px-3 py-2 font-semibold text-white disabled:bg-slate-300"
               disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
               onClick={() => runBulkAction("publish", Array.from(selectedReportIds))}
             >
@@ -261,8 +278,8 @@ export default function ReportsTab({
           </div>
         )}
 
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-red-100 p-4 flex items-center justify-between">
+        <div className={`${softCardClassName} overflow-hidden`}>
+          <div className="border-b border-red-100 bg-gradient-to-r from-white to-rose-50/70 p-4 flex items-center justify-between">
             <h3 className="font-semibold">Danh sách báo cáo ({filteredReports.length})</h3>
             {loading && <span className="text-sm text-gray-500">Đang tải...</span>}
           </div>
@@ -345,7 +362,7 @@ export default function ReportsTab({
                             className="rounded bg-indigo-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
                             onClick={() => runAction(report.id, "submit")}
                           >
-                            Submit
+                            {normalizeStatus(report.status) === "Rejected" ? "Submit lại" : "Submit"}
                           </button>
                         )}
                         {canManage && (
@@ -366,9 +383,9 @@ export default function ReportsTab({
                           <button
                             disabled={!canManagementApprove(report.status)}
                             className="rounded bg-amber-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                            onClick={() => runAction(report.id, "reject")}
+                            onClick={() => openCommentDialog(report.id)}
                           >
-                            Reject
+                            Góp ý / Reject
                           </button>
                         )}
                         {canManage && (
@@ -394,7 +411,7 @@ export default function ReportsTab({
       </div>
 
       <div className="space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className={`${softCardClassName} p-5`}>
           <h3 className="mb-2 font-semibold flex items-center gap-2">
             <FileCheck size={16} /> Chi tiết báo cáo
           </h3>
@@ -441,6 +458,11 @@ export default function ReportsTab({
               {isTeacher && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-gray-700">
                   <div className="font-semibold text-gray-900">Góp ý từ Staff/Admin</div>
+                  {isRejectedReport && (
+                    <p className="mt-1 rounded border border-rose-200 bg-white px-2 py-1 text-rose-700">
+                      Báo cáo này đã bị trả về. Hãy cập nhật nội dung theo góp ý rồi bấm <b>Submit lại</b>.
+                    </p>
+                  )}
                   {displayReport.comments?.length ? (
                     <ul className="mt-2 space-y-2">
                       {(displayReport.comments ?? []).slice().reverse().map((c) => (
@@ -466,7 +488,7 @@ export default function ReportsTab({
         </div>
 
         {canManage && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className={`${softCardClassName} p-5`}>
             <h3 className="mb-2 font-semibold flex items-center gap-2">
               <TrendingUp size={16} /> Tiến độ đợt báo cáo
             </h3>
@@ -492,7 +514,7 @@ export default function ReportsTab({
           </div>
         )}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className={`${softCardClassName} p-5`}>
           <div className="mb-2 flex items-center justify-between gap-2">
             <h3 className="font-semibold flex items-center gap-2">
               <MessageSquare size={16} /> Bình luận gần nhất
@@ -535,7 +557,7 @@ export default function ReportsTab({
           )}
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 text-xs text-gray-600 shadow-sm flex items-center gap-2">
+        <div className={`${softCardClassName} p-4 text-xs text-gray-600 flex items-center gap-2`}>
           <Zap size={14} className="text-red-500" /> Luồng đã tối ưu theo vai trò: Giáo viên / Quản lý / Phụ huynh-Học viên.
         </div>
       </div>
@@ -589,7 +611,11 @@ export default function ReportsTab({
                 }
                 onClick={handleSubmitFromModal}
               >
-                {submitFlowLoading ? "Đang lưu và submit..." : "Submit"}
+                {submitFlowLoading
+                  ? "Đang lưu và submit..."
+                  : isRejectedReport
+                    ? "Submit lại"
+                    : "Submit"}
               </button>
             </div>
           </div>

@@ -66,6 +66,7 @@ async function fetchProgramsByBranch(branchId: string): Promise<SelectOption[]> 
     .map((p: any) => ({
       id: String(p?.id ?? p?.code ?? ""),
       name: String(p?.name ?? p?.title ?? "Chương trình"),
+      totalSessions: typeof p?.totalSessions === "number" ? p.totalSessions : parseInt(p?.totalSessions ?? "0", 10) || 0,
     }))
     .filter((p: SelectOption) => p.id);
 }
@@ -88,7 +89,6 @@ export async function fetchClassFormSelectData(): Promise<ClassFormSelectData> {
   const authHeaders = { Authorization: `Bearer ${token}` };
 
   try {
-    // 并行获取所有数据
     const [programsRes, branchesRes, roomsRes] = await Promise.all([
       fetch(`${ADMIN_ENDPOINTS.PROGRAMS}?pageNumber=1&pageSize=200`, { headers: authHeaders }),
       getAllBranches({ page: 1, limit: 100 }),
@@ -101,7 +101,6 @@ export async function fetchClassFormSelectData(): Promise<ClassFormSelectData> {
       roomsRes.ok ? roomsRes.json() : Promise.resolve(null),
     ]);
 
-    // 处理 programs
     const programsItems: any[] =
       (programsJson?.data?.programs?.items as any[]) ??
       (programsJson?.data?.items as any[]) ??
@@ -112,10 +111,10 @@ export async function fetchClassFormSelectData(): Promise<ClassFormSelectData> {
       .map((p) => ({
         id: String(p?.id ?? p?.code ?? ""),
         name: String(p?.name ?? p?.title ?? "Chương trình"),
+        totalSessions: typeof p?.totalSessions === "number" ? p.totalSessions : parseInt(p?.totalSessions ?? "0", 10) || 0,
       }))
       .filter((p) => p.id);
 
-    // 处理 branches - 修复获取逻辑
     const branchesItems: any[] = branchesData?.data?.branches ?? branchesData?.data ?? [];
     const branches: SelectOption[] = branchesItems
       .map((b: any) => ({
@@ -127,7 +126,6 @@ export async function fetchClassFormSelectData(): Promise<ClassFormSelectData> {
     // Teachers sẽ được load theo chi nhánh sau khi chọn branchId
     const teachers: SelectOption[] = [];
 
-    // 处理 classrooms
     const roomsItems: any[] =
       (roomsJson?.data?.classrooms?.items as any[]) ??
       (roomsJson?.data?.items as any[]) ??

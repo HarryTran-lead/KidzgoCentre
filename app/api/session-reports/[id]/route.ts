@@ -19,6 +19,46 @@ type RouteParams = {
   }>;
 };
 
+export async function GET(req: Request, { params }: RouteParams) {
+  const { id } = await params;
+
+  try {
+    const authHeader = req.headers.get("authorization");
+
+    if (!authHeader) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Chưa đăng nhập",
+        },
+        { status: 401 },
+      );
+    }
+
+    const upstream = await fetch(buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.REPORT_BY_ID(id)), {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+      },
+      cache: "no-store",
+    });
+
+    const text = await upstream.text();
+    const data = text ? JSON.parse(text) : { success: upstream.ok };
+
+    return NextResponse.json(data, { status: upstream.status });
+  } catch (error) {
+    console.error("Get session report detail error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Đã xảy ra lỗi khi tải chi tiết nhận xét buổi học",
+      },
+      { status: 500 },
+    );
+  }
+}
+
 export async function PUT(req: Request, { params }: RouteParams) {
   const { id } = await params;
 
@@ -38,13 +78,13 @@ export async function PUT(req: Request, { params }: RouteParams) {
     const payload = (await req.json()) as UpdateSessionReportPayload;
     const normalizedPayload = normalizeUpdatePayload(payload);
 
-    const upstream = await fetch(buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.UPDATE(id)), {
+    const upstream = await fetch(buildApiUrl(BACKEND_SESSION_REPORT_ENDPOINTS.REPORT_BY_ID(id)), {
       method: "PUT",
       headers: {
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ request: normalizedPayload }),
+      body: JSON.stringify(normalizedPayload),
     });
 
     const text = await upstream.text();

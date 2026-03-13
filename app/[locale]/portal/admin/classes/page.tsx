@@ -6,7 +6,7 @@ import {
   Plus, Search, MapPin, Users, Clock, Eye, Pencil,
   ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight,
   BookOpen, X, Calendar, Tag, User, GraduationCap, AlertCircle, Building2,
-  Power, PowerOff
+  Power, PowerOff, UserPlus, CalendarClock, RefreshCw
 } from "lucide-react";
 import clsx from "clsx";
 import { 
@@ -17,6 +17,8 @@ import {
   updateAdminClass,
   updateClassStatus
 } from "@/app/api/admin/classes";
+import { fetchAdminRooms } from "@/app/api/admin/rooms";
+import { generateSessionsFromPattern } from "@/app/api/admin/sessions";
 import { fetchClassFormSelectData, fetchTeacherOptionsByBranch, fetchProgramOptionsByBranch } from "@/app/api/admin/classFormData";
 import type { ClassRow, CreateClassRequest } from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
@@ -27,8 +29,8 @@ import { useToast } from "@/hooks/use-toast";
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
   const map: Record<ClassRow["status"], string> = {
     "Đang học": "bg-red-100 text-red-700 border border-red-200",
-    "Sắp khai giảng": "bg-gray-100 text-gray-700 border border-gray-200",
-    "Đã kết thúc": "bg-black/10 text-gray-800 border border-gray-300",
+    "Sắp khai giảng": "bg-amber-100 text-amber-700 border border-amber-200",
+    "Đã kết thúc": "bg-gray-100 text-gray-600 border border-gray-200",
   };
   return (
     <span className={clsx("px-2.5 py-1 rounded-full text-xs font-semibold", map[value])}>
@@ -37,19 +39,106 @@ function StatusBadge({ value }: { value: ClassRow["status"] }) {
   );
 }
 
-function occupancyTint(curr: number, cap: number) {
-  if (curr === 0) return "text-gray-600";
-  const r = curr / cap;
-  if (r >= 0.9) return "text-red-600";
-  if (r >= 0.75) return "text-gray-800";
-  return "text-gray-700";
-}
-
 type SortField = "id" | "name" | "program" | "teacher" | "branch" | "capacity" | "schedule" | "status";
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 5;
 
-/* ----------------------------- API HELPERS ------------------------------ */
+type ScheduleDisplayProps = {
+  schedule: string;
+};
+
+function ScheduleDisplay({ schedule }: ScheduleDisplayProps) {
+  // Parse schedule string format: "Thứ 2,4,6 (18:00 - 20:00)" or "Thứ 2,4,6 & CN (18:00 - 20:00)"
+  const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+  
+  if (!match) {
+    return (
+      <div className="inline-flex items-center gap-1.5 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
+        <Clock size={14} className="text-gray-400" />
+        <span className="text-xs italic">Chưa có lịch</span>
+      </div>
+    );
+  }
+
+  const [, dayPart, startTime, endTime] = match;
+  
+  // Parse days into array
+  const dayNumbers: string[] = [];
+  const hasSunday = dayPart.includes("CN");
+  
+  // Extract day numbers from "Thứ 2,4,6" or "Thứ 2,4,6 & CN"
+  const thuMatch = dayPart.match(/Thứ\s*([\d,]+)/);
+  if (thuMatch) {
+    dayNumbers.push(...thuMatch[1].split(","));
+  }
+  
+  // Day display configuration with better colors
+  const dayConfig: Record<string, { label: string; bg: string; text: string; }> = {
+    "2": { label: "T2", bg: "bg-blue-100", text: "text-blue-700" },
+    "3": { label: "T3", bg: "bg-indigo-100", text: "text-indigo-700" },
+    "4": { label: "T4", bg: "bg-purple-100", text: "text-purple-700" },
+    "5": { label: "T5", bg: "bg-pink-100", text: "text-pink-700" },
+    "6": { label: "T6", bg: "bg-amber-100", text: "text-amber-700" },
+    "7": { label: "T7", bg: "bg-orange-100", text: "text-orange-700" },
+  };
+  
+  const sundayConfig = { label: "CN", bg: "bg-rose-100", text: "text-rose-700" };
+
+  // Combine all days for display
+  const allDays = [
+    ...dayNumbers.map(day => ({ 
+      day, 
+      ...(dayConfig[day] || { label: `T${day}`, bg: "bg-gray-100", text: "text-gray-700" })
+    })),
+    ...(hasSunday ? [{ day: "CN", ...sundayConfig }] : [])
+  ];
+
+  // Format time range
+  const timeRange = `${startTime} - ${endTime}`;
+  
+  // Calculate duration in hours
+  const startHour = parseInt(startTime.split(':')[0]);
+  const startMin = parseInt(startTime.split(':')[1]);
+  const endHour = parseInt(endTime.split(':')[0]);
+  const endMin = parseInt(endTime.split(':')[1]);
+  const durationHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+  const durationText = durationHours === Math.floor(durationHours) 
+    ? `${durationHours}h` 
+    : `${durationHours.toFixed(1)}h`;
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-[140px]">
+      {/* Days row - colorful pills */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {allDays.map((dayInfo) => (
+          <span
+            key={dayInfo.day}
+            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dayInfo.bg} ${dayInfo.text} shadow-sm`}
+          >
+            {dayInfo.label}
+          </span>
+        ))}
+      </div>
+      
+      {/* Time row with duration */}
+      <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
+          <Clock size={12} className="text-gray-500" />
+          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+            {timeRange}
+          </span>
+        </div>
+        <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+          {durationText}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Parse RRULE to human-readable schedule string
+ */
 function parseRRULEToSchedule(rrule: string): string {
   if (!rrule || !rrule.trim()) {
     return "Chưa có lịch";
@@ -69,30 +158,52 @@ function parseRRULEToSchedule(rrule: string): string {
 
     const freq = parts.FREQ || "";
     const byDay = parts.BYDAY || "";
-    const byHour = parts.BYHOUR || "";
+    const byHour = parts.BYHOUR || "18";
     const byMinute = parts.BYMINUTE || "0";
-    const duration = parseInt(parts.DURATION || "60", 10);
+    const duration = parseInt(parts.DURATION || "120", 10);
 
     if (freq !== "WEEKLY" || !byDay) {
-      return rrule; // Return original if can't parse
+      return rrule;
     }
 
-    // Map day abbreviations
+    // Map RRULE days to Vietnamese
     const dayMap: Record<string, string> = {
-      MO: "Thứ 2",
-      TU: "Thứ 3",
-      WE: "Thứ 4",
-      TH: "Thứ 5",
-      FR: "Thứ 6",
-      SA: "Thứ 7",
-      SU: "CN",
+      "MO": "Thứ 2",
+      "TU": "Thứ 3",
+      "WE": "Thứ 4",
+      "TH": "Thứ 5",
+      "FR": "Thứ 6",
+      "SA": "Thứ 7",
+      "SU": "CN",
     };
 
-    const days = byDay.split(",").map((d) => dayMap[d.trim()] || d.trim()).join(",");
+    // Parse days và sắp xếp theo thứ tự
+    const days = byDay.split(",").map((d) => d.trim());
+    const dayOrder = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+    days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+    
+    // Format days
+    const vietnameseDays = days.map(d => dayMap[d] || d);
+    
+    // Nhóm các ngày Thứ
+    const thuDays = vietnameseDays.filter(d => d.startsWith("Thứ")).map(d => d.replace("Thứ ", ""));
+    const hasSunday = vietnameseDays.includes("CN");
+    
+    let dayString = "";
+    if (thuDays.length > 0) {
+      dayString = `Thứ ${thuDays.join(",")}`;
+      if (hasSunday) {
+        dayString += " & CN";
+      }
+    } else if (hasSunday) {
+      dayString = "CN";
+    } else {
+      dayString = vietnameseDays.join(", ");
+    }
     
     // Format time
-    const hour = parseInt(byHour, 10) || 8;
-    const minute = parseInt(byMinute, 10) || 0;
+    const hour = parseInt(byHour, 10);
+    const minute = parseInt(byMinute, 10);
     const startTime = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
     
     // Calculate end time
@@ -101,9 +212,10 @@ function parseRRULEToSchedule(rrule: string): string {
     const endMin = endMinutes % 60;
     const endTime = `${endHour.toString().padStart(2, "0")}:${endMin.toString().padStart(2, "0")}`;
 
-    return `${days} - ${startTime}-${endTime}`;
-  } catch {
-    return rrule; // Return original if parsing fails
+    return `${dayString} (${startTime} - ${endTime})`;
+  } catch (error) {
+    console.error("Error parsing RRULE:", error);
+    return rrule;
   }
 }
 
@@ -172,20 +284,239 @@ function SortableHeader({
   );
 }
 
+/**
+ * Tính ngày kết thúc dựa trên ngày bắt đầu, lịch học và số buổi học
+ * Sử dụng thuật toán chính xác hơn để đếm đúng số buổi
+ */
+function calculateEndDate(startDate: string, schedule: string, totalSessions: number): string {
+  if (!startDate || !schedule || totalSessions <= 0) {
+    return "";
+  }
+
+  try {
+    // Map ngày trong tuần (0 = Chủ nhật, 1 = Thứ 2, ..., 6 = Thứ 7)
+    const dayMap: Record<string, number> = {
+      "2": 1, // Thứ 2
+      "3": 2, // Thứ 3
+      "4": 3, // Thứ 4
+      "5": 4, // Thứ 5
+      "6": 5, // Thứ 6
+      "7": 6, // Thứ 7
+      "CN": 0, // Chủ nhật
+    };
+
+    // Parse schedule
+    const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    if (!match) return "";
+
+    const dayPart = match[1];
+    const daysInWeek: number[] = [];
+
+    // Parse các ngày trong tuần
+    if (dayPart.includes("Thứ")) {
+      // Lấy các số từ "Thứ 2,4,6"
+      const dayNumbers = dayPart.match(/\d+/g) || [];
+      dayNumbers.forEach((d) => {
+        if (dayMap[d] !== undefined) daysInWeek.push(dayMap[d]);
+      });
+      
+      // Kiểm tra có CN không
+      if (dayPart.includes("CN")) {
+        daysInWeek.push(0);
+      }
+    } else if (dayPart === "CN") {
+      daysInWeek.push(0);
+    }
+
+    if (daysInWeek.length === 0) return "";
+
+    // Sắp xếp các ngày trong tuần để dễ xử lý
+    daysInWeek.sort((a, b) => a - b);
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0); // Đặt về đầu ngày để tránh lệch múi giờ
+    
+    let sessionsRemaining = totalSessions;
+    let currentDate = new Date(start);
+    
+    // Nếu ngày bắt đầu không phải là ngày học, tìm ngày học đầu tiên
+    while (!daysInWeek.includes(currentDate.getDay()) && sessionsRemaining > 0) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Đếm số buổi học
+    while (sessionsRemaining > 0) {
+      const currentDayOfWeek = currentDate.getDay();
+      
+      if (daysInWeek.includes(currentDayOfWeek)) {
+        sessionsRemaining--;
+        if (sessionsRemaining > 0) {
+          // Tìm ngày học tiếp theo
+          let nextDate = new Date(currentDate);
+          nextDate.setDate(nextDate.getDate() + 1);
+          
+          while (!daysInWeek.includes(nextDate.getDay())) {
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          currentDate = nextDate;
+        }
+      } else {
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+
+    // Format ngày kết thúc
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+    const day = String(currentDate.getDate()).padStart(2, "0");
+    
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error("Error calculating end date:", error);
+    return "";
+  }
+}
+
+/* ----------------------------- TIME PICKER COMPONENT ------------------------------ */
+function TimePicker({ 
+  value, 
+  onChange, 
+  label 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  label: string;
+}) {
+  const [hours, setHours] = useState(() => {
+    const [h] = value.split(':').map(Number);
+    return isNaN(h) ? 18 : h;
+  });
+  const [minutes, setMinutes] = useState(() => {
+    const [, m] = value.split(':').map(Number);
+    return isNaN(m) ? 0 : m;
+  });
+
+  useEffect(() => {
+    onChange(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+  }, [hours, minutes, onChange]);
+
+  const incrementHours = () => setHours(prev => (prev + 1) % 24);
+  const decrementHours = () => setHours(prev => (prev - 1 + 24) % 24);
+  const incrementMinutes = () => setMinutes(prev => (prev + 1) % 60);
+  const decrementMinutes = () => setMinutes(prev => (prev - 1 + 60) % 60);
+
+  return (
+    <div className="space-y-1">
+      <span className="text-xs text-gray-500">{label}</span>
+      <div className="flex items-center gap-1">
+        {/* Giờ */}
+        <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={incrementHours}
+            className="w-14 h-8 rounded-t-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 cursor-pointer transition-colors"
+          >
+            ▲
+          </button>
+          <div className="w-14 h-12 bg-white border-x border-gray-200 flex items-center justify-center font-mono text-lg font-semibold text-gray-900">
+            {hours.toString().padStart(2, '0')}
+          </div>
+          <button
+            type="button"
+            onClick={decrementHours}
+            className="w-14 h-8 rounded-b-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 cursor-pointer transition-colors"
+          >
+            ▼
+          </button>
+        </div>
+
+        <span className="text-xl font-bold text-gray-400 mx-1">:</span>
+
+        {/* Phút */}
+        <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={incrementMinutes}
+            className="w-14 h-8 rounded-t-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 cursor-pointer transition-colors"
+          >
+            ▲
+          </button>
+          <div className="w-14 h-12 bg-white border-x border-gray-200 flex items-center justify-center font-mono text-lg font-semibold text-gray-900">
+            {minutes.toString().padStart(2, '0')}
+          </div>
+          <button
+            type="button"
+            onClick={decrementMinutes}
+            className="w-14 h-8 rounded-b-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 cursor-pointer transition-colors"
+          >
+            ▼
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------- CREATE CLASS MODAL ------------------------------ */
 
+// Thêm interfaces mới
+interface WeekDay {
+  value: string;
+  label: string;
+  shortLabel: string;
+}
+
+interface TimeSlot {
+  value: string;
+  label: string;
+  timeRange: string;
+}
+
+// Danh sách các ngày trong tuần
+const WEEK_DAYS: WeekDay[] = [
+  { value: "2", label: "Thứ 2", shortLabel: "T2" },
+  { value: "3", label: "Thứ 3", shortLabel: "T3" },
+  { value: "4", label: "Thứ 4", shortLabel: "T4" },
+  { value: "5", label: "Thứ 5", shortLabel: "T5" },
+  { value: "6", label: "Thứ 6", shortLabel: "T6" },
+  { value: "7", label: "Thứ 7", shortLabel: "T7" },
+  { value: "CN", label: "Chủ nhật", shortLabel: "CN" },
+];
+
+// Các khung giờ mẫu
+const TIME_SLOTS: TimeSlot[] = [
+  { value: "08:00-10:00", label: "Sáng (08:00 - 10:00)", timeRange: "08:00 - 10:00" },
+  { value: "10:00-12:00", label: "Trưa (10:00 - 12:00)", timeRange: "10:00 - 12:00" },
+  { value: "14:00-16:00", label: "Chiều (14:00 - 16:00)", timeRange: "14:00 - 16:00" },
+  { value: "16:00-18:00", label: "Chiều tối (16:00 - 18:00)", timeRange: "16:00 - 18:00" },
+  { value: "18:00-20:00", label: "Tối (18:00 - 20:00)", timeRange: "18:00 - 20:00" },
+  { value: "19:30-21:30", label: "Tối muộn (19:30 - 21:30)", timeRange: "19:30 - 21:30" },
+];
+
+// Các tùy chọn số buổi/tuần
+const SESSIONS_PER_WEEK_OPTIONS = [
+  { value: 2, label: "2 buổi/tuần" },
+  { value: 3, label: "3 buổi/tuần" },
+];
+
+/**
+ * Convert schedule string to RRULE format
+ */
 function convertScheduleToRRULE(schedule: string, startDate: string): string {
   if (!schedule || !startDate) {
     return "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=18;BYMINUTE=0;DURATION=120";
   }
 
   try {
+    // Parse schedule string format
+    const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    if (!match) {
+      return "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=18;BYMINUTE=0;DURATION=120";
+    }
 
-    const parts = schedule.split(" - ");
-    const daysPart = parts[0]?.trim() || "";
-    const timePart = parts[1]?.trim() || "18:00-20:00";
-
-
+    const [, dayPart, startTime, endTime] = match;
+    
+    // Map ngày Việt Nam sang RRULE
     const dayMap: Record<string, string> = {
       "2": "MO",
       "3": "TU",
@@ -194,34 +525,43 @@ function convertScheduleToRRULE(schedule: string, startDate: string): string {
       "6": "FR",
       "7": "SA",
       "CN": "SU",
-      "Chủ nhật": "SU",
     };
 
-
     const days: string[] = [];
-    if (daysPart.includes("Thứ")) {
-      const dayNumbers = daysPart.match(/\d+/g) || [];
+    
+    // Xử lý định dạng "Thứ 2,4,6" hoặc "Thứ 2,4,6 & CN"
+    if (dayPart.includes("Thứ")) {
+      const dayNumbers = dayPart.match(/\d+/g) || [];
       dayNumbers.forEach((d) => {
         if (dayMap[d]) days.push(dayMap[d]);
       });
-      if (daysPart.includes("CN") || daysPart.includes("Chủ nhật")) {
+      
+      // Xử lý phần "& CN"
+      if (dayPart.includes("CN")) {
         days.push("SU");
       }
+    } else if (dayPart === "CN") {
+      days.push("SU");
     }
 
-
+    // Sắp xếp các ngày theo thứ tự (MO, TU, WE, TH, FR, SA, SU)
+    const dayOrder = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+    days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+    
     const byDay = days.length > 0 ? days.join(",") : "MO,WE,FR";
 
-    // 解析时间
-    const [startTime, endTime] = timePart.split("-").map((t) => t.trim());
-    const [startHour, startMinute] = (startTime || "18:00").split(":").map(Number);
-    const [endHour, endMinute] = (endTime || "20:00").split(":").map(Number);
+    // Parse thời gian
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const [endHour, endMinute] = endTime.split(":").map(Number);
 
+    // Tính duration
     const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
     const durationMinutes = duration > 0 ? duration : 120;
 
+    // Tạo RRULE
     return `RRULE:FREQ=WEEKLY;BYDAY=${byDay};BYHOUR=${startHour || 18};BYMINUTE=${startMinute || 0};DURATION=${durationMinutes}`;
-  } catch {
+  } catch (error) {
+    console.error("Error converting schedule to RRULE:", error);
     return "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=18;BYMINUTE=0;DURATION=120";
   }
 }
@@ -246,6 +586,7 @@ interface ClassFormData {
   status: "Đang học" | "Sắp khai giảng" | "Đã kết thúc";
   startDate: string;
   endDate: string;
+  totalSessions: number;
   description: string;
 }
 
@@ -261,6 +602,7 @@ const initialFormData: ClassFormData = {
   status: "Sắp khai giảng",
   startDate: "",
   endDate: "",
+  totalSessions: 0,
   description: "",
 };
 
@@ -272,6 +614,14 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
   const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
+  
+  // States mới cho UI chọn lịch học
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("");
+  const [sessionsPerWeek, setSessionsPerWeek] = useState<number>(2);
+  const [useCustomTime, setUseCustomTime] = useState<boolean>(false);
+  const [startTime, setStartTime] = useState("18:00");
+  const [endTime, setEndTime] = useState("20:00");
 
   const fetchSelectData = async () => {
     try {
@@ -287,6 +637,77 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
       setLoadingOptions(false);
     }
   };
+
+  // Helper function to format days string
+  const formatDaysString = (days: string[]): string => {
+    const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
+    const sortedDays = [...days].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+    
+    const thuDays = sortedDays.filter(d => d !== "CN");
+    const hasSunday = sortedDays.includes("CN");
+
+    if (thuDays.length > 0) {
+      return `Thứ ${thuDays.join(",")}${hasSunday ? " & CN" : ""}`;
+    } else if (hasSunday) {
+      return "CN";
+    }
+    return "";
+  };
+
+  // Hàm xử lý chọn/bỏ chọn ngày
+  const toggleDay = (dayValue: string) => {
+    setSelectedDays(prev => {
+      if (prev.includes(dayValue)) {
+        return prev.filter(d => d !== dayValue);
+      } else {
+        // Nếu số ngày đã chọn >= sessionsPerWeek, không cho chọn thêm
+        if (prev.length >= sessionsPerWeek) {
+          return prev;
+        }
+        return [...prev, dayValue];
+      }
+    });
+  };
+
+  // Hàm xử lý chọn số buổi/tuần
+  const handleSessionsPerWeekChange = (value: number) => {
+    setSessionsPerWeek(value);
+    // Nếu số ngày đã chọn nhiều hơn sessionsPerWeek, cắt bớt
+    if (selectedDays.length > value) {
+      setSelectedDays(prev => prev.slice(0, value));
+    }
+  };
+
+  // Reset các state khi đóng modal
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedDays([]);
+      setSelectedTimeSlot("");
+      setSessionsPerWeek(2);
+      setUseCustomTime(false);
+      setStartTime("18:00");
+      setEndTime("20:00");
+    }
+  }, [isOpen]);
+
+  // Cập nhật schedule string khi các lựa chọn thay đổi
+  useEffect(() => {
+    if (selectedDays.length > 0) {
+      if (!useCustomTime && selectedTimeSlot) {
+        const timeRange = TIME_SLOTS.find(t => t.value === selectedTimeSlot)?.timeRange || "";
+        const dayString = formatDaysString(selectedDays);
+        const schedule = `${dayString} (${timeRange})`;
+        handleChange("schedule", schedule);
+      } else if (useCustomTime) {
+        const timeRange = `${startTime} - ${endTime}`;
+        const dayString = formatDaysString(selectedDays);
+        const schedule = `${dayString} (${timeRange})`;
+        handleChange("schedule", schedule);
+      }
+    } else {
+      handleChange("schedule", "");
+    }
+  }, [selectedDays, selectedTimeSlot, useCustomTime, startTime, endTime]);
 
   // Khi chọn chi nhánh -> load programs và giáo viên thuộc chi nhánh đó
   useEffect(() => {
@@ -367,8 +788,50 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
     if (isOpen) {
       if (mode === "edit" && initialData) {
         setFormData(initialData);
+        // Parse initial schedule để set selectedDays, time slot nếu có
+        if (initialData.schedule) {
+          const match = initialData.schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+          if (match) {
+            const dayPart = match[1];
+            const timeRange = `${match[2]} - ${match[3]}`;
+            
+            // Parse days
+            const days: string[] = [];
+            if (dayPart.includes("Thứ")) {
+              const dayNumbers = dayPart.match(/\d+/g) || [];
+              days.push(...dayNumbers);
+              if (dayPart.includes("CN")) {
+                days.push("CN");
+              }
+            } else if (dayPart === "CN") {
+              days.push("CN");
+            }
+            
+            setSelectedDays(days);
+            setSessionsPerWeek(days.length);
+            
+            // Try to match time slot
+            const timeSlot = TIME_SLOTS.find(t => t.timeRange === timeRange);
+            if (timeSlot) {
+              setSelectedTimeSlot(timeSlot.value);
+              setUseCustomTime(false);
+            } else {
+              // Parse start and end time for custom time
+              const [start, end] = timeRange.split(' - ');
+              setStartTime(start);
+              setEndTime(end);
+              setUseCustomTime(true);
+            }
+          }
+        }
       } else {
         setFormData(initialFormData);
+        setSelectedDays([]);
+        setSelectedTimeSlot("");
+        setSessionsPerWeek(2);
+        setUseCustomTime(false);
+        setStartTime("18:00");
+        setEndTime("20:00");
       }
       setErrors({});
     }
@@ -384,7 +847,8 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
     if (!formData.mainTeacherId) newErrors.mainTeacherId = "Giáo viên chính là bắt buộc";
     if (formData.capacity <= 0) newErrors.capacity = "Sĩ số phải lớn hơn 0";
     if (!formData.startDate) newErrors.startDate = "Ngày bắt đầu là bắt buộc";
-    if (!formData.endDate) newErrors.endDate = "Ngày kết thúc là bắt buộc";
+    if (selectedDays.length === 0) newErrors.schedule = "Vui lòng chọn ít nhất 1 ngày học";
+    if (!useCustomTime && !selectedTimeSlot) newErrors.schedule = "Vui lòng chọn khung giờ học";
     if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
       newErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
     }
@@ -402,7 +866,34 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
   };
 
   const handleChange = (field: keyof ClassFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Khi chọn program -> lấy totalSessions
+      if (field === "programId" && value) {
+        const selectedProgram = programOptions.find(p => p.id === value);
+        if (selectedProgram) {
+          newData.totalSessions = selectedProgram.totalSessions || 0;
+          console.log(`Program selected: ${selectedProgram.name}, total sessions: ${newData.totalSessions}`);
+        }
+      }
+      
+      // Khi thay đổi startDate, schedule hoặc totalSessions -> tự tính endDate
+      if ((field === "startDate" || field === "schedule" || field === "totalSessions" || field === "programId") && 
+          newData.startDate && newData.schedule && newData.totalSessions > 0) {
+        
+        console.log(`Calculating end date: start=${newData.startDate}, schedule=${newData.schedule}, sessions=${newData.totalSessions}`);
+        
+        const calculatedEndDate = calculateEndDate(newData.startDate, newData.schedule, newData.totalSessions);
+        if (calculatedEndDate) {
+          newData.endDate = calculatedEndDate;
+          console.log(`Calculated end date: ${calculatedEndDate}`);
+        }
+      }
+      
+      return newData;
+    });
+    
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
@@ -450,7 +941,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Tag size={16} className="text-red-600" />
-                  Mã lớp *
+                  Mã lớp <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -476,7 +967,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <BookOpen size={16} className="text-red-600" />
-                  Tên lớp *
+                  Tên lớp <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -505,7 +996,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Building2 size={16} className="text-red-600" />
-                  Chi nhánh *
+                  Chi nhánh <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -536,7 +1027,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Tag size={16} className="text-red-600" />
-                  Chương trình *
+                  Chương trình <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -552,7 +1043,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                   >
                     <option value="">{loadingOptions ? "Đang tải..." : "Chọn chương trình"}</option>
                     {programOptions.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                      <option key={p.id} value={p.id}>{p.name} ({p.totalSessions || 0} buổi)</option>
                     ))}
                   </select>
                   {errors.programId && (
@@ -570,7 +1061,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <User size={16} className="text-red-600" />
-                  Giáo viên chính *
+                  Giáo viên chính <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -626,7 +1117,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Users size={16} className="text-red-600" />
-                Sĩ số tối đa *
+                Sĩ số tối đa <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -655,7 +1146,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Calendar size={16} className="text-red-600" />
-                  Ngày bắt đầu *
+                  Ngày bắt đầu <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -680,7 +1171,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Calendar size={16} className="text-red-600" />
-                  Ngày kết thúc *
+                  Ngày kết thúc
                 </label>
                 <div className="relative">
                   <input
@@ -688,10 +1179,13 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     value={formData.endDate}
                     onChange={(e) => handleChange("endDate", e.target.value)}
                     className={clsx(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                      "w-full px-4 py-3 rounded-xl border bg-gray-100 text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-red-300",
+                      "cursor-not-allowed",
                       errors.endDate ? "border-red-500" : "border-gray-200"
                     )}
+                    readOnly
+                    disabled
                   />
                   {errors.endDate && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -700,59 +1194,203 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                   )}
                 </div>
                 {errors.endDate && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.endDate}</p>}
+                <p className="text-xs text-gray-500">Tự động tính từ lịch học và số buổi</p>
               </div>
             </div>
 
-            {/* Row 5: Lịch học & Trạng thái */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Clock size={16} className="text-red-600" />
-                  Lịch học
-                </label>
-                <select
-                  value={formData.schedule}
-                  onChange={(e) => handleChange("schedule", e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300"
-                >
-                  <option value="">Chọn lịch học</option>
-                  <option value="Thứ 2,4,6 - 18:00-20:00">Thứ 2,4,6 - 18:00-20:00</option>
-                  <option value="Thứ 3,5,7 - 18:00-20:00">Thứ 3,5,7 - 18:00-20:00</option>
-                  <option value="Sáng thứ 7,CN - 8:00-11:00">Sáng thứ 7,CN - 8:00-11:00</option>
-                  <option value="Chiều thứ 7,CN - 14:00-17:00">Chiều thứ 7,CN - 14:00-17:00</option>
-                </select>
-              </div>
+            {/* Row 5: Lịch học - UI MỚI */}
+            <div className="space-y-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Clock size={16} className="text-red-600" />
+                Lịch học <span className="text-red-500">*</span>
+              </label>
 
+              {/* Chọn số buổi/tuần */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <BookOpen size={16} className="text-red-600" />
-                  Trạng thái
-                </label>
-                <div className="flex gap-2">
-                  {(["Sắp khai giảng", "Đang học", "Đã kết thúc"] as const).map((status) => (
+                <label className="text-sm text-gray-600">Số buổi học mỗi tuần</label>
+                <div className="flex flex-wrap gap-2">
+                  {SESSIONS_PER_WEEK_OPTIONS.map((option) => (
                     <button
-                      key={status}
+                      key={option.value}
                       type="button"
-                      onClick={() => handleChange("status", status)}
+                      onClick={() => handleSessionsPerWeekChange(option.value)}
                       className={clsx(
-                        "flex-1 px-4 py-3 rounded-xl border text-sm font-semibold transition-all",
-                        formData.status === status
-                          ? status === "Sắp khai giảng"
-                            ? "bg-gray-100 border-gray-300 text-gray-700"
-                            : status === "Đang học"
-                            ? "bg-red-100 border-red-300 text-red-700"
-                            : "bg-black/10 border-gray-400 text-gray-800"
-                          : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                        "px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer",
+                        sessionsPerWeek === option.value
+                          ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
                       )}
                     >
-                      {status}
+                      {option.label}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {/* Chọn các ngày trong tuần */}
+              <div className="space-y-2">
+                <label className="text-sm text-gray-600">
+                  Chọn ngày học (tối đa {sessionsPerWeek} ngày) <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {WEEK_DAYS.map((day) => {
+                    const isSelected = selectedDays.includes(day.value);
+                    const isDisabled = !isSelected && selectedDays.length >= sessionsPerWeek;
+                    
+                    return (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => toggleDay(day.value)}
+                        disabled={isDisabled}
+                        className={clsx(
+                          "px-4 py-2.5 rounded-xl border text-sm font-medium transition-all cursor-pointer",
+                          "min-w-[80px]",
+                          isSelected
+                            ? day.value === "CN"
+                              ? "bg-rose-100 border-rose-300 text-rose-700"
+                              : "bg-blue-100 border-blue-300 text-blue-700"
+                            : isDisabled
+                            ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                        )}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span className="font-semibold">{day.shortLabel}</span>
+                          <span className="text-xs">{day.label}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedDays.length > 0 && (
+                  <p className="text-xs text-green-600">
+                    ✓ Đã chọn {selectedDays.length}/{sessionsPerWeek} ngày: {formatDaysString(selectedDays)}
+                  </p>
+                )}
+                {selectedDays.length > 0 && selectedDays.length < sessionsPerWeek && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    Chỉ chọn {selectedDays.length} ngày nhưng đã set {sessionsPerWeek} buổi/tuần. Lịch học sẽ bị gián đoạn.
+                  </p>
+                )}
+                {errors.schedule && selectedDays.length === 0 && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> Vui lòng chọn ít nhất 1 ngày học
+                  </p>
+                )}
+              </div>
+
+              {/* Chọn khung giờ */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-gray-600">
+                    Khung giờ học <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setUseCustomTime(!useCustomTime)}
+                    className="text-xs text-red-600 hover:text-red-700 font-medium cursor-pointer"
+                  >
+                    {useCustomTime ? "Chọn khung giờ mẫu" : "Nhập giờ tùy chỉnh"}
+                  </button>
+                </div>
+
+                {!useCustomTime ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {TIME_SLOTS.map((slot) => (
+                      <button
+                        key={slot.value}
+                        type="button"
+                        onClick={() => setSelectedTimeSlot(slot.value)}
+                        className={clsx(
+                          "px-3 py-2.5 rounded-xl border text-sm transition-all cursor-pointer",
+                          selectedTimeSlot === slot.value
+                            ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                        )}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span className="font-medium">{slot.label.split(" ")[0]}</span>
+                          <span className="text-xs">{slot.timeRange}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                      <TimePicker 
+                        value={startTime} 
+                        onChange={setStartTime} 
+                        label="Giờ bắt đầu"
+                      />
+                      <span className="text-gray-400 font-bold hidden md:block">→</span>
+                      <TimePicker 
+                        value={endTime} 
+                        onChange={setEndTime} 
+                        label="Giờ kết thúc"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Sử dụng các nút ▲▼ để điều chỉnh giờ và phút
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Preview lịch học */}
+              {formData.schedule && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200">
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Calendar size={16} className="text-red-600" />
+                    <span className="font-medium">Lịch học đã chọn:</span>
+                    <span className="text-red-700 font-semibold">{formData.schedule}</span>
+                  </div>
+                  {formData.totalSessions > 0 && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      ✓ Tổng số buổi: {formData.totalSessions} buổi
+                      {formData.schedule && selectedDays.length > 0 && (
+                        <span>
+                          {' '}(~{Math.ceil(formData.totalSessions / selectedDays.length)} tuần)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Row 6: Mô tả */}
+            {/* Row 6: Trạng thái */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <BookOpen size={16} className="text-red-600" />
+                Trạng thái
+              </label>
+              <div className="flex gap-2">
+                {(["Sắp khai giảng", "Đang học", "Đã kết thúc"] as const).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => handleChange("status", status)}
+                    className={clsx(
+                      "flex-1 px-4 py-3 rounded-xl border text-sm font-semibold transition-all cursor-pointer",
+                      formData.status === status
+                        ? status === "Sắp khai giảng"
+                          ? "bg-amber-100 border-amber-300 text-amber-700"
+                          : status === "Đang học"
+                          ? "bg-red-100 border-red-300 text-red-700"
+                          : "bg-gray-100 border-gray-300 text-gray-600"
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 7: Mô tả */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <BookOpen size={16} className="text-red-600" />
@@ -787,6 +1425,12 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     setFormData(initialData);
                   } else {
                     setFormData(initialFormData);
+                    setSelectedDays([]);
+                    setSelectedTimeSlot("");
+                    setSessionsPerWeek(2);
+                    setUseCustomTime(false);
+                    setStartTime("18:00");
+                    setEndTime("20:00");
                   }
                   setErrors({});
                 }}
@@ -834,6 +1478,7 @@ export default function Page() {
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
   const [originalStatus, setOriginalStatus] = useState<ClassFormData["status"] | null>(null);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -870,12 +1515,14 @@ export default function Page() {
   const stats = useMemo(() => {
     const total = classes.length;
     const active = classes.filter(c => c.status === "Đang học").length;
+    const upcoming = classes.filter(c => c.status === "Sắp khai giảng").length;
     const students = classes.reduce((sum, c) => sum + c.current, 0);
     const occupancy = classes.reduce((sum, c) => sum + c.capacity, 0);
 
     return {
       total,
       active,
+      upcoming,
       students,
       occupancy: occupancy > 0 ? `${Math.round((students / occupancy) * 100)}%` : "0%",
     };
@@ -939,6 +1586,23 @@ export default function Page() {
     setPage(1);
   };
 
+  // Handle checkbox selection
+  const handleSelectAll = () => {
+    if (selectedClasses.length === pagedRows.length) {
+      setSelectedClasses([]);
+    } else {
+      setSelectedClasses(pagedRows.map(c => c.id));
+    }
+  };
+
+  const handleSelectClass = (classId: string) => {
+    setSelectedClasses(prev =>
+      prev.includes(classId)
+        ? prev.filter(id => id !== classId)
+        : [...prev, classId]
+    );
+  };
+
   const goPage = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
   const handleCreateClass = async (data: ClassFormData) => {
@@ -950,7 +1614,17 @@ export default function Page() {
         });
         return;
       }
+
+      console.log("Creating class with data:", {
+        ...data,
+        totalSessions: data.totalSessions,
+        schedule: data.schedule,
+        startDate: data.startDate,
+        endDate: data.endDate
+      });
+      
       const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
+      console.log("Generated RRULE:", schedulePattern);
 
       const payload: CreateClassRequest = {
         branchId: data.branchId,
@@ -969,13 +1643,26 @@ export default function Page() {
 
       const created = await createAdminClass(payload);
 
+      // Sau khi tao lop thanh cong, tao cac session/lich hoc tu dong
+      if (created?.id) {
+        try {
+          console.log("Generating sessions for class:", created.id);
+          await generateSessionsFromPattern({
+            classId: created.id,
+            onlyFutureSessions: true,
+          });
+          console.log("Sessions generated successfully");
+        } catch (sessionErr: any) {
+          console.error("Failed to generate sessions:", sessionErr);
+        }
+      }
 
       const updatedClasses = await fetchAdminClasses();
       setClasses(updatedClasses);
 
       toast.success({
         title: "Tạo lớp học thành công",
-        description: `Lớp ${data.name} đã được tạo.`,
+        description: `Lớp ${data.name} đã được tạo với ${data.totalSessions} buổi học.`,
       });
     } catch (err: any) {
       console.error("Failed to create class:", err);
@@ -1016,6 +1703,7 @@ export default function Page() {
         status,
         startDate: (detail?.startDate as string | undefined)?.slice(0, 10) ?? "",
         endDate: (detail?.endDate as string | undefined)?.slice(0, 10) ?? "",
+        totalSessions: detail?.totalSessions ?? 0,
         description: detail?.description ?? "",
       };
 
@@ -1134,6 +1822,11 @@ export default function Page() {
     }
   };
 
+  const handleAddStudent = (classId: string) => {
+    // Navigate to class detail page with students tab
+    router.push(`/${locale}/portal/admin/classes/${classId}?tab=students`);
+  };
+
   return (
     <>
       <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
@@ -1185,24 +1878,24 @@ export default function Page() {
 
           <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-gray-100 grid place-items-center">
-                <Users className="text-gray-600" size={18} />
+              <span className="w-10 h-10 rounded-xl bg-amber-100 grid place-items-center">
+                <CalendarClock className="text-amber-600" size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Tổng học viên</div>
-                <div className="text-2xl font-extrabold text-gray-900">{stats.students}</div>
+                <div className="text-sm text-gray-600">Sắp khai giảng</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.upcoming}</div>
               </div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-black/10 grid place-items-center">
-                <Users className="text-gray-800" size={18} />
+              <span className="w-10 h-10 rounded-xl bg-gray-100 grid place-items-center">
+                <Users className="text-gray-600" size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Tỉ lệ lấp đầy</div>
-                <div className="text-2xl font-extrabold text-gray-900">{stats.occupancy}</div>
+                <div className="text-sm text-gray-600">Tổng học viên</div>
+                <div className="text-2xl font-extrabold text-gray-900">{stats.students}</div>
               </div>
             </div>
           </div>
@@ -1219,7 +1912,7 @@ export default function Page() {
         )}
 
         {/* Search & Filters */}
-        <div className={`rounded-2xl border border-gray-200 bg-white p-4 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="relative flex-1 max-w-3xl min-w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -1259,9 +1952,16 @@ export default function Page() {
         {/* Table */}
         <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Table Header */}
-          <div className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200 px-6 py-4">
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Danh sách lớp học</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold text-gray-900">Danh sách lớp học</h2>
+                {selectedClasses.length > 0 && (
+                  <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                    {selectedClasses.length} đã chọn
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-medium">{rows.length} lớp học</span>
               </div>
@@ -1273,6 +1973,14 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
+                  <th className="py-3 px-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={pagedRows.length > 0 && selectedClasses.length === pagedRows.length}
+                      onChange={handleSelectAll}
+                      className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
+                    />
+                  </th>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên lớp</SortableHeader>
                   <SortableHeader field="program" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình</SortableHeader>
                   <SortableHeader field="teacher" currentField={sortField} direction={sortDirection} onSort={handleSort}>Giáo viên</SortableHeader>
@@ -1290,8 +1998,16 @@ export default function Page() {
                       key={c.id}
                       className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                     >
+                      <td className="py-4 px-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedClasses.includes(c.id)}
+                          onChange={() => handleSelectClass(c.id)}
+                          className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
+                        />
+                      </td>
                       <td className="py-4 px-6">
-                        <div className="text-sm text-gray-900 truncate">{c.name}</div>
+                        <div className="text-sm text-gray-900 font-medium truncate">{c.name}</div>
                         <div className="text-xs text-gray-500 truncate">{c.code || c.id}</div>
                       </td>
 
@@ -1302,7 +2018,7 @@ export default function Page() {
                       <td className="py-4 px-6 whitespace-nowrap">
                         <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
                           <span className="inline-block w-5 h-5 rounded-full bg-red-100 grid place-items-center">
-                            <Users size={13} className="text-red-600" />
+                            <User size={13} className="text-red-600" />
                           </span>
                           <span className="truncate">{c.teacher}</span>
                         </div>
@@ -1310,23 +2026,39 @@ export default function Page() {
 
                       <td className="py-4 px-6 whitespace-nowrap">
                         <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
-                          <MapPin size={16} className="text-gray-400" />
+                          <Building2 size={16} className="text-gray-400" />
                           <span className="truncate">{c.branch}</span>
                         </div>
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2 text-sm">
-                          <Users size={16} className="text-gray-400" />
-                          <span className="text-gray-900 text-sm font-medium">{c.current}/{c.capacity}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="inline-flex items-center gap-2 text-sm bg-gray-50 px-3 py-1.5 rounded-lg">
+                            <Users size={16} className={clsx(
+                              c.current === c.capacity ? "text-red-400" : "text-gray-400"
+                            )} />
+                            <span className={clsx(
+                              "font-medium",
+                              c.current === c.capacity ? "text-red-600" : "text-gray-900"
+                            )}>
+                              {c.current}/{c.capacity}
+                            </span>
+                          </div>
+                          {/* Hiển thị icon thêm học viên khi lớp chưa đầy */}
+                          {c.current < c.capacity && (
+                            <button
+                              onClick={() => handleAddStudent(c.id)}
+                              className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 transition-colors text-amber-600 hover:text-amber-700 cursor-pointer"
+                              title="Thêm học viên"
+                            >
+                              <UserPlus size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2 text-gray-900">
-                          <Clock size={16} className="text-gray-400" />
-                          <span className="truncate">{c.schedule}</span>
-                        </div>
+                        <ScheduleDisplay schedule={c.schedule} />
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
@@ -1338,14 +2070,14 @@ export default function Page() {
                           <button 
                             onClick={() => router.push(`/${locale}/portal/admin/classes/${c.id}`)}
                             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer" 
-                            title="Xem"
+                            title="Xem chi tiết"
                           >
                             <Eye size={14} />
                           </button>
                           <button 
                             onClick={() => handleOpenEditClass(c)}
                             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer" 
-                            title="Sửa"
+                            title="Chỉnh sửa"
                           >
                             <Pencil size={14} />
                           </button>
@@ -1355,11 +2087,23 @@ export default function Page() {
                               "p-1.5 rounded-lg transition-colors cursor-pointer",
                               c.status === "Đang học"
                                 ? "hover:bg-red-50 text-gray-400 hover:text-red-600"
-                                : "hover:bg-gray-100 text-gray-400 hover:text-gray-800"
+                                : c.status === "Sắp khai giảng"
+                                ? "hover:bg-amber-50 text-gray-400 hover:text-amber-600"
+                                : "hover:bg-gray-100 text-gray-400 hover:text-gray-600"
                             )}
-                            title={c.status === "Đang học" ? "Kết thúc lớp học" : c.status === "Đã kết thúc" ? "Chuyển sang sắp khai giảng" : "Bắt đầu lớp học"}
+                            title={
+                              c.status === "Đang học" ? "Kết thúc lớp học" : 
+                              c.status === "Sắp khai giảng" ? "Bắt đầu lớp học" : 
+                              "Mở lại lớp học"
+                            }
                           >
-                            {c.status === "Đang học" ? <PowerOff size={14} /> : <Power size={14} />}
+                            {c.status === "Đang học" ? (
+                              <PowerOff size={14} />
+                            ) : c.status === "Sắp khai giảng" ? (
+                              <Power size={14} />
+                            ) : (
+                              <RefreshCw size={14} />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -1367,7 +2111,7 @@ export default function Page() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center">
+                    <td colSpan={9} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
@@ -1390,23 +2134,67 @@ export default function Page() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                     onClick={() => goPage(currentPage - 1)}
                     disabled={currentPage === 1}
-                    aria-label="Trang trước"
+                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    aria-label="Previous page"
                   >
-                    <ChevronLeft size={16} className="text-gray-600" />
+                    <ChevronLeft size={18} />
                   </button>
-                  <div className="text-sm font-semibold text-gray-900 px-3">
-                    {currentPage} / {totalPages}
+
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages: (number | string)[] = [];
+                      const maxVisible = 7;
+
+                      if (totalPages <= maxVisible) {
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        if (currentPage <= 3) {
+                          for (let i = 1; i <= 5; i++) pages.push(i);
+                          pages.push("...");
+                          pages.push(totalPages);
+                        } else if (currentPage >= totalPages - 2) {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                        } else {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                          pages.push("...");
+                          pages.push(totalPages);
+                        }
+                      }
+
+                      return pages.map((p, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => typeof p === "number" && goPage(p)}
+                          disabled={p === "..."}
+                          className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                            p === currentPage
+                              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                              : p === "..."
+                              ? "cursor-default text-gray-400"
+                              : "border border-red-200 hover:bg-red-50 text-gray-700"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ));
+                    })()}
                   </div>
+
                   <button
-                    className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                     onClick={() => goPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    aria-label="Trang sau"
+                    className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    aria-label="Next page"
                   >
-                    <ChevronRight size={16} className="text-gray-600" />
+                    <ChevronRight size={18} />
                   </button>
                 </div>
               </div>

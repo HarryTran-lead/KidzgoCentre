@@ -315,7 +315,6 @@ export default function AdminLessonDetailPage() {
       : list.filter(
           (s) =>
             s.status === "present" ||
-            s.status === "late" ||
             s.status === "absent"
         ).length;
 

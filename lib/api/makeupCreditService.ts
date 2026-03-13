@@ -8,21 +8,19 @@
 import { MAKEUP_CREDIT_ENDPOINTS } from "@/constants/apiURL";
 import { get, post } from "@/lib/axios";
 import type {
-      MakeupCredit,
+  MakeupAllocationResponse,
+  MakeupCredit,
   MakeupCreditsResponse,
   MakeupCreditResponse,
   MakeupCreditStudentsResponse,
   MakeupAllocationsResponse,
   MakeupSuggestionsResponse,
-
 } from "@/types/makeupCredit";
 
 export type UseMakeupCreditPayload = {
+  studentProfileId?: string | null;
   classId: string;
   targetSessionId: string;
-  date?: string;
-  time?: string;
-  note?: string;
 };
 
 export async function getAllMakeupCredits(): Promise<MakeupCreditsResponse> {
@@ -71,10 +69,10 @@ export async function getMakeupCreditsList(params: {
 }
 
 export async function getMakeupCreditsByStudent(
-  studentId: string
+  studentProfileId: string
 ): Promise<MakeupCreditsResponse> {
   const endpoint = MAKEUP_CREDIT_ENDPOINTS.GET_ALL ?? "/api/makeup-credits/all";
-  const url = `${endpoint}?studentId=${encodeURIComponent(studentId)}`;
+  const url = `${endpoint}?studentProfileId=${encodeURIComponent(studentProfileId)}`;
   return get<MakeupCreditsResponse>(url);
 }
 
@@ -105,11 +103,11 @@ export async function getMakeupCreditSuggestions(
 export async function useMakeupCredit(
   creditId: string,
   payload: UseMakeupCreditPayload
-): Promise<MakeupSuggestionsResponse> {
+): Promise<MakeupAllocationResponse> {
   const endpoint = MAKEUP_CREDIT_ENDPOINTS.USE
     ? MAKEUP_CREDIT_ENDPOINTS.USE(creditId)
     : `/api/makeup-credits/${creditId}/use`;
-  return post<MakeupSuggestionsResponse>(endpoint, payload);
+  return post<MakeupAllocationResponse>(endpoint, payload);
 }
 
 export async function expireMakeupCredit(

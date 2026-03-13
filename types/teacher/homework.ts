@@ -80,6 +80,7 @@ export interface HomeworkSubmission {
   dueAt: string;
   description?: string;
   skills?: string;
+  submissionType?: string;
 
   // Timestamps
   createdAt: string;
@@ -173,6 +174,17 @@ export interface CreateHomeworkPayload {
   instructions?: string;
   expectedAnswer?: string;
   rubric?: string;
+  // Multiple choice specific fields
+  questions?: MultipleChoiceQuestion[];
+}
+
+export interface  MultipleChoiceQuestion {
+  questionText: string;
+  questionType: string;
+  options: string[];
+  correctAnswer: number;
+  points: number;
+  explanation?: string;
 }
 
 export type CreateHomeworkResult =

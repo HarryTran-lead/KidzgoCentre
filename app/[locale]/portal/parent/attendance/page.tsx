@@ -12,7 +12,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-import { createLeaveRequest, getLeaveRequests } from "@/lib/api/leaveRequestService";
+import { createLeaveRequest, getLeaveRequestsWithParams } from "@/lib/api/leaveRequestService";
 import { getProfiles } from "@/lib/api/authService";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getStudentClasses } from "@/lib/api/studentService";
@@ -35,7 +35,7 @@ const initialFormState: FormState = {
   studentProfileId: "",
   classId: "",
   sessionDate: "",
-  endDate: "",
+  endDate: null,
   reason: "",
 };
 
@@ -45,7 +45,7 @@ const statusLabels: Record<LeaveRequestStatus, string> = {
   PENDING: "Chờ duyệt",
   APPROVED: "Đã duyệt",
   REJECTED: "Từ chối",
-  AUTO_APPROVED: "Tự duyệt",
+  AUTO_APPROVED: "Đã duyệt",
 };
 
 // giữ màu trạng thái, nhưng “shape” + style giống trang trên
@@ -261,7 +261,7 @@ export default function ParentAttendancePage() {
       setRequestsLoading(true);
 
       try {
-        const response = await (getLeaveRequests as any)({
+        const response = await getLeaveRequestsWithParams({
           studentProfileId: formState.studentProfileId || undefined,
           pageNumber: 1,
           pageSize: 50,
@@ -271,7 +271,9 @@ export default function ParentAttendancePage() {
 
         const list: LeaveRequestRecord[] = Array.isArray(raw)
           ? raw
-          : raw?.items ?? raw?.requests?.items ?? raw?.leaveRequests?.items ?? raw?.data ?? [];
+          : raw && "items" in raw
+            ? raw.items
+            : [];
 
         setRequests(Array.isArray(list) ? list : []);
       } catch (err) {
@@ -387,9 +389,6 @@ export default function ParentAttendancePage() {
       if (!formState.sessionDate) {
         nextErrors.sessionDate = "Vui lòng chọn ngày bắt đầu nghỉ.";
       }
-      if (!formState.endDate) {
-        nextErrors.endDate = "Vui lòng chọn ngày kết thúc nghỉ.";
-      }
       if (!formState.reason?.trim()) {
         nextErrors.reason = "Vui lòng nhập lý do.";
       }
@@ -406,8 +405,13 @@ export default function ParentAttendancePage() {
 
       const response = await createLeaveRequest(formState as any);
 
-      if (response?.data) {
-        setRequests((prev) => [response.data as any, ...prev]);
+      const createdRecord =
+        (response?.data as any)?.leaveRequests?.[0] ??
+        (response?.data as any)?.record ??
+        response?.data;
+
+      if (createdRecord) {
+        setRequests((prev) => [createdRecord as any, ...prev]);
       }
 
       setFormState((prev) => ({
@@ -416,11 +420,30 @@ export default function ParentAttendancePage() {
       }));
       setFormErrors({});
 
-      setSuccessMessage("Đã tạo đơn xin nghỉ. Hệ thống sẽ tự duyệt theo luật 24h nếu đủ điều kiện.");
+      const responseStatus = normalizeStatus((createdRecord as LeaveRequestRecord | undefined)?.status);
+      setSuccessMessage(
+        responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
+          ? "Đã tạo đơn xin nghỉ. Hệ thống đã duyệt và sẽ tự động xếp lịch bù nếu có suất phù hợp."
+          : "Đã tạo đơn xin nghỉ."
+      );
       closeCreateModal();
     } catch (err) {
       console.error("Create leave request error:", err);
-      setError("Tạo đơn thất bại. Vui lòng thử lại.");
+      const apiError = (err as any)?.response?.data;
+      const code = apiError?.code ?? apiError?.title ?? apiError?.data?.code ?? apiError?.data?.title;
+      const description =
+        apiError?.description ??
+        apiError?.detail ??
+        apiError?.message ??
+        apiError?.data?.description ??
+        apiError?.data?.detail ??
+        apiError?.data?.message;
+
+      if (code === "LeaveRequest.ExceededMonthlyLeaveLimit") {
+        setError("Học viên đã vượt quá giới hạn 2 buổi nghỉ trong tháng.");
+      } else {
+        setError(description ?? "Tạo đơn thất bại. Vui lòng thử lại.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -738,7 +761,7 @@ export default function ParentAttendancePage() {
                   <input
                     type="date"
                     className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                    value={formState.endDate}
+                    value={formState.endDate ?? ""}
                     onChange={(e) => setFormState((prev) => ({ ...prev, endDate: e.target.value }))}
                   />
                   {formErrors.endDate ? (

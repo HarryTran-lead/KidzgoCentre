@@ -31,9 +31,11 @@ export type CreateMakeupPayload = {
   fromClassId: string;
   targetClassId: string;
   targetSessionId: string;
+};
 
-  date: string; // YYYY-MM-DD
-  time: string; // HH:mm
+type MakeupFormState = CreateMakeupPayload & {
+  date: string;
+  time: string;
   note?: string;
 };
 
@@ -339,7 +341,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
   const [manualFallbackSessions, setManualFallbackSessions] = useState<any[]>([]);
   const [manualSessionsLoading, setManualSessionsLoading] = useState(false);
 
-  const [payload, setPayload] = useState<CreateMakeupPayload>({
+  const [payload, setPayload] = useState<MakeupFormState>({
     studentProfileId: "",
     makeupCreditId: "",
     fromClassId: "",
@@ -775,7 +777,13 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     setSubmitting(true);
     setError(null);
     try {
-      await onCreate(payload);
+      await onCreate({
+        studentProfileId: payload.studentProfileId,
+        makeupCreditId: payload.makeupCreditId,
+        fromClassId: payload.fromClassId,
+        targetClassId: payload.targetClassId,
+        targetSessionId: payload.targetSessionId,
+      });
       onClose();
     } catch {
       setError("Tạo lịch bù thất bại.");

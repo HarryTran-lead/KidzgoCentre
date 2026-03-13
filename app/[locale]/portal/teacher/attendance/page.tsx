@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   CalendarDays,
@@ -34,7 +34,13 @@ import {
 
 import type { AttendanceStatus, LessonDetail, SessionApiItem, Student } from "@/types/teacher/attendance";
 import type { SessionReportItem } from "@/types/teacher/sessionReport";
-import { createSessionReport, fetchSessionReports, updateSessionReport } from "@/app/api/teacher/sessionReport";
+import {
+  createSessionReport,
+  enhanceSessionFeedback,
+  fetchSessionReports,
+  submitSessionReport,
+  updateSessionReport,
+} from "@/app/api/teacher/sessionReport";
 import SessionNoteModal from "@/components/teacher/attendance/SessionNoteModal";
 
 type FilterField = {
@@ -72,7 +78,6 @@ type StudentRow = Student & {
 
 const STATUS_LABELS: Record<AttendanceStatus, string> = {
   present: "Có mặt",
-  late: "Đi muộn",
   absent: "Vắng mặt",
 };
 
@@ -92,6 +97,7 @@ const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 type SessionReportState = {
   reportId: string;
   feedback: string;
+  status?: string;
 };
 const SESSION_REPORT_PAGE_SIZE = 100;
 const SESSION_REPORT_MAX_PAGES = 20;
@@ -125,6 +131,7 @@ function pickSessionReportFromStudent(student: any, sessionId: string): SessionR
     singleReport?.feedback ?? singleReport?.Feedback ?? singleReport?.note ?? singleReport?.comment ?? "",
   ).trim();
   const singleReportId = String(singleReport?.id ?? singleReport?.reportId ?? singleReport?.Id ?? "").trim();
+  const singleReportStatus = String(singleReport?.status ?? singleReport?.Status ?? "").trim();
 
   const reportList = Array.isArray(student?.sessionReports)
     ? student.sessionReports
@@ -143,10 +150,12 @@ function pickSessionReportFromStudent(student: any, sessionId: string): SessionR
   const listReportId = String(
     reportFromList?.id ?? reportFromList?.reportId ?? reportFromList?.Id ?? "",
   ).trim();
+  const listStatus = String(reportFromList?.status ?? reportFromList?.Status ?? "").trim();
 
   return {
     feedback: listFeedback || singleReportFeedback || directNote,
     reportId: listReportId || singleReportId || directReportId,
+    status: listStatus || singleReportStatus || undefined,
   };
 }
 const buildSessionReportKey = (sessionId: string, studentId: string, rowKey: string): string => {
@@ -231,7 +240,7 @@ function Pagination({
           disabled={currentPage === 1}
           className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          ←
+          â†
         </button>
 
         {pages.map((page) => (
@@ -253,7 +262,7 @@ function Pagination({
           disabled={currentPage === totalPages}
           className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          →
+          â†’
         </button>
       </div>
     </div>
@@ -310,6 +319,11 @@ export default function TeacherAttendancePage() {
   const [selectedStudentForNote, setSelectedStudentForNote] = useState<StudentRow | null>(null);
   const [noteModalError, setNoteModalError] = useState<string | null>(null);
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+  const [isEnhancingNote, setIsEnhancingNote] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // State for multi-select checkboxes
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 
   const recordsPerPage = 8;
 
@@ -509,6 +523,7 @@ const loadSessionReports = async () => {
         acc[reportStudentId] = {
           reportId: String(report?.id ?? "").trim(),
           feedback: String(report?.feedback ?? "").trim(),
+          status: String(report?.status ?? "").trim() || undefined,
         };
         reportTimestampByStudentId[reportStudentId] = currentTs;
         return acc;
@@ -540,12 +555,14 @@ const loadSessionReports = async () => {
 
         const note = (reportFromList?.feedback || persistedSessionReport.feedback || "").trim();
         const reportId = String(reportFromList?.reportId || persistedSessionReport.reportId || "").trim();
+        const reportStatus = String(reportFromList?.status || persistedSessionReport.status || "").trim();
 
         if (note || reportId) {
           const reportKey = buildSessionReportKey(selectedSessionId, safeStudentId, rowKey);
           nextSessionReports[reportKey] = {
             reportId,
             feedback: note,
+            status: reportStatus || undefined,
           };
         }
         return {
@@ -575,7 +592,7 @@ const loadSessionReports = async () => {
         setAttendanceSummary({ total, present, absent, makeup });
       } else {
         const total = students.length;
-        const present = students.filter((s) => s.status === "present" || s.status === "late").length;
+        const present = students.filter((s) => s.status === "present").length;
         const absent = students.filter((s) => s.status === "absent").length;
         setAttendanceSummary({ total, present, absent, makeup: 0 });
       }
@@ -622,16 +639,22 @@ const loadSessionReports = async () => {
     if (!selectedSessionId || !selectedStudentForNote) return;
 
     const normalizedFeedback = feedback.trim();
-        const reportKey = buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey);
+    const reportKey = buildSessionReportKey(
+      selectedSessionId,
+      selectedStudentForNote.studentId,
+      selectedStudentForNote.rowKey,
+    );
     const existingReport = sessionReports[reportKey];
- const existingReportId = String(existingReport?.reportId ?? "").trim();
+    const existingReportId = String(existingReport?.reportId ?? "").trim();
     const studentProfileId = String(selectedStudentForNote.studentId ?? "").trim();
     const canSyncWithApi = GUID_REGEX.test(studentProfileId);
+
     try {
       setIsSubmittingNote(true);
       setNoteModalError(null);
 
-  let reportId = existingReportId;
+      let reportId = existingReportId;
+      let reportStatus = existingReport?.status;
       if (canSyncWithApi) {
         const report = existingReportId
           ? await updateSessionReport(existingReportId, { feedback: normalizedFeedback })
@@ -643,28 +666,94 @@ const loadSessionReports = async () => {
             });
 
         reportId = String(report?.id ?? existingReportId ?? "").trim();
+        reportStatus = String(report?.status ?? "").trim() || reportStatus || "DRAFT";
       }
 
       setSessionReports((prev) => ({
         ...prev,
         [reportKey]: {
-          reportId,          feedback: normalizedFeedback,
+          reportId,
+          feedback: normalizedFeedback,
+          status: reportStatus,
         },
       }));
 
       setAttendanceList((prev) =>
-  prev.map((r) => (r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: normalizedFeedback || undefined } : r)),      );
+        prev.map((r) =>
+          r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: normalizedFeedback || undefined } : r,
+        ),
+      );
 
       handleCloseNoteModal();
     } catch (err: any) {
- console.error("Submit note error:", err);
-      setNoteModalError(err.message || "Không thể lưu note.");
+      console.error("Submit note error:", err);
+      setNoteModalError(err.message || "Khong the luu note.");
     } finally {
       setIsSubmittingNote(false);
     }
   };
+
+  const handleEnhanceStudentNote = async (draft: string) => {
+    if (!selectedSessionId || !selectedStudentForNote) return null;
+
+    const studentProfileId = String(selectedStudentForNote.studentId ?? "").trim();
+    if (!GUID_REGEX.test(studentProfileId)) {
+      throw new Error("Hoc sinh chua co profile hop le de AI enhance.");
+    }
+
+    setIsEnhancingNote(true);
+    try {
+      const result = await enhanceSessionFeedback({
+        draft,
+        sessionId: selectedSessionId,
+        studentProfileId,
+      });
+      return result?.enhancedFeedback?.trim() || null;
+    } finally {
+      setIsEnhancingNote(false);
+    }
+  };
+
+  const handleSubmitStudentNoteForReview = async () => {
+    if (!selectedSessionId || !selectedStudentForNote) return;
+
+    const reportKey = buildSessionReportKey(
+      selectedSessionId,
+      selectedStudentForNote.studentId,
+      selectedStudentForNote.rowKey,
+    );
+    const existingReportId = String(sessionReports[reportKey]?.reportId ?? "").trim();
+    if (!existingReportId) {
+      setNoteModalError("Vui long luu note truoc khi submit review.");
+      return;
+    }
+
+    try {
+      setIsSubmittingReview(true);
+      setNoteModalError(null);
+      const updated = await submitSessionReport(existingReportId);
+      const nextStatus = String(updated?.status ?? "").trim() || "REVIEW";
+
+      setSessionReports((prev) => ({
+        ...prev,
+        [reportKey]: {
+          ...(prev[reportKey] ?? { reportId: existingReportId, feedback: "" }),
+          reportId: existingReportId,
+          status: nextStatus,
+        },
+      }));
+
+      handleCloseNoteModal();
+    } catch (err: any) {
+      setNoteModalError(err?.message || "Khong the submit session report de review.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   const syncSessionReportsWithAttendance = useCallback(async () => {
     if (!selectedSessionId) return;
+    type ReportSyncResult = { reportKey: string; reportId: string; feedback: string; status: string };
 
     const reportSyncTasks = attendanceList
       .map((student) => {
@@ -695,25 +784,32 @@ const loadSessionReports = async () => {
           }
 
           const reportId = String(report?.id ?? existingReportId ?? "").trim();
-          return { reportKey, reportId, feedback: note };
+          const status = String(report?.status ?? "").trim() || existingReport?.status || "DRAFT";
+          return { reportKey, reportId, feedback: note, status };
         };
       })
-      .filter((task): task is (() => Promise<{ reportKey: string; reportId: string; feedback: string } | null>) => task !== null);
+      .filter(
+        (task): task is (() => Promise<ReportSyncResult | null>) =>
+          task !== null,
+      );
 
     if (!reportSyncTasks.length) return;
 
     const results = await Promise.allSettled(reportSyncTasks.map((task) => task()));
     const failedCount = results.filter((result) => result.status === "rejected").length;
 
-    const successItems = results
-      .filter((result): result is PromiseFulfilledResult<{ reportKey: string; reportId: string; feedback: string }> => result.status === "fulfilled" && result.value !== null)
-      .map((result) => result.value);
+    const successItems: ReportSyncResult[] = [];
+    results.forEach((result) => {
+      if (result.status === "fulfilled" && result.value) {
+        successItems.push(result.value);
+      }
+    });
 
     if (successItems.length) {
       setSessionReports((prev) => {
         const next = { ...prev };
-        successItems.forEach(({ reportKey, reportId, feedback }) => {
-          next[reportKey] = { reportId, feedback };
+        successItems.forEach(({ reportKey, reportId, feedback, status }) => {
+          next[reportKey] = { reportId, feedback, status };
         });
         return next;
       });
@@ -770,6 +866,38 @@ const loadSessionReports = async () => {
 
     return filtered;
   }, [attendanceList, filterStatus, searchQuery, sortColumn, sortDirection]);
+
+  // Checkbox handlers
+  const handleToggleStudent = (rowKey: string) => {
+    setSelectedStudents((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) {
+        next.delete(rowKey);
+      } else {
+        next.add(rowKey);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAll = () => {
+    if (selectedStudents.size === filteredRecords.length) {
+      setSelectedStudents(new Set());
+    } else {
+      setSelectedStudents(new Set(filteredRecords.map((r) => r.rowKey)));
+    }
+  };
+
+  const isAllSelected = filteredRecords.length > 0 && selectedStudents.size === filteredRecords.length;
+  const isIndeterminate = selectedStudents.size > 0 && selectedStudents.size < filteredRecords.length;
+
+  const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * recordsPerPage;
@@ -828,7 +956,7 @@ const loadSessionReports = async () => {
                   onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
                 />
-                <span className="text-gray-400 text-sm">→</span>
+                <span className="text-gray-400 text-sm">â†’</span>
                 <input
                   type="date"
                   value={dateRange.to}
@@ -927,7 +1055,7 @@ const loadSessionReports = async () => {
                         <div className="flex items-center gap-1.5">
                           <CalendarDays size={16} className="text-red-600" />
                           <span className="font-medium">{selectedLesson.date}</span>
-                          <span>•</span>
+                          <span>â€¢</span>
                           <span>{selectedLesson.time}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1025,7 +1153,7 @@ const loadSessionReports = async () => {
 
               <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tỉ lệ chuyên cần</div>
+                  <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tỷ lệ chuyên cần</div>
                   <div className="p-2 rounded-lg bg-gray-100">
                     <TrendingUp size={20} className="text-gray-600" />
                   </div>
@@ -1041,7 +1169,7 @@ const loadSessionReports = async () => {
 
       {/* Main Content */}
       {selectedSessionId ? (
-        <div className={`grid lg:grid-cols-3 gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        <div className={` transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           {/* Student Table */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -1066,7 +1194,6 @@ const loadSessionReports = async () => {
                     >
                       <option value="ALL">Tất cả trạng thái</option>
                       <option value="present">Có mặt</option>
-                      <option value="late">Đi muộn</option>
                       <option value="absent">Vắng mặt</option>
                     </select>
                     <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
@@ -1080,6 +1207,17 @@ const loadSessionReports = async () => {
                 <table className="w-full">
                   <thead className="bg-gradient-to-r from-red-50 to-red-100 border-b border-gray-200">
                     <tr>
+                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-12">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            ref={selectAllRef}
+                            checked={isAllSelected}
+                            onChange={handleToggleAll}
+                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                          />
+                        </div>
+                      </th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">
                         <SortableHeader
                           label="Học viên"
@@ -1113,6 +1251,14 @@ const loadSessionReports = async () => {
                           className="hover:bg-gradient-to-r hover:from-red-50/50 hover:to-red-100/50 transition-colors border-b border-gray-100"
                         >
                           <td className="px-4 py-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedStudents.has(record.rowKey)}
+                              onChange={() => handleToggleStudent(record.rowKey)}
+                              className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                            />
+                          </td>
+                          <td className="px-4 py-4">
                             <div className="flex items-center gap-3">
                               <StudentAvatar name={record.name ?? ""} />
                               <div>
@@ -1126,7 +1272,7 @@ const loadSessionReports = async () => {
 
                           <td className="px-4 py-4">
                             <div className="flex flex-wrap items-center gap-2">
-                              {(["present", "late", "absent"] as AttendanceStatus[]).map((status) => (
+                              {(["present", "absent"] as AttendanceStatus[]).map((status) => (
                                 <button
                                   key={status}
                                   onClick={() => handleStatusChange(record.rowKey, status)}
@@ -1134,8 +1280,6 @@ const loadSessionReports = async () => {
                                     record.status === status
                                       ? status === "present"
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        : status === "late"
-                                          ? "bg-amber-50 text-amber-700 border-amber-200"
                                           : "bg-red-50 text-red-700 border-red-200"
                                       : "border-gray-200 text-gray-600 hover:bg-gray-50"
                                   }`}
@@ -1205,76 +1349,11 @@ const loadSessionReports = async () => {
             </div>
           </div>
 
-          {/* Side Panel */}
-          <div className="space-y-4">
-            {/* Makeup Card */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-gradient-to-r from-sky-500 to-blue-500 rounded-lg">
-                  <ArrowRightLeft size={18} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">Buổi bù</h3>
-                  <p className="text-sm text-gray-600">Đề xuất lịch bù</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <button className="w-full px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition cursor-pointer">
-                  Tạo đề xuất buổi bù
-                </button>
-                <button className="w-full px-4 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-500 text-white hover:shadow-md transition cursor-pointer">
-                  <span className="inline-flex items-center justify-center gap-2">
-                    <Send size={16} /> Gửi đề xuất
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Summary Card */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h3 className="font-bold text-gray-900 mb-4">Thống kê nhanh</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                    <span>Tỉ lệ chuyên cần</span>
-                    <span className="font-semibold text-emerald-600">
-                      {stats ? Math.round((stats.present / stats.total) * 100) : 0}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full"
-                      style={{ width: `${stats ? (stats.present / stats.total) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200">
-                  <div>
-                    <div className="text-lg font-bold text-red-600">
-                      {attendanceList.filter((r) => r.status === "absent").length || 0}
-                    </div>
-                    <div className="text-xs text-gray-600">Vắng mặt</div>
-                  </div>
-
-                  <div>
-                    <div className="text-lg font-bold text-amber-500">
-                      {attendanceList.filter((r) => r.status === "late").length || 0}
-                    </div>
-                    <div className="text-xs text-gray-600">Đi muộn</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Modal Note */}
           <SessionNoteModal
             open={noteModalOpen}
             studentName={selectedStudentForNote?.name || "Học sinh"}
-            sessionLabel={selectedLesson ? `${selectedLesson.lesson} • ${selectedLesson.date} • ${selectedLesson.time}` : undefined}
+            sessionLabel={selectedLesson ? `${selectedLesson.lesson} â€¢ ${selectedLesson.date} â€¢ ${selectedLesson.time}` : undefined}
             initialFeedback={
               selectedStudentForNote && selectedSessionId
                 ? sessionReports[
@@ -1292,12 +1371,31 @@ const loadSessionReports = async () => {
                 ]?.reportId,
             )}
             isSubmitting={isSubmittingNote}
+            isEnhancing={isEnhancingNote}
+            canSubmitForReview={Boolean(
+              selectedStudentForNote &&
+                selectedSessionId &&
+                sessionReports[
+                  buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
+                ]?.reportId &&
+                String(
+                  sessionReports[
+                    buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
+                  ]?.status ?? "",
+                ).toUpperCase() !== "REVIEW",
+            )}
+            isSubmittingForReview={isSubmittingReview}
             error={noteModalError}
             onClose={handleCloseNoteModal}
             onSubmit={handleSubmitStudentNote}
+            onEnhance={handleEnhanceStudentNote}
+            onSubmitForReview={handleSubmitStudentNoteForReview}
           />
         </div>
       ) : null}
     </div>
   );
 }
+
+
+

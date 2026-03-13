@@ -541,6 +541,7 @@ export default function Page() {
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [originalRoomStatus, setOriginalRoomStatus] = useState<Status | null>(null);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -841,6 +842,20 @@ export default function Page() {
     setShowToggleStatusModal(true);
   };
 
+  const toggleSelectAll = () => {
+    if (selectedRows.length === currentRows.length) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(currentRows.map(row => row.id));
+    }
+  };
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedRows(prev => 
+      prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
+    );
+  };
+
   const confirmToggleStatus = async () => {
     if (!selectedRoom) return;
 
@@ -957,7 +972,7 @@ export default function Page() {
         )}
 
         {/* Search and Filter */}
-        <div className={`rounded-2xl border border-gray-200 bg-white p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="relative flex-1 min-w-[250px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={16} />
@@ -994,7 +1009,14 @@ export default function Page() {
             {/* Table Header */}
             <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4 flex-shrink-0">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Danh sách phòng học</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-semibold text-gray-900">Danh sách phòng học</h2>
+                  {selectedRows.length > 0 && (
+                    <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                      {selectedRows.length} đã chọn
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span className="font-medium">{filteredRooms.length} phòng học</span>
                 </div>
@@ -1006,6 +1028,14 @@ export default function Page() {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                   <tr>
+                    <th className="py-3 px-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={currentRows.length > 0 && selectedRows.length === currentRows.length}
+                        onChange={toggleSelectAll}
+                        className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
+                      />
+                    </th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Phòng học" sortKey="id" /></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Chi nhánh" sortKey="branch" /></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Sức chứa" sortKey="capacity" /></th>
@@ -1019,8 +1049,16 @@ export default function Page() {
                     currentRows.map((room) => (
                       <tr
                         key={room.id}
-                        className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
+                        className={`group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 ${selectedRows.includes(room.id) ? 'bg-red-50/50' : ''}`}
                       >
+                        <td className="py-4 px-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedRows.includes(room.id)}
+                            onChange={() => toggleSelectRow(room.id)}
+                            className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
+                          />
+                        </td>
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center">
@@ -1108,7 +1146,7 @@ export default function Page() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center">
+                      <td colSpan={7} className="py-12 text-center">
                         <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                           <Search size={24} className="text-gray-400" />
                         </div>
@@ -1131,61 +1169,67 @@ export default function Page() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setCurrentPage(1)}
-                      disabled={currentPage === 1}
-                      className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-                    >
-                      <ChevronsLeft size={16} className="text-gray-600" />
-                    </button>
-                    <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
-                      className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                      className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      aria-label="Previous page"
                     >
-                      <ChevronLeft size={16} className="text-gray-600" />
+                      <ChevronLeft size={18} />
                     </button>
 
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
+                      {(() => {
+                        const pages: (number | string)[] = [];
+                        const maxVisible = 7;
+
+                        if (totalPages <= maxVisible) {
+                          for (let i = 1; i <= totalPages; i++) {
+                            pages.push(i);
+                          }
                         } else {
-                          pageNum = currentPage - 2 + i;
+                          if (currentPage <= 3) {
+                            for (let i = 1; i <= 5; i++) pages.push(i);
+                            pages.push("...");
+                            pages.push(totalPages);
+                          } else if (currentPage >= totalPages - 2) {
+                            pages.push(1);
+                            pages.push("...");
+                            for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                          } else {
+                            pages.push(1);
+                            pages.push("...");
+                            for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                            pages.push("...");
+                            pages.push(totalPages);
+                          }
                         }
 
-                        return (
+                        return pages.map((p, idx) => (
                           <button
-                            key={pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`h-8 w-8 rounded-lg text-sm font-medium transition-all ${currentPage === pageNum
-                              ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
-                              : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-100'
-                              }`}
+                            key={idx}
+                            onClick={() => typeof p === "number" && setCurrentPage(p)}
+                            disabled={p === "..."}
+                            className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                              p === currentPage
+                                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                                : p === "..."
+                                ? "cursor-default text-gray-400"
+                                : "border border-red-200 hover:bg-red-50 text-gray-700"
+                            }`}
                           >
-                            {pageNum}
+                            {p}
                           </button>
-                        );
-                      })}
+                        ));
+                      })()}
                     </div>
 
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
-                      className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                      className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      aria-label="Next page"
                     >
-                      <ChevronRight size={16} className="text-gray-600" />
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage(totalPages)}
-                      disabled={currentPage === totalPages}
-                      className="p-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-                    >
-                      <ChevronsRight size={16} className="text-gray-600" />
+                      <ChevronRight size={18} />
                     </button>
                   </div>
                 </div>

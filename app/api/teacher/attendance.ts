@@ -60,14 +60,13 @@ function formatDateISO(date: Date): string {
 function mapApiStatusToUi(status: unknown): AttendanceStatus | null {
   const raw = String(status ?? "").trim().toLowerCase();
   if (raw === "present") return "present";
-  if (raw === "late") return "late";
   if (raw === "absent") return "absent";
   return null;
 }
 
 function mapUiStatusToApi(status: AttendanceStatus | null | undefined): AttendanceRawStatus {
   if (status === "present") return "Present";
-  if (status === "late") return "Late";
+
   if (status === "absent") return "Absent";
   return "NotMarked";
 }

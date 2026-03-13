@@ -28,7 +28,7 @@ import { getProfiles } from "@/lib/api/authService";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import type { UserProfile } from "@/types/auth";
 
-type TabType = "placement" | "periodic" | "monthly" | "history";
+type TabType = "placement" | "periodic" | "monthly" | "session" | "history";
 type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "Published" | string;
 
 type MonthlyReport = {
@@ -53,9 +53,59 @@ type ReportPayload = Paginated<MonthlyReport> & {
   reports?: Paginated<MonthlyReport>;
 };
 
+type SessionReport = {
+  id: string;
+  sessionId?: string;
+  studentProfileId?: string;
+  studentName?: string;
+  teacherName?: string;
+  className?: string;
+  teacherUserId?: string;
+  classId?: string;
+  reportDate?: string;
+  feedback?: string;
+  reason?: string;
+  status?: ReportStatus;
+  updatedAt?: string;
+  createdAt?: string;
+};
+
+type SessionReportPayload = Paginated<Record<string, unknown>> & {
+  sessionReports?: Paginated<Record<string, unknown>> | Record<string, unknown>[];
+};
+
 const STATUS_ALIAS: Record<string, string> = {
   Review: "Submitted",
 };
+
+function pickValue(raw: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = raw[key];
+    if (value !== undefined && value !== null && String(value).trim()) return String(value);
+  }
+  return undefined;
+}
+
+function normalizeSessionReport(raw: Record<string, unknown>): SessionReport | null {
+  const id = pickValue(raw, "id", "Id", "reportId", "ReportId");
+  if (!id) return null;
+  return {
+    id,
+    sessionId: pickValue(raw, "sessionId", "SessionId"),
+    studentProfileId: pickValue(raw, "studentProfileId", "StudentProfileId"),
+    studentName: pickValue(raw, "studentName", "StudentName", "displayName"),
+    teacherName: pickValue(raw, "teacherName", "TeacherName"),
+    className: pickValue(raw, "className", "ClassName"),
+    teacherUserId: pickValue(raw, "teacherUserId", "TeacherUserId"),
+    classId: pickValue(raw, "classId", "ClassId"),
+    reportDate: pickValue(raw, "reportDate", "ReportDate"),
+    feedback: pickValue(raw, "feedback", "Feedback"),
+    reason: pickValue(raw, "reason", "Reason", "rejectReason", "RejectReason", "rejectionReason", "RejectionReason"),
+    status: pickValue(raw, "status", "Status"),
+    updatedAt: pickValue(raw, "updatedAt", "UpdatedAt"),
+    createdAt: pickValue(raw, "createdAt", "CreatedAt"),
+  };
+}
 
 const MOCK_TEST_RESULTS = [
   {
@@ -230,12 +280,19 @@ export default function TestsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("periodic");
   const [studentProfiles, setStudentProfiles] = useState<UserProfile[]>([]);
   const [publishedReports, setPublishedReports] = useState<MonthlyReport[]>([]);
+  const [publishedSessionReports, setPublishedSessionReports] = useState<SessionReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [sessionReportsLoading, setSessionReportsLoading] = useState(false);
   const [reportsError, setReportsError] = useState<string | null>(null);
+  const [sessionReportsError, setSessionReportsError] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeReport, setActiveReport] = useState<MonthlyReport | null>(null);
+  const [sessionDetailOpen, setSessionDetailOpen] = useState(false);
+  const [sessionDetailLoading, setSessionDetailLoading] = useState(false);
+  const [sessionDetailError, setSessionDetailError] = useState<string | null>(null);
+  const [activeSessionReport, setActiveSessionReport] = useState<SessionReport | null>(null);
   const { selectedProfile, setSelectedProfile } = useSelectedStudentProfile();
 
   const activeStudentProfileId = selectedProfile?.id ?? studentProfiles[0]?.id ?? "";
@@ -357,6 +414,88 @@ export default function TestsPage() {
     loadPublishedReports();
   }, [activeStudentProfileId]);
 
+  useEffect(() => {
+    if (!activeStudentProfileId) {
+      setPublishedSessionReports([]);
+      return;
+    }
+
+    const normalizeStatus = (status?: ReportStatus) =>
+      String(STATUS_ALIAS[status ?? ""] ?? status ?? "").trim().toUpperCase();
+
+    const getSessionItems = (payload: SessionReportPayload | undefined): Record<string, unknown>[] => {
+      if (!payload) return [];
+      if (Array.isArray(payload.items)) return payload.items;
+      if (Array.isArray(payload.data)) return payload.data;
+      if (Array.isArray(payload.sessionReports)) return payload.sessionReports;
+      if (
+        payload.sessionReports &&
+        typeof payload.sessionReports === "object" &&
+        Array.isArray(payload.sessionReports.items)
+      ) {
+        return payload.sessionReports.items;
+      }
+      if (
+        payload.sessionReports &&
+        typeof payload.sessionReports === "object" &&
+        Array.isArray(payload.sessionReports.data)
+      ) {
+        return payload.sessionReports.data;
+      }
+      return [];
+    };
+
+    const loadPublishedSessionReports = async () => {
+      setSessionReportsLoading(true);
+      setSessionReportsError(null);
+      try {
+        const query = new URLSearchParams({
+          status: "Published",
+          studentProfileId: activeStudentProfileId,
+          pageNumber: "1",
+          pageSize: "200",
+        });
+
+        const token = getToken();
+        const response = await fetch(`/api/session-reports?${query.toString()}`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          cache: "no-store",
+        });
+
+        const text = await response.text();
+        const payload = text ? JSON.parse(text) : {};
+        if (!response.ok) {
+          throw new Error(payload?.message || "Không thể tải báo cáo theo buổi.");
+        }
+
+        const root = (payload?.data ?? payload) as SessionReportPayload;
+        const rows = getSessionItems(root)
+          .map((item) => normalizeSessionReport(item))
+          .filter((item): item is SessionReport => Boolean(item))
+          .filter((item) => item.studentProfileId === activeStudentProfileId)
+          .filter((item) => normalizeStatus(item.status) === "PUBLISHED")
+          .sort((a, b) => {
+            const aTime = new Date(a.updatedAt || a.createdAt || "").getTime() || 0;
+            const bTime = new Date(b.updatedAt || b.createdAt || "").getTime() || 0;
+            return bTime - aTime;
+          });
+
+        setPublishedSessionReports(rows);
+      } catch (error) {
+        setPublishedSessionReports([]);
+        setSessionReportsError(error instanceof Error ? error.message : "Không thể tải báo cáo theo buổi.");
+      } finally {
+        setSessionReportsLoading(false);
+      }
+    };
+
+    loadPublishedSessionReports();
+  }, [activeStudentProfileId]);
+
   const selectedStudentName = useMemo(() => {
     if (selectedProfile?.displayName) return selectedProfile.displayName;
     return studentProfiles.find((profile) => profile.id === activeStudentProfileId)?.displayName ?? "Học viên";
@@ -412,6 +551,40 @@ export default function TestsPage() {
     }
   };
 
+  const openSessionReportDetail = async (report: SessionReport) => {
+    setActiveSessionReport(report);
+    setSessionDetailError(null);
+    setSessionDetailOpen(true);
+    setSessionDetailLoading(true);
+
+    try {
+      const token = getToken();
+      const response = await fetch(`/api/session-reports/${report.id}`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        cache: "no-store",
+      });
+
+      const text = await response.text();
+      const payload = text ? JSON.parse(text) : {};
+      if (!response.ok) {
+        throw new Error(payload?.message || "Không thể tải chi tiết báo cáo theo buổi.");
+      }
+
+      const detail = normalizeSessionReport((payload?.data ?? payload) as Record<string, unknown>);
+      if (detail) {
+        setActiveSessionReport({ ...report, ...detail });
+      }
+    } catch (error) {
+      setSessionDetailError(error instanceof Error ? error.message : "Không thể tải chi tiết báo cáo theo buổi.");
+    } finally {
+      setSessionDetailLoading(false);
+    }
+  };
+
   const formatDateTime = (value?: string) => {
     if (!value) return "—";
     const parsed = new Date(value);
@@ -424,6 +597,7 @@ export default function TestsPage() {
   const averageScore = (MOCK_TEST_RESULTS.reduce((acc, test) => acc + (test.score / test.maxScore * 100), 0) / totalTests).toFixed(1);
   const bestScore = Math.max(...MOCK_TEST_RESULTS.map(test => (test.score / test.maxScore * 100)));
   const totalReports = publishedReports.length;
+  const totalSessionReports = publishedSessionReports.length;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
@@ -470,9 +644,9 @@ export default function TestsPage() {
         />
         <StatCard
           icon={<Users size={20} />}
-          label="Báo cáo tháng"
-          value={totalReports.toString()}
-          hint={totalReports > 0 ? "Đã phát hành cho phụ huynh" : "Chưa có báo cáo đã phát hành"}
+          label="Báo cáo đã nhận"
+          value={(totalReports + totalSessionReports).toString()}
+          hint={`Tháng: ${totalReports} - Theo buổi: ${totalSessionReports}`}
           trend="stable"
           color="red"
         />
@@ -491,6 +665,10 @@ export default function TestsPage() {
         <TabButton active={activeTab === "monthly"} onClick={() => setActiveTab("monthly")}>
           <PieChart className="w-4 h-4" />
           Báo cáo tháng
+        </TabButton>
+        <TabButton active={activeTab === "session"} onClick={() => setActiveTab("session")}>
+          <BookOpen className="w-4 h-4" />
+          Báo cáo theo buổi
         </TabButton>
         <TabButton active={activeTab === "history"} onClick={() => setActiveTab("history")}>
           <FileText className="w-4 h-4" />
@@ -663,6 +841,83 @@ export default function TestsPage() {
         </div>
       )}
 
+      {activeTab === "session" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sessionReportsLoading && (
+            <Card className="border-gray-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
+              <CardContent className="p-8 text-center text-sm text-gray-600">
+                Đang tải báo cáo theo buổi...
+              </CardContent>
+            </Card>
+          )}
+
+          {!sessionReportsLoading && sessionReportsError && (
+            <Card className="border-red-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
+              <CardContent className="p-6">
+                <div className="text-sm text-red-700">{sessionReportsError}</div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!sessionReportsLoading && !sessionReportsError && publishedSessionReports.length === 0 && (
+            <Card className="border-gray-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                  <BookOpen className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Chưa có báo cáo theo buổi</h3>
+                <p className="text-sm text-gray-600">
+                  Học viên {selectedStudentName} chưa có Session Report ở trạng thái Published.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!sessionReportsLoading &&
+            !sessionReportsError &&
+            publishedSessionReports.map((report) => (
+              <Card key={report.id} className="border-gray-200 shadow-sm overflow-hidden">
+                <div className="p-3 border-b border-gray-200 bg-gray-50/50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-white rounded-lg border border-gray-200">
+                      <BookOpen className="w-4 h-4 text-gray-700" />
+                    </div>
+                    <h3 className="font-semibold text-sm text-gray-900">
+                      Buổi {report.reportDate || "-"}
+                    </h3>
+                  </div>
+                </div>
+
+                <CardContent className="p-3 space-y-3">
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <div>Học viên: {report.studentName ?? selectedStudentName}</div>
+                    <div>Lớp: {report.className ?? report.classId ?? "—"}</div>
+                    <div>Giáo viên: {report.teacherName ?? report.teacherUserId ?? "—"}</div>
+                    <div>Cập nhật: {formatDateTime(report.updatedAt || report.createdAt)}</div>
+                  </div>
+
+                  <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-600 line-clamp-3">
+                      {report.feedback || "Published session report"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <Button
+                      size="sm"
+                      className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white h-8 text-xs"
+                      onClick={() => openSessionReportDetail(report)}
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      Xem báo cáo buổi học
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+        </div>
+      )}
+
       {activeTab === "history" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card className="border-gray-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
@@ -673,8 +928,8 @@ export default function TestsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-2">
-              {reportsLoading && <div className="text-sm text-gray-600">Đang tải lịch sử...</div>}
-              {!reportsLoading && publishedReports.length === 0 && (
+              {(reportsLoading || sessionReportsLoading) && <div className="text-sm text-gray-600">Đang tải lịch sử...</div>}
+              {!reportsLoading && !sessionReportsLoading && publishedReports.length === 0 && publishedSessionReports.length === 0 && (
                 <div className="text-sm text-gray-600">Chưa có báo cáo đã phát hành.</div>
               )}
               {!reportsLoading &&
@@ -683,6 +938,15 @@ export default function TestsPage() {
                     key={report.id}
                     title={`Báo cáo tháng ${report.month ?? "?"}/${report.year ?? "?"}`}
                     date={formatDateTime(report.updatedAt)}
+                    size="Published"
+                  />
+                ))}
+              {!sessionReportsLoading &&
+                publishedSessionReports.map((report) => (
+                  <HistoryItem
+                    key={report.id}
+                    title={`Session report ${report.reportDate ?? "-"}`}
+                    date={formatDateTime(report.updatedAt || report.createdAt)}
                     size="Published"
                   />
                 ))}
@@ -727,6 +991,54 @@ export default function TestsPage() {
                   {normalizeDraftContent(activeReport?.draftContent) || "Published report has no visible content."}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sessionDetailOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl border border-gray-200 max-h-[85vh] overflow-hidden">
+            <div className="p-4 border-b border-gray-200 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-lg font-bold text-gray-900">Chi tiết báo cáo theo buổi</div>
+                <div className="text-sm text-gray-600 mt-1">
+                  {activeSessionReport?.studentName ?? selectedStudentName} - {activeSessionReport?.reportDate ?? "-"}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSessionDetailOpen(false)}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Đóng
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto max-h-[70vh] space-y-3">
+              {sessionDetailLoading && <div className="text-sm text-gray-600">Đang tải chi tiết báo cáo...</div>}
+              {sessionDetailError && <div className="text-sm text-red-700">{sessionDetailError}</div>}
+
+              <div className="text-xs text-gray-600 space-y-1">
+                <div>Session: {activeSessionReport?.sessionId ?? "-"}</div>
+                <div>Class: {activeSessionReport?.className ?? activeSessionReport?.classId ?? "-"}</div>
+                <div>Teacher: {activeSessionReport?.teacherName ?? activeSessionReport?.teacherUserId ?? "-"}</div>
+                <div>Updated: {formatDateTime(activeSessionReport?.updatedAt || activeSessionReport?.createdAt)}</div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="text-sm font-semibold text-gray-900 mb-2">Nội dung feedback</div>
+                <div className="text-sm text-gray-700 whitespace-pre-line leading-6">
+                  {activeSessionReport?.feedback || "Session report has no visible content."}
+                </div>
+              </div>
+
+              {activeSessionReport?.reason ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                  <div className="text-sm font-semibold text-rose-700 mb-1">Lý do từ chối trước đó</div>
+                  <div className="text-sm text-rose-700 whitespace-pre-line leading-6">{activeSessionReport.reason}</div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

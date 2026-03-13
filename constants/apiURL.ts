@@ -90,6 +90,7 @@ export const BACKEND_SESSION_ENDPOINTS = {
   CREATE: '/sessions',
   UPDATE: (id: string) => `/sessions/${id}`,
   DELETE: (id: string) => `/sessions/${id}`,
+  GENERATE_FROM_PATTERN: '/sessions/generate-from-pattern',
 } as const;
 
 export const BACKEND_CLASS_ENDPOINTS = {
@@ -208,6 +209,13 @@ export const TEACHER_ENDPOINTS = {
   HOMEWORK_SUBMISSIONS: '/api/homework/submissions',
   SESSION_REPORTS: '/api/session-reports',
   SESSION_REPORT_BY_ID: (id: string) => `/api/session-reports/${id}`,
+  SESSION_REPORT_SUBMIT: (id: string) => `/api/session-reports/${id}/submit`,
+  SESSION_REPORT_APPROVE: (id: string) => `/api/session-reports/${id}/approve`,
+  SESSION_REPORT_REJECT: (id: string) => `/api/session-reports/${id}/reject`,
+  SESSION_REPORT_PUBLISH: (id: string) => `/api/session-reports/${id}/publish`,
+  SESSION_REPORT_TEACHER_MONTHLY: (teacherUserId: string) =>
+    `/api/session-reports/teachers/${teacherUserId}/monthly`,
+  SESSION_REPORT_AI_ENHANCE_FEEDBACK: '/api/session-reports/ai/enhance-feedback',
 } as const;
 
 // Monthly Report Endpoints (Client-side → Next.js API Routes)
@@ -235,6 +243,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSROOMS: '/api/classrooms',
   CLASSROOMS_TOGGLE_STATUS: (id: string) => `/api/classrooms/${id}/toggle-status`,
   SESSIONS: '/api/sessions',
+  SESSIONS_GENERATE_FROM_PATTERN: '/api/sessions/generate-from-pattern',
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
   LESSON_PLANS: '/api/lesson-plans',
@@ -420,8 +429,15 @@ export const BACKEND_MONTHLY_REPORT_ENDPOINTS = {
 
 // Backend Session Report Endpoints
 export const BACKEND_SESSION_REPORT_ENDPOINTS = {
-  CREATE: '/session-reports',
-  UPDATE: (id: string) => `/session-reports/${id}`,
+  BASE: '/session-reports',
+  REPORT_BY_ID: (id: string) => `/session-reports/${id}`,
+  SUBMIT: (id: string) => `/session-reports/${id}/submit`,
+  APPROVE: (id: string) => `/session-reports/${id}/approve`,
+  REJECT: (id: string) => `/session-reports/${id}/reject`,
+  PUBLISH: (id: string) => `/session-reports/${id}/publish`,
+  TEACHER_MONTHLY: (teacherUserId: string) =>
+    `/session-reports/teachers/${teacherUserId}/monthly`,
+  AI_ENHANCE_FEEDBACK: '/session-reports/ai/enhance-feedback',
 } as const;
 
 // Ticket Endpoints (Client-side → Next.js API Routes)

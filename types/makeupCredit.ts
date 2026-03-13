@@ -15,6 +15,7 @@ export type MakeupCredit = {
   createdReason?: string;
   createdAt?: string;
   expiresAt?: string | null;
+  sourceSessionDate?: string | null;
   [key: string]: unknown;
 };
 
@@ -34,7 +35,14 @@ export type MakeupSuggestion = {
   sessionId?: string;
   targetSessionId?: string;
   classId?: string;
+  classCode?: string;
   className?: string;
+  classTitle?: string;
+  programName?: string;
+  programLevel?: number;
+  plannedDatetime?: string;
+  plannedEndDatetime?: string;
+  branchId?: string;
   sessionDate?: string;
   date?: string;
   startTime?: string;
@@ -47,10 +55,12 @@ export type MakeupSuggestion = {
 export type MakeupAllocation = {
   id?: string;
   makeupCreditId?: string;
+  studentProfileId?: string;
   targetSessionId?: string;
   classId?: string;
   allocatedAt?: string;
   usedAt?: string | null;
+  createdAt?: string;
   [key: string]: unknown;
 };
 
