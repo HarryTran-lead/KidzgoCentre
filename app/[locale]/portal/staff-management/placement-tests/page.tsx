@@ -21,9 +21,12 @@ import {
 import PlacementTestTable from "@/components/portal/placement-tests/PlacementTestTable";
 import PlacementTestFormModal from "@/components/portal/placement-tests/PlacementTestFormModal";
 import ResultFormModal from "@/components/portal/placement-tests/ResultFormModal";
+import CreateAccountProfileModal from "@/components/portal/placement-tests/CreateAccountProfileModal";
 import PlacementTestDetailModal from "@/components/portal/placement-tests/PlacementTestDetailModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
+import { getAccessToken } from "@/lib/store/authToken";
+import { useCreateAccountFromTest } from "@/hooks/useCreateAccountFromTest";
 import {
   PLACEMENT_TEST_ENDPOINTS,
   USER_ENDPOINTS,
@@ -51,6 +54,7 @@ export default function PlacementTestsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const { toast } = useToast();
+  const { isCreateAccountModalOpen, selectedLeadInfo, handleCreateAccount, closeCreateAccountModal } = useCreateAccountFromTest();
 
   // Modals state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -110,7 +114,7 @@ export default function PlacementTestsPage() {
         `${PLACEMENT_TEST_ENDPOINTS.GET_ALL}?${queryParams.toString()}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         },
       );
@@ -151,12 +155,12 @@ export default function PlacementTestsPage() {
       const [adminResponse, staffResponse] = await Promise.all([
         fetch(`${USER_ENDPOINTS.GET_ALL}?${adminParams.toString()}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         }),
         fetch(`${USER_ENDPOINTS.GET_ALL}?${staffParams.toString()}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         }),
       ]);
@@ -228,7 +232,7 @@ export default function PlacementTestsPage() {
         method: "GET",
         cache: "no-store",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
           "Content-Type": "application/json",
           "X-Modal-Request": "true", // Header flag for modal request
         },
@@ -266,7 +270,7 @@ export default function PlacementTestsPage() {
                   LEAD_ENDPOINTS.GET_CHILDREN(lead.id),
                   {
                     headers: {
-                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                      Authorization: `Bearer ${getAccessToken()}`,
                     },
                   },
                 );
@@ -334,7 +338,7 @@ export default function PlacementTestsPage() {
         method: "GET",
         cache: "no-store", // Force fresh request
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
           "Content-Type": "application/json",
         },
       });
@@ -369,7 +373,7 @@ export default function PlacementTestsPage() {
                   LEAD_ENDPOINTS.GET_CHILDREN(lead.id),
                   {
                     headers: {
-                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                      Authorization: `Bearer ${getAccessToken()}`,
                     },
                   },
                 );
@@ -426,7 +430,7 @@ export default function PlacementTestsPage() {
         `${PROFILE_ENDPOINTS.GET_ALL}?${queryParams.toString()}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         },
       );
@@ -472,7 +476,7 @@ export default function PlacementTestsPage() {
         `${ADMIN_ENDPOINTS.CLASSES}?${queryParams.toString()}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         },
       );
@@ -617,7 +621,7 @@ export default function PlacementTestsPage() {
         method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         },
         body: JSON.stringify(data),
       });
@@ -653,7 +657,7 @@ export default function PlacementTestsPage() {
         ...data,
       };
 
-      const token = localStorage.getItem("token");
+      const token = getAccessToken();
       const headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -719,7 +723,7 @@ export default function PlacementTestsPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         },
         body: JSON.stringify({}),
       });
@@ -915,6 +919,7 @@ export default function PlacementTestsPage() {
           onCancel={handleCancel}
           onNoShow={handleNoShow}
           onConvertToEnrolled={handleConvertToEnrolled}
+          onCreateAccount={handleCreateAccount}
         />
 
         {/* Modals */}
@@ -952,6 +957,17 @@ export default function PlacementTestsPage() {
           onConfirm={handleConfirmAction}
           title={confirmAction?.title || ""}
           message={confirmAction?.message || ""}
+        />
+
+        <CreateAccountProfileModal
+          isOpen={isCreateAccountModalOpen}
+          onClose={closeCreateAccountModal}
+          test={selectedTest}
+          leadInfo={selectedLeadInfo}
+          onSuccess={() => {
+            fetchPlacementTests();
+            closeCreateAccountModal();
+          }}
         />
       </div>
     </div>

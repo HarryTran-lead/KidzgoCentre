@@ -19,6 +19,8 @@ export interface Profile {
   userEmail?: string;
   pinHash?: string;
   isActive: boolean;
+  isApproved?: boolean; // For Student profiles that require admin approval
+  isDeleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }

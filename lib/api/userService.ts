@@ -150,6 +150,14 @@ export async function activateUser(id: string): Promise<UpdateUserStatusApiRespo
 }
 
 /**
+ * Approve a profile created by staff (pending approval)
+ * Calls PUT /api/admin/users/{id}/approve
+ */
+export async function approveProfile(id: string): Promise<{ success: boolean; message?: string }> {
+  return put<{ success: boolean; message?: string }>(USER_ENDPOINTS.APPROVE(id), {});
+}
+
+/**
  * Deactivate a user
  */
 export async function deactivateUser(id: string): Promise<UpdateUserStatusApiResponse> {

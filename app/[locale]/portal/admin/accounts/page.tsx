@@ -16,6 +16,7 @@ import {
   deleteProfile,
   reactivateProfile,
 } from "@/lib/api/profileService";
+import { approveProfile } from "@/lib/api/userService";
 import type { CreateParentProfileRequest, CreateStudentProfileRequest } from "@/types/profile";
 import CreateParentProfileModal from "@/components/admin/profile/CreateParentProfileModal";
 import CreateStudentProfileModal from "@/components/admin/profile/CreateStudentProfileModal";
@@ -348,6 +349,7 @@ export default function AccountsPage() {
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profileSearchTerm, setProfileSearchTerm] = useState("");
   const [profileFilterType, setProfileFilterType] = useState<"all" | "Parent" | "Student">("all");
+  const [profileShowSuspendedOnly, setProfileShowSuspendedOnly] = useState(false);
   const [profileCurrentPage, setProfileCurrentPage] = useState(1);
   const [profileItemsPerPage, setProfileItemsPerPage] = useState(10);
   
@@ -656,6 +658,11 @@ export default function AccountsPage() {
   useEffect(() => {
     let filtered = profiles;
 
+    // Filter by suspended only
+    if (profileShowSuspendedOnly) {
+      filtered = filtered.filter(p => !p.isActive);
+    }
+
     // Filter by type
     if (profileFilterType !== "all") {
       filtered = filtered.filter(p => p.profileType === profileFilterType);
@@ -671,7 +678,7 @@ export default function AccountsPage() {
 
     setFilteredProfiles(filtered);
     setProfileCurrentPage(1); // Reset to page 1 when filters change
-  }, [profiles, profileFilterType, profileSearchTerm]);
+  }, [profiles, profileFilterType, profileSearchTerm, profileShowSuspendedOnly]);
 
   // Handle create parent profile
   const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
@@ -729,11 +736,11 @@ export default function AccountsPage() {
     if (!selectedProfileForReactivate) return;
 
     try {
-      await reactivateProfile(selectedProfileForReactivate.id);
+      await approveProfile(selectedProfileForReactivate.id);
 
       toast({
         title: "Thành công",
-        description: `Profile "${selectedProfileForReactivate.name}" đã được kích hoạt lại`,
+        description: `Profile "${selectedProfileForReactivate.name}" đã được duyệt và kích hoạt`,
         variant: "success",
       });
 
@@ -1531,9 +1538,9 @@ export default function AccountsPage() {
                 {/* Type Filter */}
                 <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
                   {[
-                    { k: 'all', label: 'Tất cả', count: profiles.length },
-                    { k: 'Parent', label: 'Parents', count: profiles.filter(p => p.profileType === "Parent").length },
-                    { k: 'Student', label: 'Students', count: profiles.filter(p => p.profileType === "Student").length },
+                    { k: 'all', label: 'Tất cả', count: profileShowSuspendedOnly ? profiles.filter(p => !p.isActive).length : profiles.length },
+                    { k: 'Parent', label: 'Parents', count: profileShowSuspendedOnly ? profiles.filter(p => p.profileType === "Parent" && !p.isActive).length : profiles.filter(p => p.profileType === "Parent").length },
+                    { k: 'Student', label: 'Students', count: profileShowSuspendedOnly ? profiles.filter(p => p.profileType === "Student" && !p.isActive).length : profiles.filter(p => p.profileType === "Student").length },
                   ].map((item) => (
                     <button
                       key={item.k}
@@ -1553,6 +1560,24 @@ export default function AccountsPage() {
                     </button>
                   ))}
                 </div>
+
+                {/* Suspended Only Toggle */}
+                <button
+                  onClick={() => setProfileShowSuspendedOnly(!profileShowSuspendedOnly)}
+                  className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border transition-all duration-200 cursor-pointer ${
+                    profileShowSuspendedOnly
+                      ? 'bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-sm'
+                      : 'bg-white text-gray-700 border-red-200 hover:bg-red-50'
+                  }`}
+                >
+                  <XCircle size={16} />
+                  <span>Tạm khóa</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                    profileShowSuspendedOnly ? 'bg-white/20' : 'bg-red-100 text-red-700'
+                  }`}>
+                    {profiles.filter(p => !p.isActive).length}
+                  </span>
+                </button>
               </div>
 
               {/* Search and Items Per Page */}
@@ -1685,7 +1710,7 @@ export default function AccountsPage() {
                               <button
                                 onClick={() => handleOpenReactivateProfileModal(profile.id, profile.displayName)}
                                 className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group cursor-pointer"
-                                title="Kích hoạt lại"
+                                title="Duyệt / Kích hoạt profile"
                               >
                                 <RotateCcw size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
@@ -1844,9 +1869,9 @@ export default function AccountsPage() {
               setSelectedProfileForReactivate(null);
             }}
             onConfirm={handleConfirmReactivateProfile}
-            title="Xác nhận kích hoạt lại profile"
-            message={`Bạn có chắc chắn muốn kích hoạt lại profile "${selectedProfileForReactivate?.name}"?`}
-            confirmText="Kích hoạt"
+            title="Xác nhận duyệt profile"
+            message={`Bạn có chắc chắn muốn duyệt và kích hoạt profile "${selectedProfileForReactivate?.name}"?`}
+            confirmText="Duyệt"
             cancelText="Hủy"
             variant="success"
           />
