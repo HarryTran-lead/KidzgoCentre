@@ -153,8 +153,42 @@ export async function activateUser(id: string): Promise<UpdateUserStatusApiRespo
  * Approve a profile created by staff (pending approval)
  * Calls PUT /api/admin/users/{id}/approve
  */
-export async function approveProfile(id: string): Promise<{ success: boolean; message?: string }> {
-  return put<{ success: boolean; message?: string }>(USER_ENDPOINTS.APPROVE(id), {});
+export type ApproveProfilesResponse = {
+  success?: boolean;
+  isSuccess?: boolean;
+  message?: string;
+  data?: {
+    approvedCount?: number;
+    alreadyApproved?: string[];
+    notFound?: string[];
+  };
+};
+
+export async function approveProfiles(profileIds: string[]): Promise<ApproveProfilesResponse> {
+  if (!profileIds.length) {
+    return {
+      success: false,
+      message: "Không có profileId để duyệt",
+    };
+  }
+
+  const primaryId = profileIds[0];
+  return put<{
+    success?: boolean;
+    isSuccess?: boolean;
+    message?: string;
+    data?: {
+      approvedCount?: number;
+      alreadyApproved?: string[];
+      notFound?: string[];
+    };
+  }>(USER_ENDPOINTS.APPROVE(primaryId), {
+    profileId: profileIds,
+  });
+}
+
+export async function approveProfile(id: string): Promise<ApproveProfilesResponse> {
+  return approveProfiles([id]);
 }
 
 /**

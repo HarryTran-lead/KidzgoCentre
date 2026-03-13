@@ -16,8 +16,8 @@ import {
   deleteProfile,
   reactivateProfile,
 } from "@/lib/api/profileService";
-import { approveProfile } from "@/lib/api/userService";
-import type { CreateParentProfileRequest, CreateStudentProfileRequest } from "@/types/profile";
+import { approveProfiles } from "@/lib/api/userService";
+import type { CreateParentProfileRequest, CreateStudentProfileRequest, Profile } from "@/types/profile";
 import CreateParentProfileModal from "@/components/admin/profile/CreateParentProfileModal";
 import CreateStudentProfileModal from "@/components/admin/profile/CreateStudentProfileModal";
 import ViewLinkedStudentsModal from "@/components/admin/profile/ViewLinkedStudentsModal";
@@ -344,11 +344,12 @@ export default function AccountsPage() {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
 
   // Profile Management States
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [filteredProfiles, setFilteredProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profileSearchTerm, setProfileSearchTerm] = useState("");
   const [profileFilterType, setProfileFilterType] = useState<"all" | "Parent" | "Student">("all");
+  const [profileApprovalFilter, setProfileApprovalFilter] = useState<"all" | "pending" | "approved">("all");
   const [profileShowSuspendedOnly, setProfileShowSuspendedOnly] = useState(false);
   const [profileCurrentPage, setProfileCurrentPage] = useState(1);
   const [profileItemsPerPage, setProfileItemsPerPage] = useState(10);
@@ -360,29 +361,27 @@ export default function AccountsPage() {
   const [showProfileDetailModal, setShowProfileDetailModal] = useState(false);
   const [showProfileDeleteModal, setShowProfileDeleteModal] = useState(false);
   const [showReactivateProfileModal, setShowReactivateProfileModal] = useState(false);
+  const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
+  const [isProfileActionLoading, setIsProfileActionLoading] = useState(false);
+  const [isBulkApproveLoading, setIsBulkApproveLoading] = useState(false);
+  const [profileActivationAction, setProfileActivationAction] = useState<"approve" | "reactivate">("approve");
+  const [selectedPendingProfileIds, setSelectedPendingProfileIds] = useState<string[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [selectedParentForView, setSelectedParentForView] = useState<{ id: string; name: string } | null>(null);
   const [selectedProfileForDelete, setSelectedProfileForDelete] = useState<{ id: string; name: string } | null>(null);
-  const [selectedProfileForReactivate, setSelectedProfileForReactivate] = useState<{ id: string; name: string } | null>(null);
+  const [selectedProfileForReactivate, setSelectedProfileForReactivate] = useState<{ id: string; userId: string; name: string } | null>(null);
 
-  // Fetch users and profiles from API once (no server-side filtering for smooth UX)
+  // Fetch users once on mount
   useEffect(() => {
-    async function fetchUsersAndProfiles() {
+    async function fetchUsers() {
       try {
         setLoading(true);
-        setProfilesLoading(true);
         setError(null);
-        
-        // Fetch both accounts and profiles in parallel
-        const [usersResponse, profilesResponse] = await Promise.all([
-          getAllUsers({
-            pageNumber: 1,
-            pageSize: 1000, // Get all users for client-side filtering
-          }),
-          getAllStudents({
-            pageSize: 100,
-          })
-        ]);
+
+        const usersResponse = await getAllUsers({
+          pageNumber: 1,
+          pageSize: 1000, // Get all users for client-side filtering
+        });
 
         // Process users response
         const isSuccessful = usersResponse.success || usersResponse.isSuccess;
@@ -417,22 +416,16 @@ export default function AccountsPage() {
           setError(usersResponse.message || 'Không thể tải danh sách người dùng');
         }
 
-        // Process profiles response
-        if (profilesResponse.data?.items) {
-          setProfiles(profilesResponse.data.items);
-          setFilteredProfiles(profilesResponse.data.items);
-        }
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Đã xảy ra lỗi khi tải dữ liệu'); 
       } finally {
         setLoading(false);
-        setProfilesLoading(false);
         setIsPageLoaded(true);
       }
     }
 
-    fetchUsersAndProfiles();
+    fetchUsers();
   }, []); // Only fetch once on mount
 
   // Debounce search
@@ -631,11 +624,12 @@ export default function AccountsPage() {
   // ============= PROFILE MANAGEMENT FUNCTIONS =============
   
   // Fetch all profiles
-  const fetchProfiles = async () => {
+  const fetchProfiles = async (params?: { isApproved?: boolean }) => {
     try {
       setProfilesLoading(true);
       const response = await getAllStudents({
-        pageSize: 100,
+        pageSize: 1000,
+        ...(params?.isApproved !== undefined ? { isApproved: params.isApproved } : {}),
       });
 
       if (response.data?.items) {
@@ -654,6 +648,15 @@ export default function AccountsPage() {
     }
   };
 
+  useEffect(() => {
+    if (profileApprovalFilter === "pending") {
+      fetchProfiles({ isApproved: false });
+      return;
+    }
+
+    fetchProfiles();
+  }, [profileApprovalFilter]);
+
   // Filter profiles
   useEffect(() => {
     let filtered = profiles;
@@ -661,6 +664,13 @@ export default function AccountsPage() {
     // Filter by suspended only
     if (profileShowSuspendedOnly) {
       filtered = filtered.filter(p => !p.isActive);
+    }
+
+    // Filter by approval
+    if (profileApprovalFilter === "pending") {
+      filtered = filtered.filter(p => p.isApproved === false);
+    } else if (profileApprovalFilter === "approved") {
+      filtered = filtered.filter(p => p.isApproved === true);
     }
 
     // Filter by type
@@ -678,7 +688,7 @@ export default function AccountsPage() {
 
     setFilteredProfiles(filtered);
     setProfileCurrentPage(1); // Reset to page 1 when filters change
-  }, [profiles, profileFilterType, profileSearchTerm, profileShowSuspendedOnly]);
+  }, [profiles, profileFilterType, profileSearchTerm, profileShowSuspendedOnly, profileApprovalFilter]);
 
   // Handle create parent profile
   const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
@@ -691,7 +701,7 @@ export default function AccountsPage() {
         variant: "success",
       });
 
-      fetchProfiles();
+      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
     } catch (error: any) {
       console.error("Error creating parent:", error);
       toast({
@@ -714,7 +724,7 @@ export default function AccountsPage() {
         variant: "success",
       });
 
-      fetchProfiles();
+      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
     } catch (error: any) {
       console.error("Error creating student:", error);
       toast({
@@ -726,9 +736,15 @@ export default function AccountsPage() {
     }
   };
 
-  // Handle reactivate locked profile
-  const handleOpenReactivateProfileModal = (id: string, displayName: string) => {
-    setSelectedProfileForReactivate({ id, name: displayName });
+  // Handle approve/reactivate profile
+  const handleOpenProfileActivationModal = (
+    id: string,
+    userId: string,
+    displayName: string,
+    action: "approve" | "reactivate"
+  ) => {
+    setProfileActivationAction(action);
+    setSelectedProfileForReactivate({ id, userId, name: displayName });
     setShowReactivateProfileModal(true);
   };
 
@@ -736,24 +752,51 @@ export default function AccountsPage() {
     if (!selectedProfileForReactivate) return;
 
     try {
-      await approveProfile(selectedProfileForReactivate.id);
+      setIsProfileActionLoading(true);
+
+      if (profileActivationAction === "approve") {
+        const approveResponse = await approveProfiles([selectedProfileForReactivate.id]);
+        const approvedCount = approveResponse.data?.approvedCount;
+        const apiSucceeded = approveResponse.success || approveResponse.isSuccess;
+
+        if (apiSucceeded === false || approvedCount === 0) {
+          toast({
+            title: "Không duyệt được",
+            description: "Backend trả về approvedCount = 0, profile chưa được duyệt.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        await reactivateProfile(selectedProfileForReactivate.id);
+      }
 
       toast({
         title: "Thành công",
-        description: `Profile "${selectedProfileForReactivate.name}" đã được duyệt và kích hoạt`,
+        description:
+          profileActivationAction === "approve"
+            ? `Profile "${selectedProfileForReactivate.name}" đã được admin duyệt`
+            : `Profile "${selectedProfileForReactivate.name}" đã được kích hoạt lại`,
         variant: "success",
       });
 
       setShowReactivateProfileModal(false);
+      if (profileActivationAction === "approve") {
+        setSelectedPendingProfileIds((prev) =>
+          prev.filter((id) => id !== selectedProfileForReactivate.id)
+        );
+      }
       setSelectedProfileForReactivate(null);
-      fetchProfiles();
+      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
     } catch (error: any) {
       console.error("Error reactivating profile:", error);
       toast({
         title: "Lỗi",
-        description: error.message || "Không thể kích hoạt lại profile",
+        description: error.message || (profileActivationAction === "approve" ? "Không thể duyệt profile" : "Không thể kích hoạt lại profile"),
         variant: "destructive",
       });
+    } finally {
+      setIsProfileActionLoading(false);
     }
   };
 
@@ -776,8 +819,11 @@ export default function AccountsPage() {
       });
 
       setShowProfileDeleteModal(false);
+      setSelectedPendingProfileIds((prev) =>
+        prev.filter((id) => id !== selectedProfileForDelete.id)
+      );
       setSelectedProfileForDelete(null);
-      fetchProfiles();
+      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
     } catch (error: any) {
       console.error("Error deleting profile:", error);
       toast({
@@ -816,6 +862,97 @@ export default function AccountsPage() {
   const handleViewStudentDetail = (studentId: string) => {
     setSelectedProfileId(studentId);
     setShowProfileDetailModal(true);
+  };
+
+  const getCurrentPageProfiles = () => {
+    const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
+    const profileEndIndex = profileStartIndex + profileItemsPerPage;
+    return filteredProfiles.slice(profileStartIndex, profileEndIndex);
+  };
+
+  const getPendingCurrentPageIds = () =>
+    getCurrentPageProfiles()
+      .filter((profile) => profile.isApproved === false)
+      .map((profile) => profile.id);
+
+  const toggleSelectPendingProfile = (profileId: string) => {
+    setSelectedPendingProfileIds((prev) =>
+      prev.includes(profileId)
+        ? prev.filter((id) => id !== profileId)
+        : [...prev, profileId]
+    );
+  };
+
+  const toggleSelectAllPendingOnCurrentPage = () => {
+    const pendingCurrentPageIds = getPendingCurrentPageIds();
+    if (!pendingCurrentPageIds.length) return;
+
+    const allSelected = pendingCurrentPageIds.every((id) =>
+      selectedPendingProfileIds.includes(id)
+    );
+
+    if (allSelected) {
+      setSelectedPendingProfileIds((prev) =>
+        prev.filter((id) => !pendingCurrentPageIds.includes(id))
+      );
+      return;
+    }
+
+    setSelectedPendingProfileIds((prev) =>
+      Array.from(new Set([...prev, ...pendingCurrentPageIds]))
+    );
+  };
+
+  const handleConfirmBulkApproveProfiles = async () => {
+    const idsToApprove = selectedPendingProfileIds.filter((id) =>
+      profiles.some((profile) => profile.id === id && profile.isApproved === false)
+    );
+
+    if (!idsToApprove.length) {
+      toast({
+        title: "Không có profile hợp lệ",
+        description: "Vui lòng chọn profile đang chờ duyệt.",
+        variant: "destructive",
+      });
+      setShowBulkApproveModal(false);
+      return;
+    }
+
+    try {
+      setIsBulkApproveLoading(true);
+
+      const approveResponse = await approveProfiles(idsToApprove);
+      const approvedCount = approveResponse.data?.approvedCount ?? 0;
+      const apiSucceeded = approveResponse.success || approveResponse.isSuccess;
+
+      if (apiSucceeded === false || approvedCount === 0) {
+        toast({
+          title: "Không duyệt được",
+          description: "Backend trả về approvedCount = 0, chưa có profile nào được duyệt.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Thành công",
+        description: `Đã duyệt ${approvedCount}/${idsToApprove.length} profile đã chọn.`,
+        variant: "success",
+      });
+
+      setSelectedPendingProfileIds([]);
+      setShowBulkApproveModal(false);
+      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
+    } catch (error: any) {
+      console.error("Error approving profiles in bulk:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể duyệt hàng loạt profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkApproveLoading(false);
+    }
   };
 
   // ============= END PROFILE MANAGEMENT FUNCTIONS =============
@@ -1055,6 +1192,18 @@ export default function AccountsPage() {
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowBulkApproveModal(true)}
+              disabled={selectedPendingProfileIds.length === 0 || isBulkApproveLoading}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+            >
+              {isBulkApproveLoading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <CheckCircle size={16} />
+              )}
+              Duyệt đã chọn ({selectedPendingProfileIds.length})
+            </button>
             <button
               onClick={() => setShowCreateParentModal(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
@@ -1523,11 +1672,11 @@ export default function AccountsPage() {
               subtitle="Link với Parent"
             />
             <StatCard
-              title="Profiles Active"
-              value={`${profiles.filter(p => p.isActive).length}`}
-              icon={<CheckCircle size={20} />}
+              title="Chờ duyệt"
+              value={`${profiles.filter(p => p.isApproved === false).length}`}
+              icon={<AlertCircle size={20} />}
               color="from-amber-500 to-orange-500"
-              subtitle="Đang hoạt động"
+              subtitle="Cần admin phê duyệt"
             />
           </div>
 
@@ -1538,9 +1687,38 @@ export default function AccountsPage() {
                 {/* Type Filter */}
                 <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
                   {[
-                    { k: 'all', label: 'Tất cả', count: profileShowSuspendedOnly ? profiles.filter(p => !p.isActive).length : profiles.length },
-                    { k: 'Parent', label: 'Parents', count: profileShowSuspendedOnly ? profiles.filter(p => p.profileType === "Parent" && !p.isActive).length : profiles.filter(p => p.profileType === "Parent").length },
-                    { k: 'Student', label: 'Students', count: profileShowSuspendedOnly ? profiles.filter(p => p.profileType === "Student" && !p.isActive).length : profiles.filter(p => p.profileType === "Student").length },
+                    {
+                      k: 'all',
+                      label: 'Tất cả',
+                      count: profiles.filter(p => {
+                        if (profileShowSuspendedOnly && p.isActive) return false;
+                        if (profileApprovalFilter === "pending" && p.isApproved !== false) return false;
+                        if (profileApprovalFilter === "approved" && p.isApproved !== true) return false;
+                        return true;
+                      }).length,
+                    },
+                    {
+                      k: 'Parent',
+                      label: 'Parents',
+                      count: profiles.filter(p => {
+                        if (p.profileType !== "Parent") return false;
+                        if (profileShowSuspendedOnly && p.isActive) return false;
+                        if (profileApprovalFilter === "pending" && p.isApproved !== false) return false;
+                        if (profileApprovalFilter === "approved" && p.isApproved !== true) return false;
+                        return true;
+                      }).length,
+                    },
+                    {
+                      k: 'Student',
+                      label: 'Students',
+                      count: profiles.filter(p => {
+                        if (p.profileType !== "Student") return false;
+                        if (profileShowSuspendedOnly && p.isActive) return false;
+                        if (profileApprovalFilter === "pending" && p.isApproved !== false) return false;
+                        if (profileApprovalFilter === "approved" && p.isApproved !== true) return false;
+                        return true;
+                      }).length,
+                    },
                   ].map((item) => (
                     <button
                       key={item.k}
@@ -1554,6 +1732,32 @@ export default function AccountsPage() {
                       {item.label}
                       <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                         profileFilterType === item.k ? 'bg-white/20' : 'bg-gray-100'
+                      }`}>
+                        {item.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Approval Filter */}
+                <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
+                  {[
+                    { k: "all", label: "Tất cả duyệt", count: profiles.length },
+                    { k: "pending", label: "Chờ duyệt", count: profiles.filter(p => p.isApproved === false).length },
+                    { k: "approved", label: "Đã duyệt", count: profiles.filter(p => p.isApproved === true).length },
+                  ].map((item) => (
+                    <button
+                      key={item.k}
+                      onClick={() => setProfileApprovalFilter(item.k as typeof profileApprovalFilter)}
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${
+                        profileApprovalFilter === item.k
+                          ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
+                          : 'text-gray-700 hover:bg-red-50'
+                      }`}
+                    >
+                      {item.label}
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                        profileApprovalFilter === item.k ? 'bg-white/20' : 'bg-gray-100'
                       }`}>
                         {item.count}
                       </span>
@@ -1611,6 +1815,20 @@ export default function AccountsPage() {
 
           {/* Profiles Table */}
           <div className={`rounded-2xl border border-red-200 bg-white overflow-hidden shadow-sm transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="border-b border-red-100 bg-red-50/40 px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-gray-600">
+                Đã chọn <span className="font-semibold text-red-700">{selectedPendingProfileIds.length}</span> profile chờ duyệt
+              </div>
+              <button
+                onClick={() => setShowBulkApproveModal(true)}
+                disabled={selectedPendingProfileIds.length === 0 || isBulkApproveLoading}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                {isBulkApproveLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                Duyệt hàng loạt
+              </button>
+            </div>
+
             {profilesLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="w-12 h-12 animate-spin text-red-600" />
@@ -1627,6 +1845,18 @@ export default function AccountsPage() {
                   <table className="w-full">
                     <thead className="bg-gradient-to-r from-red-100 to-red-200">
                       <tr className="border-b border-red-200">
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={
+                              getPendingCurrentPageIds().length > 0 &&
+                              getPendingCurrentPageIds().every((id) => selectedPendingProfileIds.includes(id))
+                            }
+                            onChange={toggleSelectAllPendingOnCurrentPage}
+                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                            title="Chọn tất cả profile chờ duyệt ở trang hiện tại"
+                          />
+                        </th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
@@ -1643,8 +1873,18 @@ export default function AccountsPage() {
                         const profileEndIndex = profileStartIndex + profileItemsPerPage;
                         const currentProfiles = filteredProfiles.slice(profileStartIndex, profileEndIndex);
                         
-                        return currentProfiles.map((profile: any) => (
+                        return currentProfiles.map((profile) => (
                       <tr key={profile.id} className="hover:bg-gradient-to-r hover:from-red-50/50 hover:to-transparent transition-all duration-200">
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedPendingProfileIds.includes(profile.id)}
+                            onChange={() => toggleSelectPendingProfile(profile.id)}
+                            disabled={profile.isApproved !== false}
+                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            title={profile.isApproved === false ? "Chọn profile này" : "Chỉ chọn được profile chờ duyệt"}
+                          />
+                        </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
                             profile.profileType === "Parent"
@@ -1670,17 +1910,31 @@ export default function AccountsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          {profile.isActive ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
-                              <CheckCircle size={12} />
-                              Đang hoạt động
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200 rounded-full text-xs font-medium">
-                              <XCircle size={12} />
-                              Tạm khóa
-                            </span>
-                          )}
+                          <div className="flex flex-col gap-2">
+                            {profile.isApproved === false ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200 rounded-full text-xs font-medium w-fit">
+                                <AlertCircle size={12} />
+                                Chờ duyệt
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium w-fit">
+                                <CheckCircle size={12} />
+                                Đã duyệt
+                              </span>
+                            )}
+
+                            {profile.isActive ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium w-fit">
+                                <CheckCircle size={12} />
+                                Đang hoạt động
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200 rounded-full text-xs font-medium w-fit">
+                                <XCircle size={12} />
+                                Tạm khóa
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -1706,13 +1960,22 @@ export default function AccountsPage() {
                                 <Users size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
                             )}
-                            {!profile.isActive && (
+                            {profile.isApproved === false && (
                               <button
-                                onClick={() => handleOpenReactivateProfileModal(profile.id, profile.displayName)}
+                                onClick={() => handleOpenProfileActivationModal(profile.id, profile.userId, profile.displayName, "approve")}
                                 className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group cursor-pointer"
-                                title="Duyệt / Kích hoạt profile"
+                                title="Duyệt profile"
                               >
                                 <RotateCcw size={18} className="group-hover:scale-110 transition-transform" />
+                              </button>
+                            )}
+                            {profile.isApproved === true && !profile.isActive && (
+                              <button
+                                onClick={() => handleOpenProfileActivationModal(profile.id, profile.userId, profile.displayName, "reactivate")}
+                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors group cursor-pointer"
+                                title="Kích hoạt lại profile"
+                              >
+                                <RefreshCw size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
                             )}
                             <button
@@ -1869,11 +2132,28 @@ export default function AccountsPage() {
               setSelectedProfileForReactivate(null);
             }}
             onConfirm={handleConfirmReactivateProfile}
-            title="Xác nhận duyệt profile"
-            message={`Bạn có chắc chắn muốn duyệt và kích hoạt profile "${selectedProfileForReactivate?.name}"?`}
-            confirmText="Duyệt"
+            title={profileActivationAction === "approve" ? "Xác nhận duyệt profile" : "Xác nhận kích hoạt lại profile"}
+            message={
+              profileActivationAction === "approve"
+                ? `Bạn có chắc chắn muốn duyệt profile "${selectedProfileForReactivate?.name}"?`
+                : `Bạn có chắc chắn muốn kích hoạt lại profile "${selectedProfileForReactivate?.name}"?`
+            }
+            confirmText={profileActivationAction === "approve" ? "Duyệt" : "Kích hoạt"}
             cancelText="Hủy"
             variant="success"
+            isLoading={isProfileActionLoading}
+          />
+
+          <ConfirmModal
+            isOpen={showBulkApproveModal}
+            onClose={() => setShowBulkApproveModal(false)}
+            onConfirm={handleConfirmBulkApproveProfiles}
+            title="Xác nhận duyệt hàng loạt"
+            message={`Bạn có chắc chắn muốn duyệt ${selectedPendingProfileIds.length} profile đã chọn?`}
+            confirmText="Duyệt tất cả"
+            cancelText="Hủy"
+            variant="success"
+            isLoading={isBulkApproveLoading}
           />
         </>
       )}

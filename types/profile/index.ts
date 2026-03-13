@@ -19,7 +19,7 @@ export interface Profile {
   userEmail?: string;
   pinHash?: string;
   isActive: boolean;
-  isApproved?: boolean; // For Student profiles that require admin approval
+  isApproved?: boolean;
   isDeleted?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -92,6 +92,7 @@ export interface GetAllStudentsParams {
   userId?: string; // Parent user ID to filter
   profileType?: ProfileType;
   isActive?: boolean;
+  isApproved?: boolean;
   searchTerm?: string; // Search by display name
   branchId?: string;
   pageNumber?: number;
@@ -129,6 +130,7 @@ export interface GetAllStudentsApiResponse extends ApiResponse<{
     profileType: ProfileType;
     displayName: string;
     isActive: boolean;
+    isApproved?: boolean;
     createdAt: string;
     updatedAt: string;
   }>;

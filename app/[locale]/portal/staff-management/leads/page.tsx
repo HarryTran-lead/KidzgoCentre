@@ -686,6 +686,11 @@ export default function Page() {
     setIsConvertModalOpen(true);
   };
 
+  const handleCreateAccountFromTest = async (test: PlacementTest) => {
+    setSelectedTest(test);
+    await handleCreateAccount(test);
+  };
+
   const handleAddNote = (test: PlacementTest) => {
     setSelectedTest(test);
     setIsNoteModalOpen(true);
@@ -1279,7 +1284,7 @@ export default function Page() {
               onCancel={handleCancelTest}
               onNoShow={handleNoShowTest}
               onConvertToEnrolled={handleConvertToEnrolled}
-              onCreateAccount={handleCreateAccount}
+              onCreateAccount={handleCreateAccountFromTest}
               onPageChange={handleTestPageChange}
             />
           </div>

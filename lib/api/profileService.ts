@@ -58,6 +58,7 @@ export async function getAllStudents(
     if (params.userId) queryParams.append('userId', params.userId);
     if (params.profileType) queryParams.append('profileType', params.profileType);
     if (params.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
+    if (params.isApproved !== undefined) queryParams.append('isApproved', params.isApproved.toString());
     if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
     if (params.branchId) queryParams.append('branchId', params.branchId);
     if (params.pageNumber) queryParams.append('pageNumber', params.pageNumber.toString());

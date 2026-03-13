@@ -68,6 +68,11 @@ export default function PlacementTestsPage() {
     message: string;
   } | null>(null);
 
+  const handleCreateAccountFromTest = async (test: PlacementTest) => {
+    setSelectedTest(test);
+    await handleCreateAccount(test);
+  };
+
   // Filters
   const [filters, setFilters] = useState<PlacementTestFilters>({
     status: "",
@@ -919,7 +924,7 @@ export default function PlacementTestsPage() {
           onCancel={handleCancel}
           onNoShow={handleNoShow}
           onConvertToEnrolled={handleConvertToEnrolled}
-          onCreateAccount={handleCreateAccount}
+          onCreateAccount={handleCreateAccountFromTest}
         />
 
         {/* Modals */}

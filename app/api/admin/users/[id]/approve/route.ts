@@ -27,6 +27,23 @@ export async function PUT(req: Request, { params }: Params) {
     }
 
     const { id } = await params;
+    let requestBody: any = {};
+
+    try {
+      requestBody = await req.json();
+    } catch {
+      requestBody = {};
+    }
+
+    const requestProfileIds = Array.isArray(requestBody?.profileId)
+      ? requestBody.profileId
+      : Array.isArray(requestBody?.profileIds)
+      ? requestBody.profileIds
+      : [];
+
+    const profileId = [id, ...requestProfileIds].filter(Boolean);
+
+    const normalizedProfileIds = Array.from(new Set(profileId));
 
     const upstream = await fetch(buildApiUrl(BACKEND_USER_ENDPOINTS.APPROVE(id)), {
       method: "PUT",
@@ -34,6 +51,9 @@ export async function PUT(req: Request, { params }: Params) {
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        profileId: normalizedProfileIds,
+      }),
     });
 
     const contentType = upstream.headers.get("content-type") ?? "";

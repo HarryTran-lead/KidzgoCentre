@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   X,
   UserPlus,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { USER_ENDPOINTS, PROFILE_ENDPOINTS } from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
+import { useToast } from "@/hooks/use-toast";
 import type { PlacementTest } from "@/types/placement-test";
 
 interface CreateAccountProfileModalProps {
@@ -43,35 +44,51 @@ export default function CreateAccountProfileModal({
   leadInfo,
   onSuccess,
 }: CreateAccountProfileModalProps) {
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<Step>("account");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const initialAccountForm = useMemo(
+    () => ({
+      email: leadInfo?.email || "",
+      username: leadInfo?.email?.split("@")[0] || "",
+      phoneNumber: leadInfo?.phone || "",
+      role: "Parent" as const,
+      password: "123456",
+      branchId: leadInfo?.branchId || "",
+      name: leadInfo?.contactName || "",
+    }),
+    [leadInfo],
+  );
+
+  const initialParentProfileForm = useMemo(
+    () => ({
+      displayName: leadInfo?.contactName || "",
+      pinHash: "1234",
+    }),
+    [leadInfo],
+  );
+
+  const initialStudentProfileForm = useMemo(
+    () => ({
+      displayName: test?.childName || "",
+    }),
+    [test],
+  );
+
   // Account form data
-  const [accountForm, setAccountForm] = useState({
-    email: leadInfo?.email || "",
-    username: leadInfo?.email?.split("@")[0] || "",
-    phoneNumber: leadInfo?.phone || "",
-    role: "Parent" as const,
-    password: "123456",
-    branchId: leadInfo?.branchId || "",
-    name: leadInfo?.contactName || "",
-  });
+  const [accountForm, setAccountForm] = useState(initialAccountForm);
 
   // Created user data
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [createdParentProfileId, setCreatedParentProfileId] = useState<string | null>(null);
 
   // Parent profile form
-  const [parentProfileForm, setParentProfileForm] = useState({
-    displayName: leadInfo?.contactName || "",
-    pinHash: "1234",
-  });
+  const [parentProfileForm, setParentProfileForm] = useState(initialParentProfileForm);
 
   // Student profile form
-  const [studentProfileForm, setStudentProfileForm] = useState({
-    displayName: test?.childName || "",
-  });
+  const [studentProfileForm, setStudentProfileForm] = useState(initialStudentProfileForm);
 
   // Reset form when leadInfo changes
   const resetForm = () => {
@@ -79,23 +96,21 @@ export default function CreateAccountProfileModal({
     setError(null);
     setCreatedUserId(null);
     setCreatedParentProfileId(null);
-    setAccountForm({
-      email: leadInfo?.email || "",
-      username: leadInfo?.email?.split("@")[0] || "",
-      phoneNumber: leadInfo?.phone || "",
-      role: "Parent",
-      password: "123456",
-      branchId: leadInfo?.branchId || "",
-      name: leadInfo?.contactName || "",
-    });
-    setParentProfileForm({
-      displayName: leadInfo?.contactName || "",
-      pinHash: "1234",
-    });
-    setStudentProfileForm({
-      displayName: test?.childName || "",
-    });
+    setAccountForm(initialAccountForm);
+    setParentProfileForm(initialParentProfileForm);
+    setStudentProfileForm(initialStudentProfileForm);
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+    }
+  }, [
+    isOpen,
+    initialAccountForm,
+    initialParentProfileForm,
+    initialStudentProfileForm,
+  ]);
 
   const handleCreateAccount = async () => {
     setIsSubmitting(true);
@@ -237,6 +252,11 @@ export default function CreateAccountProfileModal({
       }
 
       setCurrentStep("done");
+      toast({
+        title: "Thành công",
+        description: "Đã tạo tài khoản và profile thành công",
+        variant: "success",
+      });
     } catch (err: any) {
       setError(err.message || "Có lỗi xảy ra khi tạo profile học viên");
     } finally {
