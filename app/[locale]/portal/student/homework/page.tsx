@@ -6,7 +6,6 @@ import {
   Search,
   Calendar,
   Clock,
-  Paperclip,
   FileText,
   Upload,
   CheckCircle,
@@ -19,8 +18,6 @@ import { Button } from "@/components/lightswind/button";
 import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
 import type {
   AssignmentListItem,
-  AssignmentStatus,
-  AssignmentType,
   SortOption,
 } from "@/types/student/homework";
 import { getStudentHomework } from "@/lib/api/studentService";
@@ -32,38 +29,35 @@ function StatusBadge({
   score, 
   maxScore 
 }: { 
-  status: AssignmentStatus; 
-  score?: number; 
+  status: string; 
+  score?: number | null; 
   maxScore?: number;
 }) {
-  // Config màu sắc giống hình
-  const config = {
+  // Config màu sắc dựa trên API response
+  const config: Record<string, { label: string; className: string }> = {
     SUBMITTED: {
-      label: score !== undefined ? `Đã nộp - ${score}/${maxScore}` : "Đã nộp",
+      label: score !== undefined && score !== null ? `Đã nộp - ${score}/${maxScore}` : "Đã nộp",
       className: "bg-emerald-100 text-emerald-700",
     },
-    PENDING: { // Đang chấm hoặc đã nộp chờ chấm
-      label: "Đã nộp",
-      className: "bg-emerald-100 text-emerald-700", 
+    ASSIGNED: {
+      label: "Chưa nộp",
+      className: "bg-amber-100 text-amber-700",
+    },
+    PENDING: {
+      label: "Chờ chấm",
+      className: "bg-blue-100 text-blue-700",
     },
     LATE: {
       label: "Nộp trễ",
       className: "bg-yellow-100 text-yellow-700",
     },
     MISSING: {
-      label: "Quá hạn", // Hoặc hiển thị ngày quá hạn như hình
+      label: "Quá hạn",
       className: "bg-rose-100 text-rose-700",
     },
-    NOT_SUBMITTED: { // Thêm trạng thái chưa nộp
-      label: "Chưa nộp",
-      className: "bg-amber-100 text-amber-700",
-    }
   };
 
-  // Map status to config key (xử lý logic fallback)
-  const statusKey = status === 'PENDING' ? 'SUBMITTED' : (status === 'LATE' && score) ? 'SUBMITTED' : status;
-  // Fallback tạm thời nếu status không khớp key nào
-  const currentConfig = config[statusKey as keyof typeof config] || config.NOT_SUBMITTED;
+  const currentConfig = config[status] || config.ASSIGNED;
 
   return (
     <span className={`px-3 py-1 rounded-lg text-[11px] font-bold ${currentConfig.className}`}>
@@ -103,7 +97,10 @@ export default function HomeworkPage() {
           pageNumber: 1,
           pageSize: 100,
         });
+        console.log({response});
         
+        
+        // Use homeworkAssignments from service (already mapped)
         if (response.isSuccess && response.data?.homeworkAssignments?.items) {
           setAssignments(response.data.homeworkAssignments.items);
         } else {
@@ -146,27 +143,42 @@ export default function HomeworkPage() {
     // Sort logic here...
     return result;
   }, [searchQuery, statusFilter, sortBy, assignments]);
+  console.log({filteredAssignments});
+  
 
-  const getTypeIcon = (type: AssignmentType) => {
-    switch (type) {
-      case "ESSAY": return <FileText size={24} />;
-      case "FILE_UPLOAD": return <Upload size={24} />;
-      case "QUIZ": return <CheckCircle size={24} />;
-      case "PROJECT": return <BookOpen size={24} />;
-      case "PRESENTATION": return <Award size={24} />;
-      default: return <FileText size={24} />;
-    }
-  };
-
-  const getTypeLabel = (type: AssignmentType) => {
-    const map = {
+  const getTypeLabel = (type: string) => {
+    // Handle API response values: "File", "Quiz", "Essay", etc.
+    const map: Record<string, string> = {
+      "File": "Nộp file",
+      "Quiz": "Trắc nghiệm",
+      "Essay": "Bài viết",
+      "PROJECT": "Dự án",
+      "PRESENTATION": "Thuyết trình",
+      FILE_UPLOAD: "Nộp file",
       ESSAY: "Bài viết",
-      FILE_UPLOAD: "Upload file",
       QUIZ: "Trắc nghiệm",
-      PROJECT: "Dự án",
-      PRESENTATION: "Thuyết trình"
     };
     return map[type] || "Bài tập";
+  };
+
+  const getTypeIcon = (type: string) => {
+    // Handle both API response values and enum values
+    const normalizedType = type?.toUpperCase();
+    switch (normalizedType) {
+      case "FILE":
+      case "FILE_UPLOAD":
+        return <Upload size={24} />;
+      case "QUIZ":
+        return <CheckCircle size={24} />;
+      case "ESSAY":
+        return <FileText size={24} />;
+      case "PROJECT":
+        return <BookOpen size={24} />;
+      case "PRESENTATION":
+        return <Award size={24} />;
+      default:
+        return <FileText size={24} />;
+    }
   };
 
   // Tab options cho FilterTabs component
@@ -259,8 +271,7 @@ export default function HomeworkPage() {
         {!isLoading && !error && filteredAssignments.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filteredAssignments.map((assignment) => {
-            const isMissing = assignment.status === 'MISSING';
-            const isSubmitted = assignment.status === 'SUBMITTED' || (assignment.status === 'LATE' && assignment.score);
+            const isSubmitted = assignment.status === 'SUBMITTED' || assignment.status === 'LATE';
 
             return (
               <Card
@@ -273,7 +284,7 @@ export default function HomeworkPage() {
                   {/* Left: Icon */}
                   <div className="shrink-0">
                     <div className="w-14 h-14 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-sm">
-                      {getTypeIcon(assignment.type)}
+                      {getTypeIcon(assignment.submissionType || "")}
                     </div>
                   </div>
 
@@ -281,32 +292,27 @@ export default function HomeworkPage() {
                   <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                     <div>
                       <h3 className="font-bold text-slate-950 text-base leading-tight mb-2 truncate pr-2">
-                        {assignment.title}
+                        {assignment.assignmentTitle}
                       </h3>
                       <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2.5">
                         <span className="flex items-center gap-1">
-                          <BookOpen size={12} /> {assignment.className}
+                          <BookOpen size={12} /> {assignment.classTitle}
                         </span>
                         <span>•</span>
-                        <span>{assignment.subject}</span>
-                        <span>•</span>
-                        <span>{getTypeLabel(assignment.type)}</span>
+                        <span>{getTypeLabel(assignment.submissionType || "")}</span>
                       </div>
                     </div>
 
                     {/* Dates */}
                     <div className="flex items-center gap-4 text-sm">
-                       <span className="text-slate-700 font-semibold flex items-center gap-1.5">
-                         <Calendar size={14} /> Giao: {assignment.assignedDate}
-                       </span>
-                       <span className={`flex items-center gap-1.5 font-bold ${isMissing ? 'text-rose-600' : 'text-rose-600'}`}>
-                         <Clock size={14} /> Hạn: {assignment.dueDate}
-                       </span>
-                       {assignment.hasAttachments && (
-                         <span className="text-slate-700 font-semibold flex items-center gap-1">
-                           <Paperclip size={14} className="rotate-45" /> Có tài liệu
+                       {assignment.submittedAt && (
+                         <span className="text-slate-700 font-semibold flex items-center gap-1.5">
+                           <Calendar size={14} /> Đã nộp: {new Date(assignment.submittedAt).toLocaleDateString('vi-VN')}
                          </span>
                        )}
+                       <span className={`flex items-center gap-1.5 font-bold ${assignment.isOverdue || assignment.isLate ? 'text-rose-600' : 'text-rose-600'}`}>
+                         <Clock size={14} /> Hạn: {new Date(assignment.dueAt).toLocaleDateString('vi-VN')}
+                       </span>
                     </div>
                   </div>
 
