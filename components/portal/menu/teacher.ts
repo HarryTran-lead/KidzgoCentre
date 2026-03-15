@@ -27,7 +27,7 @@ export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.subjects, BookOpenText, "/subjects"],
     [t.assignments, ClipboardCheck, "/assignments"],
     [t.attendance, CheckSquare, "/attendance"],
-    [t.feedback, MessageCircle, "/feedback"],
+    [t.applications, MessageCircle, "/applications"],
     [t.timesheet, Clock4, "/timesheet"],
     [t.notifications, Bell, "/notifications"],
   ];
