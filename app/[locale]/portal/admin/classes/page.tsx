@@ -3,10 +3,10 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
-  Plus, Search, MapPin, Users, Clock, Eye, Pencil,
+  Plus, Search, Users, Clock, Eye, Pencil,
   ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight,
   BookOpen, X, Calendar, Tag, User, GraduationCap, AlertCircle, Building2,
-  Power, PowerOff, UserPlus, CalendarClock, RefreshCw
+  Power, PowerOff, UserPlus, CalendarClock, RefreshCw, Check, Loader2
 } from "lucide-react";
 import clsx from "clsx";
 import { 
@@ -572,6 +572,258 @@ interface CreateClassModalProps {
   onSubmit: (data: ClassFormData) => void;
   mode?: "create" | "edit";
   initialData?: ClassFormData | null;
+}
+
+// Add Student Modal Component
+interface AddStudentModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  classId: string;
+}
+
+interface StudentOption {
+  id: string;
+  name: string;
+  code: string;
+}
+
+function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [students, setStudents] = useState<StudentOption[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Fetch available students
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchStudents = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch("/api/admin/users?role=Student&pageNumber=1&pageSize=100");
+        const data = await response.json();
+        console.log("📚 Students API response:", data);
+        
+        if (data.success && data.data?.items) {
+          const studentList: StudentOption[] = data.data.items.map((item: any) => ({
+            id: item.id,
+            name: item.fullName || item.name || item.email,
+            code: item.code || item.studentCode || "",
+          }));
+          setStudents(studentList);
+        } else if (data.data && Array.isArray(data.data)) {
+          // Handle case where data.data is an array directly
+          const studentList: StudentOption[] = data.data.map((item: any) => ({
+            id: item.id,
+            name: item.fullName || item.name || item.email,
+            code: item.code || item.studentCode || "",
+          }));
+          setStudents(studentList);
+        }
+      } catch (error) {
+        console.error("Error fetching students:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStudents();
+  }, [isOpen]);
+
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const filteredStudents = students.filter(s => 
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const toggleStudent = (studentId: string) => {
+    setSelectedStudents(prev => 
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (selectedStudents.length === 0) return;
+
+    setIsSubmitting(true);
+    try {
+      // Call API to enroll students
+      const response = await fetch("/api/enrollments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          classId,
+          studentIds: selectedStudents,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        onClose();
+        // Optionally refresh the page or show success message
+        window.location.reload();
+      } else {
+        alert(data.message || "Có lỗi xảy ra");
+      }
+    } catch (error) {
+      console.error("Error enrolling students:", error);
+      alert("Có lỗi xảy ra khi thêm học viên");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div
+        ref={modalRef}
+        className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
+      >
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <UserPlus size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Thêm học viên
+                </h2>
+                <p className="text-sm text-amber-100">
+                  Chọn học viên để thêm vào lớp
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label="Đóng"
+            >
+              <X size={24} className="text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Tìm kiếm học viên..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            />
+          </div>
+        </div>
+
+        {/* Student List */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              <span className="ml-2 text-gray-500">Đang tải...</span>
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              Không tìm thấy học viên
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredStudents.map((student) => (
+                <div
+                  key={student.id}
+                  onClick={() => toggleStudent(student.id)}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    selectedStudents.includes(student.id)
+                      ? "border-amber-500 bg-amber-50"
+                      : "border-gray-200 hover:border-amber-300"
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                    selectedStudents.includes(student.id)
+                      ? "bg-amber-500 border-amber-500"
+                      : "border-gray-300"
+                  }`}>
+                    {selectedStudents.includes(student.id) && (
+                      <Check size={14} className="text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{student.name}</div>
+                    <div className="text-sm text-gray-500">{student.code}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Đã chọn: <span className="font-semibold">{selectedStudents.length}</span> học viên
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={selectedStudents.length === 0 || isSubmitting}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Đang thêm...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={16} />
+                    Thêm vào lớp
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface ClassFormData {
@@ -1475,6 +1727,8 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
   const [originalStatus, setOriginalStatus] = useState<ClassFormData["status"] | null>(null);
@@ -1823,8 +2077,9 @@ export default function Page() {
   };
 
   const handleAddStudent = (classId: string) => {
-    // Navigate to class detail page with students tab
-    router.push(`/${locale}/portal/admin/classes/${classId}?tab=students`);
+    // Open modal to add students
+    setSelectedClassId(classId);
+    setIsAddStudentModalOpen(true);
   };
 
   return (
@@ -2222,6 +2477,17 @@ export default function Page() {
         mode="edit"
         initialData={editingInitialData}
       />
+      {/* Add Student Modal */}
+      {isAddStudentModalOpen && selectedClassId && (
+        <AddStudentModal
+          isOpen={isAddStudentModalOpen}
+          onClose={() => {
+            setIsAddStudentModalOpen(false);
+            setSelectedClassId(null);
+          }}
+          classId={selectedClassId}
+        />
+      )}
     </>
   );
 }
