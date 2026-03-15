@@ -24,6 +24,7 @@ import type { ClassRow, CreateClassRequest } from "@/types/admin/classes";
 import type { SelectOption } from "@/types/admin/classFormData";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
+import { getAccessToken } from "@/lib/store/authToken";
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -579,15 +580,17 @@ interface AddStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
   classId: string;
+  enrolledStudentIds: string[];
 }
 
 interface StudentOption {
   id: string;
   name: string;
   code: string;
+  profileId: string;
 }
 
-function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
+function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds }: AddStudentModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -602,24 +605,41 @@ function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
     const fetchStudents = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("/api/admin/users?role=Student&pageNumber=1&pageSize=100");
+        const token = getAccessToken();
+        const response = await fetch("/api/admin/users?role=Student&pageNumber=1&pageSize=100", {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
         const data = await response.json();
         console.log("📚 Students API response:", data);
         
-        if (data.success && data.data?.items) {
-          const studentList: StudentOption[] = data.data.items.map((item: any) => ({
-            id: item.id,
-            name: item.fullName || item.name || item.email,
-            code: item.code || item.studentCode || "",
-          }));
+        if (data.isSuccess && data.data?.items) {
+          const studentList: StudentOption[] = data.data.items.map((item: any) => {
+            // Lấy tên học viên từ profile Student hoặc từ trường name
+            const studentProfile = item.profiles?.find((p: any) => p.profileType === "Student");
+            const studentName = studentProfile?.displayName || item.name || item.email || "Học viên";
+            
+            return {
+              id: item.id,
+              name: studentName,
+              code: item.username || "",
+              profileId: studentProfile?.id || "",
+            };
+          });
           setStudents(studentList);
         } else if (data.data && Array.isArray(data.data)) {
-          // Handle case where data.data is an array directly
-          const studentList: StudentOption[] = data.data.map((item: any) => ({
-            id: item.id,
-            name: item.fullName || item.name || item.email,
-            code: item.code || item.studentCode || "",
-          }));
+          const studentList: StudentOption[] = data.data.map((item: any) => {
+            const studentProfile = item.profiles?.find((p: any) => p.profileType === "Student");
+            const studentName = studentProfile?.displayName || item.name || item.email || "Học viên";
+            
+            return {
+              id: item.id,
+              name: studentName,
+              code: item.username || "",
+              profileId: studentProfile?.id || "",
+            };
+          });
           setStudents(studentList);
         }
       } catch (error) {
@@ -654,8 +674,9 @@ function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
   if (!isOpen) return null;
 
   const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.code.toLowerCase().includes(searchQuery.toLowerCase())
+    (s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.code.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    !enrolledStudentIds.includes(s.id)
   );
 
   const toggleStudent = (studentId: string) => {
@@ -671,27 +692,42 @@ function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
 
     setIsSubmitting(true);
     try {
-      // Call API to enroll students
-      const response = await fetch("/api/enrollments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          classId,
-          studentIds: selectedStudents,
-        }),
-      });
+      const token = getAccessToken();
+      
+      // Lấy danh sách profileId của các học viên được chọn
+      const selectedStudentProfiles = students.filter(s => selectedStudents.includes(s.id));
+      
+      // Gọi API cho mỗi học viên
+      const enrollDate = new Date().toISOString().split('T')[0]; // Ngày hiện tại
+      
+      for (const student of selectedStudentProfiles) {
+        if (!student.profileId) continue;
+        
+        const response = await fetch("/api/enrollments", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+          body: JSON.stringify({
+            classId,
+            studentProfileId: student.profileId,
+            enrollDate,
+            tuitionPlanId: null, // Không bắt buộc
+          }),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (data.success) {
-        onClose();
-        // Optionally refresh the page or show success message
-        window.location.reload();
-      } else {
-        alert(data.message || "Có lỗi xảy ra");
+        if (!data.success && !data.isSuccess) {
+          alert(data.message || `Có lỗi xảy ra khi thêm học viên ${student.name}`);
+          setIsSubmitting(false);
+          return;
+        }
       }
+
+      onClose();
+      window.location.reload();
     } catch (error) {
       console.error("Error enrolling students:", error);
       alert("Có lỗi xảy ra khi thêm học viên");
@@ -707,7 +743,7 @@ function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
         className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
       >
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-6">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -717,7 +753,7 @@ function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
                 <h2 className="text-2xl font-bold text-white">
                   Thêm học viên
                 </h2>
-                <p className="text-sm text-amber-100">
+                <p className="text-sm text-red-100">
                   Chọn học viên để thêm vào lớp
                 </p>
               </div>
@@ -741,7 +777,7 @@ function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
               placeholder="Tìm kiếm học viên..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-300"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300"
             />
           </div>
         </div>
@@ -750,7 +786,7 @@ function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
         <div className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              <Loader2 className="w-6 h-6 animate-spin text-red-500" />
               <span className="ml-2 text-gray-500">Đang tải...</span>
             </div>
           ) : filteredStudents.length === 0 ? (
@@ -765,13 +801,13 @@ function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
                   onClick={() => toggleStudent(student.id)}
                   className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     selectedStudents.includes(student.id)
-                      ? "border-amber-500 bg-amber-50"
-                      : "border-gray-200 hover:border-amber-300"
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-200 hover:border-red-300"
                   }`}
                 >
                   <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
                     selectedStudents.includes(student.id)
-                      ? "bg-amber-500 border-amber-500"
+                      ? "bg-red-500 border-red-500"
                       : "border-gray-300"
                   }`}>
                     {selectedStudents.includes(student.id) && (
@@ -804,7 +840,7 @@ function AddStudentModal({ isOpen, onClose, classId }: AddStudentModalProps) {
               <button
                 onClick={handleSubmit}
                 disabled={selectedStudents.length === 0 || isSubmitting}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
@@ -1941,6 +1977,7 @@ export default function Page() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [enrolledStudentIds, setEnrolledStudentIds] = useState<string[]>([]);
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
   const [originalStatus, setOriginalStatus] = useState<ClassFormData["status"] | null>(null);
@@ -2291,10 +2328,31 @@ export default function Page() {
     }
   };
 
-  const handleAddStudent = (classId: string) => {
+  const handleAddStudent = async (classId: string) => {
     // Open modal to add students
     setSelectedClassId(classId);
     setIsAddStudentModalOpen(true);
+    
+    // Fetch enrolled students for this class
+    try {
+      const token = getAccessToken();
+      const response = await fetch(`/api/enrollments?classId=${classId}`, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      });
+      const data = await response.json();
+      
+      if (data.isSuccess && data.data?.items) {
+        const enrolledIds = data.data.items.map((item: any) => item.studentId || item.userId);
+        setEnrolledStudentIds(enrolledIds);
+      } else {
+        setEnrolledStudentIds([]);
+      }
+    } catch (error) {
+      console.error("Error fetching enrolled students:", error);
+      setEnrolledStudentIds([]);
+    }
   };
 
   return (
@@ -2700,7 +2758,8 @@ export default function Page() {
             setIsAddStudentModalOpen(false);
             setSelectedClassId(null);
           }}
-          classId={selectedClassId}
+          classId={selectedClassId || ""}
+          enrolledStudentIds={enrolledStudentIds}
         />
       )}
     </>

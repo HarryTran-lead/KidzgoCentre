@@ -672,7 +672,7 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
   else if (trackHint.includes("business")) track = "Business";
 
   const schedulePattern = apiData?.schedulePattern ?? "";
-  const schedule = schedulePattern.trim() || "Chưa có lịch";
+  const schedule = schedulePattern.trim() ? parseRRULEToSchedule(schedulePattern) : "Chưa có lịch";
 
   // Fetch teacher names if needed
   let teacherName = apiData?.mainTeacherName ?? "Chưa phân công";
@@ -713,6 +713,7 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
     students: apiData?.currentEnrollmentCount ?? 0,
     schedule,
     room: apiData?.roomName ?? apiData?.room?.name ?? "Chưa có phòng",
+    branch: apiData?.branchName ?? apiData?.branch?.name ?? "Chưa có chi nhánh",
     progress: 0,
     teacher: teacherName,
     assistantTeacher: assistantTeacherName,

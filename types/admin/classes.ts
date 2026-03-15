@@ -54,6 +54,7 @@ export interface ClassDetail {
   students: number;
   schedule: string;
   room: string;
+  branch: string;
   progress: number;
   teacher: string;
   assistantTeacher: string;
