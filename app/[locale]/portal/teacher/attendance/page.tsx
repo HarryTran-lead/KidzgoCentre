@@ -571,6 +571,7 @@ const loadSessionReports = async () => {
           rowKey,
           // vẫn giữ fallback để saveAttendance không bị thiếu id
           studentId: safeStudentId || uniqueIdForUI,
+          studentProfileId: safeStudentId || undefined,
           name,
           email,
           phone,

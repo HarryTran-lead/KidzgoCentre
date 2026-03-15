@@ -131,24 +131,37 @@ function mapApiStatusToUiStatus(
 // Map API response to AssignmentListItem
 function mapToAssignmentListItem(item: any): AssignmentListItem {
   return {
-    id: item.id || item.homeworkId || "",
-    title: item.title || item.homeworkTitle || "",
-    subject: item.subjectName || item.subject || "",
-    className: item.className || item.classTitle || "",
-    assignedDate: item.assignedDate 
-      ? new Date(item.assignedDate).toLocaleDateString("vi-VN")
-      : item.createdAt 
-        ? new Date(item.createdAt).toLocaleDateString("vi-VN")
-        : "",
-    dueDate: item.dueDate 
-      ? new Date(item.dueDate).toLocaleDateString("vi-VN")
-      : item.dueAt 
-        ? new Date(item.dueAt).toLocaleDateString("vi-VN")
-        : "",
+    // New API fields
+    id: item.id || item.homeworkStudentId || item.assignmentId || "",
+    assignmentId: item.assignmentId || item.id || "",
+    assignmentTitle: item.assignmentTitle || item.title || "",
+    assignmentDescription: item.assignmentDescription || "",
+    classId: item.classId || "",
+    classCode: item.classCode || "",
+    classTitle: item.classTitle || item.className || "",
+    dueAt: item.dueAt || item.dueDate || "",
+    book: item.book || null,
+    pages: item.pages || null,
+    skills: item.skills || null,
+    submissionType: item.submissionType || "File",
+    maxScore: item.maxScore || 10,
     status: mapApiStatusToUiStatus(item.status),
-    type: item.type as AssignmentListItem["type"] || "FILE_UPLOAD",
-    score: item.score,
-    maxScore: item.maxScore || item.totalScore || 10,
+    submittedAt: item.submittedAt || null,
+    gradedAt: item.gradedAt || null,
+    score: item.score ?? null,
+    isLate: item.isLate || false,
+    isOverdue: item.isOverdue || false,
+    // Legacy fields for compatibility
+    title: item.assignmentTitle || item.title || "",
+    subject: item.subjectName || item.subject || "",
+    className: item.classTitle || item.className || "",
+    assignedDate: item.createdAt 
+      ? new Date(item.createdAt).toLocaleDateString("vi-VN")
+      : "",
+    dueDate: item.dueAt 
+      ? new Date(item.dueAt).toLocaleDateString("vi-VN")
+      : "",
+    type: "FILE_UPLOAD" as const,
     submissionCount: item.submissionCount || (item.isSubmitted ? 1 : 0),
     hasAttachments: item.hasAttachments || (item.attachments && item.attachments.length > 0),
     attachmentTypes: item.attachmentTypes,

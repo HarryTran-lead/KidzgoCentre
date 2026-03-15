@@ -18,6 +18,7 @@ import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getStudentClasses } from "@/lib/api/studentService";
 import { getMakeupAllocations } from "@/lib/api/makeupCreditService";
 import { getSessionById } from "@/lib/api/sessionService";
+import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
 
 import type { UserProfile } from "@/types/auth";
 import type { StudentClass } from "@/types/student/class";
@@ -663,7 +664,21 @@ export default function ParentAttendancePage() {
       </div>
 
       {/* Modal */}
-      {isModalOpen ? (
+      <LeaveRequestCreateModal
+        open={isModalOpen}
+        onClose={closeCreateModal}
+        lockedStudentProfileId={selectedProfile?.id ?? null}
+        onCreated={(record) => {
+          setRequests((prev) => [record, ...prev]);
+          const responseStatus = normalizeStatus(record?.status);
+          setSuccessMessage(
+            responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
+              ? "Đã tạo đơn xin nghỉ. Hệ thống đã duyệt và sẽ tự động xếp lịch bù nếu có suất phù hợp."
+              : "Đã tạo đơn xin nghỉ."
+          );
+        }}
+      />
+      {false && isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl border border-gray-200">
             <div className="p-5 border-b border-gray-200 flex items-center justify-between gap-3">

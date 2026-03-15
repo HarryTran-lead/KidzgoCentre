@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -16,6 +18,10 @@ import {
 import { createLeaveRequest } from "@/lib/api/leaveRequestService";
 import { getClassById } from "@/lib/api/classService";
 import { getAllStudents, getStudentClasses } from "@/lib/api/studentService";
+import {
+  getParentTimetable,
+  type ParentTimetableSession,
+} from "@/lib/api/parentScheduleService";
 
 import type { LeaveRequestPayload, LeaveRequestRecord } from "@/types/leaveRequest";
 import type { StudentClass } from "@/types/student/class";
@@ -180,6 +186,59 @@ function Banner({
   );
 }
 
+function formatDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateKey(value?: string | null) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getMonthStart(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function getMonthEnd(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+function getCalendarStart(date: Date) {
+  const start = getMonthStart(date);
+  const day = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - day);
+  return start;
+}
+
+function getCalendarDays(date: Date) {
+  const start = getCalendarStart(date);
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
+}
+
+function formatTimeRange(session: ParentTimetableSession) {
+  const raw = session.plannedDatetime ?? session.actualDatetime;
+  if (!raw) return "";
+  const start = new Date(raw);
+  if (Number.isNaN(start.getTime())) return "";
+  const duration = Number(session.durationMinutes ?? 0);
+  if (duration <= 0) {
+    return start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  }
+  const end = new Date(start.getTime() + duration * 60000);
+  return `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
 export default function LeaveRequestCreateModal({
   open,
   onClose,
@@ -198,6 +257,10 @@ export default function LeaveRequestCreateModal({
   const [classes, setClasses] = useState<StudentClass[]>([]);
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState<string | null>(null);
+  const [visibleMonth, setVisibleMonth] = useState(() => getMonthStart(new Date()));
+  const [classSessions, setClassSessions] = useState<ParentTimetableSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -213,6 +276,8 @@ export default function LeaveRequestCreateModal({
       setClasses([]);
       setClassesError(null);
       setProfilesError(null);
+      setClassSessions([]);
+      setSessionsError(null);
       setSearchTerm("");
       setParentSearchTerm("");
     }
@@ -345,6 +410,46 @@ export default function LeaveRequestCreateModal({
     setFormState((p) => ({ ...p, endDate: p.sessionDate }));
   }, [open, formState.sessionDate, formState.endDate]);
 
+  useEffect(() => {
+    if (!open || !formState.classId) {
+      setClassSessions([]);
+      setSessionsError(null);
+      return;
+    }
+
+    const run = async () => {
+      setSessionsLoading(true);
+      setSessionsError(null);
+      try {
+        const from = getMonthStart(visibleMonth);
+        const to = getMonthEnd(visibleMonth);
+        const res = await getParentTimetable({
+          from: from.toISOString(),
+          to: to.toISOString(),
+        });
+        const list = res?.sessions ?? res?.data?.sessions ?? [];
+        const filtered = Array.isArray(list)
+          ? list.filter((session) => String(session.classId ?? "") === formState.classId)
+          : [];
+        setClassSessions(filtered);
+      } catch {
+        setClassSessions([]);
+        setSessionsError("Không thể tải lịch học của lớp trong tháng này.");
+      } finally {
+        setSessionsLoading(false);
+      }
+    };
+
+    run();
+  }, [formState.classId, open, visibleMonth]);
+
+  useEffect(() => {
+    if (!open) return;
+    const selectedDate = parseDateKey(formState.sessionDate);
+    if (!selectedDate) return;
+    setVisibleMonth(getMonthStart(selectedDate));
+  }, [formState.sessionDate, open]);
+
   const canSubmit = useMemo(() => {
     return (
       !!formState.studentProfileId &&
@@ -353,6 +458,27 @@ export default function LeaveRequestCreateModal({
       formState.reason.trim().length > 0
     );
   }, [formState]);
+
+  const sessionsByDate = useMemo(() => {
+    const map = new Map<string, ParentTimetableSession[]>();
+    classSessions.forEach((session) => {
+      const raw = session.plannedDatetime ?? session.actualDatetime;
+      if (!raw) return;
+      const date = new Date(raw);
+      if (Number.isNaN(date.getTime())) return;
+      const key = formatDateKey(date);
+      const current = map.get(key) ?? [];
+      current.push(session);
+      map.set(key, current);
+    });
+    return map;
+  }, [classSessions]);
+
+  const calendarDays = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
+  const selectedDateSessions = useMemo(
+    () => sessionsByDate.get(formState.sessionDate) ?? [],
+    [formState.sessionDate, sessionsByDate],
+  );
 
   const handleCreate = async () => {
     setCreating(true);
@@ -406,7 +532,7 @@ export default function LeaveRequestCreateModal({
 
   return (
     <div
-      className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none opacity-0"}`}
+      className={`fixed inset-0 z-[140] ${open ? "" : "pointer-events-none opacity-0"}`}
       aria-hidden={!open}
     >
       {/* overlay */}
@@ -416,10 +542,10 @@ export default function LeaveRequestCreateModal({
       />
 
       {/* modal */}
-      <div className="absolute left-1/2 top-1/2 w-[min(720px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2">
-        <div className="rounded-3xl border border-red-200 bg-white shadow-2xl overflow-hidden">
+      <div className="absolute inset-0 flex items-center justify-center overflow-y-auto p-3 sm:p-4">
+        <div className="w-[min(720px,calc(100vw-24px))] max-h-[calc(100vh-24px)] rounded-3xl border border-red-200 bg-white shadow-2xl overflow-hidden flex flex-col">
           {/* header */}
-          <div className="p-5 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
+          <div className="shrink-0 p-5 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -446,7 +572,7 @@ export default function LeaveRequestCreateModal({
           </div>
 
           {/* body */}
-          <div className="p-5 space-y-6 bg-gradient-to-b from-white to-red-50/20">
+          <div className="min-h-0 overflow-y-auto overscroll-contain p-5 space-y-6 bg-gradient-to-b from-white to-red-50/20">
             {(actionError || actionMessage) && (
               <div className="space-y-3">
                 {actionError && <Banner kind="error" text={actionError} />}
@@ -570,6 +696,136 @@ export default function LeaveRequestCreateModal({
               {classesError && <div className="text-sm text-red-600">{classesError}</div>}
             </div>
 
+            {/* Calendar */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <CalendarDays size={18} className="text-red-600" />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800">Chọn buổi nghỉ trên lịch</div>
+                    <div className="text-xs text-gray-500">
+                      Hệ thống chỉ tô đậm những ngày lớp thực sự có buổi học để phụ huynh chọn nhanh.
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                    className="rounded-xl border border-red-200 bg-white p-2 text-gray-600 hover:bg-red-50"
+                    disabled={!formState.classId}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="min-w-40 text-center text-sm font-semibold text-gray-800">
+                    {visibleMonth.toLocaleDateString("vi-VN", { month: "long", year: "numeric" })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVisibleMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                    className="rounded-xl border border-red-200 bg-white p-2 text-gray-600 hover:bg-red-50"
+                    disabled={!formState.classId}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-red-200 bg-white p-4">
+                {!formState.classId ? (
+                  <div className="text-sm text-gray-500">Chọn lớp trước để hiển thị lịch học của lớp.</div>
+                ) : (
+                  <>
+                    <div className="mb-3 grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-gray-500">
+                      {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((label) => (
+                        <div key={label}>{label}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-2">
+                      {calendarDays.map((day) => {
+                        const key = formatDateKey(day);
+                        const inMonth = day.getMonth() === visibleMonth.getMonth();
+                        const sessions = sessionsByDate.get(key) ?? [];
+                        const isSelected = formState.sessionDate === key;
+                        const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
+                        const canPick = inMonth && sessions.length > 0 && !isPast;
+
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              if (!canPick) return;
+                              setFormState((prev) => ({
+                                ...prev,
+                                sessionDate: key,
+                                endDate: key,
+                              }));
+                            }}
+                            disabled={!canPick}
+                            className={`min-h-[72px] rounded-2xl border p-2 text-left transition ${
+                              isSelected
+                                ? "border-red-500 bg-red-600 text-white shadow-md"
+                                : canPick
+                                  ? "border-red-200 bg-red-50/40 text-gray-800 hover:bg-red-100"
+                                  : "border-gray-200 bg-gray-50 text-gray-300"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-semibold">{day.getDate()}</span>
+                              {sessions.length > 0 && (
+                                <span
+                                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                                    isSelected ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
+                                  }`}
+                                >
+                                  {sessions.length} buổi
+                                </span>
+                              )}
+                            </div>
+                            <div className={`mt-2 text-[11px] ${isSelected ? "text-white/90" : "text-gray-500"}`}>
+                              {sessions.length > 0
+                                ? sessions
+                                    .slice(0, 2)
+                                    .map((session) => formatTimeRange(session))
+                                    .filter(Boolean)
+                                    .join(", ")
+                                : inMonth
+                                  ? "Không có buổi"
+                                  : ""}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {sessionsLoading && <div className="mt-3 text-sm text-gray-500">Đang tải lịch học…</div>}
+                    {sessionsError && <div className="mt-3 text-sm text-red-600">{sessionsError}</div>}
+                    {!!selectedDateSessions.length && (
+                      <div className="mt-4 rounded-2xl border border-red-200 bg-red-50/50 p-3">
+                        <div className="text-sm font-semibold text-gray-800">
+                          Buổi học ngày {parseDateKey(formState.sessionDate)?.toLocaleDateString("vi-VN")}
+                        </div>
+                        <ul className="mt-2 space-y-2 text-xs text-gray-700">
+                          {selectedDateSessions.map((session) => (
+                            <li key={session.id} className="rounded-xl border border-red-100 bg-white px-3 py-2">
+                              <div className="font-medium text-gray-900">
+                                {session.classTitle ?? session.classCode ?? "Buổi học"}
+                              </div>
+                              <div className="mt-1">
+                                {formatTimeRange(session)}
+                                {session.plannedTeacherName ? ` • GV: ${session.plannedTeacherName}` : ""}
+                                {session.plannedRoomName ? ` • Phòng: ${session.plannedRoomName}` : ""}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
             {/* Dates */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -611,7 +867,7 @@ export default function LeaveRequestCreateModal({
             </div>
 
             {/* Footer */}
-            <div className="pt-4 border-t border-red-200 flex items-center justify-end gap-3">
+            <div className="sticky bottom-0 -mx-5 -mb-5 mt-2 border-t border-red-200 bg-white/95 px-5 py-4 backdrop-blur flex items-center justify-end gap-3">
               <button
                 onClick={onClose}
                 className="px-5 py-2.5 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 text-gray-700 font-medium hover:bg-red-50 transition-all disabled:opacity-60 cursor-pointer"
