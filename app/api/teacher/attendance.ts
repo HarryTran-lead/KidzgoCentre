@@ -369,26 +369,24 @@ export async function saveAttendance(
   }
 
  const payload = (students ?? []).map((s: any) => {
-    const studentId = String(s.studentProfileId ?? s.studentId ?? s.id ?? "").trim();
-    const status = (s.status ?? "absent") as AttendanceStatus;
-    const note = typeof s.note === "string" ? s.note.trim() : "";
+    // Lấy studentProfileId ưu tiên từ studentProfileId, nếu không có thì dùng studentId
+    const studentProfileId = String(s.studentProfileId ?? s.studentId ?? s.id ?? "").trim();
+    // Giữ nguyên status từ frontend - nếu undefined thì mặc định là "absent"
+    const status = s.status === "present" ? "present" : "absent";
 
     return {
-      studentId,
-      studentProfileId: studentId,
-      status,
+      studentProfileId: studentProfileId,
       attendanceStatus: mapUiStatusToApi(status),
-      note: note || undefined,
-      comment: note || undefined,
+      note: typeof s.note === "string" && s.note.trim() ? s.note.trim() : undefined,
     };
   });
 
-  const url = isCreate ? TEACHER_ENDPOINTS.ATTENDANCE : `${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`;
-  const method = isCreate ? "POST" : "PUT";
+  const url = `${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`;
+  // API hỗ trợ POST để tạo mới hoặc cập nhật
+  const method = "POST";
 
-  const body: any = isCreate
-    ? { sessionId, attendances: payload as AttendanceItemApi[] }
-    : { sessionId, attendances: payload as AttendanceItemApi[] };
+  const body: any = { attendances: payload };
+
   const res = await fetch(url, {
     method,
     headers: {
