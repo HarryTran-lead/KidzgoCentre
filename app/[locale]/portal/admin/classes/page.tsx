@@ -833,6 +833,7 @@ interface ClassFormData {
   branchId: string;
   mainTeacherId: string;
   assistantTeacherId: string;
+  roomId: string;
   capacity: number;
   schedule: string;
   status: "Đang học" | "Sắp khai giảng" | "Đã kết thúc";
@@ -849,6 +850,7 @@ const initialFormData: ClassFormData = {
   branchId: "",
   mainTeacherId: "",
   assistantTeacherId: "",
+  roomId: "",
   capacity: 30,
   schedule: "",
   status: "Sắp khai giảng",
@@ -865,6 +867,11 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
   const [programOptions, setProgramOptions] = useState<SelectOption[]>([]);
   const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
+  const [roomOptions, setRoomOptions] = useState<SelectOption[]>([]);
+  const [allRooms, setAllRooms] = useState<{ id: string; name: string; capacity: number }[]>([]);
+  const [existingClasses, setExistingClasses] = useState<{ id: string; name: string; schedule: string; roomId: string }[]>([]);
+  const [roomConflictWarning, setRoomConflictWarning] = useState<string>("");
+  const [conflictRoomIds, setConflictRoomIds] = useState<Set<string>>(new Set());
   const [loadingOptions, setLoadingOptions] = useState(false);
   
   // States mới cho UI chọn lịch học
@@ -939,6 +946,9 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
       setUseCustomTime(false);
       setStartTime("18:00");
       setEndTime("20:00");
+      setRoomOptions([]);
+      setAllRooms([]);
+      setExistingClasses([]);
     }
   }, [isOpen]);
 
@@ -969,11 +979,15 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
     if (!branchId) {
       setProgramOptions([]);
       setTeacherOptions([]);
+      setRoomOptions([]);
+      setAllRooms([]);
+      setExistingClasses([]);
       setFormData((prev) => ({
         ...prev,
         programId: "",
         mainTeacherId: "",
         assistantTeacherId: "",
+        roomId: "",
       }));
       return;
     }
@@ -982,31 +996,56 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
     (async () => {
       try {
         setLoadingOptions(true);
-        const [programs, teachers] = await Promise.all([
+        const [programs, teachers, rooms, existingClassesData] = await Promise.all([
           fetchProgramOptionsByBranch(branchId),
           fetchTeacherOptionsByBranch(branchId),
+          fetchAdminRooms({ branchId }),
+          fetchAdminClasses({ branchId }),
         ]);
         
         if (cancelled) return;
         
         setProgramOptions(programs);
         setTeacherOptions(teachers);
+        setAllRooms(rooms.map((r) => ({ id: r.id, name: r.name, capacity: r.capacity })));
+        
+        // Lưu danh sách lớp hiện có để kiểm tra trùng lịch
+        setExistingClasses(
+          existingClassesData
+            .filter((c: any) => c.id && c.schedule)
+            .map((c: any) => ({
+              id: c.id,
+              name: c.name || c.sub || "Lớp học",
+              schedule: c.schedule,
+              roomId: c.roomId || "",
+            }))
+        );
+        
+        // Lọc phòng theo sĩ số hiện tại nếu có
+        const currentCapacity = formData.capacity || 0;
+        const filteredRooms = rooms.filter((r) => r.capacity >= currentCapacity).map((r) => ({ id: r.id, name: r.name }));
+        setRoomOptions(filteredRooms);
 
         // Nếu program đang chọn không thuộc chi nhánh mới -> reset
         const programIds = new Set(programs.map((p) => p.id));
         const teacherIds = new Set(teachers.map((t) => t.id));
+        const roomIds = new Set(rooms.map((r) => r.id));
         
         setFormData((prev) => ({
           ...prev,
           programId: programIds.has(prev.programId) ? prev.programId : "",
           mainTeacherId: teacherIds.has(prev.mainTeacherId) ? prev.mainTeacherId : "",
           assistantTeacherId: teacherIds.has(prev.assistantTeacherId) ? prev.assistantTeacherId : "",
+          roomId: roomIds.has(prev.roomId) ? prev.roomId : "",
         }));
       } catch (err) {
         if (cancelled) return;
         console.error("Failed to load programs and teachers by branch:", err);
         setProgramOptions([]);
         setTeacherOptions([]);
+        setRoomOptions([]);
+        setAllRooms([]);
+        setExistingClasses([]);
       } finally {
         if (!cancelled) setLoadingOptions(false);
       }
@@ -1016,6 +1055,21 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
       cancelled = true;
     };
   }, [isOpen, formData.branchId]);
+
+  // Lọc lại phòng học khi sĩ số thay đổi
+  useEffect(() => {
+    if (allRooms.length > 0) {
+      const currentCapacity = formData.capacity || 0;
+      const filteredRooms = allRooms.filter((r) => r.capacity >= currentCapacity).map((r) => ({ id: r.id, name: r.name }));
+      setRoomOptions(filteredRooms);
+      
+      // Nếu phòng đang chọn không còn phù hợp với sĩ số mới -> reset
+      const selectedRoom = filteredRooms.find((r) => r.id === formData.roomId);
+      if (!selectedRoom && formData.roomId) {
+        handleChange("roomId", "");
+      }
+    }
+  }, [formData.capacity, allRooms]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1084,10 +1138,107 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
         setUseCustomTime(false);
         setStartTime("18:00");
         setEndTime("20:00");
+        setRoomOptions([]);
+        setAllRooms([]);
       }
       setErrors({});
     }
   }, [isOpen, mode, initialData]);
+
+  // Hàm kiểm tra trùng lịch phòng học
+  const checkRoomScheduleConflict = (roomId: string, schedule: string): string[] => {
+    if (!roomId || !schedule || existingClasses.length === 0) return [];
+
+    const conflicts: string[] = [];
+    
+    // Parse schedule mới: "Thứ 2,4,6 (18:00 - 20:00)"
+    const newScheduleMatch = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    if (!newScheduleMatch) return [];
+
+    const newDays = newScheduleMatch[1];
+    const newStartTime = newScheduleMatch[2];
+    const newEndTime = newScheduleMatch[3];
+
+    // Parse các ngày trong tuần của schedule mới
+    const newDayValues: string[] = [];
+    if (newDays.includes("Thứ")) {
+      const dayNumbers = newDays.match(/\d+/g) || [];
+      newDayValues.push(...dayNumbers);
+      if (newDays.includes("CN")) newDayValues.push("CN");
+    } else if (newDays === "CN") {
+      newDayValues.push("CN");
+    }
+
+    for (const cls of existingClasses) {
+      // Chỉ kiểm tra các lớp cùng phòng
+      if (cls.roomId !== roomId) continue;
+
+      const existingScheduleMatch = cls.schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+      if (!existingScheduleMatch) continue;
+
+      const existingDays = existingScheduleMatch[1];
+      const existingStartTime = existingScheduleMatch[2];
+      const existingEndTime = existingScheduleMatch[3];
+
+      // Parse các ngày của schedule hiện có
+      const existingDayValues: string[] = [];
+      if (existingDays.includes("Thứ")) {
+        const dayNumbers = existingDays.match(/\d+/g) || [];
+        existingDayValues.push(...dayNumbers);
+        if (existingDays.includes("CN")) existingDayValues.push("CN");
+      } else if (existingDays === "CN") {
+        existingDayValues.push("CN");
+      }
+
+      // Kiểm tra xem có ngày trùng nhau không
+      const commonDays = newDayValues.filter(d => existingDayValues.includes(d));
+      if (commonDays.length === 0) continue;
+
+      // Kiểm tra xem có giờ trùng nhau không
+      if (newStartTime < existingEndTime && newEndTime > existingStartTime) {
+        conflicts.push(`${cls.name} (${cls.schedule})`);
+      }
+    }
+
+    return conflicts;
+  };
+
+  // Kiểm tra trùng lịch phòng khi roomId hoặc schedule thay đổi
+  useEffect(() => {
+    if (formData.roomId && formData.schedule) {
+      const conflicts = checkRoomScheduleConflict(formData.roomId, formData.schedule);
+      if (conflicts.length > 0) {
+        setRoomConflictWarning(`Cảnh báo: Phòng đã có lớp học ${conflicts.join(", ")}`);
+      } else {
+        setRoomConflictWarning("");
+      }
+
+      // Tìm các phòng bị trùng lịch
+      const conflicts2 = new Set<string>();
+      for (const room of allRooms) {
+        const roomConflicts = checkRoomScheduleConflict(room.id, formData.schedule);
+        if (roomConflicts.length > 0) {
+          conflicts2.add(room.id);
+        }
+      }
+      setConflictRoomIds(conflicts2);
+    } else {
+      setRoomConflictWarning("");
+      // Tìm các phòng bị trùng khi không có room được chọn
+      if (formData.schedule) {
+        const conflicts2 = new Set<string>();
+        for (const room of allRooms) {
+          const roomConflicts = checkRoomScheduleConflict(room.id, formData.schedule);
+          if (roomConflicts.length > 0) {
+            conflicts2.add(room.id);
+          }
+        }
+        setConflictRoomIds(conflicts2);
+      } else {
+        setConflictRoomIds(new Set());
+      }
+    }
+  }, [formData.roomId, formData.schedule, existingClasses, allRooms]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ClassFormData, string>> = {};
@@ -1591,6 +1742,53 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                 )}
               </div>
 
+              {/* Chọn phòng học */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Building2 size={16} className="text-red-600" />
+                  Phòng học {formData.capacity > 0 && <span className="text-xs font-normal text-gray-500">(tối thiểu {formData.capacity} chỗ)</span>}
+                </label>
+                {formData.branchId ? (
+                  allRooms.length > 0 ? (
+                    roomOptions.length > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {roomOptions.map((room) => {
+                          const hasConflict = conflictRoomIds.has(room.id);
+                          return (
+                            <button
+                              key={room.id}
+                              type="button"
+                              onClick={() => handleChange("roomId", room.id)}
+                              className={clsx(
+                                "px-3 py-2.5 rounded-xl border text-sm transition-all cursor-pointer relative",
+                                formData.roomId === room.id
+                                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-md"
+                                  : hasConflict
+                                  ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                              )}
+                            >
+                              <div className="flex flex-col items-center">
+                                <span className="font-medium">{room.name}</span>
+                                {hasConflict && (
+                                  <span className="text-xs text-amber-600 mt-1">⚠️ Trùng lịch</span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-amber-600 italic">Không có phòng nào đủ sức chứa cho {formData.capacity} học viên</p>
+                    )
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">Chi nhánh này chưa có phòng học nào</p>
+                  )
+                ) : (
+                  <p className="text-sm text-gray-500 italic">Vui lòng chọn chi nhánh trước</p>
+                )}
+              </div>
+
               {/* Preview lịch học */}
               {formData.schedule && (
                 <div className="mt-4 p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl border border-red-200">
@@ -1609,6 +1807,16 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                       )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Cảnh báo trùng lịch phòng */}
+              {roomConflictWarning && (
+                <div className="mt-4 p-4 bg-amber-50 border border-amber-300 rounded-xl">
+                  <div className="flex items-start gap-2 text-sm text-amber-800">
+                    <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                    <span>{roomConflictWarning}</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -1683,6 +1891,10 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     setUseCustomTime(false);
                     setStartTime("18:00");
                     setEndTime("20:00");
+                    setRoomOptions([]);
+                    setAllRooms([]);
+                    setExistingClasses([]);
+                    setConflictRoomIds(new Set());
                   }
                   setErrors({});
                 }}
@@ -1887,6 +2099,7 @@ export default function Page() {
         title: data.name,
         mainTeacherId: data.mainTeacherId,
         assistantTeacherId: data.assistantTeacherId || undefined,
+        roomId: data.roomId || undefined,
         startDate: data.startDate,
         endDate: data.endDate,
         capacity: data.capacity,
@@ -1952,6 +2165,7 @@ export default function Page() {
         branchId: String(detail?.branchId ?? ""),
         mainTeacherId: String(detail?.mainTeacherId ?? ""),
         assistantTeacherId: detail?.assistantTeacherId ? String(detail.assistantTeacherId) : "",
+        roomId: String(detail?.roomId ?? ""),
         capacity: typeof detail?.capacity === "number" ? detail.capacity : row.capacity,
         schedule,
         status,
@@ -1992,6 +2206,7 @@ export default function Page() {
         title: data.name,
         mainTeacherId: data.mainTeacherId,
         assistantTeacherId: data.assistantTeacherId || undefined,
+        roomId: data.roomId || undefined,
         startDate: data.startDate,
         endDate: data.endDate,
         capacity: data.capacity,
