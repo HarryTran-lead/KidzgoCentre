@@ -18,6 +18,7 @@ export interface CreateClassRequest {
   title: string;
   mainTeacherId: string;
   assistantTeacherId?: string;
+  roomId?: string;
   startDate: string; // ISO date format: "2026-03-24"
   endDate: string; // ISO date format: "2026-03-24"
   capacity: number;
