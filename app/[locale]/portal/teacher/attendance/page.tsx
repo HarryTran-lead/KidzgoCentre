@@ -79,6 +79,27 @@ type StudentRow = Student & {
 const STATUS_LABELS: Record<AttendanceStatus, string> = {
   present: "Có mặt",
   absent: "Vắng mặt",
+  makeup: "Học bù",
+  notMarked: "Chưa điểm danh",
+};
+
+const STATUS_STYLES: Record<AttendanceStatus, { active: string; hover: string }> = {
+  present: {
+    active: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    hover: "hover:bg-emerald-50",
+  },
+  absent: {
+    active: "bg-red-50 text-red-700 border-red-200",
+    hover: "hover:bg-red-50",
+  },
+  makeup: {
+    active: "bg-sky-50 text-sky-700 border-sky-200",
+    hover: "hover:bg-sky-50",
+  },
+  notMarked: {
+    active: "bg-amber-50 text-amber-700 border-amber-200",
+    hover: "hover:bg-amber-50",
+  },
 };
 
 const SESSION_COLOR_POOL = [
@@ -1159,7 +1180,7 @@ const loadSessionReports = async () => {
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-gray-900">
-                  {stats ? Math.round((stats.present / stats.total) * 100) : 0}%
+                  {stats && stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0}%
                 </div>
               </div>
             </div>
@@ -1195,6 +1216,8 @@ const loadSessionReports = async () => {
                       <option value="ALL">Tất cả trạng thái</option>
                       <option value="present">Có mặt</option>
                       <option value="absent">Vắng mặt</option>
+                      <option value="makeup">Học bù</option>
+                      <option value="notMarked">Chưa điểm danh</option>
                     </select>
                     <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                       <Download size={18} className="text-gray-600" />
@@ -1272,16 +1295,14 @@ const loadSessionReports = async () => {
 
                           <td className="px-4 py-4">
                             <div className="flex flex-wrap items-center gap-2">
-                              {(["present", "absent"] as AttendanceStatus[]).map((status) => (
+                              {(["present", "absent", "makeup", "notMarked"] as AttendanceStatus[]).map((status) => (
                                 <button
                                   key={status}
                                   onClick={() => handleStatusChange(record.rowKey, status)}
                                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                                     record.status === status
-                                      ? status === "present"
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                          : "bg-red-50 text-red-700 border-red-200"
-                                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                      ? STATUS_STYLES[status].active
+                                      : `border-gray-200 text-gray-600 ${STATUS_STYLES[status].hover}`
                                   }`}
                                 >
                                   {STATUS_LABELS[status]}

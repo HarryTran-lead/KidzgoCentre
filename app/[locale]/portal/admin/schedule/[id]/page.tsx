@@ -32,13 +32,17 @@ function StatusBadge({ status }: { status: AttendanceStatus }) {
       text: "Có mặt",
       cls: "bg-emerald-50 text-emerald-700 border border-emerald-200",
     },
-    late: {
-      text: "Đi muộn",
-      cls: "bg-amber-50 text-amber-700 border border-amber-200",
+    makeup: {
+      text: "Học bù",
+      cls: "bg-sky-50 text-sky-700 border border-sky-200",
     },
     absent: {
       text: "Vắng",
       cls: "bg-red-50 text-red-700 border border-red-200",
+    },
+    notMarked: {
+      text: "Chưa điểm danh",
+      cls: "bg-amber-50 text-amber-700 border border-amber-200",
     },
   } as const;
   return (
@@ -312,11 +316,7 @@ export default function AdminLessonDetailPage() {
           0,
           attendanceSummary.totalStudents - attendanceSummary.notMarkedCount
         )
-      : list.filter(
-          (s) =>
-            s.status === "present" ||
-            s.status === "absent"
-        ).length;
+      : list.filter((s) => s.status && s.status !== "notMarked").length;
 
   if (loading) {
     return (

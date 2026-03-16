@@ -4,8 +4,8 @@
  * Type definitions for teacher attendance related data structures
  */
 
-export type AttendanceStatus = "present" | "absent";
-export type AttendanceRawStatus = "Present"| "Absent" | "NotMarked";
+export type AttendanceStatus = "present" | "absent" | "makeup" | "notMarked";
+export type AttendanceRawStatus = "Present" | "Absent" | "Makeup" | "NotMarked";
 
 export type Student = {
   id: string;
@@ -13,6 +13,8 @@ export type Student = {
   status: AttendanceStatus | null;
   absenceRate: number;
   note?: string;
+  studentProfileId?: string;
+  attendanceId?: string;
 };
 
 export type LessonDetail = {
@@ -39,22 +41,27 @@ export type AttendanceSummaryApi = {
 
 export type AttendanceItemApi = {
   id?: string | null;
+  sessionId?: string | null;
   studentProfileId?: string | null;
   studentName?: string | null;
   attendanceStatus?: AttendanceRawStatus | null;
   absenceType?: string | null;
   hasMakeupCredit?: boolean | null;
   note?: string | null;
-  comment?: string | null;
+  markedAt?: string | null;
 };
 
 export type StudentAttendanceHistoryItem = {
   id?: string | null;
   sessionId?: string | null;
-  sessionDateTime?: string | null;
+  sessionName?: string | null;
+  date?: string | null;
+  startTime?: string | null;
+  className?: string | null;
   attendanceStatus?: AttendanceRawStatus | null;
   absenceType?: string | null;
   note?: string | null;
+  markedAt?: string | null;
 };
 
 export type SessionApiItem = {
@@ -76,15 +83,31 @@ export type SessionApiItem = {
 };
 
 export type AttendanceApiResponse = {
+  isSuccess?: boolean;
   success?: boolean;
-  data?: AttendanceItemApi[] | { items?: AttendanceItemApi[] };
+  data?: {
+    sessionId?: string | null;
+    sessionName?: string | null;
+    date?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+    summary?: AttendanceSummaryApi;
+    attendanceSummary?: AttendanceSummaryApi;
+    attendances?: AttendanceItemApi[];
+    students?: AttendanceItemApi[];
+    items?: AttendanceItemApi[];
+    results?: AttendanceItemApi[];
+  } | AttendanceItemApi[];
   message?: string;
 };
 
 export type StudentAttendanceHistoryApiResponse = {
+  isSuccess?: boolean;
   success?: boolean;
   data?: {
     items?: StudentAttendanceHistoryItem[];
+    pageNumber?: number;
+    pageSize?: number;
     totalPages?: number;
     totalCount?: number;
   };
@@ -110,19 +133,32 @@ export type SessionListApiResponse = {
 
 export type CreateAttendanceRequest = {
   studentProfileId: string;
-  attendanceStatus: AttendanceRawStatus;
-  comment?: string;
+  attendanceStatus: number;
+  note?: string;
 };
 
 export type UpdateAttendanceRequest = {
-  attendanceStatus: AttendanceRawStatus;
-  comment?: string;
+  attendanceStatus: number;
+  note?: string;
 };
 
 export type FetchAttendanceResult = {
   students: Student[];
   attendanceSummary: AttendanceSummaryApi;
   hasAnyMarked: boolean;
+};
+
+export type FetchStudentAttendanceHistoryParams = {
+  pageNumber?: number;
+  pageSize?: number;
+};
+
+export type FetchStudentAttendanceHistoryResult = {
+  items: StudentAttendanceHistoryItem[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 };
 export type FetchSessionsParams = {
   classId?: string;
