@@ -32,7 +32,11 @@ export default function PlacementTestFormModal({
     leadChildId: test?.leadChildId || "",
     studentProfileId: test?.studentProfileId || "",
     classId: test?.classId || "",
-    scheduledAt: test?.scheduledAt ? new Date(test.scheduledAt).toISOString().slice(0, 16) : "",
+    scheduledAt: test?.scheduledAt ? (() => {
+      const d = new Date(test.scheduledAt);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    })() : "",
     room: test?.room || "",
     invigilatorUserId: test?.invigilatorUserId || "",
     notes: test?.notes || "",
@@ -87,10 +91,22 @@ export default function PlacementTestFormModal({
     
     setIsSubmitting(true);
 
+    // datetime-local value ("2026-03-12T00:30") has no timezone info.
+    // Appending the local UTC offset ensures it is always parsed as local time,
+    // not UTC, before converting to ISO string sent to the backend.
+    const scheduledAtISO = (() => {
+      const d = new Date(formData.scheduledAt);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const offset = -d.getTimezoneOffset();
+      const sign = offset >= 0 ? "+" : "-";
+      const abs = Math.abs(offset);
+      return `${formData.scheduledAt}:00${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+    })();
+
     try {
       const submitData = test
         ? {
-            scheduledAt: new Date(formData.scheduledAt).toISOString(),
+            scheduledAt: scheduledAtISO,
             room: formData.room,
             invigilatorUserId: formData.invigilatorUserId,
             notes: formData.notes,
@@ -100,7 +116,7 @@ export default function PlacementTestFormModal({
             leadChildId: formData.leadChildId,
             studentProfileId: formData.studentProfileId || "",
             classId: formData.classId || "",
-            scheduledAt: new Date(formData.scheduledAt).toISOString(),
+            scheduledAt: scheduledAtISO,
             room: formData.room,
             invigilatorUserId: formData.invigilatorUserId,
           };

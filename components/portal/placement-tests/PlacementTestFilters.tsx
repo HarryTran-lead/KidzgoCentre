@@ -110,10 +110,10 @@ export default function PlacementTestFilters({
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
           className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
         >
+          <option value={5}>5 / trang</option>
           <option value={10}>10 / trang</option>
           <option value={20}>20 / trang</option>
           <option value={50}>50 / trang</option>
-          <option value={100}>100 / trang</option>
         </select>
       </div>
 

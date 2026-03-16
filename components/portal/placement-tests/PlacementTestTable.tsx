@@ -12,6 +12,7 @@ import {
   Eye,
   FileText,
   UserCheck,
+  UserPlus,
   Ban,
   MessageSquare,
   ChevronLeft,
@@ -49,6 +50,7 @@ interface PlacementTestTableProps {
   onCancel?: (test: PlacementTest) => void;
   onNoShow?: (test: PlacementTest) => void;
   onConvertToEnrolled?: (test: PlacementTest) => void;
+  onCreateAccount?: (test: PlacementTest) => void;
 }
 
 export default function PlacementTestTable({
@@ -70,6 +72,7 @@ export default function PlacementTestTable({
   onCancel,
   onNoShow,
   onConvertToEnrolled,
+  onCreateAccount,
 }: PlacementTestTableProps) {
   const testsArray = Array.isArray(tests) ? tests : [];
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -348,6 +351,15 @@ export default function PlacementTestTable({
                                   >
                                     <UserCheck size={14} />
                                     Chuyển thành học viên
+                                  </button>
+                                )}
+                                {test.status === "Completed" && onCreateAccount && (
+                                  <button
+                                    onClick={() => { onCreateAccount(test); setOpenMenuId(null); }}
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                                  >
+                                    <UserPlus size={14} />
+                                    Tạo tài khoản & Profile
                                   </button>
                                 )}
                               </div>

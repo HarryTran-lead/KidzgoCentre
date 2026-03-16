@@ -52,7 +52,7 @@ export interface LeadChild {
   leadId: string;
   childName: string;
   dob?: string; // Date of birth in ISO format
-  gender?: string;
+  gender?: "Male" | "Female";
   programInterest?: string;
   notes?: string;
   createdAt?: string;
@@ -107,7 +107,7 @@ export interface AddLeadNoteRequest {
 export interface CreateLeadChildRequest {
   childName: string;
   dob?: string; // Date of birth in ISO format (e.g., "2026-03-24T22:22:24+07:00")
-  gender?: string;
+  gender?: "Male" | "Female";
   programInterest?: string;
   notes?: string;
 }
@@ -115,7 +115,7 @@ export interface CreateLeadChildRequest {
 export interface UpdateLeadChildRequest {
   childName?: string;
   dob?: string;
-  gender?: string;
+  gender?: "Male" | "Female";
   programInterest?: string;
   notes?: string;
 }
