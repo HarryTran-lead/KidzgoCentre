@@ -1,38 +1,72 @@
 /**
  * Teacher Attendance API Helper Functions
  *
- * This file provides type-safe helper functions for teacher attendance API calls.
+ * Aligns frontend attendance flows with the current backend contract.
  */
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import type {
-  AttendanceStatus,
-  AttendanceRawStatus,
-  Student,
-  LessonDetail,
-  AttendanceSummaryApi,
-  AttendanceItemApi,
-  StudentAttendanceHistoryItem,
-  SessionApiItem,
   AttendanceApiResponse,
-  StudentAttendanceHistoryApiResponse,
-  SessionApiResponse,
-  SessionListApiResponse,
-  CreateAttendanceRequest,
-  UpdateAttendanceRequest,
+  AttendanceItemApi,
+  AttendanceRawStatus,
+  AttendanceStatus,
+  AttendanceSummaryApi,
   FetchAttendanceResult,
   FetchSessionResult,
   FetchSessionsParams,
   FetchSessionsResult,
+  FetchStudentAttendanceHistoryParams,
+  FetchStudentAttendanceHistoryResult,
+  LessonDetail,
+  SessionApiItem,
+  SessionApiResponse,
+  SessionListApiResponse,
+  Student,
+  StudentAttendanceHistoryApiResponse,
 } from "@/types/teacher/attendance";
 
-/**
- * Format date label (Vietnamese)
- */
+type SessionLike = SessionApiItem & {
+  lessonName?: string | null;
+  lesson?: { name?: string | null } | null;
+  courseName?: string | null;
+  course?: { name?: string | null } | null;
+  students?: number | Array<unknown> | null;
+  studentCount?: number | null;
+  attendanceSummary?: AttendanceSummaryApi;
+};
+
+type SessionResponseData = {
+  session?: SessionApiItem;
+  sessions?: SessionApiItem[];
+  items?: SessionApiItem[];
+  totalCount?: number;
+  totalPages?: number;
+};
+
+type AttendanceResponseData =
+  | NonNullable<AttendanceApiResponse["data"]>
+  | {
+      hasAnyMarked?: boolean;
+      summary?: AttendanceSummaryApi;
+      attendanceSummary?: AttendanceSummaryApi;
+    };
+
+function isSessionApiItem(value: SessionResponseData | SessionApiItem | null): value is SessionApiItem {
+  if (!value || Array.isArray(value) || typeof value !== "object") return false;
+  return "id" in value || "sessionId" in value || "actualDatetime" in value || "plannedDatetime" in value;
+}
+
+function getAuthHeaders(token: string): HeadersInit {
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+}
+
 function formatDow(date: Date): string {
-  const vietnameseDow = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
-  return vietnameseDow[date.getDay()] ?? "Thứ";
+  const vietnameseDow = ["Chu nhat", "Thu 2", "Thu 3", "Thu 4", "Thu 5", "Thu 6", "Thu 7"];
+  return vietnameseDow[date.getDay()] ?? "Thu";
 }
 
 function formatDateLabel(date: Date): string {
@@ -43,7 +77,7 @@ function formatDateLabel(date: Date): string {
 }
 
 function formatTimeRange(start: Date, durationMinutes?: number): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
+  const pad = (value: number) => String(value).padStart(2, "0");
   const startStr = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
   const duration = typeof durationMinutes === "number" && durationMinutes > 0 ? durationMinutes : 60;
   const end = new Date(start.getTime() + duration * 60 * 1000);
@@ -57,34 +91,31 @@ function formatDateISO(date: Date): string {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
 function mapApiStatusToUi(status: unknown): AttendanceStatus | null {
   const raw = String(status ?? "").trim().toLowerCase();
   if (raw === "present") return "present";
   if (raw === "absent") return "absent";
+  if (raw === "makeup") return "makeup";
+  if (raw === "notmarked" || raw === "not_marked") return "notMarked";
   return null;
 }
 
-function mapUiStatusToApi(status: AttendanceStatus | null | undefined): AttendanceRawStatus {
-  if (status === "present") return "Present";
-
-  if (status === "absent") return "Absent";
-  return "NotMarked";
+function mapUiStatusToApi(status: AttendanceStatus | null | undefined): number {
+  if (status === "present") return 0;
+  if (status === "absent") return 1;
+  if (status === "makeup") return 2;
+  return 3;
 }
-/**
- * Map session API item to LessonDetail
- */
+
 function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; attendance: AttendanceSummaryApi } {
+  const sessionLike = session as SessionLike;
   const datetimeIso: string | undefined = session?.actualDatetime ?? session?.plannedDatetime ?? undefined;
   let startDate: Date | null = null;
 
   if (datetimeIso) {
-    // Parse the ISO datetime string
     const parsedDate = new Date(datetimeIso);
-
-    // Check if date is valid
-    if (!isNaN(parsedDate.getTime())) {
-      // Use local timezone components to ensure correct date display
-      // This prevents timezone offset from changing the date
+    if (!Number.isNaN(parsedDate.getTime())) {
       startDate = new Date(
         parsedDate.getFullYear(),
         parsedDate.getMonth(),
@@ -97,109 +128,107 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
   }
 
   const lesson: LessonDetail = {
-    id: String(session?.id ?? ""),
-    lesson: (session as any)?.lessonName ?? (session as any)?.lesson?.name ?? session?.classTitle ?? "Buổi học",
+    id: String(session?.id ?? session?.sessionId ?? ""),
+    lesson: sessionLike.lessonName ?? sessionLike.lesson?.name ?? session?.classTitle ?? "Buoi hoc",
     course:
-      (session as any)?.courseName ??
-      (session as any)?.course?.name ??
+      sessionLike.courseName ??
+      sessionLike.course?.name ??
       session?.classTitle ??
       session?.classCode ??
-      "Lớp học",
-    teacher: session?.actualTeacherName ?? session?.plannedTeacherName ?? "Giáo viên",
-    room: session?.actualRoomName ?? session?.plannedRoomName ?? "Phòng học",
-    date: startDate ? formatDateLabel(startDate) : "Chưa cập nhật",
+      "Lop hoc",
+    teacher: session?.actualTeacherName ?? session?.plannedTeacherName ?? "Giao vien",
+    room: session?.actualRoomName ?? session?.plannedRoomName ?? "Phong hoc",
+    date: startDate ? formatDateLabel(startDate) : "Chua cap nhat",
     time: startDate ? formatTimeRange(startDate, session?.durationMinutes ?? undefined) : "--:--",
-    status: (session as any)?.status ?? null,
-    participationType: (session as any)?.participationType ?? null,
-    branch: (session as any)?.branchName ?? (session as any)?.branch?.name ?? null,
+    status: sessionLike.status ?? null,
+    participationType: sessionLike.participationType ?? null,
+    branch: sessionLike.branchName ?? null,
     students:
-      typeof (session as any)?.students === "number"
-        ? (session as any).students
-        : Array.isArray((session as any)?.students)
-        ? (session as any).students.length
-        : typeof (session as any)?.studentCount === "number"
-        ? (session as any).studentCount
-        : 0,
+      typeof sessionLike.students === "number"
+        ? sessionLike.students
+        : Array.isArray(sessionLike.students)
+          ? sessionLike.students.length
+          : typeof sessionLike.studentCount === "number"
+            ? sessionLike.studentCount
+            : 0,
   };
 
-  const attendance: AttendanceSummaryApi = {
-    totalStudents: (session as any)?.attendanceSummary?.totalStudents ?? lesson.students ?? 0,
-    presentCount: (session as any)?.attendanceSummary?.presentCount ?? 0,
-    absentCount: (session as any)?.attendanceSummary?.absentCount ?? 0,
-    makeupCount: (session as any)?.attendanceSummary?.makeupCount ?? 0,
+  return {
+    lesson,
+    attendance: sessionLike.attendanceSummary ?? {
+      totalStudents: lesson.students ?? 0,
+      presentCount: 0,
+      absentCount: 0,
+      makeupCount: 0,
+      notMarkedCount: 0,
+    },
   };
-
-  return { lesson, attendance };
 }
 
-/**
- * Fetch session detail
- */
+function mapSessionsListResponse(json: SessionListApiResponse): FetchSessionsResult {
+  const data = (json.data ?? null) as SessionResponseData | SessionApiItem[] | null;
+  const structuredData =
+    data && !Array.isArray(data) && typeof data === "object" ? data : null;
+
+  const rootData = json as SessionResponseData;
+  const items: SessionApiItem[] = Array.isArray(structuredData?.sessions)
+    ? structuredData.sessions
+    : Array.isArray(data)
+      ? data
+      : Array.isArray(structuredData?.items)
+        ? structuredData.items
+        : Array.isArray(rootData?.sessions)
+          ? rootData.sessions ?? []
+          : [];
+
+  return {
+    sessions: items,
+    totalCount: typeof structuredData?.totalCount === "number" ? structuredData.totalCount : items.length,
+    totalPages: typeof structuredData?.totalPages === "number" ? structuredData.totalPages : undefined,
+  };
+}
+
+function resolveAttendanceItems(data: AttendanceApiResponse["data"]): AttendanceItemApi[] {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== "object") return [];
+  if (Array.isArray(data.attendances)) return data.attendances;
+  if (Array.isArray(data.students)) return data.students;
+  if (Array.isArray(data.items)) return data.items;
+  if (Array.isArray(data.results)) return data.results;
+  return [];
+}
+
 export async function fetchSessionDetail(
   sessionId: string,
   signal?: AbortSignal,
 ): Promise<FetchSessionResult> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
+    throw new Error("Ban chua dang nhap. Vui long dang nhap lai.");
   }
 
   const res = await fetch(`${TEACHER_ENDPOINTS.SESSIONS}/${sessionId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
     signal,
   });
 
   if (!res.ok) {
     const text = await res.text();
     console.error("Fetch session error", res.status, text);
-    throw new Error("Không thể tải thông tin buổi dạy.");
+    throw new Error("Khong the tai thong tin buoi day.");
   }
 
   const json: SessionApiResponse = await res.json();
-  let session: SessionApiItem | undefined;
+  const data = (json?.data ?? json) as SessionResponseData | SessionApiItem;
+  const wrappedData =
+    data && !Array.isArray(data) && typeof data === "object" && "session" in data ? data : null;
+  const session: SessionApiItem | undefined = wrappedData?.session ?? (isSessionApiItem(data) ? data : undefined);
 
-  if (json?.data) {
-    // Check if data has a session property (nested structure)
-    if (typeof json.data === "object" && "session" in json.data) {
-      session = (json.data as any).session;
-    } else {
-      // data is directly a SessionApiItem
-      session = json.data as SessionApiItem;
-    }
-  }
-
-  // Fallback to json itself if data is not available
-  if (!session) {
-    session = json as unknown as SessionApiItem;
-  }
-
-  if (!session?.id) {
-    throw new Error("Không tìm thấy dữ liệu buổi dạy.");
+  if (!session?.id && !session?.sessionId) {
+    throw new Error("Khong tim thay du lieu buoi day.");
   }
 
   return mapSessionToLesson(session);
-}
-
-function mapSessionsListResponse(json: SessionListApiResponse): FetchSessionsResult {
-  const data: any = (json as any)?.data;
-
-  const items: SessionApiItem[] = Array.isArray(data?.sessions)
-    ? data.sessions
-    : Array.isArray(data)
-    ? data
-    : Array.isArray(data?.items)
-    ? data.items
-    : Array.isArray((json as any)?.sessions)
-    ? (json as any).sessions
-    : [];
-
-  return {
-    sessions: items,
-    totalCount: typeof data?.totalCount === "number" ? data.totalCount : items.length,
-    totalPages: typeof data?.totalPages === "number" ? data.totalPages : undefined,
-  };
 }
 
 export function toISODateStart(date: Date): string {
@@ -230,30 +259,25 @@ export function parseSessionDate(session: SessionApiItem): Date | null {
 
 export function formatSessionDisplayDate(session: SessionApiItem): string {
   const parsed = parseSessionDate(session);
-  if (!parsed) return "Chưa cập nhật";
-  return formatDateLabel(parsed);
+  return parsed ? formatDateLabel(parsed) : "Chua cap nhat";
 }
 
 export function formatSessionDisplayTime(session: SessionApiItem): string {
   const parsed = parseSessionDate(session);
-  if (!parsed) return "--:--";
-  return formatTimeRange(parsed, session?.durationMinutes ?? undefined);
+  return parsed ? formatTimeRange(parsed, session?.durationMinutes ?? undefined) : "--:--";
 }
 
 export function mapSessionToLessonDetail(session: SessionApiItem): LessonDetail {
   return mapSessionToLesson(session).lesson;
 }
 
-/**
- * Fetch sessions list (teacher)
- */
 export async function fetchSessions(
   params: FetchSessionsParams,
   signal?: AbortSignal,
 ): Promise<FetchSessionsResult> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
+    throw new Error("Ban chua dang nhap. Vui long dang nhap lai.");
   }
 
   const query = new URLSearchParams();
@@ -267,96 +291,83 @@ export async function fetchSessions(
 
   const url = `${TEACHER_ENDPOINTS.TIMETABLE}?${query.toString()}`;
   const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
     signal,
   });
 
   if (!res.ok) {
     const text = await res.text();
     console.error("Fetch sessions error", res.status, text);
-    throw new Error("Không thể tải danh sách buổi học.");
+    throw new Error("Khong the tai danh sach buoi hoc.");
   }
 
   const json: SessionListApiResponse = await res.json();
   return mapSessionsListResponse(json);
 }
 
-/**
- * Fetch attendance list for a session
- */
 export async function fetchAttendance(
   sessionId: string,
   signal?: AbortSignal,
 ): Promise<FetchAttendanceResult> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
+    throw new Error("Ban chua dang nhap. Vui long dang nhap lai.");
   }
 
   const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
     signal,
   });
 
   if (!res.ok) {
     const text = await res.text();
     console.error("Fetch attendance error", res.status, text);
-    throw new Error("Không thể tải danh sách điểm danh.");
+    throw new Error("Khong the tai danh sach diem danh.");
   }
 
   const json: AttendanceApiResponse = await res.json();
-  const data: any = (json as any)?.data ?? json;
+  const data = (json?.data ?? json) as AttendanceResponseData;
+  const structuredData =
+    data && !Array.isArray(data) && typeof data === "object" ? data : null;
+  const rawStudents = resolveAttendanceItems(data);
 
-  const rawStudents: any[] = Array.isArray(data?.students)    ? data.students
-    : Array.isArray(data)
-    ? data
-    : Array.isArray(data?.items)
-    ? data.items
-    : [];
-  const students: Student[] = rawStudents.map((item: any, idx: number) => {
-    const studentProfileId = String(item?.studentProfileId ?? item?.studentId ?? item?.userId ?? "").trim();
+  const students: Student[] = rawStudents.map((item: AttendanceItemApi, idx: number) => {
+    const studentProfileId = String(item?.studentProfileId ?? "").trim();
     const attendanceId = String(item?.id ?? "").trim();
-    const fallbackId = attendanceId && attendanceId !== "00000000-0000-0000-0000-000000000000" ? attendanceId : "";
-
-    const resolvedStudentId = studentProfileId || fallbackId || `row:${idx}`;
-    const studentName = String(item?.studentName ?? item?.name ?? item?.fullName ?? "").trim();
+    const studentName = String(item?.studentName ?? "").trim() || `Hoc vien ${idx + 1}`;
 
     return {
       ...item,
-      id: resolvedStudentId,
-      studentId: studentProfileId || resolvedStudentId,
+      id: studentProfileId || attendanceId || `row:${idx}`,
       studentProfileId: studentProfileId || undefined,
       attendanceId: attendanceId || undefined,
       studentName,
-      status: mapApiStatusToUi(item?.attendanceStatus ?? item?.status),
-      note: (item?.feedback ?? item?.note ?? item?.comment ?? "") || undefined,
-      absenceRate: Number(item?.absenceRate ?? 0),
-    } as Student;
+      status: mapApiStatusToUi(item?.attendanceStatus),
+      note: item?.note ?? undefined,
+      absenceRate: 0,
+    };
   });
-  const summary: AttendanceSummaryApi | undefined =
-    data?.attendanceSummary ?? data?.summary ?? undefined;
- const inferredHasAnyMarked = students.some((student: any) => {
-    if (student?.status) return true;
-    const attendanceId = String(student?.attendanceId ?? "").trim();
-    return attendanceId.length > 0 && attendanceId !== "00000000-0000-0000-0000-000000000000";
+
+  const summary: AttendanceSummaryApi = structuredData?.summary ?? structuredData?.attendanceSummary ?? {
+    totalStudents: students.length,
+    presentCount: students.filter((student) => student.status === "present").length,
+    absentCount: students.filter((student) => student.status === "absent").length,
+    makeupCount: students.filter((student) => student.status === "makeup").length,
+    notMarkedCount: students.filter((student) => !student.status || student.status === "notMarked").length,
+  };
+
+  const hasAnyMarked = students.some((student) => {
+    if (!student.status) return false;
+    return student.status !== "notMarked";
   });
-  const hasAnyMarked: boolean =
- typeof data?.hasAnyMarked === "boolean" ? data.hasAnyMarked : inferredHasAnyMarked;
 
   return {
     students,
-    attendanceSummary: summary ?? { totalStudents: 0, presentCount: 0, absentCount: 0, makeupCount: 0, notMarkedCount: 0 },
+    attendanceSummary: summary,
     hasAnyMarked,
   };
 }
 
-/**
- * Save attendance (create first time, update later)
- */
 export async function saveAttendance(
   sessionId: string,
   students: Student[],
@@ -365,78 +376,108 @@ export async function saveAttendance(
 ): Promise<void> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
+    throw new Error("Ban chua dang nhap. Vui long dang nhap lai.");
   }
 
- const payload = (students ?? []).map((s: any) => {
-    // Lấy studentProfileId ưu tiên từ studentProfileId, nếu không có thì dùng studentId
-    const studentProfileId = String(s.studentProfileId ?? s.studentId ?? s.id ?? "").trim();
-    // Giữ nguyên status từ frontend - nếu undefined thì mặc định là "absent"
-    const status = s.status === "present" ? "present" : "absent";
+  const payload = (students ?? [])
+    .map((student) => {
+      const studentProfileId = String(student.studentProfileId ?? student.id ?? "").trim();
+      if (!studentProfileId) return null;
 
-    return {
-      studentProfileId: studentProfileId,
-      attendanceStatus: mapUiStatusToApi(status),
-      note: typeof s.note === "string" && s.note.trim() ? s.note.trim() : undefined,
-    };
-  });
+      return {
+        studentProfileId,
+        attendanceStatus: mapUiStatusToApi(student.status),
+        note: typeof student.note === "string" && student.note.trim() ? student.note.trim() : undefined,
+      };
+    })
+    .filter(Boolean) as Array<{
+      studentProfileId: string;
+      attendanceStatus: number;
+      note?: string;
+    }>;
 
-  const url = `${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`;
-  // API hỗ trợ POST để tạo mới hoặc cập nhật
-  const method = "POST";
+  if (!payload.length) {
+    throw new Error("Khong co hoc vien hop le de luu diem danh.");
+  }
 
-  const body: any = { attendances: payload };
+  if (isCreate) {
+    const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`, {
+      method: "POST",
+      headers: getAuthHeaders(token),
+      body: JSON.stringify({ attendances: payload }),
+      signal,
+    });
 
-  const res = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Create attendance error", res.status, text);
+      throw new Error("Khong the luu diem danh.");
+    }
+    return;
+  }
+
+  const results = await Promise.all(
+    payload.map(async (item) => {
+      const res = await fetch(
+        `${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}/students/${item.studentProfileId}`,
+        {
+          method: "PUT",
+          headers: getAuthHeaders(token),
+          body: JSON.stringify({
+            attendanceStatus: item.attendanceStatus,
+            note: item.note,
+          }),
+          signal,
+        },
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Update failed for ${item.studentProfileId}`);
+      }
+    }),
+  ).then(
+    () => [],
+    (error) => {
+      throw error;
     },
-    body: JSON.stringify(body),
-    signal,
-  });
+  );
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("Save attendance error", res.status, text);
-    throw new Error("Không thể lưu điểm danh.");
-  }
+  void results;
 }
 
-/**
- * Fetch student attendance history
- */
 export async function fetchStudentAttendanceHistory(
-  studentId: string,
+  params?: FetchStudentAttendanceHistoryParams,
   signal?: AbortSignal,
-): Promise<StudentAttendanceHistoryItem[]> {
+): Promise<FetchStudentAttendanceHistoryResult> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
+    throw new Error("Ban chua dang nhap. Vui long dang nhap lai.");
   }
 
-  const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE_STUDENTS}/${studentId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  const query = new URLSearchParams();
+  query.set("pageNumber", String(params?.pageNumber ?? 1));
+  query.set("pageSize", String(params?.pageSize ?? 10));
+
+  const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE_STUDENTS}?${query.toString()}`, {
+    headers: getAuthHeaders(token),
     signal,
   });
 
   if (!res.ok) {
     const text = await res.text();
     console.error("Fetch history error", res.status, text);
-    throw new Error("Không thể tải lịch sử điểm danh.");
+    throw new Error("Khong the tai lich su diem danh.");
   }
 
   const json: StudentAttendanceHistoryApiResponse = await res.json();
-  const data: any = (json as any)?.data ?? json;
+  const data = json?.data ?? {};
 
-  const items: StudentAttendanceHistoryItem[] = Array.isArray(data)
-    ? data
-    : Array.isArray(data?.items)
-    ? data.items
-    : [];
-
-  return items;
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    pageNumber: Number(data?.pageNumber ?? params?.pageNumber ?? 1),
+    pageSize: Number(data?.pageSize ?? params?.pageSize ?? 10),
+    totalCount: Number(data?.totalCount ?? 0),
+    totalPages: Number(data?.totalPages ?? 1),
+  };
 }

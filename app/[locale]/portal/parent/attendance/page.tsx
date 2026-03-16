@@ -18,6 +18,7 @@ import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getStudentClasses } from "@/lib/api/studentService";
 import { getMakeupAllocations } from "@/lib/api/makeupCreditService";
 import { getSessionById } from "@/lib/api/sessionService";
+import { fetchStudentAttendanceHistory } from "@/app/api/teacher/attendance";
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
 
 import type { UserProfile } from "@/types/auth";
@@ -25,6 +26,7 @@ import type { StudentClass } from "@/types/student/class";
 import type { LeaveRequestPayload, LeaveRequestRecord, LeaveRequestStatus } from "@/types/leaveRequest";
 import type { MakeupAllocation } from "@/types/makeupCredit";
 import type { SourceSession } from "@/lib/api/sessionService";
+import type { AttendanceRawStatus, StudentAttendanceHistoryItem } from "@/types/teacher/attendance";
 
 /* ===================== Types ===================== */
 
@@ -55,6 +57,20 @@ const statusStyles: Record<LeaveRequestStatus, string> = {
   APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
   REJECTED: "border border-rose-200 bg-rose-50 text-rose-700",
   AUTO_APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+};
+
+const attendanceLabels: Record<AttendanceRawStatus, string> = {
+  Present: "Co mat",
+  Absent: "Vang mat",
+  Makeup: "Hoc bu",
+  NotMarked: "Chua diem danh",
+};
+
+const attendanceStyles: Record<AttendanceRawStatus, string> = {
+  Present: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  Absent: "border border-rose-200 bg-rose-50 text-rose-700",
+  Makeup: "border border-sky-200 bg-sky-50 text-sky-700",
+  NotMarked: "border border-amber-200 bg-amber-50 text-amber-700",
 };
 
 const normalizeStatus = (value?: string | null): LeaveRequestStatus => {
@@ -157,6 +173,9 @@ export default function ParentAttendancePage() {
   // Leave Requests
   const [requests, setRequests] = useState<LeaveRequestRecord[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  const [attendanceHistory, setAttendanceHistory] = useState<StudentAttendanceHistoryItem[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceError, setAttendanceError] = useState<string | null>(null);
 
   // Makeup Sessions
   const [makeupAllocations, setMakeupAllocations] = useState<MakeupAllocation[]>([]);
@@ -292,6 +311,34 @@ export default function ParentAttendancePage() {
   /* ===================== Fetch Makeup Allocations ===================== */
 
   useEffect(() => {
+    const fetchAttendance = async () => {
+      if (!formState.studentProfileId) {
+        setAttendanceHistory([]);
+        return;
+      }
+
+      setAttendanceLoading(true);
+      setAttendanceError(null);
+
+      try {
+        const response = await fetchStudentAttendanceHistory({
+          pageNumber: 1,
+          pageSize: 10,
+        });
+        setAttendanceHistory(response.items);
+      } catch (err) {
+        console.error("Fetch attendance history error:", err);
+        setAttendanceHistory([]);
+        setAttendanceError("Khong the tai lich su diem danh.");
+      } finally {
+        setAttendanceLoading(false);
+      }
+    };
+
+    fetchAttendance();
+  }, [formState.studentProfileId]);
+
+  useEffect(() => {
     const fetchMakeup = async () => {
       if (!formState.studentProfileId) return;
       setMakeupLoading(true);
@@ -352,6 +399,7 @@ export default function ParentAttendancePage() {
 
   const displayRequests = useMemo(() => requests.slice(0, 5), [requests]);
   const displayMakeup = useMemo(() => makeupAllocations.slice(0, 5), [makeupAllocations]);
+  const displayAttendance = useMemo(() => attendanceHistory.slice(0, 5), [attendanceHistory]);
 
   const classLabel = (c: StudentClass) => c.name ?? c.className ?? c.title ?? c.code ?? c.id;
 
@@ -499,6 +547,56 @@ export default function ParentAttendancePage() {
       {profilesError && <Banner kind="error" text={profilesError} />}
       {error && <Banner kind="error" text={error} />}
       {successMessage && <Banner kind="success" text={successMessage} />}
+      {attendanceError && <Banner kind="error" text={attendanceError} />}
+
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div>
+            <div className="text-lg font-semibold text-gray-900">Lich su diem danh</div>
+            {attendanceLoading ? <div className="text-sm text-gray-500 mt-1">Dang tai...</div> : null}
+          </div>
+          <div className="text-sm text-gray-600 font-medium">{displayAttendance.length} ban ghi</div>
+        </div>
+
+        {!displayAttendance.length && !attendanceLoading ? (
+          <div className="px-6 py-10 text-sm text-gray-600">Chua co lich su diem danh.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
+                <tr>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Buoi hoc</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ngay hoc</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Trang thai</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ghi chu</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {displayAttendance.map((item) => {
+                  const status = item.attendanceStatus ?? "NotMarked";
+                  return (
+                    <tr key={`${item.sessionId}-${item.markedAt ?? item.date ?? ""}`}>
+                      <td className="py-4 px-6 text-sm text-gray-700">
+                        <div className="font-medium text-gray-900">{item.sessionName ?? "Buoi hoc"}</div>
+                        <div className="text-xs text-gray-500">{item.className ?? "-"}</div>
+                      </td>
+                      <td className="py-4 px-6 text-sm text-gray-700">
+                        {toVNDateLabel(item.date)} {item.startTime ? `- ${item.startTime}` : ""}
+                      </td>
+                      <td className="py-4 px-6 text-sm">
+                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${attendanceStyles[status]}`}>
+                          {attendanceLabels[status]}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-sm text-gray-700">{item.note ?? "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Table */}
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">

@@ -6,6 +6,7 @@
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS, USER_ENDPOINTS } from "@/constants/apiURL";
 import type { ClassRow, CreateClassRequest, Class, ClassDetail, Track } from "@/types/admin/classes";
+import { fetchAdminProgramDetail } from "./programs";
 
 /**
  * Parse RRULE to human-readable schedule string
@@ -102,6 +103,7 @@ function mapApiClassToRow(item: any): ClassRow {
   const capacity = item?.capacity ?? 0;
   const schedulePattern = (item?.schedulePattern as string | undefined) ?? "";
   const schedule = schedulePattern ? parseRRULEToSchedule(schedulePattern) : "Chưa có lịch";
+  const startDate = item?.startDate ?? "";
   
   const rawStatus: string = (item?.status as string | undefined) ?? "";
   let status: ClassRow["status"] = "Sắp khai giảng";
@@ -119,6 +121,7 @@ function mapApiClassToRow(item: any): ClassRow {
     current,
     capacity,
     schedule,
+    startDate,
     status,
   };
 }
@@ -672,7 +675,7 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
   else if (trackHint.includes("business")) track = "Business";
 
   const schedulePattern = apiData?.schedulePattern ?? "";
-  const schedule = schedulePattern.trim() || "Chưa có lịch";
+  const schedule = schedulePattern.trim() ? parseRRULEToSchedule(schedulePattern) : "Chưa có lịch";
 
   // Fetch teacher names if needed
   let teacherName = apiData?.mainTeacherName ?? "Chưa phân công";
@@ -705,6 +708,21 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
     }
   }
 
+  // Fetch program info to get totalSessions if not available from class
+  let programTotalSessions = apiData?.totalSessions ?? apiData?.program?.totalSessions ?? 0;
+  const programId = apiData?.programId;
+  
+  if (programTotalSessions === 0 && programId) {
+    try {
+      const programData = await fetchAdminProgramDetail(programId);
+      programTotalSessions = programData?.totalSessions ?? 0;
+      console.log(`[fetchAndMapAdminClassDetail] Fetched program ${programId} totalSessions:`, programTotalSessions);
+    } catch (err) {
+      console.error("Failed to fetch program detail for totalSessions:", err);
+      // Use default 0
+    }
+  }
+
   const classDetail: ClassDetail = {
     id: String(apiData?.id ?? classId),
     name: apiData?.title ?? "Lớp học",
@@ -713,13 +731,16 @@ export async function fetchAndMapAdminClassDetail(classId: string): Promise<Clas
     students: apiData?.currentEnrollmentCount ?? 0,
     schedule,
     room: apiData?.roomName ?? apiData?.room?.name ?? "Chưa có phòng",
+    branch: apiData?.branchName ?? apiData?.branch?.name ?? "Chưa có chi nhánh",
+    program: apiData?.programName ?? "Chưa có chương trình",
+    programId: apiData?.programId ?? "",
+    totalSessions: programTotalSessions,
     progress: 0,
     teacher: teacherName,
     assistantTeacher: assistantTeacherName,
     description: apiData?.description ?? "",
     startDate: apiData?.startDate ?? "",
     endDate: apiData?.endDate ?? "",
-    totalLessons: 0,
     completedLessons: 0,
   };
 

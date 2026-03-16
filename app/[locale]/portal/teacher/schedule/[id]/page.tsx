@@ -30,8 +30,9 @@ import type {
 function StatusBadge({ status }: { status: AttendanceStatus }) {
   const map = {
     present: { text: "Có mặt", cls: "bg-emerald-50 text-emerald-700 border border-emerald-200" },
-    late: { text: "Đi muộn", cls: "bg-amber-50 text-amber-700 border border-amber-200" },
+    makeup: { text: "Học bù", cls: "bg-sky-50 text-sky-700 border border-sky-200" },
     absent: { text: "Vắng", cls: "bg-red-50 text-red-700 border border-red-200" },
+    notMarked: { text: "Chưa điểm danh", cls: "bg-amber-50 text-amber-700 border border-amber-200" },
   } as const;
   return <span className={`px-3 py-1 rounded-full text-xs font-medium ${map[status].cls}`}>{map[status].text}</span>;
 }
@@ -290,7 +291,7 @@ export default function LessonAttendancePage() {
   const checkedCount =
     attendanceSummary?.totalStudents != null && attendanceSummary?.notMarkedCount != null
       ? Math.max(0, attendanceSummary.totalStudents - attendanceSummary.notMarkedCount)
-      : list.filter((s) => s.status === "present" || s.status === "absent").length;
+      : list.filter((s) => s.status && s.status !== "notMarked").length;
 
   const updateStatus = (id: string, status: AttendanceStatus) => {
     if (!isEditing) return;
@@ -610,28 +611,25 @@ export default function LessonAttendancePage() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="inline-flex gap-2">
-                        <button
-                          onClick={() => updateStatus(student.id, "present")}
-                          disabled={!isEditing}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer disabled:cursor-default ${
-                            student.status === "present"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "border-gray-200 text-gray-600 hover:bg-emerald-50"
-                          }`}
-                        >
-                          Có mặt
-                        </button>
-                        <button
-                          onClick={() => updateStatus(student.id, "absent")}
-                          disabled={!isEditing}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer disabled:cursor-default ${
-                            student.status === "absent"
-                              ? "bg-red-50 text-red-700 border-red-200"
-                              : "border-gray-200 text-gray-600 hover:bg-red-50"
-                          }`}
-                        >
-                          Vắng
-                        </button>
+                        {([
+                          ["present", "Có mặt", "bg-emerald-50 text-emerald-700 border-emerald-200", "hover:bg-emerald-50"],
+                          ["absent", "Vắng", "bg-red-50 text-red-700 border-red-200", "hover:bg-red-50"],
+                          ["makeup", "Học bù", "bg-sky-50 text-sky-700 border-sky-200", "hover:bg-sky-50"],
+                          ["notMarked", "Chưa điểm danh", "bg-amber-50 text-amber-700 border-amber-200", "hover:bg-amber-50"],
+                        ] as const).map(([status, label, activeClass, hoverClass]) => (
+                          <button
+                            key={status}
+                            onClick={() => updateStatus(student.id, status)}
+                            disabled={!isEditing}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer disabled:cursor-default ${
+                              student.status === status
+                                ? activeClass
+                                : `border-gray-200 text-gray-600 ${hoverClass}`
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">

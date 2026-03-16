@@ -8,6 +8,7 @@ export type ClassRow = {
   current: number;
   capacity: number;
   schedule: string;
+  startDate?: string;
   status: "Đang học" | "Sắp khai giảng" | "Đã kết thúc";
 };
 
@@ -18,10 +19,12 @@ export interface CreateClassRequest {
   title: string;
   mainTeacherId: string;
   assistantTeacherId?: string;
+  roomId?: string;
   startDate: string; // ISO date format: "2026-03-24"
   endDate: string; // ISO date format: "2026-03-24"
   capacity: number;
   schedulePattern: string; // RRULE format: "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=8;BYMINUTE=30;DURATION=60"
+  status?: string; // Auto set to "Planned" when creating new class
 }
 
 export interface Class {
@@ -53,12 +56,15 @@ export interface ClassDetail {
   students: number;
   schedule: string;
   room: string;
+  branch: string;
+  program: string;
+  programId: string;
+  totalSessions: number;
   progress: number;
   teacher: string;
   assistantTeacher: string;
   description: string;
   startDate: string;
   endDate: string;
-  totalLessons: number;
   completedLessons: number;
 }
