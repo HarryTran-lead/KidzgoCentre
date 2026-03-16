@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { Toaster } from "@/components/lightswind/toaster";
 import ReduxProvider from "@/components/providers/ReduxProvider";
 import ErrorSuppression from "./error-suppression";
+import FcmRuntime from "@/components/notifications/FcmRuntime";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -39,7 +40,10 @@ export default async function RootLayout({
         data-locale={cookieLocale}
       >
         <ErrorSuppression />
-        <ReduxProvider>{children}</ReduxProvider>
+        <ReduxProvider>
+          <FcmRuntime />
+          {children}
+        </ReduxProvider>
         <Toaster />
       </body>
     </html>

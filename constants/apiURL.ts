@@ -517,3 +517,7 @@ export const BACKEND_PARENT_ENDPOINTS = {
   TIMETABLE: "/parent/timetable",
   OVERVIEW: "/parent/overview",
 } as const;
+
+export const NOTIFICATION_ENDPOINTS = {
+  DEVICE_TOKEN: "/api/notifications/device-token",
+} as const;

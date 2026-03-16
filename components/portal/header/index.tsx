@@ -8,12 +8,14 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import UserMenu from "./userMenu";
 import LanguageToggle from "@/components/ui/button/LanguageToggle";
 
 import { pickLocaleFromPath, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { ACCESS_MAP, ROLES, ROLE_LABEL, type Role } from "@/lib/role";
+import { useNotifications } from "@/hooks/useNotifications";
 
 
 /* ================= Types ================= */
@@ -173,6 +175,7 @@ export default function PortalHeader({
   onSearch,
   onNotificationClick,
 }: Props) {
+  const router = useRouter();
   const pathname = usePathname() || "/";
   const locale = useMemo<Locale>(
     () => pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE,
@@ -181,6 +184,30 @@ export default function PortalHeader({
 
   const i18n = useHeaderI18n(locale);
   const currentRole = useRoleFromPath(role);
+  const notificationCenter = useNotifications(currentRole);
+  const liveNotifications =
+    notifications.length > 0
+      ? notifications
+      : notificationCenter.notifications.slice(0, 6).map((item) => ({
+          id: item.id,
+          title: item.title,
+          message: item.message,
+          time: new Intl.DateTimeFormat(locale === "en" ? "en-US" : "vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }).format(new Date(item.createdAt)),
+          read: item.read,
+          type:
+            item.priority === "high"
+              ? "warning"
+              : item.kind === "report" || item.kind === "feedback"
+              ? "success"
+              : "info",
+        }));
+  const liveUnreadCount =
+    notifications.length > 0 ? unreadCount : notificationCenter.unreadCount;
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -307,9 +334,9 @@ export default function PortalHeader({
                 aria-label={i18n.labels.notifications}
               >
                 <Bell className="w-5 h-5" />
-                {(unreadCount ?? 0) > 0 && (
+                {(liveUnreadCount ?? 0) > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 text-[10px] leading-[18px] rounded-full bg-rose-500 text-white font-bold grid place-items-center shadow-lg">
-                    {unreadCount! > 99 ? "99+" : unreadCount}
+                    {liveUnreadCount > 99 ? "99+" : liveUnreadCount}
                   </span>
                 )}
               </button>
@@ -342,11 +369,19 @@ export default function PortalHeader({
                     </div>
 
                     <div className="max-h-[70vh] overflow-y-auto">
-                      {notifications.length ? (
-                        notifications.map((n) => (
+                      {liveNotifications.length ? (
+                        liveNotifications.map((n) => (
                           <button
                             key={n.id}
-                            onClick={() => onNotificationClick?.(n.id)}
+                            onClick={() => {
+                              notificationCenter.markAsRead(n.id);
+                              setShowNotifications(false);
+                              if (onNotificationClick) {
+                                onNotificationClick(n.id);
+                                return;
+                              }
+                              router.push(notificationCenter.notificationsRoute);
+                            }}
                             className={`w-full p-4 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 ${
                               !n.read ? "bg-blue-50/50" : ""
                             }`}
@@ -383,6 +418,15 @@ export default function PortalHeader({
                           </p>
                         </div>
                       )}
+                    </div>
+                    <div className="border-t border-slate-100 p-3">
+                      <Link
+                        href={notificationCenter.notificationsRoute}
+                        onClick={() => setShowNotifications(false)}
+                        className="flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+                      >
+                        Xem tất cả thông báo
+                      </Link>
                     </div>
                   </div>
                 </>

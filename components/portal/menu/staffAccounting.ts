@@ -7,6 +7,7 @@ import {
   Undo2,
   BarChart3,
   ClipboardList,
+  Bell,
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -27,6 +28,7 @@ export function staffAccountingMenu(
     [t.adjustments, Undo2, "/adjustments"],
     [t.financeReports, BarChart3, "/reports"],
     [t.auditLog, ClipboardList, "/audit-log"],
+    [t.notifications, Bell, "/notifications"],
   ];
 
   return makeMenu(root, RAWS);

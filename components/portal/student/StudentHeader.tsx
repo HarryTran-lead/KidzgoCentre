@@ -1,13 +1,14 @@
 // components/portal/student/StudentHeader.tsx
 "use client";
 
-import { ChevronDown, User, LogOut, Star, Sparkles } from "lucide-react";
+import { Bell, ChevronDown, User, LogOut, Star, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { LOGO } from "@/lib/theme/theme";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNotifications } from "@/hooks/useNotifications";
 
 type StudentHeaderProps = {
   userName?: string;
@@ -18,6 +19,7 @@ export default function StudentHeader({
   userName,
   avatarUrl,
 }: StudentHeaderProps) {
+  const { unreadCount, notificationsRoute } = useNotifications("Student");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
@@ -112,6 +114,19 @@ export default function StudentHeader({
                 </div>
               </div>
             </div>
+
+            <Link
+              href={notificationsRoute}
+              className="group relative mr-3 inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
+              aria-label="Thông báo"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 min-w-[22px] rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[11px] font-bold text-white shadow-lg">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Link>
 
             {/* Profile section - noi lien */}
             <div className="relative">
