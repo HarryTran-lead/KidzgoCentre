@@ -11,6 +11,8 @@ export interface CreateTicket {
   category: TicketCategory;
   subject: string;
   message: string;
+  type: "General" | "DirectToTeacher";
+  assignedToUserId?: string;
 }
 
 export interface TicketCommentRequest{
@@ -42,6 +44,7 @@ export interface Ticket{
   classCode?: string;
   classTitle?: string;
   category: TicketCategory;
+  type?: "General" | "DirectToTeacher";
   subject: string;
   message: string;
   status: string;
