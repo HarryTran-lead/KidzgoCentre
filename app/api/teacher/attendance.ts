@@ -26,6 +26,37 @@ import type {
   StudentAttendanceHistoryApiResponse,
 } from "@/types/teacher/attendance";
 
+type SessionLike = SessionApiItem & {
+  lessonName?: string | null;
+  lesson?: { name?: string | null } | null;
+  courseName?: string | null;
+  course?: { name?: string | null } | null;
+  students?: number | Array<unknown> | null;
+  studentCount?: number | null;
+  attendanceSummary?: AttendanceSummaryApi;
+};
+
+type SessionResponseData = {
+  session?: SessionApiItem;
+  sessions?: SessionApiItem[];
+  items?: SessionApiItem[];
+  totalCount?: number;
+  totalPages?: number;
+};
+
+type AttendanceResponseData =
+  | NonNullable<AttendanceApiResponse["data"]>
+  | {
+      hasAnyMarked?: boolean;
+      summary?: AttendanceSummaryApi;
+      attendanceSummary?: AttendanceSummaryApi;
+    };
+
+function isSessionApiItem(value: SessionResponseData | SessionApiItem | null): value is SessionApiItem {
+  if (!value || Array.isArray(value) || typeof value !== "object") return false;
+  return "id" in value || "sessionId" in value || "actualDatetime" in value || "plannedDatetime" in value;
+}
+
 function getAuthHeaders(token: string): HeadersInit {
   return {
     Authorization: `Bearer ${token}`,
@@ -78,6 +109,7 @@ function mapUiStatusToApi(status: AttendanceStatus | null | undefined): number {
 }
 
 function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; attendance: AttendanceSummaryApi } {
+  const sessionLike = session as SessionLike;
   const datetimeIso: string | undefined = session?.actualDatetime ?? session?.plannedDatetime ?? undefined;
   let startDate: Date | null = null;
 
@@ -97,10 +129,10 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
 
   const lesson: LessonDetail = {
     id: String(session?.id ?? session?.sessionId ?? ""),
-    lesson: (session as any)?.lessonName ?? (session as any)?.lesson?.name ?? session?.classTitle ?? "Buoi hoc",
+    lesson: sessionLike.lessonName ?? sessionLike.lesson?.name ?? session?.classTitle ?? "Buoi hoc",
     course:
-      (session as any)?.courseName ??
-      (session as any)?.course?.name ??
+      sessionLike.courseName ??
+      sessionLike.course?.name ??
       session?.classTitle ??
       session?.classCode ??
       "Lop hoc",
@@ -108,22 +140,22 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
     room: session?.actualRoomName ?? session?.plannedRoomName ?? "Phong hoc",
     date: startDate ? formatDateLabel(startDate) : "Chua cap nhat",
     time: startDate ? formatTimeRange(startDate, session?.durationMinutes ?? undefined) : "--:--",
-    status: (session as any)?.status ?? null,
-    participationType: (session as any)?.participationType ?? null,
-    branch: (session as any)?.branchName ?? (session as any)?.branch?.name ?? null,
+    status: sessionLike.status ?? null,
+    participationType: sessionLike.participationType ?? null,
+    branch: sessionLike.branchName ?? null,
     students:
-      typeof (session as any)?.students === "number"
-        ? (session as any).students
-        : Array.isArray((session as any)?.students)
-          ? (session as any).students.length
-          : typeof (session as any)?.studentCount === "number"
-            ? (session as any).studentCount
+      typeof sessionLike.students === "number"
+        ? sessionLike.students
+        : Array.isArray(sessionLike.students)
+          ? sessionLike.students.length
+          : typeof sessionLike.studentCount === "number"
+            ? sessionLike.studentCount
             : 0,
   };
 
   return {
     lesson,
-    attendance: (session as any)?.attendanceSummary ?? {
+    attendance: sessionLike.attendanceSummary ?? {
       totalStudents: lesson.students ?? 0,
       presentCount: 0,
       absentCount: 0,
@@ -134,21 +166,25 @@ function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; at
 }
 
 function mapSessionsListResponse(json: SessionListApiResponse): FetchSessionsResult {
-  const data: any = (json as any)?.data;
-  const items: SessionApiItem[] = Array.isArray(data?.sessions)
-    ? data.sessions
+  const data = (json.data ?? null) as SessionResponseData | SessionApiItem[] | null;
+  const structuredData =
+    data && !Array.isArray(data) && typeof data === "object" ? data : null;
+
+  const rootData = json as SessionResponseData;
+  const items: SessionApiItem[] = Array.isArray(structuredData?.sessions)
+    ? structuredData.sessions
     : Array.isArray(data)
       ? data
-      : Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray((json as any)?.sessions)
-          ? (json as any).sessions
+      : Array.isArray(structuredData?.items)
+        ? structuredData.items
+        : Array.isArray(rootData?.sessions)
+          ? rootData.sessions ?? []
           : [];
 
   return {
     sessions: items,
-    totalCount: typeof data?.totalCount === "number" ? data.totalCount : items.length,
-    totalPages: typeof data?.totalPages === "number" ? data.totalPages : undefined,
+    totalCount: typeof structuredData?.totalCount === "number" ? structuredData.totalCount : items.length,
+    totalPages: typeof structuredData?.totalPages === "number" ? structuredData.totalPages : undefined,
   };
 }
 
@@ -183,8 +219,10 @@ export async function fetchSessionDetail(
   }
 
   const json: SessionApiResponse = await res.json();
-  const data: any = json?.data ?? json;
-  const session: SessionApiItem | undefined = data?.session ?? data;
+  const data = (json?.data ?? json) as SessionResponseData | SessionApiItem;
+  const wrappedData =
+    data && !Array.isArray(data) && typeof data === "object" && "session" in data ? data : null;
+  const session: SessionApiItem | undefined = wrappedData?.session ?? (isSessionApiItem(data) ? data : undefined);
 
   if (!session?.id && !session?.sessionId) {
     throw new Error("Khong tim thay du lieu buoi day.");
@@ -288,7 +326,9 @@ export async function fetchAttendance(
   }
 
   const json: AttendanceApiResponse = await res.json();
-  const data: any = json?.data ?? json;
+  const data = (json?.data ?? json) as AttendanceResponseData;
+  const structuredData =
+    data && !Array.isArray(data) && typeof data === "object" ? data : null;
   const rawStudents = resolveAttendanceItems(data);
 
   const students: Student[] = rawStudents.map((item: AttendanceItemApi, idx: number) => {
@@ -304,11 +344,11 @@ export async function fetchAttendance(
       studentName,
       status: mapApiStatusToUi(item?.attendanceStatus),
       note: item?.note ?? undefined,
-      absenceRate: Number((item as any)?.absenceRate ?? 0),
+      absenceRate: 0,
     };
   });
 
-  const summary: AttendanceSummaryApi = data?.summary ?? data?.attendanceSummary ?? {
+  const summary: AttendanceSummaryApi = structuredData?.summary ?? structuredData?.attendanceSummary ?? {
     totalStudents: students.length,
     presentCount: students.filter((student) => student.status === "present").length,
     absentCount: students.filter((student) => student.status === "absent").length,
@@ -431,7 +471,7 @@ export async function fetchStudentAttendanceHistory(
   }
 
   const json: StudentAttendanceHistoryApiResponse = await res.json();
-  const data: any = json?.data ?? {};
+  const data = json?.data ?? {};
 
   return {
     items: Array.isArray(data?.items) ? data.items : [],

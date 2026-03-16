@@ -1,6 +1,6 @@
 // types/student/homework.ts
 
-export type AssignmentStatus = "SUBMITTED" | "PENDING" | "MISSING" | "LATE";
+export type AssignmentStatus = "SUBMITTED" | "PENDING" | "MISSING" | "LATE" | "ASSIGNED";
 
 export type AssignmentType =
   | "ESSAY"
@@ -11,17 +11,33 @@ export type AssignmentType =
 
 export type AttachmentType = "PDF" | "DOC" | "DOCX" | "LINK" | "VIDEO" | "IMAGE";
 
+// API Response - matches /api/students/homework/my
 export interface AssignmentListItem {
   id: string;
+  assignmentId: string;
+  assignmentTitle: string;
+  assignmentDescription: string;
+  classId: string;
+  classCode: string;
+  classTitle: string;
+  dueAt: string;
+  book: string | null;
+  pages: string | null;
+  skills: string | null;
+  submissionType: string;
+  status: string;
+  submittedAt: string | null;
+  gradedAt: string | null;
+  score: number | null;
+  isLate: boolean;
+  isOverdue: boolean;
+  // Legacy fields for compatibility
   title: string;
   subject: string;
   className: string;
   assignedDate: string;
   dueDate: string;
-  status: AssignmentStatus;
-  submissionType?: "FILE" | "IMAGE" | "TEXT" | "LINK" | "QUIZ" | "FILE_AND_TEXT";
   type: AssignmentType;
-  score?: number;
   maxScore?: number;
   submissionCount: number;
   hasAttachments: boolean;

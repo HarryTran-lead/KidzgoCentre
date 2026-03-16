@@ -16,8 +16,6 @@ import {
   Share2,
   MoreVertical,
   CheckCircle,
-  Award,
-  TrendingUp,
   FileText,
   MessageSquare,
   Eye,
@@ -25,27 +23,124 @@ import {
   ChevronRight,
   Star,
   Plus,
+  Clock,
+  Calendar,
+  Building2,
+  GraduationCap,
+  Tag,
+  Target,
+  BarChart3,
+  Layers,
 } from "lucide-react";
 import { fetchAndMapAdminClassDetail, fetchAdminClassStudents, type Student } from "@/app/api/admin/classes";
 import type { ClassDetail, Track } from "@/types/admin/classes";
+import clsx from "clsx";
+
+// Component hiển thị lịch học giống bên classes/page.tsx
+function ScheduleDisplay({ schedule }: { schedule: string }) {
+  // Parse schedule string format: "Thứ 2,4,6 (18:00 - 20:00)" or "Thứ 2,4,6 & CN (18:00 - 20:00)"
+  const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+
+  if (!match) {
+    return (
+      <div className="inline-flex items-center gap-1.5 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
+        <Clock size={14} className="text-gray-400" />
+        <span className="text-xs italic">Chưa có lịch</span>
+      </div>
+    );
+  }
+
+  const [, dayPart, startTime, endTime] = match;
+
+  // Parse days into array
+  const dayNumbers: string[] = [];
+  const hasSunday = dayPart.includes("CN");
+
+  // Extract day numbers from "Thứ 2,4,6" or "Thứ 2,4,6 & CN"
+  const thuMatch = dayPart.match(/Thứ\s*([\d,]+)/);
+  if (thuMatch) {
+    dayNumbers.push(...thuMatch[1].split(","));
+  }
+
+  // Day display configuration with better colors
+  const dayConfig: Record<string, { label: string; bg: string; text: string; }> = {
+    "2": { label: "T2", bg: "bg-blue-100", text: "text-blue-700" },
+    "3": { label: "T3", bg: "bg-indigo-100", text: "text-indigo-700" },
+    "4": { label: "T4", bg: "bg-purple-100", text: "text-purple-700" },
+    "5": { label: "T5", bg: "bg-pink-100", text: "text-pink-700" },
+    "6": { label: "T6", bg: "bg-amber-100", text: "text-amber-700" },
+    "7": { label: "T7", bg: "bg-orange-100", text: "text-orange-700" },
+  };
+
+  const sundayConfig = { label: "CN", bg: "bg-rose-100", text: "text-rose-700" };
+
+  // Combine all days for display
+  const allDays = [
+    ...dayNumbers.map(day => ({
+      day,
+      ...(dayConfig[day] || { label: `T${day}`, bg: "bg-gray-100", text: "text-gray-700" })
+    })),
+    ...(hasSunday ? [{ day: "CN", ...sundayConfig }] : [])
+  ];
+
+  // Format time range
+  const timeRange = `${startTime} - ${endTime}`;
+
+  // Calculate duration in hours
+  const startHour = parseInt(startTime.split(':')[0]);
+  const startMin = parseInt(startTime.split(':')[1]);
+  const endHour = parseInt(endTime.split(':')[0]);
+  const endMin = parseInt(endTime.split(':')[1]);
+  const durationHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+  const durationText = durationHours === Math.floor(durationHours)
+    ? `${durationHours}h`
+    : `${durationHours.toFixed(1)}h`;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {/* Days row - colorful pills */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {allDays.map((dayInfo) => (
+          <span
+            key={dayInfo.day}
+            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dayInfo.bg} ${dayInfo.text} shadow-sm`}
+          >
+            {dayInfo.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Time row with duration */}
+      <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
+          <Clock size={12} className="text-gray-500" />
+          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+            {timeRange}
+          </span>
+        </div>
+        <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+          {durationText}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function TrackBadge({ track }: { track: Track }) {
   const trackColors = {
-    IELTS: "from-red-600 to-red-800",
-    TOEIC: "from-red-700 to-gray-900",
-    Business: "from-gray-800 to-black",
+    IELTS: "bg-gradient-to-r from-red-600 to-red-700 text-white border-0",
+    TOEIC: "bg-gradient-to-r from-amber-600 to-amber-700 text-white border-0",
+    Business: "bg-gradient-to-r from-gray-800 to-gray-900 text-white border-0",
   };
 
   return (
-    <span
-      className={`text-xs px-3 py-1.5 rounded-full bg-gradient-to-r ${trackColors[track]} text-white font-medium shadow-sm`}
-    >
+    <span className={clsx("px-3 py-1.5 rounded-full text-xs font-semibold shadow-md", trackColors[track])}>
       {track}
     </span>
   );
 }
 
-function StudentAvatar({ name }: { name: string }) {
+function StudentAvatar({ name, status }: { name: string; status?: string }) {
   const initials = name
     .split(" ")
     .map(word => word[0])
@@ -54,48 +149,106 @@ function StudentAvatar({ name }: { name: string }) {
     .toUpperCase();
 
   return (
-    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-bold text-sm shadow-lg">
-      {initials}
+    <div className="relative">
+      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-700 text-white font-bold text-sm shadow-lg">
+        {initials}
+      </div>
+      {status && (
+        <div className={clsx(
+          "absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white",
+          status === "active" ? "bg-green-500" : "bg-gray-400"
+        )} />
+      )}
     </div>
   );
 }
 
-function AbsencePie({ value }: { value: number }) {
-  const size = 32;
-  const radius = 14;
-  const circumference = 2 * Math.PI * radius;
-  const clamped = Math.max(0, Math.min(100, value));
-  const offset = circumference * (1 - clamped / 100);
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  subvalue,
+  color = "red",
+  progress
+}: {
+  icon: any;
+  label: string;
+  value: string | number;
+  subvalue?: string;
+  color?: "red" | "amber" | "blue" | "green" | "gray";
+  progress?: number;
+}) {
+  const colorClasses = {
+    red: {
+      bg: "bg-red-50",
+      text: "text-red-600",
+      gradient: "from-red-600 to-red-700",
+      light: "from-red-50 to-red-100"
+    },
+    amber: {
+      bg: "bg-amber-50",
+      text: "text-amber-600",
+      gradient: "from-amber-600 to-amber-700",
+      light: "from-amber-50 to-amber-100"
+    },
+    blue: {
+      bg: "bg-blue-50",
+      text: "text-blue-600",
+      gradient: "from-blue-600 to-blue-700",
+      light: "from-blue-50 to-blue-100"
+    },
+    green: {
+      bg: "bg-green-50",
+      text: "text-green-600",
+      gradient: "from-green-600 to-green-700",
+      light: "from-green-50 to-green-100"
+    },
+    gray: {
+      bg: "bg-gray-50",
+      text: "text-gray-600",
+      gradient: "from-gray-600 to-gray-700",
+      light: "from-gray-50 to-gray-100"
+    }
+  };
 
   return (
-    <div className="relative w-8 h-8">
-      <svg width={size} height={size} className="transform -rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="currentColor"
-          strokeWidth={4}
-          className="text-gray-200"
-          fill="transparent"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="currentColor"
-          strokeWidth={4}
-          className="text-red-600"
-          fill="transparent"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-semibold text-red-700">
-          {Math.round(clamped)}%
-        </span>
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+      <div className="flex items-center justify-between mb-3">
+        <div className={clsx("p-3 rounded-xl", colorClasses[color].bg)}>
+          <Icon size={20} className={colorClasses[color].text} />
+        </div>
+        {progress !== undefined && (
+          <span className="text-xs font-medium text-gray-500">Tiến độ</span>
+        )}
+      </div>
+      <div>
+        <div className="text-sm text-gray-600 mb-1">{label}</div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold text-gray-900">{value}</span>
+          {subvalue && <span className="text-sm text-gray-500">{subvalue}</span>}
+        </div>
+      </div>
+      {progress !== undefined && (
+        <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={clsx("h-full rounded-full bg-gradient-to-r", colorClasses[color].gradient)}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value, className }: { icon: any; label: string; value: string; className?: string }) {
+  return (
+    <div className={clsx("flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100", className)}>
+      <div className="p-2 bg-red-100 rounded-lg">
+        <Icon size={18} className="text-red-600" />
+      </div>
+      <div>
+        <div className="text-xs text-gray-500">{label}</div>
+        <div className="font-semibold text-gray-900">{value}</div>
       </div>
     </div>
   );
@@ -142,7 +295,7 @@ function Pagination({
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
+    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5">
       <div className="text-sm text-gray-600">
         Hiển thị <span className="font-semibold text-gray-900">{startItem}</span> -{" "}
         <span className="font-semibold text-gray-900">{endItem}</span>{" "}
@@ -153,10 +306,12 @@ function Pagination({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`p-2 rounded-lg border transition-all ${currentPage === 1
-            ? "border-gray-200 text-gray-400 cursor-not-allowed"
-            : "border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 cursor-pointer"
-            }`}
+          className={clsx(
+            "p-2 rounded-lg border transition-all cursor-pointer",
+            currentPage === 1
+              ? "border-gray-200 text-gray-400 cursor-not-allowed"
+              : "border-red-200 hover:bg-red-50 text-gray-700"
+          )}
         >
           <ChevronLeft size={18} />
         </button>
@@ -175,10 +330,12 @@ function Pagination({
               <button
                 key={page}
                 onClick={() => onPageChange(page as number)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${currentPage === page
-                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                  : "text-gray-700 hover:bg-gray-100 border border-gray-200"
-                  }`}
+                className={clsx(
+                  "min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer",
+                  currentPage === page
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                    : "border border-red-200 hover:bg-red-50 text-gray-700"
+                )}
               >
                 {page}
               </button>
@@ -189,10 +346,12 @@ function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`p-2 rounded-lg border transition-all ${currentPage === totalPages
-            ? "border-gray-200 text-gray-400 cursor-not-allowed"
-            : "border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 cursor-pointer"
-            }`}
+          className={clsx(
+            "p-2 rounded-lg border transition-all cursor-pointer",
+            currentPage === totalPages
+              ? "border-gray-200 text-gray-400 cursor-not-allowed"
+              : "border-red-200 hover:bg-red-50 text-gray-700"
+          )}
         >
           <ChevronRight size={18} />
         </button>
@@ -299,6 +458,7 @@ export default function ClassDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Đang tải thông tin lớp học...</h2>
           {error && <p className="text-gray-600 mb-4">{error}</p>}
           {!error && <p className="text-gray-600 mb-4">Vui lòng chờ trong giây lát.</p>}
@@ -326,100 +486,150 @@ export default function ClassDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
+      {/* Header với hiệu ứng gradient */}
       <div className={`mb-8 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <button
           onClick={() => router.push(`/${locale}/portal/admin/classes`)}
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-all hover:gap-3 cursor-pointer group"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
           <span>Quay lại danh sách lớp</span>
         </button>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-                <BookOpen size={24} className="text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-3xl font-bold text-gray-900">{classData.name}</h1>
-                  <TrackBadge track={classData.track} />
-                </div>
-                <p className="text-gray-600">Mã lớp: {classData.code}</p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
-                <Share2 size={16} />
-                Chia sẻ
-              </button>
-              <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
-                <Download size={16} />
-                Xuất danh sách
-              </button>
-            </div>
-          </div>
+        {/* Class Header Card */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
 
-          <div>
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
-              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <CalendarClock size={18} className="text-red-600" />
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500">Lịch học</div>
-                  <div className="font-semibold text-gray-900">{classData.schedule}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <MapPin size={18} className="text-red-600" />
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500">Phòng học</div>
-                  <div className="font-semibold text-gray-900">{classData.room}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <Users size={18} className="text-red-600" />
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500">Học viên</div>
-                  <div className="font-semibold text-gray-900">{classData.students} người</div>
-                </div>
-              </div>
-            </div>
 
-            {/* Teacher Information */}
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <User size={18} className="text-red-600" />
+          <div className="p-6 lg:p-8">
+            {/* Main Info Row */}
+            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
+              {/* Left: Class Info */}
+              <div className="flex items-start gap-5">
+                <div className="hidden sm:flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg shadow-red-200">
+                  <GraduationCap size={32} className="text-white" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-xs text-gray-500">Giáo viên chính</div>
-                  <div className="font-semibold text-gray-900">{classData.teacher}</div>
+                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{classData.name}</h1>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-gray-700">
+                      <Tag size={14} className="text-red-500" />
+                      <span className="font-medium">Mã lớp:</span>
+                      <span className="font-semibold">{classData.code}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-gray-700">
+                      <Users size={14} className="text-red-500" />
+                      <span className="font-medium">Sĩ số:</span>
+                      <span className="font-semibold">{classData.students} học viên</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-lg text-gray-700">
+                      <BookOpen size={14} className="text-blue-500" />
+                      <span className="font-medium">Chương trình:</span>
+                      <span className="font-semibold">{classData.program}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 rounded-lg text-gray-700">
+                      <Calendar size={14} className="text-amber-500" />
+                      <span className="font-medium">Số buổi:</span>
+                      <span className="font-semibold">{classData.totalSessions} buổi</span>
+                    </span>
+                  </div>
                 </div>
               </div>
-              {classData.assistantTeacher && (
-                <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+
+              {/* Right: Action Buttons */}
+              <div className="flex items-center gap-3">
+                <button className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap shadow-sm hover:shadow-md group">
+                  <Share2 size={16} className="group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline">Chia sẻ</span>
+                </button>
+                <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
+                  <Download size={16} />
+                  <span className="hidden sm:inline">Xuất danh sách</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Info Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {/* Schedule Card */}
+              <div className="sm:col-span-2 bg-gradient-to-br from-gray-50 to-red-50/30 rounded-xl border border-gray-100 p-4 hover:border-red-200 hover:shadow-md transition-all duration-200">
+                <div className="flex items-center gap-2.5 mb-3">
                   <div className="p-2 bg-red-100 rounded-lg">
-                    <User size={18} className="text-red-600" />
+                    <CalendarClock size={18} className="text-red-600" />
                   </div>
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500">Giáo viên trợ giảng</div>
-                    <div className="font-semibold text-gray-900">{classData.assistantTeacher}</div>
+                  <span className="font-semibold text-gray-800">Lịch học</span>
+                </div>
+                <ScheduleDisplay schedule={classData.schedule} />
+                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar size={12} className="text-red-400" />
+                    <span>Bắt đầu:</span>
+                    <span className="font-medium text-gray-700">{classData.startDate ? new Date(classData.startDate).toLocaleDateString('vi-VN') : '-'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Calendar size={12} className="text-orange-400" />
+                    <span>Kết thúc:</span>
+                    <span className="font-medium text-gray-700">{classData.endDate ? new Date(classData.endDate).toLocaleDateString('vi-VN') : '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Room Card */}
+              <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-100 p-4 hover:border-blue-200 hover:shadow-md transition-all duration-200">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <MapPin size={18} className="text-blue-600" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-medium">Phòng học</span>
+                </div>
+                <div className="text-lg font-bold text-gray-900">{classData.room}</div>
+              </div>
+
+              {/* Branch Card */}
+              <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-100 p-4 hover:border-purple-200 hover:shadow-md transition-all duration-200">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Building2 size={18} className="text-purple-600" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-medium">Chi nhánh</span>
+                </div>
+                <div className="text-lg font-bold text-gray-900">{classData.branch}</div>
+              </div>
+            </div>
+
+            {/* Teacher & Assistant Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-red-50/50 to-white rounded-xl border border-red-100 hover:border-red-200 hover:shadow-md transition-all duration-200">
+                <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-md">
+                  <User size={22} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-gray-500 mb-0.5">Giáo viên chính</div>
+                  <div className="font-bold text-gray-900 text-lg truncate">{classData.teacher}</div>
+                </div>
+              </div>
+
+              {classData.assistantTeacher && (
+                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-amber-50/50 to-white rounded-xl border border-amber-100 hover:border-amber-200 hover:shadow-md transition-all duration-200">
+                  <div className="p-3 bg-gradient-to-br from-amber-400 to-amber-500 rounded-xl shadow-md">
+                    <User size={22} className="text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-gray-500 mb-0.5">Giáo viên trợ giảng</div>
+                    <div className="font-bold text-gray-900 text-lg truncate">{classData.assistantTeacher}</div>
                   </div>
                 </div>
               )}
             </div>
 
+            {/* Description */}
             {classData.description && (
-              <div className="p-4 bg-white rounded-xl border border-gray-100">
-                <h3 className="font-semibold text-gray-900 mb-2">Mô tả khóa học</h3>
+              <div className="p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-200">
+                <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                  <FileText size={16} className="text-red-500" />
+                  Mô tả khóa học
+                </h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{classData.description}</p>
               </div>
             )}
@@ -427,73 +637,52 @@ export default function ClassDetailPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className={`grid md:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Tiến độ khóa học</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{classData.progress}%</div>
-            </div>
-            <div className="p-3 rounded-xl bg-red-100">
-              <TrendingUp size={24} className="text-red-600" />
-            </div>
-          </div>
-          <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-red-600 to-red-700 rounded-full transition-all duration-1000"
-              style={{ width: `${classData.progress}%` }}
-            />
-          </div>
-        </div>
+      {/* Stats Cards - Modern Design */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <StatCard
+          icon={Target}
+          label="Tiến độ khóa học"
+          value={`${classData.progress}%`}
+          progress={classData.progress}
+          color="red"
+        />
 
-        <div className="bg-white rounded-2xl border border-red-200 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Chuyên cần TB</div>
-              <div className="text-2xl font-bold mt-2 text-red-600">{avgAttendance}%</div>
-            </div>
-            <div className="p-3 rounded-xl bg-red-100">
-              <CheckCircle size={24} className="text-red-600" />
-            </div>
-          </div>
-        </div>
+        <StatCard
+          icon={CheckCircle}
+          label="Chuyên cần trung bình"
+          value={`${avgAttendance}%`}
+          color="green"
+        />
 
-        <div className="bg-white rounded-2xl border border-gray-300 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Tiến bộ TB</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{avgProgress}%</div>
-            </div>
-            <div className="p-3 rounded-xl bg-gray-100">
-              <Award size={24} className="text-gray-800" />
-            </div>
-          </div>
-        </div>
+        <StatCard
+          icon={BarChart3}
+          label="Tiến bộ trung bình"
+          value={`${avgProgress}%`}
+          color="blue"
+        />
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Buổi học</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">
-                {classData.completedLessons}/{classData.totalLessons}
-              </div>
-            </div>
-            <div className="p-3 rounded-xl bg-gray-100">
-              <FileText size={24} className="text-gray-800" />
-            </div>
-          </div>
-        </div>
+        <StatCard
+          icon={Layers}
+          label="Buổi học"
+          value={`${classData.completedLessons}/${classData.totalSessions}`}
+          subvalue="đã hoàn thành"
+          progress={Math.round((classData.completedLessons / classData.totalSessions) * 100)}
+          color="amber"
+        />
       </div>
 
       {/* Students List */}
-      <div className={`bg-white rounded-2xl border border-gray-200 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="p-6 border-b border-gray-200">
+      <div className={`bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {/* Table Header */}
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <Users size={18} className="text-red-600" />
+              </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">Danh sách học viên</h2>
-                <p className="text-sm text-gray-600">
+                <h2 className="text-lg font-semibold text-gray-900">Danh sách học viên</h2>
+                <p className="text-xs text-gray-500">
                   {filteredStudents.length} / {allStudents.length} học viên
                 </p>
               </div>
@@ -512,40 +701,20 @@ export default function ClassDetailPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Tìm kiếm học viên..."
-                  className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all text-sm"
+                  className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300 w-64"
                 />
               </div>
 
               {/* Status Filter */}
-              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-1">
-                <button
-                  onClick={() => setStatusFilter("all")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${statusFilter === "all"
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                >
-                  Tất cả
-                </button>
-                <button
-                  onClick={() => setStatusFilter("active")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${statusFilter === "active"
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                >
-                  Hoạt động
-                </button>
-                <button
-                  onClick={() => setStatusFilter("inactive")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${statusFilter === "inactive"
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                >
-                  Không hoạt động
-                </button>
-              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 cursor-pointer"
+              >
+                <option value="all">Tất cả trạng thái</option>
+                <option value="active">Hoạt động</option>
+                <option value="inactive">Không hoạt động</option>
+              </select>
 
               {/* Add Student */}
               <button
@@ -562,9 +731,9 @@ export default function ClassDetailPage() {
         {/* Students Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead>
-              <tr className="bg-gradient-to-r from-red-50 to-red-100 border-b border-gray-200">
-                <th className="px-4 py-4 text-center">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
+              <tr>
+                <th className="py-3 px-4 text-center">
                   <input
                     type="checkbox"
                     checked={paginatedStudents.length > 0 && selectedStudents.length === paginatedStudents.length}
@@ -572,23 +741,22 @@ export default function ClassDetailPage() {
                     className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
                   />
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Học viên</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Liên hệ</th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Đã vắng</th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Thành tích</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Hoạt động</th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Thao tác</th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Học viên</th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Liên hệ</th>
+                <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">Chuyên cần</th>
+                <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">Thành tích</th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Hoạt động</th>
+                <th className="py-3 px-6 text-center text-sm font-semibold text-gray-700 whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {paginatedStudents.length > 0 ? (
-                paginatedStudents.map((student, index) => (
+                paginatedStudents.map((student) => (
                   <tr
                     key={student.id}
-                    className={`border-b border-gray-100 transition-colors hover:bg-red-50/30 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      }`}
+                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
-                    <td className="px-4 py-4 text-center">
+                    <td className="py-4 px-4 text-center">
                       <input
                         type="checkbox"
                         checked={selectedStudents.includes(student.id)}
@@ -596,55 +764,58 @@ export default function ClassDetailPage() {
                         className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
                       />
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
-                        <StudentAvatar name={student.name} />
+                        <StudentAvatar name={student.name} status={student.status} />
                         <div>
-                          <div className="font-semibold text-gray-900">{student.name}</div>
-                          <div className="text-xs text-gray-500">ID: {student.id}</div>
+                          <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                          <div className="text-xs text-gray-500">ID: {student.id.slice(0, 8)}...</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="py-4 px-6">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Mail size={14} className="text-gray-400" />
-                          <span>{student.email || "Chưa có"}</span>
+                          <Mail size={14} className="text-gray-400 flex-shrink-0" />
+                          <span className="truncate max-w-[150px]">{student.email || "Chưa có"}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Phone size={14} className="text-gray-400" />
-                          <span>{student.phone || "Chưa có"}</span>
+                          <Phone size={14} className="text-gray-400 flex-shrink-0" />
+                          <span className="truncate max-w-[150px]">{student.phone || "Chưa có"}</span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center">
-                        <AbsencePie value={100 - student.attendance} />
+                    <td className="py-4 px-6 text-center">
+                      <div className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 rounded-lg">
+                        <CheckCircle size={14} className="text-green-600" />
+                        <span className="text-sm font-semibold text-green-700">{student.attendance}%</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200">
-                        <Star size={14} className="text-gray-700 fill-gray-700" />
-                        <span className="text-sm font-semibold text-gray-900">{student.stars}</span>
+                    <td className="py-4 px-6 text-center">
+                      <div className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 rounded-lg">
+                        <Star size={14} className="text-amber-600 fill-amber-600" />
+                        <span className="text-sm font-semibold text-amber-700">{student.stars}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${student.status === "active" ? "bg-red-600" : "bg-gray-400"
-                          }`} />
+                        <div className={clsx(
+                          "w-2 h-2 rounded-full animate-pulse",
+                          student.status === "active" ? "bg-green-500" : "bg-gray-400"
+                        )} />
                         <span className="text-sm text-gray-700">{student.lastActive || "Chưa có"}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <button className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
-                          <MessageSquare size={18} />
+                    <td className="py-4 px-6">
+                      <div className="flex items-center justify-center gap-1">
+                        <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer" title="Nhắn tin">
+                          <MessageSquare size={14} />
                         </button>
-                        <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
-                          <Eye size={18} />
+                        <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-red-600 cursor-pointer" title="Xem chi tiết">
+                          <Eye size={14} />
                         </button>
-                        <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
-                          <MoreVertical size={18} />
+                        <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer" title="Tùy chọn">
+                          <MoreVertical size={14} />
                         </button>
                       </div>
                     </td>
@@ -652,8 +823,12 @@ export default function ClassDetailPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-6 text-center text-sm text-gray-500">
-                    {/* intentionally left blank when không có kết quả lọc; empty state chung phía dưới sẽ xử lý khi thật sự chưa có học viên */}
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                      <Search size={24} className="text-gray-400" />
+                    </div>
+                    <div className="text-gray-600 font-medium">Không tìm thấy học viên</div>
+                    <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc thêm học viên mới</div>
                   </td>
                 </tr>
               )}
@@ -672,8 +847,8 @@ export default function ClassDetailPage() {
           />
         )}
 
-        {/* Empty State */}
-        {filteredStudents.length === 0 && allStudents.length === 0 && (
+        {/* Empty State - when no students at all */}
+        {allStudents.length === 0 && (
           <div className="text-center py-12">
             <div className="inline-flex p-4 bg-gradient-to-r from-red-100 to-red-200 rounded-2xl mb-4">
               <Users size={32} className="text-red-600" />
