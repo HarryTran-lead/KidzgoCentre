@@ -96,7 +96,6 @@ function mapApiProgramToRow(item: any): CourseRow {
     id,
     name,
     desc,
-    level,
     duration,
     fee,
     classes,
@@ -158,6 +157,9 @@ export async function createAdminProgram(
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để tạo khóa học.");
   }
 
+  console.log("Creating program with payload:", payload);
+  console.log("API URL:", ADMIN_ENDPOINTS.PROGRAMS);
+
   const res = await fetch(ADMIN_ENDPOINTS.PROGRAMS, {
     method: "POST",
     headers: {
@@ -166,11 +168,17 @@ export async function createAdminProgram(
     },
     body: JSON.stringify(payload),
   });
+  
+  console.log("Response status:", res.status);
+  console.log("Response headers:", Object.fromEntries(res.headers.entries()));
 
   const text = await res.text();
+  console.log("Response text:", text);
+  
   let json: any = null;
   try {
     json = text ? JSON.parse(text) : null;
+    console.log("Parsed JSON:", json);
   } catch {
     json = null;
   }
@@ -179,17 +187,19 @@ export async function createAdminProgram(
     const msg =
       json?.message ||
       json?.error ||
+      json?.detail ||
       (typeof text === "string" && text.trim() ? text : null) ||
       "Không thể tạo khóa học từ máy chủ.";
     throw new Error(msg);
   }
 
+  // Xử lý response dựa trên cấu trúc thực tế
   const data = json?.data ?? json?.program ?? json;
+  
   const program: Program = {
     id: String(data?.id ?? data?.code ?? ""),
-    code: data?.code ?? null,
+    code: data?.code ?? payload.code ?? null,
     name: String(data?.name ?? payload.name),
-    level: String(data?.level ?? payload.level),
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions
@@ -301,7 +311,6 @@ export async function updateAdminProgram(
     id: String(data?.id ?? programId),
     code: data?.code ?? null,
     name: String(data?.name ?? payload.name),
-    level: String(data?.level ?? payload.level),
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions
