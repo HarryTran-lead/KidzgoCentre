@@ -6,7 +6,8 @@ import {
   Plus, Search, Users, Clock, Eye, Pencil,
   ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight,
   BookOpen, X, Calendar, Tag, User, GraduationCap, AlertCircle, Building2,
-  Power, PowerOff, UserPlus, CalendarClock, RefreshCw, Check, Loader2
+  Power, PowerOff, UserPlus, CalendarClock, RefreshCw, Check, Loader2,
+  CalendarDays
 } from "lucide-react";
 import clsx from "clsx";
 import { 
@@ -29,7 +30,7 @@ import { getAccessToken } from "@/lib/store/authToken";
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
   const map: Record<ClassRow["status"], string> = {
-    "Đang học": "bg-red-100 text-red-700 border border-red-200",
+    "Đang học": "bg-green-100 text-green-700 border border-green-200",
     "Sắp khai giảng": "bg-amber-100 text-amber-700 border border-amber-200",
     "Đã kết thúc": "bg-gray-100 text-gray-600 border border-gray-200",
   };
@@ -42,13 +43,22 @@ function StatusBadge({ value }: { value: ClassRow["status"] }) {
 
 type SortField = "id" | "name" | "program" | "teacher" | "branch" | "capacity" | "schedule" | "status";
 type SortDirection = "asc" | "desc" | null;
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 type ScheduleDisplayProps = {
   schedule: string;
+  classId?: string;
+  startDate?: string;
 };
 
-function ScheduleDisplay({ schedule }: ScheduleDisplayProps) {
+function ScheduleDisplay({ schedule, classId, startDate }: ScheduleDisplayProps) {
+  const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string;
+  
+  // Format startDate to YYYY-MM-DD if it's in ISO format
+  const formattedStartDate = startDate ? startDate.slice(0, 10) : undefined;
+  
   // Parse schedule string format: "Thứ 2,4,6 (18:00 - 20:00)" or "Thứ 2,4,6 & CN (18:00 - 20:00)"
   const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
   
@@ -133,6 +143,18 @@ function ScheduleDisplay({ schedule }: ScheduleDisplayProps) {
           {durationText}
         </span>
       </div>
+      
+      {/* Icon button to go to schedule page */}
+      {classId && formattedStartDate && (
+        <button
+          onClick={() => router.push(`/${locale}/portal/admin/schedule?classId=${classId}&date=${formattedStartDate}`)}
+          className="mt-2 inline-flex items-center justify-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+          title="Xem lịch học"
+        >
+          <CalendarDays size={12} className=""/>
+          <span>Xem lịch</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -581,6 +603,8 @@ interface AddStudentModalProps {
   onClose: () => void;
   classId: string;
   enrolledStudentIds: string[];
+  toast: any;
+  onEnrollmentSuccess?: (enrolledIds: string[]) => void;
 }
 
 interface StudentOption {
@@ -590,7 +614,7 @@ interface StudentOption {
   profileId: string;
 }
 
-function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds }: AddStudentModalProps) {
+function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, toast, onEnrollmentSuccess }: AddStudentModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -699,6 +723,8 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds }: AddSt
       
       // Gọi API cho mỗi học viên
       const enrollDate = new Date().toISOString().split('T')[0]; // Ngày hiện tại
+      let successCount = 0;
+      let failedStudents: string[] = [];
       
       for (const student of selectedStudentProfiles) {
         if (!student.profileId) continue;
@@ -719,18 +745,45 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds }: AddSt
 
         const data = await response.json();
 
-        if (!data.success && !data.isSuccess) {
-          alert(data.message || `Có lỗi xảy ra khi thêm học viên ${student.name}`);
-          setIsSubmitting(false);
-          return;
+        if (data.success || data.isSuccess) {
+          successCount++;
+        } else {
+          failedStudents.push(student.name);
         }
       }
 
-      onClose();
-      window.location.reload();
+      if (successCount > 0) {
+        toast.success({
+          title: "Thêm học viên thành công",
+          description: `Đã thêm ${successCount} học viên vào lớp.`,
+        });
+        
+        // Cập nhật danh sách enrolled để lọc bỏ những student đã thêm
+        const newEnrolledIds = selectedStudentProfiles
+          .filter(s => s.profileId)
+          .map(s => s.id);
+        
+        // Gọi callback để cập nhật danh sách enrolled ở parent
+        if (onEnrollmentSuccess) {
+          onEnrollmentSuccess(newEnrolledIds);
+        }
+        
+        // Clear selected students để admin có thể tiếp tục thêm
+        setSelectedStudents([]);
+      }
+      
+      if (failedStudents.length > 0) {
+        toast.destructive({
+          title: "Thêm học viên thất bại",
+          description: `Không thể thêm: ${failedStudents.join(", ")}`,
+        });
+      }
     } catch (error) {
       console.error("Error enrolling students:", error);
-      alert("Có lỗi xảy ra khi thêm học viên");
+      toast.destructive({
+        title: "Thêm học viên thất bại",
+        description: "Đã xảy ra lỗi khi thêm học viên. Vui lòng thử lại.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -826,16 +879,54 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds }: AddSt
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 bg-gray-50">
+          {/* Selected Students Preview */}
+          {selectedStudents.length > 0 && (
+            <div className="mb-4 p-3 bg-white rounded-xl border border-gray-200">
+              <div className="text-xs text-gray-500 mb-2">Đã chọn:</div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedStudents.slice(0, 4).map(studentId => {
+                  const student = students.find(s => s.id === studentId);
+                  if (!student) return null;
+                  const initials = student.name.split(" ").map(w => w[0]).slice(-2).join("").toUpperCase();
+                  return (
+                    <div
+                      key={student.id}
+                      className="flex items-center gap-2 px-2 py-1.5 bg-red-50 rounded-lg border border-red-200"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white text-xs font-bold flex items-center justify-center">
+                        {initials}
+                      </div>
+                      <span className="text-xs font-medium text-gray-800 max-w-[100px] truncate">{student.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleStudent(student.id);
+                        }}
+                        className="w-4 h-4 rounded-full bg-gray-200 hover:bg-red-200 flex items-center justify-center transition-colors cursor-pointer"
+                      >
+                        <X size={10} className="text-gray-500" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {selectedStudents.length > 4 && (
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 border border-gray-300 text-xs font-semibold text-gray-600">
+                    +{selectedStudents.length - 4}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Đã chọn: <span className="font-semibold">{selectedStudents.length}</span> học viên
+              Tổng: <span className="font-semibold">{selectedStudents.length}</span> học viên
             </div>
             <div className="flex gap-2">
               <button
                 onClick={onClose}
                 className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                Hủy
+                Đóng
               </button>
               <button
                 onClick={handleSubmit}
@@ -1638,8 +1729,8 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
             </div>
 
             {/* Row 5: Lịch học - UI MỚI */}
-            <div className="space-y-4">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+            <div className="p-5 bg-gradient-to-br from-gray-50 to-red-50/30 rounded-xl border-2 border-dashed border-gray-200">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
                 <Clock size={16} className="text-red-600" />
                 Lịch học <span className="text-red-500">*</span>
               </label>
@@ -1667,8 +1758,8 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               </div>
 
               {/* Chọn các ngày trong tuần */}
-              <div className="space-y-2">
-                <label className="text-sm text-gray-600">
+              <div className="space-y-2 mt-4">
+                <label className="text-sm text-gray-600 ">
                   Chọn ngày học (tối đa {sessionsPerWeek} ngày) <span className="text-red-500">*</span>
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -1721,7 +1812,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               </div>
 
               {/* Chọn khung giờ */}
-              <div className="space-y-2">
+              <div className="space-y-2 mt-4">
                 <div className="flex items-center justify-between">
                   <label className="text-sm text-gray-600">
                     Khung giờ học <span className="text-red-500">*</span>
@@ -1779,7 +1870,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               </div>
 
               {/* Chọn phòng học */}
-              <div className="space-y-2">
+              <div className="space-y-2 mt-4">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Building2 size={16} className="text-red-600" />
                   Phòng học {formData.capacity > 0 && <span className="text-xs font-normal text-gray-500">(tối thiểu {formData.capacity} chỗ)</span>}
@@ -1855,35 +1946,6 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Row 6: Trạng thái */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <BookOpen size={16} className="text-red-600" />
-                Trạng thái
-              </label>
-              <div className="flex gap-2">
-                {(["Sắp khai giảng", "Đang học", "Đã kết thúc"] as const).map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => handleChange("status", status)}
-                    className={clsx(
-                      "flex-1 px-4 py-3 rounded-xl border text-sm font-semibold transition-all cursor-pointer",
-                      formData.status === status
-                        ? status === "Sắp khai giảng"
-                          ? "bg-amber-100 border-amber-300 text-amber-700"
-                          : status === "Đang học"
-                          ? "bg-red-100 border-red-300 text-red-700"
-                          : "bg-gray-100 border-gray-300 text-gray-600"
-                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                    )}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Row 7: Mô tả */}
@@ -2141,6 +2203,7 @@ export default function Page() {
         endDate: data.endDate,
         capacity: data.capacity,
         schedulePattern: schedulePattern,
+        status: "Planned",
       };
 
       console.log("Creating class with payload:", payload);
@@ -2586,7 +2649,7 @@ export default function Page() {
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <ScheduleDisplay schedule={c.schedule} />
+                        <ScheduleDisplay schedule={c.schedule} classId={c.id} startDate={c.startDate} />
                       </td>
 
                       <td className="py-4 px-6 whitespace-nowrap">
@@ -2760,6 +2823,11 @@ export default function Page() {
           }}
           classId={selectedClassId || ""}
           enrolledStudentIds={enrolledStudentIds}
+          toast={toast}
+          onEnrollmentSuccess={(newEnrolledIds) => {
+            // Cập nhật danh sách enrolled để lọc bỏ những student đã thêm
+            setEnrolledStudentIds(prev => [...prev, ...newEnrolledIds]);
+          }}
         />
       )}
     </>

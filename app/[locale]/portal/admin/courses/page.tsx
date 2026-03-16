@@ -17,13 +17,11 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  BarChart,
   AlertCircle,
   FileText,
   Building2,
   Power,
-  PowerOff,
-  Tag
+  PowerOff
 } from "lucide-react";
 import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram, toggleProgramStatus, normalizeIsActive } from "@/app/api/admin/programs";
 import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
@@ -37,23 +35,6 @@ function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
 }
 
-/* Tag nhỏ hiển thị trình độ (A1, A2, B1,...) */
-function LevelBadge({ level }: { level: string }) {
-  const map: Record<string, string> = {
-    A1: "bg-red-100 text-red-700 border border-red-200",
-    A2: "bg-gray-100 text-gray-700 border border-gray-200",
-    B1: "bg-red-200 text-red-800 border border-red-300",
-    B2: "bg-gray-200 text-gray-800 border border-gray-300",
-    C1: "bg-black/10 text-gray-900 border border-gray-400",
-  };
-  return (
-    <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", map[level] || "bg-gray-100 text-gray-700 border border-gray-200")}>
-      {level}
-    </span>
-  );
-}
-
-/* Trạng thái khoá học */
 function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng" }) {
   const map: Record<string, string> = {
     "Đang hoạt động": "bg-red-100 text-red-700 border border-red-200",
@@ -66,7 +47,7 @@ function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng"
   );
 }
 
-type SortField = "id" | "name" | "level" | "duration" | "fee" | "status" | "branch";
+type SortField = "id" | "name" | "duration" | "fee" | "status" | "branch";
 type SortDirection = "asc" | "desc" | null;
 const PAGE_SIZE = 5;
 
@@ -116,7 +97,6 @@ interface CreateCourseModalProps {
 interface CourseFormData {
   name: string;
   description: string;
-  level: "A1" | "A2" | "B1" | "B2" | "C1";
   status: "Đang hoạt động" | "Tạm dừng";
   branchId: string;
   totalSessions: string;
@@ -127,7 +107,6 @@ interface CourseFormData {
 const initialFormData: CourseFormData = {
   name: "",
   description: "",
-  level: "A1",
   status: "Đang hoạt động",
   branchId: "",
   totalSessions: "",
@@ -394,40 +373,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               {errors.description && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.description}</p>}
             </div>
 
-            {/* Row 3: Trình độ */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <BarChart size={16} className="text-red-600" />
-                Trình độ
-              </label>
-              <div className="grid grid-cols-5 gap-2">
-                {(["A1", "A2", "B1", "B2", "C1"] as const).map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => handleChange("level", level)}
-                    className={cn(
-                      "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
-                      formData.level === level
-                        ? level === "A1"
-                          ? "bg-red-100 border-red-300 text-red-700"
-                          : level === "A2"
-                          ? "bg-gray-100 border-gray-300 text-gray-700"
-                          : level === "B1"
-                          ? "bg-red-200 border-red-400 text-red-800"
-                          : level === "B2"
-                          ? "bg-gray-200 border-gray-400 text-gray-800"
-                          : "bg-black/10 border-gray-500 text-gray-900"
-                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                    )}
-                  >
-                    {level}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Row 3.5: Số buổi học, Học phí mặc định, Giá mỗi buổi */}
+            {/* Row 3: Số buổi học, Học phí mặc định, Giá mỗi buổi */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -593,7 +539,6 @@ export default function Page() {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [page, setPage] = useState(1);
-  const [levelFilter, setLevelFilter] = useState<"ALL" | "A1" | "A2" | "B1" | "B2" | "C1">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "Đang hoạt động" | "Tạm dừng">("ALL");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -664,12 +609,8 @@ export default function Page() {
     let filtered = !kw
       ? courses
       : courses.filter((c) =>
-          [c.id, c.name, c.desc, c.level, c.fee, c.branch].some((x) => x?.toLowerCase().includes(kw))
+          [c.id, c.name, c.desc, c.fee, c.branch].some((x) => x?.toLowerCase().includes(kw))
         );
-
-    if (levelFilter !== "ALL") {
-      filtered = filtered.filter((c) => c.level === levelFilter);
-    }
 
     if (statusFilter !== "ALL") {
       filtered = filtered.filter((c) => c.status === statusFilter);
@@ -681,7 +622,6 @@ export default function Page() {
           switch (sortField) {
             case "id": return c.id;
             case "name": return c.name;
-            case "level": return c.level;
             case "duration": return c.duration;
             case "fee": return c.fee;
             case "status": return c.status;
@@ -696,7 +636,7 @@ export default function Page() {
       });
     }
     return filtered;
-  }, [q, sortField, sortDirection, courses, levelFilter, statusFilter]);
+  }, [q, sortField, sortDirection, courses, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -751,7 +691,7 @@ export default function Page() {
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        level: data.level,
+        level: "A1",
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,
@@ -843,7 +783,6 @@ export default function Page() {
       const formData: CourseFormData = {
         name: String(detail?.name ?? row.name ?? ""),
         description: String(detail?.description ?? row.desc ?? ""),
-        level: (String(detail?.level ?? row.level ?? "A1").toUpperCase() as CourseFormData["level"]) || "A1",
         status,
         branchId: String(detail?.branchId ?? ""),
         totalSessions: totalSessionsNum > 0 ? String(totalSessionsNum) : "",
@@ -886,7 +825,7 @@ export default function Page() {
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        level: data.level,
+        level: "A1",
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,
@@ -1088,18 +1027,6 @@ export default function Page() {
 
             <div className="flex flex-wrap items-center gap-4">
               <select
-                value={levelFilter}
-                onChange={(e) => { setLevelFilter(e.target.value as typeof levelFilter); setPage(1); }}
-                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              >
-                <option value="ALL">Tất cả trình độ</option>
-                <option value="A1">A1</option>
-                <option value="A2">A2</option>
-                <option value="B1">B1</option>
-                <option value="B2">B2</option>
-                <option value="C1">C1</option>
-              </select>
-              <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
                 className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
@@ -1145,7 +1072,6 @@ export default function Page() {
                     />
                   </th>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên khóa học</SortableHeader>
-                  <SortableHeader field="level" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trình độ</SortableHeader>
                   <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời lượng</SortableHeader>
                   <SortableHeader field="fee" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
                   <SortableHeader field="branch" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chi nhánh</SortableHeader>
@@ -1172,10 +1098,6 @@ export default function Page() {
                       <td className="py-3 px-6">
                         <div className="text-sm text-gray-900 truncate">{c.name}</div>
                         <div className="text-xs text-gray-500 truncate">{c.desc}</div>
-                      </td>
-
-                      <td className="py-3 px-6 text-center whitespace-nowrap">
-                        <LevelBadge level={c.level} />
                       </td>
 
                       <td className="py-3 px-6 whitespace-nowrap">
@@ -1425,18 +1347,8 @@ export default function Page() {
                     </div>
                   </div>
 
-                  {/* Grid: Trình độ, Số buổi, Học phí */}
+                  {/* Grid: Số buổi, Học phí, Giá mỗi buổi */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <BarChart size={16} className="text-red-600" />
-                        Trình độ
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        <LevelBadge level={selectedCourseDetail.level || "N/A"} />
-                      </div>
-                    </div>
-
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <Clock size={16} className="text-red-600" />

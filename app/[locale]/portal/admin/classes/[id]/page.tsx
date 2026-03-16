@@ -16,8 +16,6 @@ import {
   Share2,
   MoreVertical,
   CheckCircle,
-  Award,
-  TrendingUp,
   FileText,
   MessageSquare,
   Eye,
@@ -30,8 +28,6 @@ import {
   Building2,
   GraduationCap,
   Tag,
-  AlertCircle,
-  Sparkles,
   Target,
   BarChart3,
   Layers,
@@ -44,7 +40,7 @@ import clsx from "clsx";
 function ScheduleDisplay({ schedule }: { schedule: string }) {
   // Parse schedule string format: "Thứ 2,4,6 (18:00 - 20:00)" or "Thứ 2,4,6 & CN (18:00 - 20:00)"
   const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
-  
+
   if (!match) {
     return (
       <div className="inline-flex items-center gap-1.5 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
@@ -55,17 +51,17 @@ function ScheduleDisplay({ schedule }: { schedule: string }) {
   }
 
   const [, dayPart, startTime, endTime] = match;
-  
+
   // Parse days into array
   const dayNumbers: string[] = [];
   const hasSunday = dayPart.includes("CN");
-  
+
   // Extract day numbers from "Thứ 2,4,6" or "Thứ 2,4,6 & CN"
   const thuMatch = dayPart.match(/Thứ\s*([\d,]+)/);
   if (thuMatch) {
     dayNumbers.push(...thuMatch[1].split(","));
   }
-  
+
   // Day display configuration with better colors
   const dayConfig: Record<string, { label: string; bg: string; text: string; }> = {
     "2": { label: "T2", bg: "bg-blue-100", text: "text-blue-700" },
@@ -75,13 +71,13 @@ function ScheduleDisplay({ schedule }: { schedule: string }) {
     "6": { label: "T6", bg: "bg-amber-100", text: "text-amber-700" },
     "7": { label: "T7", bg: "bg-orange-100", text: "text-orange-700" },
   };
-  
+
   const sundayConfig = { label: "CN", bg: "bg-rose-100", text: "text-rose-700" };
 
   // Combine all days for display
   const allDays = [
-    ...dayNumbers.map(day => ({ 
-      day, 
+    ...dayNumbers.map(day => ({
+      day,
       ...(dayConfig[day] || { label: `T${day}`, bg: "bg-gray-100", text: "text-gray-700" })
     })),
     ...(hasSunday ? [{ day: "CN", ...sundayConfig }] : [])
@@ -89,15 +85,15 @@ function ScheduleDisplay({ schedule }: { schedule: string }) {
 
   // Format time range
   const timeRange = `${startTime} - ${endTime}`;
-  
+
   // Calculate duration in hours
   const startHour = parseInt(startTime.split(':')[0]);
   const startMin = parseInt(startTime.split(':')[1]);
   const endHour = parseInt(endTime.split(':')[0]);
   const endMin = parseInt(endTime.split(':')[1]);
   const durationHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
-  const durationText = durationHours === Math.floor(durationHours) 
-    ? `${durationHours}h` 
+  const durationText = durationHours === Math.floor(durationHours)
+    ? `${durationHours}h`
     : `${durationHours.toFixed(1)}h`;
 
   return (
@@ -113,7 +109,7 @@ function ScheduleDisplay({ schedule }: { schedule: string }) {
           </span>
         ))}
       </div>
-      
+
       {/* Time row with duration */}
       <div className="flex items-center gap-1.5">
         <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
@@ -167,17 +163,17 @@ function StudentAvatar({ name, status }: { name: string; status?: string }) {
   );
 }
 
-function StatCard({ 
-  icon: Icon, 
-  label, 
-  value, 
-  subvalue, 
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  subvalue,
   color = "red",
   progress
-}: { 
-  icon: any; 
-  label: string; 
-  value: string | number; 
+}: {
+  icon: any;
+  label: string;
+  value: string | number;
   subvalue?: string;
   color?: "red" | "amber" | "blue" | "green" | "gray";
   progress?: number;
@@ -503,7 +499,7 @@ export default function ClassDetailPage() {
         {/* Class Header Card */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
 
-          
+
           <div className="p-6 lg:p-8">
             {/* Main Info Row */}
             <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
@@ -515,7 +511,6 @@ export default function ClassDetailPage() {
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-3 mb-3">
                     <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{classData.name}</h1>
-                    <TrackBadge track={classData.track} />
                   </div>
                   <div className="flex flex-wrap items-center gap-4 text-sm">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-gray-700">
@@ -528,10 +523,20 @@ export default function ClassDetailPage() {
                       <span className="font-medium">Sĩ số:</span>
                       <span className="font-semibold">{classData.students} học viên</span>
                     </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-lg text-gray-700">
+                      <BookOpen size={14} className="text-blue-500" />
+                      <span className="font-medium">Chương trình:</span>
+                      <span className="font-semibold">{classData.program}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 rounded-lg text-gray-700">
+                      <Calendar size={14} className="text-amber-500" />
+                      <span className="font-medium">Số buổi:</span>
+                      <span className="font-semibold">{classData.totalSessions} buổi</span>
+                    </span>
                   </div>
                 </div>
               </div>
-              
+
               {/* Right: Action Buttons */}
               <div className="flex items-center gap-3">
                 <button className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap shadow-sm hover:shadow-md group">
@@ -580,7 +585,7 @@ export default function ClassDetailPage() {
                 </div>
                 <div className="text-lg font-bold text-gray-900">{classData.room}</div>
               </div>
-              
+
               {/* Branch Card */}
               <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-100 p-4 hover:border-purple-200 hover:shadow-md transition-all duration-200">
                 <div className="flex items-center gap-2.5 mb-2">
@@ -604,7 +609,7 @@ export default function ClassDetailPage() {
                   <div className="font-bold text-gray-900 text-lg truncate">{classData.teacher}</div>
                 </div>
               </div>
-              
+
               {classData.assistantTeacher && (
                 <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-amber-50/50 to-white rounded-xl border border-amber-100 hover:border-amber-200 hover:shadow-md transition-all duration-200">
                   <div className="p-3 bg-gradient-to-br from-amber-400 to-amber-500 rounded-xl shadow-md">
@@ -634,34 +639,34 @@ export default function ClassDetailPage() {
 
       {/* Stats Cards - Modern Design */}
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <StatCard 
+        <StatCard
           icon={Target}
-          label="Tiến độ khóa học" 
+          label="Tiến độ khóa học"
           value={`${classData.progress}%`}
           progress={classData.progress}
           color="red"
         />
-        
-        <StatCard 
+
+        <StatCard
           icon={CheckCircle}
-          label="Chuyên cần trung bình" 
+          label="Chuyên cần trung bình"
           value={`${avgAttendance}%`}
           color="green"
         />
-        
-        <StatCard 
+
+        <StatCard
           icon={BarChart3}
-          label="Tiến bộ trung bình" 
+          label="Tiến bộ trung bình"
           value={`${avgProgress}%`}
           color="blue"
         />
-        
-        <StatCard 
+
+        <StatCard
           icon={Layers}
-          label="Buổi học" 
-          value={`${classData.completedLessons}/${classData.totalLessons}`}
+          label="Buổi học"
+          value={`${classData.completedLessons}/${classData.totalSessions}`}
           subvalue="đã hoàn thành"
-          progress={Math.round((classData.completedLessons / classData.totalLessons) * 100)}
+          progress={Math.round((classData.completedLessons / classData.totalSessions) * 100)}
           color="amber"
         />
       </div>
