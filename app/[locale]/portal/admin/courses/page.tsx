@@ -17,13 +17,11 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  BarChart,
   AlertCircle,
   FileText,
   Building2,
   Power,
-  PowerOff,
-  Tag
+  PowerOff
 } from "lucide-react";
 import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram, toggleProgramStatus, normalizeIsActive } from "@/app/api/admin/programs";
 import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
@@ -37,26 +35,9 @@ function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
 }
 
-/* Tag nhỏ hiển thị trình độ (A1, A2, B1,...) */
-function LevelBadge({ level }: { level: string }) {
-  const map: Record<string, string> = {
-    A1: "bg-red-100 text-red-700 border border-red-200",
-    A2: "bg-gray-100 text-gray-700 border border-gray-200",
-    B1: "bg-red-200 text-red-800 border border-red-300",
-    B2: "bg-gray-200 text-gray-800 border border-gray-300",
-    C1: "bg-black/10 text-gray-900 border border-gray-400",
-  };
-  return (
-    <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", map[level] || "bg-gray-100 text-gray-700 border border-gray-200")}>
-      {level}
-    </span>
-  );
-}
-
-/* Trạng thái khoá học */
 function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng" }) {
   const map: Record<string, string> = {
-    "Đang hoạt động": "bg-red-100 text-red-700 border border-red-200",
+    "Đang hoạt động": "bg-green-100 text-green-700 border border-green-200",
     "Tạm dừng": "bg-gray-100 text-gray-700 border border-gray-200",
   };
   return (
@@ -66,9 +47,9 @@ function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng"
   );
 }
 
-type SortField = "id" | "name" | "level" | "duration" | "fee" | "status" | "branch";
+type SortField = "id" | "name" | "duration" | "fee" | "status" | "branch";
 type SortDirection = "asc" | "desc" | null;
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 /* --------------------------- API helpers --------------------------- */
 
@@ -116,7 +97,6 @@ interface CreateCourseModalProps {
 interface CourseFormData {
   name: string;
   description: string;
-  level: "A1" | "A2" | "B1" | "B2" | "C1";
   status: "Đang hoạt động" | "Tạm dừng";
   branchId: string;
   totalSessions: string;
@@ -127,7 +107,6 @@ interface CourseFormData {
 const initialFormData: CourseFormData = {
   name: "",
   description: "",
-  level: "A1",
   status: "Đang hoạt động",
   branchId: "",
   totalSessions: "",
@@ -178,7 +157,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     if (mode === "edit" && initialData) {
       const sessionsChanged = formData.totalSessions !== initialData.totalSessions;
       const tuitionChanged = formData.defaultTuitionAmount !== initialData.defaultTuitionAmount;
-      
+
       // Nếu không có thay đổi và unitPriceSession đã có giá trị, giữ nguyên
       if (!sessionsChanged && !tuitionChanged && formData.unitPriceSession && formData.unitPriceSession.trim() !== "") {
         return;
@@ -190,7 +169,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     // vi-VN thường dùng "." để phân tách hàng nghìn (vd: 200.000).
     // Vì vậy chỉ giữ lại chữ số để parse (hỗ trợ cả "." và "," hoặc khoảng trắng).
     const tuition = Number(formData.defaultTuitionAmount.replace(/[^\d]/g, ""));
-    
+
     // Nếu cả hai giá trị đều hợp lệ, tính toán giá mỗi buổi
     if (sessions > 0 && tuition > 0 && !isNaN(sessions) && !isNaN(tuition)) {
       const pricePerSession = Math.round(tuition / sessions);
@@ -236,7 +215,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof CourseFormData, string>> = {};
-    
+
     if (!formData.name.trim()) newErrors.name = "Tên khóa học là bắt buộc";
     if (!formData.description.trim()) newErrors.description = "Mô tả là bắt buộc";
     if (!formData.branchId) newErrors.branchId = "Chi nhánh là bắt buộc";
@@ -273,7 +252,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div 
+      <div
         ref={modalRef}
         className="relative w-full max-w-5xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
       >
@@ -394,40 +373,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               {errors.description && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.description}</p>}
             </div>
 
-            {/* Row 3: Trình độ */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <BarChart size={16} className="text-red-600" />
-                Trình độ
-              </label>
-              <div className="grid grid-cols-5 gap-2">
-                {(["A1", "A2", "B1", "B2", "C1"] as const).map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => handleChange("level", level)}
-                    className={cn(
-                      "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
-                      formData.level === level
-                        ? level === "A1"
-                          ? "bg-red-100 border-red-300 text-red-700"
-                          : level === "A2"
-                          ? "bg-gray-100 border-gray-300 text-gray-700"
-                          : level === "B1"
-                          ? "bg-red-200 border-red-400 text-red-800"
-                          : level === "B2"
-                          ? "bg-gray-200 border-gray-400 text-gray-800"
-                          : "bg-black/10 border-gray-500 text-gray-900"
-                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                    )}
-                  >
-                    {level}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Row 3.5: Số buổi học, Học phí mặc định, Giá mỗi buổi */}
+            {/* Row 3: Số buổi học, Học phí mặc định, Giá mỗi buổi */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -513,33 +459,6 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               </div>
             </div>
 
-            {/* Row 4: Trạng thái */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <BookOpen size={16} className="text-red-600" />
-                Trạng thái
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {(["Đang hoạt động", "Tạm dừng"] as const).map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => handleChange("status", status)}
-                    className={cn(
-                      "px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all",
-                      formData.status === status
-                        ? status === "Đang hoạt động"
-                          ? "bg-red-100 border-red-300 text-red-700"
-                          : "bg-gray-100 border-gray-300 text-gray-700"
-                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                    )}
-                  >
-                    {status}
-                    </button>
-                ))}
-              </div>
-            </div>
-
           </form>
         </div>
 
@@ -593,7 +512,6 @@ export default function Page() {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [page, setPage] = useState(1);
-  const [levelFilter, setLevelFilter] = useState<"ALL" | "A1" | "A2" | "B1" | "B2" | "C1">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "Đang hoạt động" | "Tạm dừng">("ALL");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -640,7 +558,7 @@ export default function Page() {
     }
 
     fetchPrograms();
-    
+
     // Reset page về 1 khi branch thay đổi
     setPage(1);
   }, [selectedBranchId, isLoaded]); // Chỉ depend vào selectedBranchId và isLoaded
@@ -664,12 +582,8 @@ export default function Page() {
     let filtered = !kw
       ? courses
       : courses.filter((c) =>
-          [c.id, c.name, c.desc, c.level, c.fee, c.branch].some((x) => x?.toLowerCase().includes(kw))
-        );
-
-    if (levelFilter !== "ALL") {
-      filtered = filtered.filter((c) => c.level === levelFilter);
-    }
+        [c.id, c.name, c.desc, c.fee, c.branch].some((x) => x?.toLowerCase().includes(kw))
+      );
 
     if (statusFilter !== "ALL") {
       filtered = filtered.filter((c) => c.status === statusFilter);
@@ -681,7 +595,6 @@ export default function Page() {
           switch (sortField) {
             case "id": return c.id;
             case "name": return c.name;
-            case "level": return c.level;
             case "duration": return c.duration;
             case "fee": return c.fee;
             case "status": return c.status;
@@ -696,7 +609,7 @@ export default function Page() {
       });
     }
     return filtered;
-  }, [q, sortField, sortDirection, courses, levelFilter, statusFilter]);
+  }, [q, sortField, sortDirection, courses, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -735,10 +648,7 @@ export default function Page() {
 
   const handleCreateCourse = async (data: CourseFormData) => {
     try {
-      const totalSessions = Number(data.totalSessions);
-      const defaultTuitionAmount = Number(data.defaultTuitionAmount.replace(/,/g, ""));
-      const unitPriceSession = Number(data.unitPriceSession.replace(/,/g, ""));
-
+      // Validate dữ liệu trước khi gửi
       if (!data.branchId) {
         toast({
           title: "Thiếu thông tin",
@@ -747,55 +657,57 @@ export default function Page() {
         });
         return;
       }
-
-      const payload: CreateProgramRequest = {
+  
+      // Xử lý format số đúng cách (dùng regex để loại bỏ dấu phân cách)
+      const totalSessions = Number(data.totalSessions);
+      const defaultTuitionAmount = Number(data.defaultTuitionAmount.replace(/[^\d]/g, ""));
+      const unitPriceSession = Number(data.unitPriceSession.replace(/[^\d]/g, ""));
+  
+      // Validate
+      if (isNaN(totalSessions) || totalSessions <= 0) {
+        toast({
+          title: "Lỗi",
+          description: "Số buổi học không hợp lệ",
+          type: "warning",
+        });
+        return;
+      }
+  
+      if (isNaN(defaultTuitionAmount) || defaultTuitionAmount <= 0) {
+        toast({
+          title: "Lỗi",
+          description: "Học phí không hợp lệ",
+          type: "warning",
+        });
+        return;
+      }
+  
+      // Tạo code từ tên khóa học (hoặc để backend tự sinh)
+      const code = data.name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "_")
+        .substring(0, 20);
+  
+      const payload = {
         branchId: data.branchId,
         name: data.name,
-        level: data.level,
+        code: code,                    // Thêm field code
+        isMakeup: false,                // Thêm field isMakeup (mặc định false)
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,
         description: data.description,
       };
-
+  
+      console.log("Sending payload:", payload);
+      
       const created = await createAdminProgram(payload);
+      console.log("Created program:", created);
 
-      // Map response về CourseRow để thêm vào danh sách
-      // Tạo mới: hiển thị theo lựa chọn trong form (backend có thể default khác; sẽ đồng bộ bên dưới)
-      const newCourse: CourseRow = {
-        id: created.code ?? created.id,
-        name: created.name,
-        desc: created.description ?? "",
-        level: created.level,
-        duration: `${created.totalSessions} buổi`,
-        fee: `${created.defaultTuitionAmount.toLocaleString("vi-VN")} VND`,
-        classes: "0 lớp",
-        students: "0 học viên",
-        status: data.status,
-        branch: "",
-      };
-
-      setCourses(prev => [newCourse, ...prev]);
-
-      // Đồng bộ trạng thái với backend nếu backend tạo default khác lựa chọn trên UI
-      try {
-        const programId = newCourse.id;
-        const desiredActive = data.status === "Đang hoạt động";
-        if (programId) {
-          const detail = await fetchAdminProgramDetail(programId);
-          const currentActive = normalizeIsActive(detail?.isActive ?? detail?.status);
-          if (currentActive !== null && currentActive !== desiredActive) {
-            await toggleProgramStatus(programId);
-          }
-
-          // Refresh lại danh sách để đảm bảo UI khớp dữ liệu backend
-          const branchId = getBranchQueryParam();
-          const mapped = await fetchAdminPrograms({ branchId });
-          setCourses(mapped);
-        }
-      } catch (syncErr) {
-        console.warn("[handleCreateCourse] Could not sync status after create:", syncErr);
-      }
+      // Refresh danh sách với branch filter hiện tại
+      const branchId = getBranchQueryParam();
+      const mapped = await fetchAdminPrograms({ branchId });
+      setCourses(mapped);
 
       toast({
         title: "Thành công",
@@ -809,61 +721,6 @@ export default function Page() {
         description: err?.message || "Không thể tạo khóa học. Vui lòng thử lại.",
         type: "destructive",
       });
-    }
-  };
-
-  const handleOpenEditCourse = async (row: CourseRow) => {
-    try {
-      setIsEditModalOpen(true);
-      setEditingProgramId(row.id);
-      setEditingInitialData(null);
-
-      console.log("[handleOpenEditCourse] Fetching detail for program ID:", row.id);
-      const detail: any = await fetchAdminProgramDetail(row.id);
-      console.log("[handleOpenEditCourse] Received detail:", {
-        hasDetail: !!detail,
-        keys: detail ? Object.keys(detail) : [],
-        name: detail?.name,
-        branchId: detail?.branchId,
-        isActive: detail?.isActive,
-      });
-
-      if (!detail) {
-        throw new Error("Không nhận được dữ liệu từ server");
-      }
-
-      const totalSessionsNum: number = detail?.totalSessions ?? 0;
-      const defaultTuitionAmountNum: number = detail?.defaultTuitionAmount ?? 0;
-      const unitPriceSessionNum: number = detail?.unitPriceSession ?? 0;
-
-      const isActive: boolean | null = normalizeIsActive(detail?.isActive ?? detail?.status);
-      let status: CourseFormData["status"] = "Tạm dừng";
-      if (isActive === true) status = "Đang hoạt động";
-
-      const formData: CourseFormData = {
-        name: String(detail?.name ?? row.name ?? ""),
-        description: String(detail?.description ?? row.desc ?? ""),
-        level: (String(detail?.level ?? row.level ?? "A1").toUpperCase() as CourseFormData["level"]) || "A1",
-        status,
-        branchId: String(detail?.branchId ?? ""),
-        totalSessions: totalSessionsNum > 0 ? String(totalSessionsNum) : "",
-        defaultTuitionAmount: defaultTuitionAmountNum > 0 ? defaultTuitionAmountNum.toLocaleString("vi-VN") : "",
-        unitPriceSession: unitPriceSessionNum > 0 ? unitPriceSessionNum.toLocaleString("vi-VN") : "",
-      };
-
-      console.log("[handleOpenEditCourse] Form data prepared:", formData);
-      setEditingInitialData(formData);
-      setOriginalStatus(status);
-    } catch (err: any) {
-      console.error("Failed to load program detail for edit:", err);
-      toast({
-        title: "Lỗi",
-        description: err?.message || "Không thể tải thông tin chương trình để chỉnh sửa.",
-        type: "destructive",
-      });
-      setIsEditModalOpen(false);
-      setEditingProgramId(null);
-      setEditingInitialData(null);
     }
   };
 
@@ -886,7 +743,7 @@ export default function Page() {
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        level: data.level,
+        isMakeup: false,
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,
@@ -929,6 +786,21 @@ export default function Page() {
     setShowToggleStatusModal(true);
   };
 
+  const handleOpenEditCourse = (row: CourseRow) => {
+    setEditingProgramId(row.id);
+    setEditingInitialData({
+      name: row.name,
+      description: row.desc,
+      status: row.status as "Đang hoạt động" | "Tạm dừng",
+      branchId: "", // Will need to be loaded from detail
+      totalSessions: row.duration.replace(/[^0-9]/g, ""),
+      defaultTuitionAmount: row.fee.replace(/[^0-9]/g, ""),
+      unitPriceSession: "",
+    });
+    setOriginalStatus(row.status as "Đang hoạt động" | "Tạm dừng");
+    setIsEditModalOpen(true);
+  };
+
   const handleViewDetail = async (row: CourseRow) => {
     try {
       setLoadingDetail(true);
@@ -961,18 +833,18 @@ export default function Page() {
     try {
       setIsTogglingStatus(true);
       await toggleProgramStatus(selectedCourse.id);
-      
+
       // Cập nhật danh sách với branch filter hiện tại
       const branchId = getBranchQueryParam();
       const mapped = await fetchAdminPrograms({ branchId });
       setCourses(mapped);
-      
+
       toast({
         title: "Thành công",
         description: `Đã ${actionText} khóa học "${selectedCourse.name}" thành công!`,
         type: "success",
       });
-      
+
       setShowToggleStatusModal(false);
       setSelectedCourse(null);
     } catch (err: any) {
@@ -1088,18 +960,6 @@ export default function Page() {
 
             <div className="flex flex-wrap items-center gap-4">
               <select
-                value={levelFilter}
-                onChange={(e) => { setLevelFilter(e.target.value as typeof levelFilter); setPage(1); }}
-                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              >
-                <option value="ALL">Tất cả trình độ</option>
-                <option value="A1">A1</option>
-                <option value="A2">A2</option>
-                <option value="B1">B1</option>
-                <option value="B2">B2</option>
-                <option value="C1">C1</option>
-              </select>
-              <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
                 className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
@@ -1145,7 +1005,6 @@ export default function Page() {
                     />
                   </th>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên khóa học</SortableHeader>
-                  <SortableHeader field="level" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trình độ</SortableHeader>
                   <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời lượng</SortableHeader>
                   <SortableHeader field="fee" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
                   <SortableHeader field="branch" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chi nhánh</SortableHeader>
@@ -1174,10 +1033,6 @@ export default function Page() {
                         <div className="text-xs text-gray-500 truncate">{c.desc}</div>
                       </td>
 
-                      <td className="py-3 px-6 text-center whitespace-nowrap">
-                        <LevelBadge level={c.level} />
-                      </td>
-
                       <td className="py-3 px-6 whitespace-nowrap">
                         <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
                           <Clock size={16} className="text-gray-400" />
@@ -1200,9 +1055,9 @@ export default function Page() {
 
                       <td className="py-3 px-6">
                         <div className="flex items-center justify-end text-gray-700 gap-1 transition-opacity duration-200">
-                          <button 
+                          <button
                             onClick={() => handleViewDetail(c)}
-                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer" 
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
                             title="Xem chi tiết"
                           >
                             <Eye size={14} />
@@ -1295,13 +1150,12 @@ export default function Page() {
                           key={idx}
                           onClick={() => typeof p === "number" && goPage(p)}
                           disabled={p === "..."}
-                          className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                            p === currentPage
+                          className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${p === currentPage
                               ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
                               : p === "..."
-                              ? "cursor-default text-gray-400"
-                              : "border border-red-200 hover:bg-red-50 text-gray-700"
-                          }`}
+                                ? "cursor-default text-gray-400"
+                                : "border border-red-200 hover:bg-red-50 text-gray-700"
+                            }`}
                         >
                           {p}
                         </button>
@@ -1425,18 +1279,8 @@ export default function Page() {
                     </div>
                   </div>
 
-                  {/* Grid: Trình độ, Số buổi, Học phí */}
+                  {/* Grid: Số buổi, Học phí, Giá mỗi buổi */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <BarChart size={16} className="text-red-600" />
-                        Trình độ
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        <LevelBadge level={selectedCourseDetail.level || "N/A"} />
-                      </div>
-                    </div>
-
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <Clock size={16} className="text-red-600" />
@@ -1453,7 +1297,7 @@ export default function Page() {
                         Học phí mặc định
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {selectedCourseDetail.defaultTuitionAmount 
+                        {selectedCourseDetail.defaultTuitionAmount
                           ? `${selectedCourseDetail.defaultTuitionAmount.toLocaleString("vi-VN")} VND`
                           : "Chưa có thông tin"}
                       </div>
@@ -1468,7 +1312,7 @@ export default function Page() {
                         Giá mỗi buổi
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {selectedCourseDetail.unitPriceSession 
+                        {selectedCourseDetail.unitPriceSession
                           ? `${selectedCourseDetail.unitPriceSession.toLocaleString("vi-VN")} VND`
                           : "Chưa có thông tin"}
                       </div>
@@ -1495,7 +1339,7 @@ export default function Page() {
                     </div>
                   </div>
 
-                  
+
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-500">

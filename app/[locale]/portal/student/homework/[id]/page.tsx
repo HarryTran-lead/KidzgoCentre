@@ -37,7 +37,8 @@ import ConfirmModal from "@/components/ConfirmModal";
 
 // Status Badge
 function StatusBadge({ status }: { status: AssignmentStatus }) {
-  const config = {
+  const config: Record<AssignmentStatus, { text: string; color: string }> = {
+    ASSIGNED: { text: "Đã giao", color: "bg-blue-100 text-blue-700 border-blue-200" },
     SUBMITTED: { text: "Đã nộp", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
     PENDING: { text: "Chưa nộp", color: "bg-amber-100 text-amber-700 border-amber-200" },
     MISSING: { text: "Quá hạn", color: "bg-rose-100 text-rose-700 border-rose-200" },

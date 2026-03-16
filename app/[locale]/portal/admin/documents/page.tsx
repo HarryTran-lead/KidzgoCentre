@@ -1098,7 +1098,7 @@ function DocumentFormModal({
                     <option value="">Chọn chương trình học</option>
                     {programs.map((program) => (
                       <option key={program.id} value={program.id}>
-                        {program.name} - {program.level}
+                        {program.name}
                       </option>
                     ))}
                   </select>

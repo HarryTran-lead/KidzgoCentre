@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
 import { getAllBranches } from "@/lib/api/branchService";
 import { createAdminSession, fetchAdminSessions } from "@/app/api/admin/sessions";
-import { fetchAdminUsersByIds } from "@/app/api/admin/classes";
+import { fetchAdminUsersByIds, fetchAdminClasses } from "@/app/api/admin/classes";
 import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
 import {
   CalendarRange,
@@ -29,13 +29,16 @@ import {
   AlertCircle,
   Tag,
   User,
-  Bell
+  Bell,
+  CalendarArrowDown,
+  BookOpen
 } from "lucide-react";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
 type Slot = {
   id: string;
+  classId: string;
   title: string;
   type: SlotType;
   teacher: string;
@@ -875,6 +878,100 @@ function getPeriod(timeRange: string): Period {
   return "EVENING";
 }
 
+/* =================== GO TO DATE BUTTON =================== */
+function GoToDateButton({ onSelect }: { onSelect: (date: Date) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleSubmit = () => {
+    if (!selectedDate) return;
+    const date = new Date(selectedDate);
+    onSelect(date);
+    setIsOpen(false);
+    setSelectedDate("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSubmit();
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+      setSelectedDate("");
+    }
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        ref={buttonRef}
+        onClick={() => setIsOpen(!isOpen)}
+        className="ml-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-100 transition-colors cursor-pointer text-gray-700 flex items-center gap-2"
+        title="Đi đến ngày"
+      >
+        <CalendarArrowDown size={16} />
+        <span className="hidden sm:inline">Đi đến</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-50 min-w-[280px]">
+          <div className="text-sm font-semibold text-gray-800 mb-3">
+            Chọn ngày để xem tuần
+          </div>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-300 text-sm mb-3"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                setSelectedDate("");
+              }}
+              className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!selectedDate}
+              className="flex-1 px-3 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-medium hover:shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Xem tuần
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* =================== WEEK TIMETABLE =================== */
 function WeekTimetable({
   items,
@@ -966,6 +1063,7 @@ function WeekTimetable({
           >
             Tuần này
           </button>
+          <GoToDateButton onSelect={(date) => setWeekCursor(startOfWeek(date))} />
         </div>
       </div>
 
@@ -1087,7 +1185,12 @@ function WeekTimetable({
 export default function AdminSchedulePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const locale = params.locale as string;
+
+  // Get classId and date from URL params
+  const classIdFromUrl = searchParams.get("classId") ?? undefined;
+  const dateFromUrl = searchParams.get("date") ?? undefined;
 
   // Branch filter hook
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
@@ -1109,6 +1212,8 @@ export default function AdminSchedulePage() {
   };
 
   const [filter, setFilter] = useState<SlotType | "ALL">("ALL");
+  const [classFilter, setClassFilter] = useState<string>("ALL");
+  const [classOptions, setClassOptions] = useState<{ id: string; name: string }[]>([]);
   const [slots, setSlots] = useState<Slot[]>(SLOTS);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -1116,16 +1221,68 @@ export default function AdminSchedulePage() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   const list = useMemo(() => {
-    if (filter === "ALL") return slots;
-    return slots.filter((slot) => slot.type === filter);
-  }, [filter, slots]);
+    let result = slots;
+    if (filter !== "ALL") {
+      result = result.filter((slot) => slot.type === filter);
+    }
+    if (classFilter !== "ALL") {
+      result = result.filter((slot) => slot.classId === classFilter);
+    }
+    return result;
+  }, [filter, classFilter, slots]);
 
-  // Luôn bắt đầu từ tuần hiện tại khi reload trang
-  const [weekCursor, setWeekCursor] = useState<Date>(() => startOfWeek(new Date()));
+  // Luôn bắt đầu từ tuần hiện tại khi reload trang, 
+  // nhưng nếu có date từ URL thì bắt đầu từ ngày đó
+  const getInitialWeekCursor = () => {
+    if (dateFromUrl) {
+      // Parse date format: "YYYY-MM-DD"
+      const dateParts = dateFromUrl.split("-");
+      if (dateParts.length === 3) {
+        const year = parseInt(dateParts[0]);
+        const month = parseInt(dateParts[1]) - 1;
+        const day = parseInt(dateParts[2]);
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+          return startOfWeek(date);
+        }
+      }
+    }
+    return startOfWeek(new Date());
+  };
+  
+  const [weekCursor, setWeekCursor] = useState<Date>(getInitialWeekCursor);
 
   useEffect(() => {
     setIsPageLoaded(true);
   }, []);
+
+  // Load danh sách lớp học cho filter
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    async function loadClasses() {
+      try {
+        const classes = await fetchAdminClasses({ branchId: selectedBranchId ?? undefined });
+        setClassOptions(
+          classes.map((c: any) => ({
+            id: c.id,
+            name: c.name || c.code || "Lớp học",
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to load classes for filter:", err);
+      }
+    }
+
+    loadClasses();
+  }, [selectedBranchId, isLoaded]);
+
+  // Set class filter from URL if provided
+  useEffect(() => {
+    if (classIdFromUrl) {
+      setClassFilter(classIdFromUrl || "ALL");
+    }
+  }, [classIdFromUrl]);
 
   const sortedList = useMemo(() => {
     return [...list].sort((a, b) => {
@@ -1206,6 +1363,7 @@ export default function AdminSchedulePage() {
     const startDate = new Date(plannedDatetime);
     const newSlot: Slot = {
       id: created.id,
+      classId: String(created.classId ?? payload.classId ?? ""),
       title: String(created.classTitle ?? created.className ?? display.title),
       type: "CLASS",
       teacher: String(created.plannedTeacherName ?? created.teacherName ?? display.teacher),
@@ -1238,11 +1396,12 @@ export default function AdminSchedulePage() {
         const fromDate = weekStart.toISOString().split('T')[0];
         const toDate = weekEnd.toISOString().split('T')[0];
 
-        console.log("📅 Fetching schedule for branch:", branchId || "All branches");
+        console.log("📅 Fetching schedule for branch:", branchId || "All branches", "class:", classFilter !== "ALL" ? classFilter : "All");
         console.log("📅 Date range:", fromDate, "to", toDate);
 
         const sessions = await fetchAdminSessions({
           branchId,
+          classId: classFilter !== "ALL" ? classFilter : undefined,
           from: fromDate,
           to: toDate,
           pageNumber: 1,
@@ -1296,6 +1455,7 @@ export default function AdminSchedulePage() {
 
           return {
             id: s.id,
+            classId: String(s.classId ?? ""),
             title: String(s.classTitle ?? s.className ?? "Buổi học"),
             type: "CLASS",
             teacher: teacherName.trim(),
@@ -1318,7 +1478,7 @@ export default function AdminSchedulePage() {
     };
 
     loadInitialSchedule();
-  }, [selectedBranchId, isLoaded, weekCursor]);
+  }, [selectedBranchId, isLoaded, weekCursor, classFilter]);
 
   const stats = useMemo(() => {
     const total = slots.length;
@@ -1375,6 +1535,25 @@ export default function AdminSchedulePage() {
 
         {/* Bộ lọc */}
         <div className={`rounded-2xl border border-gray-200 bg-white p-4 flex flex-wrap gap-2 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          {/* Filter Lớp học */}
+          <div className="flex items-center gap-2">
+            <BookOpen size={16} className="text-red-600" />
+            <select
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 cursor-pointer"
+            >
+              <option value="ALL">Tất cả lớp</option>
+              {classOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="border-l border-gray-200 mx-2"></div>
+
           {["ALL", "CLASS", "MAKEUP", "EVENT"].map((item) => {
             const isActive = filter === item;
             const meta = item === "ALL"

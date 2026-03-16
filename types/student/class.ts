@@ -4,8 +4,10 @@ export interface StudentClass {
   id: string;
   name?: string;
   className?: string;
-    title?: string;
+  title?: string;
   code?: string;
+  mainTeacherId?: string;
+  mainTeacherName?: string;
 }
 
 export type StudentClassesResponse = ApiResponse<ListData<StudentClass>>;

@@ -375,7 +375,8 @@ export default function Page() {
       if (res.isSuccess && res.data) {
         const d = res.data as any;
         const list = Array.isArray(d) ? d : (d.items ?? d.tickets?.items ?? []);
-        setTickets(list);
+        const generalOnly = list.filter((t: Ticket) => t.type === "General");
+        setTickets(generalOnly);
       }
     } catch (err) {
       console.error("Error fetching tickets:", err);
