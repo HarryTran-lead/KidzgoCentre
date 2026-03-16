@@ -7,7 +7,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight,
   BookOpen, X, Calendar, Tag, User, GraduationCap, AlertCircle, Building2,
   Power, PowerOff, UserPlus, CalendarClock, RefreshCw, Check, Loader2,
-  CalendarDays
+  CalendarDays, CheckCircle
 } from "lucide-react";
 import clsx from "clsx";
 import { 
@@ -603,6 +603,8 @@ interface AddStudentModalProps {
   onClose: () => void;
   classId: string;
   enrolledStudentIds: string[];
+  classCapacity: number;
+  currentEnrolled: number;
   toast: any;
   onEnrollmentSuccess?: (enrolledIds: string[]) => void;
 }
@@ -614,7 +616,7 @@ interface StudentOption {
   profileId: string;
 }
 
-function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, toast, onEnrollmentSuccess }: AddStudentModalProps) {
+function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCapacity, currentEnrolled, toast, onEnrollmentSuccess }: AddStudentModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -823,15 +825,31 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, toast, 
 
         {/* Search */}
         <div className="p-4 border-b border-gray-200">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Tìm kiếm học viên..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300"
-            />
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Tìm kiếm học viên..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300"
+              />
+            </div>
+            {filteredStudents.length > 0 && (
+              <button
+                onClick={() => {
+                  if (selectedStudents.length === filteredStudents.length) {
+                    setSelectedStudents([]);
+                  } else {
+                    setSelectedStudents(filteredStudents.map(s => s.id));
+                  }
+                }}
+                className="px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                {selectedStudents.length === filteredStudents.length && filteredStudents.length > 0 ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -917,6 +935,29 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, toast, 
               </div>
             </div>
           )}
+          {(() => {
+            const totalAfterAdd = currentEnrolled + selectedStudents.length;
+            const isOverCapacity = totalAfterAdd > classCapacity;
+            return (
+              <div className="mb-4">
+                {isOverCapacity ? (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <AlertCircle size={18} className="text-red-600 flex-shrink-0" />
+                    <span className="text-sm text-red-700">
+                      Vượt quá sĩ số! Lớp sẽ có <strong>{totalAfterAdd}</strong> học viên (tối đa {classCapacity})
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
+                    <CheckCircle size={18} className="text-green-600 flex-shrink-0" />
+                    <span className="text-sm text-green-700">
+                      Đã chọn <strong>{selectedStudents.length}</strong> / Sĩ số còn lại: <strong>{classCapacity - currentEnrolled}</strong> 
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
               Tổng: <span className="font-semibold">{selectedStudents.length}</span> học viên
@@ -2039,6 +2080,8 @@ export default function Page() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [selectedClassCapacity, setSelectedClassCapacity] = useState<number>(0);
+  const [selectedClassCurrent, setSelectedClassCurrent] = useState<number>(0);
   const [enrolledStudentIds, setEnrolledStudentIds] = useState<string[]>([]);
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
@@ -2216,6 +2259,7 @@ export default function Page() {
           console.log("Generating sessions for class:", created.id);
           await generateSessionsFromPattern({
             classId: created.id,
+            roomId: data.roomId || undefined,
             onlyFutureSessions: true,
           });
           console.log("Sessions generated successfully");
@@ -2392,9 +2436,16 @@ export default function Page() {
   };
 
   const handleAddStudent = async (classId: string) => {
+    // Find the class to get capacity and current enrolled
+    const classItem = classes.find(c => c.id === classId);
+    const classCapacity = classItem?.capacity || 0;
+    const currentEnrolled = classItem?.current || 0;
+    
     // Open modal to add students
     setSelectedClassId(classId);
     setIsAddStudentModalOpen(true);
+    setSelectedClassCapacity(classCapacity);
+    setSelectedClassCurrent(currentEnrolled);
     
     // Fetch enrolled students for this class
     try {
@@ -2823,6 +2874,8 @@ export default function Page() {
           }}
           classId={selectedClassId || ""}
           enrolledStudentIds={enrolledStudentIds}
+          classCapacity={selectedClassCapacity}
+          currentEnrolled={selectedClassCurrent}
           toast={toast}
           onEnrollmentSuccess={(newEnrolledIds) => {
             // Cập nhật danh sách enrolled để lọc bỏ những student đã thêm

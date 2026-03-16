@@ -388,6 +388,8 @@ export default function ClassDetailPage() {
 
         // Fetch and map class detail
         const classDetail = await fetchAndMapAdminClassDetail(classId);
+        console.log({classDetail});
+        
 
         // Fetch students from enrollments API
         let students: Student[] = [];
