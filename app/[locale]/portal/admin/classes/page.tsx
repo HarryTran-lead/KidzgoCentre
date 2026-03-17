@@ -1173,7 +1173,9 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
         
         if (cancelled) return;
         
-        setProgramOptions(programs);
+        // Lọc chỉ lấy các chương trình đang hoạt động
+        const activePrograms = programs.filter((p: any) => p.status === "Đang hoạt động");
+        setProgramOptions(activePrograms);
         setTeacherOptions(teachers);
         setAllRooms(rooms.map((r) => ({ id: r.id, name: r.name, capacity: r.capacity })));
         
@@ -1922,6 +1924,8 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {roomOptions.map((room) => {
                           const hasConflict = conflictRoomIds.has(room.id);
+                          const roomData = allRooms.find(r => r.id === room.id);
+                          const capacity = roomData?.capacity || 0;
                           return (
                             <button
                               key={room.id}
@@ -1938,6 +1942,9 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                             >
                               <div className="flex flex-col items-center">
                                 <span className="font-medium">{room.name}</span>
+                                <span className={`text-xs mt-0.5 ${formData.roomId === room.id ? 'text-red-100' : 'text-gray-500'}`}>
+                                  {capacity} chỗ
+                                </span>
                                 {hasConflict && (
                                   <span className="text-xs text-amber-600 mt-1">⚠️ Trùng lịch</span>
                                 )}

@@ -21,7 +21,7 @@ function mapApiRoom(item: any, index: number): Room {
 
   const equipment: string[] = note ? [note] : ["Bàn ghế", "Máy lạnh", "Bảng viết"];
 
-  const status: Status = item?.isActive === false ? "maintenance" : "free";
+  const status: Status = item?.isActive === false ? "inactive" : "active";
 
   return {
     id,
