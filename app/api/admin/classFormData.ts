@@ -67,6 +67,7 @@ async function fetchProgramsByBranch(branchId: string): Promise<SelectOption[]> 
       id: String(p?.id ?? p?.code ?? ""),
       name: String(p?.name ?? p?.title ?? "Chương trình"),
       totalSessions: typeof p?.totalSessions === "number" ? p.totalSessions : parseInt(p?.totalSessions ?? "0", 10) || 0,
+      status: p?.status ?? p?.isActive === true ? "Đang hoạt động" : "Tạm dừng",
     }))
     .filter((p: SelectOption) => p.id);
 }
@@ -112,6 +113,7 @@ export async function fetchClassFormSelectData(): Promise<ClassFormSelectData> {
         id: String(p?.id ?? p?.code ?? ""),
         name: String(p?.name ?? p?.title ?? "Chương trình"),
         totalSessions: typeof p?.totalSessions === "number" ? p.totalSessions : parseInt(p?.totalSessions ?? "0", 10) || 0,
+        status: p?.status ?? p?.isActive === true ? "Đang hoạt động" : "Tạm dừng",
       }))
       .filter((p) => p.id);
 

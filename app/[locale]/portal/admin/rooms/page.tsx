@@ -60,26 +60,20 @@ function buildComparator<T>(key: keyof T, direction: SortDirection): (a: T, b: T
 }
 
 /* ---------- Status Components ---------- */
-type Status = "using" | "free" | "maintenance";
+type Status = "active" | "inactive";
 
 function StatusPill({ status }: { status: Status }) {
   const map = {
-    using: {
-      text: "Đang sử dụng",
-      bg: "bg-gradient-to-r from-red-600 to-red-700",
-      icon: <Clock size={12} />,
-      textColor: "text-white"
-    },
-    free: {
-      text: "Trống",
-      bg: "bg-gradient-to-r from-gray-700 to-gray-900",
+    active: {
+      text: "Hoạt động",
+      bg: "bg-gradient-to-r from-green-600 to-green-700",
       icon: <CheckCircle size={12} />,
       textColor: "text-white"
     },
-    maintenance: {
-      text: "Bảo trì",
+    inactive: {
+      text: "Không hoạt động",
       bg: "bg-gradient-to-r from-gray-600 to-gray-800",
-      icon: <AlertTriangle size={12} />,
+      icon: <XCircle size={12} />,
       textColor: "text-white"
     },
   } as const;
@@ -151,24 +145,27 @@ function ModernStatCard({
   value: string;
   subtitle?: string;
   trend?: { value: number; isPositive: boolean };
-  color?: "red" | "gray" | "black";
+  color?: "red" | "gray" | "black" | "green";
 }) {
   const colorClasses = {
     red: "from-red-600 to-red-700",
     gray: "from-gray-600 to-gray-700",
     black: "from-gray-800 to-gray-900",
+    green: "from-green-600 to-green-700",
   };
 
   const bgClasses = {
     red: "bg-red-100",
     gray: "bg-gray-100",
     black: "bg-black/10",
+    green: "bg-green-100",
   };
 
   const textClasses = {
     red: "text-red-600",
     gray: "text-gray-600",
     black: "text-gray-800",
+    green: "text-green-600",
   };
 
   return (
@@ -227,7 +224,7 @@ const initialFormData: RoomFormData = {
   name: "",
   capacity: 30,
   note: "",
-  status: "free",
+  status: "active",
 };
 
 function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateRoomModalProps) {
@@ -433,23 +430,21 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                   <CheckCircle size={16} className="text-red-600" />
                   Trạng thái
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["free", "using", "maintenance"] as const).map((status) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {(["active", "inactive"] as const).map((status) => (
                     <button
                       key={status}
                       type="button"
                       onClick={() => handleChange("status", status)}
                       className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
                         formData.status === status
-                          ? status === "free"
-                            ? "bg-gray-100 border-gray-300 text-gray-700"
-                            : status === "using"
-                            ? "bg-red-100 border-red-300 text-red-700"
+                          ? status === "active"
+                            ? "bg-green-100 border-green-300 text-green-700"
                             : "bg-gray-200 border-gray-400 text-gray-800"
                           : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                       }`}
                     >
-                      {status === "free" ? "Trống" : status === "using" ? "Đang sử dụng" : "Bảo trì"}
+                      {status === "active" ? "Hoạt động" : "Không hoạt động"}
                     </button>
                   ))}
                 </div>
@@ -743,16 +738,15 @@ export default function Page() {
       // Cập nhật thông tin phòng học
       await updateAdminRoom(editingRoomId, payload);
 
-      // Nếu trạng thái thay đổi giữa "free" và "maintenance", gọi toggle-status API
+      // Nếu trạng thái thay đổi giữa "active" và "inactive", gọi toggle-status API
       if (originalRoomStatus !== null && data.status !== originalRoomStatus) {
-        // toggle-status API chỉ hỗ trợ chuyển đổi giữa free (isActive=true) và maintenance (isActive=false)
+        // toggle-status API chỉ hỗ trợ chuyển đổi giữa active và inactive
         if (
-          (data.status === "free" && originalRoomStatus === "maintenance") ||
-          (data.status === "maintenance" && originalRoomStatus === "free")
+          (data.status === "active" && originalRoomStatus === "inactive") ||
+          (data.status === "inactive" && originalRoomStatus === "active")
         ) {
           await toggleRoomStatus(editingRoomId);
         }
-        // "using" 状态通常由系统自动管理，不需要通过 toggle-status API
       }
 
       const updatedRooms = await fetchAdminRooms();
@@ -861,8 +855,8 @@ export default function Page() {
 
     // Xác định trạng thái mới dựa trên trạng thái hiện tại
     const currentStatus = selectedRoom.status;
-    const newStatus = currentStatus === "free" ? "maintenance" : "free";
-    const actionText = newStatus === "free" ? "kích hoạt" : "tạm dừng";
+    const newStatus = currentStatus === "active" ? "inactive" : "active";
+    const actionText = newStatus === "active" ? "kích hoạt" : "tạm dừng";
 
     try {
       setIsTogglingStatus(true);
@@ -931,32 +925,32 @@ export default function Page() {
             icon={<Building2 size={20} />}
             title="Tổng phòng học"
             value={`${rooms.length}`}
-            subtitle={`${rooms.filter(r => r.status === "free").length} phòng trống`}
-            color="red"
-          />
-
-          <ModernStatCard
-            icon={<Users size={20} />}
-            title="Đang sử dụng"
-            value={`${rooms.filter(r => r.status === "using").length}`}
-            subtitle="Hoạt động hiện tại"
-            trend={{ value: 12, isPositive: true }}
+            subtitle={`${rooms.filter(r => r.status === "active").length} phòng hoạt động`}
             color="red"
           />
 
           <ModernStatCard
             icon={<CheckCircle size={20} />}
-            title="Sẵn sàng"
-            value={`${rooms.filter(r => r.status === "free").length}`}
-            subtitle="Có thể đặt lịch ngay"
+            title="Hoạt động"
+            value={`${rooms.filter(r => r.status === "active").length}`}
+            subtitle="Sẵn sàng sử dụng"
+            trend={{ value: 12, isPositive: true }}
+            color="green"
+          />
+
+          <ModernStatCard
+            icon={<Users size={20} />}
+            title="Tổng sức chứa"
+            value={`${rooms.reduce((acc, r) => acc + r.capacity, 0)}`}
+            subtitle="chỗ ngồi"
             color="gray"
           />
 
           <ModernStatCard
-            icon={<AlertTriangle size={20} />}
-            title="Bảo trì"
-            value={`${rooms.filter(r => r.status === "maintenance").length}`}
-            subtitle="Đang sửa chữa"
+            icon={<XCircle size={20} />}
+            title="Không hoạt động"
+            value={`${rooms.filter(r => r.status === "inactive").length}`}
+            subtitle="Tạm dừng"
             color="black"
           />
         </div>
@@ -992,9 +986,8 @@ export default function Page() {
                   className="appearance-none rounded-xl bg-white border border-gray-200 pl-4 pr-10 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 cursor-pointer"
                 >
                   <option value="all">Tất cả trạng thái</option>
-                  <option value="free">Trống</option>
-                  <option value="using">Đang sử dụng</option>
-                  <option value="maintenance">Bảo trì</option>
+                  <option value="active">Hoạt động</option>
+                  <option value="inactive">Không hoạt động</option>
                 </select>
                 <ChevronRight size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 rotate-90 pointer-events-none" />
               </div>
@@ -1132,13 +1125,13 @@ export default function Page() {
                             <button 
                               onClick={() => handleToggleStatus(room)}
                               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                room.status === "free"
-                                  ? "hover:bg-gray-100 text-gray-400 hover:text-gray-800"
-                                  : "hover:bg-red-50 text-gray-400 hover:text-red-600"
+                                room.status === "active"
+                                  ? "hover:bg-red-50 text-gray-400 hover:text-red-600"
+                                  : "hover:bg-green-50 text-gray-400 hover:text-green-600"
                               }`}
-                              title={room.status === "free" ? "Tạm dừng phòng học" : "Kích hoạt phòng học"}
+                              title={room.status === "active" ? "Tạm dừng phòng học" : "Kích hoạt phòng học"}
                             >
-                              {room.status === "free" ? <PowerOff size={14} /> : <Power size={14} />}
+                              {room.status === "active" ? <PowerOff size={14} /> : <Power size={14} />}
                             </button>
                           </div>
                         </td>
@@ -1451,7 +1444,7 @@ export default function Page() {
                         Trạng thái
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
-                        <StatusPill status={selectedRoomDetail.isActive === false ? "maintenance" : "free"} />
+                        <StatusPill status={selectedRoomDetail.isActive === false ? "inactive" : "active"} />
                       </div>
                     </div>
                   </div>
@@ -1515,15 +1508,15 @@ export default function Page() {
           setSelectedRoom(null);
         }}
         onConfirm={confirmToggleStatus}
-        title={selectedRoom?.status === "free" ? "Xác nhận tạm dừng phòng học" : "Xác nhận kích hoạt phòng học"}
+        title={selectedRoom?.status === "active" ? "Xác nhận tạm dừng phòng học" : "Xác nhận kích hoạt phòng học"}
         message={
-          selectedRoom?.status === "free"
+          selectedRoom?.status === "active"
             ? `Bạn có chắc chắn muốn tạm dừng phòng học "${selectedRoom?.name}"? Phòng học sẽ không còn sử dụng được sau khi tạm dừng.`
             : `Bạn có chắc chắn muốn kích hoạt phòng học "${selectedRoom?.name}"? Phòng học sẽ được kích hoạt và có thể sử dụng ngay.`
         }
-        confirmText={selectedRoom?.status === "free" ? "Tạm dừng" : "Kích hoạt"}
+        confirmText={selectedRoom?.status === "active" ? "Tạm dừng" : "Kích hoạt"}
         cancelText="Hủy"
-        variant={selectedRoom?.status === "free" ? "warning" : "success"}
+        variant={selectedRoom?.status === "active" ? "warning" : "success"}
         isLoading={isTogglingStatus}
       />
     </>

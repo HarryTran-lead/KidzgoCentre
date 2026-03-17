@@ -1,4 +1,4 @@
-export type Status = "using" | "free" | "maintenance";
+export type Status = "active" | "inactive";
 
 export type Room = {
   id: string;      // UUID nội bộ
