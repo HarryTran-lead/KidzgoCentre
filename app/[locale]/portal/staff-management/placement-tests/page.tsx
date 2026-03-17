@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Search,
@@ -21,9 +21,12 @@ import {
 import PlacementTestTable from "@/components/portal/placement-tests/PlacementTestTable";
 import PlacementTestFormModal from "@/components/portal/placement-tests/PlacementTestFormModal";
 import ResultFormModal from "@/components/portal/placement-tests/ResultFormModal";
+import CreateAccountProfileModal from "@/components/portal/placement-tests/CreateAccountProfileModal";
 import PlacementTestDetailModal from "@/components/portal/placement-tests/PlacementTestDetailModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
+import { getAccessToken } from "@/lib/store/authToken";
+import { useCreateAccountFromTest } from "@/hooks/useCreateAccountFromTest";
 import {
   PLACEMENT_TEST_ENDPOINTS,
   USER_ENDPOINTS,
@@ -51,6 +54,7 @@ export default function PlacementTestsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const { toast } = useToast();
+  const { isCreateAccountModalOpen, selectedLeadInfo, handleCreateAccount, closeCreateAccountModal } = useCreateAccountFromTest();
 
   // Modals state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -63,6 +67,11 @@ export default function PlacementTestsPage() {
     title: string;
     message: string;
   } | null>(null);
+
+  const handleCreateAccountFromTest = async (test: PlacementTest) => {
+    setSelectedTest(test);
+    await handleCreateAccount(test);
+  };
 
   // Filters
   const [filters, setFilters] = useState<PlacementTestFilters>({
@@ -78,10 +87,10 @@ export default function PlacementTestsPage() {
   const [invigilators, setInvigilators] = useState<any[]>([]);
   const [isLoadingDropdownData, setIsLoadingDropdownData] = useState(false);
 
-  // Fetch placement tests when filters change
+  // Single effect — re-runs whenever any relevant dep changes (same pattern as leads page)
   useEffect(() => {
     fetchPlacementTests();
-  }, [filters, sortKey, sortDir]);
+  }, [filters, sortKey, sortDir, currentPage, pageSize]);
 
   // Fetch dropdown data once on mount
   useEffect(() => {
@@ -89,7 +98,7 @@ export default function PlacementTestsPage() {
     fetchLeads();
     fetchStudentProfiles();
     fetchClasses();
-  }, []); // Empty dependency array - only run once
+  }, []);
 
   const fetchPlacementTests = async () => {
     setIsLoading(true);
@@ -103,12 +112,14 @@ export default function PlacementTestsPage() {
         queryParams.append("sortBy", sortKey);
         queryParams.append("sortOrder", sortDir);
       }
+      queryParams.append("page", String(currentPage));
+      queryParams.append("pageSize", String(pageSize));
 
       const response = await fetch(
         `${PLACEMENT_TEST_ENDPOINTS.GET_ALL}?${queryParams.toString()}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         },
       );
@@ -116,7 +127,7 @@ export default function PlacementTestsPage() {
       if (!response.ok) throw new Error("Failed to fetch placement tests");
 
       const data = await response.json();
-      setTests(data.data?.items || data.data || []);
+      setTests(data.data?.placementTests || data.data?.items || []);
       setTotalCount(data.data?.totalCount || 0);
       setTotalPages(data.data?.totalPages || 0);
     } catch (error) {
@@ -149,12 +160,12 @@ export default function PlacementTestsPage() {
       const [adminResponse, staffResponse] = await Promise.all([
         fetch(`${USER_ENDPOINTS.GET_ALL}?${adminParams.toString()}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         }),
         fetch(`${USER_ENDPOINTS.GET_ALL}?${staffParams.toString()}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         }),
       ]);
@@ -226,7 +237,7 @@ export default function PlacementTestsPage() {
         method: "GET",
         cache: "no-store",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
           "Content-Type": "application/json",
           "X-Modal-Request": "true", // Header flag for modal request
         },
@@ -264,7 +275,7 @@ export default function PlacementTestsPage() {
                   LEAD_ENDPOINTS.GET_CHILDREN(lead.id),
                   {
                     headers: {
-                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                      Authorization: `Bearer ${getAccessToken()}`,
                     },
                   },
                 );
@@ -332,7 +343,7 @@ export default function PlacementTestsPage() {
         method: "GET",
         cache: "no-store", // Force fresh request
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
           "Content-Type": "application/json",
         },
       });
@@ -367,7 +378,7 @@ export default function PlacementTestsPage() {
                   LEAD_ENDPOINTS.GET_CHILDREN(lead.id),
                   {
                     headers: {
-                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                      Authorization: `Bearer ${getAccessToken()}`,
                     },
                   },
                 );
@@ -424,7 +435,7 @@ export default function PlacementTestsPage() {
         `${PROFILE_ENDPOINTS.GET_ALL}?${queryParams.toString()}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         },
       );
@@ -470,7 +481,7 @@ export default function PlacementTestsPage() {
         `${ADMIN_ENDPOINTS.CLASSES}?${queryParams.toString()}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         },
       );
@@ -615,7 +626,7 @@ export default function PlacementTestsPage() {
         method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         },
         body: JSON.stringify(data),
       });
@@ -651,7 +662,7 @@ export default function PlacementTestsPage() {
         ...data,
       };
 
-      const token = localStorage.getItem("token");
+      const token = getAccessToken();
       const headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -717,7 +728,7 @@ export default function PlacementTestsPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         },
         body: JSON.stringify({}),
       });
@@ -854,9 +865,10 @@ export default function PlacementTestsPage() {
             {/* Status Filter */}
             <Select
               value={filters.status}
-              onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, status: value }))
-              }
+              onValueChange={(value) => {
+                setCurrentPage(1);
+                setFilters((prev) => ({ ...prev, status: value }));
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Trạng thái" />
@@ -870,10 +882,22 @@ export default function PlacementTestsPage() {
               </SelectContent>
             </Select>
 
+            {/* Page Size */}
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            >
+              <option value={5}>5 / trang</option>
+              <option value={10}>10 / trang</option>
+              <option value={20}>20 / trang</option>
+              <option value={50}>50 / trang</option>
+            </select>
+
             {/* Refresh Button */}
             <Button
               variant="outline"
-              onClick={fetchPlacementTests}
+              onClick={() => fetchPlacementTests()}
               className="flex items-center gap-2"
             >
               <RefreshCw size={16} />
@@ -900,6 +924,7 @@ export default function PlacementTestsPage() {
           onCancel={handleCancel}
           onNoShow={handleNoShow}
           onConvertToEnrolled={handleConvertToEnrolled}
+          onCreateAccount={handleCreateAccountFromTest}
         />
 
         {/* Modals */}
@@ -937,6 +962,17 @@ export default function PlacementTestsPage() {
           onConfirm={handleConfirmAction}
           title={confirmAction?.title || ""}
           message={confirmAction?.message || ""}
+        />
+
+        <CreateAccountProfileModal
+          isOpen={isCreateAccountModalOpen}
+          onClose={closeCreateAccountModal}
+          test={selectedTest}
+          leadInfo={selectedLeadInfo}
+          onSuccess={() => {
+            fetchPlacementTests();
+            closeCreateAccountModal();
+          }}
         />
       </div>
     </div>

@@ -39,7 +39,7 @@ export default function LeadChildrenManager({
   const [formData, setFormData] = useState<CreateLeadChildRequest>({
     childName: "",
     dob: "",
-    gender: "",
+    gender: undefined,
     programInterest: "",
     notes: "",
   });
@@ -118,7 +118,7 @@ export default function LeadChildrenManager({
     setFormData({
       childName: child.childName,
       dob: child.dob || "",
-      gender: child.gender || "",
+      gender: child.gender || undefined,
       programInterest: child.programInterest || "",
       notes: child.notes || "",
     });
@@ -161,7 +161,7 @@ export default function LeadChildrenManager({
     setFormData({
       childName: "",
       dob: "",
-      gender: "",
+      gender: undefined,
       programInterest: "",
       notes: "",
     });
@@ -238,27 +238,13 @@ export default function LeadChildrenManager({
                     </h4>
                     {child.gender && (
                       <span className="inline-flex items-center gap-1 text-xs">
-                        {child.gender === 'Nam' || child.gender === 'male' ? (
-                          <>
-                            <Image
-                              src="/icons/male.png"
-                              alt="Nam"
-                              width={20}
-                              height={20}
-                              className="w-4 h-4"
-                            />
-                          </>
-                        ) : (
-                          <>
-                            <Image
-                              src="/icons/female.png"
-                              alt="Nữ"
-                              width={20}
-                              height={20}
-                              className="w-4 h-4"
-                            />                          
-                          </>
-                        )}
+                        <Image
+                          src={child.gender === 'Male' ? "/icons/male.png" : "/icons/female.png"}
+                          alt={child.gender === 'Male' ? 'Nam' : 'Nữ'}
+                          width={20}
+                          height={20}
+                          className="w-4 h-4"
+                        />
                       </span>
                     )}
                   </div>
@@ -391,13 +377,13 @@ export default function LeadChildrenManager({
                 <select
                   value={formData.gender}
                   onChange={(e) =>
-                    setFormData({ ...formData, gender: e.target.value })
+                    setFormData({ ...formData, gender: (e.target.value as "Male" | "Female") || undefined })
                   }
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
                 >
                   <option value="">-- Chọn giới tính --</option>
-                  <option value="Nam">Nam</option>
-                  <option value="Nữ">Nữ</option>
+                  <option value="Male">Nam</option>
+                  <option value="Female">Nữ</option>
                 </select>
               </div>
 

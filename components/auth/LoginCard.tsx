@@ -371,6 +371,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                     </label>
                     <button
                       type="button"
+                      onClick={() => window.location.href = `/${resolvedLocale}/auth/forgotpassword`}
                       className="text-xs text-red-600 hover:text-red-700 font-medium cursor-pointer"
                     >
                       Quên mật khẩu?

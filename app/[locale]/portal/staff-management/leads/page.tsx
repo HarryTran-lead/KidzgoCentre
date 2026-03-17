@@ -9,9 +9,11 @@ import { getAllStudents } from "@/lib/api/profileService";
 import { getAccessToken } from "@/lib/store/authToken";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useCreateAccountFromTest } from "@/hooks/useCreateAccountFromTest";
 import type { Lead as LeadType } from "@/types/lead";
 import type { PlacementTest, CreatePlacementTestRequest, UpdatePlacementTestRequest, PlacementTestResultRequest } from "@/types/placement-test";
 import { ADMIN_ENDPOINTS, PLACEMENT_TEST_ENDPOINTS } from "@/constants/apiURL";
+import CreateAccountProfileModal from "@/components/portal/placement-tests/CreateAccountProfileModal";
 import {
   LeadStats,
   LeadFilters,
@@ -61,6 +63,7 @@ const STATUS_MAPPING: Record<StatusType, string> = {
 export default function Page() {
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
+  const { isCreateAccountModalOpen, selectedLeadInfo, handleCreateAccount, closeCreateAccountModal, setIsCreateAccountModalOpen } = useCreateAccountFromTest();
   
   // Tab state
   const [activeTab, setActiveTab] = useState<"leads" | "placement_tests" | "enrollments">("leads");
@@ -683,6 +686,11 @@ export default function Page() {
     setIsConvertModalOpen(true);
   };
 
+  const handleCreateAccountFromTest = async (test: PlacementTest) => {
+    setSelectedTest(test);
+    await handleCreateAccount(test);
+  };
+
   const handleAddNote = (test: PlacementTest) => {
     setSelectedTest(test);
     setIsNoteModalOpen(true);
@@ -1276,6 +1284,7 @@ export default function Page() {
               onCancel={handleCancelTest}
               onNoShow={handleNoShowTest}
               onConvertToEnrolled={handleConvertToEnrolled}
+              onCreateAccount={handleCreateAccountFromTest}
               onPageChange={handleTestPageChange}
             />
           </div>
@@ -1397,6 +1406,17 @@ export default function Page() {
         onClose={() => setIsConvertModalOpen(false)}
         onSubmit={handleConvertSubmit}
         test={selectedTest}
+      />
+
+      <CreateAccountProfileModal
+        isOpen={isCreateAccountModalOpen}
+        onClose={closeCreateAccountModal}
+        test={selectedTest}
+        leadInfo={selectedLeadInfo}
+        onSuccess={() => {
+          fetchPlacementTests();
+          closeCreateAccountModal();
+        }}
       />
 
       <ConfirmModal

@@ -14,16 +14,35 @@ import {
 import { useState, useEffect } from "react";
 import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
 import { createTicket, getTickets, getTicketById } from "@/lib/api/ticketService";
-import type { TicketCategory, Ticket, TicketComment } from "@/types/student/ticket";
+import type { CreateTicket, TicketCategory, Ticket, TicketComment } from "@/types/student/ticket";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { toast } from "@/hooks/use-toast";
 import { getStudentClassesByToken } from "@/lib/api/studentService";
+import type { StudentClass } from "@/types/student/class";
 
 type TicketCategoryOption = {
   id: TicketCategory;
   name: string;
   nameVi: string;
+};
+
+type TicketType = CreateTicket["type"];
+
+type TeacherOption = {
+  optionKey: string;
+  teacherId: string;
+  teacherName: string;
+  classId?: string;
+  classLabel?: string;
+};
+
+const normalizeClassItems = (response: any): StudentClass[] => {
+  const data = response?.data;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.classes?.items)) return data.classes.items;
+  return [];
 };
 
 export default function ApplicationPage() {
@@ -38,6 +57,9 @@ export default function ApplicationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [classId, setClassId] = useState<string | null>(null);
+  const [ticketType, setTicketType] = useState<TicketType>('General');
+  const [selectedTeacherOptionKey, setSelectedTeacherOptionKey] = useState('');
+  const [teacherOptions, setTeacherOptions] = useState<TeacherOption[]>([]);
 
   // Resolve profileId: prefer selectedProfile from localStorage, fallback to user.selectedProfile from /me API, then Student profile
   const resolvedProfileId = selectedProfile?.id 
@@ -45,34 +67,53 @@ export default function ApplicationPage() {
     || user?.profiles?.find(p => p.profileType === 'Student')?.id 
     || null;
 
-  // Fetch student classes to get classId
+  // Fetch student classes to get classId and available main teachers.
   useEffect(() => {
     const fetchClasses = async () => {
+      if (!resolvedProfileId) {
+        setClassId(null);
+        setTeacherOptions([]);
+        setSelectedTeacherOptionKey('');
+        return;
+      }
+
       try {
-        const response: any = await getStudentClassesByToken({ pageSize: 10 });
-        if (response.isSuccess && response.data) {
-          // Handle multiple response shapes: data.items, data.classes.items, or data as array
-          const classes = Array.isArray(response.data)
-            ? response.data
-            : Array.isArray(response.data?.items)
-              ? response.data.items
-              : Array.isArray(response.data?.classes?.items)
-                ? response.data.classes.items
-                : [];
-          if (classes.length > 0) {
-            setClassId(classes[0].id);
-          }
+        const response: any = await getStudentClassesByToken({
+          pageSize: 100,
+          studentProfileId: resolvedProfileId,
+        });
+
+        if (response?.isSuccess || response?.success) {
+          const classes = normalizeClassItems(response);
+          setClassId(classes[0]?.id ?? null);
+
+          const teachers = classes
+            .filter((item) => item.mainTeacherId && item.mainTeacherName)
+            .map((item, index) => ({
+              optionKey: `${item.id ?? 'class'}-${item.mainTeacherId ?? 'teacher'}-${index}`,
+              teacherId: item.mainTeacherId!,
+              teacherName: item.mainTeacherName!,
+              classId: item.id,
+              classLabel: item.title || item.className || item.name || item.code,
+            }));
+
+          setTeacherOptions(teachers);
+          setSelectedTeacherOptionKey((prev) => {
+            if (teachers.length === 0) return '';
+            if (teachers.some((teacher) => teacher.optionKey === prev)) return prev;
+            return teachers[0].optionKey;
+          });
         }
       } catch (error) {
         console.error('Error fetching classes:', error);
       }
     };
     fetchClasses();
-  }, []);
+  }, [resolvedProfileId]);
 
-  // Load tickets when viewing history
+  // Load tickets on entry so history count is available immediately.
   useEffect(() => {
-    if (activeView === 'history') {
+    if (resolvedProfileId) {
       loadTickets();
     }
   }, [activeView, resolvedProfileId, user]);
@@ -168,6 +209,14 @@ export default function ApplicationPage() {
       return;
     }
 
+    if (ticketType === 'DirectToTeacher' && !selectedTeacherOptionKey) {
+      toast.warning({
+        title: 'Thiếu thông tin',
+        description: 'Vui lòng chọn giáo viên để gửi trực tiếp'
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       
@@ -189,18 +238,28 @@ export default function ApplicationPage() {
       }
       
       // Build payload with all required fields
-      const payload: any = {
+      const selectedTeacher = teacherOptions.find((teacher) => teacher.optionKey === selectedTeacherOptionKey);
+      const payload: CreateTicket = {
         openedByProfileId: resolvedProfileId,
         branchId: user.branchId,
-        category: ticketCategory as TicketCategory,
+        category: ticketCategory,
         subject: subject.trim(),
         message: message.trim(),
+        type: ticketType,
       };
 
-      // Add classId only if it exists
-      if (classId) {
-        payload.classId = classId;
+      const classIdForTicket = ticketType === 'DirectToTeacher'
+        ? selectedTeacher?.classId ?? classId
+        : classId;
+
+      if (classIdForTicket) {
+        payload.classId = classIdForTicket;
       }
+
+      if (ticketType === 'DirectToTeacher' && selectedTeacher?.teacherId) {
+        payload.assignedToUserId = selectedTeacher.teacherId;
+      }
+
       const response = await createTicket(payload);
       
       if (response.isSuccess) {
@@ -213,6 +272,8 @@ export default function ApplicationPage() {
         setTicketCategory('');
         setSubject('');
         setMessage('');
+        setTicketType('General');
+        setSelectedTeacherOptionKey(teacherOptions[0]?.optionKey ?? '');
         // Reload tickets if in history view
         if (activeView === 'history') {
           loadTickets();
@@ -287,8 +348,7 @@ export default function ApplicationPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-120px)] text-white pb-28">
-      
+    <div className="min-h-[calc(100vh-120px)] text-white pb-4 md:pb-6">
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-xl md:text-2xl font-black flex items-center gap-2.5 mb-2">
@@ -297,9 +357,6 @@ export default function ApplicationPage() {
           </div>
           Đơn yêu cầu hỗ trợ
         </h1>
-        <p className="text-gray-400 text-sm">
-          Gửi đơn cho giáo viên hoặc phòng quản lý trung tâm để nhận sự trợ giúp và phản hồi
-        </p>
       </div>
 
       {/* Tab Navigation */}
@@ -315,9 +372,9 @@ export default function ApplicationPage() {
       {/* Content */}
       {activeView === 'send' ? (
         /* Send Ticket Form */
-        <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-5 mb-6">
+        <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-4 md:p-5 mb-4 md:mb-6">
           {/* Notice */}
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 pb-2">
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 pb-2 mb-3 md:mb-4">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
               <div className="text-sm text-blue-300">
@@ -331,7 +388,8 @@ export default function ApplicationPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             {/* Category Selection */}
             <div>
               <label className="block text-sm font-semibold text-gray-300 mb-1.5">
@@ -350,6 +408,47 @@ export default function ApplicationPage() {
                 ))}
               </select>
             </div>
+
+            {/* Ticket Type */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-1.5">
+                Loại hỗ trợ <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={ticketType}
+                onChange={(e) => setTicketType(e.target.value as TicketType)}
+                className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
+              >
+                <option value="General" className="text-white">Gửi trung tâm</option>
+                <option value="DirectToTeacher" className="text-white">Gửi trực tiếp giáo viên</option>
+              </select>
+            </div>
+            </div>
+
+            {ticketType === 'DirectToTeacher' && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-1.5">
+                  Giáo viên nhận đơn <span className="text-red-400">*</span>
+                </label>
+                <select
+                  value={selectedTeacherOptionKey}
+                  onChange={(e) => setSelectedTeacherOptionKey(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
+                >
+                  <option value="" className="text-white">Chọn giáo viên</option>
+                  {teacherOptions.map((teacher) => (
+                    <option key={teacher.optionKey} value={teacher.optionKey} className="text-white">
+                      {teacher.teacherName}{teacher.classLabel ? ` - ${teacher.classLabel}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {teacherOptions.length === 0 && (
+                  <p className="text-xs text-amber-300 mt-1.5">
+                    Chưa tìm thấy giáo viên chủ nhiệm trong danh sách lớp của học sinh.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Subject */}
             <div>
@@ -374,13 +473,13 @@ export default function ApplicationPage() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Nhập nội dung chi tiết..."
-                rows={7}
+                rows={4}
                 className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all placeholder:text-gray-500"
               />
             </div>
 
             {/* Submit Buttons */}
-            <div className="flex items-center gap-3 pt-2 border-t border-white/10 justify-end">
+            <div className="flex items-center gap-2 md:gap-3 pt-2 md:pt-3 mt-1 md:mt-2 border-t border-white/10 justify-end">
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -395,6 +494,8 @@ export default function ApplicationPage() {
                   setTicketCategory('');
                   setSubject('');
                   setMessage('');
+                  setTicketType('General');
+                  setSelectedTeacherOptionKey(teacherOptions[0]?.optionKey ?? '');
                 }}
                 className="px-5 py-2.5 text-sm bg-slate-800/50 border border-white/10 hover:bg-slate-800 rounded-lg font-semibold transition-all text-gray-400 hover:text-white"
               >

@@ -2,7 +2,6 @@ export type CourseRow = {
   id: string;
   name: string;
   desc: string;
-  level: string;
   duration: string;
   fee: string;
   classes: string;
@@ -14,7 +13,9 @@ export type CourseRow = {
 export interface CreateProgramRequest {
   branchId: string;
   name: string;
-  level: string;
+  code?: string;           
+  isMakeup: boolean;
+  isActive?: boolean;
   totalSessions: number;
   defaultTuitionAmount: number;
   unitPriceSession: number;
@@ -25,7 +26,6 @@ export interface Program {
   id: string;
   code?: string | null;
   name: string;
-  level: string;
   totalSessions: number;
   defaultTuitionAmount: number;
   unitPriceSession: number;
