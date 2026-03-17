@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildApiUrl } from "@/constants/apiURL";
 
-type ProxyOptions = {
+type ProxyOptionalAuthOptions = {
   req: Request;
   endpoint: string;
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -9,22 +9,15 @@ type ProxyOptions = {
   body?: unknown;
 };
 
-export async function proxyJson({
+export async function proxyJsonOptionalAuth({
   req,
   endpoint,
   method,
   includeQuery = false,
   body,
-}: ProxyOptions) {
+}: ProxyOptionalAuthOptions) {
   try {
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json(
-        { isSuccess: false, data: null, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
     const upstreamBase = buildApiUrl(endpoint);
     const queryString = new URL(req.url).searchParams.toString();
     const upstreamUrl =
@@ -33,7 +26,7 @@ export async function proxyJson({
     const upstream = await fetch(upstreamUrl, {
       method,
       headers: {
-        Authorization: authHeader,
+        ...(authHeader ? { Authorization: authHeader } : {}),
         "Content-Type": "application/json",
       },
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -42,8 +35,8 @@ export async function proxyJson({
     const text = await upstream.text();
     if (!text) {
       return NextResponse.json(
-        { isSuccess: false, data: null, message: "Empty upstream response" },
-        { status: 502 }
+        { isSuccess: upstream.ok, data: null, message: "Empty upstream response" },
+        { status: upstream.status }
       );
     }
 
@@ -52,16 +45,15 @@ export async function proxyJson({
       return NextResponse.json(data, { status: upstream.status });
     } catch {
       return NextResponse.json(
-        { isSuccess: false, data: null, message: "Invalid upstream JSON" },
-        { status: 502 }
+        { isSuccess: upstream.ok, data: null, message: text },
+        { status: upstream.status }
       );
     }
   } catch (error) {
-    console.error("Proxy error:", error);
+    console.error("Proxy optional auth error:", error);
     return NextResponse.json(
       { isSuccess: false, data: null, message: "Proxy request failed" },
       { status: 500 }
     );
   }
 }
-
