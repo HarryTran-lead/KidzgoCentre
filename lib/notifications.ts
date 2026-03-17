@@ -270,6 +270,12 @@ function resolveAudienceRoles(audience: NotificationAudience): Role[] {
   if (audience === "management") {
     return ["Admin", "Staff_Manager", "Staff_Accountant"];
   }
+  if (audience === "ManagementStaff") {
+    return ["Staff_Manager"];
+  }
+  if (audience === "AccountantStaff") {
+    return ["Staff_Accountant"];
+  }
   return [audience];
 }
 

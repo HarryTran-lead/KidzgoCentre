@@ -1,11 +1,12 @@
 "use client";
 
-import { NOTIFICATION_ENDPOINTS } from "@/constants/apiURL";
 import { toast } from "@/hooks/use-toast";
-import { pushNotificationToRole } from "@/lib/notifications";
-import { getAccessToken } from "@/lib/store/authToken";
 import type { Role } from "@/lib/role";
 import type { NotificationKind, NotificationPriority } from "@/types/notification";
+import {
+  ingestForegroundNotification,
+  registerDeviceToken,
+} from "@/lib/api/notificationService";
 
 type FirebaseCompatApp = {
   apps: unknown[];
@@ -161,21 +162,15 @@ export function isFcmReadyInBrowser() {
 }
 
 async function syncFcmTokenToApi(token: string, context: FcmUserContext) {
-  const authToken = getAccessToken();
-
-  await fetch(NOTIFICATION_ENDPOINTS.DEVICE_TOKEN, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    },
-    body: JSON.stringify({
-      token,
-      role: context.role,
-      userId: context.userId ?? null,
-      userName: context.userName ?? null,
-      platform: "web",
-    }),
+  await registerDeviceToken({
+    token,
+    role: context.role,
+    userId: context.userId ?? null,
+    userName: context.userName ?? null,
+    deviceType: "Web",
+    browser:
+      typeof navigator !== "undefined" ? navigator.userAgent.split(" ").slice(-1)[0] : "Web",
+    locale: typeof document !== "undefined" ? document.documentElement.lang || "vi" : "vi",
   });
 }
 
@@ -272,13 +267,13 @@ export async function startFcmForegroundListener(context: FcmUserContext) {
       payload.notification?.body || payload.data?.body || "Bạn vừa nhận được một thông báo mới.";
     const targetRole = (payload.data?.targetRole as Role | undefined) ?? context.role;
 
-    pushNotificationToRole({
-      role: targetRole,
+    void ingestForegroundNotification({
       title,
-      message,
+      body: message,
+      targetRole,
       kind: inferKind(payload.data),
       priority: inferPriority(payload.data),
-      senderRole: ((payload.data?.senderRole as Role | undefined) ?? "Admin"),
+      senderRole: (payload.data?.senderRole as string | undefined) ?? "Admin",
       senderName: payload.data?.senderName ?? "Firebase Cloud Messaging",
       link: payload.data?.link,
     });

@@ -1,0 +1,66 @@
+{
+  "notifications": [
+    {
+      "id": "noti-1773645688225-jvmwa7",
+      "recipientUserId": "parent-demo",
+      "recipientProfileId": null,
+      "channel": "InApp",
+      "title": "Báo cáo tháng đã công bố",
+      "content": "Phụ huynh có thể xem báo cáo tháng mới nhất của học viên.",
+      "deeplink": "/vi/portal/parent/notifications",
+      "status": "Sent",
+      "sentAt": "2026-03-16T07:21:28.225Z",
+      "readAt": null,
+      "templateId": null,
+      "createdAt": "2026-03-16T07:21:28.225Z",
+      "targetRole": "Parent",
+      "kind": "report",
+      "priority": "high",
+      "senderRole": "Teacher",
+      "senderName": "KidzGo Centre",
+      "campaignId": null
+    },
+    {
+      "id": "noti-1773645688225-mj0c5w",
+      "recipientUserId": "teacher-demo",
+      "recipientProfileId": null,
+      "channel": "InApp",
+      "title": "Có feedback mới cần xử lý",
+      "content": "Một báo cáo tháng vừa được staff trả về để giáo viên chỉnh sửa.",
+      "deeplink": "/vi/portal/teacher/notifications",
+      "status": "Sent",
+      "sentAt": "2026-03-16T07:21:28.225Z",
+      "readAt": null,
+      "templateId": null,
+      "createdAt": "2026-03-16T07:21:28.225Z",
+      "targetRole": "Teacher",
+      "kind": "feedback",
+      "priority": "high",
+      "senderRole": "Staff_Manager",
+      "senderName": "Phòng học vụ",
+      "campaignId": null
+    }
+  ],
+  "deviceTokens": [],
+  "templates": [
+    {
+      "id": "tpl-1773645688225-wor5uk",
+      "code": "SESSION_REMINDER_24H",
+      "channel": "Email",
+      "title": "Nhắc nhở buổi học",
+      "content": "Em chào phụ huynh {{parentName}}, con {{studentName}} có buổi học {{className}} vào ngày {{date}} lúc {{time}}.",
+      "placeholders": [
+        "parentName",
+        "studentName",
+        "className",
+        "date",
+        "time"
+      ],
+      "isActive": true,
+      "isDeleted": false,
+      "createdAt": "2026-03-16T07:21:28.225Z",
+      "updatedAt": null
+    }
+  ],
+  "campaigns": []
+}

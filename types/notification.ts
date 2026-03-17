@@ -1,5 +1,13 @@
 import type { Role } from "@/lib/role";
 
+export type BackendNotificationRole =
+  | "Admin"
+  | "ManagementStaff"
+  | "AccountantStaff"
+  | "Teacher"
+  | "Parent"
+  | "Student";
+
 export type NotificationKind =
   | "system"
   | "schedule"
@@ -11,7 +19,7 @@ export type NotificationKind =
 
 export type NotificationPriority = "low" | "medium" | "high";
 
-export type NotificationChannel = "InApp" | "Email" | "Zalo OA" | "InApp + Email";
+export type NotificationChannel = "InApp" | "Email" | "ZaloOa" | "Push";
 
 export type AppNotification = {
   id: string;
@@ -32,7 +40,7 @@ export type NotificationAudience =
   | "family"
   | "teaching"
   | "management"
-  | Role;
+  | BackendNotificationRole;
 
 export type NotificationCampaign = {
   id: string;

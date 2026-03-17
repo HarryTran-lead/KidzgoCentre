@@ -519,5 +519,21 @@ export const BACKEND_PARENT_ENDPOINTS = {
 } as const;
 
 export const NOTIFICATION_ENDPOINTS = {
+  BASE: "/api/notifications",
+  BROADCAST: "/api/notifications/broadcast",
+  MARK_READ: (id: string) => `/api/notifications/${id}/read`,
+  RETRY: (id: string) => `/api/notifications/${id}/retry`,
   DEVICE_TOKEN: "/api/notifications/device-token",
+  TEMPLATES: "/api/notifications/templates",
+  TEMPLATE_BY_ID: (id: string) => `/api/notifications/templates/${id}`,
+} as const;
+
+export const BACKEND_NOTIFICATION_ENDPOINTS = {
+  BASE: "/notifications",
+  BROADCAST: "/notifications/broadcast",
+  MARK_READ: (id: string) => `/notifications/${id}/read`,
+  RETRY: (id: string) => `/notifications/${id}/retry`,
+  DEVICE_TOKEN: "/notifications/device-token",
+  TEMPLATES: "/notifications/templates",
+  TEMPLATE_BY_ID: (id: string) => `/notifications/templates/${id}`,
 } as const;

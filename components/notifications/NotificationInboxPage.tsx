@@ -17,8 +17,21 @@ import {
 import type { Role } from "@/lib/role";
 import { ROLE_LABEL } from "@/lib/role";
 import { useNotifications } from "@/hooks/useNotifications";
-import type { AppNotification, NotificationKind } from "@/types/notification";
+import type { NotificationKind } from "@/types/notification";
 import FcmPermissionCard from "@/components/notifications/FcmPermissionCard";
+
+type UiNotification = {
+  id: string;
+  title: string;
+  message: string;
+  kind: NotificationKind;
+  priority: "low" | "medium" | "high";
+  createdAt: string;
+  read: boolean;
+  senderRole: Role;
+  senderName: string;
+  link?: string;
+};
 
 function kindLabel(kind: NotificationKind) {
   switch (kind) {
@@ -70,7 +83,7 @@ function NotificationCard({
   onRead,
   onRemove,
 }: {
-  item: AppNotification;
+  item: UiNotification;
   onRead: () => void;
   onRemove: () => void;
 }) {

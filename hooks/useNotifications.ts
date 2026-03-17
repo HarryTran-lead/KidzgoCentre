@@ -2,17 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Role } from "@/lib/role";
+import { getNotificationRoute } from "@/lib/notifications";
 import {
-  createNotificationCampaign,
-  getCampaigns,
-  getNotificationRoute,
-  getNotificationsForRole,
-  getUnreadCount,
-  markAllNotificationsAsRead,
-  markNotificationAsRead,
-  removeNotification,
-  subscribeNotificationStore,
-} from "@/lib/notifications";
+  broadcastNotification,
+  deleteNotification,
+  fetchBroadcastHistory,
+  fetchNotifications,
+  markNotificationRead,
+  subscribeNotificationsChanged,
+} from "@/lib/api/notificationService";
 import type {
   NotificationAudience,
   NotificationChannel,
@@ -20,28 +18,97 @@ import type {
   NotificationPriority,
 } from "@/types/notification";
 
+const REFRESH_INTERVAL_MS = 10000;
+
+type UiNotification = {
+  id: string;
+  title: string;
+  message: string;
+  kind: NotificationKind;
+  priority: NotificationPriority;
+  createdAt: string;
+  read: boolean;
+  senderRole: Role;
+  senderName: string;
+  link?: string;
+};
+
 export function useNotifications(role: Role) {
-  const [version, setVersion] = useState(0);
+  const [notifications, setNotifications] = useState<UiNotification[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+
+  const refresh = async () => {
+    const items = await fetchNotifications(role);
+    const history = await fetchBroadcastHistory().catch(() => []);
+
+    setNotifications(
+      items.map((item) => ({
+        id: item.id,
+        title: item.title,
+        message: item.content ?? "",
+        kind: ((item.kind as NotificationKind | null) ?? "system"),
+        priority: ((item.priority as NotificationPriority | null) ?? "medium"),
+        createdAt: item.createdAt,
+        read: Boolean(item.readAt),
+        senderRole: ((item.senderRole as Role | null) ?? "Admin"),
+        senderName: item.senderName ?? "KidzGo Centre",
+        link: item.deeplink ?? undefined,
+      }))
+    );
+    setCampaigns(history);
+  };
 
   useEffect(() => {
-    return subscribeNotificationStore(() => {
-      setVersion((value) => value + 1);
+    void refresh();
+    return subscribeNotificationsChanged(() => {
+      void refresh();
     });
-  }, []);
+  }, [role]);
 
-  const notifications = useMemo(() => getNotificationsForRole(role), [role, version]);
-  const unreadCount = useMemo(() => getUnreadCount(role), [role, version]);
-  const campaigns = useMemo(() => getCampaigns(), [version]);
-  const notificationsRoute = useMemo(() => getNotificationRoute(role), [role]);
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    };
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    }, REFRESH_INTERVAL_MS);
+
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [role]);
+
+  const unreadCount = useMemo(
+    () => notifications.filter((item) => !item.read).length,
+    [notifications]
+  );
 
   return {
     notifications,
     unreadCount,
     campaigns,
-    notificationsRoute,
-    markAsRead: (id: string) => markNotificationAsRead(role, id),
-    markAllAsRead: () => markAllNotificationsAsRead(role),
-    removeOne: (id: string) => removeNotification(role, id),
+    notificationsRoute: getNotificationRoute(role),
+    markAsRead: async (id: string) => {
+      await markNotificationRead(id);
+    },
+    markAllAsRead: async () => {
+      await Promise.all(
+        notifications.filter((item) => !item.read).map((item) => markNotificationRead(item.id))
+      );
+    },
+    removeOne: async (id: string) => {
+      await deleteNotification(id);
+    },
     createCampaign: (input: {
       title: string;
       message: string;
@@ -51,6 +118,6 @@ export function useNotifications(role: Role) {
       senderRole: Role;
       senderName: string;
       priority?: NotificationPriority;
-    }) => createNotificationCampaign(input),
+    }) => broadcastNotification(input),
   };
 }
