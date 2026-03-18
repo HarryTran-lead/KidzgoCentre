@@ -282,6 +282,8 @@ export async function getStudentHomeworkById(
       item.submissionType ||
       item.assignmentSubmissionType ||
       item.homeworkSubmissionType;
+    const reviewSource = item.review || {};
+    const answerResultsRaw = reviewSource.answerResults || item.answerResults || [];
 
     const assignment: AssignmentDetail = {
       id: item.id || item.homeworkStudentId || "",
@@ -291,18 +293,41 @@ export async function getStudentHomeworkById(
       teacher: item.teacherName || item.teacher || "",
       assignedDate: item.assignedDate
         ? new Date(item.assignedDate).toLocaleDateString("vi-VN")
+        : item.createdAt
+        ? new Date(item.createdAt).toLocaleDateString("vi-VN")
         : "",
       dueDate: item.dueDate
         ? new Date(item.dueDate).toLocaleDateString("vi-VN")
+        : item.dueAt
+        ? new Date(item.dueAt).toLocaleDateString("vi-VN")
         : "",
       status: mapApiStatusToUiStatus(item.status) as AssignmentDetail["status"],
       submissionType:
         typeof submissionTypeRaw === "string"
           ? (submissionTypeRaw.toUpperCase() as AssignmentDetail["submissionType"])
           : undefined,
-      description: item.description || "",
+      description: item.description || item.assignmentDescription || "",
+      instructions: item.instructions || "",
       requirements: item.requirements || [],
       rubric: item.rubric || [],
+      questions: Array.isArray(item.questions)
+        ? item.questions.map((question: any, index: number) => ({
+            id: question.id || question.questionId || `question-${index}`,
+            questionText: question.questionText || question.text || "",
+            questionType: question.questionType,
+            options: Array.isArray(question.options)
+              ? question.options.map((option: any, optionIndex: number) => ({
+                  id:
+                    option.id ||
+                    option.optionId ||
+                    `${question.id || question.questionId || `question-${index}`}-option-${optionIndex}`,
+                  text: typeof option === "string" ? option : option.text || option.content || "",
+                }))
+              : [],
+            explanation: question.explanation,
+            points: question.points,
+          }))
+        : [],
       teacherAttachments: item.teacherAttachments || item.attachments || [],
       allowResubmit: item.allowResubmit ?? true,
       maxResubmissions: item.maxResubmissions,
@@ -329,11 +354,39 @@ export async function getStudentHomeworkById(
         score: item.grading.score || 0,
         maxScore: item.grading.maxScore || item.grading.totalScore || 10,
         percentage: item.grading.percentage || 0,
+        correctCount: item.grading.correctCount,
+        wrongCount: item.grading.wrongCount,
+        skippedCount: item.grading.skippedCount,
+        totalPoints: item.grading.totalPoints,
+        earnedPoints: item.grading.earnedPoints,
         teacherComment: item.grading.teacherComment,
         aiSuggestions: item.grading.aiSuggestions,
         gradedFiles: item.grading.gradedFiles,
         rubricScores: item.grading.rubricScores,
       } : undefined,
+      review:
+        Array.isArray(answerResultsRaw) && answerResultsRaw.length > 0
+          ? {
+              showReview: Boolean(reviewSource.showReview ?? item.showReview ?? true),
+              showCorrectAnswer: reviewSource.showCorrectAnswer ?? item.showCorrectAnswer,
+              showExplanation: reviewSource.showExplanation ?? item.showExplanation,
+              primaryActionLabel: reviewSource.primaryActionLabel ?? item.primaryActionLabel,
+              answerResults: answerResultsRaw.map((result: any) => ({
+                questionId: result.questionId || "",
+                questionText: result.questionText,
+                selectedOptionId: result.selectedOptionId,
+                selectedOptionText:
+                  result.selectedOptionText || result.studentAnswer || result.selectedAnswer,
+                correctOptionId: result.correctOptionId,
+                correctOptionText:
+                  result.correctOptionText || result.correctAnswer,
+                isCorrect: Boolean(result.isCorrect),
+                earnedPoints: result.earnedPoints ?? result.points,
+                maxPoints: result.maxPoints ?? result.points,
+                explanation: result.explanation,
+              })),
+            }
+          : undefined,
       submittedAt: item.submittedAt
         ? new Date(item.submittedAt).toLocaleString("vi-VN")
         : undefined,
@@ -370,6 +423,27 @@ export type SubmitHomeworkResponse = {
     id: string;
     submittedAt: string;
     status: number;
+  };
+  isSuccess: boolean;
+  message?: string;
+};
+
+export type SubmitMultipleChoicePayload = {
+  homeworkStudentId: string;
+  answers: {
+    questionId: string;
+    selectedOptionId: string;
+  }[];
+};
+
+export type SubmitMultipleChoiceResponse = {
+  data?: {
+    homeworkStudentId: string;
+    status: string | number;
+    score?: number;
+    maxScore?: number;
+    rewardStars?: number;
+    gradedAt?: string;
   };
   isSuccess: boolean;
   message?: string;
@@ -419,6 +493,31 @@ export async function submitHomework(
         error?.response?.data?.message ||
         error?.message ||
         "Lỗi khi nộp bài tập",
+    };
+  }
+}
+
+export async function submitMultipleChoiceHomework(
+  payload: SubmitMultipleChoicePayload
+): Promise<SubmitMultipleChoiceResponse> {
+  const endpoint = STUDENT_HOMEWORK_ENDPOINTS.SUBMIT_MULTIPLE_CHOICE;
+
+  try {
+    const response = await post<any>(endpoint, payload);
+    const responseData = response?.data || response;
+
+    return {
+      data: responseData?.data,
+      isSuccess: responseData?.isSuccess ?? true,
+      message: responseData?.message,
+    };
+  } catch (error: any) {
+    return {
+      isSuccess: false,
+      message:
+        error?.response?.data?.message ||
+        error?.message ||
+        "Loi khi nop bai trac nghiem",
     };
   }
 }

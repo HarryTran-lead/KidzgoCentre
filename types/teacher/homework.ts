@@ -182,7 +182,7 @@ export interface  MultipleChoiceQuestion {
   questionText: string;
   questionType: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer: string;
   points: number;
   explanation?: string;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -25,15 +25,25 @@ import {
   BookOpen,
   Loader2,
   X,
+  CircleCheck,
+  CircleX,
 } from "lucide-react";
 import type {
   AssignmentDetail,
   AssignmentStatus,
   AttachmentType,
 } from "@/types/student/homework";
-import { getStudentHomeworkById, submitHomework } from "@/lib/api/studentService";
-import type { SubmitHomeworkPayload } from "@/lib/api/studentService";
+import { getStudentHomeworkById, submitHomework, submitMultipleChoiceHomework } from "@/lib/api/studentService";
+import type { SubmitHomeworkPayload, SubmitMultipleChoicePayload } from "@/lib/api/studentService";
+import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
+import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
+
+type UploadedHomeworkFile = {
+  name: string;
+  size: number;
+  url: string;
+};
 
 // Status Badge
 function StatusBadge({ status }: { status: AssignmentStatus }) {
@@ -69,6 +79,8 @@ export default function AssignmentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const homeworkId = params.id as string;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   // API State
   const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
@@ -76,11 +88,13 @@ export default function AssignmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Form State
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedHomeworkFile[]>([]);
   const [submissionText, setSubmissionText] = useState("");
   const [submissionLinks, setSubmissionLinks] = useState<string[]>([]);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [newLink, setNewLink] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
 
   // Confirm Modal State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -114,8 +128,19 @@ export default function AssignmentDetailPage() {
     fetchHomeworkDetail();
   }, [homeworkId]);
 
+  const submissionType = (assignment?.submissionType || "").toUpperCase();
+  const isMultipleChoiceAssignment =
+    submissionType === "MULTIPLE_CHOICE" || submissionType === "QUIZ";
+  const isFileSubmission =
+    submissionType === "FILE" ||
+    submissionType === "IMAGE" ||
+    submissionType === "FILE_AND_TEXT";
+  const isTextSubmission = submissionType === "TEXT" || submissionType === "FILE_AND_TEXT";
+  const isLinkSubmission = submissionType === "LINK";
+  const attachmentSourcesCount = uploadedFiles.length + submissionLinks.length;
+
   // Handle file selection with validation
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
 
@@ -152,19 +177,86 @@ export default function AssignmentDetailPage() {
         return;
       }
 
-      setSelectedFiles(prev => [...prev, ...newFiles]);
+      setIsUploadingFiles(true);
+
+      try {
+        const uploadedBatch: UploadedHomeworkFile[] = [];
+
+        for (const file of newFiles) {
+          const result = await uploadFile(file, "homework");
+
+          if (!isUploadSuccess(result)) {
+            const errMsg =
+              result.detail || result.error || result.title || `Khong the tai len file ${file.name}`;
+            setSubmitError(errMsg);
+            toast({
+              title: "Tai file that bai",
+              description: errMsg,
+              variant: "destructive",
+            });
+            continue;
+          }
+
+          uploadedBatch.push({
+            name: result.fileName || file.name,
+            size: result.size || file.size,
+            url: result.url,
+          });
+        }
+
+        if (uploadedBatch.length > 0) {
+          setUploadedFiles(prev => [...prev, ...uploadedBatch]);
+          toast({
+            title: "Tai file thanh cong",
+            description:
+              uploadedBatch.length === 1
+                ? `Da them ${uploadedBatch[0].name} vao bai nop`
+                : `Da them ${uploadedBatch.length} file vao bai nop`,
+            variant: "success",
+          });
+        }
+      } finally {
+        setIsUploadingFiles(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
     }
   };
 
   const handleRemoveFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAddLink = () => {
-    if (newLink.trim()) {
-      setSubmissionLinks(prev => [...prev, newLink.trim()]);
-      setNewLink("");
+    const trimmedLink = newLink.trim();
+
+    if (!trimmedLink) return;
+
+    try {
+      const parsed = new URL(trimmedLink);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        throw new Error("invalid-protocol");
+      }
+    } catch {
+      setSubmitError("Link khong hop le. Vui long dung duong dan bat dau bang http hoac https.");
+      return;
     }
+
+    if (submissionLinks.includes(trimmedLink)) {
+      setSubmitError("Link nay da duoc them roi.");
+      return;
+    }
+
+    setSubmissionLinks(prev => [...prev, trimmedLink]);
+    setNewLink("");
+  };
+
+  const handleSelectAnswer = (questionId: string, selectedOptionId: string) => {
+    setSelectedAnswers(prev => ({
+      ...prev,
+      [questionId]: selectedOptionId,
+    }));
   };
 
   const handleSubmit = () => {
@@ -180,6 +272,8 @@ export default function AssignmentDetailPage() {
 
     try {
       const submissionType = (assignment.submissionType || "").toUpperCase();
+      const isMultipleChoice =
+        submissionType === "MULTIPLE_CHOICE" || submissionType === "QUIZ";
       const isFileRequired =
         submissionType === "FILE" ||
         submissionType === "IMAGE" ||
@@ -189,10 +283,53 @@ export default function AssignmentDetailPage() {
 
       const cleanText = submissionText.trim();
       const cleanLinks = submissionLinks.map((x) => x.trim()).filter(Boolean);
+      const uploadedUrls = uploadedFiles.map((file) => file.url).filter(Boolean);
+      const attachmentUrls = [...uploadedUrls, ...cleanLinks];
 
-      if (isFileRequired && cleanLinks.length === 0) {
+      if (isMultipleChoice) {
+        const questions = assignment.questions || [];
+        const unansweredQuestion = questions.find((question) => !selectedAnswers[question.id]);
+
+        if (questions.length === 0) {
+          setSubmitError("Bai trac nghiem chua co cau hoi de hoc sinh lam.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (unansweredQuestion) {
+          setSubmitError("Vui long chon dap an cho tat ca cau hoi truoc khi nop.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const payload: SubmitMultipleChoicePayload = {
+          homeworkStudentId: homeworkId,
+          answers: questions.map((question) => ({
+            questionId: question.id,
+            selectedOptionId: selectedAnswers[question.id],
+          })),
+        };
+
+        const response = await submitMultipleChoiceHomework(payload);
+
+        if (response.isSuccess) {
+          setSubmitSuccess(true);
+          setShowConfirmModal(false);
+
+          const refreshResponse = await getStudentHomeworkById(homeworkId);
+          if (refreshResponse.isSuccess && refreshResponse.data) {
+            setAssignment(refreshResponse.data);
+          }
+        } else {
+          setSubmitError(response.message || "Khong the nop bai trac nghiem");
+        }
+
+        return;
+      }
+
+      if (isFileRequired && attachmentUrls.length === 0) {
         setSubmitError(
-          "Bài này yêu cầu file. Hãy thêm ít nhất 1 URL file (Drive/Cloudinary) ở mục Link trước khi nộp."
+          "Bai nay can it nhat 1 file hoac link bai lam truoc khi nop."
         );
         setIsSubmitting(false);
         return;
@@ -216,9 +353,8 @@ export default function AssignmentDetailPage() {
         payload.textAnswer = cleanText;
       }
 
-      // Current FE has no upload API yet. Use entered links as attachmentUrls for FILE type.
-      if (isFileRequired && cleanLinks.length > 0) {
-        payload.attachmentUrls = cleanLinks;
+      if (isFileRequired && attachmentUrls.length > 0) {
+        payload.attachmentUrls = attachmentUrls;
       }
 
       if (isLinkRequired && cleanLinks.length > 0) {
@@ -240,9 +376,10 @@ export default function AssignmentDetailPage() {
         }
 
         // Clear form
-        setSelectedFiles([]);
+        setUploadedFiles([]);
         setSubmissionText("");
         setSubmissionLinks([]);
+        setNewLink("");
       } else {
         setSubmitError(response.message || "Không thể nộp bài");
       }
@@ -281,6 +418,11 @@ export default function AssignmentDetailPage() {
   }
 
   const isPending = assignment.status === "PENDING" || assignment.status === "MISSING";
+  const hasAnsweredAllQuestions =
+    !isMultipleChoiceAssignment ||
+    ((assignment.questions?.length ?? 0) > 0 &&
+      assignment.questions!.every((question) => Boolean(selectedAnswers[question.id])));
+  const canReviewQuiz = isMultipleChoiceAssignment && assignment.review?.showReview && (assignment.review.answerResults?.length ?? 0) > 0;
 
   return (
     <div className="h-[calc(100vh-120px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] p-8">
@@ -466,36 +608,129 @@ export default function AssignmentDetailPage() {
 
             {/* File Upload */}
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Upload file
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-                {selectedFiles.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {selectedFiles.map((file, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
-                      >
-                        <span className="text-sm text-slate-700">{file.name}</span>
-                        <button
-                          onClick={() => handleRemoveFile(idx)}
-                          className="p-1 hover:bg-slate-200 rounded"
-                        >
-                          <Trash2 size={16} className="text-rose-600" />
-                        </button>
+              {isMultipleChoiceAssignment && assignment.questions && assignment.questions.length > 0 && (
+                <div className="space-y-4">
+                  {assignment.questions.map((question, questionIndex) => (
+                    <div
+                      key={question.id}
+                      className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="mb-3">
+                        <div className="font-semibold text-slate-900">
+                          Cau {questionIndex + 1}: {question.questionText}
+                        </div>
+                        {question.points ? (
+                          <div className="mt-1 text-sm text-slate-500">{question.points} diem</div>
+                        ) : null}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <div className="space-y-2">
+                        {question.options.map((option) => {
+                          const optionValue = option.id;
+                          const isSelected = selectedAnswers[question.id] === optionValue;
 
+                          return (
+                            <label
+                              key={option.id}
+                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
+                                isSelected
+                                  ? "border-blue-500 bg-blue-50"
+                                  : "border-slate-200 bg-white hover:bg-slate-100"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`question-${question.id}`}
+                                value={optionValue}
+                                checked={isSelected}
+                                onChange={() => handleSelectAnswer(question.id, optionValue)}
+                                className="mt-1"
+                              />
+                              <span className="text-slate-700">{option.text}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!isMultipleChoiceAssignment && (
+                <>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-blue-900">
+                      <span className="rounded-full bg-white px-3 py-1">Cach nop phu hop</span>
+                      {isFileSubmission && (
+                        <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Tai file</span>
+                      )}
+                      {isTextSubmission && (
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Viet cau tra loi</span>
+                      )}
+                      {(isFileSubmission || isLinkSubmission) && (
+                        <span className="rounded-full bg-indigo-100 px-3 py-1 text-indigo-700">Dan link bai lam</span>
+                      )}
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {isFileSubmission
+                        ? "Chon file de tai len truc tiep. Neu bai lam nam tren Google Drive hoac Docs, ban co the dan them link ben duoi."
+                        : isLinkSubmission
+                          ? "Dan 1 link bai lam la du. Nen mo quyen xem de giao vien cham bai khong gap loi."
+                          : "Nhap bai lam bang cach don gian nhat theo yeu cau cua giao vien."}
+                    </p>
+                  </div>
+
+                  {isFileSubmission && (
+                    <div className="space-y-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Tai file bai lam
+                        </label>
+                        <p className="text-sm text-slate-500">
+                          Ho tro PDF, Word, anh, video nho. Moi file toi da 10MB.
+                        </p>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        onChange={handleFileSelect}
+                        disabled={isUploadingFiles}
+                        className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 disabled:opacity-60"
+                      />
+                      {isUploadingFiles && (
+                        <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-slate-600">
+                          <Loader2 size={16} className="animate-spin" />
+                          Dang tai file len...
+                        </div>
+                      )}
+                      {uploadedFiles.length > 0 && (
+                        <div className="space-y-2">
+                          {uploadedFiles.map((file, idx) => (
+                            <div
+                              key={`${file.url}-${idx}`}
+                              className="flex items-center justify-between rounded-lg bg-white p-3"
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium text-slate-800">{file.name}</div>
+                                <div className="text-xs text-slate-500">
+                                  {(file.size / (1024 * 1024)).toFixed(file.size >= 1024 * 1024 ? 1 : 2)} MB
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleRemoveFile(idx)}
+                                className="rounded p-1 hover:bg-slate-100"
+                                aria-label={`Xoa ${file.name}`}
+                              >
+                                <Trash2 size={16} className="text-rose-600" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {isTextSubmission && (
+                    <>
               {/* Text Input */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -510,6 +745,11 @@ export default function AssignmentDetailPage() {
                 />
               </div>
 
+                    </>
+                  )}
+
+                  {(isFileSubmission || isLinkSubmission) && (
+                    <>
               {/* Link Input */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -557,6 +797,9 @@ export default function AssignmentDetailPage() {
                 )}
               </div>
 
+                </>
+              )}
+
               {/* Submit Button */}
               <div className="flex items-center justify-between pt-4 border-t">
                 <div className="text-sm text-slate-600">
@@ -567,8 +810,11 @@ export default function AssignmentDetailPage() {
                 <button
                   onClick={handleSubmit}
                   disabled={
-                    (selectedFiles.length === 0 && !submissionText.trim() && submissionLinks.length === 0) ||
-                    isSubmitting
+                    (isMultipleChoiceAssignment
+                      ? !hasAnsweredAllQuestions
+                      : (attachmentSourcesCount === 0 && !submissionText.trim())) ||
+                    isSubmitting ||
+                    isUploadingFiles
                   }
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-semibold flex items-center gap-2 transition"
                 >
@@ -577,9 +823,11 @@ export default function AssignmentDetailPage() {
                   ) : (
                     <Send size={18} />
                   )}
-                  {isSubmitting ? "Đang nộp..." : "Nộp bài"}
+                  {isSubmitting ? "Đang nộp..." : isMultipleChoiceAssignment ? "Làm bài" : "Nộp bài"}
                 </button>
               </div>
+                    </>
+                  )}
             </div>
           </div>
         ) : null}
@@ -707,6 +955,101 @@ export default function AssignmentDetailPage() {
             )}
           </div>
         )}
+
+        {canReviewQuiz && (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <Eye size={20} />
+              Xem lại bài trắc nghiệm
+            </h2>
+
+            <div className="grid gap-3 md:grid-cols-3 mb-6">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <div className="text-sm text-emerald-700 font-medium">Câu đúng</div>
+                <div className="mt-1 text-2xl font-bold text-emerald-700">
+                  {assignment.grading?.correctCount ?? assignment.review!.answerResults.filter((item) => item.isCorrect).length}
+                </div>
+              </div>
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
+                <div className="text-sm text-rose-700 font-medium">Câu sai</div>
+                <div className="mt-1 text-2xl font-bold text-rose-700">
+                  {assignment.grading?.wrongCount ?? assignment.review!.answerResults.filter((item) => !item.isCorrect).length}
+                </div>
+              </div>
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+                <div className="text-sm text-sky-700 font-medium">Điểm đạt được</div>
+                <div className="mt-1 text-2xl font-bold text-sky-700">
+                  {assignment.grading?.earnedPoints ?? assignment.review!.answerResults.reduce((sum, item) => sum + (item.earnedPoints || 0), 0)}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {assignment.review!.answerResults.map((result, index) => (
+                <div
+                  key={`${result.questionId}-${index}`}
+                  className={`rounded-xl border p-4 ${
+                    result.isCorrect
+                      ? "border-emerald-200 bg-emerald-50/60"
+                      : "border-rose-200 bg-rose-50/60"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        {result.isCorrect ? (
+                          <CircleCheck size={18} className="text-emerald-600" />
+                        ) : (
+                          <CircleX size={18} className="text-rose-600" />
+                        )}
+                        <h3 className="font-semibold text-slate-900">
+                          Câu {index + 1}{result.questionText ? `: ${result.questionText}` : ""}
+                        </h3>
+                      </div>
+
+                      <div className="space-y-2 text-sm text-slate-700">
+                        <div>
+                          <span className="font-medium">Bạn đã chọn:</span>{" "}
+                          <span className={result.isCorrect ? "text-emerald-700" : "text-rose-700"}>
+                            {result.selectedOptionText || "Chưa trả lời"}
+                          </span>
+                        </div>
+
+                        {assignment.review?.showCorrectAnswer && (
+                          <div>
+                            <span className="font-medium">Đáp án đúng:</span>{" "}
+                            <span className="text-emerald-700">{result.correctOptionText || "-"}</span>
+                          </div>
+                        )}
+
+                        <div>
+                          <span className="font-medium">Điểm:</span>{" "}
+                          {result.earnedPoints ?? 0}/{result.maxPoints ?? result.earnedPoints ?? 0}
+                        </div>
+
+                        {assignment.review?.showExplanation && result.explanation && (
+                          <div className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">
+                            <span className="font-medium text-slate-900">Giải thích:</span> {result.explanation}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        result.isCorrect
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-rose-100 text-rose-700"
+                      }`}
+                    >
+                      {result.isCorrect ? "Đúng" : "Sai"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Confirm Modal for Submit */}
@@ -714,9 +1057,13 @@ export default function AssignmentDetailPage() {
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
         onConfirm={handleConfirmSubmit}
-        title="Xác nhận nộp bài"
-        message={`Bạn có chắc chắn muốn nộp bài tập "${assignment.title}" không? Sau khi nộp bạn sẽ không thể chỉnh sửa.`}
-        confirmText="Nộp bài"
+        title={isMultipleChoiceAssignment ? "Xác nhận hoàn thành bài làm" : "Xác nhận nộp bài"}
+        message={
+          isMultipleChoiceAssignment
+            ? `Bạn có chắc chắn muốn hoàn thành bài trắc nghiệm "${assignment.title}" không? Sau khi gửi, hệ thống sẽ chấm điểm ngay nếu bài được auto-grade.`
+            : `Bạn có chắc chắn muốn nộp bài tập "${assignment.title}" không? Sau khi nộp bạn sẽ không thể chỉnh sửa.`
+        }
+        confirmText={isMultipleChoiceAssignment ? "Hoàn thành bài làm" : "Nộp bài"}
         cancelText="Hủy"
         variant="success"
         isLoading={isSubmitting}

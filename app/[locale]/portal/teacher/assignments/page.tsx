@@ -335,6 +335,7 @@ function CreateAssignmentModal({
   const [expectedAnswer, setExpectedAnswer] = useState("");
   const [rubric, setRubric] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   
   // Multiple choice specific states
   const [questions, setQuestions] = useState<Array<{
@@ -401,6 +402,7 @@ function CreateAssignmentModal({
   useEffect(() => {
     const loadSessions = async () => {
       if (!selectedClass) {
+        setSelectedSession("");
         setSessions([]);
         return;
       }
@@ -419,6 +421,27 @@ function CreateAssignmentModal({
     };
     loadSessions();
   }, [selectedClass]);
+
+  useEffect(() => {
+    if (!selectedSession) {
+      return;
+    }
+
+    const session = sessions.find((item) => item.id === selectedSession);
+    const sessionDateTime = session?.plannedDateTime || session?.date;
+    if (!sessionDateTime) {
+      return;
+    }
+
+    const parsedDate = new Date(sessionDateTime);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return;
+    }
+
+    if (!dueDate) {
+      setDueDate(parsedDate.toISOString().split("T")[0]);
+    }
+  }, [selectedSession, sessions, dueDate]);
 
   const addOption = () => {
     setCurrentOptions([...currentOptions, { id: crypto.randomUUID(), text: "", isCorrect: false }]);
@@ -508,15 +531,15 @@ function CreateAssignmentModal({
     try {
       // Determine which API to call based on tab
       if (activeTab === "MULTIPLE_CHOICE") {
-        // Prepare questions for API - convert from UI format to API format
-        // correctAnswer should be the INDEX of the correct option (as string/number)
+        // Prepare questions for API - convert from UI format to API format.
+        // Backend expects correctAnswer as a stringified option index.
         const apiQuestions: MultipleChoiceQuestion[] = questions.map(q => {
           const correctIndex = q.options.findIndex(opt => opt.isCorrect);
           return {
             questionText: q.question,
             questionType: "multipleChoice",
             options: q.options.map(opt => opt.text),
-            correctAnswer: correctIndex, 
+            correctAnswer: String(correctIndex),
             points: q.points || 10,
             explanation: q.explanation,
           };
@@ -573,6 +596,18 @@ function CreateAssignmentModal({
       setIsSubmitting(false);
     }
   };
+
+  const isMultipleChoice = activeTab === "MULTIPLE_CHOICE";
+  const selectedClassOption = classes.find((item) => item.id === selectedClass);
+  const selectedSessionOption = sessions.find((item) => item.id === selectedSession);
+  const totalQuestionPoints = questions.reduce((sum, item) => sum + (item.points || 0), 0);
+  const dueDateTimeLabel = dueDate ? `${dueDate}${dueTime ? ` ${dueTime}` : ""}` : "Chưa chọn";
+  const submissionTypeLabel =
+    submissionType === "TEXT"
+      ? "Nhập text"
+      : submissionType === "FILE_AND_TEXT"
+        ? "File và text"
+        : "Nộp file";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -674,7 +709,10 @@ function CreateAssignmentModal({
                 </label>
                 <select
                   value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedClass(e.target.value);
+                    setSelectedSession("");
+                  }}
                   disabled={isLoadingClasses}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -711,22 +749,35 @@ function CreateAssignmentModal({
               </div>
             </div>
 
-            {/* MaxScore & RewardStars */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Award size={16} className="text-red-600" />
-                  Điểm tối đa
-                </label>
-                <input
-                  type="number"
-                  value={maxScore}
-                  onChange={(e) => setMaxScore(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                  min="0"
-                  placeholder="10"
-                />
-              </div>
+              {!isMultipleChoice ? (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Award size={16} className="text-red-600" />
+                    Điểm tối đa
+                  </label>
+                  <input
+                    type="number"
+                    value={maxScore}
+                    onChange={(e) => setMaxScore(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    min="0"
+                    placeholder="10"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-amber-50 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Award size={16} className="text-red-600" />
+                    Tổng điểm bài trắc nghiệm
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">{totalQuestionPoints || 0}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Tự tính từ tổng điểm các câu hỏi, không cần teacher nhập tay.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Star size={16} className="text-red-600" />
@@ -768,6 +819,43 @@ function CreateAssignmentModal({
                   onChange={(e) => setDueTime(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
                 />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4">
+              <div className="flex items-start gap-3">
+                <Sparkles size={18} className="mt-0.5 text-amber-600" />
+                <div className="space-y-1 text-sm text-gray-700">
+                  <p className="font-semibold text-gray-900">Flow giao bài tập ưu tiên cho teacher</p>
+                  <p>1. Chọn lớp để tải đúng danh sách buổi học.</p>
+                  <p>2. Chọn buổi học nếu muốn gắn bài với một buổi cụ thể.</p>
+                  <p>3. Hạn nộp sẽ tự gợi ý theo ngày buổi học nếu chưa nhập trước.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Loại bài</p>
+                <p className="mt-2 text-sm font-semibold text-gray-900">
+                  {isMultipleChoice ? "Multiple choice" : "Bài tập thường"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Lớp học</p>
+                <p className="mt-2 text-sm font-semibold text-gray-900">
+                  {selectedClassOption?.name || "Chưa chọn"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Buổi học</p>
+                <p className="mt-2 text-sm font-semibold text-gray-900">
+                  {selectedSessionOption?.name || "Không gắn buổi"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Hạn nộp</p>
+                <p className="mt-2 text-sm font-semibold text-gray-900">{dueDateTimeLabel}</p>
               </div>
             </div>
 
@@ -818,36 +906,51 @@ function CreateAssignmentModal({
                   </div>
                 </div>
 
-                {/* Submission Type */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <Upload size={16} className="text-red-600" />
                     Hình thức nộp bài
                   </label>
-                  <select
-                    value={submissionType}
-                    onChange={(e) => setSubmissionType(e.target.value as "FILE" | "TEXT" | "FILE_AND_TEXT")}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300"
-                  >
-                    <option value="FILE">Nộp file</option>
-                    <option value="TEXT">Nhập text</option>
-                    <option value="FILE_AND_TEXT">File và text</option>
-                  </select>
-                </div>
-
-                {/* Mission ID */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Tag size={16} className="text-red-600" />
-                    Mission ID
-                  </label>
-                  <input
-                    type="text"
-                    value={missionId}
-                    onChange={(e) => setMissionId(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                    placeholder="ID nhiệm vụ (UUID)"
-                  />
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {[
+                      {
+                        value: "FILE",
+                        label: "Nộp file",
+                        hint: "Phù hợp khi học viên cần tải bài lên.",
+                      },
+                      {
+                        value: "TEXT",
+                        label: "Nhập text",
+                        hint: "Phù hợp cho câu trả lời ngắn hoặc tự luận.",
+                      },
+                      {
+                        value: "FILE_AND_TEXT",
+                        label: "File và text",
+                        hint: "Vừa nộp file vừa ghi chú nội dung.",
+                      },
+                    ].map((option) => {
+                      const isSelected = submissionType === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setSubmissionType(option.value as "FILE" | "TEXT" | "FILE_AND_TEXT")}
+                          className={clsx(
+                            "rounded-2xl border p-4 text-left transition-all cursor-pointer",
+                            isSelected
+                              ? "border-red-300 bg-red-50 shadow-sm"
+                              : "border-gray-200 bg-white hover:border-red-200 hover:bg-red-50/40"
+                          )}
+                        >
+                          <p className={clsx("text-sm font-semibold", isSelected ? "text-red-700" : "text-gray-900")}>
+                            {option.label}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">{option.hint}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500">Teacher đang chọn: {submissionTypeLabel}.</p>
                 </div>
 
                 {/* Description */}
@@ -880,34 +983,41 @@ function CreateAssignmentModal({
                   />
                 </div>
 
-                {/* Expected Answer */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <CheckCircle size={16} className="text-red-600" />
-                    Đáp án kỳ vọng
-                  </label>
-                  <textarea
-                    value={expectedAnswer}
-                    onChange={(e) => setExpectedAnswer(e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
-                    placeholder="Đáp án mẫu / đáp án kỳ vọng..."
-                  />
-                </div>
-
-                {/* Rubric */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <BarChart3 size={16} className="text-red-600" />
-                    Rubric (Tiêu chí chấm điểm)
-                  </label>
-                  <textarea
-                    value={rubric}
-                    onChange={(e) => setRubric(e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
-                    placeholder="Tiêu chí và cách chấm điểm..."
-                  />
+                <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Hướng dẫn chấm điểm</p>
+                    <p className="text-xs text-gray-500">
+                      Chỉ nhập khi teacher muốn chuẩn hóa cách chấm hoặc lưu đáp án mẫu.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <CheckCircle size={16} className="text-red-600" />
+                        Đáp án kỳ vọng
+                      </label>
+                      <textarea
+                        value={expectedAnswer}
+                        onChange={(e) => setExpectedAnswer(e.target.value)}
+                        rows={3}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                        placeholder="Đáp án mẫu / đáp án kỳ vọng..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <BarChart3 size={16} className="text-red-600" />
+                        Rubric (Tiêu chí chấm điểm)
+                      </label>
+                      <textarea
+                        value={rubric}
+                        onChange={(e) => setRubric(e.target.value)}
+                        rows={3}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                        placeholder="Tiêu chí và cách chấm điểm..."
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* File Upload */}
@@ -927,6 +1037,20 @@ function CreateAssignmentModal({
             ) : (
               /* Multiple Choice tab content - Fields matching API: classId, sessionId, title, description, dueAt, rewardStars, missionId, instructions, questions */
               <div className="space-y-4">
+                <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-amber-50 p-4">
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <span className="rounded-full bg-white px-3 py-1 font-semibold text-red-700">
+                      {questions.length} câu hỏi
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 font-semibold text-gray-700">
+                      {totalQuestionPoints || 0} điểm
+                    </span>
+                    <span className="text-gray-600">
+                      Teacher chỉ cần thêm câu hỏi, hệ thống tự dùng tổng điểm này cho bài trắc nghiệm.
+                    </span>
+                  </div>
+                </div>
+
                 {/* Instructions for Multiple Choice */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -939,21 +1063,6 @@ function CreateAssignmentModal({
                     rows={2}
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
                     placeholder="Hướng dẫn học viên làm bài trắc nghiệm..."
-                  />
-                </div>
-
-                {/* Mission ID for Multiple Choice */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Tag size={16} className="text-red-600" />
-                    Mission ID
-                  </label>
-                  <input
-                    type="text"
-                    value={missionId}
-                    onChange={(e) => setMissionId(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                    placeholder="ID nhiệm vụ (UUID)"
                   />
                 </div>
 
@@ -1186,6 +1295,50 @@ function CreateAssignmentModal({
                 )}
               </div>
             )}
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/80">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedSettings((prev) => !prev)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Tag size={16} className="text-red-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Thiết lập nâng cao</p>
+                    <p className="text-xs text-gray-500">
+                      Mission chỉ dùng khi backend đã cấu hình liên kết homework với hệ thống nhiệm vụ.
+                    </p>
+                  </div>
+                </div>
+                {showAdvancedSettings ? (
+                  <ChevronUp size={18} className="text-gray-500" />
+                ) : (
+                  <ChevronDown size={18} className="text-gray-500" />
+                )}
+              </button>
+
+              {showAdvancedSettings && (
+                <div className="border-t border-gray-200 px-4 py-4">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Tag size={16} className="text-red-600" />
+                      Liên kết nhiệm vụ (tùy chọn)
+                    </label>
+                    <input
+                      type="text"
+                      value={missionId}
+                      onChange={(e) => setMissionId(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                      placeholder="Nhập missionId nếu backend yêu cầu"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Để trống trong flow giao bài tập thông thường. Trường này không bắt buộc để tạo homework.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </form>
         </div>
 
@@ -1213,7 +1366,7 @@ function CreateAssignmentModal({
               ) : (
                 <>
                   <Send size={16} />
-                  Giao bài tập
+                  {isMultipleChoice ? "Tạo bài trắc nghiệm" : "Giao bài tập"}
                 </>
               )}
             </button>

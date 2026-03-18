@@ -53,12 +53,14 @@ export interface AssignmentDetail {
   assignedDate: string;
   dueDate: string;
   status: AssignmentStatus;
-  submissionType?: "FILE" | "IMAGE" | "TEXT" | "LINK" | "QUIZ" | "FILE_AND_TEXT";
+  submissionType?: "FILE" | "IMAGE" | "TEXT" | "LINK" | "QUIZ" | "MULTIPLE_CHOICE" | "FILE_AND_TEXT";
   timeRemaining?: string;
 
   description: string;
+  instructions?: string;
   requirements: string[];
   rubric?: RubricCriteria[];
+  questions?: HomeworkQuestion[];
 
   teacherAttachments?: Attachment[];
 
@@ -68,10 +70,25 @@ export interface AssignmentDetail {
   maxResubmissions?: number;
 
   grading?: Grading;
+  review?: QuizReview;
 
   submittedAt?: string;
   gradedAt?: string;
   editCount: number;
+}
+
+export interface HomeworkQuestionOption {
+  id: string;
+  text: string;
+}
+
+export interface HomeworkQuestion {
+  id: string;
+  questionText: string;
+  questionType?: string;
+  options: HomeworkQuestionOption[];
+  explanation?: string;
+  points?: number;
 }
 
 export interface RubricCriteria {
@@ -107,6 +124,11 @@ export interface Grading {
   score: number;
   maxScore: number;
   percentage: number;
+  correctCount?: number;
+  wrongCount?: number;
+  skippedCount?: number;
+  totalPoints?: number;
+  earnedPoints?: number;
   teacherComment?: string;
   aiSuggestions?: string[];
   gradedFiles?: Attachment[];
@@ -115,6 +137,27 @@ export interface Grading {
     score: number;
     comment?: string;
   }[];
+}
+
+export interface QuizReviewAnswer {
+  questionId: string;
+  questionText?: string;
+  selectedOptionId?: string;
+  selectedOptionText?: string;
+  correctOptionId?: string;
+  correctOptionText?: string;
+  isCorrect: boolean;
+  earnedPoints?: number;
+  maxPoints?: number;
+  explanation?: string;
+}
+
+export interface QuizReview {
+  showReview: boolean;
+  showCorrectAnswer?: boolean;
+  showExplanation?: boolean;
+  primaryActionLabel?: string;
+  answerResults: QuizReviewAnswer[];
 }
 
 export interface HomeworkStats {
