@@ -1,2332 +1,995 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { getAllUsers, updateUserStatus, createUser, updateUser, deleteUser, getUserById } from "@/lib/api/userService";
-import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
-import AccountDetailModal from "@/components/admin/accounts/AccountDetailModal";
-import AccountFormModal from "@/components/admin/accounts/AccountFormModal";
-import ConfirmModal from "@/components/ConfirmModal";
-import { toast } from "@/hooks/use-toast";
-
-// Import Profile Management Components
-import {  
-  getAllStudents, 
-  createParentAccount, 
-  createStudentProfile,
-  deleteProfile,
-  reactivateProfile,
-} from "@/lib/api/profileService";
-import { approveProfiles } from "@/lib/api/userService";
-import type { CreateParentProfileRequest, CreateStudentProfileRequest, Profile } from "@/types/profile";
-import CreateParentProfileModal from "@/components/admin/profile/CreateParentProfileModal";
-import CreateStudentProfileModal from "@/components/admin/profile/CreateStudentProfileModal";
-import ViewLinkedStudentsModal from "@/components/admin/profile/ViewLinkedStudentsModal";
-import ProfileDetailModal from "@/components/admin/profile/ProfileDetailModal";
-
-type SortDirection = "asc" | "desc";
-
-type SortState<T> = {
-  key: keyof T | null;
-  direction: SortDirection;
-};
-
-function quickSort<T>(
-  items: T[],
-  compare: (a: T, b: T) => number
-): T[] {
-  if (items.length <= 1) return items;
-
-  const pivot = items[items.length - 1];
-  const left: T[] = [];
-  const right: T[] = [];
-
-  for (let i = 0; i < items.length - 1; i++) {
-    const c = compare(items[i], pivot);
-    if (c <= 0) left.push(items[i]);
-    else right.push(items[i]);
-  }
-
-  return [...quickSort(left, compare), pivot, ...quickSort(right, compare)];
-}
-
-function toSortableValue(v: unknown): string | number {
-  if (v == null) return "";
-  if (typeof v === "number") return v;
-  if (typeof v === "boolean") return v ? 1 : 0;
-  return String(v).toLowerCase();
-}
-
-function buildComparator<T>(
-  key: keyof T,
-  direction: SortDirection
-): (a: T, b: T) => number {
-  const dir = direction === "asc" ? 1 : -1;
-  return (a, b) => {
-    const av = toSortableValue((a as any)[key]);
-    const bv = toSortableValue((b as any)[key]);
-    if (av < bv) return -1 * dir;
-    if (av > bv) return 1 * dir;
-    return 0;
-  };
-}
-
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search,
-  ShieldCheck,
-  UserPlus,
-  Lock,
-  Mail,
-  Phone,
-  Filter,
-  Users,
-  Key,
   Bell,
-  CheckCircle,
-  XCircle,
+  BellRing,
+  CornerUpLeft,
   Eye,
-  Edit,
-  RefreshCw,
-  RotateCcw,
-  ChevronLeft,
-  ChevronRight,
-  AlertCircle,
-  Calendar,
-  Loader2,
-  User as UserIcon,
-  UserCircle,
-  Shield,
+  FileText,
+  Megaphone,
+  Send,
+  Sparkles,
   Trash2,
+  CheckCheck,
+  Clock,
+  Inbox,
+  Zap,
+  Layers,
+  PlusCircle,
+  Bookmark,
+  Settings2,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+  Filter,
+  Search,
+  MoreVertical,
+  Download,
+  Calendar,
 } from "lucide-react";
+import { useNotifications } from "@/hooks/useNotifications";
+import type {
+  NotificationAudience,
+  NotificationChannel,
+  NotificationKind,
+} from "@/types/notification";
+import FcmPermissionCard from "@/components/notifications/FcmPermissionCard";
+import {
+  createNotificationTemplate,
+  deleteNotificationTemplate,
+  fetchNotificationTemplates,
+} from "@/lib/api/notificationService";
+import { CreditCard, MessageSquare, Mail, MessageCircle } from "lucide-react";
 
-// Map UserRole from API to local Role type
-type Role = "Admin" | "Teacher" | "Parent" | "ManagementStaff";
+const AUDIENCE_OPTIONS: { value: NotificationAudience; label: string; hint: string; color: string }[] = [
+  { value: "all", label: "Tất cả role", hint: "Gửi toàn hệ thống", color: "bg-red-100 text-red-700 border border-red-200" },
+  { value: "family", label: "Parent + Student", hint: "Khối gia đình và học viên", color: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
+  { value: "teaching", label: "Teacher", hint: "Đội ngũ giảng dạy", color: "bg-blue-100 text-blue-700 border border-blue-200" },
+  { value: "management", label: "Staff Manager + Accountant", hint: "Khối vận hành nội bộ", color: "bg-purple-100 text-purple-700 border border-purple-200" },
+  { value: "Parent", label: "Chỉ Parent", hint: "Chỉ phụ huynh", color: "bg-pink-100 text-pink-700 border border-pink-200" },
+  { value: "Student", label: "Chỉ Student", hint: "Chỉ học viên", color: "bg-amber-100 text-amber-700 border border-amber-200" },
+  { value: "Teacher", label: "Chỉ Teacher", hint: "Chỉ giáo viên", color: "bg-cyan-100 text-cyan-700 border border-cyan-200" },
+];
 
-type Account = User & {
-  name: string;
-  phone?: string;
-  lastLoginAt?: string;
-  avatarColor: string;
-  twoFactor: boolean;
-  department?: string;
+const KIND_OPTIONS: { value: NotificationKind; label: string; icon: any; color: string }[] = [
+  { value: "system", label: "Hệ thống", icon: Settings2, color: "text-gray-700 bg-gray-100 border border-gray-200" },
+  { value: "schedule", label: "Lịch học", icon: Clock, color: "text-blue-700 bg-blue-100 border border-blue-200" },
+  { value: "report", label: "Báo cáo", icon: FileText, color: "text-purple-700 bg-purple-100 border border-purple-200" },
+  { value: "payment", label: "Tài chính", icon: CreditCard, color: "text-emerald-700 bg-emerald-100 border border-emerald-200" },
+  { value: "homework", label: "Bài tập", icon: Bookmark, color: "text-amber-700 bg-amber-100 border border-amber-200" },
+  { value: "feedback", label: "Góp ý", icon: MessageSquare, color: "text-rose-700 bg-rose-100 border border-rose-200" },
+  { value: "event", label: "Sự kiện", icon: Sparkles, color: "text-indigo-700 bg-indigo-100 border border-indigo-200" },
+];
+
+const CHANNEL_OPTIONS: { value: NotificationChannel; label: string; hint: string; icon: any }[] = [
+  { value: "InApp", label: "In-app", hint: "Hiển thị trong inbox nội bộ", icon: Bell },
+  { value: "Push", label: "Push", hint: "Thiết bị đã đăng ký FCM", icon: Zap },
+  { value: "Email", label: "Email", hint: "Gửi qua email", icon: Mail },
+  { value: "ZaloOa", label: "Zalo OA", hint: "Kênh Zalo Official Account", icon: MessageCircle },
+];
+
+const TABS = [
+  { id: "list", label: "Danh sách thông báo", icon: Inbox },
+  { id: "compose", label: "Tạo broadcast", icon: Megaphone },
+  { id: "templates", label: "Tạo template", icon: Layers },
+] as const;
+
+type StaffTab = (typeof TABS)[number]["id"];
+
+type TemplateItem = {
+  id: string;
+  code?: string | null;
+  title?: string | null;
+  content?: string | null;
+  channel?: string | null;
 };
 
-// Helper function to map API role to display role
-const mapRoleToDisplay = (apiRole: UserRole): Role => {
-  const roleMap: Record<UserRole, Role> = {
-    'Admin': 'Admin',
-    'Teacher': 'Teacher',
-    'Parent': 'Parent',
-    'ManagementStaff': 'ManagementStaff'
-  };
-  return roleMap[apiRole];
-};
-
-// Helper to generate random avatar color
-const getAvatarColor = (id: string): string => {
-  const colors = [
-    "from-red-400 to-red-700",
-    "from-blue-400 to-cyan-500",
-    "from-emerald-400 to-teal-500",
-    "from-violet-400 to-purple-500",
-    "from-amber-400 to-orange-500",
-    "from-indigo-400 to-blue-500",
-    "from-red-400 to-red-600",
-  ];
-  const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return colors[hash % colors.length];
-};
-
-// Helper to get department based on role
-const getDepartment = (role: UserRole): string => {
-  const departments: Record<UserRole, string> = {
-    'Admin': 'Administration',
-    'Teacher': 'Academic',
-    'Parent': 'Parents',
-    'ManagementStaff': 'Management'
-  };
-  return departments[role];
-};
-
-
-const ROLE_INFO: Record<Role, {
-  label: string;
-  cls: string;
-  bg: string;
-  icon: React.ReactNode;
-}> = {
-  Admin: {
-    label: "Quản trị",
-    cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
-    bg: "from-red-400 to-red-700",
-    icon: <ShieldCheck size={12} />
-  },
-  Teacher: {
-    label: "Giáo viên",
-    cls: "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200",
-    bg: "from-blue-400 to-cyan-500",
-    icon: <UserIcon size={12} />
-  },
-  Parent: {
-    label: "Phụ huynh",
-    cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
-    bg: "from-emerald-400 to-teal-500",
-    icon: <Users size={12} />
-  },
-  ManagementStaff: {
-    label: "Nhân viên quản lý",
-    cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
-    bg: "from-amber-400 to-orange-500",
-    icon: <UserIcon size={12} />
-  },
-};
-
-const STATUS_INFO = {
-  active: {
-    label: "Đang hoạt động",
-    cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
-    icon: <CheckCircle size={12} />
-  },
-  inactive: {
-    label: "Tạm khóa",
-    cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
-    icon: <XCircle size={12} />
-  },
-} as const;
-
-function StatCard({
-  title,
-  value,
-  icon,
-  color,
-  subtitle
-}: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  color: string;
-  subtitle?: string;
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`}></div>
-      <div className="relative flex items-center justify-between gap-3">
-        <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
-          {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
-          {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
-        </div>
-      </div>
-    </div>
-  );
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
-function Avatar({ name, color }: { name: string; color: string }) {
-  const safeName = name || 'User';
-  const initials = safeName
-    .split(' ')
-    .map(word => word[0])
-    .filter(char => char)
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) || 'U';
-
-  return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-lg text-white font-semibold text-xs bg-gradient-to-r from-red-600 to-red-700 shadow-sm">
-      {initials}
-    </div>
-  );
+function getAudienceMeta(value: NotificationAudience) {
+  return AUDIENCE_OPTIONS.find((option) => option.value === value) ?? {
+    value,
+    label: value,
+    hint: "",
+    color: "bg-gray-100 text-gray-700 border border-gray-200",
+  };
 }
 
-function RoleBadge({ role }: { role: Role }) {
-  const roleInfo = ROLE_INFO[role];
-  
-  // Safety check: if role is not found, use a default
-  if (!roleInfo) {
-    return (
-      <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-        <UserIcon size={12} />
-        <span>{role || 'Unknown'}</span>
-      </div>
-    );
-  }
-  
-  const { label, cls, icon } = roleInfo;
-  return (
-    <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
-      {icon}
-      <span>{label}</span>
-    </div>
-  );
+function getKindMeta(value: NotificationKind) {
+  return KIND_OPTIONS.find((option) => option.value === value) ?? {
+    value,
+    label: value,
+    icon: Bell,
+    color: "text-gray-700 bg-gray-100 border border-gray-200",
+  };
 }
 
-function StatusBadge({ isActive }: { isActive: boolean }) {
-  const { label, cls, icon } = isActive ? STATUS_INFO.active : STATUS_INFO.inactive;
-  return (
-    <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
-      {icon}
-      <span>{label}</span>
-    </div>
-  );
+function getChannelMeta(value: NotificationChannel) {
+  return CHANNEL_OPTIONS.find((option) => option.value === value) ?? {
+    value,
+    label: value,
+    hint: "",
+    icon: Bell,
+  };
 }
 
-function TwoFactorBadge({ enabled }: { enabled: boolean }) {
+function StatCard({ icon, label, value, trend }: { icon: React.ReactNode; label: string; value: string | number; trend?: string }) {
   return (
-    <div className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium ${enabled
-      ? 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200'
-      : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200'
-      }`}>
-      {enabled ? <ShieldCheck size={10} /> : <XCircle size={10} />}
-      <span>{enabled ? 'Bật 2FA' : 'Chưa bật'}</span>
-    </div>
-  );
-}
-
-// Helper to format date from API
-const formatDate = (dateString?: string): string => {
-  if (!dateString) return "Chưa có";
-  const date = new Date(dateString);
-  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
-
-const formatDateTime = (dateString?: string): string => {
-  if (!dateString) return "Chưa đăng nhập";
-  const date = new Date(dateString);
-  return date.toLocaleString('vi-VN', { 
-    day: '2-digit', 
-    month: '2-digit', 
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-export default function AccountsPage() {
-  // Tab state
-  const [activeTab, setActiveTab] = useState<"accounts" | "profiles">("accounts");
-  
-  const [role, setRole] = useState<Role | "ALL">("ALL");
-  const [status, setStatus] = useState<boolean | null>(null); // null = ALL, true = ACTIVE, false = INACTIVE
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
-  const [sort, setSort] = useState<SortState<Account>>({ key: null, direction: "asc" });
-  
-  // API State
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isPageLoaded, setIsPageLoaded] = useState(false);
-  
-  // Fixed counts from initial fetch (won't change with filters)
-  const [fixedCounts, setFixedCounts] = useState({
-    total: 0,
-    admin: 0,
-    teacher: 0,
-    parent: 0,
-    managementStaff: 0,
-    active: 0,
-    inactive: 0,
-  });
-
-  // Modal states - Accounts
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [formModalOpen, setFormModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [activateModalOpen, setActivateModalOpen] = useState(false);
-  const [toggleStatusModalOpen, setToggleStatusModalOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<User | null>(null);
-  const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
-
-  // Profile Management States
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([]);
-  const [profilesLoading, setProfilesLoading] = useState(false);
-  const [profileSearchTerm, setProfileSearchTerm] = useState("");
-  const [profileFilterType, setProfileFilterType] = useState<"all" | "Parent" | "Student">("all");
-  const [profileApprovalFilter, setProfileApprovalFilter] = useState<"all" | "pending" | "approved">("all");
-  const [profileShowSuspendedOnly, setProfileShowSuspendedOnly] = useState(false);
-  const [profileCurrentPage, setProfileCurrentPage] = useState(1);
-  const [profileItemsPerPage, setProfileItemsPerPage] = useState(10);
-  
-  // Profile Modal states
-  const [showCreateParentModal, setShowCreateParentModal] = useState(false);
-  const [showCreateStudentModal, setShowCreateStudentModal] = useState(false);
-  const [showViewLinkedModal, setShowViewLinkedModal] = useState(false);
-  const [showProfileDetailModal, setShowProfileDetailModal] = useState(false);
-  const [showProfileDeleteModal, setShowProfileDeleteModal] = useState(false);
-  const [showReactivateProfileModal, setShowReactivateProfileModal] = useState(false);
-  const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
-  const [isProfileActionLoading, setIsProfileActionLoading] = useState(false);
-  const [isBulkApproveLoading, setIsBulkApproveLoading] = useState(false);
-  const [profileActivationAction, setProfileActivationAction] = useState<"approve" | "reactivate">("approve");
-  const [selectedPendingProfileIds, setSelectedPendingProfileIds] = useState<string[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  const [selectedParentForView, setSelectedParentForView] = useState<{ id: string; name: string } | null>(null);
-  const [selectedProfileForDelete, setSelectedProfileForDelete] = useState<{ id: string; name: string } | null>(null);
-  const [selectedProfileForReactivate, setSelectedProfileForReactivate] = useState<{ id: string; userId: string; name: string } | null>(null);
-
-  // Fetch users once on mount
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const usersResponse = await getAllUsers({
-          pageNumber: 1,
-          pageSize: 1000, // Get all users for client-side filtering
-        });
-
-        // Process users response
-        const isSuccessful = usersResponse.success || usersResponse.isSuccess;
-        
-        if (isSuccessful && usersResponse.data) {
-          // Transform API users to Account format
-          const transformedAccounts: Account[] = usersResponse.data.items.map((user) => ({
-            ...user,
-            name: user.name || user.username || user.email || 'Unknown User', // Multiple fallbacks
-            phone: user.branchContactPhone || '',
-            lastLoginAt: user.updatedAt,
-            avatarColor: getAvatarColor(user.id),
-            twoFactor: false, // TODO: This should come from API
-            department: getDepartment(user.role),
-          }));
-          
-          setAccounts(transformedAccounts);
-          setTotalCount(transformedAccounts.length);
-          
-          // Calculate fixed counts (these won't change with filters)
-          const counts = {
-            total: transformedAccounts.length,
-            admin: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Admin').length,
-            teacher: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Teacher').length,
-            parent: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Parent').length,
-            managementStaff: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'ManagementStaff').length,
-            active: transformedAccounts.filter(a => a.isActive).length,
-            inactive: transformedAccounts.filter(a => !a.isActive).length,
-          };
-          setFixedCounts(counts);
-        } else {
-          setError(usersResponse.message || 'Không thể tải danh sách người dùng');
-        }
-
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Đã xảy ra lỗi khi tải dữ liệu'); 
-      } finally {
-        setLoading(false);
-        setIsPageLoaded(true);
-      }
-    }
-
-    fetchUsers();
-  }, []); // Only fetch once on mount
-
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  // Modal handlers
-  const handleViewDetail = async (userId: string) => {
-    try {
-      const response = await getUserById(userId);
-      const isSuccessful = response.success || response.isSuccess;
-      
-      if (isSuccessful && response.data) {
-        // Handle both response.data.user and response.data directly
-        const userData = (response.data as any).user || response.data;
-        setSelectedAccount(userData);
-        setDetailModalOpen(true);
-      } else {
-        toast({
-          title: "Lỗi",
-          description: response.message || 'Không thể tải thông tin chi tiết',
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching user details:', error);
-      toast({
-        title: "Lỗi",
-        description: 'Đã xảy ra lỗi khi tải thông tin chi tiết',
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleOpenCreateModal = () => {
-    setSelectedAccount(null);
-    setFormMode('create');
-    setFormModalOpen(true);
-  };
-
-  const handleOpenEditModal = (account: User) => {
-    setSelectedAccount(account);
-    setFormMode('edit');
-    setFormModalOpen(true);
-  };
-
-  const handleOpenDeleteModal = (account: User) => {
-    setSelectedAccount(account);
-    setDeleteModalOpen(true);
-  };
-
-  const handleOpenActivateModal = (account: User) => {
-    setSelectedAccount(account);
-    setActivateModalOpen(true);
-  };
-
-  const handleOpenToggleStatusModal = (account: User) => {
-    setSelectedAccount(account);
-    setToggleStatusModalOpen(true);
-  };
-
-  const handleCreateUser = async (data: CreateUserRequest) => {
-    try {
-      const response = await createUser(data);
-      if (response.success || response.isSuccess) {
-        toast({
-          title: "Thành công",
-          description: "Tạo tài khoản thành công",
-          variant: "success",
-        });
-        setFormModalOpen(false);
-        // Refresh the list
-        window.location.reload();
-      } else {
-        toast({
-          title: "Lỗi",
-          description: response.message || 'Không thể tạo tài khoản',
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error creating user:', error);
-      toast({
-        title: "Lỗi",
-        description: 'Đã xảy ra lỗi khi tạo tài khoản',
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const handleUpdateUser = async (data: UpdateUserRequest) => {
-    if (!selectedAccount) return;
-    try {
-      const response = await updateUser(selectedAccount.id, data);
-      if (response.success || response.isSuccess) {
-        toast({
-          title: "Thành công",
-          description: "Cập nhật tài khoản thành công",
-          variant: "success",
-        });
-        setFormModalOpen(false);
-        // Refresh the list
-        setTimeout(() => {
-          window.location.reload();
-        }, 3000);
-        
-      } else {
-        toast({
-          title: "Lỗi",
-          description: response.message || 'Không thể cập nhật tài khoản',
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-      toast({
-        title: "Lỗi",
-        description: 'Đã xảy ra lỗi khi cập nhật tài khoản',
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };  
-
-  const handleDeleteUser = async () => {
-    if (!selectedAccount) return;
-    try {
-      const response = await deleteUser(selectedAccount.id);
-      if (response.success || response.isSuccess) {
-        toast({
-          title: "Thành công",
-          description: "Xóa tài khoản thành công",
-          variant: "success",
-        });
-        setDeleteModalOpen(false);
-        // Refresh the list
-        window.location.reload();
-      } else {
-        toast({
-          title: "Lỗi",
-          description: response.message || 'Không thể xóa tài khoản',
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast({
-        title: "Lỗi",
-        description: 'Đã xảy ra lỗi khi xóa tài khoản',
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const handleActivateUser = async () => {
-    if (!selectedAccount) return;
-    try {
-      const response = await updateUserStatus(selectedAccount.id, { isActive: true });
-      if (response.success || response.isSuccess) {
-        toast({
-          title: "Thành công",
-          description: "Kích hoạt tài khoản thành công",
-          variant: "success",
-        });
-        setActivateModalOpen(false);
-        // Update local state
-        setAccounts(prev => prev.map(acc => 
-          acc.id === selectedAccount.id 
-            ? { ...acc, isActive: true }
-            : acc
-        ));
-      } else {
-        toast({
-          title: "Lỗi",
-          description: response.message || 'Không thể kích hoạt tài khoản',
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error activating user:', error);
-      toast({
-        title: "Lỗi",
-        description: 'Đã xảy ra lỗi khi kích hoạt tài khoản',
-        variant: "destructive",
-      });
-    }
-  };
-
-  // ============= PROFILE MANAGEMENT FUNCTIONS =============
-  
-  // Fetch all profiles
-  const fetchProfiles = async (params?: { isApproved?: boolean }) => {
-    try {
-      setProfilesLoading(true);
-      const response = await getAllStudents({
-        pageSize: 1000,
-        ...(params?.isApproved !== undefined ? { isApproved: params.isApproved } : {}),
-      });
-
-      if (response.data?.items) {
-        setProfiles(response.data.items);
-        setFilteredProfiles(response.data.items);
-      }
-    } catch (error) {
-      console.error("Error fetching profiles:", error);
-      toast({
-        title: "Lỗi",
-        description: "Không thể tải danh sách profiles",
-        variant: "destructive",
-      });
-    } finally {
-      setProfilesLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (profileApprovalFilter === "pending") {
-      fetchProfiles({ isApproved: false });
-      return;
-    }
-
-    fetchProfiles();
-  }, [profileApprovalFilter]);
-
-  // Filter profiles
-  useEffect(() => {
-    let filtered = profiles;
-
-    // Filter by suspended only
-    if (profileShowSuspendedOnly) {
-      filtered = filtered.filter(p => !p.isActive);
-    }
-
-    // Filter by approval
-    if (profileApprovalFilter === "pending") {
-      filtered = filtered.filter(p => p.isApproved === false);
-    } else if (profileApprovalFilter === "approved") {
-      filtered = filtered.filter(p => p.isApproved === true);
-    }
-
-    // Filter by type
-    if (profileFilterType !== "all") {
-      filtered = filtered.filter(p => p.profileType === profileFilterType);
-    }
-
-    // Filter by search term
-    if (profileSearchTerm) {
-      filtered = filtered.filter(p => 
-        p.displayName.toLowerCase().includes(profileSearchTerm.toLowerCase()) ||
-        (p.userEmail && p.userEmail.toLowerCase().includes(profileSearchTerm.toLowerCase()))
-      );
-    }
-
-    setFilteredProfiles(filtered);
-    setProfileCurrentPage(1); // Reset to page 1 when filters change
-  }, [profiles, profileFilterType, profileSearchTerm, profileShowSuspendedOnly, profileApprovalFilter]);
-
-  // Handle create parent profile
-  const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
-    try {
-      await createParentAccount(profileData);
-
-      toast({
-        title: "Thành công",
-        description: "Tạo profile Parent thành công",
-        variant: "success",
-      });
-
-      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
-    } catch (error: any) {
-      console.error("Error creating parent:", error);
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể tạo profile Parent",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  // Handle create student profile
-  const handleCreateStudent = async (profileData: CreateStudentProfileRequest) => {
-    try {
-      await createStudentProfile(profileData);
-
-      toast({
-        title: "Thành công",
-        description: "Tạo profile Student thành công",
-        variant: "success",
-      });
-
-      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
-    } catch (error: any) {
-      console.error("Error creating student:", error);
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể tạo profile Student",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  // Handle approve/reactivate profile
-  const handleOpenProfileActivationModal = (
-    id: string,
-    userId: string,
-    displayName: string,
-    action: "approve" | "reactivate"
-  ) => {
-    setProfileActivationAction(action);
-    setSelectedProfileForReactivate({ id, userId, name: displayName });
-    setShowReactivateProfileModal(true);
-  };
-
-  const handleConfirmReactivateProfile = async () => {
-    if (!selectedProfileForReactivate) return;
-
-    try {
-      setIsProfileActionLoading(true);
-
-      if (profileActivationAction === "approve") {
-        const approveResponse = await approveProfiles([selectedProfileForReactivate.id]);
-        const approvedCount = approveResponse.data?.approvedCount;
-        const apiSucceeded = approveResponse.success || approveResponse.isSuccess;
-
-        if (apiSucceeded === false || approvedCount === 0) {
-          toast({
-            title: "Không duyệt được",
-            description: "Backend trả về approvedCount = 0, profile chưa được duyệt.",
-            variant: "destructive",
-          });
-          return;
-        }
-      } else {
-        await reactivateProfile(selectedProfileForReactivate.id);
-      }
-
-      toast({
-        title: "Thành công",
-        description:
-          profileActivationAction === "approve"
-            ? `Profile "${selectedProfileForReactivate.name}" đã được admin duyệt`
-            : `Profile "${selectedProfileForReactivate.name}" đã được kích hoạt lại`,
-        variant: "success",
-      });
-
-      setShowReactivateProfileModal(false);
-      if (profileActivationAction === "approve") {
-        setSelectedPendingProfileIds((prev) =>
-          prev.filter((id) => id !== selectedProfileForReactivate.id)
-        );
-      }
-      setSelectedProfileForReactivate(null);
-      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
-    } catch (error: any) {
-      console.error("Error reactivating profile:", error);
-      toast({
-        title: "Lỗi",
-        description: error.message || (profileActivationAction === "approve" ? "Không thể duyệt profile" : "Không thể kích hoạt lại profile"),
-        variant: "destructive",
-      });
-    } finally {
-      setIsProfileActionLoading(false);
-    }
-  };
-
-  // Handle delete profile
-  const handleOpenDeleteProfileModal = (id: string, displayName: string) => {
-    setSelectedProfileForDelete({ id, name: displayName });
-    setShowProfileDeleteModal(true);
-  };
-
-  const handleConfirmDeleteProfile = async () => {
-    if (!selectedProfileForDelete) return;
-
-    try {
-      await deleteProfile(selectedProfileForDelete.id);
-
-      toast({
-        title: "Thành công",
-        description: "Xóa profile thành công",
-        variant: "success",
-      });
-
-      setShowProfileDeleteModal(false);
-      setSelectedPendingProfileIds((prev) =>
-        prev.filter((id) => id !== selectedProfileForDelete.id)
-      );
-      setSelectedProfileForDelete(null);
-      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
-    } catch (error: any) {
-      console.error("Error deleting profile:", error);
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể xóa profile",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Open view linked students modal
-  const handleOpenViewLinkedModal = (userId: string, parentName: string) => {
-    setSelectedParentForView({ id: userId, name: parentName });
-    setShowViewLinkedModal(true);
-  };
-
-  // Close view linked students modal
-  const handleCloseViewLinkedModal = () => {
-    setShowViewLinkedModal(false);
-    setSelectedParentForView(null);
-  };
-
-  // Open profile detail modal
-  const handleViewProfileDetail = (profileId: string) => {
-    setSelectedProfileId(profileId);
-    setShowProfileDetailModal(true);
-  };
-
-  // Close profile detail modal
-  const handleCloseProfileDetailModal = () => {
-    setShowProfileDetailModal(false);
-    setSelectedProfileId(null);
-  };
-
-  // View student detail from linked students modal
-  const handleViewStudentDetail = (studentId: string) => {
-    setSelectedProfileId(studentId);
-    setShowProfileDetailModal(true);
-  };
-
-  const getCurrentPageProfiles = () => {
-    const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
-    const profileEndIndex = profileStartIndex + profileItemsPerPage;
-    return filteredProfiles.slice(profileStartIndex, profileEndIndex);
-  };
-
-  const getPendingCurrentPageIds = () =>
-    getCurrentPageProfiles()
-      .filter((profile) => profile.isApproved === false)
-      .map((profile) => profile.id);
-
-  const toggleSelectPendingProfile = (profileId: string) => {
-    setSelectedPendingProfileIds((prev) =>
-      prev.includes(profileId)
-        ? prev.filter((id) => id !== profileId)
-        : [...prev, profileId]
-    );
-  };
-
-  const toggleSelectAllPendingOnCurrentPage = () => {
-    const pendingCurrentPageIds = getPendingCurrentPageIds();
-    if (!pendingCurrentPageIds.length) return;
-
-    const allSelected = pendingCurrentPageIds.every((id) =>
-      selectedPendingProfileIds.includes(id)
-    );
-
-    if (allSelected) {
-      setSelectedPendingProfileIds((prev) =>
-        prev.filter((id) => !pendingCurrentPageIds.includes(id))
-      );
-      return;
-    }
-
-    setSelectedPendingProfileIds((prev) =>
-      Array.from(new Set([...prev, ...pendingCurrentPageIds]))
-    );
-  };
-
-  const handleConfirmBulkApproveProfiles = async () => {
-    const idsToApprove = selectedPendingProfileIds.filter((id) =>
-      profiles.some((profile) => profile.id === id && profile.isApproved === false)
-    );
-
-    if (!idsToApprove.length) {
-      toast({
-        title: "Không có profile hợp lệ",
-        description: "Vui lòng chọn profile đang chờ duyệt.",
-        variant: "destructive",
-      });
-      setShowBulkApproveModal(false);
-      return;
-    }
-
-    try {
-      setIsBulkApproveLoading(true);
-
-      const approveResponse = await approveProfiles(idsToApprove);
-      const approvedCount = approveResponse.data?.approvedCount ?? 0;
-      const apiSucceeded = approveResponse.success || approveResponse.isSuccess;
-
-      if (apiSucceeded === false || approvedCount === 0) {
-        toast({
-          title: "Không duyệt được",
-          description: "Backend trả về approvedCount = 0, chưa có profile nào được duyệt.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Thành công",
-        description: `Đã duyệt ${approvedCount}/${idsToApprove.length} profile đã chọn.`,
-        variant: "success",
-      });
-
-      setSelectedPendingProfileIds([]);
-      setShowBulkApproveModal(false);
-      fetchProfiles(profileApprovalFilter === "pending" ? { isApproved: false } : undefined);
-    } catch (error: any) {
-      console.error("Error approving profiles in bulk:", error);
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể duyệt hàng loạt profile",
-        variant: "destructive",
-      });
-    } finally {
-      setIsBulkApproveLoading(false);
-    }
-  };
-
-  // ============= END PROFILE MANAGEMENT FUNCTIONS =============
-
-  const toggleSort = (key: keyof Account) => {
-    setSort(prev => {
-      if (prev.key !== key) return { key, direction: "asc" };
-      return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
-    });
-  };
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [role, status, search]);
-
-  const SortHeader = ({
-    label,
-    sortKey,
-    className,
-  }: {
-    label: string;
-    sortKey: keyof Account;
-    className?: string;
-  }) => {
-    const active = sort.key === sortKey;
-    return (
-      <button
-        type="button"
-        onClick={() => toggleSort(sortKey)}
-        className={`inline-flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-pointer ${className ?? ""}`}
-      >
-        <span>{label}</span>
-        {active ? (
-          sort.direction === "asc" ? (
-            <span aria-hidden>↑</span>
-          ) : (
-            <span aria-hidden>↓</span>
-          )
-        ) : (
-          <span aria-hidden className="text-gray-300">↕</span>
-        )}
-      </button>
-    );
-  };
-
-  const stats = [
-    {
-      title: 'Tổng tài khoản',
-      value: `${fixedCounts.total}`,
-      icon: <Users size={20} />,
-      color: 'from-red-600 to-red-700',
-      subtitle: 'Toàn hệ thống'
-    },
-    {
-      title: 'Đang hoạt động',
-      value: `${fixedCounts.active}`,
-      icon: <CheckCircle size={20} />,
-      color: 'from-emerald-500 to-teal-500',
-      subtitle: 'Truy cập thường xuyên'
-    },
-    {
-      title: 'Bật xác thực 2 lớp',
-      value: `${accounts.filter(a => a.twoFactor).length}`,
-      icon: <ShieldCheck size={20} />,
-      color: 'from-blue-500 to-cyan-500',
-      subtitle: 'Bảo mật cao'
-    },
-    {
-      title: 'Tài khoản mới',
-      value: `+${accounts.filter(a => {
-        if (!a.createdAt) return false;
-        const createdDate = new Date(a.createdAt);
-        const today = new Date();
-        const diffDays = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
-        return diffDays <= 30;
-      }).length}`,
-      icon: <UserPlus size={20} />,
-      color: 'from-amber-500 to-orange-500',
-      subtitle: '30 ngày gần đây'
-    }
-  ];
-
-  const list = useMemo(() => {
-    let result = accounts;
-
-    // Client-side filtering
-    if (role !== "ALL") {
-      result = result.filter(acc => mapRoleToDisplay(acc.role) === role);
-    }
-
-    if (status !== null) {
-      result = result.filter(acc => acc.isActive === status);
-    }
-
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      result = result.filter(acc =>
-        acc.name.toLowerCase().includes(searchLower) ||
-        acc.email.toLowerCase().includes(searchLower) ||
-        (acc.phoneNumber && acc.phoneNumber.toLowerCase().includes(searchLower)) ||
-        acc.id.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Client-side sorting
-    if (sort.key) {
-      result = quickSort([...result], buildComparator(sort.key, sort.direction));
-    }
-
-    return result;
-  }, [accounts, role, status, debouncedSearch, sort.key, sort.direction]);
-
-  // Client-side pagination
-  const totalPages = Math.ceil(list.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentRows = list.slice(startIndex, endIndex);
-
-  const toggleSelectRow = (id: string) => {
-    setSelectedRows(prev =>
-      prev.includes(id)
-        ? prev.filter(rowId => rowId !== id)
-        : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedRows.length === currentRows.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(currentRows.map(row => row.id));
-    }
-  };
-
-  const activeCount = accounts.filter(a => a.isActive).length;
-  const inactiveCount = accounts.filter(a => !a.isActive).length;
-
-  // Handle status toggle
-  const handleToggleStatus = async () => {
-    if (!selectedAccount) return;
-    try {
-      const newStatus = !selectedAccount.isActive;
-      const response = await updateUserStatus(selectedAccount.id, { isActive: newStatus });
-      
-      if (response.success || response.isSuccess) {
-        toast({
-          title: "Thành công",
-          description: `${newStatus ? 'Kích hoạt' : 'Vô hiệu hóa'} tài khoản thành công`,
-          variant: "success",
-        });
-        setToggleStatusModalOpen(false);
-        // Refresh the accounts list
-        setAccounts(prev => prev.map(acc => 
-          acc.id === selectedAccount.id 
-            ? { ...acc, isActive: newStatus }
-            : acc
-        ));
-      } else {
-        toast({
-          title: "Lỗi",
-          description: response.message || 'Không thể cập nhật trạng thái',
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error toggling status:', error);
-      toast({
-        title: "Lỗi",
-        description: 'Đã xảy ra lỗi khi cập nhật trạng thái',
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-red-600 mx-auto mb-4" />
-          <p className="text-gray-600">Đang tải dữ liệu...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
-            <AlertCircle className="h-8 w-8 text-red-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Không thể tải dữ liệu</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
-          >
-            <RefreshCw size={16} /> Thử lại
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
-      {/* Header */}
-      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <Users size={28} className="text-white" />
-          </div>
+    <div className="group relative overflow-hidden rounded-2xl bg-white p-5 transition-all hover:shadow-md border border-gray-100">
+      <div className="absolute inset-0 bg-gradient-to-b from-red-50/30 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      <div className="relative">
+        <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-              Quản lý Tài khoản & Profiles
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Phân quyền truy cập, quản lý profiles và theo dõi hoạt động người dùng
-            </p>
+            <p className="text-sm font-medium text-gray-500">{label}</p>
+            <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
+            {trend && (
+              <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                <Activity className="h-3 w-3" />
+                {trend}
+              </p>
+            )}
+          </div>
+          <div className="rounded-xl bg-gradient-to-br from-red-100 to-red-200 p-3 text-red-600 shadow-sm">
+            {icon}
           </div>
         </div>
-        {activeTab === "accounts" ? (
-          <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
-              <Key size={16} /> Đặt lại mật khẩu
-            </button>
-            <button 
-              onClick={handleOpenCreateModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
-            >
-              <UserPlus size={16} /> Tạo tài khoản mới
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setShowBulkApproveModal(true)}
-              disabled={selectedPendingProfileIds.length === 0 || isBulkApproveLoading}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-            >
-              {isBulkApproveLoading ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <CheckCircle size={16} />
-              )}
-              Duyệt đã chọn ({selectedPendingProfileIds.length})
-            </button>
-            <button
-              onClick={() => setShowCreateParentModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
-            >
-              <UserPlus size={16} /> Tạo tài khoản Parent
-            </button>
-            <button
-              onClick={() => setShowCreateStudentModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
-            >
-              <UserCircle size={16} /> Tạo profile Student
-            </button>
-          </div>
-        )}
       </div>
+    </div>
+  );
+}
 
-      {/* Tab Navigation */}
-      <div className={`bg-white rounded-2xl border border-red-200 p-1 inline-flex gap-1 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <button
-          onClick={() => setActiveTab("accounts")}
-          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-            activeTab === "accounts"
-              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-              : "text-gray-600 hover:bg-red-50"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <ShieldCheck size={16} />
-            <span>Tài khoản</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              activeTab === "accounts" ? "bg-white/20" : "bg-gray-100"
-            }`}>
-              {fixedCounts.total}
-            </span>
-          </div>
-        </button>
-        <button
-          onClick={() => setActiveTab("profiles")}
-          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-            activeTab === "profiles"
-              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-              : "text-gray-600 hover:bg-red-50"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <UserCircle size={16} />
-            <span>Profiles</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              activeTab === "profiles" ? "bg-white/20" : "bg-gray-100"
-            }`}>
-              {profiles.length}
-            </span>
-          </div>
-        </button>
-      </div>
+export default function NotificationBroadcastPage() {
+  const {
+    notifications,
+    unreadCount,
+    campaigns,
+    createCampaign,
+    markAsRead,
+    markAllAsRead,
+    removeOne,
+  } = useNotifications("Staff_Manager");
+  const formRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<StaffTab>("compose");
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [audience, setAudience] = useState<NotificationAudience>("family");
+  const [channel, setChannel] = useState<NotificationChannel>("InApp");
+  const [kind, setKind] = useState<NotificationKind>("system");
+  const [templateCode, setTemplateCode] = useState("");
+  const [templateTitle, setTemplateTitle] = useState("");
+  const [templateContent, setTemplateContent] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState("");
+  const [templateError, setTemplateError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [messageFilter, setMessageFilter] = useState<"all" | "unread">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
-      {/* Content based on active tab */}
-      {activeTab === "accounts" ? (
-        <>
-          {/* Stats Overview */}
-          <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            {stats.map((stat, idx) => (
-              <StatCard key={idx} {...stat} />
-            ))}
-          </div>
+  useEffect(() => {
+    void (async () => {
+      const items = await fetchNotificationTemplates();
+      setTemplates(Array.isArray(items) ? items : []);
+    })();
+  }, []);
 
-      {/* Filter Bar */}
-      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Role Filter */}
-            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
-              {[
-                { k: 'ALL', label: 'Tất cả', count: fixedCounts.total },
-                { k: 'Admin', label: 'Quản trị', count: fixedCounts.admin },
-                { k: 'Teacher', label: 'Giáo viên', count: fixedCounts.teacher },
-                { k: 'Parent', label: 'Phụ huynh', count: fixedCounts.parent },
-                { k: 'ManagementStaff', label: 'Nhân viên', count: fixedCounts.managementStaff },
-              ].map((item) => (
+  const stats = useMemo(() => {
+    const sentToday = campaigns.filter(
+      (item) => new Date(item.createdAt).toDateString() === new Date().toDateString(),
+    ).length;
+    return {
+      notifications: notifications.length,
+      unread: unreadCount,
+      campaigns: campaigns.length,
+      sentToday,
+      templates: templates.length,
+    };
+  }, [campaigns, notifications.length, templates.length, unreadCount]);
+
+  const selectedAudience = getAudienceMeta(audience);
+  const selectedKind = getKindMeta(kind);
+  const KindIcon = selectedKind.icon;
+  const selectedChannel = getChannelMeta(channel);
+  const ChannelIcon = selectedChannel.icon;
+  const activeTemplate = templates.find((template) => template.id === activeTemplateId) ?? null;
+  
+  const filteredNotifications = useMemo(() => {
+    let filtered = messageFilter === "unread" ? notifications.filter((item) => !item.read) : notifications;
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (item) =>
+          item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.message.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    return filtered;
+  }, [notifications, messageFilter, searchQuery]);
+
+  const refreshTemplates = async () => {
+    const items = await fetchNotificationTemplates();
+    setTemplates(Array.isArray(items) ? items : []);
+  };
+
+  const applyTemplate = (template: TemplateItem) => {
+    setActiveTemplateId(template.id);
+    setTitle(template.title ?? "");
+    setMessage(template.content ?? "");
+    if (
+      template.channel === "InApp" ||
+      template.channel === "Push" ||
+      template.channel === "Email" ||
+      template.channel === "ZaloOa"
+    ) {
+      setChannel(template.channel);
+    }
+    setSubmitSuccess("Đã nạp template vào form broadcast.");
+    setSubmitError("");
+    setActiveTab("compose");
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !message.trim()) {
+      setSubmitError("Cần nhập tiêu đề và nội dung trước khi gửi.");
+      return;
+    }
+    setSubmitError("");
+    setSubmitSuccess("");
+    setIsSubmitting(true);
+    try {
+      await createCampaign({
+        title: title.trim(),
+        message: message.trim(),
+        audience,
+        channel,
+        kind,
+        senderRole: "Staff_Manager",
+        senderName: "Phòng học vụ",
+        priority: kind === "payment" || kind === "report" ? "high" : "medium",
+      });
+      setTitle("");
+      setMessage("");
+      setAudience("family");
+      setChannel("InApp");
+      setKind("system");
+      setActiveTemplateId(null);
+      setSubmitSuccess("Đã gửi broadcast thành công.");
+      setActiveTab("list");
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Broadcast failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateTemplate = async () => {
+    if (!templateCode.trim() || !templateTitle.trim() || !templateContent.trim()) {
+      setTemplateError("Code, tiêu đề và nội dung template là bắt buộc.");
+      return;
+    }
+    setTemplateError("");
+    setIsSavingTemplate(true);
+    try {
+      await createNotificationTemplate({
+        code: templateCode.trim(),
+        channel,
+        title: templateTitle.trim(),
+        content: templateContent.trim(),
+        placeholders: [],
+        isActive: true,
+      });
+      setTemplateCode("");
+      setTemplateTitle("");
+      setTemplateContent("");
+      await refreshTemplates();
+      setSubmitSuccess("Đã lưu template mới.");
+    } catch (error) {
+      setTemplateError(error instanceof Error ? error.message : "Không thể lưu template.");
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
+
+  return (
+    <div className="bg-gradient-to-b from-red-50/30 to-white min-h-screen p-4 md:p-6">
+      <div className="space-y-6">
+        {/* Header với hiệu ứng gradient nhẹ */}
+        <div className="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-100/20 via-transparent to-transparent" />
+          
+          <div className="relative flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-100 to-red-200 px-4 py-2">
+                <Megaphone className="h-4 w-4 text-red-600" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-red-700">
+                  Notification Center
+                </span>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 lg:text-4xl">
+                Bảng điều phối
+                <span className="block text-red-600">
+                  thông báo staff
+                </span>
+              </h1>
+              <p className="max-w-2xl text-sm leading-relaxed text-gray-600">
+                Quản lý tập trung tất cả thông báo nội bộ, tạo broadcast và xây dựng thư viện template để tối ưu quy trình làm việc.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2">
+                <Calendar size={16} className="text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Tháng 12/2024</span>
+              </div>
+              <button className="flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-red-100 to-red-200 px-4 py-2 text-sm font-semibold text-red-700 shadow-sm transition-all hover:shadow-md">
+                <Download size={16} />
+                Xuất báo cáo
+              </button>
+              <button className="cursor-pointer rounded-xl bg-gray-100 p-2 transition-all hover:bg-gray-200">
+                <MoreVertical size={20} className="text-gray-600" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <StatCard
+            icon={<Inbox size={20} />}
+            label="Tổng thông báo"
+            value={stats.notifications}
+            trend="+12% so với tháng trước"
+          />
+          <StatCard
+            icon={<Bell size={20} />}
+            label="Chưa đọc"
+            value={stats.unread}
+            trend="Cần xử lý"
+          />
+          <StatCard
+            icon={<Megaphone size={20} />}
+            label="Campaign"
+            value={stats.campaigns}
+            trend={`Hôm nay: ${stats.sentToday}`}
+          />
+          <StatCard
+            icon={<Layers size={20} />}
+            label="Template"
+            value={stats.templates}
+            trend="Sẵn sàng sử dụng"
+          />
+        </div>
+
+        {/* FCM Permission Card */}
+        <FcmPermissionCard role="Staff_Manager" />
+
+        {/* Tabs */}
+        <div className="rounded-2xl bg-white p-1 shadow-sm border border-gray-100">
+          <div className="flex flex-wrap gap-1">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
                 <button
-                  key={item.k}
-                  onClick={() => setRole(item.k as typeof role)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${role === item.k
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
-                    : 'text-gray-700 hover:bg-red-50'
-                    }`}
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`group relative overflow-hidden rounded-xl px-5 py-2.5 text-sm font-medium transition-all ${
+                    isActive
+                      ? "bg-gradient-to-r from-red-100 to-red-200 text-red-700"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
                 >
-                  {item.label}
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${role === item.k ? 'bg-white/20' : 'bg-gray-100'
-                    }`}>
-                    {item.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Status Filter */}
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-500" />
-              <select
-                value={status === null ? 'ALL' : status ? 'ACTIVE' : 'INACTIVE'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setStatus(val === 'ALL' ? null : val === 'ACTIVE');
-                }}
-                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              >
-                <option value="ALL">Tất cả trạng thái ({fixedCounts.total})</option>
-                <option value="ACTIVE">Đang hoạt động ({fixedCounts.active})</option>
-                <option value="INACTIVE">Không hoạt động ({fixedCounts.inactive})</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Search and Items Per Page */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm kiếm tên, email, số điện thoại..."
-                className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
-              />
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-            >
-              <option value={5}>5 / trang</option>
-              <option value={10}>10 / trang</option>
-              <option value={20}>20 / trang</option>
-              <option value={50}>50 / trang</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Table */}
-      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        {/* Table Header */}
-        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách tài khoản</h2>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="font-medium">{list.length} tài khoản</span>
-              {selectedRows.length > 0 && (
-                <>
-                  <span className="mx-2">•</span>
-                  <span className="text-red-600 font-medium">
-                    Đã chọn {selectedRows.length} tài khoản
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
-              <tr>
-                <th className="py-3 px-6 text-left">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.length === currentRows.length && currentRows.length > 0}
-                      onChange={toggleSelectAll}
-                      className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                    />
-                    <SortHeader label="Người dùng" sortKey="name" />
+                  <div className="relative flex items-center gap-2">
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
                   </div>
-                </th>
-                <th className="py-3 px-6 text-left">
-                  <SortHeader label="Thông tin liên hệ" sortKey="email" />
-                </th>
-                <th className="py-3 px-6 text-left">
-                  <SortHeader label="Vai trò" sortKey="role" />
-                </th>
-                <th className="py-3 px-6 text-left">
-                  <SortHeader label="Bảo mật" sortKey="twoFactor" />
-                </th>
-                <th className="py-3 px-6 text-left">
-                  <SortHeader label="Hoạt động" sortKey="lastLoginAt" />
-                </th>
-                <th className="py-3 px-6 text-left">
-                  <SortHeader label="Trạng thái" sortKey="isActive" />
-                </th>
-                <th className="py-3 px-6 text-left">
-                  <span className="text-sm font-semibold text-gray-700">Thao tác</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-red-100">
-              {currentRows.length > 0 ? (
-                currentRows.map((acc) => (
-                  <tr
-                    key={acc.id}
-                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
-                  >
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(acc.id)}
-                          onChange={() => toggleSelectRow(acc.id)}
-                          className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                        />
-                        <div className="flex items-center gap-3">
-                          <Avatar name={acc.name} color={acc.avatarColor} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Nội dung chính */}
+        {activeTab === "list" && (
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            {/* Danh sách thông báo */}
+            <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Danh sách thông báo</h2>
+                  <p className="mt-1 text-sm text-gray-500">Theo dõi và xử lý inbox nội bộ</p>
+                </div>
+                
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm thông báo..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-10 w-64 rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-6">
+                <button
+                  onClick={() => setMessageFilter("all")}
+                  className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                    messageFilter === "all"
+                      ? "bg-gradient-to-r from-red-100 to-red-200 text-red-700"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  Tất cả <span className="ml-1 rounded-full bg-white/80 px-1.5 py-0.5 text-xs">{notifications.length}</span>
+                </button>
+                <button
+                  onClick={() => setMessageFilter("unread")}
+                  className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                    messageFilter === "unread"
+                      ? "bg-gradient-to-r from-red-100 to-red-200 text-red-700"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  Chưa đọc <span className="ml-1 rounded-full bg-white/80 px-1.5 py-0.5 text-xs">{unreadCount}</span>
+                </button>
+                <button
+                  onClick={() => void markAllAsRead()}
+                  className="rounded-xl bg-gradient-to-r from-red-100 to-red-200 px-4 py-2 text-sm font-medium text-red-700 shadow-sm transition-all hover:shadow-md flex items-center gap-2"
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  Đánh dấu tất cả
+                </button>
+              </div>
+
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                {filteredNotifications.length ? (
+                  filteredNotifications.map((item) => {
+                    const kindMeta = getKindMeta(item.kind);
+                    const KindIcon = kindMeta.icon;
+                    return (
+                      <article
+                        key={item.id}
+                        className={`group relative overflow-hidden rounded-xl border-2 p-5 transition-all hover:shadow-md ${
+                          item.read
+                            ? "border-gray-100 bg-white"
+                            : "border-red-200 bg-gradient-to-r from-red-50/50 to-white"
+                        }`}
+                      >
+                        {!item.read && (
+                          <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-red-300 to-red-400" />
+                        )}
+                        <div className="flex items-start gap-4">
+                          <div className={`rounded-xl p-3 ${kindMeta.color}`}>
+                            <KindIcon className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
+                              {!item.read && (
+                                <span className="rounded-full bg-gradient-to-r from-red-100 to-red-200 px-2.5 py-1 text-xs font-semibold text-red-700">
+                                  Mới
+                                </span>
+                              )}
+                              <span className={`rounded-full px-2.5 py-1 text-xs ${kindMeta.color}`}>
+                                {kindMeta.label}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm leading-relaxed text-gray-600 line-clamp-2">{item.message}</p>
+                            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatTime(item.createdAt)}
+                              </span>
+                              <span>Từ: {item.senderName}</span>
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {!item.read ? (
+                              <button
+                                onClick={() => void markAsRead(item.id)}
+                                className="rounded-xl bg-gradient-to-r from-red-100 to-red-200 px-3 py-2 text-sm font-medium text-red-700 shadow-sm transition-all hover:shadow-md cursor-pointer"
+                              >
+                                Đã đọc
+                              </button>
+                            ) : null}
+                            <button
+                              onClick={() => void removeOne(item.id)}
+                              className="rounded-xl border border-gray-200 bg-white p-2 text-gray-400 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                              aria-label="Xóa thông báo"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-16 text-center">
+                    <Inbox className="mx-auto h-12 w-12 text-gray-300" />
+                    <p className="mt-4 text-sm text-gray-400">Không có thông báo nào</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Mẹo xử lý & Thống kê nhanh */}
+            <div className="space-y-6">
+              {/* Thống kê nhanh */}
+              <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-red-500" />
+                  Thống kê nhanh
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <span className="text-sm text-gray-600">Tỷ lệ đọc</span>
+                    <span className="font-semibold text-gray-900">
+                      {notifications.length ? Math.round(((notifications.length - unreadCount) / notifications.length) * 100) : 0}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <span className="text-sm text-gray-600">Phản hồi trung bình</span>
+                    <span className="font-semibold text-gray-900">2.4 giờ</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <span className="text-sm text-gray-600">Campaign active</span>
+                    <span className="font-semibold text-gray-900">{campaigns.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mẹo xử lý */}
+              <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="rounded-xl bg-gradient-to-r from-red-100 to-red-200 p-2">
+                    <Sparkles className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Mẹo xử lý</h2>
+                    <p className="text-sm text-gray-500">Tối ưu quy trình làm việc</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    {
+                      title: "Đánh dấu đã đọc",
+                      description: "Xử lý ngay để tránh sót việc quan trọng",
+                      icon: CheckCheck,
+                    },
+                    {
+                      title: "Sử dụng template",
+                      description: "Tái sử dụng nội dung cho các broadcast tương tự",
+                      icon: Layers,
+                    },
+                    {
+                      title: "Xem trước nội dung",
+                      description: "Kiểm tra kỹ trước khi gửi broadcast",
+                      icon: Eye,
+                    },
+                  ].map((item, index) => {
+                    const Icon = item.icon;
+                    return (
+                      <div
+                        key={index}
+                        className="group rounded-xl bg-gray-50 p-4 transition-all hover:bg-red-50/50 cursor-pointer border border-gray-100"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="rounded-lg bg-white p-2 border border-gray-200">
+                            <Icon className="h-4 w-4 text-red-500" />
+                          </div>
                           <div>
-                            <div className="font-medium text-gray-900">{acc.name}</div>
-                            <div className="text-xs text-gray-500">{acc.id}</div>
-                            {acc.department && (
-                              <div className="text-xs text-gray-400">{acc.department}</div>
-                            )}
+                            <h3 className="font-medium text-gray-900">{item.title}</h3>
+                            <p className="mt-1 text-sm text-gray-500">{item.description}</p>
                           </div>
                         </div>
                       </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Mail size={12} className="text-gray-400" />
-                          <span className="font-medium">{acc.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Phone size={12} className="text-gray-400" />
-                          <span>{acc.phoneNumber || 'Chưa cập nhật'}</span>
-                        </div>
-                        <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <Calendar size={10} />
-                          Tạo ngày: {formatDate(acc.createdAt)}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <RoleBadge role={mapRoleToDisplay(acc.role)} />
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="space-y-1">
-                        <TwoFactorBadge enabled={acc.twoFactor} />
-                        <div className="text-xs text-gray-500">
-                          {!acc.lastLoginAt ? "Chưa đăng nhập" : `Đăng nhập: ${formatDateTime(acc.lastLoginAt)}`}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="space-y-1">
-                        <div className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${!acc.lastLoginAt
-                          ? 'bg-gray-100 text-gray-600'
-                          : 'bg-blue-50 text-blue-600'
-                          }`}>
-                          {!acc.lastLoginAt ? (
-                            <>
-                              <AlertCircle size={10} />
-                              Chưa kích hoạt
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle size={10} />
-                              Đã đăng nhập
-                            </>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {!acc.lastLoginAt
-                            ? "Đang chờ kích hoạt"
-                            : "Hoạt động gần nhất"
-                          }
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <StatusBadge isActive={acc.isActive} />
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-1 transition-opacity duration-200">
-                        <button
-                          type="button"
-                          onClick={() => handleViewDetail(acc.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                          title="Xem chi tiết"
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(acc)}
-                          className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
-                          title="Chỉnh sửa"
-                        >
-                          <Edit size={14} />
-                        </button>
-                        {!acc.isActive ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenActivateModal(acc)}
-                            className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
-                            title="Kích hoạt tài khoản"
-                          >
-                            <RefreshCw size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenDeleteModal(acc)}
-                            className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
-                            title="Xóa tài khoản"
-                          >
-                            <XCircle size={14} />
-                          </button>
-                        )}
-                        {acc.isActive ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenToggleStatusModal(acc)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                            title="Tạm khóa"
-                          >
-                            <Lock size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenToggleStatusModal(acc)}
-                            className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
-                            title="Kích hoạt"
-                          >
-                            <CheckCircle size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center">
-                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
-                      <Search size={24} className="text-red-400" />
-                    </div>
-                    <div className="text-gray-600 font-medium">Không tìm thấy tài khoản</div>
-                    <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo tài khoản mới</div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-        {/* Table Footer - Pagination */}
-        {list.length > 0 && (
-          <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              {/* Left: Info */}
-              <div className="text-sm text-gray-600">
-                Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, list.length)}</span> trong tổng số{" "}
-                <span className="font-semibold text-gray-900">{list.length}</span> tài khoản
-                {selectedRows.length > 0 && (
-                  <span className="ml-3 text-red-600 font-medium">
-                    • Đã chọn {selectedRows.length}
-                  </span>
+        {activeTab === "compose" && (
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            {/* Form compose */}
+            <div ref={formRef} className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-gradient-to-r from-red-100 to-red-200 p-2">
+                    <BellRing className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Tạo broadcast</h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Soạn nội dung và gửi tới đúng nhóm nhận
+                    </p>
+                  </div>
+                </div>
+                {activeTemplate && (
+                  <div className="rounded-xl bg-gray-50 px-4 py-3 border border-gray-200">
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <Bookmark className="h-4 w-4 text-red-500" />
+                      <span className="font-medium">Đang dùng:</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-xs border border-gray-200">
+                        {activeTemplate.code}
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* Right: Pagination Buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  aria-label="Previous page"
-                >
-                  <ChevronLeft size={18} />
-                </button>
+              <div className="space-y-4">
+                {submitError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                    {submitError}
+                  </div>
+                )}
+                {submitSuccess && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-600">
+                    {submitSuccess}
+                  </div>
+                )}
 
-                <div className="flex items-center gap-1">
-                  {(() => {
-                    const pages: (number | string)[] = [];
-                    const maxVisible = 7;
+                <div className="grid gap-4 md:grid-cols-3">
+                  {/* Audience Select */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Đối tượng</label>
+                    <select
+                      value={audience}
+                      onChange={(event) => setAudience(event.target.value as NotificationAudience)}
+                      className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    >
+                      {AUDIENCE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400">{selectedAudience.hint}</p>
+                  </div>
 
-                    if (totalPages <= maxVisible) {
-                      for (let i = 1; i <= totalPages; i++) {
-                        pages.push(i);
-                      }
-                    } else {
-                      if (currentPage <= 3) {
-                        for (let i = 1; i <= 5; i++) pages.push(i);
-                        pages.push("...");
-                        pages.push(totalPages);
-                      } else if (currentPage >= totalPages - 2) {
-                        pages.push(1);
-                        pages.push("...");
-                        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
-                      } else {
-                        pages.push(1);
-                        pages.push("...");
-                        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-                        pages.push("...");
-                        pages.push(totalPages);
-                      }
-                    }
+                  {/* Kind Select */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Loại</label>
+                    <select
+                      value={kind}
+                      onChange={(event) => setKind(event.target.value as NotificationKind)}
+                      className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    >
+                      {KIND_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                    return pages.map((page, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => typeof page === "number" && setCurrentPage(page)}
-                        disabled={page === "..."}
-                        className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                          page === currentPage
-                            ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                            : page === "..."
-                            ? "cursor-default text-gray-400"
-                            : "border border-red-200 hover:bg-red-50 text-gray-700"
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    ));
-                  })()}
+                  {/* Channel Select */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Kênh</label>
+                    <select
+                      value={channel}
+                      onChange={(event) => setChannel(event.target.value as NotificationChannel)}
+                      className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    >
+                      {CHANNEL_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400">{selectedChannel.hint}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Tiêu đề</label>
+                  <input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    placeholder="Nhập tiêu đề thông báo..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Nội dung</label>
+                  <textarea
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    rows={5}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm leading-relaxed outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    placeholder="Nhập nội dung broadcast..."
+                  />
                 </div>
 
                 <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  aria-label="Next page"
+                  onClick={() => void handleSubmit()}
+                  disabled={isSubmitting}
+                  className="h-11 w-full rounded-xl bg-gradient-to-r from-red-100 to-red-200 px-6 text-sm font-semibold text-red-700 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <ChevronRight size={18} />
+                  {isSubmitting ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                      Đang gửi...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Gửi broadcast
+                    </>
+                  )}
                 </button>
+              </div>
+            </div>
+
+            {/* Preview và Templates */}
+            <div className="space-y-6">
+              {/* Preview Card */}
+              <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="rounded-xl bg-gradient-to-r from-red-100 to-red-200 p-2">
+                    <Eye className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Preview</h2>
+                    <p className="text-sm text-gray-500">Xem trước nội dung</p>
+                  </div>
+                </div>
+
+                <div className="overflow-hidden rounded-xl border border-gray-100 bg-gray-50 p-5">
+                  <div className="flex items-start gap-4">
+                    <div className={`rounded-xl p-3 ${selectedKind.color}`}>
+                      <KindIcon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-semibold text-gray-900">
+                          {title.trim() || "Tiêu đề sẽ hiển thị ở đây"}
+                        </h3>
+                        <span className="flex items-center gap-1 rounded-full bg-gray-200 px-2 py-1 text-xs text-gray-600">
+                          <ChannelIcon className="h-3 w-3" />
+                          {selectedChannel.label}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                        {message.trim() || "Nội dung preview sẽ hiển thị tại đây..."}
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span className={`rounded-full px-3 py-1 text-xs ${selectedAudience.color}`}>
+                          {selectedAudience.label}
+                        </span>
+                        <span className={`rounded-full px-3 py-1 text-xs ${selectedKind.color}`}>
+                          {selectedKind.label}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Templates nhanh */}
+              <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="rounded-xl bg-gradient-to-r from-red-100 to-red-200 p-2">
+                    <Layers className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Template nhanh</h2>
+                    <p className="text-sm text-gray-500">Sử dụng template có sẵn</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {templates.slice(0, 3).length ? (
+                    templates.slice(0, 3).map((template) => (
+                      <div
+                        key={template.id}
+                        className="group relative rounded-xl border border-gray-100 bg-gray-50 p-4 transition-all hover:border-red-200 hover:bg-red-50/50 cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900">{template.title}</h3>
+                            <p className="mt-1 text-sm text-gray-500 line-clamp-2">{template.content}</p>
+                          </div>
+                          <button
+                            onClick={() => applyTemplate(template)}
+                            className="ml-2 rounded-lg bg-gradient-to-r from-red-100 to-red-200 p-2 text-red-600 opacity-0 shadow-sm transition-all group-hover:opacity-100 cursor-pointer"
+                          >
+                            <CornerUpLeft className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <span className="rounded-full bg-white px-2 py-0.5 text-xs text-gray-600 border border-gray-200">
+                            {template.code}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-xl border-2 border-dashed border-gray-200 py-8 text-center">
+                      <Layers className="mx-auto h-8 w-8 text-gray-300" />
+                      <p className="mt-2 text-sm text-gray-400">Chưa có template nào</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "templates" && (
+          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            {/* Tạo template mới */}
+            <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="rounded-xl bg-gradient-to-r from-red-100 to-red-200 p-2">
+                  <PlusCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Tạo template mới</h2>
+                  <p className="text-sm text-gray-500">Lưu mẫu để sử dụng nhanh</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {templateError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                    {templateError}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Mã template</label>
+                  <input
+                    value={templateCode}
+                    onChange={(event) => setTemplateCode(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    placeholder="VD: SESSION_REMINDER"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Tiêu đề</label>
+                  <input
+                    value={templateTitle}
+                    onChange={(event) => setTemplateTitle(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    placeholder="Nhập tiêu đề template"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Nội dung</label>
+                  <textarea
+                    value={templateContent}
+                    onChange={(event) => setTemplateContent(event.target.value)}
+                    rows={4}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm leading-relaxed outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    placeholder="Nhập nội dung template"
+                  />
+                </div>
+
+                <button
+                  onClick={() => void handleCreateTemplate()}
+                  disabled={isSavingTemplate}
+                  className="h-11 w-full rounded-xl bg-gradient-to-r from-red-100 to-red-200 px-6 text-sm font-semibold text-red-700 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isSavingTemplate ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-4 w-4" />
+                      Lưu template
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Thư viện template */}
+            <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="rounded-xl bg-gradient-to-r from-red-100 to-red-200 p-2">
+                  <Bookmark className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Thư viện template</h2>
+                  <p className="text-sm text-gray-500">Quản lý các mẫu có sẵn</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                {templates.length ? (
+                  templates.map((template) => {
+                    const isActive = template.id === activeTemplateId;
+                    const channelMeta = getChannelMeta(template.channel as NotificationChannel);
+                    const ChannelIcon = channelMeta.icon;
+
+                    return (
+                      <article
+                        key={template.id}
+                        className={`group rounded-xl border-2 p-5 transition-all hover:shadow-md ${
+                          isActive
+                            ? "border-red-200 bg-gradient-to-r from-red-50/50 to-white"
+                            : "border-gray-100 bg-white hover:border-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-base font-semibold text-gray-900">{template.title}</h3>
+                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 border border-gray-200">
+                                {template.code}
+                              </span>
+                              {template.channel && (
+                                <span className="flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                                  <ChannelIcon className="h-3 w-3" />
+                                  {channelMeta.label}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-2 text-sm leading-relaxed text-gray-600 line-clamp-2">
+                              {template.content}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2 ml-4">
+                            <button
+                              onClick={() => applyTemplate(template)}
+                              className="rounded-lg bg-gradient-to-r from-red-100 to-red-200 p-2 text-red-600 opacity-0 shadow-sm transition-all group-hover:opacity-100 cursor-pointer"
+                              title="Sử dụng template"
+                            >
+                              <CornerUpLeft className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                await deleteNotificationTemplate(template.id);
+                                if (template.id === activeTemplateId) {
+                                  setActiveTemplateId(null);
+                                }
+                                await refreshTemplates();
+                              }}
+                              className="rounded-lg border border-gray-200 bg-white p-2 text-gray-400 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                              title="Xóa template"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-16 text-center">
+                    <Layers className="mx-auto h-12 w-12 text-gray-300" />
+                    <p className="mt-4 text-sm text-gray-400">Chưa có template nào</p>
+                    <p className="text-xs text-gray-400 mt-1">Tạo template mới để bắt đầu</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
       </div>
-        </>
-      ) : (
-        <>
-          {/* Profiles Statistics */}
-          <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <StatCard
-              title="Tổng Profiles"
-              value={`${profiles.length}`}
-              icon={<Users size={20} />}
-              color="from-red-600 to-red-700"
-              subtitle="Toàn hệ thống"
-            />
-            <StatCard
-              title="Parents"
-              value={`${profiles.filter(p => p.profileType === "Parent").length}`}
-              icon={<Shield size={20} />}
-              color="from-emerald-500 to-teal-500"
-              subtitle="Có tài khoản đăng nhập"
-            />
-            <StatCard
-              title="Students"
-              value={`${profiles.filter(p => p.profileType === "Student").length}`}
-              icon={<UserCircle size={20} />}
-              color="from-blue-500 to-cyan-500"
-              subtitle="Link với Parent"
-            />
-            <StatCard
-              title="Chờ duyệt"
-              value={`${profiles.filter(p => p.isApproved === false).length}`}
-              icon={<AlertCircle size={20} />}
-              color="from-amber-500 to-orange-500"
-              subtitle="Cần admin phê duyệt"
-            />
-          </div>
-
-          {/* Filter Bar */}
-          <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Type Filter */}
-                <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
-                  {[
-                    {
-                      k: 'all',
-                      label: 'Tất cả',
-                      count: profiles.filter(p => {
-                        if (profileShowSuspendedOnly && p.isActive) return false;
-                        if (profileApprovalFilter === "pending" && p.isApproved !== false) return false;
-                        if (profileApprovalFilter === "approved" && p.isApproved !== true) return false;
-                        return true;
-                      }).length,
-                    },
-                    {
-                      k: 'Parent',
-                      label: 'Parents',
-                      count: profiles.filter(p => {
-                        if (p.profileType !== "Parent") return false;
-                        if (profileShowSuspendedOnly && p.isActive) return false;
-                        if (profileApprovalFilter === "pending" && p.isApproved !== false) return false;
-                        if (profileApprovalFilter === "approved" && p.isApproved !== true) return false;
-                        return true;
-                      }).length,
-                    },
-                    {
-                      k: 'Student',
-                      label: 'Students',
-                      count: profiles.filter(p => {
-                        if (p.profileType !== "Student") return false;
-                        if (profileShowSuspendedOnly && p.isActive) return false;
-                        if (profileApprovalFilter === "pending" && p.isApproved !== false) return false;
-                        if (profileApprovalFilter === "approved" && p.isApproved !== true) return false;
-                        return true;
-                      }).length,
-                    },
-                  ].map((item) => (
-                    <button
-                      key={item.k}
-                      onClick={() => setProfileFilterType(item.k as typeof profileFilterType)}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${
-                        profileFilterType === item.k
-                          ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
-                          : 'text-gray-700 hover:bg-red-50'
-                      }`}
-                    >
-                      {item.label}
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                        profileFilterType === item.k ? 'bg-white/20' : 'bg-gray-100'
-                      }`}>
-                        {item.count}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Approval Filter */}
-                <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
-                  {[
-                    { k: "all", label: "Tất cả duyệt", count: profiles.length },
-                    { k: "pending", label: "Chờ duyệt", count: profiles.filter(p => p.isApproved === false).length },
-                    { k: "approved", label: "Đã duyệt", count: profiles.filter(p => p.isApproved === true).length },
-                  ].map((item) => (
-                    <button
-                      key={item.k}
-                      onClick={() => setProfileApprovalFilter(item.k as typeof profileApprovalFilter)}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${
-                        profileApprovalFilter === item.k
-                          ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
-                          : 'text-gray-700 hover:bg-red-50'
-                      }`}
-                    >
-                      {item.label}
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                        profileApprovalFilter === item.k ? 'bg-white/20' : 'bg-gray-100'
-                      }`}>
-                        {item.count}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Suspended Only Toggle */}
-                <button
-                  onClick={() => setProfileShowSuspendedOnly(!profileShowSuspendedOnly)}
-                  className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border transition-all duration-200 cursor-pointer ${
-                    profileShowSuspendedOnly
-                      ? 'bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-sm'
-                      : 'bg-white text-gray-700 border-red-200 hover:bg-red-50'
-                  }`}
-                >
-                  <XCircle size={16} />
-                  <span>Tạm khóa</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    profileShowSuspendedOnly ? 'bg-white/20' : 'bg-red-100 text-red-700'
-                  }`}>
-                    {profiles.filter(p => !p.isActive).length}
-                  </span>
-                </button>
-              </div>
-
-              {/* Search and Items Per Page */}
-              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm theo tên, email..."
-                    value={profileSearchTerm}
-                    onChange={(e) => setProfileSearchTerm(e.target.value)}
-                    className="w-full rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
-                  />
-                </div>
-                <select
-                  value={profileItemsPerPage}
-                  onChange={(e) => {
-                    setProfileItemsPerPage(Number(e.target.value));
-                    setProfileCurrentPage(1);
-                  }}
-                  className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                >
-                  <option value={5}>5 / trang</option>
-                  <option value={10}>10 / trang</option>
-                  <option value={20}>20 / trang</option>
-                  <option value={50}>50 / trang</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Profiles Table */}
-          <div className={`rounded-2xl border border-red-200 bg-white overflow-hidden shadow-sm transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="border-b border-red-100 bg-red-50/40 px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-gray-600">
-                Đã chọn <span className="font-semibold text-red-700">{selectedPendingProfileIds.length}</span> profile chờ duyệt
-              </div>
-              <button
-                onClick={() => setShowBulkApproveModal(true)}
-                disabled={selectedPendingProfileIds.length === 0 || isBulkApproveLoading}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              >
-                {isBulkApproveLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                Duyệt hàng loạt
-              </button>
-            </div>
-
-            {profilesLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-12 h-12 animate-spin text-red-600" />
-              </div>
-            ) : filteredProfiles.length === 0 ? (
-              <div className="text-center py-16">
-                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Không có profile nào</p>
-                <p className="text-sm text-gray-400 mt-2">Hãy tạo profile mới để bắt đầu</p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gradient-to-r from-red-100 to-red-200">
-                      <tr className="border-b border-red-200">
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                          <input
-                            type="checkbox"
-                            checked={
-                              getPendingCurrentPageIds().length > 0 &&
-                              getPendingCurrentPageIds().every((id) => selectedPendingProfileIds.includes(id))
-                            }
-                            onChange={toggleSelectAllPendingOnCurrentPage}
-                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                            title="Chọn tất cả profile chờ duyệt ở trang hiện tại"
-                          />
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">User ID</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Ngày tạo</th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Hành động</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-red-100">
-                      {(() => {
-                        const profileTotalPages = Math.ceil(filteredProfiles.length / profileItemsPerPage);
-                        const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
-                        const profileEndIndex = profileStartIndex + profileItemsPerPage;
-                        const currentProfiles = filteredProfiles.slice(profileStartIndex, profileEndIndex);
-                        
-                        return currentProfiles.map((profile) => (
-                      <tr key={profile.id} className="hover:bg-gradient-to-r hover:from-red-50/50 hover:to-transparent transition-all duration-200">
-                        <td className="px-6 py-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedPendingProfileIds.includes(profile.id)}
-                            onChange={() => toggleSelectPendingProfile(profile.id)}
-                            disabled={profile.isApproved !== false}
-                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                            title={profile.isApproved === false ? "Chọn profile này" : "Chỉ chọn được profile chờ duyệt"}
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                            profile.profileType === "Parent"
-                              ? "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200"
-                              : "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200"
-                          }`}>
-                            {profile.profileType === "Parent" ? <Shield size={12} /> : <UserCircle size={12} />}
-                            {profile.profileType}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{profile.displayName}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-gray-600 text-sm">
-                            <Mail size={14} />
-                            {profile.userEmail || 'N/A'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-xs text-gray-500 font-mono">
-                            {profile.userId?.substring(0, 8)}...
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-2">
-                            {profile.isApproved === false ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200 rounded-full text-xs font-medium w-fit">
-                                <AlertCircle size={12} />
-                                Chờ duyệt
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium w-fit">
-                                <CheckCircle size={12} />
-                                Đã duyệt
-                              </span>
-                            )}
-
-                            {profile.isActive ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium w-fit">
-                                <CheckCircle size={12} />
-                                Đang hoạt động
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200 rounded-full text-xs font-medium w-fit">
-                                <XCircle size={12} />
-                                Tạm khóa
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Calendar size={14} />
-                            {new Date(profile.createdAt).toLocaleDateString('vi-VN')}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleViewProfileDetail(profile.id)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group cursor-pointer"
-                              title="Xem chi tiết"
-                            >
-                              <Eye size={18} className="group-hover:scale-110 transition-transform" />
-                            </button>
-                            {profile.profileType === "Parent" && (
-                              <button
-                                onClick={() => handleOpenViewLinkedModal(profile.userId, profile.displayName)}
-                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group cursor-pointer"
-                                title="Xem học sinh đã liên kết"
-                              >
-                                <Users size={18} className="group-hover:scale-110 transition-transform" />
-                              </button>
-                            )}
-                            {profile.isApproved === false && (
-                              <button
-                                onClick={() => handleOpenProfileActivationModal(profile.id, profile.userId, profile.displayName, "approve")}
-                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group cursor-pointer"
-                                title="Duyệt profile"
-                              >
-                                <RotateCcw size={18} className="group-hover:scale-110 transition-transform" />
-                              </button>
-                            )}
-                            {profile.isApproved === true && !profile.isActive && (
-                              <button
-                                onClick={() => handleOpenProfileActivationModal(profile.id, profile.userId, profile.displayName, "reactivate")}
-                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors group cursor-pointer"
-                                title="Kích hoạt lại profile"
-                              >
-                                <RefreshCw size={18} className="group-hover:scale-110 transition-transform" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleOpenDeleteProfileModal(profile.id, profile.displayName)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors group cursor-pointer"
-                              title="Xóa"
-                            >
-                              <Trash2 size={18} className="group-hover:scale-110 transition-transform" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                        ));
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {/* Pagination */}
-                {filteredProfiles.length > 0 && (() => {
-                  const profileTotalPages = Math.ceil(filteredProfiles.length / profileItemsPerPage);
-                  const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
-                  const profileEndIndex = profileStartIndex + profileItemsPerPage;
-                  
-                  return (
-                    <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                        {/* Left: Info */}
-                        <div className="text-sm text-gray-600">
-                          Hiển thị <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span> trong tổng số{" "}
-                          <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> profiles
-                        </div>
-
-                        {/* Right: Pagination Buttons */}
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setProfileCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={profileCurrentPage === 1}
-                            className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                            aria-label="Previous page"
-                          >
-                            <ChevronLeft size={18} />
-                          </button>
-
-                          <div className="flex items-center gap-1">
-                            {(() => {
-                              const pages: (number | string)[] = [];
-                              const maxVisible = 7;
-
-                              if (profileTotalPages <= maxVisible) {
-                                for (let i = 1; i <= profileTotalPages; i++) {
-                                  pages.push(i);
-                                }
-                              } else {
-                                if (profileCurrentPage <= 3) {
-                                  for (let i = 1; i <= 5; i++) pages.push(i);
-                                  pages.push("...");
-                                  pages.push(profileTotalPages);
-                                } else if (profileCurrentPage >= profileTotalPages - 2) {
-                                  pages.push(1);
-                                  pages.push("...");
-                                  for (let i = profileTotalPages - 4; i <= profileTotalPages; i++) pages.push(i);
-                                } else {
-                                  pages.push(1);
-                                  pages.push("...");
-                                  for (let i = profileCurrentPage - 1; i <= profileCurrentPage + 1; i++) pages.push(i);
-                                  pages.push("...");
-                                  pages.push(profileTotalPages);
-                                }
-                              }
-
-                              return pages.map((page, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={() => typeof page === "number" && setProfileCurrentPage(page)}
-                                  disabled={page === "..."}
-                                  className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                                    page === profileCurrentPage
-                                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                                      : page === "..."
-                                      ? "cursor-default text-gray-400"
-                                      : "border border-red-200 hover:bg-red-50 text-gray-700"
-                                  }`}
-                                >
-                                  {page}
-                                </button>
-                              ));
-                            })()}
-                          </div>
-
-                          <button
-                            onClick={() => setProfileCurrentPage(prev => Math.min(profileTotalPages, prev + 1))}
-                            disabled={profileCurrentPage === profileTotalPages}
-                            className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                            aria-label="Next page"
-                          >
-                            <ChevronRight size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </>
-            )}
-          </div>
-
-          {/* Profile Modals */}
-          <CreateParentProfileModal
-            isOpen={showCreateParentModal}
-            onClose={() => setShowCreateParentModal(false)}
-            onSubmit={handleCreateParent}
-          />
-
-          <CreateStudentProfileModal
-            isOpen={showCreateStudentModal}
-            onClose={() => setShowCreateStudentModal(false)}
-            onSubmit={handleCreateStudent}
-          />
-
-          <ViewLinkedStudentsModal
-            isOpen={showViewLinkedModal}
-            onClose={handleCloseViewLinkedModal}
-            userId={selectedParentForView?.id || null}
-            parentName={selectedParentForView?.name || null}
-            onRefresh={fetchProfiles}
-            onViewStudentDetail={handleViewStudentDetail}
-          />
-
-          <ProfileDetailModal
-            isOpen={showProfileDetailModal}
-            onClose={handleCloseProfileDetailModal}
-            profileId={selectedProfileId}
-          />
-
-          <ConfirmModal
-            isOpen={showProfileDeleteModal}
-            onClose={() => {
-              setShowProfileDeleteModal(false);
-              setSelectedProfileForDelete(null);
-            }}
-            onConfirm={handleConfirmDeleteProfile}
-            title="Xác nhận xóa profile"
-            message={`Bạn có chắc chắn muốn xóa profile "${selectedProfileForDelete?.name}"? Hành động này không thể hoàn tác.`}
-            confirmText="Xóa"
-            cancelText="Hủy"
-            variant="danger"
-          />
-
-          <ConfirmModal
-            isOpen={showReactivateProfileModal}
-            onClose={() => {
-              setShowReactivateProfileModal(false);
-              setSelectedProfileForReactivate(null);
-            }}
-            onConfirm={handleConfirmReactivateProfile}
-            title={profileActivationAction === "approve" ? "Xác nhận duyệt profile" : "Xác nhận kích hoạt lại profile"}
-            message={
-              profileActivationAction === "approve"
-                ? `Bạn có chắc chắn muốn duyệt profile "${selectedProfileForReactivate?.name}"?`
-                : `Bạn có chắc chắn muốn kích hoạt lại profile "${selectedProfileForReactivate?.name}"?`
-            }
-            confirmText={profileActivationAction === "approve" ? "Duyệt" : "Kích hoạt"}
-            cancelText="Hủy"
-            variant="success"
-            isLoading={isProfileActionLoading}
-          />
-
-          <ConfirmModal
-            isOpen={showBulkApproveModal}
-            onClose={() => setShowBulkApproveModal(false)}
-            onConfirm={handleConfirmBulkApproveProfiles}
-            title="Xác nhận duyệt hàng loạt"
-            message={`Bạn có chắc chắn muốn duyệt ${selectedPendingProfileIds.length} profile đã chọn?`}
-            confirmText="Duyệt tất cả"
-            cancelText="Hủy"
-            variant="success"
-            isLoading={isBulkApproveLoading}
-          />
-        </>
-      )}
-
-      {activeTab === "accounts" && (
-        <>
-      {/* Security Configuration Panel */}
-      <div className={`grid gap-6 lg:grid-cols-3 transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        {/* Security Settings */}
-        <div className="lg:col-span-2">
-          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
-                <ShieldCheck size={20} />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Cấu hình Bảo mật</h3>
-                <p className="text-sm text-gray-600">Thiết lập xác thực và quyền truy cập nâng cao</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white">
-                <div>
-                  <div className="font-medium text-gray-900">Xác thực hai lớp (2FA)</div>
-                  <div className="text-sm text-gray-600">Yêu cầu OTP cho thao tác quan trọng</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white">
-                <div>
-                  <div className="font-medium text-gray-900">Tự động khóa tài khoản</div>
-                  <div className="text-sm text-gray-600">Sau 30 ngày không đăng nhập</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-xl border border-red-200 bg-white">
-                <div>
-                  <div className="font-medium text-gray-900">Cảnh báo đăng nhập lạ</div>
-                  <div className="text-sm text-gray-600">Thông báo qua email khi có đăng nhập mới</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                </label>
-              </div>
-            </div>
-
-            <button className="mt-6 w-full rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-3 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer">
-              Lưu cấu hình bảo mật
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Actions & Stats */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Thao tác nhanh</h3>
-            <div className="space-y-2">
-              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer">
-                <Mail size={16} />
-                Gửi email kích hoạt
-              </button>
-              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer">
-                <Key size={16} />
-                Đặt lại mật khẩu hàng loạt
-              </button>
-              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer">
-                <Bell size={16} />
-                Gửi thông báo bảo mật
-              </button>
-            </div>
-          </div>
-
-          {/* Role Distribution */}
-          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-            <h4 className="font-semibold text-gray-900 mb-3">Phân bố vai trò</h4>
-            <div className="space-y-3">
-              {(['Admin', 'Teacher', 'Parent', 'ManagementStaff'] as Role[]).map(role => {
-                const count = accounts.filter(a => mapRoleToDisplay(a.role) === role).length;
-                const percentage = accounts.length > 0 ? Math.round((count / accounts.length) * 100) : 0;
-                const info = ROLE_INFO[role];
-                
-                // Skip if role info is not found
-                if (!info) return null;
-
-                return (
-                  <div key={role} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">{info.label}</span>
-                      <span className="font-semibold text-gray-900">{count} người</span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full bg-gradient-to-r ${info.bg}`}
-                        style={{ width: `${percentage}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-xs text-gray-500 text-right">{percentage}%</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-        </>
-      )}
-
-      {/* Modals - Accounts */}
-      {activeTab === "accounts" && (
-        <>
-      <AccountDetailModal
-        isOpen={detailModalOpen}
-        onClose={() => setDetailModalOpen(false)}
-        account={selectedAccount}
-      />
-
-      <AccountFormModal
-        isOpen={formModalOpen}
-        onClose={() => setFormModalOpen(false)}
-        onSubmit={(data) => formMode === 'create' ? handleCreateUser(data as CreateUserRequest) : handleUpdateUser(data as UpdateUserRequest)}
-        account={selectedAccount}
-        mode={formMode}
-      />
-
-      <ConfirmModal
-        isOpen={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        onConfirm={handleDeleteUser}
-        title="Xác nhận xóa tài khoản"
-        message={`Bạn có chắc chắn muốn xóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Hành động này không thể hoàn tác.`}
-        confirmText="Xóa"
-        cancelText="Hủy"
-        variant="danger"
-      />
-
-      <ConfirmModal
-        isOpen={activateModalOpen}
-        onClose={() => setActivateModalOpen(false)}
-        onConfirm={handleActivateUser}
-        title="Xác nhận kích hoạt tài khoản"
-        message={`Bạn có chắc chắn muốn kích hoạt lại tài khoản "${selectedAccount?.name || selectedAccount?.username}"?`}
-        confirmText="Kích hoạt"
-        cancelText="Hủy"
-        variant="success"
-      />
-
-      <ConfirmModal
-        isOpen={toggleStatusModalOpen}
-        onClose={() => setToggleStatusModalOpen(false)}
-        onConfirm={handleToggleStatus}
-        title={selectedAccount?.isActive ? "Xác nhận khóa tài khoản" : "Xác nhận mở khóa tài khoản"}
-        message={
-          selectedAccount?.isActive
-            ? `Bạn có chắc chắn muốn tạm khóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Người dùng sẽ không thể đăng nhập cho đến khi được mở khóa.`
-            : `Bạn có chắc chắn muốn mở khóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Người dùng sẽ có thể đăng nhập trở lại.`
-        }
-        confirmText={selectedAccount?.isActive ? "Khóa tài khoản" : "Mở khóa"}
-        cancelText="Hủy"
-        variant={selectedAccount?.isActive ? "danger" : "success"}
-      />
-        </>
-      )}
     </div>
   );
 }

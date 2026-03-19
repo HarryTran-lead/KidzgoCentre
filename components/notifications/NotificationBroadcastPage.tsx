@@ -4,16 +4,29 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   BellRing,
-  CopyPlus,
   CornerUpLeft,
   Eye,
   FileText,
-  LayoutTemplate,
   Megaphone,
   Send,
   Sparkles,
   Trash2,
-  Users,
+  CheckCheck,
+  Clock,
+  Inbox,
+  Zap,
+  Layers,
+  PlusCircle,
+  Bookmark,
+  Settings2,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+  Filter,
+  Search,
+  MoreVertical,
+  Download,
+  Calendar,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import type {
@@ -27,38 +40,39 @@ import {
   deleteNotificationTemplate,
   fetchNotificationTemplates,
 } from "@/lib/api/notificationService";
+import { CreditCard, MessageSquare, Mail, MessageCircle } from "lucide-react";
 
-const AUDIENCE_OPTIONS: { value: NotificationAudience; label: string; hint: string }[] = [
-  { value: "all", label: "Tất cả role", hint: "Gửi toàn hệ thống" },
-  { value: "family", label: "Parent + Student", hint: "Khối gia đình và học viên" },
-  { value: "teaching", label: "Teacher", hint: "Đội ngũ giảng dạy" },
-  { value: "management", label: "Staff Manager + Accountant", hint: "Khối vận hành nội bộ" },
-  { value: "Parent", label: "Chỉ Parent", hint: "Chỉ phụ huynh" },
-  { value: "Student", label: "Chỉ Student", hint: "Chỉ học viên" },
-  { value: "Teacher", label: "Chỉ Teacher", hint: "Chỉ giáo viên" },
+const AUDIENCE_OPTIONS: { value: NotificationAudience; label: string; hint: string; color: string }[] = [
+  { value: "all", label: "Tất cả role", hint: "Gửi toàn hệ thống", color: "from-red-600 to-red-700" },
+  { value: "family", label: "Parent + Student", hint: "Khối gia đình và học viên", color: "from-emerald-500 to-teal-500" },
+  { value: "teaching", label: "Teacher", hint: "Đội ngũ giảng dạy", color: "from-blue-500 to-cyan-500" },
+  { value: "management", label: "Staff Manager + Accountant", hint: "Khối vận hành nội bộ", color: "from-purple-500 to-violet-500" },
+  { value: "Parent", label: "Chỉ Parent", hint: "Chỉ phụ huynh", color: "from-pink-500 to-rose-500" },
+  { value: "Student", label: "Chỉ Student", hint: "Chỉ học viên", color: "from-amber-500 to-orange-500" },
+  { value: "Teacher", label: "Chỉ Teacher", hint: "Chỉ giáo viên", color: "from-cyan-500 to-blue-500" },
 ];
 
-const KIND_OPTIONS: { value: NotificationKind; label: string }[] = [
-  { value: "system", label: "Hệ thống" },
-  { value: "schedule", label: "Lịch học" },
-  { value: "report", label: "Báo cáo" },
-  { value: "payment", label: "Tài chính" },
-  { value: "homework", label: "Bài tập" },
-  { value: "feedback", label: "Góp ý" },
-  { value: "event", label: "Sự kiện" },
+const KIND_OPTIONS: { value: NotificationKind; label: string; icon: any; color: string }[] = [
+  { value: "system", label: "Hệ thống", icon: Settings2, color: "bg-gray-100 text-gray-700 border-gray-200" },
+  { value: "schedule", label: "Lịch học", icon: Clock, color: "bg-blue-100 text-blue-700 border-blue-200" },
+  { value: "report", label: "Báo cáo", icon: FileText, color: "bg-purple-100 text-purple-700 border-purple-200" },
+  { value: "payment", label: "Tài chính", icon: CreditCard, color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  { value: "homework", label: "Bài tập", icon: Bookmark, color: "bg-amber-100 text-amber-700 border-amber-200" },
+  { value: "feedback", label: "Góp ý", icon: MessageSquare, color: "bg-rose-100 text-rose-700 border-rose-200" },
+  { value: "event", label: "Sự kiện", icon: Sparkles, color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
 ];
 
-const CHANNEL_OPTIONS: { value: NotificationChannel; label: string; hint: string }[] = [
-  { value: "InApp", label: "In-app", hint: "Hiển thị trong inbox nội bộ" },
-  { value: "Push", label: "Push", hint: "Thiết bị đã đăng ký FCM" },
-  { value: "Email", label: "Email", hint: "Gửi qua email" },
-  { value: "ZaloOa", label: "Zalo OA", hint: "Kênh Zalo Official Account" },
+const CHANNEL_OPTIONS: { value: NotificationChannel; label: string; hint: string; icon: any }[] = [
+  { value: "InApp", label: "In-app", hint: "Hiển thị trong inbox nội bộ", icon: Bell },
+  { value: "Push", label: "Push", hint: "Thiết bị đã đăng ký FCM", icon: Zap },
+  { value: "Email", label: "Email", hint: "Gửi qua email", icon: Mail },
+  { value: "ZaloOa", label: "Zalo OA", hint: "Kênh Zalo Official Account", icon: MessageCircle },
 ];
 
 const TABS = [
-  { id: "list", label: "Danh sách thông báo", icon: Bell },
+  { id: "list", label: "Danh sách thông báo", icon: Inbox },
   { id: "compose", label: "Tạo broadcast", icon: Megaphone },
-  { id: "templates", label: "Tạo template", icon: LayoutTemplate },
+  { id: "templates", label: "Tạo template", icon: Layers },
 ] as const;
 
 type StaffTab = (typeof TABS)[number]["id"];
@@ -82,15 +96,82 @@ function formatTime(value: string) {
 }
 
 function getAudienceMeta(value: NotificationAudience) {
-  return AUDIENCE_OPTIONS.find((option) => option.value === value) ?? { value, label: value, hint: "" };
+  return AUDIENCE_OPTIONS.find((option) => option.value === value) ?? {
+    value,
+    label: value,
+    hint: "",
+    color: "from-gray-500 to-gray-600",
+  };
 }
 
-function getKindLabel(value: NotificationKind) {
-  return KIND_OPTIONS.find((option) => option.value === value)?.label ?? value;
+function getKindMeta(value: NotificationKind) {
+  return KIND_OPTIONS.find((option) => option.value === value) ?? {
+    value,
+    label: value,
+    icon: Bell,
+    color: "bg-gray-100 text-gray-700 border-gray-200",
+  };
 }
 
 function getChannelMeta(value: NotificationChannel) {
-  return CHANNEL_OPTIONS.find((option) => option.value === value) ?? { value, label: value, hint: "" };
+  return CHANNEL_OPTIONS.find((option) => option.value === value) ?? {
+    value,
+    label: value,
+    hint: "",
+    icon: Bell,
+  };
+}
+
+function StatCard({ 
+  icon, 
+  label, 
+  value, 
+  trend, 
+  color = "red",
+  isPageLoaded = false,
+  delay = 0
+}: { 
+  icon: React.ReactNode; 
+  label: string; 
+  value: string | number; 
+  trend?: string; 
+  color?: "red" | "emerald" | "amber" | "purple" | "blue";
+  isPageLoaded?: boolean;
+  delay?: number;
+}) {
+  const colorClasses = {
+    red: "from-red-600 to-red-700",
+    emerald: "from-emerald-500 to-teal-500",
+    amber: "from-amber-500 to-orange-500",
+    purple: "from-purple-500 to-violet-500",
+    blue: "from-blue-500 to-cyan-500",
+  };
+
+  return (
+    <div 
+      className={`relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-5 transition-all duration-700 hover:shadow-md ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${colorClasses[color]}`}></div>
+      <div className="relative">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">{label}</p>
+            <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
+            {trend && (
+              <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                <Activity className="h-3 w-3" />
+                {trend}
+              </p>
+            )}
+          </div>
+          <div className={`rounded-xl bg-gradient-to-r ${colorClasses[color]} p-3 text-white shadow-sm flex-shrink-0`}>
+            {icon}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function NotificationBroadcastPage() {
@@ -104,6 +185,7 @@ export default function NotificationBroadcastPage() {
     removeOne,
   } = useNotifications("Staff_Manager");
   const formRef = useRef<HTMLDivElement>(null);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<StaffTab>("compose");
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
@@ -121,8 +203,10 @@ export default function NotificationBroadcastPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [messageFilter, setMessageFilter] = useState<"all" | "unread">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    setIsPageLoaded(true);
     void (async () => {
       const items = await fetchNotificationTemplates();
       setTemplates(Array.isArray(items) ? items : []);
@@ -143,10 +227,23 @@ export default function NotificationBroadcastPage() {
   }, [campaigns, notifications.length, templates.length, unreadCount]);
 
   const selectedAudience = getAudienceMeta(audience);
+  const selectedKind = getKindMeta(kind);
+  const KindIcon = selectedKind.icon;
   const selectedChannel = getChannelMeta(channel);
+  const ChannelIcon = selectedChannel.icon;
   const activeTemplate = templates.find((template) => template.id === activeTemplateId) ?? null;
-  const filteredNotifications =
-    messageFilter === "unread" ? notifications.filter((item) => !item.read) : notifications;
+
+  const filteredNotifications = useMemo(() => {
+    let filtered = messageFilter === "unread" ? notifications.filter((item) => !item.read) : notifications;
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (item) =>
+          item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.message.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    return filtered;
+  }, [notifications, messageFilter, searchQuery]);
 
   const refreshTemplates = async () => {
     const items = await fetchNotificationTemplates();
@@ -234,484 +331,243 @@ export default function NotificationBroadcastPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <FcmPermissionCard role="Staff_Manager" />
-      <section className="rounded-[28px] border border-rose-200 bg-gradient-to-br from-white via-white to-rose-50 p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-rose-600">
-              <Megaphone className="h-3.5 w-3.5" />
-              Notifications
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6 space-y-6">
+      {/* Header với hiệu ứng gradient */}
+      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6 shadow-lg transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
+        <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px]" />
+        <div className="absolute right-0 top-0 h-64 w-64 translate-x-16 -translate-y-16 rounded-full bg-red-500/20 blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-64 w-64 -translate-x-16 translate-y-16 rounded-full bg-gray-500/20 blur-3xl" />
+
+        <div className="relative flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 backdrop-blur-sm">
+              <Megaphone className="h-4 w-4 text-red-400" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-red-400">
+                Notification Center
+              </span>
             </div>
-            <h1 className="mt-4 text-3xl font-bold text-slate-900">Bảng điều phối thông báo cho staff</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Chia rõ 3 tab theo công việc: xem inbox nội bộ, tạo broadcast và quản lý template.
+            <h1 className="text-3xl font-bold text-white lg:text-4xl">
+              Bảng điều phối{" "}
+              <span className="bg-gradient-to-r from-white to-red-500 bg-clip-text text-transparent">
+                thông báo staff
+              </span>
+            </h1>
+            <p className="max-w-2xl text-sm leading-relaxed text-white/80">
+              Quản lý tập trung tất cả thông báo nội bộ, tạo broadcast và xây dựng thư viện template để tối ưu quy trình làm việc.
             </p>
           </div>
 
-          <div className="grid min-w-[260px] grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="text-sm text-slate-500">Tổng thông báo</div>
-              <div className="mt-2 text-2xl font-bold text-slate-900">{stats.notifications}</div>
-            </div>
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-              <div className="text-sm text-rose-600">Chưa đọc</div>
-              <div className="mt-2 text-2xl font-bold text-rose-700">{stats.unread}</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="text-sm text-slate-500">Campaign</div>
-              <div className="mt-2 text-2xl font-bold text-slate-900">{stats.campaigns}</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="text-sm text-slate-500">Template</div>
-              <div className="mt-2 text-2xl font-bold text-slate-900">{stats.templates}</div>
-            </div>
+          <div className="flex items-center gap-3">
+            <button className="flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg">
+              <Download size={16} />
+              Xuất báo cáo
+            </button>
+            <button className="cursor-pointer rounded-xl bg-white/10 p-2 transition-all hover:bg-white/20">
+              <MoreVertical size={20} className="text-white" />
+            </button>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className="rounded-[28px] border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex flex-wrap gap-2">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
+        <StatCard
+          icon={<Inbox size={20} />}
+          label="Tổng thông báo"
+          value={stats.notifications}
+          trend="Toàn hệ thống"
+          color="red"
+          isPageLoaded={isPageLoaded}
+          delay={100}
+        />
+        <StatCard
+          icon={<Bell size={20} />}
+          label="Chưa đọc"
+          value={stats.unread}
+          trend="Cần xử lý"
+          color="amber"
+          isPageLoaded={isPageLoaded}
+          delay={150}
+        />
+        <StatCard
+          icon={<Megaphone size={20} />}
+          label="Campaign"
+          value={stats.campaigns}
+          trend={`Hôm nay: ${stats.sentToday}`}
+          color="purple"
+          isPageLoaded={isPageLoaded}
+          delay={200}
+        />
+        <StatCard
+          icon={<Layers size={20} />}
+          label="Template"
+          value={stats.templates}
+          trend="Sẵn sàng sử dụng"
+          color="blue"
+          isPageLoaded={isPageLoaded}
+          delay={250}
+        />
+        <StatCard
+          icon={<Send size={20} />}
+          label="Đã gửi hôm nay"
+          value={stats.sentToday}
+          trend="Broadcast"
+          color="emerald"
+          isPageLoaded={isPageLoaded}
+          delay={300}
+        />
+      </div>
+
+      {/* FCM Permission Card */}
+      <div className={`transition-all duration-700 delay-350 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        <FcmPermissionCard role="Staff_Manager" />
+      </div>
+
+      {/* Tabs với hiệu ứng */}
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-1 shadow-sm transition-all duration-700 delay-400 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        <div className="flex flex-wrap gap-1">
           {TABS.map((tab) => {
             const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
-                  activeTab === tab.id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                className={`group relative overflow-hidden rounded-xl px-5 py-2.5 text-sm font-medium transition-all cursor-pointer ${
+                  isActive
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-red-50"
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                {tab.label}
+                <div className="relative flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </div>
               </button>
             );
           })}
         </div>
-      </section>
+      </div>
 
-      {activeTab === "list" ? (
-        <section className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {/* Nội dung chính */}
+      {activeTab === "list" && (
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          {/* Danh sách thông báo */}
+          <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-700 delay-450 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">Danh sách thông báo nội bộ</h2>
-                <p className="mt-1 text-sm text-slate-500">Theo dõi inbox của role staff manager.</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setMessageFilter("all")}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    messageFilter === "all" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  Tất cả ({notifications.length})
-                </button>
-                <button
-                  onClick={() => setMessageFilter("unread")}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    messageFilter === "unread" ? "bg-rose-600 text-white" : "bg-rose-50 text-rose-700"
-                  }`}
-                >
-                  Chưa đọc ({unreadCount})
-                </button>
-                <button
-                  onClick={() => {
-                    void markAllAsRead();
-                  }}
-                  className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700"
-                >
-                  Đánh dấu tất cả
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-4">
-              {filteredNotifications.length ? (
-                filteredNotifications.map((item) => (
-                  <article
-                    key={item.id}
-                    className={`rounded-3xl border p-5 shadow-sm transition ${
-                      item.read ? "border-slate-200 bg-white" : "border-rose-200 bg-rose-50/40"
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="rounded-2xl bg-slate-900 p-3 text-white">
-                        <Bell className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
-                          {!item.read ? (
-                            <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
-                              Mới
-                            </span>
-                          ) : null}
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
-                            {getKindLabel(item.kind)}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-slate-700">{item.message}</p>
-                        <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
-                          <span>{formatTime(item.createdAt)}</span>
-                          <span>Từ: {item.senderName}</span>
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        {!item.read ? (
-                          <button
-                            onClick={() => {
-                              void markAsRead(item.id);
-                            }}
-                            className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
-                          >
-                            Đã đọc
-                          </button>
-                        ) : null}
-                        <button
-                          onClick={() => {
-                            void removeOne(item.id);
-                          }}
-                          className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100"
-                          aria-label="Xóa thông báo"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))
-              ) : (
-                <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-6 py-14 text-center text-sm text-slate-500">
-                  Không có thông báo phù hợp.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-rose-100 p-3 text-rose-700">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">Mẹo xử lý</h2>
-                <p className="text-sm text-slate-500">Giúp staff thao tác inbox nhanh hơn.</p>
-              </div>
-            </div>
-            <div className="mt-5 space-y-3">
-              {[
-                "Đánh dấu đã đọc ngay sau khi xử lý để tránh sót việc.",
-                "Nếu cùng một nội dung phải gửi lặp lại, tạo template để dùng lại.",
-                "Broadcast nên được soạn ở tab Tạo broadcast để có preview trước khi gửi.",
-              ].map((item) => (
-                <div key={item} className="rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {activeTab === "compose" ? (
-        <section className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-          <div ref={formRef} className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="rounded-2xl bg-slate-900 p-3 text-white">
-                  <BellRing className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-900">Tạo broadcast</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Soạn nội dung và gửi tới đúng nhóm nhận. Có thể dùng template để nạp nhanh.
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                {activeTemplate ? `Đang dùng template: ${activeTemplate.code ?? "Không mã"}` : "Đang soạn thủ công"}
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4">
-              {submitError ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {submitError}
-                </div>
-              ) : null}
-              {submitSuccess ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                  {submitSuccess}
-                </div>
-              ) : null}
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-slate-700">Audience</span>
-                  <select
-                    value={audience}
-                    onChange={(event) => setAudience(event.target.value as NotificationAudience)}
-                    className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-rose-300"
-                  >
-                    {AUDIENCE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-xs text-slate-500">{selectedAudience.hint}</span>
-                </label>
-
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-slate-700">Loại</span>
-                  <select
-                    value={kind}
-                    onChange={(event) => setKind(event.target.value as NotificationKind)}
-                    className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-rose-300"
-                  >
-                    {KIND_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-slate-700">Kênh</span>
-                  <select
-                    value={channel}
-                    onChange={(event) => setChannel(event.target.value as NotificationChannel)}
-                    className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-rose-300"
-                  >
-                    {CHANNEL_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-xs text-slate-500">{selectedChannel.hint}</span>
-                </label>
+                <h2 className="text-xl font-bold text-gray-900">Danh sách thông báo</h2>
+                <p className="mt-1 text-sm text-gray-600">Theo dõi và xử lý inbox nội bộ</p>
               </div>
 
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-700">Tiêu đề</span>
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  className="h-12 rounded-2xl border border-slate-200 px-4 text-sm outline-none transition focus:border-rose-300"
-                  placeholder="Ví dụ: Trung tâm nghỉ lễ 30/4"
+                  type="text"
+                  placeholder="Tìm kiếm thông báo..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 w-64 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
                 />
-              </label>
+              </div>
+            </div>
 
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-700">Nội dung</span>
-                <textarea
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
-                  className="min-h-[180px] rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-rose-300"
-                  placeholder="Nhập nội dung broadcast..."
-                />
-              </label>
-
+            <div className="flex flex-wrap gap-2 mb-6">
               <button
-                onClick={() => {
-                  void handleSubmit();
-                }}
-                disabled={isSubmitting}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => setMessageFilter("all")}
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all cursor-pointer ${
+                  messageFilter === "all"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                    : "border border-red-200 bg-white text-gray-700 hover:bg-red-50"
+                }`}
               >
-                <Send className="h-4 w-4" />
-                {isSubmitting ? "Đang gửi..." : "Gửi broadcast"}
+                Tất cả{" "}
+                <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs ${
+                  messageFilter === "all" ? "bg-white/20" : "bg-gray-100"
+                }`}>
+                  {notifications.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setMessageFilter("unread")}
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all cursor-pointer ${
+                  messageFilter === "unread"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                    : "border border-red-200 bg-white text-gray-700 hover:bg-red-50"
+                }`}
+              >
+                Chưa đọc{" "}
+                <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs ${
+                  messageFilter === "unread" ? "bg-white/20" : "bg-gray-100"
+                }`}>
+                  {unreadCount}
+                </span>
+              </button>
+              <button
+                onClick={() => void markAllAsRead()}
+                className="rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg flex items-center gap-2 cursor-pointer"
+              >
+                <CheckCheck className="h-4 w-4" />
+                Đánh dấu tất cả
               </button>
             </div>
-          </div>
 
-          <div className="space-y-6">
-            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-rose-100 p-3 text-rose-700">
-                  <Eye className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-900">Preview</h2>
-                  <p className="text-sm text-slate-500">Xem nội dung trước khi gửi.</p>
-                </div>
-              </div>
-              <div className="mt-6 rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-white to-rose-50 p-5">
-                <div className="flex items-start gap-4">
-                  <div className="rounded-2xl bg-slate-900 p-3 text-white">
-                    <Bell className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-semibold text-slate-900">
-                        {title.trim() || "Tiêu đề sẽ hiển thị ở đây"}
-                      </h3>
-                      <span className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-600">
-                        {selectedChannel.label}
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                      {message.trim() || "Nội dung preview sẽ thay đổi theo phần đang soạn."}
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-                      <span className="rounded-full bg-white px-2.5 py-1">Nhóm nhận: {selectedAudience.label}</span>
-                      <span className="rounded-full bg-white px-2.5 py-1">Loại: {getKindLabel(kind)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-slate-900 p-3 text-white">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-900">Template dùng nhanh</h2>
-                  <p className="text-sm text-slate-500">Nạp từ thư viện mà không cần đổi tab sâu.</p>
-                </div>
-              </div>
-              <div className="mt-5 space-y-3">
-                {templates.slice(0, 4).length ? (
-                  templates.slice(0, 4).map((template) => (
-                    <div key={template.id} className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-semibold text-slate-900">{template.title}</h3>
-                        <span className="rounded-full bg-white px-2 py-1 text-[11px] text-slate-600">
-                          {template.code}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-slate-600">{template.content}</p>
-                      <button
-                        onClick={() => applyTemplate(template)}
-                        className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-                      >
-                        <CornerUpLeft className="h-4 w-4" />
-                        Dùng template
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-                    Chưa có template nào.
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        </section>
-      ) : null}
-
-      {activeTab === "templates" ? (
-        <section className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-slate-900 p-3 text-white">
-                <CopyPlus className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">Tạo template</h2>
-                <p className="text-sm text-slate-500">Lưu mẫu chuẩn để staff dùng lại nhanh hơn.</p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4">
-              {templateError ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {templateError}
-                </div>
-              ) : null}
-
-              <input
-                value={templateCode}
-                onChange={(event) => setTemplateCode(event.target.value)}
-                className="h-12 rounded-2xl border border-slate-200 px-4 text-sm outline-none transition focus:border-rose-300"
-                placeholder="Code: SESSION_REMINDER_24H"
-              />
-              <input
-                value={templateTitle}
-                onChange={(event) => setTemplateTitle(event.target.value)}
-                className="h-12 rounded-2xl border border-slate-200 px-4 text-sm outline-none transition focus:border-rose-300"
-                placeholder="Tiêu đề template"
-              />
-              <textarea
-                value={templateContent}
-                onChange={(event) => setTemplateContent(event.target.value)}
-                className="min-h-[180px] rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-rose-300"
-                placeholder="Nội dung template"
-              />
-              <button
-                onClick={() => {
-                  void handleCreateTemplate();
-                }}
-                disabled={isSavingTemplate}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FileText className="h-4 w-4" />
-                {isSavingTemplate ? "Đang lưu..." : "Lưu template"}
-              </button>
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-rose-100 p-3 text-rose-700">
-                <LayoutTemplate className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">Thư viện template</h2>
-                <p className="text-sm text-slate-500">Quản lý mẫu nội dung và nạp lại vào broadcast.</p>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-3">
-              {templates.length ? (
-                templates.map((template) => {
-                  const isActive = template.id === activeTemplateId;
+            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+              {filteredNotifications.length ? (
+                filteredNotifications.map((item) => {
+                  const kindMeta = getKindMeta(item.kind);
+                  const KindIcon = kindMeta.icon;
                   return (
                     <article
-                      key={template.id}
-                      className={`rounded-[26px] border px-5 py-4 transition ${
-                        isActive
-                          ? "border-rose-300 bg-rose-50 shadow-sm"
-                          : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                      key={item.id}
+                      className={`group relative overflow-hidden rounded-xl border-2 p-5 transition-all hover:shadow-md ${
+                        item.read
+                          ? "border-red-100 bg-white"
+                          : "border-red-300 bg-gradient-to-r from-red-50/50 to-white"
                       }`}
                     >
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      {!item.read && (
+                        <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-red-600 to-red-700" />
+                      )}
+                      <div className="flex items-start gap-4">
+                        <div className={`rounded-xl p-3 ${kindMeta.color}`}>
+                          <KindIcon className="h-5 w-5" />
+                        </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-base font-semibold text-slate-900">{template.title}</h3>
-                            <span className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-600">
-                              {template.code}
-                            </span>
-                            <span className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-600">
-                              {template.channel}
+                            <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
+                            {!item.read && (
+                              <span className="rounded-full bg-gradient-to-r from-red-600 to-red-700 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+                                Mới
+                              </span>
+                            )}
+                            <span className={`rounded-full px-2.5 py-1 text-xs ${kindMeta.color}`}>
+                              {kindMeta.label}
                             </span>
                           </div>
-                          <p className="mt-3 text-sm leading-6 text-slate-600">{template.content}</p>
+                          <p className="mt-2 text-sm leading-relaxed text-gray-600 line-clamp-2">{item.message}</p>
+                          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatTime(item.createdAt)}
+                            </span>
+                            <span>Từ: {item.senderName}</span>
+                          </div>
                         </div>
-                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
+                          {!item.read ? (
+                            <button
+                              onClick={() => void markAsRead(item.id)}
+                              className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-medium text-white shadow-sm transition-all hover:shadow-md cursor-pointer"
+                            >
+                              Đã đọc
+                            </button>
+                          ) : null}
                           <button
-                            onClick={() => applyTemplate(template)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-                          >
-                            <CornerUpLeft className="h-4 w-4" />
-                            Dùng template
-                          </button>
-                          <button
-                            onClick={async () => {
-                              await deleteNotificationTemplate(template.id);
-                              if (template.id === activeTemplateId) {
-                                setActiveTemplateId(null);
-                              }
-                              await refreshTemplates();
-                            }}
-                            className="rounded-xl border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
-                            aria-label="Xóa template"
+                            onClick={() => void removeOne(item.id)}
+                            className="rounded-xl border border-red-200 bg-white p-2 text-gray-400 transition-all hover:border-red-300 hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                            aria-label="Xóa thông báo"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -721,14 +577,481 @@ export default function NotificationBroadcastPage() {
                   );
                 })
               ) : (
-                <div className="rounded-[26px] border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
-                  Chưa có template nào.
+                <div className="rounded-xl border-2 border-dashed border-red-200 bg-red-50/30 px-6 py-16 text-center">
+                  <Inbox className="mx-auto h-12 w-12 text-red-300" />
+                  <p className="mt-4 text-sm text-gray-500">Không có thông báo nào</p>
                 </div>
               )}
             </div>
           </div>
-        </section>
-      ) : null}
+
+          {/* Mẹo xử lý & Thống kê nhanh */}
+          <div className="space-y-6">
+            {/* Thống kê nhanh */}
+            <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-700 delay-500 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Activity className="h-5 w-5 text-red-600" />
+                Thống kê nhanh
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-red-100">
+                  <span className="text-sm text-gray-600">Tỷ lệ đọc</span>
+                  <span className="font-semibold text-gray-900">
+                    {notifications.length ? Math.round(((notifications.length - unreadCount) / notifications.length) * 100) : 0}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-red-100">
+                  <span className="text-sm text-gray-600">Phản hồi trung bình</span>
+                  <span className="font-semibold text-gray-900">2.4 giờ</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-red-100">
+                  <span className="text-sm text-gray-600">Campaign active</span>
+                  <span className="font-semibold text-gray-900">{campaigns.length}</span>
+                </div>
+              </div>
+            </div>
+
+            
+              {/* Mẹo xử lý */}
+              <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 p-6 shadow-xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-2 shadow-lg">
+                    <Sparkles className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-white">Mẹo xử lý</h2>
+                    <p className="text-sm text-gray-400">Tối ưu quy trình làm việc</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    {
+                      title: "Đánh dấu đã đọc",
+                      description: "Xử lý ngay để tránh sót việc quan trọng",
+                      icon: CheckCheck,
+                    },
+                    {
+                      title: "Sử dụng template",
+                      description: "Tái sử dụng nội dung cho các broadcast tương tự",
+                      icon: Layers,
+                    },
+                    {
+                      title: "Xem trước nội dung",
+                      description: "Kiểm tra kỹ trước khi gửi broadcast",
+                      icon: Eye,
+                    },
+                  ].map((item, index) => {
+                    const Icon = item.icon;
+                    return (
+                      <div
+                        key={index}
+                        className="group rounded-xl bg-white/5 p-4 transition-all hover:bg-white/10 cursor-pointer"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="rounded-lg bg-white/10 p-2">
+                            <Icon className="h-4 w-4 text-red-400" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-white">{item.title}</h3>
+                            <p className="mt-1 text-sm text-gray-400">{item.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "compose" && (
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          {/* Form compose */}
+          <div 
+            ref={formRef} 
+            className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-700 delay-450 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+          >
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between mb-6">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-2 shadow-sm">
+                  <BellRing className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Tạo broadcast</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Soạn nội dung và gửi tới đúng nhóm nhận
+                  </p>
+                </div>
+              </div>
+              {activeTemplate && (
+                <div className="rounded-xl bg-white px-4 py-3 border border-red-200 shadow-sm">
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Bookmark className="h-4 w-4 text-red-600" />
+                    <span className="font-medium">Đang dùng:</span>
+                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs border border-red-200">
+                      {activeTemplate.code}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {submitError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {submitError}
+                </div>
+              )}
+              {submitSuccess && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-600">
+                  {submitSuccess}
+                </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {/* Audience Select */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Đối tượng</label>
+                  <select
+                    value={audience}
+                    onChange={(event) => setAudience(event.target.value as NotificationAudience)}
+                    className="h-11 w-full rounded-xl border border-red-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  >
+                    {AUDIENCE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500">{selectedAudience.hint}</p>
+                </div>
+
+                {/* Kind Select */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Loại</label>
+                  <select
+                    value={kind}
+                    onChange={(event) => setKind(event.target.value as NotificationKind)}
+                    className="h-11 w-full rounded-xl border border-red-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  >
+                    {KIND_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Channel Select */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Kênh</label>
+                  <select
+                    value={channel}
+                    onChange={(event) => setChannel(event.target.value as NotificationChannel)}
+                    className="h-11 w-full rounded-xl border border-red-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  >
+                    {CHANNEL_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500">{selectedChannel.hint}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Tiêu đề</label>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-red-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  placeholder="Nhập tiêu đề thông báo..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Nội dung</label>
+                <textarea
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  rows={5}
+                  className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm leading-relaxed outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  placeholder="Nhập nội dung broadcast..."
+                />
+              </div>
+
+              <button
+                onClick={() => void handleSubmit()}
+                disabled={isSubmitting}
+                className="h-11 w-full rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-6 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Đang gửi...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Gửi broadcast
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Preview và Templates */}
+          <div className="space-y-6">
+            {/* Preview Card */}
+            <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-700 delay-500 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-2 shadow-sm">
+                  <Eye className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900">Preview</h2>
+                  <p className="text-sm text-gray-600">Xem trước nội dung</p>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-red-200 bg-white p-5">
+                <div className="flex items-start gap-4">
+                  <div className={`rounded-xl p-3 ${selectedKind.color}`}>
+                    <KindIcon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-semibold text-gray-900">
+                        {title.trim() || "Tiêu đề sẽ hiển thị ở đây"}
+                      </h3>
+                      <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-xs text-gray-600 border border-red-200">
+                        <ChannelIcon className="h-3 w-3" />
+                        {selectedChannel.label}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                      {message.trim() || "Nội dung preview sẽ hiển thị tại đây..."}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className={`rounded-full bg-gradient-to-r ${selectedAudience.color} px-3 py-1 text-xs text-white shadow-sm`}>
+                        {selectedAudience.label}
+                      </span>
+                      <span className={`rounded-full px-3 py-1 text-xs border ${selectedKind.color}`}>
+                        {selectedKind.label}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Templates nhanh */}
+            <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-700 delay-550 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-2 shadow-sm">
+                  <Layers className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900">Template nhanh</h2>
+                  <p className="text-sm text-gray-600">Sử dụng template có sẵn</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {templates.slice(0, 3).length ? (
+                  templates.slice(0, 3).map((template) => (
+                    <div
+                      key={template.id}
+                      className="group relative rounded-xl border border-red-200 bg-white p-4 transition-all hover:border-red-300 hover:shadow-md cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{template.title}</h3>
+                          <p className="mt-1 text-sm text-gray-500 line-clamp-2">{template.content}</p>
+                        </div>
+                        <button
+                          onClick={() => applyTemplate(template)}
+                          className="ml-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 p-2 text-white opacity-0 shadow-sm transition-all group-hover:opacity-100 cursor-pointer"
+                        >
+                          <CornerUpLeft className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-gray-600 border border-red-200">
+                          {template.code}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl border-2 border-dashed border-red-200 py-8 text-center">
+                    <Layers className="mx-auto h-8 w-8 text-red-300" />
+                    <p className="mt-2 text-sm text-gray-500">Chưa có template nào</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "templates" && (
+        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          {/* Tạo template mới */}
+          <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-700 delay-450 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-2 shadow-sm">
+                <PlusCircle className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Tạo template mới</h2>
+                <p className="text-sm text-gray-600">Lưu mẫu để sử dụng nhanh</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {templateError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {templateError}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Mã template</label>
+                <input
+                  value={templateCode}
+                  onChange={(event) => setTemplateCode(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-red-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  placeholder="VD: SESSION_REMINDER"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Tiêu đề</label>
+                <input
+                  value={templateTitle}
+                  onChange={(event) => setTemplateTitle(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-red-200 bg-white px-4 text-sm outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  placeholder="Nhập tiêu đề template"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Nội dung</label>
+                <textarea
+                  value={templateContent}
+                  onChange={(event) => setTemplateContent(event.target.value)}
+                  rows={4}
+                  className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm leading-relaxed outline-none transition-all focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  placeholder="Nhập nội dung template"
+                />
+              </div>
+
+              <button
+                onClick={() => void handleCreateTemplate()}
+                disabled={isSavingTemplate}
+                className="h-11 w-full rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-6 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isSavingTemplate ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Đang lưu...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4" />
+                    Lưu template
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Thư viện template */}
+          <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-700 delay-500 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-2 shadow-sm">
+                <Bookmark className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Thư viện template</h2>
+                <p className="text-sm text-gray-600">Quản lý các mẫu có sẵn</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+              {templates.length ? (
+                templates.map((template) => {
+                  const isActive = template.id === activeTemplateId;
+                  const channelMeta = getChannelMeta(template.channel as NotificationChannel);
+                  const ChannelIcon = channelMeta.icon;
+
+                  return (
+                    <article
+                      key={template.id}
+                      className={`group rounded-xl border-2 p-5 transition-all hover:shadow-md ${
+                        isActive
+                          ? "border-red-300 bg-gradient-to-r from-red-50/50 to-white"
+                          : "border-red-100 bg-white hover:border-red-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base font-semibold text-gray-900">{template.title}</h3>
+                            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-gray-600 border border-red-200">
+                              {template.code}
+                            </span>
+                            {template.channel && (
+                              <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs text-gray-600 border border-red-200">
+                                <ChannelIcon className="h-3 w-3" />
+                                {channelMeta.label}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed text-gray-600 line-clamp-2">
+                            {template.content}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2 ml-4">
+                          <button
+                            onClick={() => applyTemplate(template)}
+                            className="rounded-lg bg-gradient-to-r from-red-600 to-red-700 p-2 text-white opacity-0 shadow-sm transition-all group-hover:opacity-100 cursor-pointer"
+                            title="Sử dụng template"
+                          >
+                            <CornerUpLeft className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              await deleteNotificationTemplate(template.id);
+                              if (template.id === activeTemplateId) {
+                                setActiveTemplateId(null);
+                              }
+                              await refreshTemplates();
+                            }}
+                            className="rounded-lg border border-red-200 bg-white p-2 text-gray-400 transition-all hover:border-red-300 hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                            title="Xóa template"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="rounded-xl border-2 border-dashed border-red-200 bg-red-50/30 px-6 py-16 text-center">
+                  <Layers className="mx-auto h-12 w-12 text-red-300" />
+                  <p className="mt-4 text-sm text-gray-500">Chưa có template nào</p>
+                  <p className="text-xs text-gray-500 mt-1">Tạo template mới để bắt đầu</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
