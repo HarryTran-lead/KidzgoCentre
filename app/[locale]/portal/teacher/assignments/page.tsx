@@ -1026,13 +1026,82 @@ function CreateAssignmentModal({
                     <Paperclip size={16} className="text-red-600" />
                     Tệp đính kèm
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-red-300 transition-colors cursor-pointer">
-                    <input type="file" multiple className="hidden" />
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-red-300 transition-colors cursor-pointer"
+                    onClick={() => document.getElementById("file-upload-input")?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const files = Array.from(e.dataTransfer.files);
+                      if (files.length > 0) {
+                        setAttachments((prev) => [...prev, ...files]);
+                      }
+                    }}
+                  >
+                    <input
+                      id="file-upload-input"
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.mp3,.zip,.png,.jpg,.jpeg"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length > 0) {
+                          setAttachments((prev) => [...prev, ...files]);
+                        }
+                        // Reset input so same file can be selected again
+                        e.target.value = "";
+                      }}
+                    />
                     <UploadCloud size={32} className="mx-auto text-gray-400 mb-2" />
                     <p className="text-sm text-gray-600">Kéo thả file vào đây hoặc click để chọn</p>
-                    <p className="text-xs text-gray-500 mt-1">PDF, DOCX, MP3, ZIP (tối đa 50MB)</p>
+                    <p className="text-xs text-gray-500 mt-1">PDF, DOCX, MP3, ZIP, PNG, JPG (tối đa 50MB)</p>
                   </div>
                 </div>
+
+                {/* Uploaded Files List */}
+                {attachments.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Paperclip size={16} className="text-red-600" />
+                      Tệp đã chọn ({attachments.length})
+                    </label>
+                    <div className="space-y-2">
+                      {attachments.map((file, index) => (
+                        <div
+                          key={`${file.name}-${index}`}
+                          className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <FileText size={18} className="text-red-500 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate max-w-[300px]">
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAttachments((prev) => prev.filter((_, i) => i !== index));
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer flex-shrink-0"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               /* Multiple Choice tab content - Fields matching API: classId, sessionId, title, description, dueAt, rewardStars, missionId, instructions, questions */

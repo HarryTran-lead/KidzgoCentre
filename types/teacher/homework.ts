@@ -3,6 +3,9 @@
 // Submission Status Types
 export type SubmissionStatus = "PENDING" | "SUBMITTED" | "REVIEWED" | "OVERDUE";
 
+// Submission status from /api/homework/submissions API
+export type SubmissionStatusFromApi = "Assigned" | "Submitted" | "Graded";
+
 // ============ API Response Types ============
 
 // Parameters for GET /api/homework
@@ -11,6 +14,14 @@ export interface FetchHomeworkParams {
   classId?: string;
   fromDate?: string;
   toDate?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+// Parameters for GET /api/homework/submissions
+export interface FetchHomeworkSubmissionsParams {
+  classId?: string;
+  status?: number;
   pageNumber?: number;
   pageSize?: number;
 }
@@ -41,6 +52,22 @@ export interface HomeworkApiResponse {
 
 // ============ Data Models ============
 
+// Submission item from /api/homework/submissions API
+export interface HomeworkSubmissionItem {
+  id: string;
+  homeworkAssignmentId: string;
+  homeworkTitle: string;
+  studentProfileId: string;
+  studentName: string;
+  status: SubmissionStatusFromApi;
+  submittedAt: string | null;
+  gradedAt: string | null;
+  score: number | null;
+  teacherFeedback: string | null;
+  dueAt: string;
+  createdAt: string;
+}
+
 // Student submission for an assignment (teacher view)
 export interface HomeworkSubmission {
   id: string;
@@ -50,7 +77,7 @@ export interface HomeworkSubmission {
   studentId: string;
   studentName: string;
   studentCode?: string;
-  classId: string;
+  classId?: string;
   classTitle: string;
   branchId?: string;
   branchName?: string;
@@ -194,4 +221,9 @@ export type CreateHomeworkResult =
 // Delete Homework Types
 export type DeleteHomeworkResult =
   | { ok: true; message?: string }
+  | { ok: false; error: string };
+
+// Fetch Submissions Types
+export type FetchHomeworkSubmissionsResult =
+  | { ok: true; data: HomeworkSubmissionItem[] }
   | { ok: false; error: string };
