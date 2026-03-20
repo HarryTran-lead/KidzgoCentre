@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Clock4,
   Bell,
+  FileText,
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -28,6 +29,7 @@ export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.assignments, ClipboardCheck, "/assignments"],
     [t.attendance, CheckSquare, "/attendance"],
     [t.applications, MessageCircle, "/applications"],
+    [t.feedback, FileText, "/feedback"],
     [t.timesheet, Clock4, "/timesheet"],
     [t.notifications, Bell, "/notifications"],
   ];

@@ -2,17 +2,17 @@
 export const menuTeacher = {
   vi: {
     items: {
-      dashboard: "Tong quan",
-      profile: "Ho so ca nhan",
-      myClasses: "Lop hoc cua toi",
-      schedule: "Lich giang day",
-      subjects: "Giao an & Tai lieu",
-      assignments: "Bai tap & Nop bai",
-      attendance: "Diem danh",
-      applications: "Don",
-      feedback: "Bao cao & Feedback",
-      timesheet: "Cong gio & Thu nhap",
-      notifications: "Thong bao",
+      dashboard: "Tổng quan",
+      profile: "Hồ sơ cá nhân",
+      myClasses: "Lớp học của tôi",
+      schedule: "Lịch giảng dạy",
+      subjects: "Giáo án & Tài liệu",
+      assignments: "Bài tập & Nộp bài",
+      attendance: "Điểm danh",
+      applications: "Đơn",
+      feedback: "Báo cáo & Feedback",
+      timesheet: "Công giờ & Thu nhập",
+      notifications: "Thông báo",
     },
   },
   en: {
