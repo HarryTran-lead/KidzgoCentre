@@ -16,23 +16,42 @@ import {
   UploadCloud,
   Eye,
   Search,
-  Filter,
   ChevronDown,
   ChevronUp,
   ArrowUpDown,
   Loader2,
   Award,
   MessageSquare,
-  Paperclip,
   MapPin,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 
-import { fetchHomeworkDetail, fetchHomework } from "@/lib/api/homeworkService";
-import type { HomeworkSubmission, SubmissionStatus } from "@/types/teacher/homework";
+import { fetchHomeworkDetail, fetchHomeworkSubmissions } from "@/lib/api/homeworkService";
+import type { HomeworkSubmission, HomeworkSubmissionItem } from "@/types/teacher/homework";
 
 type SubmissionStatusUi = "PENDING" | "SUBMITTED" | "REVIEWED" | "OVERDUE";
+
+/**
+ * Map API status ("Assigned" | "Submitted" | "Graded") to UI status
+ */
+function mapApiStatusToUi(apiStatus: string, dueAt: string, submittedAt: string | null): SubmissionStatusUi {
+  if (apiStatus === "Submitted" || apiStatus === "Graded") {
+    return "REVIEWED";
+  }
+  // Check if overdue
+  if (submittedAt === null && dueAt) {
+    const now = new Date();
+    const due = new Date(dueAt);
+    if (now > due) {
+      return "OVERDUE";
+    }
+  }
+  if (apiStatus === "Assigned") {
+    return "PENDING";
+  }
+  return "PENDING";
+}
 
 const STATUS_CONFIG: Record<SubmissionStatusUi, {
   text: string;
@@ -145,26 +164,6 @@ function StatusBadge({ status }: { status: SubmissionStatusUi }) {
   );
 }
 
-function FileTypeBadge({ type }: { type: string }) {
-  const typeColors: Record<string, string> = {
-    "PDF": "bg-red-100 text-red-700",
-    "DOCX": "bg-blue-100 text-blue-700",
-    "DOC": "bg-blue-100 text-blue-700",
-    "MP3": "bg-emerald-100 text-emerald-700",
-    "VIDEO": "bg-purple-100 text-purple-700",
-    "ZIP": "bg-amber-100 text-amber-700",
-    "PPT": "bg-orange-100 text-orange-700",
-    "XLSX": "bg-green-100 text-green-700",
-    "IMAGE": "bg-pink-100 text-pink-700"
-  };
-
-  return (
-    <span className={`text-xs px-2 py-1 rounded-full ${typeColors[type] || "bg-gray-100 text-gray-700"}`}>
-      {type}
-    </span>
-  );
-}
-
 function Pagination({
   currentPage,
   totalPages,
@@ -264,7 +263,7 @@ export default function HomeworkDetailPage() {
   const homeworkId = params.id as string;
 
   const [homework, setHomework] = useState<HomeworkSubmission | null>(null);
-  const [submissions, setSubmissions] = useState<HomeworkSubmission[]>([]);
+  const [submissions, setSubmissions] = useState<HomeworkSubmissionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -304,22 +303,24 @@ export default function HomeworkDetailPage() {
     }
   }, [homeworkId]);
 
-  // Fetch all submissions for this homework
-  const loadSubmissions = useCallback(async () => {
+  // Fetch all submissions for this homework using /api/homework/submissions
+  const loadSubmissions = useCallback(async (classId?: string) => {
     if (!homeworkId) return;
 
     setIsLoadingSubmissions(true);
 
     try {
-      const result = await fetchHomework({
+      // Use the submissions API - filter by homeworkAssignmentId on client side
+      const result = await fetchHomeworkSubmissions({
+        classId,
         pageNumber: 1,
         pageSize: 100,
       });
 
       if (result.ok && result.data) {
-        // Filter submissions for this homework
-        const filtered = result.data.data.filter(
-          (sub: HomeworkSubmission) => sub.assignmentId === homeworkId || sub.id === homeworkId
+        // Filter submissions for this specific homework assignment
+        const filtered = result.data.filter(
+          (sub) => sub.homeworkAssignmentId === homeworkId || sub.id === homeworkId
         );
         setSubmissions(filtered);
       }
@@ -332,8 +333,14 @@ export default function HomeworkDetailPage() {
 
   useEffect(() => {
     loadHomeworkDetail();
-    loadSubmissions();
-  }, [loadHomeworkDetail, loadSubmissions]);
+  }, [loadHomeworkDetail]);
+
+  // Load submissions after homework is loaded (need classId)
+  useEffect(() => {
+    if (homework) {
+      loadSubmissions(homework.classId);
+    }
+  }, [homework, loadSubmissions]);
 
   const handleSort = (column: "student" | "submittedAt" | "score") => {
     if (sortColumn === column) {
@@ -349,14 +356,16 @@ export default function HomeworkDetailPage() {
     let result = [...submissions];
 
     if (filterStatus !== "ALL") {
-      result = result.filter(sub => sub.status === filterStatus);
+      result = result.filter(sub => {
+        const uiStatus = mapApiStatusToUi(sub.status, sub.dueAt, sub.submittedAt);
+        return uiStatus === filterStatus;
+      });
     }
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(sub =>
-        sub.studentName?.toLowerCase().includes(query) ||
-        sub.studentCode?.toLowerCase().includes(query)
+        sub.studentName?.toLowerCase().includes(query)
       );
     }
 
@@ -384,10 +393,10 @@ export default function HomeworkDetailPage() {
 
   const stats = useMemo(() => {
     const total = submissions.length;
-    const pending = submissions.filter(s => s.status === "PENDING").length;
-    const submitted = submissions.filter(s => s.status === "SUBMITTED").length;
-    const reviewed = submissions.filter(s => s.status === "REVIEWED").length;
-    const overdue = submissions.filter(s => s.status === "OVERDUE").length;
+    const pending = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "PENDING").length;
+    const submitted = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "SUBMITTED").length;
+    const reviewed = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "REVIEWED").length;
+    const overdue = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "OVERDUE").length;
 
     return { total, pending, submitted, reviewed, overdue };
   }, [submissions]);
@@ -758,31 +767,25 @@ export default function HomeworkDetailPage() {
                           <StudentAvatar name={submission.studentName || ""} color={getAvatarColor(index)} />
                           <div>
                             <div className="font-medium text-gray-900">{submission.studentName || "Chưa có tên"}</div>
-                            <div className="text-xs text-gray-500">{submission.studentCode || "-"}</div>
+                            <div className="text-xs text-gray-500">{submission.studentProfileId?.slice(0, 8) || "-"}</div>
                           </div>
                         </div>
                       </td>
 
                       {/* Status */}
                       <td className="py-4 px-6">
-                        <StatusBadge status={submission.status} />
+                        <StatusBadge status={mapApiStatusToUi(submission.status, submission.dueAt, submission.submittedAt)} />
                       </td>
 
                       {/* Submitted At */}
                       <td className="py-4 px-6 text-sm text-gray-900">
-                        {formatDateTime(submission.submittedAt)}
+                        {formatDateTime(submission.submittedAt || undefined)}
                       </td>
 
                       {/* Attachments */}
                       <td className="py-4 px-6">
-                        {submission.attachments && submission.attachments.length > 0 ? (
-                          <div className="flex items-center gap-2">
-                            <Paperclip size={14} className="text-gray-400" />
-                            <span className="text-sm text-gray-900">{submission.attachments[0].name}</span>
-                            <FileTypeBadge type={submission.attachments[0].type} />
-                          </div>
-                        ) : submission.content ? (
-                          <span className="text-sm text-gray-500 italic">Nội dung text</span>
+                        {submission.teacherFeedback ? (
+                          <span className="text-sm text-gray-500 italic">Co phan hoi</span>
                         ) : (
                           <span className="text-gray-400 text-sm">-</span>
                         )}
@@ -790,13 +793,12 @@ export default function HomeworkDetailPage() {
 
                       {/* Score */}
                       <td className="py-4 px-6">
-                        {submission.score !== undefined && submission.score !== null ? (
+                        {submission.score !== null && submission.score !== undefined ? (
                           <div className="flex items-center gap-2">
                             <span className="text-lg font-bold text-emerald-600">{submission.score}</span>
-                            <span className="text-gray-400">/ {submission.maxScore || 10}</span>
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-sm">Chưa chấm</span>
+                          <span className="text-gray-400 text-sm">Chua cham</span>
                         )}
                       </td>
 

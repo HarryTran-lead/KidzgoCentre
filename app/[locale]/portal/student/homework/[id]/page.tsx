@@ -426,7 +426,7 @@ export default function AssignmentDetailPage() {
 
   return (
     <div className="h-[calc(100vh-120px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] p-8">
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6">
         {/* Back Button */}
         <button
           onClick={() => router.back()}

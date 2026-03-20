@@ -10,9 +10,12 @@ import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { get, post, del, put } from "@/lib/axios";
 import {
   FetchHomeworkParams,
+  FetchHomeworkSubmissionsParams,
   HomeworkApiResponse,
   HomeworkSubmission,
+  HomeworkSubmissionItem,
   FetchHomeworkResult,
+  FetchHomeworkSubmissionsResult,
   CreateHomeworkPayload,
   CreateHomeworkResult,
   DeleteHomeworkResult,
@@ -391,8 +394,83 @@ export async function updateHomework(
 }
 
 /**
+ * Fetch homework submissions for a specific homework assignment
+ * Uses GET /api/homework/submissions?classId=...&pageNumber=...&pageSize=...
+ *
+ * @param params - Query parameters including classId, status, pagination
+ * @returns Submissions for the specified homework/class
+ */
+export async function fetchHomeworkSubmissions(
+  params: FetchHomeworkSubmissionsParams = {}
+): Promise<FetchHomeworkSubmissionsResult> {
+  try {
+    // Build query string
+    const searchParams = new URLSearchParams();
+
+    if (params.classId) {
+      searchParams.append("classId", params.classId);
+    }
+    if (params.status !== undefined) {
+      searchParams.append("status", String(params.status));
+    }
+    if (params.pageNumber !== undefined) {
+      searchParams.append("pageNumber", String(params.pageNumber));
+    } else {
+      searchParams.append("pageNumber", "1");
+    }
+    if (params.pageSize !== undefined) {
+      searchParams.append("pageSize", String(params.pageSize));
+    } else {
+      searchParams.append("pageSize", "100");
+    }
+
+    const queryString = searchParams.toString();
+    const endpoint = `${TEACHER_ENDPOINTS.HOMEWORK_SUBMISSIONS}?${queryString}`;
+
+    const response = await get<any>(endpoint);
+
+    // Handle response - extract submissions items from various formats
+    const responseData = response?.data || response;
+
+    let submissions: HomeworkSubmissionItem[] = [];
+
+    // Format 1: submissions.items (pagination format)
+    if (responseData?.submissions?.items) {
+      submissions = responseData.submissions.items;
+    }
+    // Format 2: items array directly
+    else if (Array.isArray(responseData?.items)) {
+      submissions = responseData.items;
+    }
+    // Format 3: isSuccess response
+    else if (responseData?.isSuccess && responseData?.data) {
+      if (responseData.data?.submissions?.items) {
+        submissions = responseData.data.submissions.items;
+      } else if (Array.isArray(responseData.data)) {
+        submissions = responseData.data;
+      }
+    }
+    // Format 4: data.data is array
+    else if (Array.isArray(responseData?.data)) {
+      submissions = responseData.data;
+    }
+
+    return {
+      ok: true,
+      data: submissions,
+    };
+  } catch (error) {
+    console.error("Error fetching homework submissions:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Failed to fetch homework submissions",
+    };
+  }
+}
+
+/**
  * Fetch homework detail by ID
- * 
+ *
  * @param id - Homework ID to fetch
  * @returns Homework detail or error
  */
