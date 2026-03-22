@@ -15,6 +15,12 @@ import {
   PlacementTestDetailModal,
 } from "@/components/portal/placement-tests";
 
+function toTime(value?: string) {
+  if (!value) return 0;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
 export default function AdminPlacementTestsPage() {
   const { toast } = useToast();
   const router = useRouter();
@@ -85,7 +91,11 @@ export default function AdminPlacementTestsPage() {
         const response = await getAllPlacementTests(params);
         
         if (response.isSuccess && response.data?.items) {
-          const testsData = response.data.items || [];          
+          const testsData = [...(response.data.items || [])].sort((a, b) => {
+            const bTime = toTime(b.createdAt || b.scheduledAt);
+            const aTime = toTime(a.createdAt || a.scheduledAt);
+            return bTime - aTime;
+          });
           setAllTests(testsData);
           
           // Calculate status counts - reset to empty object first
@@ -205,7 +215,7 @@ export default function AdminPlacementTestsPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-red-600 mx-auto mb-4" />
           <p className="text-gray-600">Đang tải dữ liệu...</p>
@@ -217,16 +227,16 @@ export default function AdminPlacementTestsPage() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
         <div className="text-center max-w-md">
-          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-red-100 to-red-200 flex items-center justify-center">
             <AlertCircle className="h-8 w-8 text-red-600" />
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Không thể tải dữ liệu</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button 
             onClick={handleRefresh}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
           >
             <RefreshCw size={16} /> Thử lại
           </button>
@@ -236,11 +246,11 @@ export default function AdminPlacementTestsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
       <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+          <div className="p-3 bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <ClipboardCheck size={28} className="text-white" />
           </div>
           <div>
@@ -272,7 +282,7 @@ export default function AdminPlacementTestsPage() {
           Leads
         </button>
         <button
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-medium shadow-md cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-red-600 to-red-700 text-white rounded-xl font-medium shadow-md cursor-pointer"
         >
           <ClipboardCheck size={16} />
           Placement Tests
@@ -343,3 +353,4 @@ export default function AdminPlacementTestsPage() {
     </div>
   );
 }
+

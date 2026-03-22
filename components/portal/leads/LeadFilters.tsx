@@ -125,9 +125,9 @@ export default function LeadFilters({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 overflow-x-auto">
           {statusOptions.map((statusLabel) => {
-            // Fix: Use leads.length for "Tất cả" instead of summing statusCounts
+            // Keep "Tất cả" stable from full-scope totals, not current filtered rows.
             const count = statusLabel === "Tất cả" 
-              ? leads.length
+              ? (statusCounts["Tất cả"] ?? totalCount)
               : statusCounts[statusLabel] ?? 0;
             
             return (
@@ -136,7 +136,7 @@ export default function LeadFilters({
                 onClick={() => onStatusChange(statusLabel)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                   selectedStatus === statusLabel
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                    ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-sm"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
