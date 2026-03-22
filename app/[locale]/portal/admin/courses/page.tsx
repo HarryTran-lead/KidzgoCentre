@@ -95,6 +95,7 @@ interface CreateCourseModalProps {
 }
 
 interface CourseFormData {
+  code?: string;
   name: string;
   description: string;
   status: "Đang hoạt động" | "Tạm dừng";
@@ -106,6 +107,7 @@ interface CourseFormData {
 }
 
 const initialFormData: CourseFormData = {
+  code: "",
   name: "",
   description: "",
   status: "Đang hoạt động",
@@ -762,6 +764,7 @@ export default function Page() {
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
+        code: data.code?.trim() || data.name.toUpperCase().replace(/[^A-Z0-9]/g, "_").substring(0, 20),
         isMakeup: data.isMakeup,
         totalSessions,
         defaultTuitionAmount,
@@ -810,6 +813,7 @@ export default function Page() {
       const detail = await fetchAdminProgramDetail(row.id);
       setEditingProgramId(row.id);
       setEditingInitialData({
+        code: String(detail?.code ?? ""),
         name: String(detail?.name ?? row.name),
         description: String(detail?.description ?? row.desc ?? ""),
         status:

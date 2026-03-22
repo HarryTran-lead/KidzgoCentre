@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -11,29 +10,25 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  DollarSign,
   Eye,
-  FileText,
   Pencil,
   Plus,
   Power,
   PowerOff,
   Search,
   Wallet,
-  X,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
+import TuitionPlanModal, { type TuitionPlanFormData } from "@/components/admin/tuition-plans/TuitionPlanModal";
+import TuitionPlanDetailModal from "@/components/admin/tuition-plans/TuitionPlanDetailModal";
 import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
-import { getAllBranches } from "@/lib/api/branchService";
 import {
   createTuitionPlan,
-  getProgramsForBranch,
   getTuitionPlanDetail,
   getTuitionPlans,
   toggleTuitionPlanStatus,
   updateTuitionPlan,
-  type ProgramOption,
 } from "@/lib/api/tuitionPlanService";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 
@@ -48,9 +43,18 @@ type SortField =
   | "tuitionAmount"
   | "branchName"
   | "status";
+
 type SortDirection = "asc" | "desc" | null;
 
-const PAGE_SIZE = 10;
+type TuitionPlanRow = {
+  id: string;
+  name: string;
+  programName: string;
+  totalSessions: string;
+  tuitionAmount: string;
+  branchName: string;
+  status: "Đang hoạt động" | "Tạm dừng";
+};
 
 function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng" }) {
   const map: Record<string, string> = {
@@ -99,378 +103,9 @@ function SortableHeader({
   );
 }
 
-type TuitionPlanFormData = {
-  branchId: string;
-  programId: string;
-  name: string;
-  totalSessions: string;
-  tuitionAmount: string;
-  unitPriceSession: string;
-  currency: string;
-  status: "Đang hoạt động" | "Tạm dừng";
-};
+const PAGE_SIZE = 10;
 
-const initialFormData: TuitionPlanFormData = {
-  branchId: "",
-  programId: "",
-  name: "",
-  totalSessions: "",
-  tuitionAmount: "",
-  unitPriceSession: "",
-  currency: "VND",
-  status: "Đang hoạt động",
-};
-
-function TuitionPlanModal({
-  isOpen,
-  onClose,
-  onSubmit,
-  mode = "create",
-  initialData,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: TuitionPlanFormData) => void;
-  mode?: "create" | "edit";
-  initialData?: TuitionPlanFormData | null;
-}) {
-  const [formData, setFormData] = useState<TuitionPlanFormData>(initialFormData);
-  const [errors, setErrors] = useState<Partial<Record<keyof TuitionPlanFormData, string>>>({});
-  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
-  const [programs, setPrograms] = useState<ProgramOption[]>([]);
-  const [loadingBranches, setLoadingBranches] = useState(false);
-  const [loadingPrograms, setLoadingPrograms] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.body.style.overflow = "hidden";
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen, onClose]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    if (mode === "edit" && initialData) {
-      setFormData(initialData);
-    } else {
-      setFormData(initialFormData);
-    }
-    setErrors({});
-  }, [isOpen, mode, initialData]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    async function loadBranches() {
-      try {
-        setLoadingBranches(true);
-        const res = await getAllBranches({ page: 1, limit: 100 });
-        const items = res?.data?.branches ?? res?.data ?? [];
-        setBranches(
-          items
-            .map((b: any) => ({
-              id: String(b?.id ?? ""),
-              name: String(b?.name ?? b?.code ?? "Chi nhánh"),
-            }))
-            .filter((b: { id: string }) => b.id)
-        );
-      } catch {
-        setBranches([]);
-      } finally {
-        setLoadingBranches(false);
-      }
-    }
-
-    loadBranches();
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    async function loadPrograms() {
-      try {
-        setLoadingPrograms(true);
-        const items = await getProgramsForBranch(formData.branchId || undefined);
-        setPrograms(items.filter((x) => x.isActive !== false));
-      } catch {
-        setPrograms([]);
-      } finally {
-        setLoadingPrograms(false);
-      }
-    }
-
-    loadPrograms();
-  }, [isOpen, formData.branchId]);
-
-  useEffect(() => {
-    const sessions = Number(formData.totalSessions);
-    const tuition = Number(formData.tuitionAmount.replace(/[^\d]/g, ""));
-
-    if (sessions > 0 && tuition > 0 && !isNaN(sessions) && !isNaN(tuition)) {
-      const pricePerSession = Math.round(tuition / sessions);
-      const next = String(pricePerSession);
-      setFormData((prev) => (prev.unitPriceSession === next ? prev : { ...prev, unitPriceSession: next }));
-    } else if (!formData.totalSessions || !formData.tuitionAmount) {
-      setFormData((prev) => (prev.unitPriceSession ? { ...prev, unitPriceSession: "" } : prev));
-    }
-  }, [formData.totalSessions, formData.tuitionAmount]);
-
-  const handleChange = (field: keyof TuitionPlanFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-  };
-
-  const validate = () => {
-    const next: Partial<Record<keyof TuitionPlanFormData, string>> = {};
-
-    if (!formData.branchId) next.branchId = "Chi nhánh là bắt buộc";
-    if (!formData.programId) next.programId = "Khóa học là bắt buộc";
-    if (!formData.name.trim()) next.name = "Tên gói học là bắt buộc";
-    if (!formData.totalSessions || Number(formData.totalSessions) <= 0) next.totalSessions = "Số buổi học phải lớn hơn 0";
-    if (!formData.tuitionAmount || Number(formData.tuitionAmount.replace(/[^\d]/g, "")) <= 0) next.tuitionAmount = "Học phí phải lớn hơn 0";
-    if (!formData.unitPriceSession || Number(formData.unitPriceSession) <= 0) next.unitPriceSession = "Giá mỗi buổi không hợp lệ";
-    if (!formData.currency.trim()) next.currency = "Loại tiền tệ là bắt buộc";
-
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSubmit(formData);
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div ref={modalRef} className="relative w-full max-w-5xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
-        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
-                <Wallet size={24} className="text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">
-                  {mode === "edit" ? "Cập nhật gói học" : "Tạo gói học mới"}
-                </h2>
-                <p className="text-sm text-red-100">
-                  {mode === "edit" ? "Chỉnh sửa thông tin gói học" : "Nhập thông tin chi tiết gói học"}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
-              aria-label="Đóng"
-            >
-              <X size={24} className="text-white" />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-6 max-h-[75vh] overflow-y-auto">
-          <form onSubmit={submit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Building2 size={16} className="text-red-600" />
-                  Chi nhánh *
-                </label>
-                <select
-                  value={formData.branchId}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setFormData((prev) => ({ ...prev, branchId: value, programId: "" }));
-                    if (errors.branchId) setErrors((prev) => ({ ...prev, branchId: undefined }));
-                  }}
-                  disabled={loadingBranches}
-                  className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                    errors.branchId ? "border-red-500" : "border-gray-200",
-                    loadingBranches ? "opacity-50 cursor-not-allowed" : ""
-                  )}
-                >
-                  <option value="">Chọn chi nhánh</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <BookOpen size={16} className="text-red-600" />
-                  Khóa học *
-                </label>
-                <select
-                  value={formData.programId}
-                  onChange={(e) => handleChange("programId", e.target.value)}
-                  disabled={loadingPrograms || !formData.branchId}
-                  className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                    errors.programId ? "border-red-500" : "border-gray-200",
-                    loadingPrograms || !formData.branchId ? "opacity-50 cursor-not-allowed" : ""
-                  )}
-                >
-                  <option value="">Chọn khóa học</option>
-                  {programs.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                {errors.programId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.programId}</p>}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Wallet size={16} className="text-red-600" />
-                Tên gói học *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                className={cn(
-                  "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                  errors.name ? "border-red-500" : "border-gray-200"
-                )}
-                placeholder="VD: Gói học 24 buổi"
-              />
-              {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Clock size={16} className="text-red-600" />
-                  Số buổi học *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.totalSessions}
-                  onChange={(e) => handleChange("totalSessions", e.target.value)}
-                  className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                    errors.totalSessions ? "border-red-500" : "border-gray-200"
-                  )}
-                  placeholder="VD: 24"
-                />
-                {errors.totalSessions && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.totalSessions}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <DollarSign size={16} className="text-red-600" />
-                  Học phí *
-                </label>
-                <input
-                  type="text"
-                  value={formData.tuitionAmount}
-                  onChange={(e) => handleChange("tuitionAmount", e.target.value.replace(/[^\d]/g, ""))}
-                  className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                    errors.tuitionAmount ? "border-red-500" : "border-gray-200"
-                  )}
-                  placeholder="VD: 3200000"
-                />
-                {errors.tuitionAmount && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.tuitionAmount}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <DollarSign size={16} className="text-red-600" />
-                  Giá mỗi buổi *
-                </label>
-                <input
-                  type="text"
-                  value={formData.unitPriceSession ? Number(formData.unitPriceSession).toLocaleString("vi-VN") : ""}
-                  readOnly
-                  className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-gray-50 text-gray-700 cursor-not-allowed",
-                    errors.unitPriceSession ? "border-red-500" : "border-gray-200"
-                  )}
-                  placeholder="Tự động tính"
-                />
-                {errors.unitPriceSession && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.unitPriceSession}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <DollarSign size={16} className="text-red-600" />
-                  Tiền tệ *
-                </label>
-                <select
-                  value={formData.currency}
-                  onChange={(e) => handleChange("currency", e.target.value)}
-                  className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                    errors.currency ? "border-red-500" : "border-gray-200"
-                  )}
-                >
-                  <option value="VND">VND</option>
-                  <option value="USD">USD</option>
-                </select>
-                {errors.currency && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.currency}</p>}
-              </div>
-            </div>
-          </form>
-        </div>
-
-        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
-            >
-              {mode === "edit" ? "Lưu thay đổi" : "Tạo gói học"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type Row = {
-  id: string;
-  name: string;
-  programName: string;
-  totalSessions: string;
-  tuitionAmount: string;
-  branchName: string;
-  status: "Đang hoạt động" | "Tạm dừng";
-};
-
-function toRow(plan: TuitionPlan): Row {
+function toRow(plan: TuitionPlan): TuitionPlanRow {
   return {
     id: plan.id,
     name: plan.name,
@@ -486,7 +121,7 @@ export default function TuitionPlansPage() {
   const { toast } = useToast();
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
 
-  const [plans, setPlans] = useState<Row[]>([]);
+  const [plans, setPlans] = useState<TuitionPlanRow[]>([]);
   const [q, setQ] = useState("");
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -501,12 +136,26 @@ export default function TuitionPlansPage() {
   const [originalStatus, setOriginalStatus] = useState<"Đang hoạt động" | "Tạm dừng" | null>(null);
 
   const [showToggleStatusModal, setShowToggleStatusModal] = useState(false);
-  const [selectedRow, setSelectedRow] = useState<Row | null>(null);
+  const [selectedRow, setSelectedRow] = useState<TuitionPlanRow | null>(null);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detail, setDetail] = useState<TuitionPlan | null>(null);
+
+  const hasAnyModalOpen = isCreateModalOpen || isEditModalOpen || showDetailModal || showToggleStatusModal;
+
+  useEffect(() => {
+    if (hasAnyModalOpen) {
+      document.body.classList.add("tp-modal-open");
+    } else {
+      document.body.classList.remove("tp-modal-open");
+    }
+
+    return () => {
+      document.body.classList.remove("tp-modal-open");
+    };
+  }, [hasAnyModalOpen]);
 
   const loadData = async () => {
     try {
@@ -607,7 +256,7 @@ export default function TuitionPlansPage() {
     }
   };
 
-  const handleOpenEdit = async (row: Row) => {
+  const handleOpenEdit = async (row: TuitionPlanRow) => {
     try {
       const plan = await getTuitionPlanDetail(row.id);
       setEditingPlanId(row.id);
@@ -669,7 +318,7 @@ export default function TuitionPlansPage() {
     }
   };
 
-  const handleViewDetail = async (row: Row) => {
+  const handleViewDetail = async (row: TuitionPlanRow) => {
     try {
       setShowDetailModal(true);
       setLoadingDetail(true);
@@ -688,7 +337,7 @@ export default function TuitionPlansPage() {
     }
   };
 
-  const handleToggle = (row: Row) => {
+  const handleToggle = (row: TuitionPlanRow) => {
     setSelectedRow(row);
     setShowToggleStatusModal(true);
   };
@@ -834,12 +483,8 @@ export default function TuitionPlansPage() {
                 {!loading && pagedRows.length > 0 ? (
                   pagedRows.map((r) => (
                     <tr key={r.id} className="group hover:bg-linear-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
-                      <td className="py-3 px-6">
-                        <div className="text-sm text-gray-900 truncate">{r.name}</div>
-                      </td>
-                      <td className="py-3 px-6">
-                        <div className="text-sm text-gray-900 truncate">{r.programName || "Chưa có"}</div>
-                      </td>
+                      <td className="py-3 px-6"><div className="text-sm text-gray-900 truncate">{r.name}</div></td>
+                      <td className="py-3 px-6"><div className="text-sm text-gray-900 truncate">{r.programName || "Chưa có"}</div></td>
                       <td className="py-3 px-6 whitespace-nowrap">
                         <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
                           <Clock size={16} className="text-gray-400" />
@@ -853,9 +498,7 @@ export default function TuitionPlansPage() {
                           <span className="truncate">{r.branchName || "Chưa có"}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-6 text-center whitespace-nowrap">
-                        <StatusBadge value={r.status} />
-                      </td>
+                      <td className="py-3 px-6 text-center whitespace-nowrap"><StatusBadge value={r.status} /></td>
                       <td className="py-3 px-6">
                         <div className="flex items-center justify-end text-gray-700 gap-1">
                           <button
@@ -976,127 +619,23 @@ export default function TuitionPlansPage() {
         isLoading={isTogglingStatus}
       />
 
-      {showDetailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
-            <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
-                    <Wallet size={24} className="text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">Chi tiết gói học</h2>
-                    <p className="text-sm text-red-100">Thông tin chi tiết về gói học</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowDetailModal(false);
-                    setDetail(null);
-                  }}
-                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
-                  aria-label="Đóng"
-                >
-                  <X size={24} className="text-white" />
-                </button>
-              </div>
-            </div>
+      <TuitionPlanDetailModal
+        open={showDetailModal}
+        loading={loadingDetail}
+        detail={detail}
+        onClose={() => {
+          setShowDetailModal(false);
+          setDetail(null);
+        }}
+      />
 
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
-              {loadingDetail ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
-                </div>
-              ) : detail ? (
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <Wallet size={16} className="text-red-600" />
-                      Tên gói học
-                    </label>
-                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.name}</div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <BookOpen size={16} className="text-red-600" />
-                        Khóa học
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.programName || "Chưa có"}</div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Building2 size={16} className="text-red-600" />
-                        Chi nhánh
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.branchName || "Chưa có"}</div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <FileText size={16} className="text-red-600" />
-                        Trạng thái
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
-                        <StatusBadge value={detail.isActive ? "Đang hoạt động" : "Tạm dừng"} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Clock size={16} className="text-red-600" />
-                        Số buổi học
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">{detail.totalSessions} buổi</div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <DollarSign size={16} className="text-red-600" />
-                        Học phí
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {detail.tuitionAmount.toLocaleString("vi-VN")} {detail.currency || "VND"}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <DollarSign size={16} className="text-red-600" />
-                        Giá mỗi buổi
-                      </label>
-                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {detail.unitPriceSession.toLocaleString("vi-VN")} {detail.currency || "VND"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">Không có dữ liệu để hiển thị</div>
-              )}
-            </div>
-
-            <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
-              <div className="flex justify-end">
-                <button
-                  onClick={() => {
-                    setShowDetailModal(false);
-                    setDetail(null);
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
-                >
-                  Đóng
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <style jsx global>{`
+        body.tp-modal-open aside.sidebar-container {
+          filter: brightness(0.5) saturate(0.9);
+          transition: filter 0.2s ease;
+        }
+      `}</style>
     </>
   );
 }
+ 
