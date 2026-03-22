@@ -26,6 +26,7 @@ export interface Program {
   id: string;
   code?: string | null;
   name: string;
+  isMakeup?: boolean | null;
   totalSessions: number;
   defaultTuitionAmount: number;
   unitPriceSession: number;

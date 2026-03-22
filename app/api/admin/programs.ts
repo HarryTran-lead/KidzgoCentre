@@ -200,6 +200,7 @@ export async function createAdminProgram(
     id: String(data?.id ?? data?.code ?? ""),
     code: data?.code ?? payload.code ?? null,
     name: String(data?.name ?? payload.name),
+    isMakeup: typeof data?.isMakeup === "boolean" ? data.isMakeup : payload.isMakeup,
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions
@@ -311,6 +312,7 @@ export async function updateAdminProgram(
     id: String(data?.id ?? programId),
     code: data?.code ?? null,
     name: String(data?.name ?? payload.name),
+    isMakeup: typeof data?.isMakeup === "boolean" ? data.isMakeup : payload.isMakeup,
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions

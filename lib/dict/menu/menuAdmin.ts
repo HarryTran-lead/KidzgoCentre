@@ -15,6 +15,9 @@ export const menuAdmin = {
         courses: {
           list: "Danh sach khoa hoc",
         },
+        tuitionPlans: {
+          list: "Danh sach goi hoc",
+        },
         classes: {
           list: "Danh sach lop hoc",
         },
@@ -63,6 +66,9 @@ export const menuAdmin = {
         title: "Learning",
         courses: {
           list: "Courses",
+        },
+        tuitionPlans: {
+          list: "Tuition Plans",
         },
         classes: {
           list: "Classes",

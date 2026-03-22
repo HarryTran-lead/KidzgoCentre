@@ -34,6 +34,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
 
   const LEARNING: RawItem[] = [
     [t.groups.learning.courses.list, GraduationCap, "/courses"],
+    [t.groups.learning.tuitionPlans.list, GraduationCap, "/tuition-plans"],
     [t.groups.learning.classes.list, BookOpen, "/classes"],
     [t.groups.learning.students.list, Users, "/students"],
   ];
