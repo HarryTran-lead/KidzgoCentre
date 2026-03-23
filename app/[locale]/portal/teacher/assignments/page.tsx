@@ -354,6 +354,9 @@ function CreateAssignmentModal({
   const [currentPoints, setCurrentPoints] = useState("10");
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   
+  // Time limit for multiple choice
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState("0");
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -554,6 +557,7 @@ function CreateAssignmentModal({
           rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
           missionId: missionId || undefined,
           instructions: instructions || undefined,
+          timeLimitMinutes: timeLimitMinutes ? parseInt(timeLimitMinutes) : undefined,
           questions: apiQuestions,
         });
 
@@ -1104,7 +1108,7 @@ function CreateAssignmentModal({
                 )}
               </>
             ) : (
-              /* Multiple Choice tab content - Fields matching API: classId, sessionId, title, description, dueAt, rewardStars, missionId, instructions, questions */
+              /* Multiple Choice tab content */
               <div className="space-y-4">
                 <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-amber-50 p-4">
                   <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -1133,6 +1137,25 @@ function CreateAssignmentModal({
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
                     placeholder="Hướng dẫn học viên làm bài trắc nghiệm..."
                   />
+                </div>
+
+                {/* Time Limit for Multiple Choice */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Clock size={16} className="text-red-600" />
+                    Thời gian làm bài (phút)
+                  </label>
+                  <input
+                    type="number"
+                    value={timeLimitMinutes}
+                    onChange={(e) => setTimeLimitMinutes(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    min="0"
+                    placeholder="0 - không giới hạn thời gian"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Đặt thời gian làm bài cho bài trắc nghiệm. Để trống hoặc 0 để không giới hạn thời gian.
+                  </p>
                 </div>
 
                 {/* Description for Multiple Choice */}

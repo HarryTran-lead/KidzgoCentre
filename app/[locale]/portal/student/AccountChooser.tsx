@@ -315,7 +315,7 @@ export default function AccountChooser({ locale }: Props) {
                   key={student.id}
                   onClick={() => handleStudentSelect(student)}
                   disabled={isSubmitting}
-                  className="flex flex-col items-center gap-3 group relative"
+                  className="flex flex-col items-center gap-3 group relative cursor-pointer"
                 >
                   <div className="relative">
                     <Avatar className="w-35 h-35 border-4 border-blue-300 shadow-xl group-hover:scale-110 transition-transform">
@@ -347,7 +347,7 @@ export default function AccountChooser({ locale }: Props) {
                   key={parent.id}
                   onClick={() => handleParentClick(parent)}
                   disabled={isAnimating || showPinForm || isSubmitting}
-                  className="flex flex-col items-center gap-3 group relative"
+                  className="flex flex-col items-center gap-3 group relative cursor-pointer"
                 >
                   <div className="relative">
                     <Avatar className="w-35 h-35 border-4 border-amber-300 shadow-xl group-hover:scale-110 transition-transform">
@@ -433,7 +433,7 @@ export default function AccountChooser({ locale }: Props) {
                   setSelectedParent(null);
                   setPinError(null);
                 }}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-50 transition-colors"
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5 text-slate-500" />
               </button>
@@ -488,7 +488,7 @@ export default function AccountChooser({ locale }: Props) {
           <Button
             variant="outline"
             size="lg"
-            className="bg-white/90 backdrop-blur-sm hover:bg-white border-white/50 px-8 py-6 text-base shadow-lg"
+            className="bg-white/90 backdrop-blur-sm hover:bg-white border-white/50 px-8 py-6 text-base shadow-lg cursor-pointer"
             onClick={handleLogout}
           >
             <LogOut className="w-5 h-5 mr-2" />
