@@ -13,7 +13,10 @@ import {
   getAllStudents, 
   createParentAccount, 
   createStudentProfile,
-  deleteProfile
+  deleteProfile,
+  approveProfilesByAdmin,
+  approveProfileByAdmin,
+  reactivateProfileByAdmin,
 } from "@/lib/api/profileService";
 import type { CreateParentProfileRequest, CreateStudentProfileRequest } from "@/types/profile";
 import CreateParentProfileModal from "@/components/admin/profile/CreateParentProfileModal";
@@ -311,7 +314,7 @@ export default function AccountsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
-  const [sort, setSort] = useState<SortState<Account>>({ key: null, direction: "asc" });
+  const [sort, setSort] = useState<SortState<Account>>({ key: "createdAt", direction: "desc" });
   
   // API State
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -346,8 +349,11 @@ export default function AccountsPage() {
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profileSearchTerm, setProfileSearchTerm] = useState("");
   const [profileFilterType, setProfileFilterType] = useState<"all" | "Parent" | "Student">("all");
+  const [profileApprovalFilter, setProfileApprovalFilter] = useState<"all" | "pending" | "approved">("all");
   const [profileCurrentPage, setProfileCurrentPage] = useState(1);
   const [profileItemsPerPage, setProfileItemsPerPage] = useState(10);
+  const [selectedProfileRows, setSelectedProfileRows] = useState<string[]>([]);
+  const [isProfileApproveSubmitting, setIsProfileApproveSubmitting] = useState(false);
   
   // Profile Modal states
   const [showCreateParentModal, setShowCreateParentModal] = useState(false);
@@ -355,9 +361,17 @@ export default function AccountsPage() {
   const [showViewLinkedModal, setShowViewLinkedModal] = useState(false);
   const [showProfileDetailModal, setShowProfileDetailModal] = useState(false);
   const [showProfileDeleteModal, setShowProfileDeleteModal] = useState(false);
+  const [showProfileApproveModal, setShowProfileApproveModal] = useState(false);
+  const [showProfileReactivateModal, setShowProfileReactivateModal] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [selectedParentForView, setSelectedParentForView] = useState<{ id: string; name: string } | null>(null);
   const [selectedProfileForDelete, setSelectedProfileForDelete] = useState<{ id: string; name: string } | null>(null);
+  const [selectedProfileForAction, setSelectedProfileForAction] = useState<{
+    id: string;
+    name: string;
+    isActive: boolean;
+    isApproved?: boolean;
+  } | null>(null);
 
   // Fetch users and profiles from API once (no server-side filtering for smooth UX)
   useEffect(() => {
@@ -657,6 +671,13 @@ export default function AccountsPage() {
       filtered = filtered.filter(p => p.profileType === profileFilterType);
     }
 
+    // Filter by approval status
+    if (profileApprovalFilter === "pending") {
+      filtered = filtered.filter((p) => p.isApproved === false);
+    } else if (profileApprovalFilter === "approved") {
+      filtered = filtered.filter((p) => p.isApproved !== false);
+    }
+
     // Filter by search term
     if (profileSearchTerm) {
       filtered = filtered.filter(p => 
@@ -665,9 +686,17 @@ export default function AccountsPage() {
       );
     }
 
+    // Newest first by createdAt
+    filtered = [...filtered].sort((a, b) => {
+      const bt = new Date(b.createdAt || 0).getTime();
+      const at = new Date(a.createdAt || 0).getTime();
+      return bt - at;
+    });
+
     setFilteredProfiles(filtered);
+    setSelectedProfileRows([]);
     setProfileCurrentPage(1); // Reset to page 1 when filters change
-  }, [profiles, profileFilterType, profileSearchTerm]);
+  }, [profiles, profileFilterType, profileApprovalFilter, profileSearchTerm]);
 
   // Handle create parent profile
   const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
@@ -741,6 +770,120 @@ export default function AccountsPage() {
       toast({
         title: "Lỗi",
         description: error.message || "Không thể xóa profile",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenApproveProfileModal = (profile: any) => {
+    setSelectedProfileRows([]);
+    setSelectedProfileForAction({
+      id: profile.id,
+      name: profile.displayName,
+      isActive: Boolean(profile.isActive),
+      isApproved: profile.isApproved,
+    });
+    setShowProfileApproveModal(true);
+  };
+
+  const handleOpenBulkApproveModal = () => {
+    if (selectedProfileRows.length === 0) return;
+    setSelectedProfileForAction(null);
+    setShowProfileApproveModal(true);
+  };
+
+  const handleConfirmApproveProfile = async () => {
+    const idsToApprove = selectedProfileRows.length > 0
+      ? selectedProfileRows
+      : selectedProfileForAction
+        ? [selectedProfileForAction.id]
+        : [];
+
+    if (idsToApprove.length === 0) return;
+
+    setIsProfileApproveSubmitting(true);
+
+    try {
+      const response = idsToApprove.length > 1
+        ? await approveProfilesByAdmin(idsToApprove)
+        : await approveProfileByAdmin(idsToApprove[0]);
+
+      const isSuccess = response.success || response.isSuccess;
+
+      if (!isSuccess) {
+        throw new Error(response.message || "Không thể duyệt profile");
+      }
+
+      toast({
+        title: "Thành công",
+        description:
+          idsToApprove.length > 1
+            ? `Đã duyệt ${idsToApprove.length} profile thành công`
+            : `Đã duyệt profile \"${selectedProfileForAction?.name ?? idsToApprove[0]}\"`,
+        variant: "success",
+      });
+
+      setProfiles((prev) =>
+        prev.map((p) =>
+          idsToApprove.includes(p.id)
+            ? { ...p, isApproved: true }
+            : p
+        )
+      );
+      setSelectedProfileRows([]);
+      setShowProfileApproveModal(false);
+      setSelectedProfileForAction(null);
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: error?.message || "Không thể duyệt profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProfileApproveSubmitting(false);
+    }
+  };
+
+  const handleOpenReactivateProfileModal = (profile: any) => {
+    setSelectedProfileForAction({
+      id: profile.id,
+      name: profile.displayName,
+      isActive: Boolean(profile.isActive),
+      isApproved: profile.isApproved,
+    });
+    setShowProfileReactivateModal(true);
+  };
+
+  const handleConfirmReactivateProfile = async () => {
+    if (!selectedProfileForAction) return;
+
+    try {
+      const response = await reactivateProfileByAdmin(selectedProfileForAction.id);
+      const isSuccess = response.success || response.isSuccess;
+
+      if (!isSuccess) {
+        throw new Error(response.message || "Không thể kích hoạt lại profile");
+      }
+
+      toast({
+        title: "Thành công",
+        description: `Đã kích hoạt lại profile \"${selectedProfileForAction.name}\"`,
+        variant: "success",
+      });
+
+      setProfiles((prev) =>
+        prev.map((p) =>
+          p.id === selectedProfileForAction.id
+            ? { ...p, isActive: true }
+            : p
+        )
+      );
+      setShowProfileReactivateModal(false);
+      setSelectedProfileForAction(null);
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: error?.message || "Không thể kích hoạt lại profile",
         variant: "destructive",
       });
     }
@@ -893,6 +1036,16 @@ export default function AccountsPage() {
   const endIndex = startIndex + itemsPerPage;
   const currentRows = list.slice(startIndex, endIndex);
 
+  const profileTotalPages = Math.max(1, Math.ceil(filteredProfiles.length / profileItemsPerPage));
+  const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
+  const profileEndIndex = profileStartIndex + profileItemsPerPage;
+  const currentProfiles = filteredProfiles.slice(profileStartIndex, profileEndIndex);
+  const currentPendingProfiles = currentProfiles.filter((p) => p.isApproved === false);
+
+  const isAllCurrentPendingSelected =
+    currentPendingProfiles.length > 0 &&
+    currentPendingProfiles.every((p) => selectedProfileRows.includes(p.id));
+
   const toggleSelectRow = (id: string) => {
     setSelectedRows(prev =>
       prev.includes(id)
@@ -907,6 +1060,26 @@ export default function AccountsPage() {
     } else {
       setSelectedRows(currentRows.map(row => row.id));
     }
+  };
+
+  const toggleSelectProfileRow = (id: string) => {
+    setSelectedProfileRows((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllPendingProfiles = () => {
+    if (currentPendingProfiles.length === 0) return;
+
+    setSelectedProfileRows((prev) => {
+      if (isAllCurrentPendingSelected) {
+        return prev.filter((id) => !currentPendingProfiles.some((p) => p.id === id));
+      }
+
+      const next = new Set(prev);
+      currentPendingProfiles.forEach((p) => next.add(p.id));
+      return Array.from(next);
+    });
   };
 
   const activeCount = accounts.filter(a => a.isActive).length;
@@ -1489,6 +1662,21 @@ export default function AccountsPage() {
             />
           </div>
 
+          <div className={`grid gap-4 md:grid-cols-2 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="rounded-2xl border border-amber-200 bg-linear-to-br from-white to-amber-50 p-4">
+              <div className="text-sm text-gray-600">Profile chờ duyệt</div>
+              <div className="mt-1 text-2xl font-bold text-amber-700">
+                {profiles.filter(p => p.isApproved === false).length}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
+              <div className="text-sm text-gray-600">Profile đang khóa</div>
+              <div className="mt-1 text-2xl font-bold text-red-700">
+                {profiles.filter(p => !p.isActive).length}
+              </div>
+            </div>
+          </div>
+
           {/* Filter Bar */}
           <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1518,6 +1706,29 @@ export default function AccountsPage() {
                     </button>
                   ))}
                 </div>
+
+                <div className="flex items-center gap-2">
+                  <Filter size={16} className="text-gray-500" />
+                  <select
+                    value={profileApprovalFilter}
+                    onChange={(e) => setProfileApprovalFilter(e.target.value as typeof profileApprovalFilter)}
+                    className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                  >
+                    <option value="all">Tất cả duyệt</option>
+                    <option value="pending">Chờ duyệt</option>
+                    <option value="approved">Đã duyệt</option>
+                  </select>
+                </div>
+
+                {selectedProfileRows.length > 0 && (
+                  <button
+                    onClick={handleOpenBulkApproveModal}
+                    className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
+                  >
+                    <ShieldCheck size={16} />
+                    Duyệt đã chọn ({selectedProfileRows.length})
+                  </button>
+                )}
               </div>
 
               {/* Search and Items Per Page */}
@@ -1565,8 +1776,17 @@ export default function AccountsPage() {
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gradient-to-r from-red-100 to-red-200">
+                    <thead className="bg-linear-to-r from-red-100 to-red-200">
                       <tr className="border-b border-red-200">
+                        <th className="px-4 py-4 text-left">
+                          <input
+                            type="checkbox"
+                            checked={isAllCurrentPendingSelected}
+                            onChange={toggleSelectAllPendingProfiles}
+                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                            title="Chọn tất cả profile chờ duyệt trong trang"
+                          />
+                        </th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
@@ -1577,19 +1797,23 @@ export default function AccountsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-red-100">
-                      {(() => {
-                        const profileTotalPages = Math.ceil(filteredProfiles.length / profileItemsPerPage);
-                        const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
-                        const profileEndIndex = profileStartIndex + profileItemsPerPage;
-                        const currentProfiles = filteredProfiles.slice(profileStartIndex, profileEndIndex);
-                        
-                        return currentProfiles.map((profile: any) => (
-                      <tr key={profile.id} className="hover:bg-gradient-to-r hover:from-red-50/50 hover:to-transparent transition-all duration-200">
+                      {currentProfiles.map((profile: any) => (
+                      <tr key={profile.id} className="hover:bg-linear-to-r hover:from-red-50/50 hover:to-transparent transition-all duration-200">
+                        <td className="px-4 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedProfileRows.includes(profile.id)}
+                            disabled={profile.isApproved !== false}
+                            onChange={() => toggleSelectProfileRow(profile.id)}
+                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                            title={profile.isApproved === false ? "Chọn profile này" : "Profile đã duyệt"}
+                          />
+                        </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
                             profile.profileType === "Parent"
-                              ? "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200"
-                              : "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200"
+                              ? "bg-linear-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200"
+                              : "bg-linear-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200"
                           }`}>
                             {profile.profileType === "Parent" ? <Shield size={12} /> : <UserCircle size={12} />}
                             {profile.profileType}
@@ -1610,17 +1834,31 @@ export default function AccountsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          {profile.isActive ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
-                              <CheckCircle size={12} />
-                              Đang hoạt động
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200 rounded-full text-xs font-medium">
-                              <XCircle size={12} />
-                              Tạm khóa
-                            </span>
-                          )}
+                          <div className="flex flex-col gap-1">
+                            {profile.isActive ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
+                                <CheckCircle size={12} />
+                                Đang hoạt động
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-red-50 to-red-100 text-red-700 border border-red-200 rounded-full text-xs font-medium">
+                                <XCircle size={12} />
+                                Tạm khóa
+                              </span>
+                            )}
+
+                            {profile.isApproved === false ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-amber-50 to-yellow-50 text-amber-700 border border-amber-200 rounded-full text-xs font-medium">
+                                <AlertCircle size={12} />
+                                Chờ duyệt
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
+                                <CheckCircle size={12} />
+                                Đã duyệt
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -1646,6 +1884,24 @@ export default function AccountsPage() {
                                 <Users size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
                             )}
+                            {profile.isApproved === false && (
+                              <button
+                                onClick={() => handleOpenApproveProfileModal(profile)}
+                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors group cursor-pointer"
+                                title="Duyệt profile"
+                              >
+                                <ShieldCheck size={18} className="group-hover:scale-110 transition-transform" />
+                              </button>
+                            )}
+                            {!profile.isActive && (
+                              <button
+                                onClick={() => handleOpenReactivateProfileModal(profile)}
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors group cursor-pointer"
+                                title="Kích hoạt lại profile"
+                              >
+                                <RefreshCw size={18} className="group-hover:scale-110 transition-transform" />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleOpenDeleteProfileModal(profile.id, profile.displayName)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors group cursor-pointer"
@@ -1656,97 +1912,87 @@ export default function AccountsPage() {
                           </div>
                         </td>
                       </tr>
-                        ));
-                      })()}
+                      ))}
                     </tbody>
                   </table>
                 </div>
                 
                 {/* Pagination */}
-                {filteredProfiles.length > 0 && (() => {
-                  const profileTotalPages = Math.ceil(filteredProfiles.length / profileItemsPerPage);
-                  const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
-                  const profileEndIndex = profileStartIndex + profileItemsPerPage;
-                  
-                  return (
-                    <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                        {/* Left: Info */}
-                        <div className="text-sm text-gray-600">
-                          Hiển thị <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span> trong tổng số{" "}
-                          <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> profiles
+                {filteredProfiles.length > 0 && (
+                  <div className="border-t border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="text-sm text-gray-600">
+                        Hiển thị <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span> trong tổng số{" "}
+                        <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> profiles
+                        {selectedProfileRows.length > 0 && (
+                          <span className="ml-2 text-emerald-700 font-medium">• Đã chọn {selectedProfileRows.length}</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setProfileCurrentPage((prev) => Math.max(1, prev - 1))}
+                          disabled={profileCurrentPage === 1}
+                          className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                          aria-label="Previous page"
+                        >
+                          <ChevronLeft size={18} />
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                          {(() => {
+                            const pages: (number | string)[] = [];
+                            const maxVisible = 7;
+
+                            if (profileTotalPages <= maxVisible) {
+                              for (let i = 1; i <= profileTotalPages; i++) pages.push(i);
+                            } else if (profileCurrentPage <= 3) {
+                              for (let i = 1; i <= 5; i++) pages.push(i);
+                              pages.push("...");
+                              pages.push(profileTotalPages);
+                            } else if (profileCurrentPage >= profileTotalPages - 2) {
+                              pages.push(1);
+                              pages.push("...");
+                              for (let i = profileTotalPages - 4; i <= profileTotalPages; i++) pages.push(i);
+                            } else {
+                              pages.push(1);
+                              pages.push("...");
+                              for (let i = profileCurrentPage - 1; i <= profileCurrentPage + 1; i++) pages.push(i);
+                              pages.push("...");
+                              pages.push(profileTotalPages);
+                            }
+
+                            return pages.map((page, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => typeof page === "number" && setProfileCurrentPage(page)}
+                                disabled={page === "..."}
+                                className={`min-w-9 h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                                  page === profileCurrentPage
+                                    ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
+                                    : page === "..."
+                                    ? "cursor-default text-gray-400"
+                                    : "border border-red-200 hover:bg-red-50 text-gray-700"
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ));
+                          })()}
                         </div>
 
-                        {/* Right: Pagination Buttons */}
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setProfileCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={profileCurrentPage === 1}
-                            className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                            aria-label="Previous page"
-                          >
-                            <ChevronLeft size={18} />
-                          </button>
-
-                          <div className="flex items-center gap-1">
-                            {(() => {
-                              const pages: (number | string)[] = [];
-                              const maxVisible = 7;
-
-                              if (profileTotalPages <= maxVisible) {
-                                for (let i = 1; i <= profileTotalPages; i++) {
-                                  pages.push(i);
-                                }
-                              } else {
-                                if (profileCurrentPage <= 3) {
-                                  for (let i = 1; i <= 5; i++) pages.push(i);
-                                  pages.push("...");
-                                  pages.push(profileTotalPages);
-                                } else if (profileCurrentPage >= profileTotalPages - 2) {
-                                  pages.push(1);
-                                  pages.push("...");
-                                  for (let i = profileTotalPages - 4; i <= profileTotalPages; i++) pages.push(i);
-                                } else {
-                                  pages.push(1);
-                                  pages.push("...");
-                                  for (let i = profileCurrentPage - 1; i <= profileCurrentPage + 1; i++) pages.push(i);
-                                  pages.push("...");
-                                  pages.push(profileTotalPages);
-                                }
-                              }
-
-                              return pages.map((page, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={() => typeof page === "number" && setProfileCurrentPage(page)}
-                                  disabled={page === "..."}
-                                  className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                                    page === profileCurrentPage
-                                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                                      : page === "..."
-                                      ? "cursor-default text-gray-400"
-                                      : "border border-red-200 hover:bg-red-50 text-gray-700"
-                                  }`}
-                                >
-                                  {page}
-                                </button>
-                              ));
-                            })()}
-                          </div>
-
-                          <button
-                            onClick={() => setProfileCurrentPage(prev => Math.min(profileTotalPages, prev + 1))}
-                            disabled={profileCurrentPage === profileTotalPages}
-                            className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                            aria-label="Next page"
-                          >
-                            <ChevronRight size={18} />
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => setProfileCurrentPage((prev) => Math.min(profileTotalPages, prev + 1))}
+                          disabled={profileCurrentPage === profileTotalPages}
+                          className="p-2 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                          aria-label="Next page"
+                        >
+                          <ChevronRight size={18} />
+                        </button>
                       </div>
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -1791,6 +2037,38 @@ export default function AccountsPage() {
             confirmText="Xóa"
             cancelText="Hủy"
             variant="danger"
+          />
+
+          <ConfirmModal
+            isOpen={showProfileApproveModal}
+            onClose={() => {
+              if (isProfileApproveSubmitting) return;
+              setShowProfileApproveModal(false);
+              setSelectedProfileForAction(null);
+            }}
+            onConfirm={handleConfirmApproveProfile}
+            title="Xác nhận duyệt profile"
+            message={selectedProfileRows.length > 0
+              ? `Bạn có chắc chắn muốn duyệt ${selectedProfileRows.length} profile đã chọn?`
+              : `Bạn có chắc chắn muốn duyệt profile "${selectedProfileForAction?.name}"?`}
+            confirmText="Duyệt profile"
+            cancelText="Hủy"
+            variant="success"
+            isLoading={isProfileApproveSubmitting}
+          />
+
+          <ConfirmModal
+            isOpen={showProfileReactivateModal}
+            onClose={() => {
+              setShowProfileReactivateModal(false);
+              setSelectedProfileForAction(null);
+            }}
+            onConfirm={handleConfirmReactivateProfile}
+            title="Xác nhận kích hoạt lại profile"
+            message={`Bạn có chắc chắn muốn kích hoạt lại profile "${selectedProfileForAction?.name}"?`}
+            confirmText="Kích hoạt lại"
+            cancelText="Hủy"
+            variant="success"
           />
         </>
       )}

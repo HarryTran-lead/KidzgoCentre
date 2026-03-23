@@ -181,6 +181,8 @@ export const USER_ENDPOINTS = {
   ASSIGN_BRANCH: (id: string) => `/api/admin/users/${id}/assign-branch`,
   CHANGE_PIN: (id: string) => `/api/admin/users/${id}/change-pin`,
   APPROVE: (id: string) => `/api/admin/users/${id}/approve`,
+  APPROVE_PROFILES: '/api/admin/users/approve',
+  PROFILE_REACTIVATE: (id: string) => `/api/admin/users/profile/${id}/reactivate`,
 } as const;
 
 // Backend User Management Endpoints (Next.js API Routes → Backend API)
@@ -194,6 +196,8 @@ export const BACKEND_USER_ENDPOINTS = {
   ASSIGN_BRANCH: (id: string) => `/admin/users/${id}/assign-branch`,
   CHANGE_PIN: (id: string) => `/admin/users/${id}/change-pin`,
   APPROVE: (id: string) => `/admin/users/${id}/approve`,
+  APPROVE_PROFILES: '/admin/users/approve',
+  PROFILE_REACTIVATE: (id: string) => `/admin/users/profile/${id}/reactivate`,
 } as const;
 
 // Teacher Endpoints
