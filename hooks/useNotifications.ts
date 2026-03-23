@@ -12,6 +12,7 @@ import {
   subscribeNotificationsChanged,
 } from "@/lib/api/notificationService";
 import type {
+  NotificationCampaign,
   NotificationAudience,
   NotificationChannel,
   NotificationKind,
@@ -35,11 +36,11 @@ type UiNotification = {
 
 export function useNotifications(role: Role) {
   const [notifications, setNotifications] = useState<UiNotification[]>([]);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<NotificationCampaign[]>([]);
 
   const refresh = async () => {
     const items = await fetchNotifications(role);
-    const history = await fetchBroadcastHistory().catch(() => []);
+    const history = await fetchBroadcastHistory(role).catch(() => []);
 
     setNotifications(
       items.map((item) => ({

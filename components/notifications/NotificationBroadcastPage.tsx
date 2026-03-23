@@ -245,6 +245,8 @@ export default function NotificationBroadcastPage() {
     return filtered;
   }, [notifications, messageFilter, searchQuery]);
 
+  const recentCampaigns = useMemo(() => campaigns.slice(0, 6), [campaigns]);
+
   const refreshTemplates = async () => {
     const items = await fetchNotificationTemplates();
     setTemplates(Array.isArray(items) ? items : []);
@@ -605,13 +607,89 @@ export default function NotificationBroadcastPage() {
                   <span className="font-semibold text-gray-900">2.4 giờ</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-red-100">
-                  <span className="text-sm text-gray-600">Campaign active</span>
+                  <span className="text-sm text-gray-600">Broadcast đã gửi</span>
                   <span className="font-semibold text-gray-900">{campaigns.length}</span>
                 </div>
               </div>
             </div>
 
             
+            <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-sm transition-all duration-700 delay-550 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="flex items-center gap-2 font-semibold text-gray-900">
+                    <Megaphone className="h-5 w-5 text-red-600" />
+                    Lịch sử broadcast
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-600">Campaign đã gửi sẽ hiển thị lại tại đây</p>
+                </div>
+                <span className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">
+                  {campaigns.length} bản ghi
+                </span>
+              </div>
+
+              <div className="max-h-[360px] space-y-3 overflow-y-auto pr-2">
+                {recentCampaigns.length ? (
+                  recentCampaigns.map((campaign) => {
+                    const audienceMeta = getAudienceMeta(campaign.audience);
+                    const campaignKindMeta = getKindMeta(campaign.kind);
+                    const campaignChannelMeta = getChannelMeta(campaign.channel);
+                    const CampaignKindIcon = campaignKindMeta.icon;
+                    const CampaignChannelIcon = campaignChannelMeta.icon;
+
+                    return (
+                      <article
+                        key={campaign.id}
+                        className="rounded-xl border border-red-100 bg-white p-4 shadow-sm transition-all hover:border-red-200 hover:shadow-md"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`rounded-xl p-3 ${campaignKindMeta.color}`}>
+                            <CampaignKindIcon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-sm font-semibold text-gray-900">{campaign.title}</h4>
+                              <span className={`rounded-full border px-2.5 py-1 text-xs ${campaignKindMeta.color}`}>
+                                {campaignKindMeta.label}
+                              </span>
+                            </div>
+
+                            <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-600">
+                              {campaign.message}
+                            </p>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <span className={`rounded-full bg-gradient-to-r ${audienceMeta.color} px-2.5 py-1 text-xs text-white shadow-sm`}>
+                                {audienceMeta.label}
+                              </span>
+                              <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs text-gray-700">
+                                <CampaignChannelIcon className="h-3 w-3 text-red-600" />
+                                {campaignChannelMeta.label}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatTime(campaign.createdAt)}
+                              </span>
+                              <span>Người gửi: {campaign.senderName}</span>
+                              <span>Đã tạo: {campaign.deliveredCount}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-xl border-2 border-dashed border-red-200 bg-red-50/30 px-5 py-10 text-center">
+                    <Megaphone className="mx-auto h-10 w-10 text-red-300" />
+                    <p className="mt-3 text-sm text-gray-500">Chưa có broadcast nào được lưu vào lịch sử</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
               {/* Mẹo xử lý */}
               <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 p-6 shadow-xl">
                 <div className="flex items-center gap-3 mb-4">

@@ -1,4 +1,3 @@
-// lib/dict/menu/menuStaffManager.ts
 export const menuStaffManager = {
   vi: {
     items: {
@@ -6,7 +5,8 @@ export const menuStaffManager = {
       accounts: "Quản lý tài khoản",
       crm: "Lead / CRM",
       allocation: "Điều phối lịch/lớp/phòng",
-      makeup: "Bù (make-up)",
+      makeup: "Nghỉ ngắn ngày & bù",
+      pauseEnrollments: "Bảo lưu học",
       lessonPlans: "Giáo án & chất lượng",
       monthlyReport: "Báo cáo tháng",
       tickets: "Ticket hỗ trợ",
@@ -23,7 +23,8 @@ export const menuStaffManager = {
       accounts: "Account Management",
       crm: "Leads / CRM",
       allocation: "Schedule/Class/Room Allocation",
-      makeup: "Make-up Sessions",
+      makeup: "Short Leave & Make-up",
+      pauseEnrollments: "Enrollment Pause",
       lessonPlans: "Lesson Plans & Quality",
       monthlyReport: "Monthly Report",
       tickets: "Support Tickets",

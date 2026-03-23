@@ -1,9 +1,9 @@
-// components/portal/menu/staffManager.ts
 import {
   LayoutDashboard,
   UserCog,
   Users,
   CalendarRange,
+  Clock3,
   RefreshCw,
   FileText,
   NotebookText,
@@ -24,12 +24,13 @@ export function staffManagerMenu(
 ): MenuItem[] {
   const t = getMessages(locale).menuStaffManager.items;
 
-  const RAWS: RawItem[] = [
+  const raws: RawItem[] = [
     [t.dashboard, LayoutDashboard, ""],
     [t.accounts, UserCog, "/accounts"],
     [t.crm, Users, "/leads"],
     [t.allocation, CalendarRange, "/schedule"],
     [t.makeup, RefreshCw, "/makeup"],
+    [t.pauseEnrollments, Clock3, "/pause-enrollments"],
     [t.lessonPlans, BookOpenCheck, "/lesson-plans"],
     [t.monthlyReport, FileText, "/monthly-report"],
     [t.tickets, MessageSquare, "/tickets"],
@@ -40,5 +41,5 @@ export function staffManagerMenu(
     [t.templates, FileText, "/templates"],
   ];
 
-  return makeMenu(root, RAWS);
+  return makeMenu(root, raws);
 }

@@ -1,7 +1,7 @@
-import { LeaveRequest } from './../../../types/student/attendance';
 import {
   Settings,
   CalendarCheck2,
+  CalendarRange,
   BookOpen,
   FileSpreadsheet,
   Banknote,
@@ -16,62 +16,60 @@ import { getMessages } from "@/lib/dict";
 export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const t = getMessages(locale).menuParent;
 
-  // 🗓️ Lịch học & Điểm danh
   const scheduleItem: MenuItem = {
     label: t.items.schedule,
     icon: CalendarCheck2,
     href: `${root}/schedule`,
   };
-    // 🗓️ đơn nghỉ
-  const LeaveRequestItem: MenuItem = {
+
+  const leaveRequestItem: MenuItem = {
     label: t.items.LeaveRequest,
     icon: CalendarCheck2,
     href: `${root}/attendance`,
   };
 
-  // 📚 Bài tập
+  const pauseEnrollmentItem: MenuItem = {
+    label: t.items.pauseEnrollment,
+    icon: CalendarRange,
+    href: `${root}/enrollment-pause`,
+  };
+
   const homeworkItem: MenuItem = {
     label: t.items.homework,
     icon: BookOpen,
     href: `${root}/homework`,
   };
 
-  // 📝 Kiểm tra & Báo cáo
   const testsReportsItem: MenuItem = {
     label: t.items.testsReports,
     icon: FileSpreadsheet,
     href: `${root}/tests`,
   };
 
-  // 💳 Thanh toán
   const paymentItem: MenuItem = {
     label: t.items.payment,
     icon: Banknote,
     href: `${root}/payment`,
   };
 
-  // 🖼️ Media
   const mediaItem: MenuItem = {
     label: t.items.media,
     icon: ImageIcon,
     href: `${root}/media`,
   };
 
-  // 🔔 Thông báo
   const notificationsItem: MenuItem = {
     label: t.items.notifications,
     icon: BellRing,
     href: `${root}/notifications`,
   };
 
-  // 🆘 Hỗ trợ
   const supportItem: MenuItem = {
     label: t.items.support,
     icon: HeadphonesIcon,
     href: `${root}/support`,
   };
 
-  // ⚙️ Tài khoản
   const accountItem: MenuItem = {
     label: t.items.account,
     icon: Settings,
@@ -86,8 +84,8 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     mediaItem,
     notificationsItem,
     supportItem,
-     LeaveRequestItem,
+    leaveRequestItem,
+    pauseEnrollmentItem,
     accountItem,
-    
   ];
 }
