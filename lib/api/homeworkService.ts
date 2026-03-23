@@ -299,7 +299,7 @@ export async function createHomework(
 /**
  * Create a new multiple choice homework assignment
  * 
- * @param payload - Multiple choice homework data to create
+ * @param payload - Multiple choice homeswork data to create
  * @returns Created homework or error
  */
 export async function createMultipleChoiceHomework(
@@ -311,6 +311,7 @@ export async function createMultipleChoiceHomework(
     dueAt: string;
     rewardStars?: number;
     missionId?: string;
+    timeLimitMinutes?: number;
     instructions?: string;
     questions: MultipleChoiceQuestion[];
   }
