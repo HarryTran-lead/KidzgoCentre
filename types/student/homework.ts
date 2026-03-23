@@ -1,4 +1,4 @@
-// types/student/homework.ts
+﻿// types/student/homework.ts
 
 export type AssignmentStatus = "SUBMITTED" | "PENDING" | "MISSING" | "LATE" | "ASSIGNED";
 
@@ -55,6 +55,7 @@ export interface AssignmentDetail {
   status: AssignmentStatus;
   submissionType?: "FILE" | "IMAGE" | "TEXT" | "LINK" | "QUIZ" | "MULTIPLE_CHOICE" | "FILE_AND_TEXT";
   timeRemaining?: string;
+  timeLimitMinutes?: number;
 
   description: string;
   instructions?: string;
@@ -195,4 +196,3 @@ export interface StatusBadgeConfig {
 }
 
 export type AssignmentStatusConfig = Record<AssignmentStatus, StatusBadgeConfig>;
-

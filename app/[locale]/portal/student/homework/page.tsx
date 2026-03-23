@@ -154,11 +154,13 @@ function StatusBadge({
 function TodayHomeworkSection({ 
   assignments, 
   onViewAll,
-  locale 
+  locale,
+  onAssignmentClick
 }: { 
   assignments: AssignmentListItem[];
   onViewAll: () => void;
   locale: string;
+  onAssignmentClick: (id: string) => void;
 }) {
   const todayAssignments = useMemo(() => {
     return assignments
@@ -196,7 +198,7 @@ function TodayHomeworkSection({
           <div
             key={assignment.id}
             className="bg-white/90 backdrop-blur rounded-xl p-3 flex items-start gap-3 cursor-pointer hover:bg-white transition-all"
-            onClick={() => onViewAll()} // Có thể chuyển đến chi tiết bài tập
+            onClick={() => onAssignmentClick(assignment.id)}
           >
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center shrink-0">
               {getTypeIcon(assignment.submissionType || "")}
@@ -375,6 +377,7 @@ export default function HomeworkPage() {
           assignments={assignments}
           onViewAll={handleViewAllToday}
           locale={locale}
+          onAssignmentClick={handleAssignmentClick}
         />
 
         {/* Filters Row */}
