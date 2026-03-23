@@ -30,6 +30,7 @@ import {
   PlacementTestFormModal,
   PlacementTestDetailModal,
   ResultFormModal,
+  RegistrationFlowModal,
 } from "@/components/portal/placement-tests";
 import NoteFormModal from "@/components/portal/placement-tests/NoteFormModal";
 import ConvertToEnrolledModal from "@/components/portal/placement-tests/ConvertToEnrolledModal";
@@ -145,6 +146,7 @@ export default function Page() {
   const [selectedTest, setSelectedTest] = useState<PlacementTest | null>(null);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+  const [isRegistrationFlowOpen, setIsRegistrationFlowOpen] = useState(false);
 
   // Enrollment state
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -860,6 +862,11 @@ export default function Page() {
     await handleCreateAccount(test);
   };
 
+  const handleStartRegistrationFlow = (test: PlacementTest) => {
+    setSelectedTest(test);
+    setIsRegistrationFlowOpen(true);
+  };
+
   const handleAddNote = (test: PlacementTest) => {
     setSelectedTest(test);
     setIsNoteModalOpen(true);
@@ -1454,6 +1461,7 @@ export default function Page() {
               onNoShow={handleNoShowTest}
               onConvertToEnrolled={handleConvertToEnrolled}
               onCreateAccount={handleCreateAccountFromTest}
+              onStartRegistration={handleStartRegistrationFlow}
               onPageChange={handleTestPageChange}
             />
           </div>
@@ -1585,6 +1593,17 @@ export default function Page() {
         onSuccess={() => {
           fetchPlacementTests();
           closeCreateAccountModal();
+        }}
+      />
+
+      <RegistrationFlowModal
+        isOpen={isRegistrationFlowOpen}
+        onClose={() => setIsRegistrationFlowOpen(false)}
+        test={selectedTest}
+        branchId={currentUser?.branchId}
+        onSuccess={() => {
+          fetchPlacementTests();
+          fetchInitialTestData();
         }}
       />
 

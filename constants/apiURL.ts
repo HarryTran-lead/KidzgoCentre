@@ -240,6 +240,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
   CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
   PROGRAMS: '/api/programs',
+  REGISTRATIONS: '/api/registrations',
   TUITION_PLANS: '/api/tuition-plans',
   TUITION_PLANS_ACTIVE: '/api/tuition-plans/active',
   TUITION_PLANS_BY_ID: (id: string) => `/api/tuition-plans/${id}`,
@@ -337,6 +338,20 @@ export const ENROLLMENT_ENDPOINTS = {
   STUDENT_HISTORY: (studentProfileId: string) => `/api/enrollments/student/${studentProfileId}/history`,
 } as const;
 
+// Registration Endpoints (Client-side -> Next.js API Routes)
+export const REGISTRATION_ENDPOINTS = {
+  GET_ALL: '/api/registrations',
+  GET_BY_ID: (id: string) => `/api/registrations/${id}`,
+  CREATE: '/api/registrations',
+  UPDATE: (id: string) => `/api/registrations/${id}`,
+  CANCEL: (id: string) => `/api/registrations/${id}/cancel`,
+  SUGGEST_CLASSES: (id: string) => `/api/registrations/${id}/suggest-classes`,
+  ASSIGN_CLASS: (id: string) => `/api/registrations/${id}/assign-class`,
+  WAITING_LIST: '/api/registrations/waiting-list',
+  TRANSFER_CLASS: (id: string) => `/api/registrations/${id}/transfer-class`,
+  UPGRADE: (id: string) => `/api/registrations/${id}/upgrade`,
+} as const;
+
 // Backend Enrollment Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_ENROLLMENT_ENDPOINTS = {
   GET_ALL: '/enrollments',
@@ -348,6 +363,20 @@ export const BACKEND_ENROLLMENT_ENDPOINTS = {
   REACTIVATE: (id: string) => `/enrollments/${id}/reactivate`,
   ASSIGN_TUITION_PLAN: (id: string) => `/enrollments/${id}/assign-tuition-plan`,
   STUDENT_HISTORY: (studentProfileId: string) => `/enrollments/student/${studentProfileId}/history`,
+} as const;
+
+// Backend Registration Endpoints (Next.js API Routes -> Backend API)
+export const BACKEND_REGISTRATION_ENDPOINTS = {
+  GET_ALL: '/registrations',
+  GET_BY_ID: (id: string) => `/registrations/${id}`,
+  CREATE: '/registrations',
+  UPDATE: (id: string) => `/registrations/${id}`,
+  CANCEL: (id: string) => `/registrations/${id}/cancel`,
+  SUGGEST_CLASSES: (id: string) => `/registrations/${id}/suggest-classes`,
+  ASSIGN_CLASS: (id: string) => `/registrations/${id}/assign-class`,
+  WAITING_LIST: '/registrations/waiting-list',
+  TRANSFER_CLASS: (id: string) => `/registrations/${id}/transfer-class`,
+  UPGRADE: (id: string) => `/registrations/${id}/upgrade`,
 } as const;
 
 // Profile Management Endpoints (Client-side → Next.js API Routes)
@@ -380,6 +409,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSES_BY_ID: (id: string) => `/classes/${id}`,
   CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
   PROGRAMS: '/programs',
+  REGISTRATIONS: '/registrations',
   PROGRAMS_BY_ID: (id: string) => `/programs/${id}`,
   PROGRAMS_TOGGLE_STATUS: (id: string) => `/programs/${id}/toggle-status`,
   TUITION_PLANS: '/tuition-plans',

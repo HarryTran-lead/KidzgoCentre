@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { X, FileText, Award, BookOpen, Paperclip } from "lucide-react";
 import type { PlacementTestResultRequest } from "@/types/placement-test";
 
@@ -24,13 +24,21 @@ export default function ResultFormModal({
     speakingScore: initialData?.speakingScore?.toString() || "",
     readingScore: initialData?.readingScore?.toString() || "",
     writingScore: initialData?.writingScore?.toString() || "",
-    resultScore: initialData?.resultScore?.toString() || "",
     levelRecommendation: initialData?.levelRecommendation || "",
     programRecommendation: initialData?.programRecommendation || "",
     attachmentUrl: initialData?.attachmentUrl || "",
     note: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const computedResultScore = useMemo(() => {
+    const listening = Number.parseFloat(formData.listeningScore || "0") || 0;
+    const speaking = Number.parseFloat(formData.speakingScore || "0") || 0;
+    const reading = Number.parseFloat(formData.readingScore || "0") || 0;
+    const writing = Number.parseFloat(formData.writingScore || "0") || 0;
+
+    return Number(((listening + speaking + reading + writing) / 4).toFixed(1));
+  }, [formData.listeningScore, formData.speakingScore, formData.readingScore, formData.writingScore]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +50,7 @@ export default function ResultFormModal({
         speakingScore: formData.speakingScore ? parseFloat(formData.speakingScore) : 0,
         readingScore: formData.readingScore ? parseFloat(formData.readingScore) : 0,
         writingScore: formData.writingScore ? parseFloat(formData.writingScore) : 0,
-        resultScore: formData.resultScore ? parseFloat(formData.resultScore) : 0,
+        resultScore: computedResultScore,
         levelRecommendation: formData.levelRecommendation || "",
         programRecommendation: formData.programRecommendation || "",
         attachmentUrl: formData.attachmentUrl || "",
@@ -153,11 +161,11 @@ export default function ResultFormModal({
               step="0.1"
               min="0"
               max="10"
-              value={formData.resultScore}
-              onChange={(e) => setFormData(prev => ({ ...prev, resultScore: e.target.value }))}
-              placeholder="0.0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none font-semibold text-lg"
+              value={computedResultScore}
+              readOnly
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 outline-none font-semibold text-lg"
             />
+            <p className="text-xs text-gray-500">Tự động tính trung bình cộng của 4 kỹ năng: Nghe, Nói, Đọc, Viết.</p>
           </div>
 
           {/* Level Recommendation */}

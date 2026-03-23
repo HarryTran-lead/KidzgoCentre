@@ -4,6 +4,7 @@ import {
   Users,
   BookOpen,
   GraduationCap,
+  UserCheck,
   Building2,
   CalendarRange,
   CalendarClock,
@@ -35,6 +36,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const LEARNING: RawItem[] = [
     [t.groups.learning.courses.list, GraduationCap, "/courses"],
     [t.groups.learning.tuitionPlans.list, GraduationCap, "/tuition-plans"],
+    [t.groups.learning.registrations.list, UserCheck, "/registrations"],
     [t.groups.learning.classes.list, BookOpen, "/classes"],
     [t.groups.learning.students.list, Users, "/students"],
   ];

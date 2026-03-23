@@ -13,6 +13,7 @@ import {
   FileText,
   UserCheck,
   UserPlus,
+  School,
   Ban,
   MessageSquare,
   ChevronLeft,
@@ -51,6 +52,7 @@ interface PlacementTestTableProps {
   onNoShow?: (test: PlacementTest) => void;
   onConvertToEnrolled?: (test: PlacementTest) => void;
   onCreateAccount?: (test: PlacementTest) => void;
+  onStartRegistration?: (test: PlacementTest) => void;
 }
 
 export default function PlacementTestTable({
@@ -73,6 +75,7 @@ export default function PlacementTestTable({
   onNoShow,
   onConvertToEnrolled,
   onCreateAccount,
+  onStartRegistration,
 }: PlacementTestTableProps) {
   const testsArray = Array.isArray(tests) ? tests : [];
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -362,6 +365,15 @@ export default function PlacementTestTable({
                                     Tạo tài khoản & Profile
                                   </button>
                                 )}
+                                {test.status === "Completed" && onStartRegistration && (
+                                  <button
+                                    onClick={() => { onStartRegistration(test); setOpenMenuId(null); }}
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                                  >
+                                    <School size={14} />
+                                    Bắt đầu luồng đăng ký
+                                  </button>
+                                )}
                               </div>
                             </>
                           )}
@@ -378,7 +390,7 @@ export default function PlacementTestTable({
 
       {/* Pagination Footer */}
       {totalPages > 0 && (
-        <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+        <div className="border-t border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-600">
               Hiển thị <span className="font-semibold text-gray-900">
@@ -403,9 +415,9 @@ export default function PlacementTestTable({
                     key={idx}
                     onClick={() => typeof page === "number" && onPageChange(page)}
                     disabled={page === "..."}
-                    className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                    className={`min-w-9 h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                       page === currentPage
-                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                        ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
                         : page === "..."
                         ? "cursor-default text-gray-400"
                         : "border border-red-200 hover:bg-red-50 text-gray-700"
