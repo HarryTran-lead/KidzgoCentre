@@ -198,7 +198,11 @@ export default function ParentAttendancePage() {
       try {
         const response = await getProfiles({ profileType: "Student" });
 
-        const data = Array.isArray(response.data) ? response.data : response.data?.profiles ?? [];
+        const data = Array.isArray(response.data)
+          ? response.data
+          : response.data?.profiles ??
+            response.data?.data ??
+            [];
 
         const students = data.filter((p: UserProfile) => p.profileType === "Student");
         setStudentProfiles(students);

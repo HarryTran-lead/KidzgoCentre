@@ -1,108 +1,94 @@
 "use client";
 
 import { useState } from "react";
+import { CalendarCheck, FileBarChart } from "lucide-react";
 import MonthlyReportsWorkspace from "@/components/reports/monthly-reports-workspace";
 import SessionReportsReviewWorkspace from "@/components/reports/session-reports-review-workspace";
-import { FileBarChart, CalendarCheck, ChevronRight } from "lucide-react";
 
 type ManageTab = "monthly" | "session";
 
 export default function ManagementFeedbackWorkspace() {
   const [activeTab, setActiveTab] = useState<ManageTab>("monthly");
-  const [isPageLoaded] = useState(true);
 
   const tabs = [
-    { id: "monthly" as const, label: "Báo cáo theo tháng", icon: FileBarChart, color: "red" },
-    { id: "session" as const, label: "Báo cáo theo buổi", icon: CalendarCheck, color: "blue" },
+    {
+      id: "monthly" as const,
+      label: "Báo cáo theo tháng",
+      description: "Đi thẳng vào hàng chờ duyệt, điều phối theo lớp và công bố báo cáo.",
+      icon: FileBarChart,
+    },
+    {
+      id: "session" as const,
+      label: "Báo cáo theo buổi",
+      description: "Review nhanh từng buổi học, phản hồi và kiểm soát chất lượng giảng dạy.",
+      icon: CalendarCheck,
+    },
   ];
 
-  const activeTabConfig = tabs.find(t => t.id === activeTab);
+  const activeConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 transition-all duration-700 opacity-100 translate-y-0">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <FileBarChart size={28} className="text-white" />
+    <div className="space-y-4 bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
+      <div className="rounded-[24px] border border-red-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] md:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
+              <FileBarChart size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 md:text-2xl">
+                Quản lý phản hồi & đánh giá
+              </h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Chọn đúng workspace để xử lý ngay, không phải cuộn qua nhiều khối hướng dẫn.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Quản lý phản hồi & đánh giá
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Theo dõi và duyệt báo cáo định kỳ từ giáo viên, tổng hợp phản hồi học tập
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="text-xs text-gray-500 bg-white/80 rounded-full px-3 py-1.5 border border-red-200">
+          <div className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-gray-600">
             Vai trò: Quản lý
           </div>
         </div>
-      </div>
 
-      {/* Tabs Navigation */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-1 shadow-sm transition-all duration-700">
-        <div className="flex flex-wrap gap-1">
+        <div className="mt-4 flex flex-wrap gap-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`group relative overflow-hidden rounded-xl px-5 py-2.5 text-sm font-medium transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all ${
                   isActive
                     ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
-                    : "text-gray-600 hover:bg-red-50"
+                    : "border border-red-200 bg-white text-gray-700 hover:bg-red-50"
                 }`}
               >
-                <div className="relative flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </div>
-                {isActive && (
-                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white/30" />
-                )}
+                <Icon size={16} />
+                {tab.label}
               </button>
             );
           })}
         </div>
-      </div>
 
-      {/* Tab Description */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className={`rounded-xl p-2 ${
-            activeTab === "monthly" 
-              ? "bg-gradient-to-r from-red-600 to-red-700" 
-              : "bg-gradient-to-r from-blue-500 to-cyan-500"
-          } text-white shadow-sm`}>
-            {activeTab === "monthly" ? <FileBarChart size={18} /> : <CalendarCheck size={18} />}
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">
-              {activeTab === "monthly" ? "Báo cáo tổng kết tháng" : "Báo cáo từng buổi học"}
-            </h3>
-            <p className="text-sm text-gray-600 mt-0.5">
-              {activeTab === "monthly" 
-                ? "Xem và duyệt báo cáo định kỳ theo tháng của giáo viên, theo dõi tiến độ hoàn thành"
-                : "Duyệt từng nhận xét buổi học, gửi phản hồi và quản lý chất lượng giảng dạy"
-              }
-            </p>
-          </div>
+        <div className="mt-3 rounded-2xl border border-red-100 bg-red-50/50 px-4 py-3 text-sm text-gray-600">
+          <span className="font-semibold text-gray-900">{activeConfig.label}:</span>{" "}
+          {activeConfig.description}{" "}
+          <span className="text-gray-500">
+            Gợi ý bắt đầu:{" "}
+            {activeTab === "monthly"
+              ? "mở hàng chờ duyệt để xử lý các báo cáo submitted trước."
+              : "review từng buổi học gần nhất rồi phản hồi ngay cho giáo viên."}
+          </span>
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="transition-all duration-500">
-        {activeTab === "monthly" ? (
-          <MonthlyReportsWorkspace role="management" />
-        ) : (
-          <SessionReportsReviewWorkspace />
-        )}
-      </div>
+      {activeTab === "monthly" ? (
+        <MonthlyReportsWorkspace role="management" />
+      ) : (
+        <SessionReportsReviewWorkspace />
+      )}
     </div>
   );
 }
