@@ -25,6 +25,7 @@ import CreateAccountProfileModal from "@/components/portal/placement-tests/Creat
 import PlacementTestDetailModal from "@/components/portal/placement-tests/PlacementTestDetailModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getAccessToken } from "@/lib/store/authToken";
 import { useCreateAccountFromTest } from "@/hooks/useCreateAccountFromTest";
 import {
@@ -44,9 +45,10 @@ import type {
 } from "@/types/placement-test";
 
 export default function PlacementTestsPage() {
+  const { user: currentUser } = useCurrentUser();
   const [tests, setTests] = useState<PlacementTest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<string | null>("scheduledAt");
+  const [sortKey, setSortKey] = useState<string | null>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -86,6 +88,21 @@ export default function PlacementTestsPage() {
   const [classes, setClasses] = useState<any[]>([]);
   const [invigilators, setInvigilators] = useState<any[]>([]);
   const [isLoadingDropdownData, setIsLoadingDropdownData] = useState(false);
+
+  const activeBranchId = useMemo(() => String(filters.branchId || currentUser?.branchId || ""), [filters.branchId, currentUser?.branchId]);
+
+  const sortPlacementTestsNewest = (items: PlacementTest[]) => {
+    return [...items].sort((a, b) => {
+      const bt = new Date(b.createdAt || b.scheduledAt || "").getTime();
+      const at = new Date(a.createdAt || a.scheduledAt || "").getTime();
+      return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
+    });
+  };
+
+  const filteredInvigilators = useMemo(() => {
+    if (!activeBranchId) return invigilators;
+    return invigilators.filter((i: any) => String(i.branchId || "") === activeBranchId);
+  }, [invigilators, activeBranchId]);
 
   // Single effect — re-runs whenever any relevant dep changes (same pattern as leads page)
   useEffect(() => {
@@ -127,7 +144,7 @@ export default function PlacementTestsPage() {
       if (!response.ok) throw new Error("Failed to fetch placement tests");
 
       const data = await response.json();
-      setTests(data.data?.placementTests || data.data?.items || []);
+      setTests(sortPlacementTestsNewest(data.data?.placementTests || data.data?.items || []));
       setTotalCount(data.data?.totalCount || 0);
       setTotalPages(data.data?.totalPages || 0);
     } catch (error) {
@@ -194,12 +211,14 @@ export default function PlacementTestsPage() {
           id: user.id,
           fullName: user.fullName || user.userName || user.name || "N/A",
           role: "Admin",
+          branchId: user.branchId || user.branch?.id || "",
         }));
 
         const staff = staffItems.map((user: any) => ({
           id: user.id,
           fullName: user.fullName || user.userName || user.name || "N/A",
           role: "ManagementStaff",
+          branchId: user.branchId || user.branch?.id || "",
         }));
 
         setInvigilators([...admins, ...staff]);
@@ -754,14 +773,14 @@ export default function PlacementTestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6">
+    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-red-200">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center shadow-lg">
                   <FileText className="text-white" size={24} />
                 </div>
                 Placement Tests
@@ -786,9 +805,9 @@ export default function PlacementTestsPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
+            <div className="bg-linear-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-linear-to-r from-red-500 to-red-600 flex items-center justify-center">
                   <FileText className="text-white" size={20} />
                 </div>
                 <div>
@@ -800,9 +819,9 @@ export default function PlacementTestsPage() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+            <div className="bg-linear-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-gray-500 to-gray-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-linear-to-r from-gray-500 to-gray-600 flex items-center justify-center">
                   <FileText className="text-white" size={20} />
                 </div>
                 <div>
@@ -814,9 +833,9 @@ export default function PlacementTestsPage() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-4 border border-gray-300">
+            <div className="bg-linear-to-br from-gray-100 to-gray-200 rounded-xl p-4 border border-gray-300">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-gray-600 to-gray-700 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-linear-to-r from-gray-600 to-gray-700 flex items-center justify-center">
                   <FileText className="text-white" size={20} />
                 </div>
                 <div>
@@ -828,9 +847,9 @@ export default function PlacementTestsPage() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl p-4 border border-gray-400">
+            <div className="bg-linear-to-br from-gray-200 to-gray-300 rounded-xl p-4 border border-gray-400">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-gray-700 to-gray-800 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-linear-to-r from-gray-700 to-gray-800 flex items-center justify-center">
                   <FileText className="text-white" size={20} />
                 </div>
                 <div>
@@ -940,7 +959,7 @@ export default function PlacementTestsPage() {
           leads={leads}
           studentProfiles={studentProfiles}
           classes={classes}
-          invigilators={invigilators}
+          invigilators={filteredInvigilators}
         />
 
         <ResultFormModal
@@ -978,3 +997,5 @@ export default function PlacementTestsPage() {
     </div>
   );
 }
+
+

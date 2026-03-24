@@ -14,6 +14,12 @@ export const menuAdmin = {
         courses: {
           list: "Danh sách khóa học",
         },
+        tuitionPlans: {
+          list: "Danh sach goi hoc",
+        },
+        registrations: {
+          list: "Danh sach dang ky lop",
+        },
         classes: {
           list: "Danh sách lớp học",
         },
@@ -62,6 +68,12 @@ export const menuAdmin = {
         title: "Learning",
         courses: {
           list: "Courses",
+        },
+        tuitionPlans: {
+          list: "Tuition Plans",
+        },
+        registrations: {
+          list: "Registrations",
         },
         classes: {
           list: "Classes",

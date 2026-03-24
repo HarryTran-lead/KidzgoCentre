@@ -95,9 +95,11 @@ interface CreateCourseModalProps {
 }
 
 interface CourseFormData {
+  code?: string;
   name: string;
   description: string;
   status: "Đang hoạt động" | "Tạm dừng";
+  isMakeup: boolean;
   branchId: string;
   totalSessions: string;
   defaultTuitionAmount: string;
@@ -105,9 +107,11 @@ interface CourseFormData {
 }
 
 const initialFormData: CourseFormData = {
+  code: "",
   name: "",
   description: "",
   status: "Đang hoạt động",
+  isMakeup: false,
   branchId: "",
   totalSessions: "",
   defaultTuitionAmount: "",
@@ -371,6 +375,23 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 )}
               </div>
               {errors.description && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.description}</p>}
+            </div>
+
+            {/* Row 2.5: Thuộc khóa makeup */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <BookOpen size={16} className="text-red-600" />
+                Loại chương trình
+              </label>
+              <label className="inline-flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isMakeup}
+                  onChange={(e) => handleChange("isMakeup", e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-300"
+                />
+                <span className="text-sm text-gray-800">Là khóa học Makeup (bù buổi)</span>
+              </label>
             </div>
 
             {/* Row 3: Số buổi học, Học phí mặc định, Giá mỗi buổi */}
@@ -692,7 +713,7 @@ export default function Page() {
         branchId: data.branchId,
         name: data.name,
         code: code,                    // Thêm field code
-        isMakeup: false,                // Thêm field isMakeup (mặc định false)
+        isMakeup: data.isMakeup,
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,
@@ -743,7 +764,8 @@ export default function Page() {
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        isMakeup: false,
+        code: data.code?.trim() || data.name.toUpperCase().replace(/[^A-Z0-9]/g, "_").substring(0, 20),
+        isMakeup: data.isMakeup,
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,
@@ -786,19 +808,33 @@ export default function Page() {
     setShowToggleStatusModal(true);
   };
 
-  const handleOpenEditCourse = (row: CourseRow) => {
-    setEditingProgramId(row.id);
-    setEditingInitialData({
-      name: row.name,
-      description: row.desc,
-      status: row.status as "Đang hoạt động" | "Tạm dừng",
-      branchId: "", // Will need to be loaded from detail
-      totalSessions: row.duration.replace(/[^0-9]/g, ""),
-      defaultTuitionAmount: row.fee.replace(/[^0-9]/g, ""),
-      unitPriceSession: "",
-    });
-    setOriginalStatus(row.status as "Đang hoạt động" | "Tạm dừng");
-    setIsEditModalOpen(true);
+  const handleOpenEditCourse = async (row: CourseRow) => {
+    try {
+      const detail = await fetchAdminProgramDetail(row.id);
+      setEditingProgramId(row.id);
+      setEditingInitialData({
+        code: String(detail?.code ?? ""),
+        name: String(detail?.name ?? row.name),
+        description: String(detail?.description ?? row.desc ?? ""),
+        status:
+          normalizeIsActive(detail?.isActive ?? detail?.status) === true
+            ? "Đang hoạt động"
+            : "Tạm dừng",
+        isMakeup: Boolean(detail?.isMakeup),
+        branchId: String(detail?.branchId ?? ""),
+        totalSessions: String(detail?.totalSessions ?? row.duration.replace(/[^0-9]/g, "")),
+        defaultTuitionAmount: String(detail?.defaultTuitionAmount ?? row.fee.replace(/[^0-9]/g, "")),
+        unitPriceSession: String(detail?.unitPriceSession ?? ""),
+      });
+      setOriginalStatus(row.status as "Đang hoạt động" | "Tạm dừng");
+      setIsEditModalOpen(true);
+    } catch (err: any) {
+      toast({
+        title: "Lỗi",
+        description: err?.message || "Không thể tải thông tin khóa học để cập nhật.",
+        type: "destructive",
+      });
+    }
   };
 
   const handleViewDetail = async (row: CourseRow) => {
@@ -1336,6 +1372,16 @@ export default function Page() {
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
                         <StatusBadge value={normalizeIsActive(selectedCourseDetail?.isActive ?? selectedCourseDetail?.status) === true ? "Đang hoạt động" : "Tạm dừng"} />
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <BookOpen size={16} className="text-red-600" />
+                      Loại chương trình
+                    </label>
+                    <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                      {selectedCourseDetail.isMakeup ? "Makeup (bù buổi)" : "Thường"}
                     </div>
                   </div>
 

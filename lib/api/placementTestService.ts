@@ -35,6 +35,8 @@ export async function getAllPlacementTests(params?: {
   searchTerm?: string;
   fromDate?: string;
   toDate?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }): Promise<ApiResponse<PaginatedResponse<PlacementTest>>> {
   const queryParams = new URLSearchParams();
   
@@ -46,6 +48,8 @@ export async function getAllPlacementTests(params?: {
   if (params?.searchTerm) queryParams.append("searchTerm", params.searchTerm);
   if (params?.fromDate) queryParams.append("fromDate", params.fromDate);
   if (params?.toDate) queryParams.append("toDate", params.toDate);
+  if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
+  if (params?.sortOrder) queryParams.append("sortOrder", params.sortOrder);
 
   const response = await get<any>(`${PLACEMENT_TEST_ENDPOINTS.GET_ALL}?${queryParams.toString()}`);
   
