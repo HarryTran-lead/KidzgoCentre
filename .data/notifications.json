@@ -62,5 +62,25 @@
       "updatedAt": null
     }
   ],
-  "campaigns": []
+  "campaigns": [
+    {
+      "id": "681fca67-e02f-4223-b8d5-c4daa7a74a8e",
+      "title": "Nhắc nhở: Học phí của {{student_name}} sắp đến hạn",
+      "content": "<p>Xin chào,</p>\r\n<p>Đây là thông báo nhắc nhở về học phí sắp đến hạn của học sinh <strong>{{student_name}}</strong>:</p>\r\n<ul>\r\n    <li><strong>Học sinh:</strong> {{student_name}}</li>\r\n    <li><strong>Số tiền:</strong> {{amount}} VNĐ</li>\r\n    <li><strong>Hạn thanh toán:</strong> {{due_date}}</li>\r\n</ul>\r\n<p>Vui lòng thanh toán học phí trước thời hạn để đảm bảo việc học không bị gián đoạn.</p>\r\n<p>Trân trọng,<br/>Rex English Team</p>",
+      "deeplink": null,
+      "channel": "InApp",
+      "role": "Admin,ManagementStaff,AccountantStaff,Teacher,Parent,Student",
+      "kind": "event",
+      "priority": "medium",
+      "branchId": null,
+      "classId": null,
+      "studentProfileId": null,
+      "userIds": [],
+      "profileIds": [],
+      "createdAt": "2026-03-20T14:28:07.854Z",
+      "createdCount": 24,
+      "senderRole": "Staff_Manager",
+      "senderName": "Phòng học vụ"
+    }
+  ]
 }

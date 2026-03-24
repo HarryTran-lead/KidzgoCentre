@@ -1,9 +1,6 @@
-import { LeaveRequest } from './../../../types/student/attendance';
-// lib/dict/menu/menuParent.ts
 export const menuParent = {
   vi: {
     items: {
-      // Main menu items
       schedule: "Lịch học & Điểm danh",
       homework: "Bài tập & Nộp bài",
       testsReports: "Kiểm tra & Báo cáo",
@@ -11,13 +8,13 @@ export const menuParent = {
       media: "Kho tài liệu",
       notifications: "Thông báo",
       support: "Hỗ trợ",
-      LeaveRequest: "Đơn xin nghỉ",
+      LeaveRequest: "Xin nghỉ ngắn ngày",
+      pauseEnrollment: "Bảo lưu học",
       account: "Tài khoản",
     },
   },
   en: {
     items: {
-      // Main menu items
       schedule: "Schedule & Attendance",
       homework: "Homework",
       testsReports: "Tests & Reports",
@@ -25,7 +22,8 @@ export const menuParent = {
       media: "Media",
       notifications: "Notifications",
       support: "Support",
-      LeaveRequest: "Leave Request",
+      LeaveRequest: "Short Leave",
+      pauseEnrollment: "Enrollment Pause",
       account: "Account",
     },
   },

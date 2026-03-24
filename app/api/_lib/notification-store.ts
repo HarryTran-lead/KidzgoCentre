@@ -62,6 +62,8 @@ export type StoredCampaign = {
   deeplink: string | null;
   channel: NotificationChannel;
   role: string | null;
+  kind: string | null;
+  priority: string | null;
   branchId: string | null;
   classId: string | null;
   studentProfileId: string | null;
@@ -179,6 +181,12 @@ export async function readNotificationDb(): Promise<NotificationDb> {
 export async function writeNotificationDb(next: NotificationDb) {
   await ensureFile();
   await fs.writeFile(STORE_PATH, JSON.stringify(next, null, 2), "utf8");
+}
+
+export async function appendCampaign(campaign: StoredCampaign) {
+  const db = await readNotificationDb();
+  db.campaigns = [campaign, ...db.campaigns];
+  await writeNotificationDb(db);
 }
 
 export function resolveRoles(inputRole?: string | null): Role[] {

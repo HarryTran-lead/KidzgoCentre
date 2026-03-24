@@ -5,6 +5,7 @@ import type { Role } from "@/lib/role";
 import { getAccessToken } from "@/lib/store/authToken";
 import type {
   BackendNotificationRole,
+  NotificationCampaign,
   NotificationAudience,
   NotificationChannel,
   NotificationKind,
@@ -108,13 +109,25 @@ export async function fetchNotifications(role: Role, unreadOnly = false) {
   }));
 }
 
-export async function fetchBroadcastHistory() {
-  const response = await fetch("/api/notifications/broadcast/history", {
-    cache: "no-store",
-    headers: getAuthHeaders(),
-  });
+export async function fetchBroadcastHistory(senderRole?: Role) {
+  const params = new URLSearchParams();
+  if (senderRole) {
+    params.set("senderRole", senderRole);
+  }
+  const queryString = params.toString();
+
+  const response = await fetch(
+    queryString
+      ? `/api/notifications/broadcast/history?${queryString}`
+      : "/api/notifications/broadcast/history",
+    {
+      cache: "no-store",
+      headers: getAuthHeaders(),
+    },
+  );
   const json = await response.json();
-  return json.data ?? [];
+
+  return Array.isArray(json?.data) ? (json.data as NotificationCampaign[]) : [];
 }
 
 export async function fetchNotificationTemplates() {
@@ -272,6 +285,7 @@ export async function ingestForegroundNotification(payload: {
       senderName: payload.senderName,
       userIds: [],
       profileIds: [],
+      skipHistory: true,
     }),
   });
   emitNotificationsChanged();
