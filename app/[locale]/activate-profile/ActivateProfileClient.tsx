@@ -3,12 +3,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
-import { getAccessToken } from '@/lib/store/authToken';
+import {
+  clearAccessToken,
+  clearRefreshToken,
+  getAccessToken,
+} from '@/lib/store/authToken';
 import { DEFAULT_LOCALE, localizePath } from '@/lib/i18n';
 import Image from 'next/image';
 import { LOGO } from '@/lib/theme/theme';
 
 type Status = 'loading' | 'success' | 'error';
+
+function buildLoginRedirectPath(profileId: string) {
+  const redirectPath = `/activate-profile?id=${encodeURIComponent(profileId)}`;
+  return localizePath(
+    `/auth/login?redirect=${encodeURIComponent(redirectPath)}`,
+    DEFAULT_LOCALE
+  );
+}
+
+function hasUsableToken(token: string | null) {
+  if (!token) return false;
+  const normalized = token.trim().toLowerCase();
+  return normalized !== '' && normalized !== 'null' && normalized !== 'undefined';
+}
 
 export default function ActivateProfileClient() {
   const searchParams = useSearchParams();
@@ -30,14 +48,9 @@ export default function ActivateProfileClient() {
 
     const token = getAccessToken();
 
-    if (!token) {
-      // Not logged in — redirect to login with the full activate-profile URL as the redirect target
-      const redirectPath = `/activate-profile?id=${encodeURIComponent(profileId)}`;
-      const loginPath = localizePath(
-        `/auth/login?redirect=${encodeURIComponent(redirectPath)}`,
-        DEFAULT_LOCALE
-      );
-      window.location.replace(loginPath);
+    if (!hasUsableToken(token)) {
+      // Not logged in (or bad token in storage) -> force login then return to this activate link.
+      window.location.replace(buildLoginRedirectPath(profileId));
       return;
     }
 
@@ -52,6 +65,13 @@ export default function ActivateProfileClient() {
         setStatus('success');
       })
       .catch((err) => {
+        if (err?.response?.status === 401) {
+          clearAccessToken();
+          clearRefreshToken();
+          window.location.replace(buildLoginRedirectPath(profileId));
+          return;
+        }
+
         const msg =
           err?.response?.data?.message ||
           'Link xác minh không hợp lệ hoặc đã hết hạn.';
