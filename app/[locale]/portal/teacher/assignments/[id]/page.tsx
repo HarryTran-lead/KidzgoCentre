@@ -806,6 +806,7 @@ export default function HomeworkDetailPage() {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-1">
                           <button
+                            onClick={() => router.push(`/${String(params.locale || "vi")}/portal/teacher/assignments/${homeworkId}/submissions/${submission.id}`)}
                             className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                             title="Xem chi tiết"
                           >
