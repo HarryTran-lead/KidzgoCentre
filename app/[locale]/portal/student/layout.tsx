@@ -35,7 +35,7 @@ export default async function StudentLayout({ children, params }: Props) {
         <div className="pointer-events-none fixed inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-[#1a0f63] via-[#23104f] to-[#0b0a36]" />
           <Image
-            src="/image/BackGroundStudent.png"
+            src="/image/bg-dinosaur.jpg"
             alt="Student Background"
             fill
             priority

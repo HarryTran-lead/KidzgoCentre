@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertCircle,
   Building2,
@@ -249,6 +249,46 @@ function StatusBadge({ status }: { status: ReportStatus }) {
   );
 }
 
+function QuickStartCard({
+  title,
+  description,
+  metric,
+  accentClass,
+  icon,
+  actionLabel,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  metric: string;
+  accentClass: string;
+  icon: ReactNode;
+  actionLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex h-full items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-rose-200 hover:bg-rose-50/40"
+    >
+      <div className={`mt-0.5 rounded-2xl bg-gradient-to-r ${accentClass} p-2.5 text-white shadow-sm`}>
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm font-semibold text-slate-900">{title}</div>
+          <div className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+            {metric}
+          </div>
+        </div>
+        <p className="mt-1 text-xs leading-5 text-slate-600">{description}</p>
+        <div className="mt-2 text-xs font-semibold text-rose-600 group-hover:text-rose-700">{actionLabel}</div>
+      </div>
+    </button>
+  );
+}
+
 export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole }) {
   const [jobs, setJobs] = useState<MonthlyJob[]>([]);
   const [reports, setReports] = useState<MonthlyReport[]>([]);
@@ -299,16 +339,34 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   const canManage = role === "management";
   const isTeacher = role === "teacher";
   const isViewer = role === "viewer";
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>(isViewer ? "reports" : "overview");
+  const defaultTab: WorkspaceTab = isTeacher
+    ? "teacher-tools"
+    : canManage
+      ? "manage-tools"
+      : "reports";
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(defaultTab);
 
   const workspaceTabs = useMemo(() => {
-    const tabs: Array<{ id: WorkspaceTab; label: string }> = [
-      { id: "overview", label: "Tổng quan" },
-      { id: "reports", label: "Danh sách báo cáo" },
+    if (isTeacher) {
+      return [
+        { id: "teacher-tools" as const, label: "Bắt đầu soạn" },
+        { id: "reports" as const, label: "Danh sách báo cáo" },
+        { id: "overview" as const, label: "Tổng quan" },
+      ];
+    }
+
+    if (canManage) {
+      return [
+        { id: "manage-tools" as const, label: "Hàng chờ xử lý" },
+        { id: "reports" as const, label: "Danh sách báo cáo" },
+        { id: "overview" as const, label: "Tổng quan" },
+      ];
+    }
+
+    return [
+      { id: "reports" as const, label: "Báo cáo đã công bố" },
+      { id: "overview" as const, label: "Tổng quan" },
     ];
-    if (isTeacher) tabs.push({ id: "teacher-tools", label: "Công cụ giáo viên" });
-    if (canManage) tabs.push({ id: "manage-tools", label: "Điều phối quản lý" });
-    return tabs;
   }, [canManage, isTeacher]);
 
   useEffect(() => {
@@ -1249,6 +1307,132 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   const canManagementPublish = (status: ReportStatus) =>
     normalizeStatus(status) === "Approved";
 
+  const openTeacherTools = useCallback(() => {
+    setShowTeacherTools(true);
+    setActiveTab("teacher-tools");
+  }, []);
+
+  const openTeacherDrafts = useCallback(() => {
+    setStatusFilter("Draft");
+    setActiveTab("reports");
+  }, []);
+
+  const openTeacherRejected = useCallback(() => {
+    setStatusFilter("Rejected");
+    setActiveTab("reports");
+  }, []);
+
+  const openManagementQueue = useCallback(() => {
+    setStatusFilter("Submitted");
+    setActiveTab("reports");
+  }, []);
+
+  const openManagementPublishQueue = useCallback(() => {
+    setStatusFilter("Approved");
+    setActiveTab("reports");
+  }, []);
+
+  const openManagementTools = useCallback(() => {
+    setShowManageTools(true);
+    setActiveTab("manage-tools");
+  }, []);
+
+  const openPublishedReports = useCallback(() => {
+    setStatusFilter("Published");
+    setActiveTab("reports");
+  }, []);
+
+  const quickStartTitle = isTeacher
+    ? "Bắt đầu theo việc của giáo viên"
+    : canManage
+      ? "Bắt đầu theo việc của staff/admin"
+      : "Bắt đầu xem báo cáo";
+
+  const quickStartDescription = isTeacher
+    ? "Ưu tiên mở đúng luồng soạn, sửa hoặc gửi lại báo cáo thay vì phải dò từng tab."
+    : canManage
+      ? "Ưu tiên vào đúng hàng chờ cần xử lý ngay: duyệt, điều phối theo lớp, hoặc công bố."
+      : "Mở nhanh danh sách báo cáo đã công bố và lọc theo phạm vi bạn cần xem.";
+
+  const quickStartCards = isTeacher
+    ? [
+        {
+          key: "teacher-compose",
+          title: "Soạn báo cáo mới",
+          description: "Chọn lớp, học sinh, xem dữ liệu buổi học và tạo nháp AI ngay.",
+          metric: `${teacherClassSummary.noReport} lớp chưa có báo cáo tháng`,
+          accentClass: "from-red-600 to-rose-600",
+          icon: <FileText size={18} />,
+          actionLabel: "Mở công cụ giáo viên",
+          onClick: openTeacherTools,
+        },
+        {
+          key: "teacher-draft",
+          title: "Xử lý nháp chưa gửi",
+          description: "Mở danh sách các báo cáo còn ở trạng thái Draft để hoàn thiện nhanh.",
+          metric: `${teacherTaskSummary.draftCount} báo cáo nháp`,
+          accentClass: "from-amber-500 to-orange-500",
+          icon: <Clock size={18} />,
+          actionLabel: "Mở danh sách nháp",
+          onClick: openTeacherDrafts,
+        },
+        {
+          key: "teacher-rejected",
+          title: "Sửa báo cáo bị trả lại",
+          description: "Đi thẳng vào các báo cáo bị reject để sửa và submit lại.",
+          metric: `${teacherTaskSummary.rejectedCount} báo cáo cần sửa`,
+          accentClass: "from-rose-500 to-pink-500",
+          icon: <AlertCircle size={18} />,
+          actionLabel: "Mở báo cáo bị trả",
+          onClick: openTeacherRejected,
+        },
+      ]
+    : canManage
+      ? [
+          {
+            key: "manage-review",
+            title: "Mở hàng chờ duyệt",
+            description: "Xem ngay các báo cáo đang Submitted để review và phản hồi.",
+            metric: `${adminSummary.pendingReview} báo cáo chờ duyệt`,
+            accentClass: "from-sky-500 to-blue-500",
+            icon: <Clock size={18} />,
+            actionLabel: "Mở hàng chờ",
+            onClick: openManagementQueue,
+          },
+          {
+            key: "manage-tools",
+            title: "Điều phối theo lớp",
+            description: "Lọc theo lớp, xem tiến độ và chạy duyệt/công bố hàng loạt.",
+            metric: `${managementClassProgress.length} lớp có dữ liệu trong kỳ`,
+            accentClass: "from-red-600 to-rose-600",
+            icon: <Building2 size={18} />,
+            actionLabel: "Mở điều phối",
+            onClick: openManagementTools,
+          },
+          {
+            key: "manage-publish",
+            title: "Công bố báo cáo đã duyệt",
+            description: "Đi thẳng tới các báo cáo Approved đang sẵn sàng publish.",
+            metric: `${adminSummary.readyToPublish} báo cáo chờ công bố`,
+            accentClass: "from-emerald-500 to-teal-500",
+            icon: <Send size={18} />,
+            actionLabel: "Mở danh sách đã duyệt",
+            onClick: openManagementPublishQueue,
+          },
+        ]
+      : [
+          {
+            key: "viewer-published",
+            title: "Xem báo cáo đã công bố",
+            description: "Mở ngay danh sách Published trong kỳ đang chọn.",
+            metric: `${stats.total} báo cáo có thể xem`,
+            accentClass: "from-purple-500 to-violet-500",
+            icon: <CheckCircle2 size={18} />,
+            actionLabel: "Mở danh sách báo cáo",
+            onClick: openPublishedReports,
+          },
+        ];
+
   const visibleReportIds = useMemo(
     () => filteredReports.map((report) => report.id),
     [filteredReports],
@@ -1315,187 +1499,254 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     fetchData();
   };
 
+  const roleLabel = isTeacher
+    ? "Giáo viên"
+    : canManage
+      ? "Staff / Admin"
+      : "Phụ huynh / Học viên";
+
+  const workspaceHeading = isTeacher
+    ? "Soạn và gửi báo cáo tháng"
+    : canManage
+      ? "Duyệt và công bố báo cáo tháng"
+      : "Theo dõi báo cáo tháng";
+
+  const workspaceDescription = isTeacher
+    ? "Chọn đúng kỳ báo cáo, xem nhanh việc ưu tiên rồi đi thẳng vào công cụ giáo viên."
+    : canManage
+      ? "Theo dõi nhanh tiến độ, mở đúng hàng chờ và xử lý báo cáo mà không phải cuộn qua nhiều khối."
+      : "Xem nhanh báo cáo đã công bố trong kỳ đang chọn.";
+
+  const activeTabDescription =
+    activeTab === "overview"
+      ? "Tổng quan: xem nhanh tiến độ, hạng mục ưu tiên và bức tranh toàn bộ kỳ báo cáo."
+      : activeTab === "reports"
+        ? canManage
+          ? "Danh sách báo cáo: mở hàng chờ duyệt, lọc theo trạng thái rồi review hoặc công bố từng báo cáo."
+          : isTeacher
+            ? "Danh sách báo cáo: kiểm tra Draft, Rejected hoặc các báo cáo đã có góp ý để xử lý tiếp."
+            : "Danh sách báo cáo: xem các báo cáo đã công bố trong kỳ đang chọn."
+        : activeTab === "teacher-tools"
+          ? "Bắt đầu soạn: chọn lớp, học sinh, xem dữ liệu buổi học rồi tạo nháp AI để hoàn thiện báo cáo."
+          : "Hàng chờ xử lý: điều phối theo lớp, theo dõi tiến độ và chạy duyệt hoặc công bố hàng loạt.";
+
+  const summaryCards = [
+    {
+      key: "total",
+      label: "Tổng báo cáo",
+      value: stats.total,
+      className: "border-rose-200 bg-rose-50/70 text-rose-700",
+    },
+    {
+      key: "drafts",
+      label: "Bản nháp",
+      value: stats.drafts,
+      className: "border-amber-200 bg-amber-50/80 text-amber-700",
+    },
+    {
+      key: "submitted",
+      label: "Đã nộp",
+      value: stats.submitted,
+      className: "border-sky-200 bg-sky-50/80 text-sky-700",
+    },
+    {
+      key: "approved",
+      label: "Đã duyệt",
+      value: stats.approved,
+      className: "border-emerald-200 bg-emerald-50/80 text-emerald-700",
+    },
+  ];
+
   return (
-    <div className="min-h-screen space-y-5 bg-[radial-gradient(circle_at_top_left,_rgba(254,226,226,0.9),_transparent_34%),linear-gradient(180deg,_#fff7f7_0%,_#ffffff_42%,_#fffdf8_100%)] p-4 md:p-6">
-      <div className="overflow-hidden rounded-[28px] border border-rose-100 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
-        <div className="grid gap-0 xl:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)]">
-          <div className="bg-gradient-to-br from-red-700 via-rose-700 to-orange-500 p-6 text-white md:p-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/90">
-              <FileBarChart size={14} />
-              Monthly Reports
+    <div className="min-h-screen space-y-4 bg-[radial-gradient(circle_at_top_left,_rgba(254,226,226,0.9),_transparent_34%),linear-gradient(180deg,_#fff7f7_0%,_#ffffff_42%,_#fffdf8_100%)] p-4 md:p-6">
+      <div className="rounded-[28px] border border-rose-100 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] md:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl bg-gradient-to-br from-red-700 via-rose-700 to-orange-500 p-3 text-white shadow-lg shadow-rose-200">
+              <FileBarChart size={22} />
             </div>
-            <div className="mt-5 flex items-start gap-4">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-lg shadow-red-950/20">
-                <FileBarChart size={28} />
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
+                <FileBarChart size={12} />
+                Monthly Reports
               </div>
-              <div className="space-y-3">
-                <h1 className="text-2xl font-bold leading-tight md:text-3xl">
-                  Feedback lớp học theo tháng
-                </h1>
-                <p className="max-w-2xl text-sm leading-6 text-white/85">
-                  Giao diện này gom toàn bộ luồng của teacher, staff và admin vào một workspace dễ theo dõi:
-                  chọn kỳ báo cáo, xem tiến độ, rồi đi thẳng vào tab thao tác phù hợp với vai trò.
-                </p>
-              </div>
+              <h1 className="mt-2 text-xl font-bold text-slate-900 md:text-2xl">{workspaceHeading}</h1>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{workspaceDescription}</p>
             </div>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                <div className="text-xs uppercase tracking-[0.18em] text-white/70">Teacher</div>
-                <div className="mt-2 text-sm font-semibold">Soạn nháp, nhận góp ý, submit lại</div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-slate-700">
+              Vai trò: {roleLabel}
+            </div>
+            <button
+              onClick={handleManualRefresh}
+              className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+            >
+              <RefreshCw size={15} />
+              Làm mới
+            </button>
+            {canManage && (
+              <button
+                onClick={createJob}
+                disabled={jobFlowLoading}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:from-red-700 hover:to-rose-700 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
+              >
+                <FileBarChart size={15} />
+                {jobFlowLoading ? "Đang đồng bộ..." : "Khởi tạo dữ liệu"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {summaryCards.map((card) => (
+                <div
+                  key={card.key}
+                  className={`min-w-[132px] rounded-2xl border px-3.5 py-3 ${card.className}`}
+                >
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em]">{card.label}</div>
+                  <div className="mt-1 text-2xl font-bold text-slate-900">{card.value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
+              <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">{quickStartTitle}</div>
+                  <div className="mt-1 text-xs leading-5 text-slate-600">{quickStartDescription}</div>
+                </div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-red-500">
+                  Ưu tiên thao tác
+                </div>
               </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                <div className="text-xs uppercase tracking-[0.18em] text-white/70">Staff/Admin</div>
-                <div className="mt-2 text-sm font-semibold">Duyệt, reject có góp ý, publish</div>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                <div className="text-xs uppercase tracking-[0.18em] text-white/70">Parent/Student</div>
-                <div className="mt-2 text-sm font-semibold">Chỉ xem báo cáo đã công bố</div>
+
+              <div className={`mt-3 grid gap-3 ${quickStartCards.length > 1 ? "lg:grid-cols-3" : "lg:grid-cols-1"}`}>
+                {quickStartCards.map((card) => (
+                  <QuickStartCard
+                    key={card.key}
+                    title={card.title}
+                    description={card.description}
+                    metric={card.metric}
+                    accentClass={card.accentClass}
+                    icon={card.icon}
+                    actionLabel={card.actionLabel}
+                    onClick={card.onClick}
+                  />
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-b from-white to-rose-50/60 p-6 md:p-8">
-            <div className="rounded-[24px] border border-rose-100 bg-white/95 p-5 shadow-[0_14px_40px_rgba(244,63,94,0.08)]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">Thiết lập kỳ báo cáo</div>
-                  <div className="mt-1 text-xs leading-5 text-slate-500">
-                    Chọn tháng, năm và chi nhánh trước khi xem hoặc khởi tạo dữ liệu.
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Thiết lập kỳ báo cáo</div>
+                <div className="mt-1 text-xs leading-5 text-slate-500">
+                  {isTeacher
+                    ? "Giáo viên xem nhanh kỳ hiện tại trước khi đi thẳng vào công cụ soạn báo cáo."
+                    : "Chọn tháng, năm và chi nhánh trước khi xem hoặc khởi tạo dữ liệu."}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white p-2.5 text-rose-600 shadow-sm">
+                <CalendarDays size={16} />
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {isTeacher ? (
+                <>
+                  <div className="rounded-2xl border border-rose-100 bg-white px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tháng</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900">{month}</div>
                   </div>
-                </div>
-                <div className="rounded-2xl bg-rose-50 p-3 text-rose-600">
-                  <CalendarDays size={18} />
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                {!isTeacher && (
-                  <>
-                    <label className="space-y-2">
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tháng</span>
-                      <input
-                        className="w-full rounded-2xl border-2 border-rose-100 bg-rose-50/30 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:bg-white"
-                        type="number"
-                        min={1}
-                        max={12}
-                        value={month}
-                        onChange={(e) => setMonth(Number(e.target.value))}
-                      />
-                    </label>
-                    <label className="space-y-2">
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Năm</span>
-                      <input
-                        className="w-full rounded-2xl border-2 border-rose-100 bg-rose-50/30 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:bg-white"
-                        type="number"
-                        value={year}
-                        onChange={(e) => setYear(Number(e.target.value))}
-                      />
-                    </label>
-                  </>
-                )}
-                {canManage && (
-                  <label className={`space-y-2 ${!isTeacher ? "sm:col-span-2" : ""}`}>
-                    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      <Building2 size={13} />
-                      Chi nhánh
-                    </span>
-                    <select
-                      className="w-full rounded-2xl border-2 border-rose-100 bg-slate-50 px-4 py-3 text-sm text-slate-500 outline-none"
-                      value={branchId}
-                      onChange={() => {}}
-                      disabled
-                      title="Chi nhánh đồng bộ theo bộ lọc ở sidebar"
-                    >
-                      <option value="">
-                        {branchesLoading ? "Đang tải chi nhánh..." : "Chọn chi nhánh"}
-                      </option>
-                      {branchOptions.map((branch) => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name || branch.code || branch.id}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="rounded-2xl border border-rose-100 bg-white px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Năm</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900">{year}</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tháng</span>
+                    <input
+                      className="w-full rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400"
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={month}
+                      onChange={(e) => setMonth(Number(e.target.value))}
+                    />
                   </label>
-                )}
-              </div>
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Năm</span>
+                    <input
+                      className="w-full rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400"
+                      type="number"
+                      value={year}
+                      onChange={(e) => setYear(Number(e.target.value))}
+                    />
+                  </label>
+                </>
+              )}
 
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  onClick={handleManualRefresh}
-                  className="inline-flex items-center gap-2 rounded-2xl border-2 border-rose-200 bg-white px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
-                >
-                  <RefreshCw size={16} />
-                  Làm mới dữ liệu
-                </button>
-                {canManage && (
-                  <button
-                    onClick={createJob}
-                    disabled={jobFlowLoading}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:from-red-700 hover:to-rose-700 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
+              {canManage && (
+                <label className={`space-y-2 ${!isTeacher ? "sm:col-span-2" : ""}`}>
+                  <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    <Building2 size={13} />
+                    Chi nhánh
+                  </span>
+                  <select
+                    className="w-full rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm text-slate-500 outline-none"
+                    value={branchId}
+                    onChange={() => {}}
+                    disabled
+                    title="Chi nhánh đồng bộ theo bộ lọc ở sidebar"
                   >
-                    <FileBarChart size={16} />
-                    {jobFlowLoading ? "Đang khởi tạo và đồng bộ..." : "Khởi tạo và đồng bộ báo cáo"}
-                  </button>
-                )}
-              </div>
-
-              {error && <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-              {message && (
-                <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p>
+                    <option value="">
+                      {branchesLoading ? "Đang tải chi nhánh..." : "Chọn chi nhánh"}
+                    </option>
+                    {branchOptions.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name || branch.code || branch.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
             </div>
+
+            {error && <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+            {message && (
+              <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-[24px] border border-rose-100 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">Tổng báo cáo</div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{stats.total}</div>
-          <div className="mt-2 text-sm text-slate-500">Toàn bộ báo cáo trong kỳ đang chọn.</div>
-        </div>
-        <div className="rounded-[24px] border border-amber-100 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-500">Bản nháp</div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{stats.drafts}</div>
-          <div className="mt-2 text-sm text-slate-500">Những báo cáo teacher còn đang hoàn thiện.</div>
-        </div>
-        <div className="rounded-[24px] border border-sky-100 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-500">Đã nộp</div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{stats.submitted}</div>
-          <div className="mt-2 text-sm text-slate-500">Đang chờ staff hoặc admin review.</div>
-        </div>
-        <div className="rounded-[24px] border border-emerald-100 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-500">Đã duyệt</div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{stats.approved}</div>
-          <div className="mt-2 text-sm text-slate-500">Sẵn sàng công bố cho phụ huynh và học viên.</div>
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <div className="flex flex-wrap gap-2">
+            {workspaceTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+                  activeTab === tab.id
+                    ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-sm"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-rose-50 hover:text-rose-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <p className="px-1 pt-3 text-sm text-slate-500">{activeTabDescription}</p>
         </div>
       </div>
 
-      <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-        <div className="flex flex-wrap gap-2">
-          {workspaceTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-rose-100"
-                  : "bg-slate-50 text-slate-700 hover:bg-rose-50 hover:text-rose-700"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <p className="px-2 pt-3 text-sm text-slate-500">
-          {activeTab === "overview" && "Tổng quan: xem số liệu nhanh và hạng mục ưu tiên."}
-          {activeTab === "reports" && "Danh sách báo cáo: tìm kiếm, lọc, duyệt và xem chi tiết từng báo cáo."}
-          {activeTab === "teacher-tools" && "Công cụ giáo viên: chọn lớp/học sinh, xem dữ liệu buổi học, tạo nháp AI."}
-          {activeTab === "manage-tools" && "Điều phối quản lý: lọc theo lớp, duyệt/công bố hàng loạt, theo dõi tiến độ."}
-        </p>
-      </div>
-
-            {activeTab === "overview" && (
+      {activeTab === "overview" && (
         <OverviewTab
           isTeacher={isTeacher}
           canManage={canManage}

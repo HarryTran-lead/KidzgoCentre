@@ -1,7 +1,27 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, Eye, RefreshCcw, Send, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  Eye,
+  RefreshCcw,
+  Send,
+  XCircle,
+  FileText,
+  AlertCircle,
+  Search,
+  ArrowUpDown,
+  X,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  Eye as EyeIcon,
+  Megaphone,
+  Building2,
+  GraduationCap,
+  Users
+} from "lucide-react";
 
 type SessionReportStatus = "DRAFT" | "REVIEW" | "APPROVED" | "REJECTED" | "PUBLISHED" | string;
 
@@ -25,6 +45,75 @@ type Paginated<T> = { items?: T[]; data?: T[] };
 type SessionReportPayload = Paginated<SessionReport> & {
   sessionReports?: Paginated<SessionReport> | SessionReport[];
 };
+
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+  subtitle
+}: {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  color: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${color}`}></div>
+      <div className="relative flex items-center justify-between gap-3">
+        <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
+          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
+          {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status?: string | null }) {
+  const normalized = String(status ?? "").trim().toUpperCase();
+  const common = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium";
+
+  if (normalized === "REVIEW") {
+    return (
+      <span className={`${common} bg-gradient-to-r from-blue-50 to-sky-50 text-blue-700 border border-blue-200`}>
+        <Clock size={12} />
+        Đang duyệt
+      </span>
+    );
+  }
+  if (normalized === "APPROVED") {
+    return (
+      <span className={`${common} bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200`}>
+        <CheckCircle2 size={12} />
+        Đã duyệt
+      </span>
+    );
+  }
+  if (normalized === "PUBLISHED") {
+    return (
+      <span className={`${common} bg-gradient-to-r from-purple-50 to-violet-50 text-purple-700 border border-purple-200`}>
+        <Megaphone size={12} />
+        Đã xuất bản
+      </span>
+    );
+  }
+  if (normalized === "REJECTED") {
+    return (
+      <span className={`${common} bg-gradient-to-r from-rose-50 to-red-50 text-rose-700 border border-rose-200`}>
+        <XCircle size={12} />
+        Từ chối
+      </span>
+    );
+  }
+  return <span className={`${common} bg-gradient-to-r from-gray-50 to-slate-100 text-gray-700 border border-gray-200`}>{normalized || "N/A"}</span>;
+}
 
 function getToken() {
   if (typeof window === "undefined") return "";
@@ -96,10 +185,6 @@ function getPaginatedItems(payload: SessionReportPayload | undefined): SessionRe
   return [];
 }
 
-function normalizeStatus(status?: string | null) {
-  return String(status ?? "").trim().toUpperCase();
-}
-
 function formatDateTime(value?: string | null) {
   if (!value) return "N/A";
   const date = new Date(value);
@@ -115,13 +200,13 @@ function shortId(value?: string | null) {
 function resolveName(payload: any): string {
   return String(
     payload?.displayName ??
-      payload?.fullName ??
-      payload?.studentName ??
-      payload?.teacherName ??
-      payload?.name ??
-      payload?.className ??
-      payload?.code ??
-      "",
+    payload?.fullName ??
+    payload?.studentName ??
+    payload?.teacherName ??
+    payload?.name ??
+    payload?.className ??
+    payload?.code ??
+    "",
   ).trim();
 }
 
@@ -194,42 +279,8 @@ function buildLocalComment(commentText: string) {
   };
 }
 
-function StatusBadge({ status }: { status?: string | null }) {
-  const normalized = normalizeStatus(status);
-  const common = "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium";
-  if (normalized === "REVIEW") {
-    return (
-      <span className={`${common} bg-blue-50 text-blue-700 border-blue-200`}>
-        <Clock size={12} />
-        REVIEW
-      </span>
-    );
-  }
-  if (normalized === "APPROVED") {
-    return (
-      <span className={`${common} bg-emerald-50 text-emerald-700 border-emerald-200`}>
-        <CheckCircle2 size={12} />
-        APPROVED
-      </span>
-    );
-  }
-  if (normalized === "PUBLISHED") {
-    return (
-      <span className={`${common} bg-purple-50 text-purple-700 border-purple-200`}>
-        <Send size={12} />
-        PUBLISHED
-      </span>
-    );
-  }
-  if (normalized === "REJECTED") {
-    return (
-      <span className={`${common} bg-rose-50 text-rose-700 border-rose-200`}>
-        <XCircle size={12} />
-        REJECTED
-      </span>
-    );
-  }
-  return <span className={`${common} bg-slate-100 text-slate-700 border-slate-200`}>{normalized || "N/A"}</span>;
+function cn(...classes: (string | boolean | undefined | null)[]) {
+  return classes.filter(Boolean).join(' ');
 }
 
 export default function SessionReportsReviewWorkspace() {
@@ -243,6 +294,9 @@ export default function SessionReportsReviewWorkspace() {
   const [detailReport, setDetailReport] = useState<SessionReport | null>(null);
   const [rejectTarget, setRejectTarget] = useState<SessionReport | null>(null);
   const [rejectReasonInput, setRejectReasonInput] = useState("");
+  const [sortKey, setSortKey] = useState<"student" | "class" | "status" | "updatedAt" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
 
   const [studentNameMap, setStudentNameMap] = useState<Record<string, string>>({});
   const [classNameMap, setClassNameMap] = useState<Record<string, string>>({});
@@ -346,9 +400,20 @@ export default function SessionReportsReviewWorkspace() {
     });
   }, [reports, studentNameMap, classNameMap, teacherNameMap]);
 
+  const toggleSort = (key: NonNullable<typeof sortKey>) => {
+    setSortKey((prev) => {
+      if (prev !== key) {
+        setSortDir("asc");
+        return key;
+      }
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      return prev;
+    });
+  };
+
   const filteredReports = useMemo(() => {
-    return reports.filter((report) => {
-      const status = normalizeStatus(report.status);
+    let filtered = reports.filter((report) => {
+      const status = String(report.status ?? "").trim().toUpperCase();
       const statusOk = statusFilter === "ALL" || status === statusFilter;
       const q = searchQuery.trim().toLowerCase();
       if (!q) return statusOk;
@@ -372,7 +437,121 @@ export default function SessionReportsReviewWorkspace() {
           teacherName.toLowerCase().includes(q))
       );
     });
-  }, [reports, searchQuery, statusFilter, studentNameMap, classNameMap, teacherNameMap]);
+
+    if (sortKey) {
+      filtered.sort((a, b) => {
+        let aVal = "";
+        let bVal = "";
+
+        switch (sortKey) {
+          case "student":
+            aVal = studentNameMap[String(a.studentProfileId ?? "")] || String(a.studentProfileId ?? "");
+            bVal = studentNameMap[String(b.studentProfileId ?? "")] || String(b.studentProfileId ?? "");
+            break;
+          case "class":
+            aVal = classNameMap[String(a.classId ?? "")] || String(a.classId ?? "");
+            bVal = classNameMap[String(b.classId ?? "")] || String(b.classId ?? "");
+            break;
+          case "status":
+            aVal = String(a.status ?? "");
+            bVal = String(b.status ?? "");
+            break;
+          case "updatedAt":
+            aVal = String(a.updatedAt ?? a.createdAt ?? "");
+            bVal = String(b.updatedAt ?? b.createdAt ?? "");
+            break;
+        }
+
+        const res = aVal.localeCompare(bVal);
+        return sortDir === "asc" ? res : -res;
+      });
+    }
+
+    return filtered;
+  }, [reports, searchQuery, statusFilter, studentNameMap, classNameMap, teacherNameMap, sortKey, sortDir]);
+
+  const allVisibleIds = useMemo(
+    () => filteredReports.map((r) => String(r.id ?? "")).filter(id => id),
+    [filteredReports]
+  );
+
+  const selectedVisibleCount = useMemo(
+    () => allVisibleIds.filter((id) => selectedIds[id]).length,
+    [allVisibleIds, selectedIds]
+  );
+
+  const allVisibleSelected = allVisibleIds.length > 0 && selectedVisibleCount === allVisibleIds.length;
+
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = { ...prev };
+      if (allVisibleSelected) {
+        allVisibleIds.forEach((id) => {
+          delete next[id];
+        });
+      } else {
+        allVisibleIds.forEach((id) => {
+          next[id] = true;
+        });
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = { ...prev };
+      if (next[id]) delete next[id];
+      else next[id] = true;
+      return next;
+    });
+  };
+
+  const stats = {
+    total: reports.length,
+    review: reports.filter(r => String(r.status ?? "").trim().toUpperCase() === "REVIEW").length,
+    approved: reports.filter(r => String(r.status ?? "").trim().toUpperCase() === "APPROVED").length,
+    published: reports.filter(r => String(r.status ?? "").trim().toUpperCase() === "PUBLISHED").length,
+    rejected: reports.filter(r => String(r.status ?? "").trim().toUpperCase() === "REJECTED").length,
+  };
+
+  const statsList = [
+    {
+      title: 'Tổng số báo cáo',
+      value: `${stats.total}`,
+      icon: <FileText size={20} />,
+      color: 'from-red-600 to-red-700',
+      subtitle: 'Toàn hệ thống'
+    },
+    {
+      title: 'Chờ duyệt',
+      value: `${stats.review}`,
+      icon: <Clock size={20} />,
+      color: 'from-blue-500 to-sky-500',
+      subtitle: 'Cần xử lý ngay'
+    },
+    {
+      title: 'Đã duyệt',
+      value: `${stats.approved}`,
+      icon: <CheckCircle2 size={20} />,
+      color: 'from-emerald-500 to-teal-500',
+      subtitle: 'Chờ xuất bản'
+    },
+    {
+      title: 'Đã xuất bản',
+      value: `${stats.published}`,
+      icon: <Megaphone size={20} />,
+      color: 'from-purple-500 to-violet-500',
+      subtitle: 'Đã công khai'
+    },
+    {
+      title: 'Từ chối',
+      value: `${stats.rejected}`,
+      icon: <XCircle size={20} />,
+      color: 'from-amber-500 to-orange-500',
+      subtitle: 'Cần chỉnh sửa'
+    }
+  ];
 
   const runAction = useCallback(
     async (
@@ -467,236 +646,689 @@ export default function SessionReportsReviewWorkspace() {
     closeRejectModal();
   };
 
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Duyệt Session Report Theo Buổi</h2>
-          <p className="text-sm text-gray-600">Luồng duyệt: REVIEW -&gt; APPROVED -&gt; PUBLISHED</p>
+  if (loading && reports.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải báo cáo...</p>
         </div>
-        <button
-          onClick={fetchData}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50"
-        >
-          <RefreshCcw size={14} />
-          Làm mới
-        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white space-y-6">
+      {/* Stats Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {statsList.map((stat, idx) => (
+          <StatCard key={idx} {...stat} />
+        ))}
       </div>
 
-      <div className="flex flex-col gap-2 md:flex-row md:items-center">
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Tìm theo tên/ID học sinh, lớp, giáo viên hoặc nội dung"
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm md:max-w-xl"
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-        >
-          <option value="REVIEW">REVIEW</option>
-          <option value="APPROVED">APPROVED</option>
-          <option value="PUBLISHED">PUBLISHED</option>
-          <option value="REJECTED">REJECTED</option>
-          <option value="DRAFT">DRAFT</option>
-          <option value="ALL">Tất cả</option>
-        </select>
-      </div>
-
-      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
-      {message && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</div>}
-
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-gray-600">
-            <tr>
-              <th className="px-3 py-2">Session</th>
-              <th className="px-3 py-2">Học sinh</th>
-              <th className="px-3 py-2">Lớp / GV</th>
-              <th className="px-3 py-2">Nội dung</th>
-              <th className="px-3 py-2">Trạng thái</th>
-              <th className="px-3 py-2">Cập nhật</th>
-              <th className="px-3 py-2">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredReports.map((report) => {
-              const reportId = String(report.id ?? "");
-              const status = normalizeStatus(report.status);
-              const studentId = String(report.studentProfileId ?? "");
-              const classId = String(report.classId ?? "");
-              const teacherId = String(report.teacherUserId ?? "");
-
-              return (
-                <tr key={reportId || `${report.sessionId}:${studentId}:${report.reportDate}`}>
-                  <td className="px-3 py-2">
-                    <div className="font-medium text-gray-900">{shortId(report.sessionId)}</div>
-                    <div className="text-xs text-gray-500">{report.reportDate || "N/A"}</div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
-                    <div className="font-medium text-gray-900">{studentNameMap[studentId] || shortId(studentId)}</div>
-                    <div className="text-gray-500">{shortId(studentId)}</div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
-                    <div className="font-medium text-gray-900">{classNameMap[classId] || shortId(classId)}</div>
-                    <div>{teacherNameMap[teacherId] || shortId(teacherId)}</div>
-                  </td>
-                  <td className="px-3 py-2 max-w-md">
-                    <button
-                      onClick={() => void openDetail(report)}
-                      className="w-full text-left"
-                      title="Bấm để xem đầy đủ"
-                    >
-                      <p className="line-clamp-2 text-xs text-gray-700 hover:text-blue-700">
-                        {report.feedback || "(Không có nội dung)"}
-                      </p>
-                    </button>
-                    {resolveRejectReason(report) ? (
-                      <p className="mt-1 text-[11px] text-rose-600">Lý do reject: {resolveRejectReason(report)}</p>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2">
-                    <StatusBadge status={status} />
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-500">{formatDateTime(report.updatedAt || report.createdAt)}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1">
-                      <button
-                        onClick={() => void openDetail(report)}
-                        className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-50"
-                      >
-                        <Eye size={12} />
-                        Review
-                      </button>
-                      <button
-                        disabled={!reportId || status !== "REVIEW" || actionLoading[`${reportId}:approve`]}
-                        onClick={() => reportId && runAction(reportId, "approve")}
-                        className="rounded bg-emerald-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        disabled={!reportId || status !== "REVIEW" || actionLoading[`${reportId}:reject`]}
-                        onClick={() => openRejectModal(report)}
-                        className="rounded bg-amber-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                      >
-                        Reject
-                      </button>
-                      <button
-                        disabled={!reportId || status !== "APPROVED" || actionLoading[`${reportId}:publish`]}
-                        onClick={() => reportId && runAction(reportId, "publish")}
-                        className="rounded bg-sky-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                      >
-                        Publish
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {!loading && filteredReports.length === 0 && (
-          <div className="p-6 text-center text-sm text-gray-500">Không có session report phù hợp.</div>
-        )}
-        {loading && <div className="p-6 text-center text-sm text-gray-500">Đang tải session report...</div>}
-      </div>
-
-      {detailReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
-            <div className="mb-3 flex items-start justify-between gap-2">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Chi tiết Session Report</h3>
-                <p className="text-sm text-gray-500">
-                  {formatDateTime(detailReport.updatedAt || detailReport.createdAt)} - <StatusBadge status={detailReport.status} />
-                </p>
+      {/* Filter Bar */}
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Status Filter */}
+            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
+              {[
+                { k: 'REVIEW', label: 'Chờ duyệt', count: stats.review },
+                { k: 'APPROVED', label: 'Đã duyệt', count: stats.approved },
+                { k: 'PUBLISHED', label: 'Đã xuất bản', count: stats.published },
+                { k: 'REJECTED', label: 'Từ chối', count: stats.rejected },
+                { k: 'ALL', label: 'Tất cả', count: stats.total }
+              ].map((item) => (
+                <button
+                  key={item.k}
+                  onClick={() => setStatusFilter(item.k)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${statusFilter === item.k
+                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
+                    : 'text-gray-700 hover:bg-red-50'
+                    }`}
+                >
+                  {item.label}
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === item.k ? 'bg-white/20' : 'bg-gray-100'
+                    }`}>
+                    {item.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {selectedVisibleCount > 0 && (
+              <div className="text-sm text-gray-600 bg-white px-3 py-2 rounded-lg border border-red-200">
+                Đã chọn: <span className="font-semibold text-red-600">{selectedVisibleCount}</span> báo cáo
               </div>
+            )}
+          </div>
+
+          {/* Search */}
+          <div className="relative w-full sm:w-auto">
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm theo học sinh, lớp, giáo viên..."
+                className="h-10 w-full sm:w-80 rounded-xl border border-red-200 bg-white pl-9 pr-9 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+              />
+              {searchQuery.trim() !== "" && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+                  title="Xóa"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="mt-1 text-[11px] text-gray-500">
+              {filteredReports.length} kết quả
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Error/Message Display */}
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-center gap-2">
+          <AlertCircle size={16} />
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-2">
+          <CheckCircle2 size={16} />
+          {message}
+        </div>
+      )}
+
+      {/* Main Table */}
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+        {/* Table Header */}
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Danh sách báo cáo buổi học</h2>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="font-medium">{filteredReports.length} báo cáo</span>
               <button
-                onClick={() => setDetailReport(null)}
-                className="rounded border border-gray-200 px-3 py-1 text-sm hover:bg-gray-50"
+                onClick={fetchData}
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm hover:bg-red-50 transition-colors cursor-pointer"
               >
-                Đóng
+                <RefreshCcw size={14} />
+                Làm mới
               </button>
             </div>
+          </div>
+        </div>
 
-            <div className="grid gap-3 text-sm md:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 p-3">
-                <div className="text-xs text-gray-500">Học sinh</div>
-                <div className="font-medium text-gray-900">
-                  {studentNameMap[String(detailReport.studentProfileId ?? "")] || shortId(detailReport.studentProfileId)}
-                </div>
-                <div className="text-xs text-gray-500">{detailReport.studentProfileId}</div>
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
+              <tr>
+                <th className="py-3 px-4 text-left w-12">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleSelectAllVisible}
+                    className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                    aria-label="Chọn tất cả"
+                  />
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <button
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
+                    onClick={() => toggleSort("student")}
+                    type="button"
+                  >
+                    Học sinh{" "}
+                    <ArrowUpDown
+                      size={14}
+                      className={sortKey === "student" ? "text-red-600" : "text-gray-400"}
+                    />
+                  </button>
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <button
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
+                    onClick={() => toggleSort("class")}
+                    type="button"
+                  >
+                    Lớp / Giáo viên{" "}
+                    <ArrowUpDown
+                      size={14}
+                      className={sortKey === "class" ? "text-red-600" : "text-gray-400"}
+                    />
+                  </button>
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <span className="text-sm font-semibold text-gray-700">Nội dung báo cáo</span>
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <button
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
+                    onClick={() => toggleSort("status")}
+                    type="button"
+                  >
+                    Trạng thái{" "}
+                    <ArrowUpDown
+                      size={14}
+                      className={sortKey === "status" ? "text-red-600" : "text-gray-400"}
+                    />
+                  </button>
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <button
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
+                    onClick={() => toggleSort("updatedAt")}
+                    type="button"
+                  >
+                    Cập nhật{" "}
+                    <ArrowUpDown
+                      size={14}
+                      className={sortKey === "updatedAt" ? "text-red-600" : "text-gray-400"}
+                    />
+                  </button>
+                </th>
+                <th className="py-3 px-6 text-left">
+                  <span className="text-sm font-semibold text-gray-700">Thao tác</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-red-100">
+              {filteredReports.length > 0 ? (
+                filteredReports.map((report) => {
+                  const reportId = String(report.id ?? "");
+                  const status = String(report.status ?? "").trim().toUpperCase();
+                  const studentId = String(report.studentProfileId ?? "");
+                  const classId = String(report.classId ?? "");
+                  const teacherId = String(report.teacherUserId ?? "");
+
+                  return (
+                    <tr
+                      key={reportId || `${report.sessionId}:${studentId}:${report.reportDate}`}
+                      className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
+                    >
+                      <td className="py-4 px-4">
+                        <input
+                          type="checkbox"
+                          checked={!!selectedIds[reportId]}
+                          onChange={() => reportId && toggleSelectOne(reportId)}
+                          className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                          aria-label={`Chọn báo cáo của ${studentNameMap[studentId] || shortId(studentId)}`}
+                        />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-xs">
+                            {studentNameMap[studentId]?.charAt(0) || "HS"}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900 text-sm">
+                              {studentNameMap[studentId] || shortId(studentId)}
+                            </div>
+                            <div className="text-xs text-gray-500">{shortId(studentId)}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm text-gray-700">
+                            <span className="font-medium">{classNameMap[classId] || shortId(classId)}</span>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            GV: {teacherNameMap[teacherId] || shortId(teacherId)}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 max-w-md">
+                        <button
+                          onClick={() => void openDetail(report)}
+                          className="w-full text-left group"
+                          title="Bấm để xem đầy đủ"
+                        >
+                          <p className="line-clamp-2 text-sm text-gray-700 group-hover:text-red-600 transition-colors">
+                            {report.feedback || "(Không có nội dung)"}
+                          </p>
+                        </button>
+                        {resolveRejectReason(report) && status === "REJECTED" && (
+                          <p className="mt-1 text-xs text-rose-600 flex items-center gap-1">
+                            <MessageSquare size={10} />
+                            {resolveRejectReason(report)}
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-4 px-6">
+                        <StatusBadge status={status} />
+                      </td>
+                      <td className="py-4 px-6 text-xs text-gray-500">
+                        {formatDateTime(report.updatedAt || report.createdAt)}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => void openDetail(report)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                            title="Xem chi tiết"
+                          >
+                            <EyeIcon size={14} />
+                          </button>
+                          {status === "REVIEW" && (
+                            <>
+                              <button
+                                disabled={!reportId || actionLoading[`${reportId}:approve`]}
+                                onClick={() => reportId && runAction(reportId, "approve")}
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer disabled:opacity-50"
+                                title="Duyệt"
+                              >
+                                <ThumbsUp size={14} />
+                              </button>
+                              <button
+                                disabled={!reportId || actionLoading[`${reportId}:reject`]}
+                                onClick={() => openRejectModal(report)}
+                                className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer disabled:opacity-50"
+                                title="Từ chối"
+                              >
+                                <ThumbsDown size={14} />
+                              </button>
+                            </>
+                          )}
+                          {status === "APPROVED" && (
+                            <button
+                              disabled={!reportId || actionLoading[`${reportId}:publish`]}
+                              onClick={() => reportId && runAction(reportId, "publish")}
+                              className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer disabled:opacity-50"
+                              title="Xuất bản"
+                            >
+                              <Send size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                      <FileText size={24} className="text-red-400" />
+                    </div>
+                    <div className="text-gray-600 font-medium">Không tìm thấy báo cáo</div>
+                    <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc đợi báo cáo mới</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Table Footer */}
+        {filteredReports.length > 0 && (
+          <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-gray-600">
+                Hiển thị <span className="font-semibold text-gray-900">1-{filteredReports.length}</span>
+                {" "}trong tổng số <span className="font-semibold text-gray-900">{filteredReports.length}</span> báo cáo
+                {selectedVisibleCount > 0 && (
+                  <span className="ml-2 text-red-600">• Đã chọn {selectedVisibleCount} báo cáo</span>
+                )}
               </div>
-              <div className="rounded-lg border border-slate-200 p-3">
-                <div className="text-xs text-gray-500">Lớp</div>
-                <div className="font-medium text-gray-900">
-                  {classNameMap[String(detailReport.classId ?? "")] || shortId(detailReport.classId)}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Detail Modal */}
+      {/* Detail Modal - Improved Version */}
+      {detailReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <FileText size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Chi tiết báo cáo buổi học</h2>
+                    <p className="text-sm text-red-100">Thông tin chi tiết về báo cáo của học sinh</p>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">{detailReport.classId}</div>
-              </div>
-              <div className="rounded-lg border border-slate-200 p-3">
-                <div className="text-xs text-gray-500">Giáo viên</div>
-                <div className="font-medium text-gray-900">
-                  {teacherNameMap[String(detailReport.teacherUserId ?? "")] || shortId(detailReport.teacherUserId)}
-                </div>
-                <div className="text-xs text-gray-500">{detailReport.teacherUserId}</div>
-              </div>
-              <div className="rounded-lg border border-slate-200 p-3">
-                <div className="text-xs text-gray-500">Session</div>
-                <div className="font-medium text-gray-900">{shortId(detailReport.sessionId)}</div>
-                <div className="text-xs text-gray-500">{detailReport.sessionId}</div>
+                <button
+                  onClick={() => setDetailReport(null)}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <X size={24} className="text-white" />
+                </button>
               </div>
             </div>
 
-            <div className="mt-3 rounded-lg border border-slate-200 p-3">
-              <div className="mb-1 text-xs text-gray-500">Feedback</div>
-              <div className="whitespace-pre-line text-sm text-gray-800">{detailReport.feedback || "(Không có nội dung)"}</div>
-              {resolveRejectReason(detailReport) ? (
-                <div className="mt-2 rounded border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700">
-                  Lý do reject: {resolveRejectReason(detailReport)}
+            {/* Modal Body */}
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <div className="space-y-6">
+                {/* Thông tin cơ bản */}
+                <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-5 border border-red-100">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="w-1 h-6 bg-red-500 rounded-full"></div>
+                    Thông tin cơ bản
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Trạng thái */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        Trạng thái
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
+                        <StatusBadge status={detailReport.status} />
+                      </div>
+                    </div>
+
+                    {/* Ngày báo cáo */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Clock size={16} className="text-red-600" />
+                        Ngày báo cáo
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
+                        {formatDateTime(detailReport.reportDate || detailReport.createdAt)}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ) : null}
+
+                {/* Thông tin học sinh và lớp */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="w-1 h-6 bg-red-500 rounded-full"></div>
+                    Thông tin học sinh & lớp
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Học sinh */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <GraduationCap size={16} className="text-red-600" />
+                        Học sinh
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
+                        <div className="font-medium">
+                          {studentNameMap[String(detailReport.studentProfileId ?? "")] || shortId(detailReport.studentProfileId)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1 font-mono">
+                          ID: {detailReport.studentProfileId}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Lớp học */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Building2 size={16} className="text-red-600" />
+                        Lớp học
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
+                        <div className="font-medium">
+                          {classNameMap[String(detailReport.classId ?? "")] || shortId(detailReport.classId)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1 font-mono">
+                          ID: {detailReport.classId}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Giáo viên */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Users size={16} className="text-red-600" />
+                        Giáo viên
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
+                        <div className="font-medium">
+                          {teacherNameMap[String(detailReport.teacherUserId ?? "")] || shortId(detailReport.teacherUserId)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1 font-mono">
+                          ID: {detailReport.teacherUserId}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Buổi học */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Clock size={16} className="text-red-600" />
+                        Buổi học
+                      </label>
+                      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
+                        <div className="font-mono text-sm">{shortId(detailReport.sessionId)}</div>
+                        <div className="text-xs text-gray-500 mt-1">Mã phiên học</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nội dung báo cáo */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="w-1 h-6 bg-red-500 rounded-full"></div>
+                    Nội dung báo cáo
+                  </h3>
+                  <div className="px-4 py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 min-h-[120px] leading-relaxed whitespace-pre-wrap">
+                    {detailReport.feedback || (
+                      <span className="text-gray-400 italic">Không có nội dung báo cáo</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lý do từ chối (nếu có) */}
+                {resolveRejectReason(detailReport) && (
+                  <div className="bg-rose-50 rounded-xl border border-rose-200 p-5">
+                    <h3 className="text-lg font-semibold text-rose-800 mb-3 flex items-center gap-2">
+                      <XCircle size={20} className="text-rose-600" />
+                      Lý do từ chối
+                    </h3>
+                    <div className="px-4 py-3 rounded-xl bg-white border border-rose-200 text-rose-700 leading-relaxed">
+                      {resolveRejectReason(detailReport)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Thông tin bổ sung */}
+                <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    {detailReport.createdAt && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Clock size={14} className="text-gray-400" />
+                        <span className="font-medium">Ngày tạo:</span>
+                        <span>{formatDateTime(detailReport.createdAt)}</span>
+                      </div>
+                    )}
+                    {detailReport.updatedAt && detailReport.updatedAt !== detailReport.createdAt && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <RefreshCcw size={14} className="text-gray-400" />
+                        <span className="font-medium">Cập nhật lần cuối:</span>
+                        <span>{formatDateTime(detailReport.updatedAt)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setDetailReport(null)}
+                  className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-all cursor-pointer"
+                >
+                  Đóng
+                </button>
+                {String(detailReport.status ?? "").trim().toUpperCase() === "REVIEW" && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        const reportId = String(detailReport.id ?? "");
+                        if (reportId) {
+                          runAction(reportId, "approve");
+                          setDetailReport(null);
+                        }
+                      }}
+                      disabled={!detailReport.id || actionLoading[`${detailReport.id}:approve`]}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:shadow-lg hover:shadow-emerald-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <ThumbsUp size={16} />
+                      Duyệt báo cáo
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRejectTarget(detailReport);
+                        setDetailReport(null);
+                      }}
+                      disabled={!detailReport.id || actionLoading[`${detailReport.id}:reject`]}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold hover:shadow-lg hover:shadow-amber-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <ThumbsDown size={16} />
+                      Từ chối
+                    </button>
+                  </div>
+                )}
+                {String(detailReport.status ?? "").trim().toUpperCase() === "APPROVED" && (
+                  <button
+                    onClick={() => {
+                      const reportId = String(detailReport.id ?? "");
+                      if (reportId) {
+                        runAction(reportId, "publish");
+                        setDetailReport(null);
+                      }
+                    }}
+                    disabled={!detailReport.id || actionLoading[`${detailReport.id}:publish`]}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 text-white font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Send size={16} />
+                    Xuất bản
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Reject Modal */}
+      {/* Reject Modal - Improved Version */}
       {rejectTarget && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
-            <div className="mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">Từ chối Session Report</h3>
-              <p className="text-sm text-gray-600">Nội dung này sẽ được lưu thành comment và sau đó report sẽ bị reject để giáo viên sửa lại.</p>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <XCircle size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Từ chối báo cáo</h2>
+                    <p className="text-sm text-amber-100">
+                      Vui lòng cung cấp lý do để giáo viên chỉnh sửa lại báo cáo
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeRejectModal}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <X size={24} className="text-white" />
+                </button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <label htmlFor="reject-reason" className="block text-sm font-medium text-gray-700">
-                Comment / lý do từ chối
-              </label>
-              <textarea
-                id="reject-reason"
-                value={rejectReasonInput}
-                onChange={(e) => setRejectReasonInput(e.target.value)}
-                rows={4}
-                placeholder="Ví dụ: Feedback chưa đủ chi tiết về tiến bộ và phần cần cải thiện."
-                className="w-full rounded-lg border border-gray-300 p-2 text-sm"
-              />
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {/* Thông tin báo cáo bị từ chối */}
+              <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-medium mb-1">Báo cáo của học sinh:</p>
+                    <p className="line-clamp-2 text-amber-700">
+                      {rejectTarget.feedback || "(Không có nội dung)"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form từ chối */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="reject-reason" className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <MessageSquare size={16} className="text-amber-600" />
+                    Lý do từ chối <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      id="reject-reason"
+                      value={rejectReasonInput}
+                      onChange={(e) => setRejectReasonInput(e.target.value)}
+                      rows={5}
+                      placeholder="Ví dụ: Feedback chưa đủ chi tiết về tiến bộ và phần cần cải thiện của học sinh..."
+                      className="w-full rounded-xl border border-gray-200 p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all resize-none"
+                      autoFocus
+                    />
+                    {!rejectReasonInput.trim() && (
+                      <div className="absolute bottom-3 right-3">
+                        <AlertCircle size={14} className="text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    Lý do sẽ được gửi đến giáo viên để họ chỉnh sửa lại báo cáo
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={closeRejectModal}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={submitReject}
-                disabled={!rejectReasonInput.trim() || actionLoading[`${String(rejectTarget.id ?? "")}:reject`]}
-                className="rounded-lg bg-amber-600 px-3 py-2 text-sm text-white disabled:bg-slate-300"
-              >
-                Xác nhận từ chối
-              </button>
+
+            {/* Modal Footer */}
+            <div className="border-t border-gray-200 bg-gradient-to-r from-amber-500/5 to-orange-500/5 p-6">
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={closeRejectModal}
+                  className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-all cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  onClick={submitReject}
+                  disabled={!rejectReasonInput.trim() || actionLoading[`${String(rejectTarget.id ?? "")}:reject`]}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center gap-2",
+                    rejectReasonInput.trim() && !actionLoading[`${String(rejectTarget.id ?? "")}:reject`]
+                      ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:shadow-lg hover:shadow-amber-500/25"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  )}
+                >
+                  {actionLoading[`${String(rejectTarget.id ?? "")}:reject`] ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    <>
+                      <ThumbsDown size={16} />
+                      Xác nhận từ chối
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

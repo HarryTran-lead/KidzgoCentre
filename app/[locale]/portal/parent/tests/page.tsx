@@ -293,16 +293,58 @@ export default function TestsPage() {
   const [sessionDetailLoading, setSessionDetailLoading] = useState(false);
   const [sessionDetailError, setSessionDetailError] = useState<string | null>(null);
   const [activeSessionReport, setActiveSessionReport] = useState<SessionReport | null>(null);
+  const [profileSelectionRevision, setProfileSelectionRevision] = useState(0);
   const { selectedProfile, setSelectedProfile } = useSelectedStudentProfile();
 
-  const activeStudentProfileId = selectedProfile?.id ?? studentProfiles[0]?.id ?? "";
+  const activeStudent = useMemo(() => {
+    if (selectedProfile) {
+      const matchedProfile =
+        studentProfiles.find((profile) => profile.id === selectedProfile.id) ??
+        studentProfiles.find(
+          (profile) =>
+            Boolean(selectedProfile.studentId) && profile.studentId === selectedProfile.studentId,
+        );
+
+      if (matchedProfile) {
+        return {
+          ...matchedProfile,
+          studentId: matchedProfile.studentId ?? selectedProfile.studentId,
+        };
+      }
+
+      if (studentProfiles.length > 0) {
+        return studentProfiles[0];
+      }
+
+      return selectedProfile;
+    }
+
+    return studentProfiles[0] ?? null;
+  }, [selectedProfile, studentProfiles]);
+
+  const activeStudentProfileId = activeStudent?.id ?? activeStudent?.studentId ?? "";
+
+  const activeStudentIdentitySet = useMemo(() => {
+    const ids = [
+      activeStudent?.studentId,
+      activeStudent?.id,
+      selectedProfile?.studentId,
+      selectedProfile?.id,
+    ].filter((value): value is string => Boolean(value?.trim()));
+
+    return new Set(ids);
+  }, [activeStudent?.id, activeStudent?.studentId, selectedProfile?.id, selectedProfile?.studentId]);
 
   useEffect(() => {
     let alive = true;
     getProfiles({ profileType: "Student" })
       .then((response) => {
         if (!alive) return;
-        const raw = Array.isArray(response.data) ? response.data : response.data?.profiles ?? [];
+        const raw = Array.isArray(response.data)
+          ? response.data
+          : response.data?.profiles ??
+            response.data?.data ??
+            [];
         const students = raw.filter((profile) => profile.profileType === "Student");
         setStudentProfiles(students);
         if (!selectedProfile && students.length > 0) {
@@ -318,6 +360,17 @@ export default function TestsPage() {
       alive = false;
     };
   }, [selectedProfile, setSelectedProfile]);
+
+  useEffect(() => {
+    const handleProfileSelectionChanged = () => {
+      setProfileSelectionRevision((value) => value + 1);
+    };
+
+    window.addEventListener("selected-profile-changed", handleProfileSelectionChanged);
+    return () => {
+      window.removeEventListener("selected-profile-changed", handleProfileSelectionChanged);
+    };
+  }, []);
 
   const getToken = () => {
     if (typeof window === "undefined") return "";
@@ -348,6 +401,8 @@ export default function TestsPage() {
 
     const normalizeStatus = (status?: ReportStatus) =>
       STATUS_ALIAS[status ?? ""] ?? status ?? "";
+    const reportPageSize = 200;
+    const reportMaxPages = 24;
 
     const getPaginatedItems = <T,>(
       payload: Paginated<T> | { [key: string]: unknown } | undefined,
@@ -369,14 +424,14 @@ export default function TestsPage() {
       setReportsLoading(true);
       setReportsError(null);
       try {
-        const query = new URLSearchParams({
-          status: "Published",
-          studentProfileId: activeStudentProfileId,
-          pageNumber: "1",
-          pageSize: "200",
-        });
-
         const token = getToken();
+        const query = new URLSearchParams({
+          studentProfileId: activeStudentProfileId,
+          month: `${new Date().getMonth() + 1}`,
+          year: `${new Date().getFullYear()}`,
+          pageNumber: "1",
+          pageSize: `${reportPageSize}`,
+        });
         const response = await fetch(`/api/monthly-reports?${query.toString()}`, {
           method: "GET",
           credentials: "include",
@@ -394,7 +449,11 @@ export default function TestsPage() {
 
         const root = (payload?.data ?? payload) as ReportPayload;
         const reports = getPaginatedItems<MonthlyReport>(root, "reports")
-          .filter((item) => item.studentProfileId === activeStudentProfileId)
+          .filter((item) =>
+            item.studentProfileId
+              ? activeStudentIdentitySet.has(String(item.studentProfileId).trim())
+              : true,
+          )
           .filter((item) => normalizeStatus(item.status) === "Published")
           .sort((a, b) => {
             const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
@@ -412,7 +471,7 @@ export default function TestsPage() {
     };
 
     loadPublishedReports();
-  }, [activeStudentProfileId]);
+  }, [activeStudentIdentitySet, activeStudentProfileId, profileSelectionRevision]);
 
   useEffect(() => {
     if (!activeStudentProfileId) {
@@ -422,6 +481,7 @@ export default function TestsPage() {
 
     const normalizeStatus = (status?: ReportStatus) =>
       String(STATUS_ALIAS[status ?? ""] ?? status ?? "").trim().toUpperCase();
+    const sessionPageSize = 200;
 
     const getSessionItems = (payload: SessionReportPayload | undefined): Record<string, unknown>[] => {
       if (!payload) return [];
@@ -450,10 +510,9 @@ export default function TestsPage() {
       setSessionReportsError(null);
       try {
         const query = new URLSearchParams({
-          status: "Published",
           studentProfileId: activeStudentProfileId,
           pageNumber: "1",
-          pageSize: "200",
+          pageSize: `${sessionPageSize}`,
         });
 
         const token = getToken();
@@ -476,7 +535,11 @@ export default function TestsPage() {
         const rows = getSessionItems(root)
           .map((item) => normalizeSessionReport(item))
           .filter((item): item is SessionReport => Boolean(item))
-          .filter((item) => item.studentProfileId === activeStudentProfileId)
+          .filter((item) =>
+            item.studentProfileId
+              ? activeStudentIdentitySet.has(String(item.studentProfileId).trim())
+              : true,
+          )
           .filter((item) => normalizeStatus(item.status) === "PUBLISHED")
           .sort((a, b) => {
             const aTime = new Date(a.updatedAt || a.createdAt || "").getTime() || 0;
@@ -494,7 +557,7 @@ export default function TestsPage() {
     };
 
     loadPublishedSessionReports();
-  }, [activeStudentProfileId]);
+  }, [activeStudentIdentitySet, activeStudentProfileId, profileSelectionRevision]);
 
   const selectedStudentName = useMemo(() => {
     if (selectedProfile?.displayName) return selectedProfile.displayName;
@@ -675,6 +738,14 @@ export default function TestsPage() {
           Lịch sử báo cáo
         </TabButton>
       </div>
+
+      {(activeTab === "monthly" || activeTab === "session" || activeTab === "history") && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Phụ huynh chỉ xem báo cáo ở trạng thái <span className="font-semibold">Đã xuất bản</span>. Nếu bên
+          admin đang là <span className="font-semibold">Đã duyệt</span> thì báo cáo vẫn chưa hiện ở đây cho tới
+          khi được xuất bản.
+        </div>
+      )}
 
       {/* Content - Grid 3 columns */}
       {activeTab === "placement" && (

@@ -22,6 +22,7 @@ export default function ChildSelector() {
   const selectedChild = useMemo(
     () =>
       profiles.find((profile) => profile.id === selectedProfile?.id) ??
+      profiles[0] ??
       selectedProfile,
     [profiles, selectedProfile]
   );
@@ -75,7 +76,9 @@ export default function ChildSelector() {
 
         const data = Array.isArray(response.data)
           ? response.data
-          : response.data?.profiles ?? [];
+          : response.data?.profiles ??
+            response.data?.data ??
+            [];
 
         const students = data.filter((profile) => profile.profileType === "Student");
 

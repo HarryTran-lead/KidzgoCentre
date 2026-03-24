@@ -189,6 +189,14 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
     }
   };
 
+  // Handle Enter key press
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !isLoading) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   // Deterministic particles
   const particleStyle = useRef(
     Array.from({ length: 6 }).map((_, i) => {
@@ -344,6 +352,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                       placeholder: "Nhập email của bạn",
                       className:
                         "w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-red-600 focus:border-red-600 focus:ring-1 focus:ring-red-600/20 text-sm text-gray-800 transition-colors duration-200",
+                      onKeyDown: handleKeyPress,
                     }}
                   />
 
@@ -356,6 +365,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
                       placeholder: "Nhập mật khẩu của bạn",
                       className:
                         "w-full pl-10 pr-9 py-2.5 rounded-lg border border-gray-300 bg-white hover:border-red-600 focus:border-red-600 focus:ring-1 focus:ring-red-600/20 text-sm text-gray-800 transition-colors duration-200",
+                      onKeyDown: handleKeyPress,
                     }}
                   />
 

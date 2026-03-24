@@ -167,6 +167,28 @@ export const BACKEND_LEAVE_REQUEST_ENDPOINTS = {
   REJECT: (id: string) => `/leave-requests/${id}/reject`,
 } as const;
 
+export const PAUSE_ENROLLMENT_ENDPOINTS = {
+  GET_ALL: "/api/pause-enrollment-requests",
+  GET_BY_ID: (id: string) => `/api/pause-enrollment-requests/${id}`,
+  CREATE: "/api/pause-enrollment-requests",
+  APPROVE: (id: string) => `/api/pause-enrollment-requests/${id}/approve`,
+  APPROVE_BULK: "/api/pause-enrollment-requests/approve-bulk",
+  REJECT: (id: string) => `/api/pause-enrollment-requests/${id}/reject`,
+  CANCEL: (id: string) => `/api/pause-enrollment-requests/${id}/cancel`,
+  OUTCOME: (id: string) => `/api/pause-enrollment-requests/${id}/outcome`,
+} as const;
+
+export const BACKEND_PAUSE_ENROLLMENT_ENDPOINTS = {
+  GET_ALL: "/pause-enrollment-requests",
+  GET_BY_ID: (id: string) => `/pause-enrollment-requests/${id}`,
+  CREATE: "/pause-enrollment-requests",
+  APPROVE: (id: string) => `/pause-enrollment-requests/${id}/approve`,
+  APPROVE_BULK: "/pause-enrollment-requests/approve-bulk",
+  REJECT: (id: string) => `/pause-enrollment-requests/${id}/reject`,
+  CANCEL: (id: string) => `/pause-enrollment-requests/${id}/cancel`,
+  OUTCOME: (id: string) => `/pause-enrollment-requests/${id}/outcome`,
+} as const;
+
 // User Management Endpoints (Client-side → Next.js API Routes)
 export const USER_ENDPOINTS = {
   // CRUD Operations

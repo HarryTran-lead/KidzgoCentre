@@ -1,4 +1,3 @@
-// components/portal/menu/admin.ts
 import {
   LayoutDashboard,
   Users,
@@ -24,16 +23,14 @@ import type { Locale } from "@/lib/i18n";
 export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const t = getMessages(locale).menuAdmin;
 
-  const QUICK: RawItem[] = [
+  const quick: RawItem[] = [
     [t.quick.businessOverview, LayoutDashboard, ""],
     [t.quick.centerOverview, Building, "/center"],
   ];
 
-  const LEADS: RawItem[] = [
-    [t.groups.leads.manageLeads, Inbox, "/leads"],
-  ];
+  const leads: RawItem[] = [[t.groups.leads.manageLeads, Inbox, "/leads"]];
 
-  const LEARNING: RawItem[] = [
+  const learning: RawItem[] = [
     [t.groups.learning.courses.list, GraduationCap, "/courses"],
     [t.groups.learning.tuitionPlans.list, GraduationCap, "/tuition-plans"],
     [t.groups.learning.registrations.list, UserCheck, "/registrations"],
@@ -41,15 +38,16 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.learning.students.list, Users, "/students"],
   ];
 
-  const OPS: RawItem[] = [
+  const ops: RawItem[] = [
     [t.groups.ops.rooms, Building2, "/rooms"],
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
+    [t.groups.ops.pauseEnrollments, CalendarClock, "/pause-enrollments"],
     [t.groups.ops.feedback, ClipboardCheck, "/feedback"],
     [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
     [t.groups.ops.documents, FileText, "/documents"],
   ];
 
-  const SYSTEM: RawItem[] = [
+  const system: RawItem[] = [
     [t.groups.system.accounts, Settings, "/accounts"],
     [t.groups.system.teachers, Users, "/teachers"],
     [t.groups.system.branches, Building2, "/branches"],
@@ -60,10 +58,10 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   ];
 
   return [
-    ...makeMenu(root, QUICK),
-    makeGroup(root, t.groups.leads.title, Inbox, LEADS),
-    makeGroup(root, t.groups.learning.title, GraduationCap, LEARNING),
-    makeGroup(root, t.groups.ops.title, Building2, OPS),
-    makeGroup(root, t.groups.system.title, Settings, SYSTEM),
+    ...makeMenu(root, quick),
+    makeGroup(root, t.groups.leads.title, Inbox, leads),
+    makeGroup(root, t.groups.learning.title, GraduationCap, learning),
+    makeGroup(root, t.groups.ops.title, Building2, ops),
+    makeGroup(root, t.groups.system.title, Settings, system),
   ];
 }

@@ -306,6 +306,7 @@ export async function getStudentHomeworkById(
         typeof submissionTypeRaw === "string"
           ? (submissionTypeRaw.toUpperCase() as AssignmentDetail["submissionType"])
           : undefined,
+      timeLimitMinutes: item.timeLimitMinutes ?? item.examTimeMinutes ?? undefined,
       description: item.description || item.assignmentDescription || "",
       instructions: item.instructions || "",
       requirements: item.requirements || [],

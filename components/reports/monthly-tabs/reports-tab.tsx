@@ -127,12 +127,6 @@ export default function ReportsTab({
 }: Props) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [submitFlowLoading, setSubmitFlowLoading] = useState(false);
-  const fieldClassName =
-    "w-full rounded-2xl border-2 border-rose-100 bg-rose-50/30 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:bg-white";
-  const softCardClassName =
-    "rounded-[24px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)]";
-  const ghostButtonClassName =
-    "rounded-2xl border-2 border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400";
 
   const normalizeStatus = (value?: string) => {
     const normalized = String(value ?? "").trim();
@@ -157,19 +151,20 @@ export default function ReportsTab({
   };
 
   return (
-    <div className="grid lg:grid-cols-3 gap-4">
-      <div className="lg:col-span-2 space-y-4">
-        <div className={`${softCardClassName} bg-gradient-to-r from-rose-50/70 via-white to-orange-50/70 p-5 flex flex-col gap-4`}>
-          <div className="relative w-full md:max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+    <div className="grid lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 space-y-6">
+        {/* Filter Section */}
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
+          <div className="relative w-full md:max-w-xl mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm theo học sinh, giáo viên, mã report..."
-              className={`${fieldClassName} pl-11`}
+              className="w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
             />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 md:flex md:items-center">
+          <div className="grid gap-3 sm:grid-cols-2">
             <select
               value={selectedClassId || ""}
               onChange={(e) => {
@@ -177,7 +172,7 @@ export default function ReportsTab({
                 setSelectedClassId(classId);
                 setSelectedStudentId(null);
               }}
-              className={`${fieldClassName} min-w-44`}
+              className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
             >
               <option value="">Tất cả lớp</option>
               {classFilterOptions.map((item) => (
@@ -186,215 +181,310 @@ export default function ReportsTab({
                 </option>
               ))}
             </select>
-            <Filter size={16} className="text-gray-500" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className={fieldClassName}
-            >
-              {["Tất cả", "Draft", "Submitted", "Approved", "Rejected", "Published", "Review"].map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all appearance-none"
+              >
+                {["Tất cả", "Draft", "Submitted", "Approved", "Rejected", "Published", "Review"].map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
+
+        {/* Active Filters */}
         {(selectedClassId || selectedStudentId) && (
-          <div className="rounded-[22px] border border-blue-100 bg-blue-50/40 px-4 py-3 text-xs text-blue-900 flex flex-wrap items-center gap-2 shadow-[0_10px_24px_rgba(14,165,233,0.08)]">
-            <span className="font-medium">Đang lọc theo:</span>
+          <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/40 to-red-100/20 px-4 py-3 text-sm text-gray-700 flex flex-wrap items-center gap-2">
+            <span className="font-medium text-gray-900">Đang lọc theo:</span>
             {selectedClassId && (
-              <span className="rounded-full border border-blue-200 bg-white px-3 py-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-50 to-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
                 Lớp: {selectedClassName}
               </span>
             )}
             {selectedStudentId && (
-              <span className="rounded-full border border-blue-200 bg-white px-3 py-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-1.5 text-xs font-medium text-emerald-700 border border-emerald-200">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
                 Học viên: {selectedStudentName}
               </span>
             )}
             <button
-              className="ml-auto rounded-full border border-blue-200 bg-white px-3 py-1.5 font-semibold hover:bg-blue-50"
+              className="ml-auto inline-flex items-center gap-1 rounded-full bg-white border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 transition-all cursor-pointer"
               onClick={clearScopeFilter}
             >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
               Xóa lọc lớp/học viên
             </button>
           </div>
         )}
 
+        {/* Teacher Shortcuts */}
         {isTeacher && (
-          <div className={`${softCardClassName} p-4`}>
-            <div className="mb-3 text-sm font-semibold text-slate-900">Lối tắt cho giáo viên</div>
-            <div className="flex flex-wrap gap-2 text-xs">
-            <button
-              className={`rounded-full border px-3 py-1 ${statusFilter === "Tất cả" ? "bg-red-600 text-white border-red-600" : "bg-white"}`}
-              onClick={() => setStatusFilter("Tất cả")}
-            >
-              Tất cả
-            </button>
-            <button
-              className={`rounded-full border px-3 py-1 ${statusFilter === "Draft" ? "bg-amber-600 text-white border-amber-600" : "bg-white"}`}
-              onClick={() => setStatusFilter("Draft")}
-            >
-              Cần submit
-            </button>
-            <button
-              className={`rounded-full border px-3 py-1 ${statusFilter === "Rejected" ? "bg-rose-600 text-white border-rose-600" : "bg-white"}`}
-              onClick={() => setStatusFilter("Rejected")}
-            >
-              Cần sửa lại
-            </button>
-            <button
-              className={`rounded-full border px-3 py-1 ${statusFilter === "Submitted" ? "bg-blue-600 text-white border-blue-600" : "bg-white"}`}
-              onClick={() => setStatusFilter("Submitted")}
-            >
-              Đang chờ duyệt
-            </button>
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
+            <div className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <Zap size={16} className="text-red-600" />
+              Lối tắt cho giáo viên
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
+                  statusFilter === "Tất cả" 
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
+                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
+                }`}
+                onClick={() => setStatusFilter("Tất cả")}
+              >
+                Tất cả
+              </button>
+              <button
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
+                  statusFilter === "Draft" 
+                    ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md" 
+                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
+                }`}
+                onClick={() => setStatusFilter("Draft")}
+              >
+                Cần submit
+              </button>
+              <button
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
+                  statusFilter === "Rejected" 
+                    ? "bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-md" 
+                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
+                }`}
+                onClick={() => setStatusFilter("Rejected")}
+              >
+                Cần sửa lại
+              </button>
+              <button
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
+                  statusFilter === "Submitted" 
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md" 
+                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
+                }`}
+                onClick={() => setStatusFilter("Submitted")}
+              >
+                Đang chờ duyệt
+              </button>
             </div>
           </div>
         )}
 
+        {/* Bulk Actions */}
         {canManage && (
-          <div className={`${softCardClassName} p-4 text-xs text-gray-700 flex flex-wrap items-center gap-2`}>
-            <span>Đã chọn: {selectedReportIds.size}</span>
-            <button className={ghostButtonClassName} onClick={selectAllVisible} disabled={!filteredReports.length}>
-              Chọn tất cả
-            </button>
-            <button className={ghostButtonClassName} onClick={clearSelection}>
-              Bỏ chọn
-            </button>
-            <button
-              className="rounded-2xl bg-emerald-600 px-3 py-2 font-semibold text-white disabled:bg-slate-300"
-              disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
-              onClick={() => runBulkAction("approve", Array.from(selectedReportIds))}
-            >
-              {bulkLoading === "approve" ? "Đang duyệt..." : "Duyệt mục đã chọn"}
-            </button>
-            <button
-              className="rounded-2xl bg-sky-600 px-3 py-2 font-semibold text-white disabled:bg-slate-300"
-              disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
-              onClick={() => runBulkAction("publish", Array.from(selectedReportIds))}
-            >
-              {bulkLoading === "publish" ? "Đang công bố..." : "Công bố mục đã chọn"}
-            </button>
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">Đã chọn: <span className="font-bold text-red-600">{selectedReportIds.size}</span></span>
+              <button 
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={selectAllVisible} 
+                disabled={!filteredReports.length}
+              >
+                Chọn tất cả
+              </button>
+              <button 
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
+                onClick={clearSelection}
+              >
+                Bỏ chọn
+              </button>
+              <button
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
+                onClick={() => runBulkAction("approve", Array.from(selectedReportIds))}
+              >
+                {bulkLoading === "approve" ? (
+                  <>
+                    <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Đang duyệt...
+                  </>
+                ) : (
+                  "Duyệt mục đã chọn"
+                )}
+              </button>
+              <button
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-2 text-xs font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
+                onClick={() => runBulkAction("publish", Array.from(selectedReportIds))}
+              >
+                {bulkLoading === "publish" ? (
+                  <>
+                    <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Đang công bố...
+                  </>
+                ) : (
+                  "Công bố mục đã chọn"
+                )}
+              </button>
+            </div>
           </div>
         )}
 
-        <div className={`${softCardClassName} overflow-hidden`}>
-          <div className="border-b border-red-100 bg-gradient-to-r from-white to-rose-50/70 p-4 flex items-center justify-between">
-            <h3 className="font-semibold">Danh sách báo cáo ({filteredReports.length})</h3>
-            {loading && <span className="text-sm text-gray-500">Đang tải...</span>}
+        {/* Reports Table */}
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+          <div className="border-b border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Danh sách báo cáo</h3>
+              {loading && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Đang tải...
+                </div>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-red-50/60 text-left text-xs uppercase text-gray-600">
-                <tr>
-                  {canManage && <th className="px-4 py-3">Chọn</th>}
-                  <th className="px-4 py-3">Báo cáo</th>
-                  <th className="px-4 py-3">Giáo viên</th>
-                  <th className="px-4 py-3">Trạng thái</th>
-                  <th className="px-4 py-3">Thao tác</th>
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
+                <tr className="text-left">
+                  {canManage && <th className="px-6 py-3 text-xs font-semibold text-gray-700 w-12">Chọn</th>}
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-700">Báo cáo</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-700">Giáo viên</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-700">Trạng thái</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-700">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-100">
                 {filteredReports.map((report) => (
                   <tr
                     key={report.id}
-                    className="hover:bg-red-50/40 cursor-pointer"
+                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 cursor-pointer"
                     onClick={() => setActiveReportId(report.id)}
                   >
                     {canManage && (
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selectedReportIds.has(report.id)}
                           onChange={() => toggleReportSelection(report.id)}
+                          className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
                         />
                       </td>
                     )}
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-gray-900">
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900">
                         {report.studentName || report.studentProfileId || report.id}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 mt-0.5">
                         {report.className || report.classId || "N/A"} • {report.month}/{report.year}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="inline-flex items-center gap-1">
-                        <User size={12} />
+                    <td className="px-6 py-4">
+                      <div className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                        <User size={14} className="text-gray-400" />
                         {report.teacherName || "Teacher"}
                       </div>
                     </td>
-                    <td className="px-4 py-3">{renderStatusBadge(report.status)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-6 py-4">{renderStatusBadge(report.status)}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                         <button
-                          className="rounded border px-2 py-1 text-xs"
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           onClick={() => {
                             setActiveReportId(report.id);
                             setDetailModalOpen(true);
                           }}
+                          title="Xem chi tiết"
                         >
-                          <Eye size={12} />
+                          <Eye size={14} />
                         </button>
                         {isTeacher && (
                           <button
-                            className="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs text-indigo-700"
+                            className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
                             onClick={() => {
                               setActiveReportId(report.id);
                               setEditModalOpen(true);
                             }}
+                            title="Chỉnh sửa"
                           >
-                            Edit
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
                           </button>
                         )}
                         {isTeacher && (
                           <button
-                            className="rounded bg-purple-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
+                            className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer disabled:opacity-50"
                             disabled={actionLoading[`${report.id}:generate-draft`]}
                             onClick={() => runAction(report.id, "generate-draft")}
+                            title="Tạo bằng AI"
                           >
-                            AI
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
                           </button>
                         )}
                         {isTeacher && (
                           <button
                             disabled={!canTeacherSubmit(report.status)}
-                            className="rounded bg-indigo-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
+                              canTeacherSubmit(report.status) 
+                                ? "hover:bg-indigo-50 text-gray-400 hover:text-indigo-600" 
+                                : "text-gray-300"
+                            }`}
                             onClick={() => runAction(report.id, "submit")}
+                            title={normalizeStatus(report.status) === "Rejected" ? "Submit lại" : "Submit"}
                           >
-                            {normalizeStatus(report.status) === "Rejected" ? "Submit lại" : "Submit"}
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
                           </button>
                         )}
                         {canManage && (
-                          <button className="rounded bg-pink-600 px-2 py-1 text-xs text-white" onClick={() => openCommentDialog(report.id)}>
-                            Comment
-                          </button>
-                        )}
-                        {canManage && (
-                          <button
-                            disabled={!canManagementApprove(report.status)}
-                            className="rounded bg-emerald-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
-                            onClick={() => runAction(report.id, "approve")}
-                          >
-                            Approve
-                          </button>
-                        )}
-                        {canManage && (
-                          <button
-                            disabled={!canManagementApprove(report.status)}
-                            className="rounded bg-amber-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
+                          <button 
+                            className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer"
                             onClick={() => openCommentDialog(report.id)}
+                            title="Thêm bình luận"
                           >
-                            Góp ý / Reject
+                            <MessageSquare size={14} />
+                          </button>
+                        )}
+                        {canManage && (
+                          <button
+                            disabled={!canManagementApprove(report.status)}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
+                              canManagementApprove(report.status) 
+                                ? "hover:bg-emerald-50 text-gray-400 hover:text-emerald-600" 
+                                : "text-gray-300"
+                            }`}
+                            onClick={() => runAction(report.id, "approve")}
+                            title="Duyệt"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                           </button>
                         )}
                         {canManage && (
                           <button
                             disabled={!canManagementPublish(report.status)}
-                            className="rounded bg-sky-600 px-2 py-1 text-xs text-white disabled:bg-slate-300"
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
+                              canManagementPublish(report.status) 
+                                ? "hover:bg-sky-50 text-gray-400 hover:text-sky-600" 
+                                : "text-gray-300"
+                            }`}
                             onClick={() => runAction(report.id, "publish")}
+                            title="Công bố"
                           >
-                            Công bố
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                            </svg>
                           </button>
                         )}
                       </div>
@@ -404,194 +494,311 @@ export default function ReportsTab({
               </tbody>
             </table>
             {filteredReports.length === 0 && (
-              <div className="p-8 text-center text-sm text-gray-500">Không có báo cáo phù hợp.</div>
+              <div className="py-12 text-center">
+                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                  <Search size={24} className="text-red-400" />
+                </div>
+                <div className="text-gray-600 font-medium">Không có báo cáo phù hợp</div>
+                <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc để tìm kết quả khác</div>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className={`${softCardClassName} p-5`}>
-          <h3 className="mb-2 font-semibold flex items-center gap-2">
-            <FileCheck size={16} /> Chi tiết báo cáo
-          </h3>
+      <div className="space-y-6">
+        {/* Report Detail Section */}
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm">
+              <FileCheck size={18} />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Chi tiết báo cáo</h3>
+          </div>
           {displayReport ? (
-            <div className="space-y-2 text-sm">
-              {detailLoading && <div className="text-xs text-gray-500">Đang tải chi tiết...</div>}
-              {detailError && <div className="text-xs text-red-500">{detailError}</div>}
-              <div className="font-semibold">{displayReport.studentName || displayReport.studentProfileId}</div>
-              <div className="text-gray-600">{displayReport.className || displayReport.classId || "N/A"}</div>
-              {renderStatusBadge(displayReport.status)}
-              <div className="text-xs text-gray-500">Teacher: {displayReport.teacherName || "N/A"}</div>
-              {isTeacher && (
-                <button
-                  disabled={!canTeacherSubmit(displayReport.status)}
-                  className="mt-2 w-full rounded bg-cyan-700 px-3 py-2 text-xs font-medium text-white disabled:bg-slate-300"
-                  onClick={() =>
-                    runAction(displayReport.id, "draft", "PUT", {
-                      draftContent: draftInput || "",
-                    })
-                  }
-                >
-                  {actionLoading[`${displayReport.id}:draft`] ? "Đang lưu..." : "Update Draft (manual)"}
-                </button>
+            <div className="space-y-3">
+              {detailLoading && (
+                <div className="flex items-center justify-center py-4">
+                  <svg className="w-5 h-5 animate-spin text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </div>
               )}
+              {detailError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {detailError}
+                </div>
+              )}
+              <div className="font-semibold text-gray-900 text-base">
+                {displayReport.studentName || displayReport.studentProfileId}
+              </div>
+              <div className="text-sm text-gray-600 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                {displayReport.className || displayReport.classId || "N/A"}
+              </div>
+              <div>{renderStatusBadge(displayReport.status)}</div>
+              <div className="text-xs text-gray-500 flex items-center gap-1">
+                <User size={12} />
+                Teacher: {displayReport.teacherName || "N/A"}
+              </div>
+              
               {isTeacher && (
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-gray-700">Nội dung nháp (có thể edit)</label>
-                  <textarea
-                    value={draftInput}
-                    readOnly
-                    rows={5}
-                    placeholder="Nhấp để mở popup chỉnh sửa..."
-                    onClick={() => setEditModalOpen(true)}
-                    className="w-full rounded-xl border border-red-200 px-3 py-2 text-xs"
-                  />
+                <>
                   <button
-                    className="w-full rounded border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
-                    onClick={() => setEditModalOpen(true)}
+                    disabled={!canTeacherSubmit(displayReport.status)}
+                    className="w-full rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() =>
+                      runAction(displayReport.id, "draft", "PUT", {
+                        draftContent: draftInput || "",
+                      })
+                    }
                   >
-                    Mở popup chỉnh sửa
+                    {actionLoading[`${displayReport.id}:draft`] ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Đang lưu...
+                      </span>
+                    ) : (
+                      "Update Draft (manual)"
+                    )}
                   </button>
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-gray-700">Nội dung nháp (có thể edit)</label>
+                    <textarea
+                      value={draftInput}
+                      readOnly
+                      rows={5}
+                      placeholder="Nhấp để mở popup chỉnh sửa..."
+                      onClick={() => setEditModalOpen(true)}
+                      className="w-full rounded-xl border border-red-200 bg-white/50 px-3 py-2 text-sm cursor-pointer hover:border-red-300 transition-colors"
+                    />
+                    <button
+                      className="w-full rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-indigo-100 px-4 py-2.5 text-sm font-medium text-indigo-700 hover:shadow-md transition-all cursor-pointer"
+                      onClick={() => setEditModalOpen(true)}
+                    >
+                      Mở popup chỉnh sửa
+                    </button>
+                  </div>
+                  <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
+                    <div className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-1">
+                      <MessageSquare size={14} />
+                      Góp ý từ Staff/Admin
+                    </div>
+                    {isRejectedReport && (
+                      <p className="mb-3 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-rose-700 flex items-start gap-2">
+                        <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Báo cáo này đã bị trả về. Hãy cập nhật nội dung theo góp ý rồi bấm <b>Submit lại</b>.
+                      </p>
+                    )}
+                    {displayReport.comments?.length ? (
+                      <ul className="space-y-2 max-h-64 overflow-auto">
+                        {(displayReport.comments ?? []).slice().reverse().map((c) => (
+                          <li key={c.id} className="rounded-lg border border-amber-100 bg-white p-3">
+                            <div className="font-medium text-gray-900 text-sm">{c.authorName || c.commenterName || "Staff/Admin"}</div>
+                            <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.content}</div>
+                            {c.createdAt && <div className="mt-2 text-xs text-gray-500">{formatDateTime(c.createdAt)}</div>}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-600">Chưa có góp ý.</p>
+                    )}
+                  </div>
+                </>
               )}
-              {isTeacher && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-gray-700">
-                  <div className="font-semibold text-gray-900">Góp ý từ Staff/Admin</div>
-                  {isRejectedReport && (
-                    <p className="mt-1 rounded border border-rose-200 bg-white px-2 py-1 text-rose-700">
-                      Báo cáo này đã bị trả về. Hãy cập nhật nội dung theo góp ý rồi bấm <b>Submit lại</b>.
-                    </p>
-                  )}
-                  {displayReport.comments?.length ? (
-                    <ul className="mt-2 space-y-2">
-                      {(displayReport.comments ?? []).slice().reverse().map((c) => (
-                        <li key={c.id} className="rounded border border-amber-100 bg-white p-2">
-                          <div className="font-medium text-gray-900">{c.authorName || c.commenterName || "Staff/Admin"}</div>
-                          <div className="mt-1 whitespace-pre-line">{c.content}</div>
-                          {c.createdAt && <div className="mt-1 text-[11px] text-gray-500">{formatDateTime(c.createdAt)}</div>}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-1 text-gray-600">Chưa có góp ý.</p>
-                  )}
-                </div>
-              )}
-              <button className="w-full rounded border border-red-200 px-3 py-2 text-xs">
-                <Download size={12} className="inline mr-1" /> Export/PDF
+              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer flex items-center justify-center gap-2">
+                <Download size={14} />
+                Export/PDF
               </button>
             </div>
           ) : (
-            <p className="text-sm text-gray-500">Chọn report để xem chi tiết.</p>
+            <div className="text-center py-8">
+              <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                <FileCheck size={24} className="text-gray-400" />
+              </div>
+              <p className="text-sm text-gray-500">Chọn report để xem chi tiết</p>
+            </div>
           )}
         </div>
 
+        {/* Job Progress */}
         {canManage && (
-          <div className={`${softCardClassName} p-5`}>
-            <h3 className="mb-2 font-semibold flex items-center gap-2">
-              <TrendingUp size={16} /> Tiến độ đợt báo cáo
-            </h3>
-            <p className="text-sm text-gray-600">
-              Đợt báo cáo tháng {month}/{year}: {jobs.length}
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm">
+                <TrendingUp size={18} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Tiến độ đợt báo cáo</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              Đợt báo cáo tháng {month}/{year}: <span className="font-semibold text-red-600">{jobs.length}</span>
             </p>
-            <div className="mt-2 space-y-2">
+            <div className="space-y-2 max-h-48 overflow-auto">
               {jobs.map((job) => (
-                <div key={job.id} className="rounded-lg border p-2 text-xs">
-                  <div>
-                    {job.month}/{job.year} • {job.status}
+                <div key={job.id} className="rounded-lg border border-red-200 bg-white p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      {job.month}/{job.year}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                      job.status === "Active" 
+                        ? "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200"
+                        : "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200"
+                    }`}>
+                      {job.status}
+                    </span>
                   </div>
                   <button
-                    className="mt-1 rounded bg-blue-600 px-2 py-1 text-white"
+                    className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-2 text-xs font-semibold text-white hover:shadow-md transition-all cursor-pointer"
                     onClick={() => apiFetch(`/api/monthly-reports/jobs/${job.id}/aggregate`, { method: "POST" }).then(fetchData)}
                   >
                     Đồng bộ dữ liệu
                   </button>
                 </div>
               ))}
-              {jobs.length === 0 && <p className="text-xs text-gray-500">Chưa có đợt báo cáo.</p>}
+              {jobs.length === 0 && (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500">Chưa có đợt báo cáo</p>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        <div className={`${softCardClassName} p-5`}>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h3 className="font-semibold flex items-center gap-2">
-              <MessageSquare size={16} /> Bình luận gần nhất
-            </h3>
+        {/* Recent Comments */}
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
+                <MessageSquare size={18} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Bình luận gần nhất</h3>
+            </div>
             <button
-              className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+              className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 transition-all cursor-pointer"
               onClick={() => setShowRecentComments((prev) => !prev)}
             >
-              {showRecentComments ? "Thu gọn" : "Mở"}
+              {showRecentComments ? (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                  Thu gọn
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  Mở
+                </>
+              )}
             </button>
           </div>
           {!showRecentComments && (
-            <p className="text-xs text-gray-500">Thu gọn để giảm chiều dài trang. Bấm Mở để xem chi tiết bình luận.</p>
+            <p className="text-sm text-gray-500 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Thu gọn để giảm chiều dài trang. Bấm Mở để xem chi tiết bình luận.
+            </p>
           )}
           {showRecentComments && (
             <>
-              {recentCommentsLoading && <p className="text-xs text-gray-500">Đang tải bình luận...</p>}
+              {recentCommentsLoading && (
+                <div className="flex justify-center py-4">
+                  <svg className="w-5 h-5 animate-spin text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </div>
+              )}
               {!recentCommentsLoading && recentComments.length ? (
-                <ul className="space-y-2 text-xs">
+                <ul className="space-y-2 max-h-64 overflow-auto">
                   {recentComments.slice(0, 3).map((c) => (
                     <li
                       key={c.id}
-                      className="rounded border p-2 cursor-pointer hover:bg-red-50/40"
+                      className="rounded-xl border border-red-200 bg-white p-3 cursor-pointer hover:shadow-md transition-all hover:border-red-300"
                       onClick={() => openReportFromComment(c.reportId)}
                     >
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-gray-900 text-sm flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
                         {c.studentName || "Học viên"} • {c.className || "N/A"}
                       </div>
-                      <div className="mt-1">
-                        {c.authorName || "Staff/Admin"}: {c.content}
+                      <div className="mt-1 text-sm text-gray-700">
+                        <span className="font-medium text-red-600">{c.authorName || "Staff/Admin"}:</span> {c.content}
                       </div>
-                      {c.createdAt && <div className="mt-1 text-[11px] text-gray-500">{formatDateTime(c.createdAt)}</div>}
+                      {c.createdAt && (
+                        <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {formatDateTime(c.createdAt)}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-gray-500">Chưa có bình luận.</p>
+                <div className="text-center py-6">
+                  <svg className="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <p className="text-sm text-gray-500">Chưa có bình luận</p>
+                </div>
               )}
             </>
           )}
         </div>
 
-        <div className={`${softCardClassName} p-4 text-xs text-gray-600 flex items-center gap-2`}>
-          <Zap size={14} className="text-red-500" /> Luồng đã tối ưu theo vai trò: Giáo viên / Quản lý / Phụ huynh-Học viên.
+        {/* Info Footer */}
+        <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/40 to-red-100/20 p-4 text-sm text-gray-700 flex items-center gap-2">
+          <Zap size={14} className="text-red-600 flex-shrink-0" />
+          <span>Luồng đã tối ưu theo vai trò: Giáo viên / Quản lý / Phụ huynh-Học viên.</span>
+        </div>
+        
+        <div className="text-xs text-gray-500 flex items-center gap-2">
+          <Users size={12} />
+          Phụ huynh/học viên chỉ xem các báo cáo đã công bố.
         </div>
       </div>
 
-      <div className="lg:col-span-3 text-xs text-gray-500 flex items-center gap-2">
-        <Users size={12} /> Phụ huynh/học viên chỉ xem các báo cáo đã công bố.
-      </div>
-
+      {/* Edit Modal */}
       {isTeacher && editModalOpen && displayReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-          <div className="w-full max-w-4xl rounded-2xl bg-white p-5 shadow-2xl">
-            <div className="mb-3">
-              <h3 className="text-lg font-semibold">Chỉnh sửa báo cáo tháng</h3>
-              <p className="text-sm text-gray-500">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-4xl rounded-2xl bg-gradient-to-br from-white to-red-50/30 border border-red-200 shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200 px-6 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">Chỉnh sửa báo cáo tháng</h3>
+              <p className="text-sm text-gray-600 mt-1">
                 {displayReport.studentName || displayReport.studentProfileId} •{" "}
                 {displayReport.className || displayReport.classId || "N/A"} • {displayReport.month}/{displayReport.year}
               </p>
             </div>
-            <textarea
-              value={draftInput}
-              onChange={(e) => setDraftInput(e.target.value)}
-              rows={16}
-              placeholder="Nhập nội dung báo cáo..."
-              className="w-full rounded-xl border border-red-200 px-3 py-3 text-sm"
-            />
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="p-6">
+              <textarea
+                value={draftInput}
+                onChange={(e) => setDraftInput(e.target.value)}
+                rows={16}
+                placeholder="Nhập nội dung báo cáo..."
+                className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
+              />
+            </div>
+            <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4 flex justify-end gap-3">
               <button
-                className="rounded border px-3 py-2 text-sm"
+                className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
                 onClick={() => setEditModalOpen(false)}
               >
                 Đóng
               </button>
               <button
-                className="rounded bg-cyan-700 px-3 py-2 text-sm text-white disabled:bg-slate-300"
+                className="rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!canTeacherSubmit(displayReport.status) || actionLoading[`${displayReport.id}:draft`]}
                 onClick={() =>
                   runAction(displayReport.id, "draft", "PUT", {
@@ -599,10 +806,19 @@ export default function ReportsTab({
                   })
                 }
               >
-                {actionLoading[`${displayReport.id}:draft`] ? "Đang lưu..." : "Lưu nháp"}
+                {actionLoading[`${displayReport.id}:draft`] ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Đang lưu...
+                  </span>
+                ) : (
+                  "Lưu nháp"
+                )}
               </button>
               <button
-                className="rounded bg-indigo-600 px-3 py-2 text-sm text-white disabled:bg-slate-300"
+                className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={
                   !canTeacherSubmit(displayReport.status) ||
                   submitFlowLoading ||
@@ -611,11 +827,16 @@ export default function ReportsTab({
                 }
                 onClick={handleSubmitFromModal}
               >
-                {submitFlowLoading
-                  ? "Đang lưu và submit..."
-                  : isRejectedReport
-                    ? "Submit lại"
-                    : "Submit"}
+                {submitFlowLoading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Đang lưu và submit...
+                  </span>
+                ) : (
+                  isRejectedReport ? "Submit lại" : "Submit"
+                )}
               </button>
             </div>
           </div>
