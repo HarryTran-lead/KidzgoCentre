@@ -738,7 +738,6 @@ export default function NotificationBroadcastPage() {
               </div>
             </div>
           </div>
-        </div>
       )}
 
       {activeTab === "compose" && (

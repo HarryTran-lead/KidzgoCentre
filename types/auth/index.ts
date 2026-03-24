@@ -94,7 +94,8 @@ export interface RefreshTokenResponse {
 
 // Get Profiles Response
 export interface GetProfilesResponse {
-  profiles: UserProfile[];
+  profiles?: UserProfile[];
+  data?: UserProfile[];
   selectedProfileId?: string;
 }
 
