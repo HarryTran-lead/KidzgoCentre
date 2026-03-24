@@ -287,7 +287,7 @@ export default function CreateAccountProfileModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-linear-to-r from-emerald-500 to-teal-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
+        <div className="sticky top-0 bg-linear-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <UserPlus size={24} />
             Tạo tài khoản & Profile
@@ -312,9 +312,9 @@ export default function CreateAccountProfileModal({
                   <div
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                       isActive
-                        ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
+                        ? "bg-red-100 text-red-600 border border-red-700"
                         : isCompleted
-                          ? "bg-emerald-500 text-white"
+                          ? "bg-red-500 text-white"
                           : "bg-gray-100 text-gray-400"
                     }`}
                   >
@@ -328,7 +328,7 @@ export default function CreateAccountProfileModal({
                   {idx < steps.length - 1 && (
                     <ChevronRight
                       size={14}
-                      className={`mx-1 ${isCompleted ? "text-emerald-400" : "text-gray-300"}`}
+                      className={`mx-1 ${isCompleted ? "text-red-400" : "text-gray-300"}`}
                     />
                   )}
                 </div>
@@ -349,7 +349,7 @@ export default function CreateAccountProfileModal({
           {/* Step 1: Create Account */}
           {currentStep === "account" && (
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-sm text-rose-700">
                 Tạo tài khoản đăng nhập cho phụ huynh từ thông tin lead. Mật
                 khẩu mặc định là <strong>123456</strong>.
               </div>
@@ -453,19 +453,13 @@ export default function CreateAccountProfileModal({
                   />
                 </div>
               </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-                Role được đặt mặc định là <strong>Parent</strong>. Sau khi tạo,
-                phụ huynh sẽ nhận được email để kích hoạt tài khoản.
-              </div>
-
               <div className="flex justify-end pt-4">
                 <button
                   onClick={handleCreateAccount}
                   disabled={
                     isSubmitting || !accountForm.email || !accountForm.username
                   }
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-emerald-500 to-teal-600 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -481,7 +475,7 @@ export default function CreateAccountProfileModal({
           {/* Step 2: Create Parent Profile */}
           {currentStep === "parent-profile" && (
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-sm text-rose-700">
                 <CheckCircle2 size={14} className="inline mr-1" />
                 Tài khoản đã được tạo thành công! Tiếp tục tạo profile phụ
                 huynh.
@@ -547,7 +541,7 @@ export default function CreateAccountProfileModal({
                   disabled={
                     isSubmitting || !parentProfileForm.displayName
                   }
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-emerald-500 to-teal-600 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -586,7 +580,7 @@ export default function CreateAccountProfileModal({
                         displayName: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
                   />
                 </div>
               </div>
@@ -612,7 +606,7 @@ export default function CreateAccountProfileModal({
                   disabled={
                     isSubmitting || !studentProfileForm.displayName
                   }
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-emerald-500 to-teal-600 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -630,7 +624,7 @@ export default function CreateAccountProfileModal({
           {/* Step 4: Done */}
           {currentStep === "done" && (
             <div className="text-center py-8 space-y-4">
-              <div className="w-20 h-20 rounded-full bg-linear-to-r from-emerald-400 to-teal-500 flex items-center justify-center mx-auto shadow-lg">
+              <div className="w-20 h-20 rounded-full bg-linear-to-r from-red-400 to-red-500 flex items-center justify-center mx-auto shadow-lg">
                 <CheckCircle2 size={40} className="text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900">
@@ -664,7 +658,7 @@ export default function CreateAccountProfileModal({
 
               <button
                 onClick={handleClose}
-                className="mt-4 px-8 py-2.5 rounded-lg bg-linear-to-r from-emerald-500 to-teal-600 text-white font-medium hover:shadow-lg transition-all"
+                className="mt-4 px-8 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all"
               >
                 Đóng
               </button>

@@ -83,9 +83,9 @@ export default function PlacementTestTable({
   const getStatusBadge = (statusText: string) => {
     const statusMap: Record<string, { bg: string; text: string; border: string; icon: any }> = {
       "Đã lên lịch": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: Clock },
-      "Đã hoàn thành": { bg: "from-gray-50 to-gray-100", text: "text-gray-700", border: "border-gray-200", icon: CheckCircle2 },
-      "Đã hủy": { bg: "from-gray-100 to-gray-200", text: "text-gray-800", border: "border-gray-300", icon: XCircle },
-      "Không đến": { bg: "from-gray-200 to-gray-300", text: "text-gray-900", border: "border-gray-400", icon: AlertCircle },
+      "Đã hoàn thành": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: CheckCircle2 },
+      "Đã hủy": { bg: "from-gray-50 to-gray-100", text: "text-gray-700", border: "border-gray-200", icon: XCircle },
+      "Không đến": { bg: "from-gray-50 to-gray-100", text: "text-gray-700", border: "border-gray-200", icon: AlertCircle },
     };
     const config = statusMap[statusText] || statusMap["Đã lên lịch"];
     const Icon = config.icon;
@@ -125,10 +125,10 @@ export default function PlacementTestTable({
   // Loading state
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-pink-200 bg-white p-6">
+      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-6">
         <div className="space-y-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-16 rounded-lg bg-linear-to-r from-pink-50 to-white animate-pulse" />
+            <div key={i} className="h-16 rounded-lg bg-linear-to-r from-red-100 to-red-200 animate-pulse" />
           ))}
         </div>
       </div>
@@ -138,9 +138,9 @@ export default function PlacementTestTable({
   // Empty state
   if (!testsArray || testsArray.length === 0) {
     return (
-      <div className="rounded-2xl border border-pink-200 bg-white p-12 text-center">
-        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-pink-100 to-rose-100 flex items-center justify-center">
-          <FileText size={24} className="text-pink-600" />
+      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-12 text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-r from-red-100 to-red-200">
+          <FileText size={24} className="text-red-500" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Không có placement test nào</h3>
         <p className="text-sm text-gray-500">Hãy tạo placement test mới hoặc điều chỉnh bộ lọc</p>
@@ -149,11 +149,11 @@ export default function PlacementTestTable({
   }
 
   return (
-    <div className="rounded-2xl border border-pink-200 bg-linear-to-br from-white to-pink-50/30 shadow-sm overflow-hidden">
+    <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="bg-linear-to-r from-pink-500/10 to-rose-500/10 border-b border-pink-200 px-6 py-4">
+      <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">Danh sách Placement Test</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Danh sách Placement Test</h3>
           <div className="text-sm text-gray-600">{totalCount} placement test</div>
         </div>
       </div>
@@ -161,36 +161,36 @@ export default function PlacementTestTable({
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-linear-to-r from-pink-500/5 to-rose-500/5 border-b border-pink-200">
+          <thead className="bg-linear-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
             <tr>
               <th className="py-3 px-6 text-left">
                 <button
                   type="button"
                   onClick={() => onSort?.("childName")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700"
                 >
                   Tên trẻ
-                  <ArrowUpDown size={14} className={sortKey === "childName" ? "text-pink-600" : "text-gray-400"} />
+                  <ArrowUpDown size={14} className={sortKey === "childName" ? "text-red-600" : "text-gray-400"} />
                 </button>
               </th>
               <th className="py-3 px-6 text-left">
                 <button
                   type="button"
                   onClick={() => onSort?.("leadContactName")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700"
                 >
                   Phụ huynh
-                  <ArrowUpDown size={14} className={sortKey === "leadContactName" ? "text-pink-600" : "text-gray-400"} />
+                  <ArrowUpDown size={14} className={sortKey === "leadContactName" ? "text-red-600" : "text-gray-400"} />
                 </button>
               </th>
               <th className="py-3 px-6 text-left">
                 <button
                   type="button"
                   onClick={() => onSort?.("scheduledAt")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700"
                 >
                   Thời gian
-                  <ArrowUpDown size={14} className={sortKey === "scheduledAt" ? "text-pink-600" : "text-gray-400"} />
+                  <ArrowUpDown size={14} className={sortKey === "scheduledAt" ? "text-red-600" : "text-gray-400"} />
                 </button>
               </th>
               <th className="py-3 px-6 text-left">
@@ -200,10 +200,10 @@ export default function PlacementTestTable({
                 <button
                   type="button"
                   onClick={() => onSort?.("status")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-pink-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700"
                 >
                   Trạng thái
-                  <ArrowUpDown size={14} className={sortKey === "status" ? "text-pink-600" : "text-gray-400"} />
+                  <ArrowUpDown size={14} className={sortKey === "status" ? "text-red-600" : "text-gray-400"} />
                 </button>
               </th>
               <th className="py-3 px-6 text-left">
@@ -211,16 +211,16 @@ export default function PlacementTestTable({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-pink-100">
+          <tbody className="divide-y divide-red-100">
             {testsArray.map((test) => (
               <tr
                 key={test.id}
-                className="group hover:bg-linear-to-r hover:from-pink-50/50 hover:to-white transition-all duration-200"
+                className="group hover:bg-linear-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
               >
                 {/* Tên trẻ */}
                 <td className="py-4 px-6">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-linear-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-xs">
+                    <div className="h-8 w-8 rounded-lg bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white font-semibold text-xs">
                       {test.childName ? test.childName.split(" ").map(word => word[0]).join("").toUpperCase().slice(0, 2) : "??"}
                     </div>
                     <div>
@@ -249,7 +249,7 @@ export default function PlacementTestTable({
                 <td className="py-4 px-6">
                   {test.invigilatorName ? (
                     <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-full bg-linear-to-r from-blue-400 to-cyan-400 flex items-center justify-center text-white text-xs font-semibold">
+                      <div className="h-6 w-6 rounded-full bg-linear-to-r from-red-500 to-red-600 flex items-center justify-center text-white text-xs font-semibold">
                         {test.invigilatorName.split(" ").pop()?.[0] || "N"}
                       </div>
                       <span className="font-medium text-gray-900">{test.invigilatorName}</span>
@@ -269,7 +269,7 @@ export default function PlacementTestTable({
                   <div className="relative flex items-center gap-1">
                     <button
                       onClick={() => onView(test)}
-                      className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                        className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                       title="Xem chi tiết"
                     >
                       <Eye size={14} />
@@ -280,7 +280,7 @@ export default function PlacementTestTable({
                         {test.status === "Scheduled" && onEdit && (
                           <button
                             onClick={() => onEdit(test)}
-                            className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                             title="Chỉnh sửa"
                           >
                             <Edit size={14} />
@@ -290,7 +290,7 @@ export default function PlacementTestTable({
                         {test.status === "Scheduled" && onAddResult && (
                           <button
                             onClick={() => onAddResult(test)}
-                            className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-gray-400 hover:text-green-600 cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                             title="Nhập kết quả"
                           >
                             <FileText size={14} />
@@ -315,13 +315,13 @@ export default function PlacementTestTable({
                                 onClick={() => setOpenMenuId(null)}
                               />
                               {/* Menu */}
-                              <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl border border-pink-200 bg-white shadow-lg py-1">
+                              <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl border border-red-200 bg-white shadow-lg py-1">
                                 {test.status === "Scheduled" && (
                                   <>
                                     {onNoShow && (
                                       <button
                                         onClick={() => { onNoShow(test); setOpenMenuId(null); }}
-                                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
                                       >
                                         <AlertCircle size={14} />
                                         Đánh dấu không đến
@@ -330,7 +330,7 @@ export default function PlacementTestTable({
                                     {onCancel && (
                                       <button
                                         onClick={() => { onCancel(test); setOpenMenuId(null); }}
-                                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+                                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
                                       >
                                         <Ban size={14} />
                                         Hủy lịch test
@@ -341,7 +341,7 @@ export default function PlacementTestTable({
                                 {onAddNote && (
                                   <button
                                     onClick={() => { onAddNote(test); setOpenMenuId(null); }}
-                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
                                   >
                                     <MessageSquare size={14} />
                                     Thêm ghi chú
@@ -350,7 +350,7 @@ export default function PlacementTestTable({
                                 {test.status === "Completed" && onConvertToEnrolled && (
                                   <button
                                     onClick={() => { onConvertToEnrolled(test); setOpenMenuId(null); }}
-                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
                                   >
                                     <UserCheck size={14} />
                                     Chuyển thành học viên
@@ -359,7 +359,7 @@ export default function PlacementTestTable({
                                 {test.status === "Completed" && onCreateAccount && (
                                   <button
                                     onClick={() => { onCreateAccount(test); setOpenMenuId(null); }}
-                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
                                   >
                                     <UserPlus size={14} />
                                     Tạo tài khoản & Profile
@@ -368,10 +368,10 @@ export default function PlacementTestTable({
                                 {test.status === "Completed" && onStartRegistration && (
                                   <button
                                     onClick={() => { onStartRegistration(test); setOpenMenuId(null); }}
-                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
                                   >
                                     <School size={14} />
-                                    Bắt đầu luồng đăng ký
+                                    Bắt đầu đăng ký
                                   </button>
                                 )}
                               </div>

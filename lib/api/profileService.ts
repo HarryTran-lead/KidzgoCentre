@@ -131,7 +131,7 @@ export async function approveProfileByAdmin(id: string): Promise<ProfileActionAp
  * Admin reactivates a profile that is inactive (isActive = false).
  */
 export async function reactivateProfileByAdmin(id: string): Promise<ProfileActionApiResponse> {
-  return put<ProfileActionApiResponse>(USER_ENDPOINTS.PROFILE_REACTIVATE(id), {});
+  return put<ProfileActionApiResponse>(PROFILE_ENDPOINTS.REACTIVATE(id), {});
 }
 
 /**

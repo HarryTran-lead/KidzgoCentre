@@ -66,9 +66,9 @@ export default function EnrollmentTable({
   const getStatusBadge = (status: string) => {
     const statusText = STATUS_MAPPING[status as StatusType] || status;
     const statusMap: Record<string, { bg: string; text: string; border: string; icon: any }> = {
-      "Đang học": { bg: "from-emerald-50 to-teal-50", text: "text-emerald-700", border: "border-emerald-200", icon: CheckCircle2 },
-      "Tạm nghỉ": { bg: "from-amber-50 to-orange-50", text: "text-amber-700", border: "border-amber-200", icon: PauseCircle },
-      "Đã nghỉ": { bg: "from-rose-50 to-pink-50", text: "text-rose-700", border: "border-rose-200", icon: XCircle },
+      "Đang học": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: CheckCircle2 },
+      "Tạm nghỉ": { bg: "from-gray-50 to-gray-100", text: "text-gray-700", border: "border-gray-200", icon: PauseCircle },
+      "Đã nghỉ": { bg: "from-gray-50 to-gray-100", text: "text-gray-700", border: "border-gray-200", icon: XCircle },
     };
     const config = statusMap[statusText] || statusMap["Đang học"];
     const Icon = config.icon;
@@ -116,14 +116,14 @@ export default function EnrollmentTable({
 
   const SortHeader = ({ label, sortKeyName }: { label: string; sortKeyName: string }) => (
     <th
-      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-pink-50/50 transition-colors"
+      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-red-50/50 transition-colors"
       onClick={() => onSort?.(sortKeyName)}
     >
       <div className="flex items-center gap-1">
         {label}
         <ArrowUpDown
           size={14}
-          className={`transition-colors ${sortKey === sortKeyName ? "text-pink-500" : "text-gray-300"}`}
+          className={`transition-colors ${sortKey === sortKeyName ? "text-red-600" : "text-gray-300"}`}
         />
       </div>
     </th>
@@ -131,8 +131,8 @@ export default function EnrollmentTable({
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-pink-200 bg-white overflow-hidden p-8 text-center">
-        <div className="animate-spin w-8 h-8 border-4 border-pink-300 border-t-pink-600 rounded-full mx-auto mb-4" />
+      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 overflow-hidden p-8 text-center">
+        <div className="animate-spin w-8 h-8 border-4 border-red-200 border-t-red-600 rounded-full mx-auto mb-4" />
         <p className="text-gray-500">Đang tải dữ liệu...</p>
       </div>
     );
@@ -140,7 +140,7 @@ export default function EnrollmentTable({
 
   if (enrollmentsArray.length === 0) {
     return (
-      <div className="rounded-2xl border border-pink-200 bg-white p-12 text-center">
+      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-12 text-center">
         <BookOpen size={48} className="mx-auto text-gray-300 mb-4" />
         <h3 className="text-lg font-semibold text-gray-600 mb-2">Chưa có dữ liệu ghi danh</h3>
         <p className="text-gray-400">Tạo ghi danh mới để bắt đầu.</p>
@@ -149,11 +149,17 @@ export default function EnrollmentTable({
   }
 
   return (
-    <div className="rounded-2xl border border-pink-200 bg-white overflow-hidden">
+    <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+      <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Danh sách Ghi danh</h3>
+          <div className="text-sm text-gray-600">{totalCount} ghi danh</div>
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-pink-100 bg-linear-to-r from-pink-50 to-rose-50">
+            <tr className="border-b border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5">
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">STT</th>
               <SortHeader label="Học viên" sortKeyName="studentName" />
               <SortHeader label="Lớp" sortKeyName="classTitle" />
@@ -169,7 +175,7 @@ export default function EnrollmentTable({
             {enrollmentsArray.map((enrollment, index) => (
               <tr
                 key={enrollment.id}
-                className="border-b border-pink-50 hover:bg-pink-50/30 transition-colors"
+                className="border-b border-red-100 hover:bg-red-50/30 transition-colors"
               >
                 <td className="px-4 py-3 text-gray-500">
                   {(currentPage - 1) * pageSize + index + 1}
@@ -200,7 +206,7 @@ export default function EnrollmentTable({
                     <div className="relative inline-block">
                       <button
                         onClick={() => setOpenMenuId(openMenuId === enrollment.id ? null : enrollment.id)}
-                        className="p-1.5 rounded-lg hover:bg-pink-100 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-red-100 transition-colors"
                       >
                         <MoreVertical size={16} className="text-gray-500" />
                       </button>
@@ -264,7 +270,7 @@ export default function EnrollmentTable({
                   ) : (
                     <button
                       onClick={() => onView(enrollment)}
-                      className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                       title="Xem chi tiết"
                     >
                       <Eye size={14} />
@@ -279,7 +285,7 @@ export default function EnrollmentTable({
 
       {/* Pagination Footer */}
       {totalPages > 0 && (
-        <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+        <div className="border-t border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-600">
               Hiển thị <span className="font-semibold text-gray-900">
@@ -304,9 +310,9 @@ export default function EnrollmentTable({
                     key={idx}
                     onClick={() => typeof page === "number" && onPageChange(page)}
                     disabled={page === "..."}
-                    className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                    className={`min-w-9 h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                       page === currentPage
-                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                        ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
                         : page === "..."
                         ? "cursor-default text-gray-400"
                         : "border border-red-200 hover:bg-red-50 text-gray-700"
@@ -332,4 +338,3 @@ export default function EnrollmentTable({
     </div>
   );
 }
-//f0eofejfoje

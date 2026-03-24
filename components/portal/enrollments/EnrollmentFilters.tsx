@@ -31,19 +31,41 @@ export default function EnrollmentFilters({
   ];
 
   return (
-    <div className="rounded-2xl border border-pink-200 bg-linear-to-br from-white to-pink-50 p-4 space-y-4">
-      {/* Status Filter */}
+    <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5">
+      <div className="flex flex-col gap-4 md:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Tìm theo tên học viên, lớp, mã lớp..."
+            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <select
+          value={pageSize}
+          onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+        >
+          <option value={10}>10 / trang</option>
+          <option value={20}>20 / trang</option>
+          <option value={50}>50 / trang</option>
+        </select>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <Filter size={16} className="text-gray-500" />
-        <div className="inline-flex rounded-xl border border-pink-200 bg-white p-1 flex-wrap gap-1">
+        <div className="inline-flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-white p-1">
           {statusOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => onStatusChange(option.value)}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
                 selectedStatus === option.value
-                  ? "bg-linear-to-r from-pink-500 to-rose-500 text-white shadow-sm"
-                  : "text-gray-700 hover:bg-pink-50"
+                  ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-sm"
+                  : "text-gray-700 hover:bg-gray-100"
               }`}
             >
               {option.label}
@@ -59,34 +81,8 @@ export default function EnrollmentFilters({
         </div>
       </div>
 
-      {/* Search and Page Size */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Search */}
-        <div className="relative flex-1 min-w-62.5">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Tìm theo tên học viên, lớp, mã lớp..."
-            className="w-full rounded-xl border border-pink-200 bg-white pl-10 pr-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
-          />
-        </div>
-
-        {/* Page Size */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Hiển thị:</span>
-          <select
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm focus:border-pink-500 focus:outline-none"
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-          <span className="text-sm text-gray-500">/ {totalCount} kết quả</span>
-        </div>
+      <div className="text-sm text-gray-600">
+        Hiển thị <span className="font-semibold text-red-600">{totalCount}</span> ghi danh
       </div>
     </div>
   );
