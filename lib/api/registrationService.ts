@@ -22,6 +22,15 @@ function pickItems(payload: any): any[] {
   return [];
 }
 
+function pickSuggestedClasses(payload: any): any[] {
+  if (Array.isArray(payload?.data?.suggestedClasses)) return payload.data.suggestedClasses;
+  if (Array.isArray(payload?.data?.data?.suggestedClasses)) return payload.data.data.suggestedClasses;
+  if (Array.isArray(payload?.suggestedClasses)) return payload.suggestedClasses;
+  if (Array.isArray(payload?.data?.classes)) return payload.data.classes;
+  if (Array.isArray(payload?.classes)) return payload.classes;
+  return pickItems(payload);
+}
+
 function normalizeRegistrationStatus(value: any): RegistrationStatus {
   const raw = String(value ?? "").trim();
   const normalized = raw.toLowerCase();
@@ -143,22 +152,21 @@ export async function cancelRegistration(
 
 export async function suggestClassesForRegistration(id: string): Promise<SuggestedClass[]> {
   const response = await get<any>(REGISTRATION_ENDPOINTS.SUGGEST_CLASSES(id));
-  const items = pickItems(response);
+  const items = pickSuggestedClasses(response);
   return items.map((item) => ({
     id: String(item?.id ?? ""),
     code: item?.code,
     title: item?.title,
-    programId: item?.programId,
-    programName: item?.programName,
-    branchId: item?.branchId,
-    branchName: item?.branchName,
+    status: item?.status,
+    capacity: item?.capacity,
+    currentEnrollment: item?.currentEnrollment,
+    remainingSlots: item?.remainingSlots,
     startDate: item?.startDate,
     endDate: item?.endDate,
-    capacity: item?.capacity,
-    currentStudents: item?.currentStudents,
-    availableSlots: item?.availableSlots,
     schedulePattern: item?.schedulePattern,
-    status: item?.status,
+    mainTeacherName: item?.mainTeacherName,
+    classroomName: item?.classroomName,
+    isClassStarted: item?.isClassStarted,
   })).filter((x) => x.id);
 }
 

@@ -4,16 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { X, Sparkles, ArrowRight, CheckCircle2, Loader2, School, Rocket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PlacementTest } from "@/types/placement-test";
-import type { Program } from "@/types/admin/programs";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import {
   assignClassToRegistration,
   createRegistrationFromPlacementTest,
   suggestClassesForRegistration,
   upgradeRegistration,
+  getRegistrations,
 } from "@/lib/api/registrationService";
-import { getAllProgramsForDropdown } from "@/lib/api/programService";
-import { getActiveTuitionPlans } from "@/lib/api/tuitionPlanService";
+import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
@@ -23,11 +22,69 @@ interface RegistrationFlowModalProps {
   onSuccess?: () => void;
 }
 
+type StepKey = "create" | "suggest" | "upgrade";
+
+type ProgramOption = {
+  id: string;
+  name: string;
+};
+
 function toInputDateValue(value?: string) {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
+}
+
+function formatSchedulePattern(value?: string | null) {
+  if (!value) return "-";
+  const raw = String(value).trim();
+  if (!raw) return "-";
+
+  if (!raw.includes("RRULE")) {
+    return raw.length > 80 ? `${raw.slice(0, 77)}...` : raw;
+  }
+
+  const normalized = raw.replace(/^RRULE:/i, "");
+  const tokens = normalized.split(";").map((item) => item.trim());
+  const map = new Map<string, string>();
+
+  tokens.forEach((token) => {
+    const [k, v] = token.split("=");
+    if (!k || !v) return;
+    map.set(k.toUpperCase(), v);
+  });
+
+  const dayMap: Record<string, string> = {
+    MO: "T2",
+    TU: "T3",
+    WE: "T4",
+    TH: "T5",
+    FR: "T6",
+    SA: "T7",
+    SU: "CN",
+  };
+
+  const days = (map.get("BYDAY") || "")
+    .split(",")
+    .map((d) => d.trim().toUpperCase())
+    .filter(Boolean)
+    .map((d) => dayMap[d] || d);
+
+  const hour = map.get("BYHOUR");
+  const minute = map.get("BYMINUTE") || "0";
+  const duration = map.get("DURATION");
+
+  const pieces: string[] = [];
+  if (days.length > 0) pieces.push(`Thứ: ${days.join(", ")}`);
+  if (hour) pieces.push(`Lúc: ${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`);
+  if (duration) pieces.push(`Thời lượng: ${duration} phút`);
+
+  if (pieces.length === 0) {
+    return raw.length > 80 ? `${raw.slice(0, 77)}...` : raw;
+  }
+
+  return pieces.join(" • ");
 }
 
 export default function RegistrationFlowModal({
@@ -38,10 +95,11 @@ export default function RegistrationFlowModal({
   onSuccess,
 }: RegistrationFlowModalProps) {
   const { toast } = useToast();
+  const childName = (test?.studentName || test?.childName || "").trim();
 
-  const [programs, setPrograms] = useState<Program[]>([]);
   const [tuitionPlans, setTuitionPlans] = useState<TuitionPlan[]>([]);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
+  const [activeStep, setActiveStep] = useState<StepKey>("create");
 
   const [programId, setProgramId] = useState("");
   const [tuitionPlanId, setTuitionPlanId] = useState("");
@@ -50,7 +108,29 @@ export default function RegistrationFlowModal({
   const [note, setNote] = useState("");
 
   const [registrationId, setRegistrationId] = useState("");
+  const [registrationOptions, setRegistrationOptions] = useState<
+    Array<{ id: string; label: string }>
+  >([]);
   const [isCreating, setIsCreating] = useState(false);
+
+  function toDisplayDate(value?: string) {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("vi-VN");
+  }
+
+  function toVietnameseStatus(status?: string) {
+    const map: Record<string, string> = {
+      New: "Mới",
+      WaitingForClass: "Chờ xếp lớp",
+      Studying: "Đang học",
+      Paused: "Tạm dừng",
+      Completed: "Hoàn thành",
+      Cancelled: "Đã hủy",
+    };
+    return map[String(status || "")] || status || "Không xác định";
+  }
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isWaiting, setIsWaiting] = useState(false);
@@ -61,6 +141,18 @@ export default function RegistrationFlowModal({
   const [upgradeTuitionPlanId, setUpgradeTuitionPlanId] = useState("");
 
   const canCreate = Boolean(test?.studentProfileId) && Boolean(branchId) && Boolean(programId) && Boolean(tuitionPlanId);
+
+  const programs = useMemo<ProgramOption[]>(() => {
+    const byProgram = new Map<string, string>();
+    tuitionPlans.forEach((plan) => {
+      if (!plan.isActive) return;
+      if (!plan.programId) return;
+      if (!byProgram.has(plan.programId)) {
+        byProgram.set(plan.programId, plan.programName || "Chương trình");
+      }
+    });
+    return Array.from(byProgram.entries()).map(([id, name]) => ({ id, name }));
+  }, [tuitionPlans]);
 
   const filteredTuitionPlans = useMemo(() => {
     return tuitionPlans.filter((p) => {
@@ -76,21 +168,28 @@ export default function RegistrationFlowModal({
     const loadOptions = async () => {
       try {
         setIsBootstrapping(true);
-        const [programItems, planItems] = await Promise.all([
-          getAllProgramsForDropdown(),
-          getActiveTuitionPlans(branchId),
-        ]);
+        if (!branchId) {
+          setTuitionPlans([]);
+          setProgramId("");
+          setTuitionPlanId("");
+          return;
+        }
 
-        const activePrograms = (programItems || []).filter((p) => p.isActive !== false);
-        setPrograms(activePrograms);
+        const planItems = await getTuitionPlans({
+          pageNumber: 1,
+          pageSize: 500,
+          branchId,
+        });
+
         setTuitionPlans(planItems || []);
 
         const normalizedRecommendation = (test?.programRecommendation || "").trim().toLowerCase();
         const recommendedProgram = normalizedRecommendation
-          ? activePrograms.find((p) => p.name.toLowerCase() === normalizedRecommendation)
+          ? (planItems || []).find((p) => (p.programName || "").toLowerCase() === normalizedRecommendation)
           : undefined;
 
-        const nextProgramId = recommendedProgram?.id || activePrograms[0]?.id || "";
+        const firstProgramId = (planItems || []).find((p) => p.isActive)?.programId || "";
+        const nextProgramId = recommendedProgram?.programId || firstProgramId;
         setProgramId(nextProgramId);
 
         const firstPlan = (planItems || []).find(
@@ -100,12 +199,42 @@ export default function RegistrationFlowModal({
 
         setExpectedStartDate(toInputDateValue(test?.scheduledAt));
         setPreferredSchedule("");
-        setNote(`Đăng ký từ Placement Test #${test?.id || ""}`.trim());
+        setNote(childName);
 
-        setRegistrationId("");
+        if (test?.studentProfileId) {
+          const registrationsResponse = await getRegistrations({
+            studentProfileId: test.studentProfileId,
+            branchId,
+            pageNumber: 1,
+            pageSize: 200,
+          });
+
+          const sortedRegistrations = [...(registrationsResponse.items || [])].sort((a, b) => {
+            const bt = new Date(b.createdAt || b.registrationDate || "").getTime();
+            const at = new Date(a.createdAt || a.registrationDate || "").getTime();
+            return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
+          });
+
+          const options = sortedRegistrations.map((r) => ({
+            id: r.id,
+            label: `${r.studentName || "Học viên"} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)}`,
+          }));
+          setRegistrationOptions(options);
+
+          const placementLinked = sortedRegistrations.find((r) =>
+            String(r.note || "").includes(`PlacementTest:${test.id}`)
+          );
+          const defaultRegistration = placementLinked || sortedRegistrations[0];
+          setRegistrationId(defaultRegistration?.id || "");
+        } else {
+          setRegistrationOptions([]);
+          setRegistrationId("");
+        }
+
         setSuggestedClasses([]);
         setSelectedClassId("");
         setUpgradeTuitionPlanId("");
+        setActiveStep("create");
       } catch (error) {
         console.error("Error loading registration options:", error);
         toast({
@@ -119,7 +248,7 @@ export default function RegistrationFlowModal({
     };
 
     loadOptions();
-  }, [isOpen, branchId, test?.id, test?.programRecommendation, test?.scheduledAt, toast]);
+  }, [isOpen, branchId, childName, test?.id, test?.programRecommendation, test?.scheduledAt, toast]);
 
   useEffect(() => {
     if (!programId) {
@@ -158,9 +287,20 @@ export default function RegistrationFlowModal({
       });
 
       setRegistrationId(createdId);
+      setRegistrationOptions((prev) => {
+        const exists = prev.some((item) => item.id === createdId);
+        if (exists) return prev;
+        return [
+          {
+            id: createdId,
+            label: `${childName || "Học viên"} • Mới • ${toDisplayDate(new Date().toISOString())}`,
+          },
+          ...prev,
+        ];
+      });
       toast({
         title: "Thành công",
-        description: "Đã tạo đăng ký học viên. Tiếp tục gợi ý/xếp lớp.",
+        description: "Đã tạo đăng ký học viên.",
         variant: "success",
       });
       onSuccess?.();
@@ -203,7 +343,7 @@ export default function RegistrationFlowModal({
       setIsAssigning(true);
       await assignClassToRegistration(registrationId, {
         classId: selectedClassId,
-        entryType: "immediate",
+        entryType: "Immediate",
       });
       toast({
         title: "Thành công",
@@ -228,7 +368,7 @@ export default function RegistrationFlowModal({
     try {
       setIsWaiting(true);
       await assignClassToRegistration(registrationId, {
-        entryType: "wait",
+        entryType: "Wait",
       });
       toast({
         title: "Thành công",
@@ -272,12 +412,18 @@ export default function RegistrationFlowModal({
 
   if (!isOpen) return null;
 
+  const stepTabs: Array<{ key: StepKey; label: string }> = [
+    { key: "create", label: "Bước 1: Tạo đăng ký" },
+    { key: "suggest", label: "Bước 2: Gợi ý & xếp lớp" },
+    { key: "upgrade", label: "Bước 3: Học vụ phát sinh" },
+  ];
+
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
       <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl bg-linear-to-r from-indigo-600 to-blue-600 px-6 py-4 text-white">
+        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl bg-linear-to-r from-red-700 via-red-600 to-rose-600 px-6 py-4 text-white">
           <div>
-            <h2 className="text-xl font-bold">Luồng Đăng Ký Từ Placement Test</h2>
+            <h2 className="text-xl font-bold">Đăng Ký Từ Placement Test</h2>
             <p className="text-sm text-white/85">
               Placement Test #{test?.id || "-"} • Học viên: {test?.studentName || test?.childName || "N/A"}
             </p>
@@ -288,15 +434,67 @@ export default function RegistrationFlowModal({
         </div>
 
         <div className="space-y-5 p-6">
+          <div className="rounded-2xl border border-red-200 bg-red-50/70 p-2">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+              {stepTabs.map((tab) => {
+                const isActive = tab.key === activeStep;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveStep(tab.key)}
+                    className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                      isActive
+                        ? "bg-linear-to-r from-red-600 to-rose-600 text-white shadow"
+                        : "border border-red-200 bg-white text-red-700 hover:bg-red-50"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-red-200 bg-white px-4 py-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700">Đăng ký đang thao tác (tự lấy từ hệ thống)</label>
+                <select
+                  value={registrationId}
+                  onChange={(e) => setRegistrationId(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                >
+                  <option value="">Chưa có đăng ký nào cho học viên này</option>
+                  {registrationOptions.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.id} - {item.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-xs text-gray-500">
+                Các bước thao tác độc lập. Bạn có thể chọn bất kỳ đăng ký đã có trong hệ thống.
+              </div>
+            </div>
+          </div>
+
           {!test?.studentProfileId && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Placement test này chưa có Student Profile. Vui lòng dùng chức năng "Tạo tài khoản & Profile" trước khi tạo đăng ký.
             </div>
           )}
 
-          <div className="rounded-2xl border border-indigo-200 bg-linear-to-br from-white to-indigo-50 p-4">
+          {!!test?.studentProfileId && !branchId && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Không xác định được chi nhánh của tài khoản staff đang đăng nhập. Vui lòng kiểm tra lại hồ sơ tài khoản.
+            </div>
+          )}
+
+          {activeStep === "create" && (
+          <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
             <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
-              <School size={18} className="text-indigo-600" />
+              <School size={18} className="text-red-600" />
               Bước 1: Tạo đăng ký học viên
             </div>
 
@@ -320,7 +518,7 @@ export default function RegistrationFlowModal({
                   <select
                     value={programId}
                     onChange={(e) => setProgramId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   >
                     <option value="">Chọn chương trình</option>
                     {programs.map((p) => (
@@ -336,7 +534,7 @@ export default function RegistrationFlowModal({
                   <select
                     value={tuitionPlanId}
                     onChange={(e) => setTuitionPlanId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   >
                     <option value="">Chọn gói học</option>
                     {filteredTuitionPlans.map((p) => (
@@ -353,7 +551,7 @@ export default function RegistrationFlowModal({
                     type="date"
                     value={expectedStartDate}
                     onChange={(e) => setExpectedStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   />
                 </div>
 
@@ -363,7 +561,7 @@ export default function RegistrationFlowModal({
                     value={preferredSchedule}
                     onChange={(e) => setPreferredSchedule(e.target.value)}
                     placeholder="VD: T3-T5-T7 18:00"
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   />
                 </div>
 
@@ -373,7 +571,7 @@ export default function RegistrationFlowModal({
                     rows={2}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   />
                 </div>
               </div>
@@ -384,7 +582,7 @@ export default function RegistrationFlowModal({
                 type="button"
                 onClick={handleCreateRegistration}
                 disabled={!canCreate || isCreating || isBootstrapping}
-                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-indigo-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isCreating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                 Tạo đăng ký
@@ -397,10 +595,12 @@ export default function RegistrationFlowModal({
               )}
             </div>
           </div>
+          )}
 
-          <div className="rounded-2xl border border-sky-200 bg-linear-to-br from-white to-sky-50 p-4">
+          {activeStep === "suggest" && (
+          <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
             <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
-              <ArrowRight size={18} className="text-sky-600" />
+              <ArrowRight size={18} className="text-red-600" />
               Bước 2: Gợi ý lớp phù hợp và xếp lớp
             </div>
 
@@ -409,7 +609,7 @@ export default function RegistrationFlowModal({
                 type="button"
                 onClick={handleSuggestClasses}
                 disabled={!registrationId || isSuggesting}
-                className="inline-flex items-center gap-2 rounded-xl border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSuggesting ? <Loader2 size={14} className="animate-spin" /> : <School size={14} />}
                 Gợi ý lớp phù hợp
@@ -419,7 +619,7 @@ export default function RegistrationFlowModal({
                 type="button"
                 onClick={handleMoveToWaitingList}
                 disabled={!registrationId || isWaiting}
-                className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isWaiting ? "Đang xử lý..." : "Đưa vào waiting list"}
               </button>
@@ -437,13 +637,16 @@ export default function RegistrationFlowModal({
                         onClick={() => setSelectedClassId(String(cls.id))}
                         className={`rounded-xl border px-4 py-3 text-left transition-colors ${
                           isSelected
-                            ? "border-sky-500 bg-sky-100"
-                            : "border-sky-200 bg-white hover:bg-sky-50"
+                            ? "border-red-500 bg-red-100"
+                            : "border-red-200 bg-white hover:bg-red-50"
                         }`}
                       >
                         <div className="text-sm font-semibold text-gray-900">{cls.title || cls.code || cls.id}</div>
                         <div className="mt-1 text-xs text-gray-600">
-                          Còn chỗ: {cls.availableSlots ?? "-"} • Lịch: {cls.schedulePattern || "-"}
+                          Còn chỗ: {typeof cls.remainingSlots === "number" ? cls.remainingSlots : "-"}
+                        </div>
+                        <div className="mt-0.5 text-xs text-gray-600" title={cls.schedulePattern || ""}>
+                          Lịch: {formatSchedulePattern(cls.schedulePattern)}
                         </div>
                       </button>
                     );
@@ -454,17 +657,19 @@ export default function RegistrationFlowModal({
                   type="button"
                   onClick={handleAssignClass}
                   disabled={!selectedClassId || isAssigning}
-                  className="rounded-xl bg-linear-to-r from-sky-600 to-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isAssigning ? "Đang xếp lớp..." : "Xếp vào lớp đã chọn"}
                 </button>
               </div>
             )}
           </div>
+          )}
 
-          <div className="rounded-2xl border border-violet-200 bg-linear-to-br from-white to-violet-50 p-4">
+          {activeStep === "upgrade" && (
+          <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
             <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
-              <Rocket size={18} className="text-violet-600" />
+              <Rocket size={18} className="text-red-600" />
               Bước 3: Học vụ phát sinh (Upgrade)
             </div>
 
@@ -474,7 +679,7 @@ export default function RegistrationFlowModal({
                 <select
                   value={upgradeTuitionPlanId}
                   onChange={(e) => setUpgradeTuitionPlanId(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                 >
                   <option value="">Chọn gói để upgrade</option>
                   {filteredTuitionPlans
@@ -491,12 +696,13 @@ export default function RegistrationFlowModal({
                 type="button"
                 onClick={handleUpgrade}
                 disabled={!registrationId || !upgradeTuitionPlanId || isUpgrading}
-                className="rounded-xl bg-linear-to-r from-violet-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isUpgrading ? "Đang upgrade..." : "Upgrade"}
               </button>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

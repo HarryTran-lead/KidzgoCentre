@@ -101,7 +101,7 @@ export default function ConvertToEnrolledModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         {/* Header */}
-        <div className="bg-linear-to-r from-green-500 to-emerald-600 text-white p-5 rounded-t-2xl flex justify-between items-center">
+        <div className="bg-linear-to-r from-red-600 to-red-700 text-white p-5 rounded-t-2xl flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <UserCheck size={22} />
             Chuyển thành học viên
@@ -218,7 +218,7 @@ export default function ConvertToEnrolledModal({
             <button
               type="submit"
               disabled={isSubmitting || !studentProfileId}
-              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-green-500 to-emerald-500 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
             >
               {isSubmitting ? "Đang xử lý..." : "Xác nhận chuyển đổi"}
             </button>

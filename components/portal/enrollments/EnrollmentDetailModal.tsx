@@ -95,7 +95,7 @@ export default function EnrollmentDetailModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-linear-to-r from-purple-500 to-indigo-600 text-white p-5 rounded-t-2xl flex justify-between items-center">
+        <div className="bg-linear-to-r from-red-600 to-red-700 text-white p-5 rounded-t-2xl flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <BookOpen size={22} />
             Chi tiết ghi danh

@@ -19,7 +19,7 @@ export interface UpdateRegistrationRequest {
 
 export interface AssignClassRequest {
   classId?: string | null;
-  entryType?: "immediate" | "wait";
+  entryType?: "Immediate" | "Wait";
 }
 
 export interface Registration {
@@ -50,19 +50,18 @@ export interface Registration {
 
 export interface SuggestedClass {
   id: string;
-  code?: string;
-  title?: string;
-  programId?: string;
-  programName?: string;
-  branchId?: string;
-  branchName?: string;
-  startDate?: string;
-  endDate?: string;
-  capacity?: number;
-  currentStudents?: number;
-  availableSlots?: number;
-  schedulePattern?: string;
-  status?: RegistrationStatus;
+  code: string;
+  title: string;
+  status: "Planned" | "Ongoing" | "Completed" | "Cancelled";
+  capacity: number;
+  currentEnrollment: number;
+  remainingSlots: number;
+  startDate: string;
+  endDate: string;
+  schedulePattern: string;
+  mainTeacherName: string;
+  classroomName: string | null;
+  isClassStarted: boolean;
 }
 
 export interface RegistrationFilterParams {
