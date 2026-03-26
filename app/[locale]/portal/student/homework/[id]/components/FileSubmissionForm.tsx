@@ -197,33 +197,33 @@ export default function FileSubmissionForm({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-        <Upload size={20} />
+    <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-purple-900/20">
+      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <Upload size={20} className="text-purple-400" />
         Nộp bài
       </h2>
 
       <div className="space-y-4">
-        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-          <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-blue-900">
-            <span className="rounded-full bg-white px-3 py-1">Cách nộp phù hợp</span>
+        <div className="rounded-xl border border-purple-500/30 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 p-4 backdrop-blur-sm">
+          <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+            <span className="rounded-full bg-purple-500/30 border border-purple-400/40 text-purple-300 px-3 py-1">Cách nộp phù hợp</span>
             {isFileSubmission && (
-              <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">
+              <span className="rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 px-3 py-1">
                 Tải file
               </span>
             )}
             {isTextSubmission && (
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
+              <span className="rounded-full bg-green-500/20 border border-green-400/30 text-green-300 px-3 py-1">
                 Viết câu trả lời
               </span>
             )}
             {(isFileSubmission || isLinkSubmission) && (
-              <span className="rounded-full bg-indigo-100 px-3 py-1 text-indigo-700">
+              <span className="rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 px-3 py-1">
                 Dán link bài làm
               </span>
             )}
           </div>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
+          <p className="mt-3 text-sm leading-6 text-slate-400">
             {isFileSubmission
               ? "Chọn file để tải lên trực tiếp. Nếu bài làm nằm trên Google Drive hoặc Docs, bạn có thể dán thêm link bên dưới."
               : isLinkSubmission
@@ -233,9 +233,9 @@ export default function FileSubmissionForm({
         </div>
 
         {isFileSubmission && (
-          <div className="space-y-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+          <div className="space-y-3 rounded-xl border border-dashed border-purple-500/30 bg-slate-800/40 p-4">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-medium text-slate-300">
                 Tải file bài làm
               </label>
               <p className="text-sm text-slate-500">
@@ -248,10 +248,10 @@ export default function FileSubmissionForm({
               multiple
               onChange={handleFileSelect}
               disabled={isUploadingFiles}
-              className="file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 block w-full text-sm text-slate-500 disabled:opacity-60"
+              className="file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-blue-500 file:to-purple-500 file:text-white hover:file:from-blue-600 hover:file:to-purple-600 block w-full text-sm text-slate-400 disabled:opacity-60 cursor-pointer"
             />
             {isUploadingFiles && (
-              <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-slate-600">
+              <div className="flex items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-2 text-sm text-purple-300 border border-purple-500/20">
                 <Loader2 size={16} className="animate-spin" />
                 Đang tải file lên...
               </div>
@@ -261,10 +261,10 @@ export default function FileSubmissionForm({
                 {uploadedFiles.map((file, idx) => (
                   <div
                     key={`${file.url}-${idx}`}
-                    className="flex items-center justify-between rounded-lg bg-white p-3"
+                    className="flex items-center justify-between rounded-xl bg-slate-800/60 border border-purple-500/20 p-3"
                   >
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-slate-800">
+                      <div className="truncate text-sm font-medium text-white">
                         {file.name}
                       </div>
                       <div className="text-xs text-slate-500">
@@ -277,10 +277,10 @@ export default function FileSubmissionForm({
                     </div>
                     <button
                       onClick={() => handleRemoveFile(idx)}
-                      className="rounded p-1 hover:bg-slate-100"
+                      className="rounded p-1 hover:bg-rose-500/20 transition"
                       aria-label={`Xóa ${file.name}`}
                     >
-                      <Trash2 size={16} className="text-rose-600" />
+                      <Trash2 size={16} className="text-rose-400" />
                     </button>
                   </div>
                 ))}
@@ -291,7 +291,7 @@ export default function FileSubmissionForm({
 
         {isTextSubmission && (
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-medium text-slate-300">
               Nhập văn bản (nếu cần)
             </label>
             <textarea
@@ -299,14 +299,14 @@ export default function FileSubmissionForm({
               onChange={(e) => setSubmissionText(e.target.value)}
               rows={6}
               placeholder="Nhập nội dung bài làm..."
-              className="w-full rounded-lg border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-purple-500/30 bg-slate-800/60 px-4 py-3 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400/50"
             />
           </div>
         )}
 
         {(isFileSubmission || isLinkSubmission) && (
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-medium text-slate-300">
               Gắn link (Google Docs, Drive, etc.)
             </label>
             <div className="flex gap-2">
@@ -315,11 +315,11 @@ export default function FileSubmissionForm({
                 value={newLink}
                 onChange={(e) => setNewLink(e.target.value)}
                 placeholder="https://..."
-                className="flex-1 rounded-lg border border-slate-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 rounded-xl border border-purple-500/30 bg-slate-800/60 px-4 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400/50"
               />
               <button
                 onClick={handleAddLink}
-                className="rounded-lg bg-slate-100 px-4 py-2 font-medium hover:bg-slate-200"
+                className="rounded-xl bg-purple-500/20 border border-purple-500/30 px-4 py-2 font-medium text-purple-300 hover:bg-purple-500/30 hover:border-purple-400/40 transition"
               >
                 Thêm
               </button>
@@ -329,13 +329,13 @@ export default function FileSubmissionForm({
                 {submissionLinks.map((link, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between rounded-lg bg-slate-50 p-3"
+                    className="flex items-center justify-between rounded-xl bg-slate-800/40 border border-purple-500/20 p-3"
                   >
                     <a
                       href={link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="truncate text-sm text-blue-600 hover:underline"
+                      className="truncate text-sm text-blue-400 hover:text-blue-300 hover:underline"
                     >
                       {link}
                     </a>
@@ -345,9 +345,9 @@ export default function FileSubmissionForm({
                           prev.filter((_, i) => i !== idx)
                         )
                       }
-                      className="rounded p-1 hover:bg-slate-200"
+                      className="rounded p-1 hover:bg-rose-500/20 transition"
                     >
-                      <Trash2 size={16} className="text-rose-600" />
+                      <Trash2 size={16} className="text-rose-400" />
                     </button>
                   </div>
                 ))}
@@ -357,8 +357,8 @@ export default function FileSubmissionForm({
         )}
 
         {/* Submit Button */}
-        <div className="flex items-center justify-between border-t pt-4">
-          <div className="text-sm text-slate-600">
+        <div className="flex items-center justify-between border-t border-purple-500/20 pt-4">
+          <div className="text-sm text-slate-500">
             {assignment.maxResubmissions && (
               <span>
                 Được phép nộp lại tối đa {assignment.maxResubmissions} lần
@@ -370,7 +370,7 @@ export default function FileSubmissionForm({
             disabled={
               attachmentSourcesCount === 0 && !submissionText.trim() || isSubmitting || isUploadingFiles
             }
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-6 py-3 font-semibold text-white transition hover:from-blue-600 hover:to-purple-600 shadow-lg shadow-purple-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:from-slate-600 disabled:to-slate-700 cursor-pointer"
           >
             {isSubmitting ? (
               <Loader2 size={18} className="animate-spin" />
