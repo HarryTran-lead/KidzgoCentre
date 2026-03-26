@@ -16,9 +16,7 @@ import {
   ChevronRight,
   AlertCircle,
 } from "lucide-react";
-import { Card } from "@/components/lightswind/card";
 import { Button } from "@/components/lightswind/button";
-import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
 import type {
   AssignmentListItem,
   SortOption,
@@ -121,31 +119,31 @@ function StatusBadge({
 }) {
   const config: Record<string, { label: string; className: string }> = {
     SUBMITTED: {
-      label: score !== undefined && score !== null ? `Đã nộp - ${score}/${maxScore}` : "Đã nộp",
-      className: "bg-emerald-100 text-emerald-700",
+      label: score !== undefined && score !== null ? `${score}/${maxScore}` : "Đã nộp",
+      className: "bg-green-500/30 border border-green-400/40 text-green-300",
     },
     ASSIGNED: {
       label: "Chưa nộp",
-      className: "bg-amber-100 text-amber-700",
+      className: "bg-amber-500/30 border border-amber-400/40 text-amber-300",
     },
     PENDING: {
       label: "Chờ chấm",
-      className: "bg-blue-100 text-blue-700",
+      className: "bg-blue-500/30 border border-blue-400/40 text-blue-300",
     },
     LATE: {
       label: "Nộp trễ",
-      className: "bg-yellow-100 text-yellow-700",
+      className: "bg-yellow-500/30 border border-yellow-400/40 text-yellow-300",
     },
     MISSING: {
       label: "Quá hạn",
-      className: "bg-rose-100 text-rose-700",
+      className: "bg-rose-500/30 border border-rose-400/40 text-rose-300",
     },
   };
 
   const currentConfig = config[status] || config.ASSIGNED;
 
   return (
-    <span className={`px-3 py-1 rounded-lg text-[11px] font-bold ${currentConfig.className}`}>
+    <span className={`px-3 py-1 rounded-lg text-[11px] font-bold backdrop-blur-sm ${currentConfig.className}`}>
       {currentConfig.label}
     </span>
   );
@@ -168,26 +166,26 @@ function TodayHomeworkSection({
         if (a.status === 'SUBMITTED' || a.status === 'LATE') return false;
         return isToday(a.dueAt);
       })
-      .slice(0, 3); // Giới hạn 3 bài để tránh quá tải
+      .slice(0, 3);
   }, [assignments]);
 
   if (todayAssignments.length === 0) return null;
 
   return (
-    <div className="mb-6 bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl p-4 shadow-lg">
+    <div className="mb-6 rounded-2xl p-4 border border-purple-500/30 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 backdrop-blur-xl shadow-lg shadow-purple-900/30">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center shadow-lg shadow-orange-500/40">
             <AlertCircle size={18} className="text-white" />
           </div>
           <h2 className="text-white font-bold text-lg">Bài tập hạn hôm nay</h2>
-          <span className="bg-white/30 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+          <span className="bg-orange-500/30 border border-orange-400/40 text-orange-300 px-2 py-0.5 rounded-full text-xs font-bold">
             {todayAssignments.length}
           </span>
         </div>
         <button
           onClick={onViewAll}
-          className="text-white/90 hover:text-white text-sm font-semibold flex items-center gap-1"
+          className="text-purple-300 hover:text-white text-sm font-semibold flex items-center gap-1 transition-colors"
         >
           Xem tất cả <ChevronRight size={16} />
         </button>
@@ -197,22 +195,22 @@ function TodayHomeworkSection({
         {todayAssignments.map((assignment) => (
           <div
             key={assignment.id}
-            className="bg-white/90 backdrop-blur rounded-xl p-3 flex items-start gap-3 cursor-pointer hover:bg-white transition-all"
+            className="rounded-xl p-3 flex items-start gap-3 cursor-pointer border border-purple-500/20 bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-sm hover:border-purple-400/50 hover:from-slate-900/90 transition-all"
             onClick={() => onAssignmentClick(assignment.id)}
           >
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/30">
               {getTypeIcon(assignment.submissionType || "")}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-sm text-slate-800 line-clamp-1">
+              <h3 className="font-bold text-sm text-white line-clamp-1">
                 {assignment.assignmentTitle}
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+              <p className="text-xs text-purple-300 mt-0.5 line-clamp-1">
                 {assignment.classTitle}
               </p>
               <div className="flex items-center gap-2 mt-1">
-                <Clock size={10} className="text-orange-500" />
-                <span className="text-[10px] font-semibold text-orange-600">
+                <Clock size={10} className="text-orange-400" />
+                <span className="text-[10px] font-semibold text-orange-400">
                   {formatDate(assignment.dueAt, locale)}
                 </span>
               </div>
@@ -355,7 +353,7 @@ export default function HomeworkPage() {
   }, [locale, router]);
 
   // Tab options
-  const homeworkTabs: TabOption[] = useMemo(() => [
+  const homeworkTabs = useMemo(() => [
     { id: 'ALL', label: 'Tất cả', count: stats.total },
     { id: 'PENDING', label: 'Chưa nộp', count: stats.notSubmitted },
     { id: 'SUBMITTED', label: 'Đã nộp', count: stats.submitted },
@@ -368,8 +366,8 @@ export default function HomeworkPage() {
       {/* Header Section */}
       <div className={`shrink-0 px-6 pt-6 pb-4 transition-all duration-700 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
         <div className="mb-6">
-          <h1 className="text-5xl font-bold text-white drop-shadow-lg">Bài tập</h1>
-          <p className="text-white mt-1 font-semibold text-base">Quản lý và nộp bài tập của bạn</p>
+          <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-400 to-purple-400 drop-shadow-lg">Bài tập</h1>
+          <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 drop-shadow-lg">Quản lý và nộp bài tập của bạn</p>
         </div>
 
         {/* Today's Homework Section */}
@@ -381,37 +379,50 @@ export default function HomeworkPage() {
         />
 
         {/* Filters Row */}
-        <FilterTabs
-          tabs={homeworkTabs}
-          activeTab={statusFilter}
-          onChange={setStatusFilter}
-          variant="outline"
-          size="md"
-          className="mb-4"
-        />
+        <div className="flex items-center gap-2 flex-wrap mb-4">
+          {homeworkTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setStatusFilter(tab.id)}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
+                statusFilter === tab.id
+                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-purple-500/30"
+                  : "bg-slate-800/50 border border-purple-500/30 text-purple-300 hover:border-purple-400/50 hover:text-white backdrop-blur-sm"
+              }`}
+            >
+              {tab.label}
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                statusFilter === tab.id ? "bg-white/20" : "bg-purple-500/20"
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
 
         {/* Search & Sort Bar */}
         <div className="flex gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400" size={18} />
             <input
               type="text"
               placeholder="Tìm kiếm bài tập..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-white border-none rounded-xl text-slate-950 placeholder:text-slate-500 text-[13px] font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-sm"
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-900/80 border border-purple-500/30 rounded-xl text-purple-100 placeholder:text-purple-400/60 text-[13px] font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-lg backdrop-blur-sm"
             />
           </div>
           <div className="relative">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="appearance-none pl-4 pr-10 py-2.5 bg-white border-none rounded-xl text-slate-950 text-[13px] font-bold focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-sm cursor-pointer"
+              className="appearance-none pl-4 pr-10 py-2.5 bg-slate-900/80 border border-purple-500/30 rounded-xl text-purple-100 text-[13px] font-bold focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-lg cursor-pointer backdrop-blur-sm"
             >
               <option value="DUE_DATE_ASC">Hạn nộp: Gần nhất</option>
               <option value="DUE_DATE_DESC">Hạn nộp: Xa nhất</option>
               <option value="STATUS">Trạng thái</option>
             </select>
+            <ChevronRight size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 rotate-90 pointer-events-none" />
           </div>
         </div>
       </div>
@@ -457,41 +468,47 @@ export default function HomeworkPage() {
               const isDueToday = isToday(assignment.dueAt) && !isSubmitted;
 
               return (
-                <Card
+                <div
                   key={assignment.id}
-                  hoverable
                   onClick={() => handleAssignmentClick(assignment.id)}
-                  className={`bg-white/90 backdrop-blur-xl border rounded-2xl overflow-hidden cursor-pointer flex flex-col shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 ${
-                    isDueToday ? 'ring-2 ring-orange-400 ring-offset-2' : ''
-                  } ${
-                    isSubmitted
-                      ? isLate ? 'border-amber-200/80' : 'border-emerald-200/80'
-                      : 'border-white/60'
+                  className={`rounded-2xl overflow-hidden cursor-pointer flex flex-col border backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl group ${
+                    isDueToday
+                      ? 'border-orange-500/50 bg-gradient-to-b from-orange-500/10 to-slate-900/90 shadow-orange-500/20'
+                      : isSubmitted
+                        ? isLate
+                          ? 'border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-slate-900/90 shadow-amber-500/10'
+                          : 'border-green-500/30 bg-gradient-to-b from-green-500/10 to-slate-900/90 shadow-green-500/10'
+                        : 'border-purple-500/30 bg-gradient-to-b from-purple-500/10 to-slate-900/90 shadow-purple-500/10 hover:border-purple-400/50'
                   }`}
                 >
-                  {/* Cover Image Area */}
+                  {/* Cover Area */}
                   <div className={`relative w-full h-36 flex items-center justify-center overflow-hidden ${
-                    isDueToday ? 'bg-gradient-to-br from-orange-400 via-pink-500 to-purple-500' :
+                    isDueToday ? 'bg-gradient-to-br from-orange-500/30 via-pink-500/20 to-purple-500/20' :
                     isSubmitted
-                      ? isLate ? 'bg-gradient-to-br from-amber-200 via-orange-200 to-yellow-200' : 'bg-gradient-to-br from-emerald-200 via-teal-200 to-cyan-200'
-                      : 'bg-gradient-to-br from-violet-300 via-purple-300 to-fuchsia-300'
+                      ? isLate ? 'bg-gradient-to-br from-amber-500/20 via-orange-500/20 to-yellow-500/20' : 'bg-gradient-to-br from-green-500/20 via-emerald-500/20 to-teal-500/20'
+                      : 'bg-gradient-to-br from-violet-500/20 via-purple-500/20 to-fuchsia-500/20'
                   }`}>
-                    {/* Colorful decoration blobs */}
-                    <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-white/40" />
-                    <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-white/30" />
-                    <div className="absolute top-3 right-8 w-6 h-6 rounded-full bg-white/40" />
+                    {/* Decoration blobs */}
+                    <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-purple-500/20" />
+                    <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-blue-500/20" />
+                    <div className="absolute top-3 right-8 w-6 h-6 rounded-full bg-pink-500/20" />
 
                     {/* Icon */}
                     <div className="relative z-10 flex flex-col items-center">
-                      <div className={`w-16 h-16 rounded-2xl backdrop-blur-sm flex items-center justify-center shadow-md bg-white/80`}>
+                      <div className={`w-16 h-16 rounded-2xl backdrop-blur-sm flex items-center justify-center shadow-lg border ${
+                        isDueToday ? 'bg-orange-500/40 border-orange-400/40' :
+                        isSubmitted
+                          ? isLate ? 'bg-amber-500/40 border-amber-400/40' : 'bg-green-500/40 border-green-400/40'
+                          : 'bg-purple-500/40 border-purple-400/40'
+                      }`}>
                         {isSubmitted ? (
-                          <CheckCircle size={32} className={isLate ? 'text-amber-500' : 'text-emerald-500'} />
+                          <CheckCircle size={32} className={isLate ? 'text-amber-400' : 'text-green-400'} />
                         ) : (
                           getTypeIcon(assignment.submissionType || "")
                         )}
                       </div>
                       {isDueToday && (
-                        <span className="absolute -bottom-6 whitespace-nowrap bg-orange-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">
+                        <span className="absolute -bottom-6 whitespace-nowrap bg-gradient-to-r from-orange-500 to-pink-500 text-white px-3 py-1 rounded-full text-[10px] font-bold shadow-lg">
                           Hạn hôm nay
                         </span>
                       )}
@@ -510,7 +527,7 @@ export default function HomeworkPage() {
                     {!isSubmitted && (
                       <button
                         onClick={(e) => { e.stopPropagation(); }}
-                        className="absolute bottom-2 right-2 z-20 w-8 h-8 rounded-full bg-yellow-400 hover:bg-yellow-500 shadow-md flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110"
+                        className="absolute bottom-2 right-2 z-20 w-8 h-8 rounded-full bg-yellow-400/80 hover:bg-yellow-400 shadow-md flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 backdrop-blur-sm"
                       >
                         <HelpCircle size={18} className="text-violet-600" />
                       </button>
@@ -518,9 +535,9 @@ export default function HomeworkPage() {
 
                     {/* Submitted overlay */}
                     {isSubmitted && (
-                      <div className="absolute bottom-2 right-2 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-white/80 backdrop-blur-sm shadow-sm">
-                        <CheckCircle size={12} className={isLate ? 'text-amber-500' : 'text-emerald-500'} />
-                        <span className={`text-[10px] font-bold ${isLate ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      <div className="absolute bottom-2 right-2 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-slate-900/80 backdrop-blur-sm shadow-sm border border-green-500/20">
+                        <CheckCircle size={12} className={isLate ? 'text-amber-400' : 'text-green-400'} />
+                        <span className={`text-[10px] font-bold ${isLate ? 'text-amber-300' : 'text-green-300'}`}>
                           {isLate ? 'Nộp trễ' : 'Đã nộp'}
                         </span>
                       </div>
@@ -529,63 +546,66 @@ export default function HomeworkPage() {
 
                   {/* Card Body */}
                   <div className="p-3 flex flex-col flex-1">
-                    {/* Title */}
                     <h3 className={`font-bold text-[13px] leading-snug mb-1 line-clamp-2 ${
-                      isSubmitted ? 'text-slate-700' : 'text-slate-950'
+                      isSubmitted ? 'text-slate-400' : 'text-white'
                     }`}>
                       {assignment.assignmentTitle}
                     </h3>
 
-                    {/* Class & Type */}
-                    <div className={`flex items-center gap-1.5 text-[11px] font-semibold mb-2 ${
-                      isSubmitted ? 'text-slate-500' : 'text-slate-600'
-                    }`}>
+                    <div className={`flex items-center gap-1.5 text-[11px] font-semibold mb-2 ${isSubmitted ? 'text-slate-500' : 'text-purple-300'}`}>
                       <BookOpen size={11} />
                       <span className="truncate">{assignment.classTitle}</span>
-                      <span className="text-slate-400">•</span>
-                      <span className={isSubmitted ? 'text-slate-400' : 'text-slate-500'}>
-                        {getTypeLabel(assignment.submissionType || "")}
-                      </span>
+                      <span className="text-purple-500">•</span>
+                      <span>{getTypeLabel(assignment.submissionType || "")}</span>
                     </div>
 
-                    {/* Dates */}
                     <div className="space-y-0.5 mb-3 mt-auto">
                       {assignment.submittedAt && (
-                        <span className={`text-[11px] font-semibold flex items-center gap-1.5 ${isLate ? 'text-amber-600' : 'text-emerald-600'}`}>
+                        <span className={`text-[11px] font-semibold flex items-center gap-1.5 ${isLate ? 'text-amber-400' : 'text-green-400'}`}>
                           <Calendar size={12} /> Đã nộp: {formatDate(assignment.submittedAt, locale)}
                         </span>
                       )}
                       <span className={`text-[11px] flex items-center gap-1.5 font-bold ${
-                        isDueToday ? 'text-orange-600' :
+                        isDueToday ? 'text-orange-400' :
                         isLate ? 'text-amber-500' : 
-                        isSubmitted ? 'text-slate-500' : 'text-violet-600'
+                        isSubmitted ? 'text-slate-500' : 'text-purple-400'
                       }`}>
                         <Clock size={12} /> Hạn: {formatDate(assignment.dueAt, locale)}
                         {isTomorrow(assignment.dueAt) && !isSubmitted && (
-                          <span className="ml-1 text-[9px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">
+                          <span className="ml-1 text-[9px] bg-yellow-500/20 text-yellow-300 border border-yellow-400/30 px-1.5 py-0.5 rounded-full">
                             Ngày mai
                           </span>
                         )}
                       </span>
                     </div>
 
-                    {/* Action Button */}
-                    <Button
-                      size="sm"
-                      className={`w-full h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg mt-auto cursor-pointer transition-all duration-200 ${
+                    <button
+                      className={`w-full h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg mt-auto cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 ${
                         isSubmitted
                           ? isLate
-                            ? 'bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white'
-                            : 'bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-white'
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+                            : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white'
                           : isDueToday
                             ? 'bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white animate-pulse'
-                            : 'bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white hover:shadow-violet-300'
+                            : 'bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white'
                       }`}
                     >
-                      {isSubmitted ? "Xem lại" : isDueToday ? "Nộp gấp" : "Nộp bài"}
-                    </Button>
+                      {isSubmitted ? (
+                        <>
+                          <CheckCircle size={14} /> Xem lại
+                        </>
+                      ) : isDueToday ? (
+                        <>
+                          <Clock size={14} /> Nộp gấp
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight size={14} /> Nộp bài
+                        </>
+                      )}
+                    </button>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>
