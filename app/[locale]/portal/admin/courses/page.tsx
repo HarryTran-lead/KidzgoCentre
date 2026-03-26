@@ -23,8 +23,17 @@ import {
   Power,
   PowerOff
 } from "lucide-react";
-import { fetchAdminPrograms, createAdminProgram, fetchAdminProgramDetail, updateAdminProgram, toggleProgramStatus, normalizeIsActive } from "@/app/api/admin/programs";
-import type { CourseRow, CreateProgramRequest } from "@/types/admin/programs";
+import {
+  fetchAdminPrograms,
+  createAdminProgram,
+  fetchAdminProgramDetail,
+  updateAdminProgram,
+  toggleProgramStatus,
+  normalizeIsActive,
+  updateAdminProgramMonthlyLeaveLimit,
+  extractProgramMonthlyLeaveLimit,
+} from "@/app/api/admin/programs";
+import type { CourseRow, CreateProgramRequest, ProgramDetail } from "@/types/admin/programs";
 import { getAllBranches } from "@/lib/api/branchService";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
@@ -524,9 +533,18 @@ export default function Page() {
   const [selectedCourse, setSelectedCourse] = useState<CourseRow | null>(null);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [selectedCourseDetail, setSelectedCourseDetail] = useState<any | null>(null);
+  const [selectedCourseDetail, setSelectedCourseDetail] = useState<ProgramDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [leaveLimitDraft, setLeaveLimitDraft] = useState("");
+  const [isSavingLeaveLimit, setIsSavingLeaveLimit] = useState(false);
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedCourseDetail(null);
+    setLeaveLimitDraft("");
+    setIsSavingLeaveLimit(false);
+  };
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -614,6 +632,14 @@ export default function Page() {
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pagedRows = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const currentLeaveLimit = extractProgramMonthlyLeaveLimit(selectedCourseDetail);
+  const leaveLimitValue = Number(leaveLimitDraft);
+  const canSaveLeaveLimit =
+    leaveLimitDraft.trim() !== "" &&
+    Number.isInteger(leaveLimitValue) &&
+    leaveLimitValue > 0 &&
+    leaveLimitValue !== currentLeaveLimit &&
+    !isSavingLeaveLimit;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -806,9 +832,12 @@ export default function Page() {
       setLoadingDetail(true);
       setShowDetailModal(true);
       setSelectedCourseDetail(null);
+      setLeaveLimitDraft("");
 
       const detail = await fetchAdminProgramDetail(row.id);
       setSelectedCourseDetail(detail);
+      const limit = extractProgramMonthlyLeaveLimit(detail);
+      setLeaveLimitDraft(limit !== null ? String(limit) : "");
     } catch (err: any) {
       console.error("Failed to load program detail:", err);
       toast({
@@ -816,9 +845,74 @@ export default function Page() {
         description: err?.message || "Không thể tải thông tin chi tiết khóa học.",
         type: "destructive",
       });
-      setShowDetailModal(false);
+      closeDetailModal();
     } finally {
       setLoadingDetail(false);
+    }
+  };
+
+  const handleSaveMonthlyLeaveLimit = async () => {
+    if (!selectedCourseDetail?.id) return;
+
+    const maxLeavesPerMonth = Number(leaveLimitDraft);
+    if (!Number.isInteger(maxLeavesPerMonth) || maxLeavesPerMonth <= 0) {
+      toast({
+        title: "Giá trị chưa hợp lệ",
+        description: "Số buổi nghỉ tối đa trong tháng phải lớn hơn 0.",
+        type: "warning",
+      });
+      return;
+    }
+
+    try {
+      setIsSavingLeaveLimit(true);
+
+      const updated = await updateAdminProgramMonthlyLeaveLimit(
+        selectedCourseDetail.id,
+        maxLeavesPerMonth
+      );
+
+      let refreshedDetail: ProgramDetail | null = null;
+      try {
+        refreshedDetail = await fetchAdminProgramDetail(selectedCourseDetail.id);
+      } catch (refreshError) {
+        console.warn("Failed to refresh program detail after leave limit update:", refreshError);
+      }
+
+      const nextLimit =
+        extractProgramMonthlyLeaveLimit(refreshedDetail) ??
+        updated.maxLeavesPerMonth ??
+        maxLeavesPerMonth;
+
+      const baseDetail = refreshedDetail ?? selectedCourseDetail;
+      setSelectedCourseDetail({
+        ...baseDetail,
+        maxLeavesPerMonth: nextLimit,
+        monthlyLeaveLimit: nextLimit,
+        programLeavePolicy: {
+          ...(baseDetail.programLeavePolicy ?? {}),
+          maxLeavesPerMonth: nextLimit,
+        },
+      });
+      setLeaveLimitDraft(String(nextLimit));
+
+      toast({
+        title: "Đã cập nhật giới hạn nghỉ",
+        description:
+          "Chỉ các lớp được tạo mới sau thay đổi này mới nhận giới hạn nghỉ mới.",
+        type: "success",
+      });
+    } catch (err: any) {
+      console.error("Failed to update monthly leave limit:", err);
+      toast({
+        title: "Không thể cập nhật",
+        description:
+          err?.message ||
+          "Không thể lưu số buổi nghỉ tối đa theo tháng cho chương trình này.",
+        type: "destructive",
+      });
+    } finally {
+      setIsSavingLeaveLimit(false);
     }
   };
 
@@ -1238,8 +1332,7 @@ export default function Page() {
                 </div>
                 <button
                   onClick={() => {
-                    setShowDetailModal(false);
-                    setSelectedCourseDetail(null);
+                    closeDetailModal();
                   }}
                   className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
                   aria-label="Đóng"
@@ -1280,6 +1373,62 @@ export default function Page() {
                   </div>
 
                   {/* Grid: Số buổi, Học phí, Giá mỗi buổi */}
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-semibold text-amber-900">
+                          Giới hạn nghỉ ngắn ngày theo tháng
+                        </h3>
+                        <p className="text-sm text-amber-800">
+                          Cấu hình này dùng cho leave request theo chương trình. Khi bạn đổi số buổi nghỉ, chỉ các lớp tạo mới từ chương trình này mới áp dụng, còn các lớp đã tạo trước đó sẽ giữ giới hạn cũ.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">
+                          Giới hạn hiện tại
+                        </label>
+                        <div className="px-4 py-3 rounded-xl border border-amber-200 bg-white text-gray-900">
+                          {currentLeaveLimit !== null ? `${currentLeaveLimit} buổi / tháng` : "Chưa cấu hình"}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">
+                          Số buổi nghỉ tối đa / tháng
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={leaveLimitDraft}
+                          onChange={(e) => setLeaveLimitDraft(e.target.value)}
+                          placeholder="VD: 3"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-200"
+                        />
+                      </div>
+
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={handleSaveMonthlyLeaveLimit}
+                          disabled={!canSaveLeaveLimit}
+                          className={cn(
+                            "w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all md:w-auto",
+                            canSaveLeaveLimit
+                              ? "bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25 cursor-pointer"
+                              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          )}
+                        >
+                          {isSavingLeaveLimit ? "Đang lưu..." : "Lưu giới hạn"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -1353,8 +1502,7 @@ export default function Page() {
               <div className="flex justify-end">
                 <button
                   onClick={() => {
-                    setShowDetailModal(false);
-                    setSelectedCourseDetail(null);
+                    closeDetailModal();
                   }}
                   className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
                 >

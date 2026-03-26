@@ -34,6 +34,34 @@ export interface Program {
   isActive?: boolean | null;
 }
 
+export interface ProgramLeavePolicy {
+  maxLeavesPerMonth?: number | null;
+}
+
+export interface ProgramDetail extends Program {
+  branchName?: string | null;
+  status?: unknown;
+  branch?: {
+    id?: string | null;
+    name?: string | null;
+  } | null;
+  maxLeavesPerMonth?: number | null;
+  monthlyLeaveLimit?: number | null;
+  leavePolicy?: ProgramLeavePolicy | null;
+  programLeavePolicy?: ProgramLeavePolicy | null;
+}
+
+export interface UpdateProgramMonthlyLeaveLimitRequest {
+  programId: string;
+  maxLeavesPerMonth: number;
+}
+
+export interface UpdateProgramMonthlyLeaveLimitResponse {
+  programId: string;
+  maxLeavesPerMonth: number | null;
+  raw?: unknown;
+}
+
 export interface CreateProgramResponse {
   program: Program;
 }

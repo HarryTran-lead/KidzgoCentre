@@ -5,7 +5,13 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
-import type { CourseRow, CreateProgramRequest, Program } from "@/types/admin/programs";
+import type {
+  CourseRow,
+  CreateProgramRequest,
+  Program,
+  ProgramDetail,
+  UpdateProgramMonthlyLeaveLimitResponse,
+} from "@/types/admin/programs";
 
 // Normalize isActive/status values from API which may be boolean/number/string (e.g. true, 1, "true", "ACTIVE")
 export function normalizeIsActive(value: any): boolean | null {
@@ -55,6 +61,57 @@ export function normalizeIsActive(value: any): boolean | null {
     }
 
     return null;
+  }
+
+  return null;
+}
+
+function extractApiErrorMessage(json: any, text: string, fallback: string): string {
+  const firstError = Array.isArray(json?.errors) ? json.errors[0] : null;
+  const code =
+    firstError?.code ??
+    json?.code ??
+    json?.errorCode ??
+    json?.error?.code ??
+    json?.data?.code;
+
+  const message =
+    firstError?.message ??
+    json?.message ??
+    json?.error ??
+    json?.detail ??
+    json?.title ??
+    (typeof text === "string" && text.trim() ? text.trim() : null);
+
+  if (code === "Program.NotFound") {
+    return message || "Không tìm thấy chương trình học cần cấu hình.";
+  }
+
+  if (code === "ProgramLeavePolicy.InvalidMaxLeavesPerMonth") {
+    return message || "Số buổi nghỉ tối đa trong tháng phải lớn hơn 0.";
+  }
+
+  return message || fallback;
+}
+
+export function extractProgramMonthlyLeaveLimit(program: any): number | null {
+  const rawValue =
+    program?.maxLeavesPerMonth ??
+    program?.monthlyLeaveLimit ??
+    program?.leavePolicy?.maxLeavesPerMonth ??
+    program?.programLeavePolicy?.maxLeavesPerMonth ??
+    program?.data?.maxLeavesPerMonth ??
+    program?.data?.monthlyLeaveLimit ??
+    program?.data?.leavePolicy?.maxLeavesPerMonth ??
+    program?.data?.programLeavePolicy?.maxLeavesPerMonth;
+
+  if (typeof rawValue === "number" && Number.isFinite(rawValue)) {
+    return rawValue;
+  }
+
+  if (typeof rawValue === "string") {
+    const parsed = Number(rawValue);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   return null;
@@ -224,7 +281,7 @@ export async function createAdminProgram(
   return program;
 }
 
-export async function fetchAdminProgramDetail(programId: string): Promise<any> {
+export async function fetchAdminProgramDetail(programId: string): Promise<ProgramDetail> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem chi tiết khóa học.");
@@ -366,4 +423,53 @@ export async function toggleProgramStatus(programId: string): Promise<{ isSucces
   }
 
   return json?.data ?? json;
+}
+
+export async function updateAdminProgramMonthlyLeaveLimit(
+  programId: string,
+  maxLeavesPerMonth: number
+): Promise<UpdateProgramMonthlyLeaveLimitResponse> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại để cấu hình giới hạn nghỉ.");
+  }
+
+  const res = await fetch(ADMIN_ENDPOINTS.PROGRAMS_MONTHLY_LEAVE_LIMIT(programId), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      programId,
+      maxLeavesPerMonth,
+    }),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      extractApiErrorMessage(
+        json,
+        text,
+        "Không thể cập nhật số buổi nghỉ tối đa theo tháng."
+      )
+    );
+  }
+
+  const data = json?.data ?? json;
+  const resolvedLimit = extractProgramMonthlyLeaveLimit(data);
+
+  return {
+    programId: String(data?.programId ?? data?.id ?? programId),
+    maxLeavesPerMonth: resolvedLimit ?? maxLeavesPerMonth,
+    raw: data,
+  };
 }
