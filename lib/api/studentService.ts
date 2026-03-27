@@ -140,6 +140,7 @@ function mapToAssignmentListItem(item: any): AssignmentListItem {
     classCode: item.classCode || "",
     classTitle: item.classTitle || item.className || "",
     dueAt: item.dueAt || item.dueDate || "",
+    isOverdue: item.isOverdue || false,
     book: item.book || null,
     pages: item.pages || null,
     skills: item.skills || null,
@@ -150,7 +151,6 @@ function mapToAssignmentListItem(item: any): AssignmentListItem {
     gradedAt: item.gradedAt || null,
     score: item.score ?? null,
     isLate: item.isLate || false,
-    isOverdue: item.isOverdue || false,
     // Legacy fields for compatibility
     title: item.assignmentTitle || item.title || "",
     subject: item.subjectName || item.subject || "",
@@ -291,17 +291,11 @@ export async function getStudentHomeworkById(
       className: item.className || item.classTitle || "",
       subject: item.subjectName || item.subject || "",
       teacher: item.teacherName || item.teacher || "",
-      assignedDate: item.assignedDate
-        ? new Date(item.assignedDate).toLocaleDateString("vi-VN")
-        : item.createdAt
-        ? new Date(item.createdAt).toLocaleDateString("vi-VN")
-        : "",
-      dueDate: item.dueDate
-        ? new Date(item.dueDate).toLocaleDateString("vi-VN")
-        : item.dueAt
-        ? new Date(item.dueAt).toLocaleDateString("vi-VN")
-        : "",
+      assignedDate: item.assignedDate || item.createdAt || "",
+      dueDate: item.dueDate || item.dueAt || "",
       status: mapApiStatusToUiStatus(item.status) as AssignmentDetail["status"],
+      isOverdue: item.isOverdue || item.status === "MISSING" || item.status === "OVERDUE",
+      maxScore: item.maxScore || item.max_score || 10,
       submissionType:
         typeof submissionTypeRaw === "string"
           ? (submissionTypeRaw.toUpperCase() as AssignmentDetail["submissionType"])
@@ -335,18 +329,14 @@ export async function getStudentHomeworkById(
       editCount: item.editCount || 0,
       submission: item.submission ? {
         id: item.submission.id,
-        submittedAt: item.submission.submittedAt
-          ? new Date(item.submission.submittedAt).toLocaleString("vi-VN")
-          : "",
+        submittedAt: item.submission.submittedAt || "",
         status: item.submission.status === 1 ? "ON_TIME" : "LATE",
         content: item.submission.content,
         version: item.submission.version || 1,
       } : undefined,
       submissionHistory: item.submissionHistory?.map((sub: any) => ({
         id: sub.id,
-        submittedAt: sub.submittedAt
-          ? new Date(sub.submittedAt).toLocaleString("vi-VN")
-          : "",
+        submittedAt: sub.submittedAt || "",
         status: sub.status === 1 ? "ON_TIME" : "LATE",
         content: sub.content,
         version: sub.version || 1,
@@ -504,8 +494,8 @@ export async function submitMultipleChoiceHomework(
   const endpoint = STUDENT_HOMEWORK_ENDPOINTS.SUBMIT_MULTIPLE_CHOICE;
 
   try {
-    const response = await post<any>(endpoint, payload);
-    const responseData = response?.data || response;
+    // post() đã trả về response.data rồi, không cần gọi .data lần nữa
+    const responseData = await post<any>(endpoint, payload);
 
     return {
       data: responseData?.data,
@@ -513,12 +503,20 @@ export async function submitMultipleChoiceHomework(
       message: responseData?.message,
     };
   } catch (error: any) {
+    const errData = error?.response?.data;
+    let msg = "Loi khi nop bai trac nghiem";
+    if (typeof errData === "string" && errData) {
+      msg = errData;
+    } else if (errData?.message) {
+      msg = errData.message;
+    } else if (errData?.detail) {
+      msg = errData.detail;
+    } else if (errData?.error) {
+      msg = errData.error;
+    }
     return {
       isSuccess: false,
-      message:
-        error?.response?.data?.message ||
-        error?.message ||
-        "Loi khi nop bai trac nghiem",
+      message: msg,
     };
   }
 }
