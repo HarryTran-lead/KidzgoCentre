@@ -23,33 +23,29 @@ export default function EnrollmentStats({ enrollments, isLoading }: EnrollmentSt
       label: "Tổng ghi danh",
       value: stats.total,
       icon: Users,
-      color: "from-purple-500 to-pink-500",
-      bgColor: "bg-purple-50",
-      textColor: "text-purple-600",
+      color: "from-red-600 to-red-700",
+      subtitle: "Tất cả hồ sơ học",
     },
     {
       label: "Đang học",
       value: stats.active,
       icon: CheckCircle,
-      color: "from-emerald-500 to-green-500",
-      bgColor: "bg-emerald-50",
-      textColor: "text-emerald-600",
+      color: "from-gray-600 to-gray-700",
+      subtitle: "Đang theo lớp",
     },
     {
       label: "Tạm nghỉ",
       value: stats.paused,
       icon: PauseCircle,
-      color: "from-amber-500 to-orange-500",
-      bgColor: "bg-amber-50",
-      textColor: "text-amber-600",
+      color: "from-gray-700 to-gray-800",
+      subtitle: "Tạm dừng học",
     },
     {
       label: "Đã nghỉ",
       value: stats.dropped,
       icon: XCircle,
-      color: "from-rose-500 to-red-500",
-      bgColor: "bg-rose-50",
-      textColor: "text-rose-600",
+      color: "from-red-500 to-red-600",
+      subtitle: "Kết thúc ghi danh",
     },
   ];
 
@@ -57,10 +53,7 @@ export default function EnrollmentStats({ enrollments, isLoading }: EnrollmentSt
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="animate-pulse rounded-2xl border border-gray-200 bg-gray-50 p-6">
-            <div className="h-4 bg-gray-200 rounded w-20 mb-4"></div>
-            <div className="h-8 bg-gray-200 rounded w-16"></div>
-          </div>
+          <div key={i} className="h-24 rounded-2xl border border-gray-200 bg-white animate-pulse" />
         ))}
       </div>
     );
@@ -73,18 +66,19 @@ export default function EnrollmentStats({ enrollments, isLoading }: EnrollmentSt
         return (
           <div
             key={stat.label}
-            className="group relative overflow-hidden rounded-2xl border border-pink-200 bg-linear-to-br from-white to-pink-50/30 p-6 transition-all hover:shadow-lg hover:scale-105"
+            className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-red-300 hover:shadow-md"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-2">{stat.label}</p>
-                <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-5 blur-xl bg-linear-to-r ${stat.color}`} />
+            <div className="relative flex items-center justify-between gap-3">
+              <div className={`rounded-xl bg-linear-to-r ${stat.color} p-2 text-white shadow-sm`}>
+                <Icon size={20} />
               </div>
-              <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-                <Icon size={24} className={stat.textColor} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-medium text-gray-600">{stat.label}</div>
+                <div className="leading-tight text-xl font-bold text-gray-900">{stat.value}</div>
+                <div className="truncate text-[11px] text-gray-500">{stat.subtitle}</div>
               </div>
             </div>
-            <div className={`absolute bottom-0 left-0 right-0 h-1 bg-linear-to-r ${stat.color}`} />
           </div>
         );
       })}

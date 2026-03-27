@@ -126,9 +126,11 @@ interface CreateCourseModalProps {
 }
 
 interface CourseFormData {
+  code?: string;
   name: string;
   description: string;
   status: "Đang hoạt động" | "Tạm dừng";
+  isMakeup: boolean;
   branchId: string;
   isMakeup: boolean;
   totalSessions: string;
@@ -138,9 +140,11 @@ interface CourseFormData {
 }
 
 const initialFormData: CourseFormData = {
+  code: "",
   name: "",
   description: "",
   status: "Đang hoạt động",
+  isMakeup: false,
   branchId: "",
   isMakeup: false,
   totalSessions: "",
@@ -846,8 +850,8 @@ export default function Page() {
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        code,
-        isMakeup: data.isMakeup,
+        code: code,                    // Thêm field code
+        isMakeup: false,                // Thêm field isMakeup (mặc định false)
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,
@@ -963,7 +967,7 @@ export default function Page() {
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        isMakeup: data.isMakeup,
+        isMakeup: false,
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,

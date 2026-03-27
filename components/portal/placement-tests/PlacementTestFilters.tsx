@@ -40,19 +40,64 @@ export default function PlacementTestFilters({
   ];
 
   return (
-    <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 space-y-4">
-      {/* Status Filter */}
+    <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5">
+      <div className="flex flex-col gap-4 md:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Tìm theo tên bé, tên PH, SĐT..."
+            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+            <Calendar size={16} className="text-gray-400" />
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => onFromDateChange(e.target.value)}
+              className="text-sm text-gray-700 outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+            <Calendar size={16} className="text-gray-400" />
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => onToDateChange(e.target.value)}
+              className="text-sm text-gray-700 outline-none"
+            />
+          </div>
+
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+          >
+            <option value={5}>5 / trang</option>
+            <option value={10}>10 / trang</option>
+            <option value={20}>20 / trang</option>
+            <option value={50}>50 / trang</option>
+          </select>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <Filter size={16} className="text-gray-500" />
-        <div className="inline-flex rounded-xl border border-red-200 bg-white p-1 flex-wrap gap-1">
+        <div className="inline-flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-white p-1">
           {statusOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => onStatusChange(option.value)}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
                 selectedStatus === option.value
-                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
-                  : "text-gray-700 hover:bg-red-50"
+                  ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-sm"
+                  : "text-gray-700 hover:bg-gray-100"
               }`}
             >
               {option.label}
@@ -67,59 +112,8 @@ export default function PlacementTestFilters({
           ))}
         </div>
       </div>
-
-      {/* Search and Date Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Search */}
-        <div className="relative flex-1 min-w-62.5">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Tìm theo tên bé, tên PH, SĐT..."
-            className="w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
-          />
-        </div>
-
-        {/* From Date */}
-        <div className="flex items-center gap-2 bg-white rounded-xl border border-red-200 px-3 py-2">
-          <Calendar size={16} className="text-gray-400" />
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => onFromDateChange(e.target.value)}
-            className="text-sm border-none focus:outline-none"
-          />
-        </div>
-
-        {/* To Date */}
-        <div className="flex items-center gap-2 bg-white rounded-xl border border-red-200 px-3 py-2">
-          <Calendar size={16} className="text-gray-400" />
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => onToDateChange(e.target.value)}
-            className="text-sm border-none focus:outline-none"
-          />
-        </div>
-
-        {/* Page Size */}
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="rounded-xl border border-pink-200 bg-white px-3 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
-        >
-          <option value={5}>5 / trang</option>
-          <option value={10}>10 / trang</option>
-          <option value={20}>20 / trang</option>
-          <option value={50}>50 / trang</option>
-        </select>
-      </div>
-
-      {/* Results Count */}
       <div className="text-sm text-gray-600">
-        Hiển thị <span className="font-semibold text-pink-600">{totalCount}</span> placement test
+        Hiển thị <span className="font-semibold text-red-600">{totalCount}</span> placement test
       </div>
     </div>
   );

@@ -1,17 +1,37 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Target, UserPlus, Download, CalendarClock, BookOpen } from "lucide-react";
-import { getAllLeads, updateLeadStatus, getLeadChildren } from "@/lib/api/leadService";
-import { getAllPlacementTests, createPlacementTest } from "@/lib/api/placementTestService";
+import {
+  Target,
+  UserPlus,
+  Download,
+  CalendarClock,
+  BookOpen,
+  ClipboardList,
+} from "lucide-react";
+import {
+  getAllLeads,
+  updateLeadStatus,
+  getLeadChildren,
+} from "@/lib/api/leadService";
+import {
+  getAllPlacementTests,
+  createPlacementTest,
+} from "@/lib/api/placementTestService";
 import { getAllUsers } from "@/lib/api/userService";
 import { getAllStudents } from "@/lib/api/profileService";
+import { getAllClasses } from "@/lib/api/classService";
 import { getAccessToken } from "@/lib/store/authToken";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCreateAccountFromTest } from "@/hooks/useCreateAccountFromTest";
 import type { Lead as LeadType } from "@/types/lead";
-import type { PlacementTest, CreatePlacementTestRequest, UpdatePlacementTestRequest, PlacementTestResultRequest } from "@/types/placement-test";
+import type {
+  PlacementTest,
+  CreatePlacementTestRequest,
+  UpdatePlacementTestRequest,
+  PlacementTestResultRequest,
+} from "@/types/placement-test";
 import { ADMIN_ENDPOINTS, PLACEMENT_TEST_ENDPOINTS } from "@/constants/apiURL";
 import CreateAccountProfileModal from "@/components/portal/placement-tests/CreateAccountProfileModal";
 import {
@@ -19,8 +39,8 @@ import {
   LeadFilters,
   LeadTable,
   LeadFormModal,
-  LeadDetailModal,
   SelfAssignModal,
+  LeadDetailModal,
 } from "@/components/portal/leads";
 import {
   PlacementTestStats,
@@ -29,6 +49,7 @@ import {
   PlacementTestFormModal,
   PlacementTestDetailModal,
   ResultFormModal,
+  RegistrationFlowModal,
 } from "@/components/portal/placement-tests";
 import NoteFormModal from "@/components/portal/placement-tests/NoteFormModal";
 import ConvertToEnrolledModal from "@/components/portal/placement-tests/ConvertToEnrolledModal";
@@ -47,9 +68,17 @@ import {
   dropEnrollment,
   reactivateEnrollment,
 } from "@/lib/api/enrollmentService";
+import { getRegistrations } from "@/lib/api/registrationService";
 import type { Enrollment, EnrollmentStatus } from "@/types/enrollment";
+import { StaffRegistrationOverview } from "@/components/portal/registrations";
 
-type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
+type StatusType =
+  | "New"
+  | "Contacted"
+  | "BookedTest"
+  | "TestDone"
+  | "Enrolled"
+  | "Lost";
 
 const STATUS_MAPPING: Record<StatusType, string> = {
   New: "Mới",
@@ -60,29 +89,56 @@ const STATUS_MAPPING: Record<StatusType, string> = {
   Lost: "Đã hủy",
 };
 
+function parseDateValue(value?: string) {
+  if (!value) return 0;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function sortPlacementTestsByNewest(items: PlacementTest[]): PlacementTest[] {
+  return [...items].sort((a, b) => {
+    const bt = parseDateValue(b.createdAt || b.scheduledAt);
+    const at = parseDateValue(a.createdAt || a.scheduledAt);
+    return bt - at;
+  });
+}
+
+function resolveUserBranchId(user: any): string {
+  return String(user?.branchId || user?.branch?.id || "");
+}
+
 export default function Page() {
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
-  const { isCreateAccountModalOpen, selectedLeadInfo, handleCreateAccount, closeCreateAccountModal, setIsCreateAccountModalOpen } = useCreateAccountFromTest();
-  
+  const {
+    isCreateAccountModalOpen,
+    selectedLeadInfo,
+    handleCreateAccount,
+    closeCreateAccountModal,
+    setIsCreateAccountModalOpen,
+  } = useCreateAccountFromTest();
+
   // Tab state
-  const [activeTab, setActiveTab] = useState<"leads" | "placement_tests" | "enrollments">("leads");
-  
+  const [activeTab, setActiveTab] = useState<
+    "leads" | "placement_tests" | "registrations" | "enrollments"
+  >("leads");
+  const [registrationTotalCount, setRegistrationTotalCount] = useState(0);
+
   // Data state
   const [leads, setLeads] = useState<LeadType[]>([]); // Filtered leads for table
   const [allLeads, setAllLeads] = useState<LeadType[]>([]); // All leads for stats (load once)
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   // UI state
   const [isPageLoaded, setIsPageLoaded] = useState(false);
-  
+
   // Filter state
   const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
   const [selectedSource, setSelectedSource] = useState<string>("Tất cả");
@@ -91,12 +147,12 @@ export default function Page() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [availableSources, setAvailableSources] = useState<string[]>([]);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
-  
+
   // Table state
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  
+  const [sortKey, setSortKey] = useState<string | null>("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
   // Modal state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -105,7 +161,10 @@ export default function Page() {
 
   // Placement Test state
   const [placementTests, setPlacementTests] = useState<PlacementTest[]>([]);
-  const [allPlacementTests, setAllPlacementTests] = useState<PlacementTest[]>([]);
+  const [allPlacementTests, setAllPlacementTests] = useState<PlacementTest[]>(
+    [],
+  );
+  const [branchLeadIds, setBranchLeadIds] = useState<Set<string> | null>(null);
   const [isLoadingTests, setIsLoadingTests] = useState(false);
   const [testCurrentPage, setTestCurrentPage] = useState(1);
   const [testPageSize, setTestPageSize] = useState(10);
@@ -113,44 +172,77 @@ export default function Page() {
   const [testTotalPages, setTestTotalPages] = useState(0);
   const [testSearchQuery, setTestSearchQuery] = useState("");
   const [debouncedTestSearchQuery, setDebouncedTestSearchQuery] = useState("");
-  const [testSelectedStatus, setTestSelectedStatus] = useState<string>("Tất cả");
+  const [testSelectedStatus, setTestSelectedStatus] =
+    useState<string>("Tất cả");
   const [testFromDate, setTestFromDate] = useState("");
   const [testToDate, setTestToDate] = useState("");
-  const [testStatusCounts, setTestStatusCounts] = useState<Record<string, number>>({});
+  const [testStatusCounts, setTestStatusCounts] = useState<
+    Record<string, number>
+  >({});
   const [isTestFormModalOpen, setIsTestFormModalOpen] = useState(false);
   const [isTestDetailModalOpen, setIsTestDetailModalOpen] = useState(false);
   const [isTestResultModalOpen, setIsTestResultModalOpen] = useState(false);
   const [isTestConfirmModalOpen, setIsTestConfirmModalOpen] = useState(false);
-  const [testConfirmAction, setTestConfirmAction] = useState<{ action: string; title: string; message: string } | null>(null);
+  const [testConfirmAction, setTestConfirmAction] = useState<{
+    action: string;
+    title: string;
+    message: string;
+  } | null>(null);
   const [selectedTest, setSelectedTest] = useState<PlacementTest | null>(null);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+  const [isRegistrationFlowOpen, setIsRegistrationFlowOpen] = useState(false);
 
   // Enrollment state
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
+  const [branchClassIds, setBranchClassIds] = useState<Set<string> | null>(
+    null,
+  );
   const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
   const [enrollCurrentPage, setEnrollCurrentPage] = useState(1);
   const [enrollPageSize, setEnrollPageSize] = useState(10);
   const [enrollTotalCount, setEnrollTotalCount] = useState(0);
   const [enrollTotalPages, setEnrollTotalPages] = useState(0);
   const [enrollSearchQuery, setEnrollSearchQuery] = useState("");
-  const [debouncedEnrollSearchQuery, setDebouncedEnrollSearchQuery] = useState("");
-  const [enrollSelectedStatus, setEnrollSelectedStatus] = useState<string>("Tất cả");
-  const [enrollStatusCounts, setEnrollStatusCounts] = useState<Record<string, number>>({});
+  const [debouncedEnrollSearchQuery, setDebouncedEnrollSearchQuery] =
+    useState("");
+  const [enrollSelectedStatus, setEnrollSelectedStatus] =
+    useState<string>("Tất cả");
+  const [enrollStatusCounts, setEnrollStatusCounts] = useState<
+    Record<string, number>
+  >({});
   const [enrollSortKey, setEnrollSortKey] = useState<string | null>(null);
   const [enrollSortDir, setEnrollSortDir] = useState<"asc" | "desc">("asc");
   const [isEnrollFormModalOpen, setIsEnrollFormModalOpen] = useState(false);
   const [isEnrollDetailModalOpen, setIsEnrollDetailModalOpen] = useState(false);
-  const [isEnrollConfirmModalOpen, setIsEnrollConfirmModalOpen] = useState(false);
-  const [enrollConfirmAction, setEnrollConfirmAction] = useState<{ action: string; title: string; message: string } | null>(null);
-  const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
+  const [isEnrollConfirmModalOpen, setIsEnrollConfirmModalOpen] =
+    useState(false);
+  const [enrollConfirmAction, setEnrollConfirmAction] = useState<{
+    action: string;
+    title: string;
+    message: string;
+  } | null>(null);
+  const [selectedEnrollment, setSelectedEnrollment] =
+    useState<Enrollment | null>(null);
 
   // Dropdown data for PlacementTestFormModal
-  const [modalLeads, setModalLeads] = useState<Array<{ id: string; contactName: string; children?: Array<{ id: string; name: string }> }>>([]);
-  const [modalStudentProfiles, setModalStudentProfiles] = useState<Array<{ id: string; fullName: string }>>([]);
-  const [modalClasses, setModalClasses] = useState<Array<{ id: string; className: string }>>([]);
-  const [modalInvigilators, setModalInvigilators] = useState<Array<{ id: string; fullName: string; role: string }>>([]);
+  const [modalLeads, setModalLeads] = useState<
+    Array<{
+      id: string;
+      contactName: string;
+      children?: Array<{ id: string; name: string }>;
+    }>
+  >([]);
+  const [modalStudentProfiles, setModalStudentProfiles] = useState<
+    Array<{ id: string; fullName: string }>
+  >([]);
+  const [modalClasses, setModalClasses] = useState<
+    Array<{ id: string; className: string }>
+  >([]);
+  const [modalInvigilators, setModalInvigilators] = useState<
+    Array<{ id: string; fullName: string; role: string }>
+  >([]);
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -159,6 +251,7 @@ export default function Page() {
       fetchInitialData();
       fetchInitialTestData();
       fetchInitialEnrollmentData();
+      fetchInitialRegistrationData();
     }
   }, [currentUser, isLoadingUser]);
 
@@ -192,30 +285,35 @@ export default function Page() {
     try {
       // Only fetch if user data is loaded and has branchId
       if (!currentUser || isLoadingUser) return;
-      
+
       // Fetch all leads without filters for stats and filter options, but filtered by branch preference
-      const response = await getAllLeads({ 
+      const response = await getAllLeads({
         pageSize: 1000,
-        branchPreference: currentUser.branchId // Filter by staff's branch preference
+        branchPreference: currentUser.branchId, // Filter by staff's branch preference
       });
-      
+
       if (response.isSuccess && response.data.leads) {
         const allLeadsData = response.data.leads;
         setAllLeads(allLeadsData);
-        
+        setBranchLeadIds(new Set(allLeadsData.map((l) => l.id)));
+
         // Extract available sources
-        const sources = new Set(allLeadsData.map(l => l.source).filter(Boolean));
+        const sources = new Set(
+          allLeadsData.map((l) => l.source).filter(Boolean),
+        );
         setAvailableSources(Array.from(sources));
-        
+
         // Calculate status counts
         const counts: Record<string, number> = {
           "Tất cả": allLeadsData.length,
         };
-        
+
         Object.entries(STATUS_MAPPING).forEach(([engStatus, vnStatus]) => {
-          counts[vnStatus] = allLeadsData.filter(l => l.status === engStatus).length;
+          counts[vnStatus] = allLeadsData.filter(
+            (l) => l.status === engStatus,
+          ).length;
         });
-        
+
         setStatusCounts(counts);
       }
     } catch (error) {
@@ -227,25 +325,30 @@ export default function Page() {
   const fetchInitialTestData = async () => {
     try {
       if (!currentUser || isLoadingUser) return;
-      
+
       const response = await getAllPlacementTests({
         pageSize: 1000,
         branchId: currentUser.branchId,
       });
-      
+
       if (response.isSuccess && response.data) {
-        const allTestsData = Array.isArray(response.data.items) ? response.data.items : [];
-        setAllPlacementTests(allTestsData);
-        
+        const allTestsData = Array.isArray(response.data.items)
+          ? response.data.items
+          : [];
+        setAllPlacementTests(sortPlacementTestsByNewest(allTestsData));
+
         // Calculate status counts
         const counts: Record<string, number> = {
           "Tất cả": allTestsData.length,
-          "Scheduled": allTestsData.filter(t => t.status === "Scheduled").length,
-          "Completed": allTestsData.filter(t => t.status === "Completed").length,
-          "Cancelled": allTestsData.filter(t => t.status === "Cancelled").length,
-          "NoShow": allTestsData.filter(t => t.status === "NoShow").length,
+          Scheduled: allTestsData.filter((t) => t.status === "Scheduled")
+            .length,
+          Completed: allTestsData.filter((t) => t.status === "Completed")
+            .length,
+          Cancelled: allTestsData.filter((t) => t.status === "Cancelled")
+            .length,
+          NoShow: allTestsData.filter((t) => t.status === "NoShow").length,
         };
-        
+
         setTestStatusCounts(counts);
         setTestTotalCount(allTestsData.length);
       }
@@ -259,34 +362,41 @@ export default function Page() {
     if (currentUser && !isLoadingUser && activeTab === "placement_tests") {
       fetchPlacementTests();
     }
-  }, [testCurrentPage, testPageSize, debouncedTestSearchQuery, testSelectedStatus, testFromDate, testToDate, currentUser, isLoadingUser, activeTab]);
+  }, [
+    testCurrentPage,
+    testPageSize,
+    debouncedTestSearchQuery,
+    testSelectedStatus,
+    testFromDate,
+    testToDate,
+    currentUser,
+    isLoadingUser,
+    activeTab,
+  ]);
 
   const fetchPlacementTests = async () => {
     try {
       if (!currentUser || isLoadingUser) return;
-      
+
       setIsLoadingTests(true);
-      
+
       const response = await getAllPlacementTests({
-        page: testCurrentPage,
-        pageSize: testPageSize,
-        searchTerm: debouncedTestSearchQuery || undefined,
-        status: testSelectedStatus !== "Tất cả" ? testSelectedStatus : undefined,
+        page: 1,
+        pageSize: 1000,
         branchId: currentUser.branchId,
-        fromDate: testFromDate || undefined,
-        toDate: testToDate || undefined,
       });
-      
+
       if (response.isSuccess && response.data.items) {
-        setPlacementTests(response.data.items);
-        setTestTotalCount(response.data.totalCount);
-        setTestTotalPages(response.data.totalPages);
+        const sorted = sortPlacementTestsByNewest(response.data.items);
+        setAllPlacementTests(sorted);
+        setPlacementTests(sorted);
       }
     } catch (err: any) {
       console.error("Error fetching placement tests:", err);
       toast({
         title: "Lỗi",
-        description: "Không thể tải danh sách placement test. Vui lòng thử lại.",
+        description:
+          "Không thể tải danh sách placement test. Vui lòng thử lại.",
         variant: "destructive",
       });
     } finally {
@@ -298,9 +408,14 @@ export default function Page() {
   const fetchInitialEnrollmentData = async () => {
     try {
       if (!currentUser || isLoadingUser) return;
-      const response = await getAllEnrollments({ pageSize: 1000 });
+      const response = await getAllEnrollments({
+        pageSize: 1000,
+        branchId: currentUser.branchId,
+      });
       if (response.isSuccess && response.data) {
-        const allItems = Array.isArray(response.data.items) ? response.data.items : [];
+        const allItems = Array.isArray(response.data.items)
+          ? response.data.items
+          : [];
         setAllEnrollments(allItems);
         const counts: Record<string, number> = {
           "Tất cả": allItems.length,
@@ -313,7 +428,12 @@ export default function Page() {
       } else {
         console.warn("Enrollment API returned unsuccessful:", response.message);
         setAllEnrollments([]);
-        setEnrollStatusCounts({ "Tất cả": 0, Active: 0, Paused: 0, Dropped: 0 });
+        setEnrollStatusCounts({
+          "Tất cả": 0,
+          Active: 0,
+          Paused: 0,
+          Dropped: 0,
+        });
         setEnrollTotalCount(0);
       }
     } catch (error) {
@@ -321,31 +441,96 @@ export default function Page() {
     }
   };
 
+  const fetchInitialRegistrationData = async () => {
+    try {
+      if (!currentUser || isLoadingUser) return;
+      const branchId = resolveUserBranchId(currentUser);
+      if (!branchId) {
+        setRegistrationTotalCount(0);
+        return;
+      }
+
+      const response = await getRegistrations({
+        branchId,
+        pageNumber: 1,
+        pageSize: 500,
+      });
+      setRegistrationTotalCount(response.totalCount ?? response.items.length ?? 0);
+    } catch (error) {
+      console.error("Error fetching initial registration count:", error);
+      setRegistrationTotalCount(0);
+    }
+  };
+
+  useEffect(() => {
+    const fetchBranchClassIds = async () => {
+      if (!currentUser?.branchId) {
+        setBranchClassIds(null);
+        return;
+      }
+
+      try {
+        const response = await getAllClasses({ pageSize: 1000 });
+        const rawData = response?.data || response || {};
+        const responseData = rawData?.data || rawData;
+        const classes =
+          responseData?.classes?.items ||
+          responseData?.items ||
+          (Array.isArray(responseData) ? responseData : []);
+        const ids = new Set<string>(
+          classes
+            .filter((c: any) => c.branchId === currentUser.branchId)
+            .map((c: any) => c.id as string),
+        );
+        setBranchClassIds(ids);
+      } catch {
+        setBranchClassIds(new Set<string>());
+      }
+    };
+
+    if (currentUser && !isLoadingUser) {
+      fetchBranchClassIds();
+    }
+  }, [currentUser, isLoadingUser]);
+
   // Fetch enrollments with filters
   useEffect(() => {
     if (currentUser && !isLoadingUser && activeTab === "enrollments") {
       fetchEnrollments();
     }
-  }, [enrollCurrentPage, enrollPageSize, debouncedEnrollSearchQuery, enrollSelectedStatus, currentUser, isLoadingUser, activeTab]);
+  }, [
+    enrollCurrentPage,
+    enrollPageSize,
+    debouncedEnrollSearchQuery,
+    enrollSelectedStatus,
+    currentUser,
+    isLoadingUser,
+    activeTab,
+  ]);
 
   const fetchEnrollments = async () => {
     try {
       if (!currentUser || isLoadingUser) return;
       setIsLoadingEnrollments(true);
       const response = await getAllEnrollments({
-        pageNumber: enrollCurrentPage,
-        pageSize: enrollPageSize,
-        searchTerm: debouncedEnrollSearchQuery || undefined,
-        status: enrollSelectedStatus !== "Tất cả" ? (enrollSelectedStatus as EnrollmentStatus) : undefined,
+        pageNumber: 1,
+        pageSize: 1000,
+        branchId: currentUser.branchId,
       });
       if (response.isSuccess && response.data) {
-        setEnrollments(response.data.items);
-        setEnrollTotalCount(response.data.totalCount);
-        setEnrollTotalPages(response.data.totalPages);
+        const allItems = Array.isArray(response.data.items)
+          ? response.data.items
+          : [];
+        setAllEnrollments(allItems);
+        setEnrollments(allItems);
       }
     } catch (err: any) {
       console.error("Error fetching enrollments:", err);
-      toast({ title: "Lỗi", description: "Không thể tải danh sách ghi danh.", variant: "destructive" });
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải danh sách ghi danh.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoadingEnrollments(false);
     }
@@ -355,23 +540,36 @@ export default function Page() {
     if (currentUser && !isLoadingUser) {
       fetchLeads();
     }
-  }, [currentPage, pageSize, debouncedSearchQuery, selectedStatus, selectedSource, myLeadsOnly, currentUser, isLoadingUser]);
+  }, [
+    currentPage,
+    pageSize,
+    debouncedSearchQuery,
+    selectedStatus,
+    selectedSource,
+    myLeadsOnly,
+    currentUser,
+    isLoadingUser,
+  ]);
 
   const fetchLeads = async () => {
     try {
       // Don't fetch if user data is not ready
       if (!currentUser || isLoadingUser) return;
-      
+
       setIsLoading(true);
       setError(null);
-      
+
       // Map Vietnamese status to English status
-      const getEnglishStatus = (vietnameseStatus: string): string | undefined => {
+      const getEnglishStatus = (
+        vietnameseStatus: string,
+      ): string | undefined => {
         if (vietnameseStatus === "Tất cả") return undefined;
-        const entry = Object.entries(STATUS_MAPPING).find(([_, vn]) => vn === vietnameseStatus);
+        const entry = Object.entries(STATUS_MAPPING).find(
+          ([_, vn]) => vn === vietnameseStatus,
+        );
         return entry ? entry[0] : undefined;
       };
-      
+
       const response = await getAllLeads({
         page: currentPage,
         pageSize: pageSize,
@@ -381,7 +579,7 @@ export default function Page() {
         branchPreference: currentUser.branchId, // Filter by staff's branch preference
         ownerStaffId: myLeadsOnly ? currentUser.id : undefined, // Filter chỉ lead của tôi
       });
-      
+
       if (response.isSuccess && response.data.leads) {
         setLeads(response.data.leads);
         setTotalCount(response.data.totalCount);
@@ -435,10 +633,141 @@ export default function Page() {
     return copy;
   }, [leads, sortKey, sortDir]);
 
+  const branchScopedPlacementTests = useMemo(() => {
+    return branchLeadIds !== null
+      ? allPlacementTests.filter((test) => branchLeadIds.has(test.leadId))
+      : allPlacementTests;
+  }, [allPlacementTests, branchLeadIds]);
+
+  const branchScopedEnrollments = useMemo(() => {
+    return branchClassIds !== null
+      ? allEnrollments.filter((e) => branchClassIds.has(e.classId))
+      : allEnrollments;
+  }, [allEnrollments, branchClassIds]);
+
+  const filteredPlacementTests = useMemo(() => {
+    let result = [...branchScopedPlacementTests];
+
+    if (testSelectedStatus !== "Tất cả") {
+      result = result.filter((test) => test.status === testSelectedStatus);
+    }
+
+    if (debouncedTestSearchQuery) {
+      const query = debouncedTestSearchQuery.toLowerCase();
+      result = result.filter(
+        (test) =>
+          test.childName?.toLowerCase().includes(query) ||
+          test.leadContactName?.toLowerCase().includes(query) ||
+          test.invigilatorName?.toLowerCase().includes(query),
+      );
+    }
+
+    if (testFromDate) {
+      result = result.filter((test) => test.scheduledAt >= testFromDate);
+    }
+    if (testToDate) {
+      const toDateEnd = testToDate + "T23:59:59";
+      result = result.filter((test) => test.scheduledAt <= toDateEnd);
+    }
+
+    return result;
+  }, [
+    branchScopedPlacementTests,
+    testSelectedStatus,
+    debouncedTestSearchQuery,
+    testFromDate,
+    testToDate,
+  ]);
+
+  const filteredPlacementStatusCounts = useMemo(() => {
+    const dataToCount = branchScopedPlacementTests;
+    const counts: Record<string, number> = {
+      "Tất cả": dataToCount.length,
+      Scheduled: dataToCount.filter((t) => t.status === "Scheduled").length,
+      Completed: dataToCount.filter((t) => t.status === "Completed").length,
+      Cancelled: dataToCount.filter((t) => t.status === "Cancelled").length,
+      NoShow: dataToCount.filter((t) => t.status === "NoShow").length,
+    };
+    return counts;
+  }, [branchScopedPlacementTests]);
+
+  const placementTotalCount = filteredPlacementTests.length;
+  const placementTotalPages = Math.max(
+    1,
+    Math.ceil(placementTotalCount / testPageSize),
+  );
+  const pagedPlacementTests = filteredPlacementTests.slice(
+    (testCurrentPage - 1) * testPageSize,
+    testCurrentPage * testPageSize,
+  );
+
+  const filteredEnrollments = useMemo(() => {
+    let result = [...branchScopedEnrollments];
+
+    if (enrollSelectedStatus !== "Tất cả") {
+      result = result.filter(
+        (enrollment) => enrollment.status === enrollSelectedStatus,
+      );
+    }
+
+    if (debouncedEnrollSearchQuery) {
+      const query = debouncedEnrollSearchQuery.toLowerCase();
+      result = result.filter(
+        (enrollment) =>
+          enrollment.studentName?.toLowerCase().includes(query) ||
+          enrollment.classTitle?.toLowerCase().includes(query) ||
+          enrollment.classCode?.toLowerCase().includes(query) ||
+          enrollment.programName?.toLowerCase().includes(query) ||
+          enrollment.mainTeacherName?.toLowerCase().includes(query),
+      );
+    }
+
+    if (enrollSortKey) {
+      result = [...result].sort((a: any, b: any) => {
+        const av = String(a?.[enrollSortKey] ?? "");
+        const bv = String(b?.[enrollSortKey] ?? "");
+        const compared = av.localeCompare(bv, "vi", {
+          numeric: true,
+          sensitivity: "base",
+        });
+        return enrollSortDir === "asc" ? compared : -compared;
+      });
+    }
+
+    return result;
+  }, [
+    branchScopedEnrollments,
+    enrollSelectedStatus,
+    debouncedEnrollSearchQuery,
+    enrollSortKey,
+    enrollSortDir,
+  ]);
+
+  const filteredEnrollStatusCounts = useMemo(() => {
+    const dataToCount = branchScopedEnrollments;
+    const counts: Record<string, number> = {
+      "Tất cả": dataToCount.length,
+      Active: dataToCount.filter((e) => e.status === "Active").length,
+      Paused: dataToCount.filter((e) => e.status === "Paused").length,
+      Dropped: dataToCount.filter((e) => e.status === "Dropped").length,
+    };
+    return counts;
+  }, [branchScopedEnrollments]);
+
+  const enrollmentTotalCount = filteredEnrollments.length;
+  const enrollmentTotalPages = Math.max(
+    1,
+    Math.ceil(enrollmentTotalCount / enrollPageSize),
+  );
+  const pagedEnrollments = filteredEnrollments.slice(
+    (enrollCurrentPage - 1) * enrollPageSize,
+    enrollCurrentPage * enrollPageSize,
+  );
+
   const toggleSort = (key: string) => {
     setSortKey((prev) => {
       if (prev !== key) {
-        setSortDir("asc");
+        setSortDir(key === "createdAt" ? "desc" : "asc");
         return key;
       }
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -447,9 +776,16 @@ export default function Page() {
   };
 
   // Selection handlers
-  const allVisibleIds = useMemo(() => filteredAndSortedLeads.map((l) => l.id), [filteredAndSortedLeads]);
-  const selectedVisibleCount = useMemo(() => allVisibleIds.filter(id => selectedIds[id]).length, [allVisibleIds, selectedIds]);
-  const allVisibleSelected = allVisibleIds.length > 0 && selectedVisibleCount === allVisibleIds.length;
+  const allVisibleIds = useMemo(
+    () => filteredAndSortedLeads.map((l) => l.id),
+    [filteredAndSortedLeads],
+  );
+  const selectedVisibleCount = useMemo(
+    () => allVisibleIds.filter((id) => selectedIds[id]).length,
+    [allVisibleIds, selectedIds],
+  );
+  const allVisibleSelected =
+    allVisibleIds.length > 0 && selectedVisibleCount === allVisibleIds.length;
 
   const toggleSelectAllVisible = () => {
     setSelectedIds((prev) => {
@@ -507,7 +843,7 @@ export default function Page() {
       }
       return;
     }
-    
+
     // TODO: Implement other actions (add notes, etc.)
     console.log("Action:", action, "Lead:", lead.id);
     toast({
@@ -529,7 +865,8 @@ export default function Page() {
       console.error("Error updating lead status:", error);
       toast({
         title: "Lỗi",
-        description: error.response?.data?.message || "Không thể cập nhật trạng thái",
+        description:
+          error.response?.data?.message || "Không thể cập nhật trạng thái",
         variant: "destructive",
       });
     }
@@ -547,14 +884,14 @@ export default function Page() {
   // Pagination handlers
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
     setCurrentPage(1); // Reset to first page when changing page size
   };
-  
+
   // Reset to first page when filters change
   useEffect(() => {
     if (currentPage !== 1) {
@@ -569,10 +906,22 @@ export default function Page() {
     }
   }, [debouncedTestSearchQuery, testSelectedStatus, testFromDate, testToDate]);
 
+  useEffect(() => {
+    if (testCurrentPage > placementTotalPages) {
+      setTestCurrentPage(1);
+    }
+  }, [testCurrentPage, placementTotalPages]);
+
+  useEffect(() => {
+    if (enrollCurrentPage > enrollmentTotalPages) {
+      setEnrollCurrentPage(1);
+    }
+  }, [enrollCurrentPage, enrollmentTotalPages]);
+
   // Fetch dropdown data for Placement Test Form Modal
   const fetchModalDropdownData = async () => {
     if (!currentUser) return;
-    const branchId = currentUser.branchId;
+    const branchId = String(currentUser.branchId || "");
 
     try {
       // Fetch all leads for this branch (không filter status để có thể tạo test cho mọi lead)
@@ -586,16 +935,23 @@ export default function Page() {
                 const childrenRes = await getLeadChildren(lead.id);
                 if (childrenRes.isSuccess && childrenRes.data) {
                   // Response structure: { children: LeadChild[] }
-                  children = childrenRes.data.children || (Array.isArray(childrenRes.data) ? childrenRes.data : []);
+                  children =
+                    childrenRes.data.children ||
+                    (Array.isArray(childrenRes.data) ? childrenRes.data : []);
                 }
-              } catch { /* ignore */ }
+              } catch {
+                /* ignore */
+              }
             }
             return {
               id: lead.id,
-              contactName: lead.contactName || lead.fullName || 'N/A',
-              children: children.map((c: any) => ({ id: c.id, name: c.childName || c.name || 'N/A' })),
+              contactName: lead.contactName || lead.fullName || "N/A",
+              children: children.map((c: any) => ({
+                id: c.id,
+                name: c.childName || c.name || "N/A",
+              })),
             };
-          })
+          }),
         );
         setModalLeads(leadsWithChildren);
       }
@@ -604,35 +960,70 @@ export default function Page() {
       const profilesRes = await getAllStudents({ branchId, pageSize: 1000 });
       if (profilesRes.isSuccess && profilesRes.data) {
         const profiles = profilesRes.data.items || [];
-        const mapped = profiles.map((p: any) => ({ id: p.id, fullName: p.displayName || p.fullName || p.studentName || 'N/A' }));
+        const mapped = profiles.map((p: any) => ({
+          id: p.id,
+          fullName: p.displayName || p.fullName || p.studentName || "N/A",
+        }));
         setModalStudentProfiles(mapped);
       }
 
       // Fetch classes
       try {
-        const classRes = await fetch(`${ADMIN_ENDPOINTS.CLASSES}?pageSize=1000&branchId=${branchId}`, {
-          headers: { Authorization: `Bearer ${getAccessToken()}` },
-        });
+        const classRes = await fetch(
+          `${ADMIN_ENDPOINTS.CLASSES}?pageSize=1000&branchId=${branchId}`,
+          {
+            headers: { Authorization: `Bearer ${getAccessToken()}` },
+          },
+        );
         if (classRes.ok) {
           const classData = await classRes.json();
-          const classItems = classData.data?.items || classData.data?.classes || classData.data || [];
-          const mapped = classItems.map((c: any) => ({ id: c.id, className: c.className || c.name || 'N/A' }));
+          const classItems =
+            classData.data?.items ||
+            classData.data?.classes ||
+            classData.data ||
+            [];
+          const mapped = classItems.map((c: any) => ({
+            id: c.id,
+            className: c.className || c.name || "N/A",
+          }));
           setModalClasses(mapped);
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       // Fetch invigilators (Admin + ManagementStaff)
       const [adminRes, staffRes] = await Promise.all([
-        getAllUsers({ role: 'Admin', isActive: true, pageSize: 1000 }),
-        getAllUsers({ role: 'ManagementStaff', isActive: true, pageSize: 1000 }),
+        getAllUsers({ role: "Admin", isActive: true, pageSize: 1000 }),
+        getAllUsers({
+          role: "ManagementStaff",
+          isActive: true,
+          pageSize: 1000,
+        }),
       ]);
-      const adminUsers = (adminRes.isSuccess && adminRes.data?.items) ? adminRes.data.items : [];
-      const staffUsers = (staffRes.isSuccess && staffRes.data?.items) ? staffRes.data.items : [];
+      const adminUsers =
+        adminRes.isSuccess && adminRes.data?.items ? adminRes.data.items : [];
+      const staffUsers =
+        staffRes.isSuccess && staffRes.data?.items ? staffRes.data.items : [];
+      const branchMatchedAdmin = branchId
+        ? adminUsers.filter((u: any) => resolveUserBranchId(u) === branchId)
+        : adminUsers;
+      const branchMatchedStaff = branchId
+        ? staffUsers.filter((u: any) => resolveUserBranchId(u) === branchId)
+        : staffUsers;
       const invigilators = [
-        ...adminUsers.map((u: any) => ({ id: u.id, fullName: u.name || u.fullName || u.username || u.email || 'N/A', role: 'Admin' })),
-        ...staffUsers.map((u: any) => ({ id: u.id, fullName: u.name || u.fullName || u.username || u.email || 'N/A', role: 'ManagementStaff' })),
+        ...branchMatchedAdmin.map((u: any) => ({
+          id: u.id,
+          fullName: u.name || u.fullName || u.username || u.email || "N/A",
+          role: "Admin",
+        })),
+        ...branchMatchedStaff.map((u: any) => ({
+          id: u.id,
+          fullName: u.name || u.fullName || u.username || u.email || "N/A",
+          role: "ManagementStaff",
+        })),
       ];
-            setModalInvigilators(invigilators);
+      setModalInvigilators(invigilators);
     } catch (error) {
       console.error("❌ Error fetching modal dropdown data:", error);
     }
@@ -691,19 +1082,26 @@ export default function Page() {
     await handleCreateAccount(test);
   };
 
+  const handleStartRegistrationFlow = (test: PlacementTest) => {
+    setSelectedTest(test);
+    setIsRegistrationFlowOpen(true);
+  };
+
   const handleAddNote = (test: PlacementTest) => {
     setSelectedTest(test);
     setIsNoteModalOpen(true);
   };
 
-  const handleTestFormSubmit = async (data: CreatePlacementTestRequest | UpdatePlacementTestRequest) => {
+  const handleTestFormSubmit = async (
+    data: CreatePlacementTestRequest | UpdatePlacementTestRequest,
+  ) => {
     try {
       const url = selectedTest
         ? PLACEMENT_TEST_ENDPOINTS.UPDATE(selectedTest.id)
         : PLACEMENT_TEST_ENDPOINTS.CREATE;
       const method = selectedTest ? "PUT" : "POST";
 
-      console.log('[handleTestFormSubmit] Sending:', { url, method, data });
+      console.log("[handleTestFormSubmit] Sending:", { url, method, data });
 
       const response = await fetch(url, {
         method,
@@ -715,16 +1113,22 @@ export default function Page() {
       });
 
       const responseData = await response.json().catch(() => null);
-      console.log('[handleTestFormSubmit] Response:', { status: response.status, data: responseData });
+      console.log("[handleTestFormSubmit] Response:", {
+        status: response.status,
+        data: responseData,
+      });
 
       if (!response.ok) {
-        const errorMsg = responseData?.message || `Server returned ${response.status}`;
+        const errorMsg =
+          responseData?.message || `Server returned ${response.status}`;
         throw new Error(errorMsg);
       }
 
       toast({
         title: "Thành công",
-        description: selectedTest ? "Đã cập nhật placement test" : "Đã tạo placement test mới",
+        description: selectedTest
+          ? "Đã cập nhật placement test"
+          : "Đã tạo placement test mới",
         variant: "success",
       });
     } catch (error) {
@@ -732,13 +1136,19 @@ export default function Page() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: error instanceof Error ? error.message : "Không thể lưu placement test",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Không thể lưu placement test",
       });
       throw error; // Re-throw to prevent modal close
     }
   };
 
-  const handleTestResultSubmit = async (data: Omit<PlacementTestResultRequest, "id">, note: string) => {
+  const handleTestResultSubmit = async (
+    data: Omit<PlacementTestResultRequest, "id">,
+    note: string,
+  ) => {
     if (!selectedTest) return;
 
     try {
@@ -762,7 +1172,7 @@ export default function Page() {
             method: "POST",
             headers,
             body: JSON.stringify({ note }),
-          })
+          }),
         );
       }
 
@@ -775,7 +1185,9 @@ export default function Page() {
 
       toast({
         title: "Thành công",
-        description: note ? "Đã lưu kết quả và ghi chú placement test" : "Đã lưu kết quả placement test",
+        description: note
+          ? "Đã lưu kết quả và ghi chú placement test"
+          : "Đã lưu kết quả placement test",
         variant: "success",
       });
 
@@ -787,7 +1199,8 @@ export default function Page() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: error instanceof Error ? error.message : "Không thể lưu kết quả",
+        description:
+          error instanceof Error ? error.message : "Không thể lưu kết quả",
       });
       throw error;
     }
@@ -806,7 +1219,7 @@ export default function Page() {
             Authorization: `Bearer ${getAccessToken()}`,
           },
           body: JSON.stringify({ note }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -828,7 +1241,8 @@ export default function Page() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: error instanceof Error ? error.message : "Không thể thêm ghi chú",
+        description:
+          error instanceof Error ? error.message : "Không thể thêm ghi chú",
       });
       throw error;
     }
@@ -847,7 +1261,7 @@ export default function Page() {
             Authorization: `Bearer ${getAccessToken()}`,
           },
           body: JSON.stringify({ studentProfileId }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -869,7 +1283,8 @@ export default function Page() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: error instanceof Error ? error.message : "Không thể chuyển đổi",
+        description:
+          error instanceof Error ? error.message : "Không thể chuyển đổi",
       });
       throw error;
     }
@@ -928,7 +1343,7 @@ export default function Page() {
 
   const handleTestPageChange = (page: number) => {
     setTestCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleTestPageSizeChange = (size: number) => {
@@ -941,11 +1356,19 @@ export default function Page() {
     setIsEnrollFormModalOpen(true);
   };
 
-  const handleEnrollmentFormSubmit = async (data: { classId: string; studentProfileId: string; enrollDate: string }) => {
+  const handleEnrollmentFormSubmit = async (data: {
+    classId: string;
+    studentProfileId: string;
+    enrollDate: string;
+  }) => {
     try {
       const response = await createEnrollment(data);
       if (response.isSuccess) {
-        toast({ title: "Thành công", description: "Tạo ghi danh thành công!", variant: "success" });
+        toast({
+          title: "Thành công",
+          description: "Tạo ghi danh thành công!",
+          variant: "success",
+        });
         fetchEnrollments();
         fetchInitialEnrollmentData();
         setIsEnrollFormModalOpen(false);
@@ -953,7 +1376,11 @@ export default function Page() {
         throw new Error(response.message || "Không thể tạo ghi danh");
       }
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể tạo ghi danh" });
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: error.message || "Không thể tạo ghi danh",
+      });
       throw error;
     }
   };
@@ -1009,14 +1436,22 @@ export default function Page() {
           break;
       }
       if (response?.isSuccess) {
-        toast({ title: "Thành công", description: "Đã thực hiện thao tác thành công!", variant: "success" });
+        toast({
+          title: "Thành công",
+          description: "Đã thực hiện thao tác thành công!",
+          variant: "success",
+        });
         fetchEnrollments();
         fetchInitialEnrollmentData();
       } else {
         throw new Error(response?.message || "Thao tác thất bại");
       }
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể thực hiện thao tác" });
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: error.message || "Không thể thực hiện thao tác",
+      });
     } finally {
       setIsEnrollConfirmModalOpen(false);
     }
@@ -1042,15 +1477,17 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
       <div
         className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${
-          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
+          isPageLoaded
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 -translate-y-4"
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+          <div className="p-3 bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <Target size={28} className="text-white" />
           </div>
           <div>
@@ -1072,9 +1509,9 @@ export default function Page() {
             <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors cursor-pointer text-gray-700">
               <Download size={16} /> Xuất DS
             </button>
-            <button 
+            <button
               onClick={handleCreateLead}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
             >
               <UserPlus size={16} /> Nhập lead mới
             </button>
@@ -1084,47 +1521,59 @@ export default function Page() {
             <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors cursor-pointer text-gray-700">
               <Download size={16} /> Xuất DS Test
             </button>
-            <button 
+            <button
               onClick={handleCreateTest}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
             >
               <CalendarClock size={16} /> Đặt lịch test mới
             </button>
           </div>
-        ) : (
+        ) : activeTab === "enrollments" ? (
           <div className="flex flex-wrap gap-2">
             <button className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-pink-50 transition-colors">
               <Download size={16} /> Xuất DS Ghi danh
             </button>
-            <button 
+            <button
               onClick={handleCreateEnrollment}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
             >
               <BookOpen size={16} /> Tạo ghi danh mới
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors">
+              <Download size={16} /> Xuất DS Đăng ký
             </button>
           </div>
         )}
       </div>
 
       {/* Tab Navigation */}
-      <div className={`bg-white rounded-2xl border border-gray-200 p-1 inline-flex gap-1 transition-all duration-700 delay-100 ${
-        isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-      }`}>
+      <div
+        className={`bg-white rounded-2xl border border-gray-200 p-1 inline-flex gap-1 transition-all duration-700 delay-100 ${
+          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+        }`}
+      >
         <button
           onClick={() => setActiveTab("leads")}
           className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "leads"
-              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+              ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
               : "text-gray-700 hover:bg-gray-100"
           }`}
         >
           <div className="flex items-center gap-2">
             <Target size={16} />
             <span>Lead</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              activeTab === "leads" ? "bg-white/20" : "bg-gray-100 text-gray-700"
-            }`}>
-              {totalCount}
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full ${
+                activeTab === "leads"
+                  ? "bg-white/20"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              {allLeads.length}
             </span>
           </div>
         </button>
@@ -1132,17 +1581,43 @@ export default function Page() {
           onClick={() => setActiveTab("placement_tests")}
           className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "placement_tests"
-              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+              ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
               : "text-gray-700 hover:bg-gray-100"
           }`}
         >
           <div className="flex items-center gap-2">
             <CalendarClock size={16} />
             <span>Placement Test</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              activeTab === "placement_tests" ? "bg-white/20" : "bg-gray-100 text-gray-700"
-            }`}>
-              {allPlacementTests.length}
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full ${
+                activeTab === "placement_tests"
+                  ? "bg-white/20"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              {branchScopedPlacementTests.length}
+            </span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("registrations")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+            activeTab === "registrations"
+              ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
+              : "text-gray-700 hover:bg-gray-100"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <ClipboardList size={16} />
+            <span>Đăng ký</span>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full ${
+                activeTab === "registrations"
+                  ? "bg-white/20"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              {registrationTotalCount}
             </span>
           </div>
         </button>
@@ -1150,17 +1625,19 @@ export default function Page() {
           onClick={() => setActiveTab("enrollments")}
           className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
             activeTab === "enrollments"
-              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+              ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
               : "text-gray-600 hover:bg-pink-50"
           }`}
         >
           <div className="flex items-center gap-2">
             <BookOpen size={16} />
             <span>Ghi danh</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              activeTab === "enrollments" ? "bg-white/20" : "bg-gray-100"
-            }`}>
-              {allEnrollments.length}
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full ${
+                activeTab === "enrollments" ? "bg-white/20" : "bg-gray-100"
+              }`}
+            >
+              {branchScopedEnrollments.length}
             </span>
           </div>
         </button>
@@ -1169,8 +1646,11 @@ export default function Page() {
       {/* Content based on active tab */}
       {activeTab === "leads" && (
         <>
-          <div className={`transition-all duration-700 delay-100 ${
-              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          <div
+            className={`transition-all duration-700 delay-100 ${
+              isPageLoaded
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4"
             }`}
           >
             <LeadStats leads={allLeads} isLoading={false} />
@@ -1179,12 +1659,14 @@ export default function Page() {
           {/* Filter Bar */}
           <div
             className={`transition-all duration-700 delay-150 ${
-              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
+              isPageLoaded
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 -translate-y-4"
             }`}
           >
             <LeadFilters
               leads={leads}
-              totalCount={totalCount}
+              totalCount={statusCounts["Tất cả"] ?? allLeads.length}
               statusCounts={statusCounts}
               availableSources={availableSources}
               searchQuery={searchQuery}
@@ -1204,7 +1686,9 @@ export default function Page() {
           {/* Lead Table */}
           <div
             className={`transition-all duration-700 delay-200 ${
-              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+              isPageLoaded
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4"
             }`}
           >
             <LeadTable
@@ -1235,17 +1719,25 @@ export default function Page() {
       {activeTab === "placement_tests" && (
         // Placement Test Content
         <>
-          <div className={`transition-all duration-700 delay-100 ${
-              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          <div
+            className={`transition-all duration-700 delay-100 ${
+              isPageLoaded
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4"
             }`}
           >
-            <PlacementTestStats tests={allPlacementTests} isLoading={false} />
+            <PlacementTestStats
+              tests={branchScopedPlacementTests}
+              isLoading={false}
+            />
           </div>
 
           {/* Filter Bar */}
           <div
             className={`transition-all duration-700 delay-150 ${
-              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
+              isPageLoaded
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 -translate-y-4"
             }`}
           >
             <PlacementTestFilters
@@ -1254,8 +1746,8 @@ export default function Page() {
               fromDate={testFromDate}
               toDate={testToDate}
               pageSize={testPageSize}
-              totalCount={testTotalCount}
-              statusCounts={testStatusCounts}
+              totalCount={branchScopedPlacementTests.length}
+              statusCounts={filteredPlacementStatusCounts}
               onSearchChange={setTestSearchQuery}
               onStatusChange={setTestSelectedStatus}
               onFromDateChange={setTestFromDate}
@@ -1267,16 +1759,18 @@ export default function Page() {
           {/* Placement Test Table */}
           <div
             className={`transition-all duration-700 delay-200 ${
-              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+              isPageLoaded
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4"
             }`}
           >
             <PlacementTestTable
-              tests={placementTests}
+              tests={pagedPlacementTests}
               isLoading={isLoadingTests}
               currentPage={testCurrentPage}
-              totalPages={testTotalPages}
+              totalPages={placementTotalPages}
               pageSize={testPageSize}
-              totalCount={testTotalCount}
+              totalCount={placementTotalCount}
               onView={handleViewTest}
               onEdit={handleEditTest}
               onAddResult={handleAddResult}
@@ -1285,33 +1779,55 @@ export default function Page() {
               onNoShow={handleNoShowTest}
               onConvertToEnrolled={handleConvertToEnrolled}
               onCreateAccount={handleCreateAccountFromTest}
+              onStartRegistration={handleStartRegistrationFlow}
               onPageChange={handleTestPageChange}
             />
           </div>
         </>
       )}
 
+      {activeTab === "registrations" && (
+        <div
+          className={`transition-all duration-700 delay-100 ${
+            isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}
+        >
+          <StaffRegistrationOverview
+            branchId={resolveUserBranchId(currentUser)}
+            onTotalChange={setRegistrationTotalCount}
+          />
+        </div>
+      )}
+
       {/* Enrollment Content */}
       {activeTab === "enrollments" && (
         <>
-          <div className={`transition-all duration-700 delay-100 ${
-              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          <div
+            className={`transition-all duration-700 delay-100 ${
+              isPageLoaded
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4"
             }`}
           >
-            <EnrollmentStats enrollments={allEnrollments} isLoading={false} />
+            <EnrollmentStats
+              enrollments={branchScopedEnrollments}
+              isLoading={false}
+            />
           </div>
 
           <div
             className={`transition-all duration-700 delay-150 ${
-              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
+              isPageLoaded
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 -translate-y-4"
             }`}
           >
             <EnrollmentFilters
               searchQuery={enrollSearchQuery}
               selectedStatus={enrollSelectedStatus}
               pageSize={enrollPageSize}
-              totalCount={enrollTotalCount}
-              statusCounts={enrollStatusCounts}
+              totalCount={branchScopedEnrollments.length}
+              statusCounts={filteredEnrollStatusCounts}
               onSearchChange={setEnrollSearchQuery}
               onStatusChange={(status: string) => {
                 setEnrollSelectedStatus(status);
@@ -1323,16 +1839,18 @@ export default function Page() {
 
           <div
             className={`transition-all duration-700 delay-200 ${
-              isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+              isPageLoaded
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4"
             }`}
           >
             <EnrollmentTable
-              enrollments={enrollments}
+              enrollments={pagedEnrollments}
               isLoading={isLoadingEnrollments}
               currentPage={enrollCurrentPage}
-              totalPages={enrollTotalPages}
+              totalPages={enrollmentTotalPages}
               pageSize={enrollPageSize}
-              totalCount={enrollTotalCount}
+              totalCount={enrollmentTotalCount}
               sortKey={enrollSortKey}
               sortDir={enrollSortDir}
               onSort={handleEnrollSort}
@@ -1416,6 +1934,18 @@ export default function Page() {
         onSuccess={() => {
           fetchPlacementTests();
           closeCreateAccountModal();
+        }}
+      />
+
+      <RegistrationFlowModal
+        isOpen={isRegistrationFlowOpen}
+        onClose={() => setIsRegistrationFlowOpen(false)}
+        test={selectedTest}
+        branchId={resolveUserBranchId(currentUser)}
+        onSuccess={() => {
+          fetchPlacementTests();
+          fetchInitialTestData();
+          fetchInitialRegistrationData();
         }}
       />
 

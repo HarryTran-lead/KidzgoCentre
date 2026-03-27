@@ -165,7 +165,7 @@ export default function EnrollmentFormModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-linear-to-r from-blue-500 to-indigo-600 text-white p-5 rounded-t-2xl flex justify-between items-center">
+        <div className="bg-linear-to-r from-red-600 to-red-700 text-white p-5 rounded-t-2xl flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <BookOpen size={22} />
             Tạo ghi danh mới
@@ -183,7 +183,7 @@ export default function EnrollmentFormModal({
           {/* Class Selection */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Chọn lớp học <span className="text-rose-500">*</span>
+              Chọn lớp học <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -198,7 +198,7 @@ export default function EnrollmentFormModal({
                 }}
                 onFocus={() => setShowClassDropdown(true)}
                 placeholder="Tìm kiếm lớp học..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none text-sm"
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none text-sm"
               />
               {classId && (
                 <button
@@ -231,9 +231,9 @@ export default function EnrollmentFormModal({
                             setSelectedClassName(`${cls.code} - ${cls.title}`);
                             setShowClassDropdown(false);
                           }}
-                          className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm"
+                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-sm"
                         >
-                          <span className="font-medium text-blue-600">{cls.code}</span>
+                          <span className="font-medium text-red-600">{cls.code}</span>
                           <span className="text-gray-600"> - {cls.title}</span>
                         </button>
                       ))
@@ -247,7 +247,7 @@ export default function EnrollmentFormModal({
           {/* Student Profile Selection */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Chọn học viên <span className="text-rose-500">*</span>
+              Chọn học viên <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -262,7 +262,7 @@ export default function EnrollmentFormModal({
                 }}
                 onFocus={() => setShowStudentDropdown(true)}
                 placeholder="Tìm kiếm học viên..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none text-sm"
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none text-sm"
               />
               {studentProfileId && (
                 <button
@@ -295,7 +295,7 @@ export default function EnrollmentFormModal({
                             setSelectedStudentName(profile.fullName);
                             setShowStudentDropdown(false);
                           }}
-                          className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm"
+                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-sm"
                         >
                           <span className="font-medium">{profile.fullName}</span>
                           <span className="text-gray-400 text-xs ml-2">({profile.id.slice(0, 8)}...)</span>
@@ -311,14 +311,14 @@ export default function EnrollmentFormModal({
           {/* Enroll Date */}
           <div className="space-y-2">
             <label htmlFor="enrollDate" className="block text-sm font-medium text-gray-700">
-              Ngày ghi danh <span className="text-rose-500">*</span>
+              Ngày ghi danh <span className="text-red-500">*</span>
             </label>
             <input
               id="enrollDate"
               type="date"
               value={enrollDate}
               onChange={(e) => setEnrollDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none text-sm"
               required
             />
           </div>
@@ -329,14 +329,14 @@ export default function EnrollmentFormModal({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-red-50 transition-colors disabled:opacity-50"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !classId || !studentProfileId || !enrollDate}
-              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-blue-500 to-indigo-500 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
             >
               {isSubmitting ? "Đang xử lý..." : "Tạo ghi danh"}
             </button>

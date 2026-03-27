@@ -7,8 +7,9 @@
  */
 
 import { get, post, put, del } from '@/lib/axios';
-import { PROFILE_ENDPOINTS } from '@/constants/apiURL';
+import { PROFILE_ENDPOINTS, USER_ENDPOINTS } from '@/constants/apiURL';
 import type {
+  ProfileActionApiResponse,
   CreateParentProfileRequest,
   CreateStudentProfileRequest,
   CreateProfileApiResponse,
@@ -102,6 +103,35 @@ export async function deleteProfile(id: string): Promise<DeleteProfileApiRespons
  */
 export async function reactivateProfile(id: string): Promise<{ success: boolean; message?: string }> {
   return put<{ success: boolean; message?: string }>(PROFILE_ENDPOINTS.REACTIVATE(id), {});
+}
+
+/**
+ * Admin approves one or many profiles created by staff (isApproved = false).
+ */
+export async function approveProfilesByAdmin(profileIds: string[]): Promise<ProfileActionApiResponse> {
+  const ids = Array.from(new Set(profileIds.map((id) => String(id || "").trim()).filter(Boolean)));
+  if (!ids.length) {
+    return {
+      success: false,
+      message: "Không có profileId để duyệt",
+      data: null,
+    } as unknown as ProfileActionApiResponse;
+  }
+
+  return put<ProfileActionApiResponse>(USER_ENDPOINTS.APPROVE_PROFILES, {
+    profileId: ids,
+  });
+}
+
+export async function approveProfileByAdmin(id: string): Promise<ProfileActionApiResponse> {
+  return approveProfilesByAdmin([id]);
+}
+
+/**
+ * Admin reactivates a profile that is inactive (isActive = false).
+ */
+export async function reactivateProfileByAdmin(id: string): Promise<ProfileActionApiResponse> {
+  return put<ProfileActionApiResponse>(PROFILE_ENDPOINTS.REACTIVATE(id), {});
 }
 
 /**

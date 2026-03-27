@@ -169,3 +169,15 @@ export interface UnlinkProfilesApiResponse extends ApiResponse<{
   parentProfileId: string;
   studentProfileId: string;
 }> {}
+
+/**
+ * Generic action response for profile approval/reactivation flows.
+ */
+export interface ProfileActionResponseData {
+  approvedCount?: number;
+  alreadyApproved?: string[];
+  notFound?: string[];
+  reactivatedProfileId?: string;
+}
+
+export interface ProfileActionApiResponse extends ApiResponse<ProfileActionResponseData | null> {}

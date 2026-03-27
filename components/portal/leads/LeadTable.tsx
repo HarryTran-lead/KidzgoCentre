@@ -329,7 +329,7 @@ export default function LeadTable({
 
       {/* Pagination Footer */}
       {totalPages > 0 && onPageChange && onPageSizeChange && (
-        <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+        <div>
           <LeadPagination
             currentPage={currentPage}
             totalPages={totalPages}

@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
       { protocol: "http", hostname: "**" },
     ],
     unoptimized: false,
+    qualities: [100, 75],
   },
 
   experimental: {

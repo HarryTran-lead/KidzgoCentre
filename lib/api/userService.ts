@@ -172,7 +172,6 @@ export async function approveProfiles(profileIds: string[]): Promise<ApproveProf
     };
   }
 
-  const primaryId = profileIds[0];
   return put<{
     success?: boolean;
     isSuccess?: boolean;
@@ -182,7 +181,7 @@ export async function approveProfiles(profileIds: string[]): Promise<ApproveProf
       alreadyApproved?: string[];
       notFound?: string[];
     };
-  }>(USER_ENDPOINTS.APPROVE(primaryId), {
+  }>(USER_ENDPOINTS.APPROVE_PROFILES, {
     profileId: profileIds,
   });
 }
