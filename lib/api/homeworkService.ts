@@ -562,17 +562,28 @@ export function mapSubmissionToUi(submission: HomeworkSubmission) {
   const formatDueDate = (dateStr?: string): string => {
     if (!dateStr) return "";
     try {
-      // Create date in Vietnam timezone
       const date = new Date(dateStr);
-      // Extract date parts manually to avoid timezone issues
-      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+      // Parse ISO string to extract UTC+7 components manually
+      // Backend stores as "YYYY-MM-DDTHH:mm:ss" (treated as UTC)
+      // Vietnam is UTC+7, so we interpret the string as Vietnam time
+      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
       if (match) {
         const [, year, month, day, hours, minutes] = match;
-        // Parse as Vietnam time (UTC+7)
-        const vnDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
-        const vnTime = vnDate.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
-        const vnDateStr = vnDate.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-        return `${vnTime} ${vnDateStr}`;
+        // Create Date treating values as Vietnam time (UTC+7)
+        // Subtract 7 hours so that when displayed in any timezone,
+        // it shows the correct Vietnam time
+        const vnMs = Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours) - 7, parseInt(minutes));
+        const vnDate = new Date(vnMs);
+        return vnDate.toLocaleString("vi-VN", {
+          timeZone: "Asia/Ho_Chi_Minh",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        });
       }
       // Fallback: use toLocaleString with explicit timezone
       return date.toLocaleString("vi-VN", {

@@ -47,6 +47,7 @@ export default function MultipleChoiceForm({
   onUnsavedChanges,
 }: MultipleChoiceFormProps) {
   const questions = assignment.questions || [];
+  console.log({assignment});
   
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [markedQuestions, setMarkedQuestions] = useState<Set<string>>(new Set());
@@ -60,23 +61,25 @@ export default function MultipleChoiceForm({
   const [isInitialized, setIsInitialized] = useState(false);
   const [isAutoSubmitting, setIsAutoSubmitting] = useState(false);
   const [showQuizStartModal, setShowQuizStartModal] = useState(false);
-  
+
   const hasAutoSubmitted = useRef(false);
   const isDirty = useRef(false);
+  const submitQuizRef = useRef<typeof submitQuiz | null>(null);
+  const autoSubmitTriggeredRef = useRef(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const timerStartTimeRef = useRef<number>(0);
   const remainingOnLeaveRef = useRef<number>(0);
-  
+
   const router = useRouter();
 
   const totalQuestions = questions.length;
   const answeredCount = Object.keys(selectedAnswers).length;
   const hasAnsweredAll = answeredCount === totalQuestions && totalQuestions > 0;
-  
+
   const timeLimitMinutes = assignment.timeLimitMinutes;
   const totalSeconds = timeLimitMinutes && timeLimitMinutes > 0 ? timeLimitMinutes * 60 : 0;
   const [timeRemaining, setTimeRemaining] = useState(totalSeconds);
-  
+
   const isUrgent = timeRemaining > 0 && timeRemaining <= 5 * 60;
   const isCritical = timeRemaining > 0 && timeRemaining <= 60;
   const timerPercentage = totalSeconds > 0 ? (timeRemaining / totalSeconds) * 100 : 0;
@@ -108,6 +111,7 @@ export default function MultipleChoiceForm({
         homeworkStudentId: homeworkId,
         answers: questions.map((q) => ({ questionId: q.id, selectedOptionId: selectedAnswers[q.id] || "" })),
       };
+      console.log("[DEBUG] Submit quiz payload:", JSON.stringify(payload, null, 2));
       const response = await submitMultipleChoiceHomework(payload);
       if (response.isSuccess) {
         hasAutoSubmitted.current = true;
@@ -118,7 +122,7 @@ export default function MultipleChoiceForm({
         setIsTimerActive(true);
         if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error submitting quiz:", err);
       onError("Đã xảy ra lỗi khi nộp bài");
       setIsTimerActive(true);
@@ -141,23 +145,29 @@ export default function MultipleChoiceForm({
         onSubmitSuccess();
         return true;
       } else { onError(response.message || "Không thể nộp bài."); return false; }
-    } catch { onError("Đã xảy ra lỗi khi nộp bài"); return false; }
+    } catch (err: any) {
+      const backendMsg = err?.response?.data?.message || err?.response?.data?.detail || err?.response?.data;
+      onError(`Lỗi nộp bài: ${backendMsg || err?.message || "Không xác định"}`);
+      return false;
+    }
     finally { setIsAutoSubmitting(false); }
   }, [isAutoSubmitting, questions, selectedAnswers, homeworkId, onSubmitSuccess, onError, stopTimer, getStorageKey]);
 
   const handleNavigationAttempt = useCallback(async (targetUrl?: string) => {
-    if (hasAutoSubmitted.current || isSubmitting) { if (targetUrl) router.push(targetUrl); return; }
+    if (hasAutoSubmitted.current || isSubmitting) { return; }
     setShowLeaveWarning(true);
     setPendingNavigation(targetUrl || null);
-  }, [router, isSubmitting]);
+  }, []);
 
   const handleConfirmLeave = useCallback(async () => {
     setShowLeaveWarning(false);
-    const submitted = await autoSubmitAndLeave();
-    if (submitted && pendingNavigation) router.push(pendingNavigation);
-    else if (submitted) router.back();
     setPendingNavigation(null);
-  }, [autoSubmitAndLeave, pendingNavigation, router]);
+    const submitted = await autoSubmitAndLeave();
+    if (submitted) {
+      // onSubmitSuccess() redirect trong page.tsx
+      onSubmitSuccess();
+    }
+  }, [autoSubmitAndLeave, onSubmitSuccess]);
 
   const handleStay = useCallback(() => { setShowLeaveWarning(false); setPendingNavigation(null); window.history.pushState(null, "", window.location.href); }, []);
 
@@ -183,10 +193,20 @@ export default function MultipleChoiceForm({
     localStorage.removeItem(`${storageKey}_submitted`);
     localStorage.removeItem(`${storageKey}_answers`);
     localStorage.removeItem(`${storageKey}_marked`);
+    autoSubmitTriggeredRef.current = false;
     setShowQuizStartModal(false);
   }, [getStorageKey, totalSeconds]);
 
-  useEffect(() => { if (onUnsavedChanges) onUnsavedChanges(isDirty.current); }, [selectedAnswers, onUnsavedChanges]);
+  // Track unsaved changes - chỉ thông báo khi thực sự có thay đổi (đã chọn đáp án)
+  useEffect(() => {
+    if (!onUnsavedChanges) return;
+    // Chỉ báo có thay đổi khi đã bắt đầu làm (showQuizStartModal = false)
+    // VÀ đã có ít nhất 1 câu trả lời được chọn
+    const hasAnsweredAny = Object.keys(selectedAnswers).length > 0;
+    if (!showQuizStartModal) {
+      onUnsavedChanges(hasAnsweredAny);
+    }
+  }, [selectedAnswers, showQuizStartModal]);
 
   useEffect(() => {
     const storageKey = getStorageKey();
@@ -198,7 +218,7 @@ export default function MultipleChoiceForm({
     const savedRemaining = localStorage.getItem(`${storageKey}_remaining`);
     const savedSubmitted = localStorage.getItem(`${storageKey}_submitted`);
     const savedLastActive = localStorage.getItem(`${storageKey}_lastActive`);
-    if (savedSubmitted === "true") { setIsInitialized(true); return; }
+    if (savedSubmitted === "true") { setIsInitialized(true); autoSubmitTriggeredRef.current = true; return; }
     if (savedStartTime && savedRemaining) {
       setShowQuizStartModal(false);
       const remaining = parseInt(savedRemaining, 10);
@@ -231,13 +251,31 @@ export default function MultipleChoiceForm({
     return () => clearInterval(interval);
   }, [isInitialized, getStorageKey]);
 
+  // Keep submitQuizRef in sync with submitQuiz
+  useEffect(() => {
+    submitQuizRef.current = submitQuiz;
+  }, [submitQuiz]);
+
+  // Countdown timer
   useEffect(() => {
     if (!isInitialized || showQuizStartModal) return;
     if (!totalSeconds || totalSeconds <= 0 || !isTimerActive) return;
     if (hasAutoSubmitted.current || timeRemaining <= 0) return;
     timerRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
-        if (prev <= 1) { if (timerRef.current) clearInterval(timerRef.current); timerRef.current = null; setIsTimerActive(false); setTimeUpModal(true); localStorage.setItem(getStorageKey("_submitted"), "true"); return 0; }
+        if (prev <= 30 && !hasAutoSubmitted.current && !autoSubmitTriggeredRef.current && submitQuizRef.current) {
+          autoSubmitTriggeredRef.current = true;
+          submitQuizRef.current(true);
+          return prev;
+        }
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          timerRef.current = null;
+          setIsTimerActive(false);
+          setTimeUpModal(true);
+          localStorage.setItem(getStorageKey("_submitted"), "true");
+          return 0;
+        }
         const newTime = prev - 1;
         if (newTime === 5 * 60 && !countdownWarning) { setCountdownWarning(true); setTimeout(() => setCountdownWarning(false), 5000); }
         if (newTime === 60) { setCountdownWarning(true); setTimeout(() => setCountdownWarning(false), 5000); }
@@ -300,14 +338,10 @@ export default function MultipleChoiceForm({
               <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 blur-sm opacity-80" />
               <div className="relative bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950/95 backdrop-blur-xl rounded-3xl border border-purple-500/30 shadow-2xl shadow-purple-900/50 overflow-hidden">
                 <div className="relative">
-                  <div className="absolute top-2 right-4 px-3 py-1 rounded-full bg-blue-500/80 backdrop-blur text-white text-[10px] font-bold tracking-wider shadow-lg shadow-blue-500/40 border border-blue-300/30 z-10">SET PRIMARY</div>
                   <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 px-6 py-4 shadow-lg">
                     <h2 className="text-white font-bold text-lg drop-shadow-md pr-16">{assignment.title}</h2>
-                    <p className="text-orange-100 text-xs font-medium mt-0.5">{assignment.className} • {assignment.subject}</p>
+                    <p className="text-orange-100 text-xs font-medium mt-0.5">{assignment.className} </p>
                   </div>
-                </div>
-                <div className="px-6 py-3 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 border-y border-purple-500/20">
-                  <p className="text-purple-200 text-center text-sm font-medium">Bài kiểm tra có: <span className="text-white font-bold">{totalQuestions} phần</span> — Tổng: <span className="text-white font-bold">{timeLimitMinutes || 0} phút</span></p>
                 </div>
                 <div className="p-6 space-y-6">
                   <div className="relative rounded-2xl border-2 border-blue-500/40 bg-gradient-to-br from-purple-900/60 via-indigo-900/60 to-violet-900/60 backdrop-blur-sm overflow-hidden">
@@ -315,13 +349,13 @@ export default function MultipleChoiceForm({
                     <div className="relative px-5 py-3 border-b border-blue-500/30">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/40"><BookOpen className="w-5 h-5 text-white" /></div>
-                        <div><h3 className="text-white font-bold text-base tracking-wide">{assignment.subject || 'BÀI KIỂM TRA'}</h3><p className="text-blue-300 text-xs font-medium">READING - WRITING</p></div>
+                        <div><h3 className="text-white font-bold text-base tracking-wide">{assignment.subject || 'BÀI TẬP TRẮC NGHIỆM'}</h3></div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 p-5">
                       <div className="relative rounded-xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 p-4 text-center border border-purple-500/20">
                         <div className="text-[10px] uppercase tracking-widest text-blue-400 font-bold mb-1">ĐIỂM TỐI ĐA</div>
-                        <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-400 to-orange-500 drop-shadow-lg">{assignment.grading?.maxScore || 10}</div>
+                        <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-400 to-orange-500 drop-shadow-lg">{assignment.maxScore || 10}</div>
                         <div className="text-[10px] uppercase tracking-widest text-purple-400 font-semibold mt-1">ĐIỂM</div>
                       </div>
                       <div className="relative rounded-xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 p-4 text-center border border-purple-500/20">
@@ -499,28 +533,28 @@ export default function MultipleChoiceForm({
       )}
 
       {showSubmitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="border-b border-gray-100 p-6"><h3 className="text-xl font-semibold text-gray-900">Xác nhận nộp bài</h3></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 shadow-2xl shadow-purple-900/50 animate-in fade-in zoom-in duration-200">
+            <div className="border-b border-purple-500/20 p-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><HelpCircle className="h-5 w-5 text-blue-400" /> Xác nhận nộp bài</h3></div>
             <div className="p-6">
-              <div className="mb-4 rounded-lg bg-blue-50 p-4">
+              <div className="mb-4 rounded-xl bg-slate-800/60 border border-purple-500/20 p-4">
                 <div className="flex items-start gap-3">
-                  <HelpCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <HelpCircle className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm text-gray-700 mb-2">Bạn có chắc chắn muốn hoàn thành bài trắc nghiệm <strong>{assignment.title}</strong>?</p>
-                    <ul className="space-y-1 text-sm text-gray-600">
-                      <li>• Đã trả lời: {answeredCount}/{totalQuestions}</li>
-                      <li>• Chưa trả lời: {totalQuestions - answeredCount}</li>
-                      {timeLimitMinutes && timeLimitMinutes > 0 && <li>• Thời gian còn lại: {formatTime(timeRemaining)}</li>}
-                      <li className="text-amber-600">• Hệ thống sẽ chấm điểm ngay lập tức</li>
+                    <p className="text-sm text-slate-300 mb-2">Bạn có chắc chắn muốn hoàn thành bài trắc nghiệm <strong className="text-white">{assignment.title}</strong>?</p>
+                    <ul className="space-y-1 text-sm text-slate-400">
+                      <li>• Đã trả lời: <span className="text-green-400 font-bold">{answeredCount}/{totalQuestions}</span></li>
+                      <li>• Chưa trả lời: <span className="text-amber-400 font-bold">{totalQuestions - answeredCount}</span></li>
+                      {timeLimitMinutes && timeLimitMinutes > 0 && <li>• Thời gian còn lại: <span className="text-purple-400 font-bold">{formatTime(timeRemaining)}</span></li>}
+                      <li className="text-amber-400">• Hệ thống sẽ chấm điểm ngay lập tức</li>
                     </ul>
                   </div>
                 </div>
               </div>
-              {!hasAnsweredAll && <div className="mb-4 rounded-lg bg-amber-50 p-3"><p className="text-sm text-amber-700">⚠️ Bạn chưa trả lời hết {totalQuestions - answeredCount} câu hỏi.</p></div>}
+              {!hasAnsweredAll && <div className="mb-4 rounded-xl bg-amber-500/10 border border-amber-400/30 p-3"><p className="text-sm text-amber-400">⚠️ Bạn chưa trả lời hết {totalQuestions - answeredCount} câu hỏi.</p></div>}
               <div className="flex gap-3">
-                <button onClick={() => setShowSubmitModal(false)} className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">Hủy</button>
-                <button onClick={handleConfirmSubmit} disabled={!hasAnsweredAll || isSubmitting} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer">{isSubmitting ? "Đang xử lý..." : "Xác nhận nộp bài"}</button>
+                <button onClick={() => setShowSubmitModal(false)} className="flex-1 rounded-xl border border-purple-500/30 bg-slate-800/60 px-4 py-2.5 font-medium text-slate-300 hover:bg-slate-700/60 hover:border-purple-400/50 cursor-pointer transition-all">Hủy</button>
+                <button onClick={handleConfirmSubmit} disabled={!hasAnsweredAll || isSubmitting} className="flex-1 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2.5 font-semibold text-white hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 cursor-pointer transition-all shadow-lg shadow-green-500/30">{isSubmitting ? "Đang xử lý..." : "Xác nhận nộp bài"}</button>
               </div>
             </div>
           </div>
@@ -528,43 +562,43 @@ export default function MultipleChoiceForm({
       )}
 
       {timeUpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="border-b border-gray-100 p-6 text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-100"><AlertTriangle className="h-8 w-8 text-rose-600" /></div>
-              <h3 className="text-xl font-bold text-gray-900">Hết giờ làm bài!</h3>
-              <p className="mt-2 text-sm text-gray-600">Thời gian làm bài đã kết thúc. Hệ thống sẽ tự động nộp bài của bạn.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 shadow-2xl shadow-purple-900/50 animate-in fade-in zoom-in duration-200">
+            <div className="border-b border-purple-500/20 p-6 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/20 border border-rose-400/40"><AlertTriangle className="h-8 w-8 text-rose-400" /></div>
+              <h3 className="text-xl font-bold text-white">Hết giờ làm bài!</h3>
+              <p className="mt-2 text-sm text-slate-400">Hệ thống đã tự động nộp bài với các câu đã trả lời. Câu chưa trả lời sẽ tính 0 điểm.</p>
             </div>
             <div className="p-6">
-              <div className="mb-4 rounded-lg bg-gray-50 p-4">
+              <div className="mb-4 rounded-xl bg-slate-800/60 border border-purple-500/20 p-4">
                 <div className="grid grid-cols-2 gap-4 text-center">
-                  <div><p className="text-sm text-gray-500">Đã trả lời</p><p className="text-xl font-bold text-green-600">{answeredCount}/{totalQuestions}</p></div>
-                  <div><p className="text-sm text-gray-500">Chưa trả lời</p><p className="text-xl font-bold text-rose-600">{totalQuestions - answeredCount}</p></div>
+                  <div><p className="text-sm text-slate-400">Đã trả lời</p><p className="text-xl font-bold text-green-400">{answeredCount}/{totalQuestions}</p></div>
+                  <div><p className="text-sm text-slate-400">Chưa trả lời</p><p className="text-xl font-bold text-rose-400">{totalQuestions - answeredCount}</p></div>
                 </div>
               </div>
-              <button onClick={handleAutoSubmit} disabled={isSubmitting} className="w-full rounded-lg bg-rose-600 px-4 py-3 font-semibold text-white hover:bg-rose-700 disabled:opacity-50">{isSubmitting ? "Đang nộp bài..." : "Nộp bài ngay"}</button>
+              <button onClick={() => setTimeUpModal(false)} disabled={isSubmitting} className="w-full rounded-xl bg-gradient-to-r from-rose-500 to-red-600 px-4 py-3 font-semibold text-white hover:from-rose-600 hover:to-red-700 disabled:opacity-50 transition-all shadow-lg shadow-rose-500/30">{isSubmitting ? "Đang nộp..." : "Đóng"}</button>
             </div>
           </div>
         </div>
       )}
 
       {showLeaveWarning && (
-        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="border-b border-gray-100 p-6 text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100"><AlertTriangle className="h-8 w-8 text-amber-600" /></div>
-              <h3 className="text-xl font-bold text-gray-900">Cảnh báo rời khỏi trang</h3>
-              <p className="mt-2 text-sm text-gray-600">Bạn đang làm bài thi. Nếu rời khỏi, hệ thống sẽ tự động nộp bài với những câu đã trả lời.</p>
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 shadow-2xl shadow-purple-900/50 animate-in fade-in zoom-in duration-200">
+            <div className="border-b border-purple-500/20 p-6 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/20 border border-amber-400/40"><AlertTriangle className="h-8 w-8 text-amber-400" /></div>
+              <h3 className="text-xl font-bold text-white">Cảnh báo rời khỏi trang</h3>
+              <p className="mt-2 text-sm text-slate-400">Bạn đang làm bài thi. Nếu rời khỏi, hệ thống sẽ tự động nộp bài với những câu đã trả lời.</p>
             </div>
             <div className="p-6 space-y-3">
-              <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">
-                <div className="flex items-center gap-2 mb-1"><Timer className="h-4 w-4" /><span className="font-medium">Thời gian còn lại:</span><span className="font-bold">{formatTime(timeRemaining)}</span></div>
-                <div className="flex items-center gap-2"><List className="h-4 w-4" /><span className="font-medium">Đã trả lời:</span><span className="font-bold">{answeredCount}/{totalQuestions}</span></div>
-                <div className="flex items-center gap-2 mt-1"><LogOut className="h-4 w-4" /><span className="font-medium">Sẽ tự động nộp:</span><span className="font-bold text-amber-800">Những câu đã trả lời</span></div>
+              <div className="rounded-xl bg-slate-800/60 border border-purple-500/20 p-4 text-sm">
+                <div className="flex items-center gap-2 mb-2"><Timer className="h-4 w-4 text-purple-400" /><span className="text-slate-400">Thời gian còn lại:</span><span className="font-bold text-amber-400">{formatTime(timeRemaining)}</span></div>
+                <div className="flex items-center gap-2 mb-2"><List className="h-4 w-4 text-purple-400" /><span className="text-slate-400">Đã trả lời:</span><span className="font-bold text-green-400">{answeredCount}/{totalQuestions}</span></div>
+                <div className="flex items-center gap-2"><LogOut className="h-4 w-4 text-purple-400" /><span className="text-slate-400">Sẽ tự động nộp:</span><span className="font-bold text-amber-400">Những câu đã trả lời</span></div>
               </div>
               <div className="flex gap-3">
-                <button onClick={handleStay} className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">Ở lại trang</button>
-                <button onClick={handleConfirmLeave} disabled={isAutoSubmitting} className="flex-1 rounded-lg bg-amber-600 px-4 py-2.5 font-medium text-white hover:bg-amber-700 disabled:opacity-50 cursor-pointer">{isAutoSubmitting ? "Đang nộp..." : "Rời khỏi & Nộp bài"}</button>
+                <button onClick={handleStay} className="flex-1 rounded-xl border border-purple-500/30 bg-slate-800/60 px-4 py-2.5 font-medium text-slate-300 hover:bg-slate-700/60 hover:border-purple-400/50 cursor-pointer transition-all">Ở lại trang</button>
+                <button onClick={handleConfirmLeave} disabled={isAutoSubmitting} className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 font-semibold text-white hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 cursor-pointer transition-all shadow-lg shadow-amber-500/30">{isAutoSubmitting ? "Đang nộp..." : "Rời khỏi & Nộp bài"}</button>
               </div>
             </div>
           </div>

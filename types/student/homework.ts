@@ -56,7 +56,6 @@ export interface AssignmentDetail {
   submissionType?: "FILE" | "IMAGE" | "TEXT" | "LINK" | "QUIZ" | "MULTIPLE_CHOICE" | "FILE_AND_TEXT";
   timeRemaining?: string;
   timeLimitMinutes?: number;
-
   description: string;
   instructions?: string;
   requirements: string[];
@@ -65,6 +64,8 @@ export interface AssignmentDetail {
 
   teacherAttachments?: Attachment[];
 
+  isOverdue?: boolean;
+  maxScore?: number;
   submission?: Submission;
   submissionHistory?: Submission[];
   allowResubmit: boolean;

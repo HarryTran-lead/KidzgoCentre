@@ -424,7 +424,38 @@ export default function HomeworkDetailPage() {
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: "Asia/Ho_Chi_Minh",
       });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // DueAt từ API đôi khi bị lệch timezone; hàm này hiển thị theo giờ VN giống trang danh sách
+  const formatDueAtVn = (dateStr?: string) => {
+    if (!dateStr) return "-";
+    try {
+      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?/);
+      if (match) {
+        const [, year, month, day, hours, minutes] = match;
+        const vnMs = Date.UTC(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day),
+          parseInt(hours) - 7,
+          parseInt(minutes)
+        );
+        return new Date(vnMs).toLocaleString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Asia/Ho_Chi_Minh",
+        });
+      }
+
+      return formatDateTime(dateStr);
     } catch {
       return dateStr;
     }
@@ -531,7 +562,7 @@ export default function HomeworkDetailPage() {
                 <Clock size={16} className="text-red-600" />
                 <div>
                   <div className="text-xs text-gray-500">Hạn nộp</div>
-                  <div className="font-medium text-gray-900">{formatDateTime(homework.dueAt)}</div>
+                  <div className="font-medium text-gray-900">{formatDueAtVn(homework.dueAt)}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-gray-600">
@@ -733,7 +764,9 @@ export default function HomeworkDetailPage() {
                       onSort={handleSort}
                     />
                   </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Tệp đính kèm</th>
+                  {homework.submissionType !== "MULTIPLE_CHOICE" && (
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Tệp đính kèm</th>
+                  )}
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                     <SortableHeader
                       label="Điểm"
@@ -750,7 +783,7 @@ export default function HomeworkDetailPage() {
               <tbody className="divide-y divide-red-100">
                 {isLoadingSubmissions ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={homework.submissionType === "MULTIPLE_CHOICE" ? 5 : 6} className="py-12 text-center">
                       <Loader2 size={32} className="animate-spin mx-auto text-red-600 mb-4" />
                       <p className="text-gray-600">Đang tải danh sách nộp bài...</p>
                     </td>
@@ -782,24 +815,33 @@ export default function HomeworkDetailPage() {
                         {formatDateTime(submission.submittedAt || undefined)}
                       </td>
 
-                      {/* Attachments */}
-                      <td className="py-4 px-6">
-                        {submission.teacherFeedback ? (
-                          <span className="text-sm text-gray-500 italic">Co phan hoi</span>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
-                      </td>
+                      {/* Attachments - hidden for multiple choice */}
+                      {homework.submissionType !== "MULTIPLE_CHOICE" && (
+                        <td className="py-4 px-6">
+                          {submission.teacherFeedback ? (
+                            <span className="text-sm text-gray-500 italic">Có phản hồi</span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Score */}
                       <td className="py-4 px-6">
-                        {submission.score !== null && submission.score !== undefined ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-bold text-emerald-600">{submission.score}</span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 text-sm">Chua cham</span>
-                        )}
+                        {(() => {
+                          const status = mapApiStatusToUi(submission.status, submission.dueAt, submission.submittedAt);
+                          const isOverdueNotSubmitted = status === "OVERDUE" && submission.submittedAt === null;
+                          const displayScore = isOverdueNotSubmitted ? 0 : submission.score;
+                          if (displayScore !== null && displayScore !== undefined) {
+                            return (
+                              <div className="flex items-center gap-1">
+                                <span className={`text-lg font-bold ${isOverdueNotSubmitted ? "text-red-500" : "text-emerald-600"}`}>{displayScore}</span>
+                                <span className="text-gray-400 text-sm">/ {homework.maxScore || 10}</span>
+                              </div>
+                            );
+                          }
+                          return <span className="text-gray-400 text-sm">Chưa chấm</span>;
+                        })()}
                       </td>
 
                       {/* Actions */}
@@ -836,7 +878,7 @@ export default function HomeworkDetailPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={homework.submissionType === "MULTIPLE_CHOICE" ? 5 : 6} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                         <Search size={24} className="text-red-400" />
                       </div>

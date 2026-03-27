@@ -62,12 +62,61 @@ const getTypeIcon = (type: string) => {
 };
 
 const formatDate = (dateString: string, locale: string = 'vi-VN') => {
+  if (!dateString) return '-';
   try {
-    const date = new Date(dateString);
+    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    let date: Date;
+    if (match) {
+      const [, year, month, day, hours, minutes] = match;
+      const vnMs = Date.UTC(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+        parseInt(hours) - 7,
+        parseInt(minutes)
+      );
+      date = new Date(vnMs);
+    } else {
+      date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+    }
     return date.toLocaleDateString(locale, {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
+  } catch {
+    return dateString;
+  }
+};
+
+const formatDateTime = (dateString: string, locale: string = 'vi-VN') => {
+  if (!dateString) return '-';
+  try {
+    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    let date: Date;
+    if (match) {
+      const [, year, month, day, hours, minutes] = match;
+      const vnMs = Date.UTC(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+        parseInt(hours) - 7,
+        parseInt(minutes)
+      );
+      date = new Date(vnMs);
+    } else {
+      date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+    }
+    return date.toLocaleString(locale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh',
     });
   } catch {
     return dateString;
@@ -75,8 +124,17 @@ const formatDate = (dateString: string, locale: string = 'vi-VN') => {
 };
 
 const isToday = (dateString: string): boolean => {
+  if (!dateString) return false;
   try {
-    const date = new Date(dateString);
+    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    let date: Date;
+    if (match) {
+      const [, year, month, day] = match;
+      date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    } else {
+      date = new Date(dateString);
+      if (isNaN(date.getTime())) return false;
+    }
     const today = new Date();
     return date.toDateString() === today.toDateString();
   } catch {
@@ -85,23 +143,20 @@ const isToday = (dateString: string): boolean => {
 };
 
 const isTomorrow = (dateString: string): boolean => {
+  if (!dateString) return false;
   try {
-    const date = new Date(dateString);
+    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    let date: Date;
+    if (match) {
+      const [, year, month, day] = match;
+      date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    } else {
+      date = new Date(dateString);
+      if (isNaN(date.getTime())) return false;
+    }
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     return date.toDateString() === tomorrow.toDateString();
-  } catch {
-    return false;
-  }
-};
-
-const isThisWeek = (dateString: string): boolean => {
-  try {
-    const date = new Date(dateString);
-    const today = new Date();
-    const weekLater = new Date();
-    weekLater.setDate(weekLater.getDate() + 7);
-    return date > today && date <= weekLater;
   } catch {
     return false;
   }
@@ -211,7 +266,7 @@ function TodayHomeworkSection({
               <div className="flex items-center gap-2 mt-1">
                 <Clock size={10} className="text-orange-400" />
                 <span className="text-[10px] font-semibold text-orange-400">
-                  {formatDate(assignment.dueAt, locale)}
+                  {formatDateTime(assignment.dueAt, locale)}
                 </span>
               </div>
             </div>
@@ -567,10 +622,10 @@ export default function HomeworkPage() {
                       )}
                       <span className={`text-[11px] flex items-center gap-1.5 font-bold ${
                         isDueToday ? 'text-orange-400' :
-                        isLate ? 'text-amber-500' : 
+                        isLate ? 'text-amber-500' :
                         isSubmitted ? 'text-slate-500' : 'text-purple-400'
                       }`}>
-                        <Clock size={12} /> Hạn: {formatDate(assignment.dueAt, locale)}
+                        <Clock size={12} /> Hạn: {formatDateTime(assignment.dueAt, locale)}
                         {isTomorrow(assignment.dueAt) && !isSubmitted && (
                           <span className="ml-1 text-[9px] bg-yellow-500/20 text-yellow-300 border border-yellow-400/30 px-1.5 py-0.5 rounded-full">
                             Ngày mai

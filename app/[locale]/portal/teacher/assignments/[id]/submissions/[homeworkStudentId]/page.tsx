@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 
 import { get, post } from "@/lib/axios";
+import { toast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/lightswind/toaster";
 
 type MCQuestionOption = {
   id?: string;
@@ -143,12 +145,35 @@ function extractMultipleChoiceAnswers(detail?: SubmissionDetail | null): Multipl
 function formatDateTime(input?: string | null) {
   if (!input) return "-";
   try {
-    return new Date(input).toLocaleString("vi-VN", {
+    const date = new Date(input);
+    // Nếu là ISO string có timezone, dùng toLocaleString với timezone
+    // Nếu là string dạng "2026-04-01T23:59:00" (không có Z), parse đúng theo giờ VN
+    const match = String(input).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/);
+    if (match) {
+      const [, year, month, day, hours, minutes] = match;
+      const vnMs = Date.UTC(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+        parseInt(hours) - 7,
+        parseInt(minutes)
+      );
+      return new Date(vnMs).toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Ho_Chi_Minh",
+      });
+    }
+    return date.toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh",
     });
   } catch {
     return input;
@@ -386,20 +411,32 @@ export default function TeacherSubmissionDetailPage() {
   const handleSaveGrade = useCallback(async () => {
     if (!homeworkStudentId) return;
 
-    const parsedScore = editingScore !== "" ? parseFloat(editingScore) : null;
-    if (editingScore !== "" && (isNaN(parsedScore as number) || (parsedScore as number) < 0)) {
-      alert("Điểm không hợp lệ");
+    // Kiểm tra nếu bài nộp quá hạn → tự động điểm 0 và nhận xét "Quá hạn nộp bài"
+    const isOverdueSubmission = data?.isOverdue === true;
+    const overdueFeedback = "Quá hạn nộp bài";
+
+    const finalScore = isOverdueSubmission ? 0 : (editingScore !== "" ? parseFloat(editingScore) : null);
+    const finalFeedback = isOverdueSubmission ? overdueFeedback : editingFeedback;
+
+    // For multiple choice, we only save feedback, not score
+    const payload = isMultipleChoiceSubmission
+      ? {
+          homeworkStudentId,
+          teacherFeedback: finalFeedback,
+        }
+      : {
+          homeworkStudentId,
+          score: finalScore,
+          teacherFeedback: finalFeedback,
+        };
+
+    if (!isMultipleChoiceSubmission && editingScore !== "" && (isNaN(finalScore as number) || (finalScore as number) < 0)) {
+      toast({ title: "Lỗi", description: "Điểm không hợp lệ", type: "destructive" });
       return;
     }
 
     setIsGrading(true);
     try {
-      const payload = {
-        homeworkStudentId,
-        score: parsedScore,
-        teacherFeedback: editingFeedback,
-      };
-
       const response = await post<any>(`/api/homework/submissions/${homeworkStudentId}/grade`, payload);
       const body = response?.data || response;
       const updated: SubmissionDetail | null = body?.data || body || null;
@@ -408,18 +445,23 @@ export default function TeacherSubmissionDetailPage() {
         setData(updated);
       } else {
         setData((prev) =>
-          prev ? { ...prev, score: parsedScore, teacherFeedback: editingFeedback } : prev
+          prev ? {
+            ...prev,
+            score: isMultipleChoiceSubmission ? prev.score : (finalScore as number | null),
+            teacherFeedback: finalFeedback
+          } : prev
         );
       }
 
       setShowGradingForm(false);
+      toast({ title: "Thành công", description: "Lưu điểm thành công!", type: "success" });
     } catch (err) {
       console.error("Error saving grade:", err);
-      alert("Không thể lưu điểm. Vui lòng thử lại.");
+      toast({ title: "Lỗi", description: "Không thể lưu điểm. Vui lòng thử lại.", type: "destructive" });
     } finally {
       setIsGrading(false);
     }
-  }, [homeworkStudentId, editingScore, editingFeedback]);
+  }, [homeworkStudentId, editingScore, editingFeedback, isMultipleChoiceSubmission, data]);
 
   const handleGenerateAIFeedback = useCallback(async () => {
     if (!homeworkStudentId) return;
@@ -431,11 +473,11 @@ export default function TeacherSubmissionDetailPage() {
       if (aiText) {
         setEditingFeedback((prev) => (prev ? `${prev}\n\n${aiText}` : aiText));
       } else {
-        alert("Không tạo được phản hồi AI. Vui lòng thử lại.");
+        toast({ title: "Thông báo", description: "Không tạo được phản hồi AI. Vui lòng thử lại.", type: "warning" });
       }
     } catch (err) {
       console.error("Error generating AI feedback:", err);
-      alert("Không tạo được phản hồi AI. Vui lòng thử lại.");
+      toast({ title: "Lỗi", description: "Không tạo được phản hồi AI. Vui lòng thử lại.", type: "destructive" });
     } finally {
       setAiLoading(false);
     }
@@ -518,7 +560,9 @@ export default function TeacherSubmissionDetailPage() {
 
           <div className="rounded-xl border border-gray-200 p-4">
             <div className="flex items-center gap-2 text-gray-500 mb-1"><FileText size={15} /> Điểm</div>
-            <div className="font-bold text-emerald-600 text-lg">{data.score ?? "Chưa chấm"}</div>
+            <div className="font-bold text-emerald-600 text-lg">
+              {data.score !== null && data.score !== undefined ? data.score : (data.isOverdue ? 0 : "Chưa chấm")}
+            </div>
             <div className="text-xs text-gray-500">Tối đa: {data.maxScore ?? "-"}</div>
           </div>
         </div>
@@ -631,79 +675,99 @@ export default function TeacherSubmissionDetailPage() {
             </div>
           )}
 
-          <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">Tệp/Link nộp bài</h4>
-            {links.length > 0 ? (
-              <div className="space-y-2">
-                {links.map((link, idx) => (
-                  <div key={`${link}-${idx}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 px-4 py-3">
-                    <div className="min-w-0 flex items-center gap-2 text-sm text-gray-700">
-                      <LinkIcon size={14} className="text-red-600" />
-                      <span className="truncate">{link}</span>
+          {/* Only show attachments section for non-multiple choice submissions */}
+          {!isMultipleChoiceSubmission && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Tệp/Link nộp bài</h4>
+              {links.length > 0 ? (
+                <div className="space-y-2">
+                  {links.map((link, idx) => (
+                    <div key={`${link}-${idx}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 px-4 py-3">
+                      <div className="min-w-0 flex items-center gap-2 text-sm text-gray-700">
+                        <LinkIcon size={14} className="text-red-600" />
+                        <span className="truncate">{link}</span>
+                      </div>
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                      >
+                        <Download size={14} /> Download
+                      </a>
                     </div>
-                    <a
-                      href={link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
-                    >
-                      <Download size={14} /> Download
-                    </a>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 text-center">
-                Không có file/link đính kèm.
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 text-center">
+                  Không có file/link đính kèm.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-red-200 bg-white shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Chấm điểm & Nhận xét</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {isMultipleChoiceSubmission ? "Nhận xét" : "Chấm điểm & Nhận xét"}
+            </h3>
             {!showGradingForm && (
               <button
-                onClick={() => setShowGradingForm(true)}
+                onClick={() => {
+                  if (data?.isOverdue) {
+                    setEditingScore("0");
+                    setEditingFeedback("Quá hạn nộp bài");
+                  } else {
+                    setEditingScore(data?.score !== null && data?.score !== undefined ? String(data.score) : "");
+                    setEditingFeedback(data?.teacherFeedback || "");
+                  }
+                  setShowGradingForm(true);
+                }}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all"
               >
-                <Edit3 size={14} /> Chấm điểm & Nhận xét
+                <Edit3 size={14} /> 
+                {isMultipleChoiceSubmission ? "Nhận xét" : "Chấm điểm & Nhận xét"}
               </button>
             )}
           </div>
 
           {!showGradingForm ? (
             <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-xl border border-gray-200 p-4">
-                  <div className="text-gray-500 mb-1">Trạng thái</div>
-                  <div className="font-medium text-gray-900">{data.status || "-"}</div>
-                </div>
-                <div className="rounded-xl border border-gray-200 p-4">
-                  <div className="text-gray-500 mb-1">Điểm</div>
-                  <div className="font-bold text-emerald-600 text-xl">
-                    {data.score !== null && data.score !== undefined ? `${data.score} / ${data.maxScore ?? 10}` : "Chưa chấm"}
-                  </div>
-                  {data.gradedAt && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Chấm ngày: {formatDateTime(data.gradedAt)}
+              {/* Only show score and status for non-multiple choice */}
+              {!isMultipleChoiceSubmission && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-gray-200 p-4">
+                      <div className="text-gray-500 mb-1">Trạng thái</div>
+                      <div className="font-medium text-gray-900">{data.status || "-"}</div>
                     </div>
-                  )}
-                </div>
-              </div>
+                    <div className="rounded-xl border border-gray-200 p-4">
+                      <div className="text-gray-500 mb-1">Điểm</div>
+                      <div className="font-bold text-emerald-600 text-xl">
+                        {data.score !== null && data.score !== undefined ? `${data.score} / ${data.maxScore ?? 10}` : (data.isOverdue ? `0 / ${data.maxScore ?? 10}` : "Chưa chấm")}
+                      </div>
+                      {data.gradedAt && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Chấm ngày: {formatDateTime(data.gradedAt)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-              <div>
-                <div className="text-gray-500 mb-2 font-medium">Mô tả bài tập</div>
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 whitespace-pre-wrap text-sm text-gray-700">
-                  {data.assignmentDescription || "Không có mô tả."}
-                </div>
-              </div>
+                  <div>
+                    <div className="text-gray-500 mb-2 font-medium">Mô tả bài tập</div>
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 whitespace-pre-wrap text-sm text-gray-700">
+                      {data.assignmentDescription || "Không có mô tả."}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <div className="text-gray-500 mb-2 font-medium">Nhận xét của giáo viên</div>
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 whitespace-pre-wrap text-sm text-gray-700">
-                  {data.teacherFeedback || <span className="italic text-gray-400">Chưa có nhận xét</span>}
+                  {data.isOverdue ? "Quá hạn nộp bài" : (data.teacherFeedback || <span className="italic text-gray-400">Chưa có nhận xét</span>)}
                 </div>
               </div>
 
@@ -716,32 +780,58 @@ export default function TeacherSubmissionDetailPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Điểm <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="0"
-                      max={data.maxScore ?? 10}
-                      step="0.5"
-                      value={editingScore}
-                      onChange={(e) => setEditingScore(e.target.value)}
-                      className="w-full rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 pr-12"
-                      placeholder={`0 - ${data.maxScore ?? 10}`}
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                      / {data.maxScore ?? 10}
-                    </span>
+              {/* Only show score input for non-multiple choice */}
+              {!isMultipleChoiceSubmission && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Điểm <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max={data.maxScore ?? 10}
+                        step="0.5"
+                        value={editingScore}
+                        onChange={(e) => setEditingScore(e.target.value)}
+                        className="w-full rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 pr-12"
+                        placeholder={`0 - ${data.maxScore ?? 10}`}
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                        / {data.maxScore ?? 10}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      onClick={handleGenerateAIFeedback}
+                      disabled={aiLoading}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {aiLoading ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          Đang tạo phản hồi AI...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={14} />
+                          Tạo phản hồi bằng AI
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-end">
+              )}
+
+              {/* For multiple choice, only show AI feedback button */}
+              {isMultipleChoiceSubmission && (
+                <div className="flex justify-end">
                   <button
                     onClick={handleGenerateAIFeedback}
                     disabled={aiLoading}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {aiLoading ? (
                       <>
@@ -756,7 +846,7 @@ export default function TeacherSubmissionDetailPage() {
                     )}
                   </button>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -799,7 +889,7 @@ export default function TeacherSubmissionDetailPage() {
                     </>
                   ) : (
                     <>
-                      <Check size={14} /> Lưu điểm & Nhận xét
+                      <Check size={14} /> Lưu
                     </>
                   )}
                 </button>
@@ -808,7 +898,7 @@ export default function TeacherSubmissionDetailPage() {
           )}
         </div>
       </div>
-
+      <Toaster />
     </div>
   );
 }

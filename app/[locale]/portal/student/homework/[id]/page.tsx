@@ -1,12 +1,12 @@
 ﻿"use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Calendar,
   Clock,
-  User,
+  User, 
   FileText,
   CheckCircle,
   Paperclip,
@@ -69,13 +69,67 @@ function AttachmentIcon({ type }: { type: AttachmentType | string }) {
   }
 }
 
+// Format date với timezone VN chuẩn xác
+const formatDueDateVn = (dateString?: string): string => {
+  if (!dateString) return "Chưa có";
+  try {
+    // Parse date string để lấy giờ:phút
+    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    let hasValidTime = false;
+    let date: Date;
+
+    if (match) {
+      const [, year, month, day, hours, minutes] = match;
+      // Kiểm tra nếu giờ = "00" và phút = "00" → coi như không có giờ hợp lệ
+      hasValidTime = !(parseInt(hours) === 0 && parseInt(minutes) === 0);
+      // Tạo Date theo giờ VN (UTC+7): trừ 7h từ string để khi hiển thị với timezone VN ra đúng
+      const vnMs = Date.UTC(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+        parseInt(hours) - 7,
+        parseInt(minutes)
+      );
+      date = new Date(vnMs);
+    } else {
+      // Không parse được format → dùng trực tiếp
+      date = new Date(dateString);
+      hasValidTime = !isNaN(date.getTime()) && (date.getHours() !== 0 || date.getMinutes() !== 0);
+    }
+
+    if (hasValidTime) {
+      return date.toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Ho_Chi_Minh",
+      });
+    } else {
+      // Không có giờ hợp lệ (00:00) → chỉ hiển thị ngày
+      return date.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "Asia/Ho_Chi_Minh",
+      });
+    }
+  } catch {
+    return dateString || "Chưa có";
+  }
+};
+
 export default function AssignmentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const homeworkId = params.id as string;
+  const locale = params.locale as string || "vi";
 
   // API State
   const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
+  console.log({assignment});
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,9 +183,9 @@ export default function AssignmentDetailPage() {
   }, [assignment, isMultipleChoiceAssignment]);
 
   // Function to handle unsaved changes from MultipleChoiceForm
-  const handleUnsavedChanges = (hasChanges: boolean) => {
+  const handleUnsavedChanges = useCallback((hasChanges: boolean) => {
     hasUnsavedChanges.current = hasChanges;
-  };
+  }, []);
 
   // Handle navigation attempt
   const handleBackClick = (e: React.MouseEvent) => {
@@ -144,7 +198,7 @@ export default function AssignmentDetailPage() {
     const isPending = assignment?.status === "PENDING" || assignment?.status === "MISSING";
     
     if (isMultipleChoiceRef.current && hasUnsavedChanges.current && isPending) {
-      setPendingNavigation("/student/homework");
+      setPendingNavigation(`/${locale}/portal/student/homework`);
       setShowLeaveWarning(true);
     } else {
       router.back();
@@ -153,20 +207,18 @@ export default function AssignmentDetailPage() {
 
   const handleConfirmLeave = async () => {
     setShowLeaveWarning(false);
-    
+    // Capture navigation target before clearing state
+    const targetUrl = pendingNavigation || `/${locale}/portal/student/homework`;
+    setPendingNavigation(null);
+
     // Clear any stored quiz state to prevent restoration
     if (homeworkId) {
       const storageKey = `quiz_${homeworkId}`;
-      // Don't clear completely, just mark as abandoned
       localStorage.setItem(`${storageKey}_abandoned`, "true");
     }
-    
-    if (pendingNavigation) {
-      router.push(pendingNavigation);
-    } else {
-      router.back();
-    }
-    setPendingNavigation(null);
+
+    // Chỉ redirect 1 lần duy nhất
+    router.push(targetUrl);
   };
 
   const handleStay = () => {
@@ -315,13 +367,6 @@ export default function AssignmentDetailPage() {
                     <BookOpen size={16} />
                     {assignment.className}
                   </span>
-                  <span className="text-purple-500">•</span>
-                  <span className="text-cyan-300">{assignment.subject}</span>
-                  <span className="text-purple-500">•</span>
-                  <span className="flex items-center gap-1">
-                    <User size={16} />
-                    {assignment.teacher}
-                  </span>
                 </div>
               </div>
               <StatusBadge status={assignment.status} />
@@ -330,10 +375,10 @@ export default function AssignmentDetailPage() {
             {/* Date & Time Info */}
             <div className="grid md:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-800/40 border border-purple-500/20">
               <div>
-                <div className="text-sm text-purple-400 mb-1">Ngày giao</div>
+                <div className="text-sm text-purple-400 mb-1">Loại nộp</div>
                 <div className="font-medium text-white flex items-center gap-2">
-                  <Calendar size={16} className="text-purple-400" />
-                  {assignment.assignedDate || "Chưa có"}
+                  <FileText size={16} className="text-purple-400" />
+                  {assignment.submissionType || "File"}
                 </div>
               </div>
               <div>
@@ -344,7 +389,7 @@ export default function AssignmentDetailPage() {
                     : "text-green-400"
                 }`}>
                   <Clock size={16} className="text-purple-400" />
-                  {assignment.dueDate || "Chưa có"}
+                  {formatDueDateVn(assignment.dueDate)}
                 </div>
               </div>
               {assignment.timeRemaining && (
@@ -501,7 +546,7 @@ export default function AssignmentDetailPage() {
                     Đã nộp {assignment.submission.status === "ON_TIME" ? "đúng hạn" : "trễ"}
                   </div>
                   <div className="text-sm text-slate-400">
-                    Nộp lúc: {assignment.submission.submittedAt} • Lần nộp thứ {assignment.submission.version}
+                    Nộp lúc: {formatDueDateVn(assignment.submission.submittedAt)} • Lần nộp thứ {assignment.submission.version}
                   </div>
                 </div>
 
@@ -565,7 +610,7 @@ export default function AssignmentDetailPage() {
                 </div>
                 {assignment.gradedAt && (
                   <div className="text-sm text-slate-500 mt-2">
-                    Chấm điểm lúc: {assignment.gradedAt}
+                    Chấm điểm lúc: {formatDueDateVn(assignment.gradedAt)}
                   </div>
                 )}
               </div>
