@@ -132,7 +132,6 @@ interface CourseFormData {
   status: "Đang hoạt động" | "Tạm dừng";
   isMakeup: boolean;
   branchId: string;
-  isMakeup: boolean;
   totalSessions: string;
   defaultTuitionAmount: string;
   unitPriceSession: string;
@@ -146,7 +145,6 @@ const initialFormData: CourseFormData = {
   status: "Đang hoạt động",
   isMakeup: false,
   branchId: "",
-  isMakeup: false,
   totalSessions: "",
   defaultTuitionAmount: "",
   unitPriceSession: "",

@@ -11,6 +11,7 @@ import {
   Clock4,
   Bell,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -27,6 +28,7 @@ export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.schedule, CalendarClock, "/schedule"],
     [t.subjects, BookOpenText, "/subjects"],
     [t.assignments, ClipboardCheck, "/assignments"],
+    [t.gamification, Sparkles, "/gamification"],
     [t.attendance, CheckSquare, "/attendance"],
     [t.applications, MessageCircle, "/applications"],
     [t.feedback, FileText, "/feedback"],

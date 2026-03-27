@@ -59,6 +59,44 @@ export const STUDENT_HOMEWORK_ENDPOINTS = {
   SUBMIT_MULTIPLE_CHOICE: "/api/students/homework/multiple-choice/submit",
 } as const;
 
+export const MISSION_ENDPOINTS = {
+  BASE: "/api/missions",
+  BY_ID: (id: string) => `/api/missions/${id}`,
+  PROGRESS: (id: string) => `/api/missions/${id}/progress`,
+} as const;
+
+export const GAMIFICATION_ENDPOINTS = {
+  STARS_ADD: "/api/gamification/stars/add",
+  STARS_DEDUCT: "/api/gamification/stars/deduct",
+  STARS_TRANSACTIONS: "/api/gamification/stars/transactions",
+  STARS_BALANCE: "/api/gamification/stars/balance",
+  STARS_BALANCE_ME: "/api/gamification/stars/balance/me",
+  XP_ADD: "/api/gamification/xp/add",
+  XP_DEDUCT: "/api/gamification/xp/deduct",
+  LEVEL: "/api/gamification/level",
+  LEVEL_ME: "/api/gamification/level/me",
+  ATTENDANCE_STREAK: "/api/gamification/attendance-streak",
+  ATTENDANCE_STREAK_CHECK_IN: "/api/gamification/attendance-streak/check-in",
+  ATTENDANCE_STREAK_ME: "/api/gamification/attendance-streak/me",
+  REWARD_STORE_ITEMS: "/api/gamification/reward-store/items",
+  REWARD_STORE_ITEM_BY_ID: (id: string) => `/api/gamification/reward-store/items/${id}`,
+  REWARD_STORE_ACTIVE: "/api/gamification/reward-store/items/active",
+  REWARD_STORE_TOGGLE_STATUS: (id: string) =>
+    `/api/gamification/reward-store/items/${id}/toggle-status`,
+  REWARD_REDEMPTIONS: "/api/gamification/reward-redemptions",
+  REWARD_REDEMPTION_BY_ID: (id: string) => `/api/gamification/reward-redemptions/${id}`,
+  REWARD_REDEMPTIONS_ME: "/api/gamification/reward-redemptions/me",
+  REWARD_REDEMPTION_APPROVE: (id: string) =>
+    `/api/gamification/reward-redemptions/${id}/approve`,
+  REWARD_REDEMPTION_CANCEL: (id: string) =>
+    `/api/gamification/reward-redemptions/${id}/cancel`,
+  REWARD_REDEMPTION_MARK_DELIVERED: (id: string) =>
+    `/api/gamification/reward-redemptions/${id}/mark-delivered`,
+  REWARD_REDEMPTION_CONFIRM_RECEIVED: (id: string) =>
+    `/api/gamification/reward-redemptions/${id}/confirm-received`,
+  REWARD_REDEMPTION_BATCH_DELIVER: "/api/gamification/reward-redemptions/batch-deliver",
+} as const;
+
 export const BACKEND_STUDENT_ENDPOINTS = {
   GET_ALL: () => `/profiles`,
 } as const;

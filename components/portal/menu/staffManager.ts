@@ -12,6 +12,7 @@ import {
   BookOpenCheck,
   BookOpen,
   Image,
+  Sparkles,
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -32,6 +33,7 @@ export function staffManagerMenu(
     [t.makeup, RefreshCw, "/makeup"],
     [t.pauseEnrollments, Clock3, "/pause-enrollments"],
     [t.lessonPlans, BookOpenCheck, "/lesson-plans"],
+    [t.gamification, Sparkles, "/gamification"],
     [t.monthlyReport, FileText, "/monthly-report"],
     [t.tickets, MessageSquare, "/tickets"],
     [t.notifications, Megaphone, "/notifications"],

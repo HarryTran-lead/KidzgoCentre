@@ -8,6 +8,7 @@ import {
   ImageIcon,
   BellRing,
   HeadphonesIcon,
+  Sparkles,
 } from "lucide-react";
 import type { MenuItem } from "./types";
 import type { Locale } from "@/lib/i18n";
@@ -38,6 +39,12 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     label: t.items.homework,
     icon: BookOpen,
     href: `${root}/homework`,
+  };
+
+  const gamificationItem: MenuItem = {
+    label: t.items.gamification,
+    icon: Sparkles,
+    href: `${root}/gamification`,
   };
 
   const testsReportsItem: MenuItem = {
@@ -79,6 +86,7 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   return [
     scheduleItem,
     homeworkItem,
+    gamificationItem,
     testsReportsItem,
     paymentItem,
     mediaItem,
