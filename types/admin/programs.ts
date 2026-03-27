@@ -8,13 +8,15 @@ export type CourseRow = {
   students: string;
   status: "Đang hoạt động" | "Tạm dừng";
   branch?: string;
+  isMakeup?: boolean | null;
 };
 
 export interface CreateProgramRequest {
   branchId: string;
   name: string;
-  code?: string;           
+  code?: string;
   isMakeup: boolean;
+  defaultMakeupClassId?: string | null;
   isActive?: boolean;
   totalSessions: number;
   defaultTuitionAmount: number;
@@ -26,12 +28,14 @@ export interface Program {
   id: string;
   code?: string | null;
   name: string;
+  isMakeup?: boolean | null;
   totalSessions: number;
   defaultTuitionAmount: number;
   unitPriceSession: number;
   description?: string | null;
   branchId?: string | null;
   isActive?: boolean | null;
+  defaultMakeupClassId?: string | null;
 }
 
 export interface ProgramLeavePolicy {

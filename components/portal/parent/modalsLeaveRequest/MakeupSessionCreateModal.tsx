@@ -18,7 +18,7 @@ import { get } from "@/lib/axios";
 import {
   getMakeupCreditStudents,
   getMakeupCreditsByStudent,
-  getMakeupCreditSuggestions,
+  getMakeupCreditAvailableSessions,
 } from "@/lib/api/makeupCreditService";
 import type { StudentClass } from "@/types/student/class";
 
@@ -43,6 +43,14 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onCreate: (payload: CreateMakeupPayload) => Promise<void> | void;
+  lockedStudentProfileId?: string | null;
+  lockedStudentLabel?: string | null;
+  allowManualFallback?: boolean;
+  initialMakeupCreditId?: string | null;
+  lockedTargetClassId?: string | null;
+  lockedTargetClassLabel?: string | null;
+  excludedSessionId?: string | null;
+  initialTargetSessionDateTime?: string | null;
 };
 
 /* ================= utils ================= */
@@ -184,6 +192,12 @@ const isUsableCredit = (c: MakeupCredit) => {
   return !st || st.includes("AVAILABLE") || st.includes("ACTIVE");
 };
 
+const isSelectableCredit = (c: MakeupCredit, pinnedCreditId?: string | null) => {
+  const id = creditId(c);
+  if (pinnedCreditId && id === pinnedCreditId) return true;
+  return isUsableCredit(c);
+};
+
 const normalizeSuggestions = (raw: any[]): MakeupSuggestion[] => {
   const normalized: any[] = [];
   raw.forEach((item) => {
@@ -314,7 +328,21 @@ const fetchTimetableSessions = async ({
 
 /* ================= component ================= */
 
-export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Props) {
+export default function MakeupSessionCreateModal({
+  open,
+  onClose,
+  onCreate,
+  lockedStudentProfileId = null,
+  lockedStudentLabel = null,
+  allowManualFallback = true,
+  initialMakeupCreditId = null,
+  lockedTargetClassId = null,
+  lockedTargetClassLabel = null,
+  excludedSessionId = null,
+  initialTargetSessionDateTime = null,
+}: Props) {
+  const isChangeMode = !!initialMakeupCreditId;
+  const shouldLoadSessionsFirst = isChangeMode;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -378,6 +406,56 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     });
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !lockedStudentProfileId) return;
+
+    setPayload((prev) => {
+      if (prev.studentProfileId === lockedStudentProfileId) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        studentProfileId: lockedStudentProfileId,
+        makeupCreditId: "",
+        fromClassId: "",
+        targetClassId: "",
+        targetSessionId: "",
+        date: "",
+        time: "",
+      };
+    });
+  }, [open, lockedStudentProfileId]);
+
+  useEffect(() => {
+    if (!open || !initialMakeupCreditId) return;
+
+    const targetDate =
+      !shouldLoadSessionsFirst && initialTargetSessionDateTime
+        ? new Date(initialTargetSessionDateTime)
+        : null;
+    const nextDate =
+      targetDate && !Number.isNaN(targetDate.getTime()) ? toDateInputValue(targetDate) : "";
+    const nextTime =
+      targetDate && !Number.isNaN(targetDate.getTime()) ? toTimeInputValue(targetDate) : "";
+
+    setPayload((prev) => ({
+      ...prev,
+      makeupCreditId: initialMakeupCreditId,
+      targetClassId: lockedTargetClassId ?? prev.targetClassId,
+      targetSessionId: "",
+      date: shouldLoadSessionsFirst ? "" : nextDate || prev.date,
+      time: shouldLoadSessionsFirst ? "" : nextTime || prev.time,
+    }));
+    setStep(2);
+  }, [
+    open,
+    initialMakeupCreditId,
+    lockedTargetClassId,
+    initialTargetSessionDateTime,
+    shouldLoadSessionsFirst,
+  ]);
+
   // esc close
   useEffect(() => {
     if (!open) return;
@@ -389,6 +467,11 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
   // load students
   useEffect(() => {
     if (!open) return;
+    if (lockedStudentProfileId) {
+      setStudents([]);
+      setStudentsLoading(false);
+      return;
+    }
 
     const run = async () => {
       setStudentsLoading(true);
@@ -406,7 +489,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     };
 
     run();
-  }, [open]);
+  }, [open, lockedStudentProfileId]);
 
   // load credits by student
   useEffect(() => {
@@ -428,12 +511,18 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
       setPayload((p) => ({
         ...p,
-        makeupCreditId: "",
+        makeupCreditId: initialMakeupCreditId ?? "",
         fromClassId: "",
-        targetClassId: "",
+        targetClassId: lockedTargetClassId ?? "",
         targetSessionId: "",
-        date: "",
-        time: "",
+        date:
+          shouldLoadSessionsFirst || !initialTargetSessionDateTime
+            ? ""
+            : toDateInputValue(new Date(initialTargetSessionDateTime)),
+        time:
+          shouldLoadSessionsFirst || !initialTargetSessionDateTime
+            ? ""
+            : toTimeInputValue(new Date(initialTargetSessionDateTime)),
       }));
 
       try {
@@ -441,7 +530,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
         const api = unwrap(res);
         const list = (api?.items ?? api?.credits ?? api) as any[];
         const arr = Array.isArray(list) ? (list as MakeupCredit[]) : [];
-        setCredits(arr.filter(isUsableCredit));
+        setCredits(arr.filter((credit) => isSelectableCredit(credit, initialMakeupCreditId)));
       } catch {
         setError("Không thể tải danh sách makeup credit theo học viên.");
       } finally {
@@ -450,7 +539,14 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
     };
 
     run();
-  }, [open, payload.studentProfileId]);
+  }, [
+    open,
+    payload.studentProfileId,
+    initialMakeupCreditId,
+    lockedTargetClassId,
+    initialTargetSessionDateTime,
+    shouldLoadSessionsFirst,
+  ]);
 
   // prefetch source session detail for credit list
   useEffect(() => {
@@ -518,20 +614,29 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
       setPayload((p) => ({
         ...p,
         fromClassId: "",
-        targetClassId: "",
+        targetClassId: lockedTargetClassId ?? "",
         targetSessionId: "",
       }));
 
       try {
         const s = await getSessionById(sourceId);
         setSourceSession(s);
-        setPayload((p) => ({
-          ...p,
-          fromClassId: s?.classId ?? "",
+        setPayload((p) => {
+          if (shouldLoadSessionsFirst) {
+            return {
+              ...p,
+              fromClassId: s?.classId ?? "",
+            };
+          }
+
+          return {
+            ...p,
+            fromClassId: s?.classId ?? "",
           // nếu user chưa chọn date/time thì set default theo plannedDatetime để suggestions có input
           date: p.date || (s?.plannedDatetime ? toDateInputValue(new Date(s.plannedDatetime)) : ""),
           time: p.time || (s?.plannedDatetime ? toTimeInputValue(new Date(s.plannedDatetime)) : ""),
-        }));
+          };
+        });
       } catch {
         // ignore
       } finally {
@@ -541,43 +646,50 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, payload.makeupCreditId]);
+  }, [open, payload.makeupCreditId, lockedTargetClassId, shouldLoadSessionsFirst]);
 
-  // ✅ fetch suggestions khi có credit + makeupDate (và timeOfDay optional)
+  // Lấy danh sách buổi bù khả dụng theo đúng contract hiện tại của module makeup.
   useEffect(() => {
     if (!open) return;
     if (!payload.makeupCreditId) return;
-    if (!payload.date) return; // swagger có makeupDate => nên bắt buộc để có gợi ý
+    if (!shouldLoadSessionsFirst && !payload.date) return;
 
-    const timeOfDay = deriveTimeOfDay(payload.time);
+    const timeOfDay = shouldLoadSessionsFirst ? undefined : deriveTimeOfDay(payload.time);
 
     const run = async () => {
       setSuggestionsLoading(true);
       setError(null);
       try {
-        const res = await getMakeupCreditSuggestions(payload.makeupCreditId, {
-          makeupDate: payload.date,
-          timeOfDay: timeOfDay,
-        });
+        const res = await getMakeupCreditAvailableSessions(
+          payload.makeupCreditId,
+          shouldLoadSessionsFirst
+            ? undefined
+            : {
+                fromDate: payload.date,
+                toDate: plusDaysInputValue(payload.date, 7),
+                timeOfDay,
+              }
+        );
 
         const api = unwrap(res);
         const list = (api?.items ?? api?.suggestions ?? api) as any[];
         setSuggestions(normalizeSuggestions(Array.isArray(list) ? list : []));
       } catch {
-        setError("Không thể tải gợi ý lớp/buổi học bù (suggestions).");
+        setError("Không thể tải danh sách buổi học bù khả dụng.");
       } finally {
         setSuggestionsLoading(false);
       }
     };
 
     run();
-  }, [open, payload.makeupCreditId, payload.date, payload.time]);
+  }, [open, payload.makeupCreditId, payload.date, payload.time, shouldLoadSessionsFirst]);
 
   const shouldEnableManual = useMemo(() => {
+    if (!allowManualFallback) return false;
     if (!payload.makeupCreditId) return false;
     if (suggestionsLoading) return false;
     return suggestions.length === 0;
-  }, [payload.makeupCreditId, suggestionsLoading, suggestions.length]);
+  }, [allowManualFallback, payload.makeupCreditId, suggestionsLoading, suggestions.length]);
 
   // load classes + session pool for manual selection when no suggestions
   useEffect(() => {
@@ -679,10 +791,13 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
   const selectedStudentName = useMemo(() => {
     if (!payload.studentProfileId) return "";
+    if (lockedStudentProfileId && payload.studentProfileId === lockedStudentProfileId) {
+      return lockedStudentLabel ?? lockedStudentProfileId;
+    }
     return (
       studentOptions.find((s) => s.id === payload.studentProfileId)?.name ?? payload.studentProfileId
     );
-  }, [payload.studentProfileId, studentOptions]);
+  }, [lockedStudentLabel, lockedStudentProfileId, payload.studentProfileId, studentOptions]);
 
   // ✅ FIX TOÀN BỘ TEXT BỊ LỖI TRONG CREDIT LABEL
   const creditOptions = useMemo(() => {
@@ -720,6 +835,19 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
   }, [creditOptions, payload.makeupCreditId]);
 
   const targetClassOptions = useMemo(() => {
+    if (lockedTargetClassId) {
+      const matchedSuggestion = suggestions.find((s: any) => suggestionClassId(s) === lockedTargetClassId);
+      const fallbackLabel =
+        lockedTargetClassLabel ??
+        (matchedSuggestion
+          ? [suggestionClassCode(matchedSuggestion), suggestionClassName(matchedSuggestion)]
+              .filter(Boolean)
+              .join(" - ")
+          : lockedTargetClassId);
+
+      return fallbackLabel ? [{ id: lockedTargetClassId, label: fallbackLabel }] : [];
+    }
+
     const map = new Map<string, string>();
     suggestions.forEach((s: any) => {
       const id = suggestionClassId(s);
@@ -730,7 +858,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
       map.set(id, [code, name].filter(Boolean).join(" - "));
     });
     return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
-  }, [suggestions]);
+  }, [suggestions, lockedTargetClassId, lockedTargetClassLabel]);
 
   const manualClassOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -755,14 +883,17 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
   const filteredSessions = useMemo(() => {
     if (!payload.targetClassId) return [];
-    return suggestions.filter((s: any) => suggestionClassId(s) === payload.targetClassId);
-  }, [suggestions, payload.targetClassId]);
+    return suggestions.filter(
+      (s: any) =>
+        suggestionClassId(s) === payload.targetClassId &&
+        suggestionSessionId(s) !== excludedSessionId
+    );
+  }, [suggestions, payload.targetClassId, excludedSessionId]);
 
   const canSubmit = useMemo(() => {
     return (
       payload.studentProfileId &&
       payload.makeupCreditId &&
-      payload.fromClassId &&
       payload.targetClassId &&
       payload.targetSessionId &&
       payload.date &&
@@ -785,8 +916,17 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
         targetSessionId: payload.targetSessionId,
       });
       onClose();
-    } catch {
-      setError("Tạo lịch bù thất bại.");
+    } catch (err: any) {
+      const apiError = err?.response?.data;
+      const description =
+        apiError?.description ??
+        apiError?.detail ??
+        apiError?.message ??
+        apiError?.data?.description ??
+        apiError?.data?.detail ??
+        apiError?.data?.message ??
+        err?.message;
+      setError(description ?? "Tạo lịch bù thất bại.");
     } finally {
       setSubmitting(false);
     }
@@ -810,7 +950,9 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                 <Clock size={20} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Tạo lịch học bù</h2>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {isChangeMode ? "Thay đổi lịch xếp học bù" : "Tạo lịch học bù"}
+                </h2>
                 <div className="text-sm text-gray-600">
                   Bước {step}/3 • Chọn credit • Chọn buổi bù • Xác nhận
                 </div>
@@ -835,48 +977,57 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
             <div className="space-y-6">
               <div className="space-y-3">
                 <div className="text-sm font-semibold text-gray-800">Bước 1 • Chọn học viên</div>
-                <div className="relative">
-                  <select
-                    className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
-                    value={payload.studentProfileId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setPayload((p) => ({
-                        ...p,
-                        studentProfileId: id,
-                        makeupCreditId: "",
-                        fromClassId: "",
-                        targetClassId: "",
-                        targetSessionId: "",
-                        date: "",
-                        time: "",
-                      }));
-                      setStep(1);
-                    }}
-                  >
-                    <option value="">
-                      {studentsLoading ? "Đang tải học viên..." : "Chọn học viên"}
-                    </option>
-                    {studentOptions.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    {studentsLoading ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <ChevronDown size={16} />
-                    )}
+                {lockedStudentProfileId ? (
+                  <div className="flex h-11 items-center rounded-xl border border-red-300 bg-white px-4 text-sm font-medium text-gray-800">
+                    {selectedStudentName || "Học viên đã chọn"}
                   </div>
-                </div>
+                ) : (
+                  <div className="relative">
+                    <select
+                      className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
+                      value={payload.studentProfileId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setPayload((p) => ({
+                          ...p,
+                          studentProfileId: id,
+                          makeupCreditId: "",
+                          fromClassId: "",
+                          targetClassId: "",
+                          targetSessionId: "",
+                          date: "",
+                          time: "",
+                        }));
+                        setStep(1);
+                      }}
+                    >
+                      <option value="">
+                        {studentsLoading ? "Đang tải học viên..." : "Chọn học viên"}
+                      </option>
+                      {studentOptions.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      {studentsLoading ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
-                <div className="text-sm font-semibold text-gray-800">
-                  Bước 1 • Chọn makeup credit
-                </div>
+                <div className="text-sm font-semibold text-gray-800">Bước 1 • Chọn makeup credit</div>
+                {isChangeMode ? (
+                  <div className="rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800">
+                    {selectedCreditLabel || "Đang tải makeup credit..."}
+                  </div>
+                ) : (
                 <div className="relative">
                   <select
                     className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
@@ -888,7 +1039,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                         ...p,
                         makeupCreditId: creditIdValue,
                         fromClassId: "",
-                        targetClassId: "",
+                        targetClassId: lockedTargetClassId ?? "",
                         targetSessionId: "",
                         date: p.date,
                         time: p.time,
@@ -917,7 +1068,13 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                       <ChevronDown size={16} />
                     )}
                   </div>
+                  {/*
+                      NgÃ y vÃ  giá» sáº½ tá»± cáº­p nháº­t sau khi báº¡n chá»n buá»•i há»c bÃ¹.
+                    </div>
+                  ) : null}
+                  */}
                 </div>
+                )}
 
                 <div className="p-3 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 text-sm text-gray-700">
                   {payload.makeupCreditId
@@ -941,13 +1098,14 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                   </div>
                   <input
                     type="date"
-                    className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
+                    className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed cursor-pointer"
                     value={payload.date}
+                    disabled={shouldLoadSessionsFirst}
                     onChange={(e) =>
                       setPayload((p) => ({
                         ...p,
                         date: e.target.value,
-                        targetClassId: "",
+                        targetClassId: lockedTargetClassId ?? "",
                         targetSessionId: "",
                       }))
                     }
@@ -961,13 +1119,14 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                   </div>
                   <input
                     type="time"
-                    className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
+                    className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed cursor-pointer"
                     value={payload.time}
+                    disabled={shouldLoadSessionsFirst}
                     onChange={(e) =>
                       setPayload((p) => ({
                         ...p,
                         time: e.target.value,
-                        targetClassId: "",
+                        targetClassId: lockedTargetClassId ?? "",
                         targetSessionId: "",
                       }))
                     }
@@ -978,50 +1137,58 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <div className="text-sm font-semibold text-gray-800">Bước 2 • Chọn lớp bù</div>
-                  <div className="relative">
-                    <select
-                      className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
-                      value={payload.targetClassId}
-                      disabled={!payload.makeupCreditId || isClassLoading}
-                      onChange={(e) =>
-                        setPayload((p) => ({
-                          ...p,
-                          targetClassId: e.target.value,
-                          targetSessionId: "",
-                        }))
-                      }
-                    >
-                      <option value="">
-                        {!payload.makeupCreditId
-                          ? "Chọn makeup credit trước"
-                          : isClassLoading
-                            ? shouldEnableManual
-                              ? "Đang tải lớp học..."
-                              : "Đang tải gợi ý..."
-                            : classOptionsToShow.length
-                              ? shouldEnableManual
-                                ? "Chọn lớp bất kỳ"
-                                : "Chọn lớp bù"
-                              : shouldEnableManual
-                                ? "Chưa có lớp để chọn"
-                                : "Chưa có gợi ý"}
-                      </option>
-                      {classOptionsToShow.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      {isClassLoading ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <ChevronDown size={16} />
-                      )}
+                  {lockedTargetClassId ? (
+                    <div className="rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800">
+                      {lockedTargetClassLabel || classOptionsToShow[0]?.label || lockedTargetClassId}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
+                        value={payload.targetClassId}
+                        disabled={!payload.makeupCreditId || isClassLoading}
+                        onChange={(e) =>
+                          setPayload((p) => ({
+                            ...p,
+                            targetClassId: e.target.value,
+                            targetSessionId: "",
+                          }))
+                        }
+                      >
+                        <option value="">
+                          {!payload.makeupCreditId
+                            ? "Chọn makeup credit trước"
+                            : isClassLoading
+                              ? shouldEnableManual
+                                ? "Đang tải lớp học..."
+                                : "Đang tải gợi ý..."
+                              : classOptionsToShow.length
+                                ? shouldEnableManual
+                                  ? "Chọn lớp bất kỳ"
+                                  : "Chọn lớp bù"
+                                : shouldEnableManual
+                                  ? "Chưa có lớp để chọn"
+                                  : "Chưa có gợi ý"}
+                        </option>
+                        {classOptionsToShow.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        {isClassLoading ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <ChevronDown size={16} />
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="text-xs text-gray-500">
-                    {shouldEnableManual ? (
+                    {lockedTargetClassId ? (
+                      <>Chỉ hiển thị các buổi thuộc chương trình bù đã được xếp cho credit này.</>
+                    ) : shouldEnableManual ? (
                       <>Không có gợi ý, bạn có thể chọn lớp bất kỳ để bù.</>
                     ) : (
                       <>
@@ -1042,6 +1209,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                       onChange={(e) => {
                         const sid = e.target.value;
                         const chosen = sessionsToShow.find((s: any) => suggestionSessionId(s) === sid);
+                        const chosenClassId = chosen ? suggestionClassId(chosen) : payload.targetClassId;
 
                         const planned = chosen ? suggestionPlannedDatetime(chosen) : "";
                         let nextDate = payload.date;
@@ -1057,6 +1225,7 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
                         setPayload((p) => ({
                           ...p,
+                          targetClassId: chosenClassId || p.targetClassId,
                           targetSessionId: sid,
                           date: nextDate,
                           time: nextTime,
@@ -1104,6 +1273,27 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                   </div>
                 </div>
               </div>
+
+              {!suggestionsLoading &&
+              !shouldLoadSessionsFirst &&
+              !allowManualFallback &&
+              payload.makeupCreditId &&
+              (shouldLoadSessionsFirst || payload.date) &&
+              suggestions.length === 0 ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Hiện chưa có buổi học bù phù hợp theo điều kiện hệ thống. Bạn có thể đổi ngày hoặc giờ để xem gợi ý
+                  khác.
+                </div>
+              ) : null}
+              {!suggestionsLoading &&
+              shouldLoadSessionsFirst &&
+              !allowManualFallback &&
+              payload.makeupCreditId &&
+              suggestions.length === 0 ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Hiá»‡n chÆ°a cÃ³ buá»•i nÃ o khÃ¡c trong chÆ°Æ¡ng trÃ¬nh bÃ¹ nÃ y Ä‘á»ƒ thay Ä‘á»•i.
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -1149,9 +1339,16 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
 
           {/* footer */}
           <div className="pt-4 border-t border-red-200 flex items-center justify-end gap-3">
-            {step > 1 && (
+            {step > (isChangeMode ? 2 : 1) && (
               <button
-                onClick={() => setStep((s) => (s === 1 ? 1 : ((s - 1) as 1 | 2 | 3)))}
+                onClick={() =>
+                  setStep((s) => {
+                    if (isChangeMode) {
+                      return s <= 2 ? 2 : ((s - 1) as 2 | 3);
+                    }
+                    return s === 1 ? 1 : ((s - 1) as 1 | 2 | 3);
+                  })
+                }
                 disabled={submitting}
                 className="px-5 py-2.5 rounded-xl border border-red-300 bg-white text-gray-700 font-medium hover:bg-red-50 transition-all disabled:opacity-60 cursor-pointer"
               >
@@ -1184,19 +1381,19 @@ export default function MakeupSessionCreateModal({ open, onClose, onCreate }: Pr
                 {submitting ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Đang tạo...
+                    Đang lưu...
                   </>
                 ) : (
                   <>
                     <Send size={16} />
-                    Tạo lịch bù
+                    {isChangeMode ? "Thay đổi lịch xếp" : "Tạo lịch bù"}
                   </>
                 )}
               </button>
             )}
           </div>
 
-          {step === 2 && (
+          {step === 2 && !shouldLoadSessionsFirst && (
             <div className="text-xs text-gray-500 p-3 rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
               Gợi ý buổi bù phụ thuộc <b>ngày</b> + <b>buổi</b>. Nếu không có gợi ý, bạn có thể chọn
               lớp/buổi bất kỳ.

@@ -100,6 +100,23 @@ export async function getMakeupCreditSuggestions(
   return get(url);
 }
 
+export async function getMakeupCreditAvailableSessions(
+  makeupCreditId: string,
+  params?: { fromDate?: string; toDate?: string; timeOfDay?: string }
+) {
+  const qs = new URLSearchParams();
+  if (params?.fromDate) qs.set("fromDate", params.fromDate);
+  if (params?.toDate) qs.set("toDate", params.toDate);
+  if (params?.timeOfDay) qs.set("timeOfDay", params.timeOfDay);
+
+  const endpoint = MAKEUP_CREDIT_ENDPOINTS.AVAILABLE_SESSIONS
+    ? MAKEUP_CREDIT_ENDPOINTS.AVAILABLE_SESSIONS(makeupCreditId)
+    : `/api/makeup-credits/${makeupCreditId}/parent/get-available-sessions`;
+
+  const url = qs.toString().length > 0 ? `${endpoint}?${qs.toString()}` : endpoint;
+  return get<MakeupSuggestionsResponse>(url);
+}
+
 export async function useMakeupCredit(
   creditId: string,
   payload: UseMakeupCreditPayload
@@ -112,12 +129,12 @@ export async function useMakeupCredit(
 
 export async function expireMakeupCredit(
   creditId: string,
-  payload: { expiresAt: string }
+  payload?: { expiresAt?: string | null }
 ): Promise<MakeupCreditResponse> {
   const endpoint = MAKEUP_CREDIT_ENDPOINTS.EXPIRE
     ? MAKEUP_CREDIT_ENDPOINTS.EXPIRE(creditId)
     : `/api/makeup-credits/${creditId}/expire`;
-  return post<MakeupCreditResponse>(endpoint, payload);
+  return post<MakeupCreditResponse>(endpoint, payload ?? {});
 }
 
 export async function getMakeupAllocations(params: {

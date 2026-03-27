@@ -43,12 +43,14 @@ Mục tiêu tài liệu:
 |---|---|---|---|---|---|---|
 | 1 | Parent/Staff | Tạo đơn xin nghỉ | `POST /api/leave-requests` | Rule 24h + loại nghỉ | Request created | Thiếu session/date |
 | 2 | Parent/Staff | Xem đơn nghỉ | `GET /api/leave-requests` | Filter theo student/status/date | Danh sách đơn | Scope mismatch |
-| 3 | Staff | Duyệt đơn | `POST /api/leave-requests/{id}/approve` | Check status hiện tại | Approved | Already handled |
-| 4 | Staff | Từ chối đơn | `POST /api/leave-requests/{id}/reject` | Check trạng thái | Rejected | State invalid |
-| 5 | FE | Load makeup credits | `GET /api/makeup-credits`, `/all`, `/students` | Aggregate usable/expired | Danh sách credit | 404 student |
-| 6 | Parent/Staff | Lấy gợi ý buổi bù | `GET /api/makeup-credits/{id}/suggestions` | Match lịch/lớp | Danh sách session | No slot |
-| 7 | Parent/Staff | Chốt dùng credit | `POST /api/makeup-credits/{id}/use` | Kiểm tra hạn + slot | Credit consumed | Credit expired/slot full |
-| 8 | Staff | Expire credit | `POST /api/makeup-credits/{id}/expire` | Check expiry policy | Credit expired | Already used |
+| 3 | Parent | Hủy đơn nghỉ còn hợp lệ | `PUT /api/leave-requests/{id}/cancel` | Check session chưa qua ngày, rollback credit/allocation nếu cần | Leave request cancelled | Session đã qua ngày |
+| 4 | Staff | Duyệt đơn | `PUT /api/leave-requests/{id}/approve` | Check status hiện tại | Approved | Already handled |
+| 5 | Staff | Duyệt hàng loạt | `PUT /api/leave-requests/approve-bulk` | Duyệt tuần tự theo danh sách được chọn | Approved ids + lỗi chi tiết | Một phần danh sách lỗi |
+| 6 | Staff | Từ chối đơn | `PUT /api/leave-requests/{id}/reject` | Check trạng thái | Rejected | State invalid |
+| 7 | FE | Load makeup credits | `GET /api/makeup-credits`, `/all`, `/students` | Aggregate available/used/expired | Danh sách credit | 404 student |
+| 8 | Parent | Lấy buổi bù khả dụng | `GET /api/makeup-credits/{id}/parent/get-available-sessions` | Match branch, weekend, future week, timeOfDay | Danh sách session | No slot |
+| 9 | Parent/Student | Chốt dùng credit | `POST /api/makeup-credits/{id}/use` | Kiểm tra hạn + slot + ownership | Credit consumed | Credit expired/slot full |
+| 10 | Staff | Expire credit | `POST /api/makeup-credits/{id}/expire` | Check expiry policy | Credit expired | Already used |
 
 ---
 
@@ -129,8 +131,13 @@ Mục tiêu tài liệu:
 | Step | Actor | UI Action | API | System Decision | Output | Exception |
 |---|---|---|---|---|---|---|
 | 1 | Staff Ops | Load request + credits | `GET /api/leave-requests`, `GET /api/makeup-credits*` | Join leave-credit-session | Bảng xử lý makeup | Partial data |
-| 2 | Staff Ops | Approve/Reject request | `POST /api/leave-requests/{id}/approve|reject` | Rule + status check | Request updated | Already handled |
-| 3 | Staff Ops | Reload used credits | `GET /api/makeup-credits`, `/students` | Remap class/student/session | Used credits list | ID mismatch |
+| 2 | Staff Ops | Approve/Reject/Bulk approve request | `PUT /api/leave-requests/{id}/approve`, `PUT /api/leave-requests/{id}/reject`, `PUT /api/leave-requests/approve-bulk` | Rule + status check | Request updated | Already handled |
+| 3 | Staff Ops | Review makeup credits | `GET /api/makeup-credits/all`, `GET /api/makeup-credits/students` | Remap class/student/session/status | Makeup credit list | ID mismatch |
+| 4 | Staff Ops | Expire makeup credit | `POST /api/makeup-credits/{id}/expire` | Check expiry policy | Credit expired | Already used |
+
+Ghi chú:
+- Staff console hiện không trực tiếp gọi `POST /api/makeup-credits/{id}/use`.
+- Luồng tự chọn buổi bù được dành cho Parent/Student ở màn parent attendance.
 
 ---
 

@@ -66,6 +66,28 @@ export function normalizeIsActive(value: any): boolean | null {
   return null;
 }
 
+function normalizeBooleanFlag(value: any): boolean | null {
+  if (value === true) return true;
+  if (value === false) return false;
+  if (value === null || value === undefined) return null;
+
+  if (typeof value === "number") {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return null;
+
+    if (["true", "1", "yes", "y", "on"].includes(normalized)) return true;
+    if (["false", "0", "no", "n", "off"].includes(normalized)) return false;
+  }
+
+  return null;
+}
+
 function extractApiErrorMessage(json: any, text: string, fallback: string): string {
   const firstError = Array.isArray(json?.errors) ? json.errors[0] : null;
   const code =
@@ -159,6 +181,7 @@ function mapApiProgramToRow(item: any): CourseRow {
     students,
     status,
     branch,
+    isMakeup: normalizeBooleanFlag(item?.isMakeup),
   };
 }
 
@@ -257,6 +280,7 @@ export async function createAdminProgram(
     id: String(data?.id ?? data?.code ?? ""),
     code: data?.code ?? payload.code ?? null,
     name: String(data?.name ?? payload.name),
+    isMakeup: normalizeBooleanFlag(data?.isMakeup) ?? payload.isMakeup ?? null,
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions
@@ -272,6 +296,9 @@ export async function createAdminProgram(
     description: data?.description ?? payload.description ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
     isActive: normalizeIsActive(data?.isActive ?? data?.status) ?? true,
+    defaultMakeupClassId:
+      (typeof data?.defaultMakeupClassId === "string" && data.defaultMakeupClassId.trim()) ||
+      null,
   };
 
   if (!program.id) {
@@ -315,17 +342,21 @@ export async function fetchAdminProgramDetail(programId: string): Promise<Progra
   });
   
   // Handle different response structures
-  if (json?.isSuccess && json?.data) {
-    return json.data;
-  }
-  if (json?.data) {
-    return json.data;
-  }
-  if (json?.program) {
-    return json.program;
-  }
-  // If response is the program object directly
-  return json;
+  const rawDetail =
+    (json?.isSuccess && json?.data) ? json.data :
+    json?.data ? json.data :
+    json?.program ? json.program :
+    json;
+
+  const safeDetail = rawDetail && typeof rawDetail === "object" ? rawDetail : {};
+
+  return {
+    ...safeDetail,
+    isMakeup: normalizeBooleanFlag(safeDetail?.isMakeup),
+    defaultMakeupClassId:
+      (typeof safeDetail?.defaultMakeupClassId === "string" && safeDetail.defaultMakeupClassId.trim()) ||
+      null,
+  };
 }
 
 export async function updateAdminProgram(
@@ -368,6 +399,7 @@ export async function updateAdminProgram(
     id: String(data?.id ?? programId),
     code: data?.code ?? null,
     name: String(data?.name ?? payload.name),
+    isMakeup: normalizeBooleanFlag(data?.isMakeup) ?? payload.isMakeup ?? null,
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions
@@ -383,6 +415,9 @@ export async function updateAdminProgram(
     description: data?.description ?? payload.description ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
     isActive: normalizeIsActive(data?.isActive ?? data?.status),
+    defaultMakeupClassId:
+      (typeof data?.defaultMakeupClassId === "string" && data.defaultMakeupClassId.trim()) ||
+      null,
   };
 
   if (!program.id) {

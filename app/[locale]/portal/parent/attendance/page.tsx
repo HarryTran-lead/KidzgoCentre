@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarCheck,
   MessageSquare,
@@ -12,14 +12,25 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-import { createLeaveRequest, getLeaveRequestsWithParams } from "@/lib/api/leaveRequestService";
+import {
+  cancelLeaveRequest,
+  createLeaveRequest,
+  getLeaveRequestsWithParams,
+} from "@/lib/api/leaveRequestService";
 import { getProfiles } from "@/lib/api/authService";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getStudentClasses } from "@/lib/api/studentService";
-import { getMakeupAllocations } from "@/lib/api/makeupCreditService";
+import {
+  getMakeupAllocations,
+  useMakeupCredit as applyMakeupCredit,
+} from "@/lib/api/makeupCreditService";
 import { getSessionById } from "@/lib/api/sessionService";
 import { fetchStudentAttendanceHistory } from "@/app/api/teacher/attendance";
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
+import MakeupSessionCreateModal, {
+  type CreateMakeupPayload,
+} from "@/components/portal/parent/modalsLeaveRequest/MakeupSessionCreateModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 import type { UserProfile } from "@/types/auth";
 import type { StudentClass } from "@/types/student/class";
@@ -31,6 +42,13 @@ import type { AttendanceRawStatus, StudentAttendanceHistoryItem } from "@/types/
 /* ===================== Types ===================== */
 
 type FormState = LeaveRequestPayload;
+type MakeupChangeTarget = {
+  makeupCreditId: string;
+  classId: string;
+  classLabel: string;
+  sessionId?: string | null;
+  sessionTime?: string | null;
+};
 
 /* ===================== Constants ===================== */
 
@@ -49,6 +67,7 @@ const statusLabels: Record<LeaveRequestStatus, string> = {
   APPROVED: "Đã duyệt",
   REJECTED: "Từ chối",
   AUTO_APPROVED: "Đã duyệt",
+  CANCELLED: "Đã hủy",
 };
 
 // giữ màu trạng thái, nhưng “shape” + style giống trang trên
@@ -57,6 +76,7 @@ const statusStyles: Record<LeaveRequestStatus, string> = {
   APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
   REJECTED: "border border-rose-200 bg-rose-50 text-rose-700",
   AUTO_APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  CANCELLED: "border border-slate-200 bg-slate-100 text-slate-700",
 };
 
 const attendanceLabels: Record<AttendanceRawStatus, string> = {
@@ -80,11 +100,59 @@ const normalizeStatus = (value?: string | null): LeaveRequestStatus => {
 
   if (normalized === "APPROVED") return "APPROVED";
   if (normalized === "REJECTED") return "REJECTED";
+  if (normalized === "CANCELLED" || normalized === "CANCELED") return "CANCELLED";
   if (normalized === "AUTO_APPROVED" || normalized === "AUTOAPPROVED") return "AUTO_APPROVED";
   if (normalized === "PENDING") return "PENDING";
 
   return "PENDING";
 };
+
+function parseDateOnly(value?: string | null) {
+  if (!value) return null;
+
+  const normalized = value.includes("T") ? value : `${value}T00:00:00`;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return null;
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function canCancelLeaveRequest(record: LeaveRequestRecord) {
+  if (!record?.id) return false;
+
+  const status = normalizeStatus(record.status);
+  if (status === "REJECTED" || status === "CANCELLED") return false;
+
+  const effectiveDate = parseDateOnly(
+    (record as any).sessionDate ?? (record as any).endDate ?? null
+  );
+  if (!effectiveDate) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return effectiveDate >= today;
+}
+
+function getCancelActionHint(record: LeaveRequestRecord) {
+  if (!record?.id) return "Không tìm thấy mã đơn để thực hiện thao tác.";
+
+  const status = normalizeStatus(record.status);
+  if (status === "CANCELLED") return "Đơn đã được hủy.";
+  if (status === "REJECTED") return "Đơn đã bị từ chối.";
+
+  const effectiveDate = parseDateOnly(
+    (record as any).sessionDate ?? (record as any).endDate ?? null
+  );
+  if (!effectiveDate) return "Không xác định được ngày nghỉ.";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (effectiveDate < today) return "Không thể hủy đơn của buổi đã qua ngày.";
+  return "Có thể hủy đơn này.";
+}
 
 function toVNDateLabel(value?: string | null) {
   if (!value) return "";
@@ -108,6 +176,16 @@ function toVNDateTimeLabel(value?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(d);
+}
+
+function canChangeScheduledMakeup(sessionTime?: string | null, usedAt?: string | null) {
+  if (usedAt) return false;
+  if (!sessionTime) return true;
+
+  const plannedDate = new Date(sessionTime);
+  if (Number.isNaN(plannedDate.getTime())) return true;
+
+  return plannedDate.getTime() > Date.now();
 }
 
 function extractClasses(payload: unknown): StudentClass[] {
@@ -153,12 +231,16 @@ export default function ParentAttendancePage() {
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMakeupModalOpen, setIsMakeupModalOpen] = useState(false);
+  const [changeMakeupTarget, setChangeMakeupTarget] = useState<MakeupChangeTarget | null>(null);
 
   // Global submit status
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [cancelTarget, setCancelTarget] = useState<LeaveRequestRecord | null>(null);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
 
   // Profiles
   const [studentProfiles, setStudentProfiles] = useState<UserProfile[]>([]);
@@ -187,6 +269,85 @@ export default function ParentAttendancePage() {
 
   // Form state (used inside modal)
   const [formState, setFormState] = useState<FormState>(initialFormState);
+
+  const loadLeaveRequests = useCallback(async (studentProfileId: string) => {
+    setRequestsLoading(true);
+
+    try {
+      const response = await getLeaveRequestsWithParams({
+        studentProfileId,
+        pageNumber: 1,
+        pageSize: 50,
+      });
+
+      const raw = response?.data;
+
+      const list: LeaveRequestRecord[] = Array.isArray(raw)
+        ? raw
+        : raw && "items" in raw
+          ? raw.items
+          : [];
+
+      setRequests(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Fetch leave requests error:", err);
+      setRequests([]);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, []);
+
+  const loadMakeupAllocations = useCallback(async (studentProfileId: string) => {
+    setMakeupLoading(true);
+    setMakeupError(null);
+
+    try {
+      const response: any = await getMakeupAllocations({
+        studentProfileId,
+      });
+
+      const raw = response?.data ?? response;
+      const list: MakeupAllocation[] = Array.isArray(raw)
+        ? raw
+        : raw?.items ?? raw?.allocations?.items ?? raw?.data ?? [];
+
+      setMakeupAllocations(Array.isArray(list) ? list : []);
+
+      const sessionIds = Array.from(
+        new Set(
+          (Array.isArray(list) ? list : [])
+            .map((item) => item?.targetSessionId)
+            .filter((id): id is string => Boolean(id))
+        )
+      );
+
+      if (!sessionIds.length) {
+        setMakeupSessionsById(new Map());
+        return;
+      }
+
+      const entries = await Promise.all(
+        sessionIds.map(async (id) => {
+          try {
+            const res = await getSessionById(id);
+            const session = res?.data?.session ?? null;
+            return session?.id ? [session.id, session] : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      const map = new Map(entries.filter(Boolean) as [string, SourceSession][]);
+      setMakeupSessionsById(map);
+    } catch (err) {
+      console.error("Fetch makeup allocations error:", err);
+      setMakeupAllocations([]);
+      setMakeupError("Không thể tải danh sách buổi bù.");
+    } finally {
+      setMakeupLoading(false);
+    }
+  }, []);
 
   /* ===================== Fetch Profiles ===================== */
 
@@ -281,36 +442,9 @@ export default function ParentAttendancePage() {
   /* ===================== Fetch Leave Requests ===================== */
 
   useEffect(() => {
-    const fetchRequests = async () => {
-      setRequestsLoading(true);
-
-      try {
-        const response = await getLeaveRequestsWithParams({
-          studentProfileId: formState.studentProfileId || undefined,
-          pageNumber: 1,
-          pageSize: 50,
-        });
-
-        const raw = response?.data;
-
-        const list: LeaveRequestRecord[] = Array.isArray(raw)
-          ? raw
-          : raw && "items" in raw
-            ? raw.items
-            : [];
-
-        setRequests(Array.isArray(list) ? list : []);
-      } catch (err) {
-        console.error("Fetch leave requests error:", err);
-        setRequests([]);
-      } finally {
-        setRequestsLoading(false);
-      }
-    };
-
     if (!formState.studentProfileId) return;
-    fetchRequests();
-  }, [formState.studentProfileId]);
+    loadLeaveRequests(formState.studentProfileId);
+  }, [formState.studentProfileId, loadLeaveRequests]);
 
   /* ===================== Fetch Makeup Allocations ===================== */
 
@@ -343,61 +477,9 @@ export default function ParentAttendancePage() {
   }, [formState.studentProfileId]);
 
   useEffect(() => {
-    const fetchMakeup = async () => {
-      if (!formState.studentProfileId) return;
-      setMakeupLoading(true);
-      setMakeupError(null);
-
-      try {
-        const response: any = await getMakeupAllocations({
-          studentProfileId: formState.studentProfileId,
-        });
-
-        const raw = response?.data ?? response;
-        const list: MakeupAllocation[] = Array.isArray(raw)
-          ? raw
-          : raw?.items ?? raw?.allocations?.items ?? raw?.data ?? [];
-
-        setMakeupAllocations(Array.isArray(list) ? list : []);
-
-        const sessionIds = Array.from(
-          new Set(
-            (Array.isArray(list) ? list : [])
-              .map((item) => item?.targetSessionId)
-              .filter((id): id is string => Boolean(id))
-          )
-        );
-
-        if (!sessionIds.length) {
-          setMakeupSessionsById(new Map());
-          return;
-        }
-
-        const entries = await Promise.all(
-          sessionIds.map(async (id) => {
-            try {
-              const res = await getSessionById(id);
-              const session = res?.data?.session ?? null;
-              return session?.id ? [session.id, session] : null;
-            } catch {
-              return null;
-            }
-          })
-        );
-
-        const map = new Map(entries.filter(Boolean) as [string, SourceSession][]);
-        setMakeupSessionsById(map);
-      } catch (err) {
-        console.error("Fetch makeup allocations error:", err);
-        setMakeupAllocations([]);
-        setMakeupError("Không thể tải danh sách buổi bù.");
-      } finally {
-        setMakeupLoading(false);
-      }
-    };
-
-    fetchMakeup();
-  }, [formState.studentProfileId]);
+    if (!formState.studentProfileId) return;
+    loadMakeupAllocations(formState.studentProfileId);
+  }, [formState.studentProfileId, loadMakeupAllocations]);
 
   /* ===================== Memos ===================== */
 
@@ -422,6 +504,98 @@ export default function ParentAttendancePage() {
 
   const closeCreateModal = () => {
     setIsModalOpen(false);
+  };
+
+  const openMakeupModal = (target: MakeupChangeTarget | null = null) => {
+    setError(null);
+    setSuccessMessage(null);
+    setChangeMakeupTarget(target);
+    setIsMakeupModalOpen(true);
+  };
+
+  const closeMakeupModal = () => {
+    setIsMakeupModalOpen(false);
+    setChangeMakeupTarget(null);
+  };
+
+  const handleCreateMakeupSession = async (payload: CreateMakeupPayload) => {
+    try {
+      await applyMakeupCredit(payload.makeupCreditId, {
+        studentProfileId: payload.studentProfileId,
+        classId: payload.targetClassId,
+        targetSessionId: payload.targetSessionId,
+      });
+
+      await loadMakeupAllocations(payload.studentProfileId);
+      setSuccessMessage(
+        changeMakeupTarget
+          ? "Đã thay đổi lịch xếp học bù thành công."
+          : "Đã chọn buổi học bù thành công."
+      );
+    } catch (err: any) {
+      const apiError = err?.response?.data;
+      const description =
+        apiError?.description ??
+        apiError?.detail ??
+        apiError?.message ??
+        apiError?.data?.description ??
+        apiError?.data?.detail ??
+        apiError?.data?.message ??
+        err?.message;
+
+      throw new Error(description ?? "Không thể đặt lịch học bù.");
+    }
+  };
+
+  const handleConfirmCancelLeaveRequest = async () => {
+    if (!cancelTarget?.id) return;
+
+    const target = cancelTarget;
+    setCancelSubmitting(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await cancelLeaveRequest(target.id);
+      const api: any = response?.data ?? response;
+
+      if (api?.success === false || api?.isSuccess === false) {
+        throw new Error(api?.message ?? "Hủy đơn xin nghỉ thất bại.");
+      }
+
+      setRequests((prev) =>
+        prev.map((item) =>
+          item.id === target.id
+            ? {
+                ...item,
+                status: "CANCELLED",
+              }
+            : item
+        )
+      );
+
+      let refreshWarning: string | null = null;
+      if (formState.studentProfileId) {
+        try {
+          await Promise.all([
+            loadLeaveRequests(formState.studentProfileId),
+            loadMakeupAllocations(formState.studentProfileId),
+          ]);
+        } catch (refreshError) {
+          console.warn("Refresh after cancel leave request failed:", refreshError);
+          refreshWarning =
+            "Đơn đã được hủy, nhưng danh sách liên quan chưa làm mới kịp. Vui lòng tải lại trang nếu cần.";
+        }
+      }
+
+      setSuccessMessage(refreshWarning ?? "Đã hủy đơn xin nghỉ thành công.");
+      setCancelTarget(null);
+    } catch (err: any) {
+      console.error("Cancel leave request error:", err);
+      setError(err?.message || "Không thể hủy đơn xin nghỉ. Vui lòng thử lại.");
+    } finally {
+      setCancelSubmitting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -630,6 +804,9 @@ export default function ParentAttendancePage() {
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                     Trạng thái
                   </th>
+                  <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
 
@@ -638,6 +815,8 @@ export default function ParentAttendancePage() {
                   const status = normalizeStatus(r.status as string | undefined);
                   const start = (r as any).sessionDate ?? r.sessionDate;
                   const end = (r as any).endDate ?? r.endDate;
+                  const canCancel = canCancelLeaveRequest(r);
+                  const cancelHint = getCancelActionHint(r);
 
                   const created =
                     (r as any).createdAt ??
@@ -676,6 +855,24 @@ export default function ParentAttendancePage() {
                           {statusLabels[status]}
                         </span>
                       </td>
+
+                      <td className="py-4 px-6 text-right">
+                        {canCancel ? (
+                          <button
+                            type="button"
+                            onClick={() => setCancelTarget(r)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 hover:border-rose-300 cursor-pointer"
+                            title={cancelHint}
+                          >
+                            <XCircle size={14} />
+                            Hủy đơn
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400" title={cancelHint}>
+                            {status === "CANCELLED" ? "Đã hủy" : "Không thể hủy"}
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -692,7 +889,18 @@ export default function ParentAttendancePage() {
             <div className="text-lg font-semibold text-gray-900">Buổi học bù đã sắp xếp</div>
             {makeupLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
           </div>
-          <div className="text-sm text-gray-600 font-medium">{displayMakeup.length} buổi</div>
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-600 font-medium">{displayMakeup.length} buổi</div>
+            <button
+              type="button"
+              onClick={() => openMakeupModal()}
+              disabled={!formState.studentProfileId}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition disabled:opacity-60"
+            >
+              <Plus size={16} />
+              Chọn buổi học bù
+            </button>
+          </div>
         </div>
 
         {makeupError ? <div className="px-6 py-4 text-sm text-red-600">{makeupError}</div> : null}
@@ -711,6 +919,9 @@ export default function ParentAttendancePage() {
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                     Trạng thái
                   </th>
+                  <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
 
@@ -720,13 +931,28 @@ export default function ParentAttendancePage() {
                     ? makeupSessionsById.get(m.targetSessionId)
                     : undefined;
                   const sessionTime = session?.plannedDatetime ?? session?.actualDatetime ?? null;
+                  const targetClassId = m.classId ?? session?.classId ?? null;
                   const classText =
                     session?.classTitle ??
                     session?.classCode ??
-                    (m.classId ? classNameById(m.classId) : null) ??
-                    m.classId ??
+                    (targetClassId ? classNameById(targetClassId) : null) ??
+                    targetClassId ??
                     "—";
                   const statusText = m.usedAt ? "Đã học bù" : "Đã xếp lịch";
+                  const canChangeSchedule =
+                    !!m.makeupCreditId &&
+                    !!targetClassId &&
+                    !!m.targetSessionId &&
+                    canChangeScheduledMakeup(sessionTime, m.usedAt ?? null);
+                  const changeHint = canChangeSchedule
+                    ? "Chỉ hiển thị các buổi khác trong cùng chương trình bù đã xếp."
+                    : m.usedAt
+                      ? "Buổi bù này đã được sử dụng, không thể đổi lịch."
+                      : !m.makeupCreditId
+                        ? "Không thể đổi lịch vì thiếu makeup credit."
+                        : !targetClassId
+                          ? "Không thể đổi lịch vì chưa xác định được lớp bù hiện tại."
+                          : "Không thể đổi lịch khi buổi đã tới hoặc đã qua.";
 
                   return (
                     <tr
@@ -745,6 +971,32 @@ export default function ParentAttendancePage() {
                         <span className="inline-flex items-center rounded-xl px-2.5 py-1 text-xs font-semibold border border-sky-200 bg-sky-50 text-sky-700">
                           {statusText}
                         </span>
+                      </td>
+
+                      <td className="py-4 px-6 text-right">
+                        {canChangeSchedule ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openMakeupModal({
+                                makeupCreditId: m.makeupCreditId as string,
+                                classId: targetClassId as string,
+                                classLabel: classText,
+                                sessionId: m.targetSessionId ?? null,
+                                sessionTime: sessionTime ?? null,
+                              })
+                            }
+                            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 hover:border-red-300 cursor-pointer"
+                            title={changeHint}
+                          >
+                            <Plus size={14} />
+                            Thay đổi lịch xếp
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400" title={changeHint}>
+                            Không thể đổi
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -779,6 +1031,44 @@ export default function ParentAttendancePage() {
               : "Đã tạo đơn xin nghỉ."
           );
         }}
+      />
+      <MakeupSessionCreateModal
+        open={isMakeupModalOpen}
+        onClose={closeMakeupModal}
+        onCreate={handleCreateMakeupSession}
+        lockedStudentProfileId={selectedProfile?.id ?? formState.studentProfileId ?? null}
+        lockedStudentLabel={selectedStudentName}
+        allowManualFallback={false}
+        initialMakeupCreditId={changeMakeupTarget?.makeupCreditId ?? null}
+        lockedTargetClassId={changeMakeupTarget?.classId ?? null}
+        lockedTargetClassLabel={changeMakeupTarget?.classLabel ?? null}
+        excludedSessionId={changeMakeupTarget?.sessionId ?? null}
+        initialTargetSessionDateTime={changeMakeupTarget?.sessionTime ?? null}
+      />
+      <ConfirmModal
+        isOpen={!!cancelTarget}
+        onClose={() => {
+          if (!cancelSubmitting) {
+            setCancelTarget(null);
+          }
+        }}
+        onConfirm={handleConfirmCancelLeaveRequest}
+        title="Xác nhận hủy đơn xin nghỉ"
+        message={
+          cancelTarget
+            ? `Bạn có chắc muốn hủy đơn xin nghỉ ngày ${toVNDateLabel(
+                (cancelTarget as any).sessionDate ?? cancelTarget.sessionDate
+              )}${
+                (cancelTarget as any).endDate
+                  ? ` đến ${toVNDateLabel((cancelTarget as any).endDate)}`
+                  : ""
+              } không? Nếu đơn đã được duyệt, các credit hoặc buổi bù liên quan có thể bị gỡ bỏ.`
+            : ""
+        }
+        confirmText="Hủy đơn"
+        cancelText="Đóng"
+        variant="warning"
+        isLoading={cancelSubmitting}
       />
       {false && isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -893,7 +1183,7 @@ export default function ParentAttendancePage() {
                 <textarea
                   className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 min-h-[110px] focus:outline-none focus:ring-2 focus:ring-gray-200"
                   placeholder="Nhập lý do xin nghỉ..."
-                  value={formState.reason}
+                  value={formState.reason ?? ""}
                   onChange={(e) => setFormState((prev) => ({ ...prev, reason: e.target.value }))}
                 />
                 {formErrors.reason ? (

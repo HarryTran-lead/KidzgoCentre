@@ -74,6 +74,8 @@ export const MAKEUP_CREDIT_ENDPOINTS = {
   GET_ALL: "/api/makeup-credits/all",
   GET_BY_ID: (id: string) => `/api/makeup-credits/${id}`,
   SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
+  AVAILABLE_SESSIONS: (id: string) =>
+    `/api/makeup-credits/${id}/parent/get-available-sessions`,
   USE: (id: string) => `/api/makeup-credits/${id}/use`,
   EXPIRE: (id: string) => `/api/makeup-credits/${id}/expire`,
   ALLOCATIONS: "/api/makeup-credits/allocations",
@@ -104,6 +106,8 @@ export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
   GET_ALL: "/makeup-credits/all",
   GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
   SUGGESTIONS: (id: string) => `/makeup-credits/${id}/suggestions`,
+  AVAILABLE_SESSIONS: (id: string) =>
+    `/makeup-credits/${id}/parent/get-available-sessions`,
   USE: (id: string) => `/makeup-credits/${id}/use`,
   EXPIRE: (id: string) => `/makeup-credits/${id}/expire`,
   ALLOCATIONS: "/makeup-credits/allocations",
@@ -156,7 +160,9 @@ export const LEAVE_REQUEST_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/api/leave-requests/${id}`,
   CREATE: '/api/leave-requests',
   APPROVE: (id: string) => `/api/leave-requests/${id}/approve`,
+  APPROVE_BULK: '/api/leave-requests/approve-bulk',
   REJECT: (id: string) => `/api/leave-requests/${id}/reject`,
+  CANCEL: (id: string) => `/api/leave-requests/${id}/cancel`,
 } as const;
 
 export const BACKEND_LEAVE_REQUEST_ENDPOINTS = {
@@ -164,7 +170,9 @@ export const BACKEND_LEAVE_REQUEST_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/leave-requests/${id}`,
   CREATE: '/leave-requests',
   APPROVE: (id: string) => `/leave-requests/${id}/approve`,
+  APPROVE_BULK: '/leave-requests/approve-bulk',
   REJECT: (id: string) => `/leave-requests/${id}/reject`,
+  CANCEL: (id: string) => `/leave-requests/${id}/cancel`,
 } as const;
 
 export const PAUSE_ENROLLMENT_ENDPOINTS = {

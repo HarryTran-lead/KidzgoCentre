@@ -16,6 +16,7 @@ import {
 
 import {
   approveLeaveRequest,
+  approveLeaveRequestsBulk,
   getLeaveRequests,
   rejectLeaveRequest,
 } from "@/lib/api/leaveRequestService";
@@ -25,21 +26,18 @@ import type { LeaveRequestRecord } from "@/types/leaveRequest";
 import {
   getMakeupCreditStudents,
   getMakeupCredits,
-  useMakeupCredit as applyMakeupCredit,
+  expireMakeupCredit,
 } from "@/lib/api/makeupCreditService";
 import type { MakeupCredit, MakeupCreditStudent } from "@/types/makeupCredit";
 
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
-import MakeupSessionCreateModal, {
-  type CreateMakeupPayload,
-} from "@/components/portal/parent/modalsLeaveRequest/MakeupSessionCreateModal";
 
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
 
 /* ===================== Types ===================== */
 
-type LeaveRequestStatusLabel = "Đã duyệt" | "Chờ duyệt" | "Từ chối";
+type LeaveRequestStatusLabel = "Đã duyệt" | "Chờ duyệt" | "Từ chối" | "Đã hủy";
 
 type LeaveRequest = {
   id: string;
@@ -78,10 +76,12 @@ type SessionDetail = {
 
 type UsedMakeupCredit = {
   id: string;
+  studentProfileId?: string;
   student: string;
   status: string;
   createdReason?: string;
   createdAt?: string;
+  expiresAt?: string | null;
   sourceSessionId?: string;
   usedSessionId?: string;
   sourceSession?: SessionDetail | null;
@@ -96,6 +96,7 @@ const statusMap = {
   APPROVED: "Đã duyệt",
   REJECTED: "Từ chối",
   AUTO_APPROVED: "Đã duyệt",
+  CANCELLED: "Đã hủy",
 } as const;
 
 type NormalizedStatusKey = keyof typeof statusMap;
@@ -105,6 +106,7 @@ const statusOptions: (LeaveRequestStatusLabel | "Tất cả")[] = [
   "Chờ duyệt",
   "Đã duyệt",
   "Từ chối",
+  "Đã hủy",
 ];
 
 /* ===================== Helpers ===================== */
@@ -277,6 +279,7 @@ function normalizeStatus(input: unknown): NormalizedStatusKey {
 
   if (s === "APPROVED") return "APPROVED";
   if (s === "REJECTED") return "REJECTED";
+  if (s === "CANCELLED" || s === "CANCELED") return "CANCELLED";
   if (s === "PENDING") return "PENDING";
 
   if (s === "AUTOAPPROVED" || s === "AUTO_APPROVED" || s === "AUTO_APPROVE")
@@ -344,14 +347,14 @@ const mapLeaveRequests = (
           : formatDateVN(start)
         : "-",
       status: statusLabel,
-      credit: statusKey !== "REJECTED" && isSingleDay ? 1 : 0,
+      credit: statusKey !== "REJECTED" && statusKey !== "CANCELLED" && isSingleDay ? 1 : 0,
       note: (item as any).reason ?? "-",
       raw: item,
     };
   });
 };
 
-const mapUsedMakeupCredits = (
+const mapMakeupCredits = (
   items: MakeupCredit[],
   studentLookup?: Map<string, StudentLookup>,
   makeupStudentNames?: Map<string, string>
@@ -371,10 +374,14 @@ const mapUsedMakeupCredits = (
 
     return {
       id: String(pickValue(item, ["id"]) ?? ""),
+      studentProfileId: studentId,
       student: studentName,
       status: String(pickValue(item, ["status"]) ?? "Used"),
       createdReason: (pickValue(item, ["createdReason"]) as string | undefined) ?? undefined,
       createdAt: (pickValue(item, ["createdAt"]) as string | undefined) ?? undefined,
+      expiresAt:
+        (pickValue(item, ["expiresAt", "expiredAt", "expiryDate"]) as string | undefined) ??
+        null,
       sourceSessionId: (pickValue(item, ["sourceSessionId"]) as string | undefined) ?? undefined,
       usedSessionId: (pickValue(item, ["usedSessionId"]) as string | undefined) ?? undefined,
       raw: item,
@@ -387,6 +394,9 @@ const sessionTitle = (session: SessionDetail | null | undefined) =>
 
 const sessionMeta = (session: SessionDetail | null | undefined) =>
   [session?.branchName, session?.plannedRoomName].filter(Boolean).join(" • ");
+
+const isExpiredCredit = (credit: UsedMakeupCredit) =>
+  credit.status.trim().toUpperCase().includes("EXPIRED");
 
 /* ===================== UI bits ===================== */
 
@@ -505,20 +515,30 @@ export default function Page() {
     "Tất cả"
   );
 
+  const [selectedLeaveIds, setSelectedLeaveIds] = useState<string[]>([]);
   const [openLeaveModal, setOpenLeaveModal] = useState(false);
-  const [openMakeupModal, setOpenMakeupModal] = useState(false);
 
   const [confirmAction, setConfirmAction] = useState<{
     type: "approve" | "reject";
     request: LeaveRequest;
   } | null>(null);
+  const [showBulkApproveConfirm, setShowBulkApproveConfirm] = useState(false);
+  const [expireTarget, setExpireTarget] = useState<UsedMakeupCredit | null>(null);
 
   const [processingAction, setProcessingAction] = useState(false);
+  const [processingBulkApprove, setProcessingBulkApprove] = useState(false);
+  const [processingExpire, setProcessingExpire] = useState(false);
 
-  // Used credits (Makeup list)
-  const [usedCredits, setUsedCredits] = useState<UsedMakeupCredit[]>([]);
-  const [loadingUsedCredits, setLoadingUsedCredits] = useState(false);
-  const [usedError, setUsedError] = useState<string | null>(null);
+  // Makeup credits
+  const [makeupCredits, setMakeupCredits] = useState<UsedMakeupCredit[]>([]);
+  const [loadingMakeupCredits, setLoadingMakeupCredits] = useState(false);
+  const [makeupError, setMakeupError] = useState<string | null>(null);
+  const usedCredits = makeupCredits;
+  const setUsedCredits = setMakeupCredits;
+  const loadingUsedCredits = loadingMakeupCredits;
+  const setLoadingUsedCredits = setLoadingMakeupCredits;
+  const usedError = makeupError;
+  const setUsedError = setMakeupError;
 
   const [leaveLookups, setLeaveLookups] = useState<LeaveRequestLookups>({
     students: new Map(),
@@ -569,20 +589,22 @@ export default function Page() {
     }
   };
 
-  const fetchUsedCredits = async (lookupsOverride?: LeaveRequestLookups) => {
-    setLoadingUsedCredits(true);
-    setUsedError(null);
+  const fetchMakeupCredits = async (lookupsOverride?: LeaveRequestLookups) => {
+    setLoadingMakeupCredits(true);
+    setMakeupError(null);
     try {
       const [creditsResponse, studentsResponse] = await Promise.all([
         getMakeupCredits({ pageNumber: 1, pageSize: 200 }),
         getMakeupCreditStudents(),
       ]);
       const api = unwrap(creditsResponse);
-      const items = Array.isArray(api?.items) ? api.items : Array.isArray(api?.data?.items) ? api.data.items : Array.isArray(api) ? api : [];
-      const usedItems = (items as MakeupCredit[]).filter((item) => {
-        const st = String(item?.status ?? "").toUpperCase();
-        return st.includes("USED") || Boolean(item?.usedSessionId);
-      });
+      const items = Array.isArray(api?.items)
+        ? api.items
+        : Array.isArray(api?.data?.items)
+          ? api.data.items
+          : Array.isArray(api)
+            ? api
+            : [];
       const studentApi = unwrap(studentsResponse);
       const studentItems = Array.isArray(studentApi?.items)
         ? studentApi.items
@@ -606,8 +628,8 @@ export default function Page() {
         makeupStudentNames.set(id, name.trim());
       });
 
-      const mapped = mapUsedMakeupCredits(
-        usedItems,
+      const mapped = mapMakeupCredits(
+        items as MakeupCredit[],
         lookupsOverride?.students ?? leaveLookups.students,
         makeupStudentNames
       );
@@ -623,7 +645,7 @@ export default function Page() {
       );
       const sessionMap = new Map(sessionEntries);
 
-      setUsedCredits(
+      setMakeupCredits(
         mapped.map((credit) => ({
           ...credit,
           sourceSession: credit.sourceSessionId
@@ -635,11 +657,13 @@ export default function Page() {
         }))
       );
     } catch {
-      setUsedError("Không thể tải danh sách đơn makeup.");
+      setUsedError("Không thể tải danh sách makeup credit.");
     } finally {
       setLoadingUsedCredits(false);
     }
   };
+
+  const fetchUsedCredits = fetchMakeupCredits;
 
   useEffect(() => {
     const init = async () => {
@@ -678,6 +702,36 @@ export default function Page() {
     });
   }, [requestItems, searchQuery, statusFilter]);
 
+  const pendingVisibleIds = useMemo(
+    () => filteredLeave.filter((item) => item.status === statusMap.PENDING).map((item) => item.id),
+    [filteredLeave]
+  );
+
+  const allPendingVisibleSelected =
+    pendingVisibleIds.length > 0 && pendingVisibleIds.every((id) => selectedLeaveIds.includes(id));
+
+  useEffect(() => {
+    setSelectedLeaveIds((prev) =>
+      prev.filter((id) => requestItems.some((item) => item.id === id && item.status === statusMap.PENDING))
+    );
+  }, [requestItems]);
+
+  const toggleLeaveSelection = (requestId: string) => {
+    setSelectedLeaveIds((prev) =>
+      prev.includes(requestId) ? prev.filter((id) => id !== requestId) : [...prev, requestId]
+    );
+  };
+
+  const toggleSelectAllPendingVisible = () => {
+    setSelectedLeaveIds((prev) => {
+      if (allPendingVisibleSelected) {
+        return prev.filter((id) => !pendingVisibleIds.includes(id));
+      }
+
+      return Array.from(new Set([...prev, ...pendingVisibleIds]));
+    });
+  };
+
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
 
@@ -706,10 +760,74 @@ export default function Page() {
 
       setConfirmAction(null);
       await fetchLeaveRequests();
+      await fetchUsedCredits();
     } catch (e: any) {
       setActionError(e?.message ?? "Thao tác thất bại.");
     } finally {
       setProcessingAction(false);
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    if (!selectedLeaveIds.length) return;
+
+    setProcessingBulkApprove(true);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      const res = await approveLeaveRequestsBulk(selectedLeaveIds);
+      const api = unwrap(res);
+      const approvedIds = Array.isArray(api?.approvedIds)
+        ? api.approvedIds
+        : Array.isArray(api?.data?.approvedIds)
+          ? api.data.approvedIds
+          : [];
+      const errors = Array.isArray(api?.errors)
+        ? api.errors
+        : Array.isArray(api?.data?.errors)
+          ? api.data.errors
+          : [];
+
+      await fetchLeaveRequests();
+      await fetchUsedCredits();
+      setSelectedLeaveIds([]);
+      setShowBulkApproveConfirm(false);
+
+      if (errors.length > 0) {
+        const preview = errors
+          .slice(0, 3)
+          .map((item: any) => item?.message ?? item?.code ?? item?.id ?? "Lỗi không xác định")
+          .join("\n");
+        setActionMessage(
+          `Đã duyệt ${approvedIds.length} đơn. Có ${errors.length} đơn chưa xử lý được.\n${preview}`
+        );
+      } else {
+        setActionMessage(`Đã duyệt hàng loạt ${approvedIds.length} đơn thành công.`);
+      }
+    } catch (error: any) {
+      setActionError(error?.message ?? "Không thể duyệt hàng loạt đơn xin nghỉ.");
+    } finally {
+      setProcessingBulkApprove(false);
+    }
+  };
+
+  const handleExpireCredit = async () => {
+    if (!expireTarget?.id) return;
+
+    setProcessingExpire(true);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      await expireMakeupCredit(expireTarget.id, { expiresAt: new Date().toISOString() });
+      await fetchUsedCredits();
+      setActionMessage("Đã cập nhật trạng thái hết hạn cho makeup credit.");
+      setExpireTarget(null);
+    } catch (error: any) {
+      setActionError(error?.message ?? "Không thể cập nhật trạng thái hết hạn cho makeup credit.");
+    } finally {
+      setProcessingExpire(false);
     }
   };
 
@@ -721,7 +839,7 @@ export default function Page() {
           <div>
             <div className="text-xl font-bold text-gray-900">Staff Management • Leave & Makeup</div>
             <div className="mt-1 text-sm text-gray-600">
-              Quản lý đơn xin nghỉ và đơn makeup (tách tab để khỏi rối).
+              Quản lý đơn xin nghỉ và makeup credit theo đúng luồng role hiện tại.
             </div>
           </div>
 
@@ -740,12 +858,12 @@ export default function Page() {
             <button
               onClick={() => {
                 setActiveTab("makeup");
-                setOpenMakeupModal(true);
+                setActionMessage("Theo tài liệu hiện tại, staff không trực tiếp dùng makeup credit.");
               }}
               className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
             >
               <Plus size={16} />
-              Tạo lịch bù
+              Xem quy tắc makeup
             </button>
           </div>
         </div>
@@ -784,7 +902,7 @@ export default function Page() {
             }`}
           >
             <Clock3 size={16} />
-            Đơn makeup
+            Makeup credit
             <span
               className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold ${
                 activeTab === "makeup"
@@ -874,6 +992,14 @@ export default function Page() {
                 >
                   Reload
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkApproveConfirm(true)}
+                  disabled={selectedLeaveIds.length === 0}
+                  className="h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-sm font-semibold text-white hover:shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Duyệt hàng loạt ({selectedLeaveIds.length})
+                </button>
               </div>
             </div>
           </div>
@@ -892,6 +1018,16 @@ export default function Page() {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200">
                   <tr>
+                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={allPendingVisibleSelected}
+                        onChange={toggleSelectAllPendingVisible}
+                        disabled={pendingVisibleIds.length === 0}
+                        className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-300"
+                        aria-label="Chọn tất cả đơn chờ duyệt đang hiển thị"
+                      />
+                    </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                       Học viên
                     </th>
@@ -925,6 +1061,16 @@ export default function Page() {
                           key={r.id}
                           className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                         >
+                          <td className="py-4 px-4 align-top">
+                            <input
+                              type="checkbox"
+                              checked={selectedLeaveIds.includes(r.id)}
+                              onChange={() => toggleLeaveSelection(r.id)}
+                              disabled={!canAct}
+                              className="mt-1 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                              aria-label={`Chọn đơn ${r.id}`}
+                            />
+                          </td>
                           <td className="py-4 px-6">
                             <div className="text-sm font-medium text-gray-900">{r.student}</div>
                             <div className="text-xs text-gray-500 font-mono">{r.id}</div>
@@ -968,7 +1114,7 @@ export default function Page() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center">
+                      <td colSpan={8} className="py-12 text-center">
                         <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                           <Search size={24} className="text-red-400" />
                         </div>
@@ -992,9 +1138,9 @@ export default function Page() {
           <div className="bg-gradient-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Danh sách đơn makeup</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Danh sách makeup credit</h2>
                 <div className="text-sm text-gray-600 mt-1">
-                  Hiển thị các credit đã dùng + map session để ra tên lớp / thời gian.
+                  Hiển thị toàn bộ credit, trạng thái hiện tại và buổi nghỉ hoặc buổi bù liên quan.
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -1006,12 +1152,12 @@ export default function Page() {
                 >
                   Reload
                 </button>
-                <div className="text-sm text-gray-600 font-medium">{usedCredits.length} đơn</div>
+                <div className="text-sm text-gray-600 font-medium">{usedCredits.length} credit</div>
               </div>
             </div>
 
             {loadingUsedCredits && (
-              <div className="text-sm text-gray-500 mt-1">Đang tải danh sách đơn makeup...</div>
+              <div className="text-sm text-gray-500 mt-1">Đang tải danh sách makeup credit...</div>
             )}
             {usedError && (
               <div className="mt-2">
@@ -1038,6 +1184,9 @@ export default function Page() {
                   </th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                     Tạo lúc
+                  </th>
+                  <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
+                    Thao tác
                   </th>
                 </tr>
               </thead>
@@ -1095,23 +1244,41 @@ export default function Page() {
                               Lý do: {credit.createdReason}
                             </div>
                           )}
+                          {credit.expiresAt && (
+                            <div className="mt-1 text-xs text-gray-500">
+                              Hết hạn: {formatDateTimeVN(credit.expiresAt)}
+                            </div>
+                          )}
                         </td>
 
                         <td className="py-4 px-6">
                           <div className="text-sm text-gray-700">{createdTime}</div>
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          {isExpiredCredit(credit) ? (
+                            <span className="text-xs font-semibold text-gray-400">Đã hết hạn</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setExpireTarget(credit)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-100 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 cursor-pointer"
+                            >
+                              Đặt hết hạn
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center">
+                    <td colSpan={6} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                         <Search size={24} className="text-red-400" />
                       </div>
-                      <div className="text-gray-600 font-medium">Chưa có đơn makeup</div>
+                      <div className="text-gray-600 font-medium">Chưa có makeup credit</div>
                       <div className="text-sm text-gray-500 mt-1">
-                        Danh sách sẽ hiển thị khi có credit đã dùng để tạo lịch bù.
+                        Danh sách sẽ hiển thị khi hệ thống phát sinh makeup credit từ đơn nghỉ hoặc điểm danh.
                       </div>
                     </td>
                   </tr>
@@ -1136,6 +1303,28 @@ export default function Page() {
         onClose={() => setConfirmAction(null)}
         onConfirm={handleConfirmAction}
       />
+      <ConfirmModal
+        open={showBulkApproveConfirm}
+        title="Xác nhận duyệt hàng loạt"
+        description={`Bạn đang chọn ${selectedLeaveIds.length} đơn chờ duyệt. Hệ thống sẽ duyệt lần lượt theo danh sách đã chọn.`}
+        confirmText="Duyệt hàng loạt"
+        disabled={processingBulkApprove}
+        onClose={() => setShowBulkApproveConfirm(false)}
+        onConfirm={handleBulkApprove}
+      />
+      <ConfirmModal
+        open={!!expireTarget}
+        title="Xác nhận đặt hết hạn makeup credit"
+        description={
+          expireTarget
+            ? `Học viên: ${expireTarget.student}\nTrạng thái hiện tại: ${expireTarget.status}\nThao tác này sẽ đánh dấu credit là hết hạn theo đúng tài liệu hiện tại.`
+            : ""
+        }
+        confirmText="Xác nhận hết hạn"
+        disabled={processingExpire}
+        onClose={() => setExpireTarget(null)}
+        onConfirm={handleExpireCredit}
+      />
 
       {/* Modals */}
       <LeaveRequestCreateModal
@@ -1144,23 +1333,11 @@ export default function Page() {
         onCreated={(record) => {
           const mapped = mapLeaveRequests([record], leaveLookups);
           setRequestItems((prev) => [...mapped, ...prev]);
+          void fetchUsedCredits();
           setActiveTab("leave");
         }}
       />
 
-      <MakeupSessionCreateModal
-        open={openMakeupModal}
-        onClose={() => setOpenMakeupModal(false)}
-        onCreate={async (payload: CreateMakeupPayload) => {
-          await applyMakeupCredit(payload.makeupCreditId, {
-            studentProfileId: payload.studentProfileId,
-            classId: payload.targetClassId,
-            targetSessionId: payload.targetSessionId,
-          });
-          await fetchUsedCredits();
-          setActiveTab("makeup");
-        }}
-      />
     </div>
   );
 }

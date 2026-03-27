@@ -454,8 +454,7 @@ export default function LeaveRequestCreateModal({
     return (
       !!formState.studentProfileId &&
       !!formState.classId &&
-      !!formState.sessionDate &&
-      formState.reason.trim().length > 0
+      !!formState.sessionDate
     );
   }, [formState]);
 
@@ -861,7 +860,7 @@ export default function LeaveRequestCreateModal({
               <textarea
                 className="min-h-[100px] w-full resize-none rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
                 placeholder="Nhập lý do xin nghỉ..."
-                value={formState.reason}
+                value={formState.reason ?? ""}
                 onChange={(e) => setFormState((p) => ({ ...p, reason: e.target.value }))}
               />
             </div>

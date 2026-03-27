@@ -12,6 +12,7 @@ import type {
   LeaveRequestListResponse,
   LeaveRequestDetailResponse,
   LeaveRequestActionResponse,
+  LeaveRequestBulkApproveResponse,
 } from "@/types/leaveRequest";
 
 export async function getLeaveRequests(): Promise<LeaveRequestListResponse> {
@@ -47,11 +48,24 @@ export async function createLeaveRequest(data: LeaveRequestPayload): Promise<Lea
   return post<LeaveRequestDetailResponse>(LEAVE_REQUEST_ENDPOINTS.CREATE, {
     ...data,
     endDate: data.endDate?.trim() ? data.endDate : null,
+    reason: data.reason?.trim() ? data.reason.trim() : null,
   });
 }
 
 export async function approveLeaveRequest(id: string): Promise<LeaveRequestActionResponse> {
- return put<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.APPROVE(id), {});}
+  return put<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.APPROVE(id), {});
+}
+
+export async function approveLeaveRequestsBulk(
+  ids: string[]
+): Promise<LeaveRequestBulkApproveResponse> {
+  return put<LeaveRequestBulkApproveResponse>(LEAVE_REQUEST_ENDPOINTS.APPROVE_BULK, { ids });
+}
 
 export async function rejectLeaveRequest(id: string): Promise<LeaveRequestActionResponse> {
-return put<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.REJECT(id), {});}
+  return put<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.REJECT(id), {});
+}
+
+export async function cancelLeaveRequest(id: string): Promise<LeaveRequestActionResponse> {
+  return put<LeaveRequestActionResponse>(LEAVE_REQUEST_ENDPOINTS.CANCEL(id), {});
+}
