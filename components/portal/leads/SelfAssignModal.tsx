@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, UserCheck, Loader2, AlertCircle } from "lucide-react";
 import type { Lead } from "@/types/lead";
 import { selfAssignLead } from "@/lib/api/leadService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
@@ -56,7 +57,7 @@ export default function SelfAssignModal({
       }
     } catch (err: any) {
       console.error("Error self-assigning lead:", err);
-      const errorMessage = err.response?.data?.message || err.message || "Đã xảy ra lỗi khi nhận lead";
+      const errorMessage = getDomainErrorMessage(err, "Không thể nhận lead");
       setError(errorMessage);
       toast({
         title: "Lỗi",

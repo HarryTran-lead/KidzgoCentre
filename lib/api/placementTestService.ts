@@ -3,14 +3,18 @@
  * Handles all API calls related to placement tests
  */
 
-import { get, post, put, del } from "@/lib/axios";
+import { get, post, put } from "@/lib/axios";
 import { PLACEMENT_TEST_ENDPOINTS } from "@/constants/apiURL";
+import axios from "axios";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import type {
   PlacementTest,
   CreatePlacementTestRequest,
   UpdatePlacementTestRequest,
   PlacementTestResult,
   PlacementTestNote,
+  PlacementTestRetakeRequest,
+  PlacementTestRetakeResponse,
 } from "@/types/placement-test";
 import type { ApiResponse } from "@/types/apiResponse";
 
@@ -21,6 +25,117 @@ interface PaginatedResponse<T> {
   pageNumber: number;
   pageSize: number;
   totalPages: number;
+}
+
+type ProblemPayload = {
+  code?: string;
+  status?: number;
+  title?: string;
+  detail?: string;
+  message?: string;
+};
+
+export class PlacementTestApiError extends Error {
+  code?: string;
+  status?: number;
+  title?: string;
+  detail?: string;
+  raw?: unknown;
+
+  constructor(message: string, options?: { code?: string; status?: number; title?: string; detail?: string; raw?: unknown }) {
+    super(message);
+    this.name = "PlacementTestApiError";
+    this.code = options?.code;
+    this.status = options?.status;
+    this.title = options?.title;
+    this.detail = options?.detail;
+    this.raw = options?.raw;
+  }
+}
+
+const STATUS_CODE_LABEL: Record<number, string> = {
+  400: "Yêu cầu không hợp lệ",
+  401: "Chưa đăng nhập hoặc token không hợp lệ",
+  403: "Không có quyền truy cập",
+  404: "Không tìm thấy dữ liệu",
+  409: "Xung đột dữ liệu",
+  500: "Lỗi hệ thống",
+};
+
+function extractPayload(response: any): any {
+  return response?.data ?? response ?? {};
+}
+
+function extractData<T>(response: any): T {
+  const payload = extractPayload(response);
+  if (payload?.data !== undefined) return payload.data as T;
+  return payload as T;
+}
+
+function extractErrorPayload(error: unknown): ProblemPayload {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as ProblemPayload | undefined;
+    return {
+      code: data?.code,
+      status: error.response?.status,
+      title: data?.title,
+      detail: data?.detail,
+      message: data?.message,
+    };
+  }
+
+  if (error instanceof PlacementTestApiError) {
+    return {
+      code: error.code,
+      status: error.status,
+      title: error.title,
+      detail: error.detail,
+      message: error.message,
+    };
+  }
+
+  return {};
+}
+
+function toPlacementTestApiError(error: unknown, fallbackMessage: string): PlacementTestApiError {
+  if (error instanceof PlacementTestApiError) return error;
+
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    const data = (error.response?.data || {}) as ProblemPayload;
+    const message =
+      data?.message ||
+      data?.detail ||
+      data?.title ||
+      error.message ||
+      fallbackMessage;
+
+    return new PlacementTestApiError(message, {
+      code: data?.code,
+      status,
+      title: data?.title,
+      detail: data?.detail,
+      raw: error.response?.data,
+    });
+  }
+
+  return new PlacementTestApiError(
+    error instanceof Error ? error.message : fallbackMessage,
+    { raw: error }
+  );
+}
+
+export function mapPlacementTestStatusCode(status?: number): string {
+  if (!status) return "Lỗi không xác định";
+  return STATUS_CODE_LABEL[status] || `Loi HTTP ${status}`;
+}
+
+export function getPlacementTestErrorMessage(error: unknown, fallbackMessage = "Không thể xử lý placement test"): string {
+  const details = extractErrorPayload(error);
+  const mapped = getDomainErrorMessage(error, fallbackMessage);
+  if (mapped && mapped !== fallbackMessage) return mapped;
+
+  return details.detail || details.message || details.title || fallbackMessage;
 }
 
 /**
@@ -38,48 +153,62 @@ export async function getAllPlacementTests(params?: {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 }): Promise<ApiResponse<PaginatedResponse<PlacementTest>>> {
-  const queryParams = new URLSearchParams();
-  
-  if (params?.page) queryParams.append("pageNumber", params.page.toString());
-  if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString());
-  if (params?.status) queryParams.append("status", params.status);
-  if (params?.branchId) queryParams.append("branchId", params.branchId);
-  if (params?.teacherId) queryParams.append("assignedTeacherId", params.teacherId);
-  if (params?.searchTerm) queryParams.append("searchTerm", params.searchTerm);
-  if (params?.fromDate) queryParams.append("fromDate", params.fromDate);
-  if (params?.toDate) queryParams.append("toDate", params.toDate);
-  if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
-  if (params?.sortOrder) queryParams.append("sortOrder", params.sortOrder);
+  try {
+    const queryParams = new URLSearchParams();
 
-  const response = await get<any>(`${PLACEMENT_TEST_ENDPOINTS.GET_ALL}?${queryParams.toString()}`);
-  
-  // Handle nested response structure: response.data.data or response.data
-  const responseData = response.data?.data || response.data || {};
-  const placementTests = responseData.placementTests || responseData.items || [];
-  
-  return {
-    isSuccess: response.isSuccess || response.success || true,
-    message: response.message,
-    data: {
-      items: placementTests,
-      totalCount: responseData.totalCount || placementTests.length || 0,
-      pageNumber: responseData.page || responseData.pageNumber || 1,
-      pageSize: responseData.pageSize || 10,
-      totalPages: responseData.totalPages || Math.ceil((responseData.totalCount || 0) / (responseData.pageSize || 10)),
-    },
-  };
+    if (params?.page) queryParams.append("pageNumber", params.page.toString());
+    if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString());
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.branchId) queryParams.append("branchId", params.branchId);
+    if (params?.teacherId) queryParams.append("assignedTeacherId", params.teacherId);
+    if (params?.searchTerm) queryParams.append("searchTerm", params.searchTerm);
+    if (params?.fromDate) queryParams.append("fromDate", params.fromDate);
+    if (params?.toDate) queryParams.append("toDate", params.toDate);
+    if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
+    if (params?.sortOrder) queryParams.append("sortOrder", params.sortOrder);
+
+    const response = await get<any>(
+      `${PLACEMENT_TEST_ENDPOINTS.GET_ALL}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`
+    );
+
+    const payload = extractPayload(response);
+    const data = payload?.data ?? payload;
+    const placementTests = data?.placementTests || data?.items || [];
+    const totalCount = Number(data?.totalCount ?? placementTests.length ?? 0);
+    const pageNumber = Number(data?.page ?? data?.pageNumber ?? 1);
+    const pageSize = Number(data?.pageSize ?? params?.pageSize ?? 10);
+
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message,
+      data: {
+        items: placementTests,
+        totalCount,
+        pageNumber,
+        pageSize,
+        totalPages: Number(data?.totalPages ?? Math.max(1, Math.ceil(totalCount / Math.max(1, pageSize)))),
+      },
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the tai danh sach placement test");
+  }
 }
 
 /**
  * Get placement test by ID
  */
 export async function getPlacementTestById(id: string): Promise<ApiResponse<PlacementTest>> {
-  const response = await get<any>(PLACEMENT_TEST_ENDPOINTS.GET_BY_ID(id));
-  return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
-  };
+  try {
+    const response = await get<any>(PLACEMENT_TEST_ENDPOINTS.GET_BY_ID(id));
+    const payload = extractPayload(response);
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message,
+      data: extractData<PlacementTest>(response),
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the lay chi tiet placement test");
+  }
 }
 
 /**
@@ -88,12 +217,37 @@ export async function getPlacementTestById(id: string): Promise<ApiResponse<Plac
 export async function createPlacementTest(
   data: CreatePlacementTestRequest
 ): Promise<ApiResponse<PlacementTest>> {
-  const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.CREATE, data);
-  return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
-  };
+  try {
+    const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.CREATE, data);
+    const payload = extractPayload(response);
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message,
+      data: extractData<PlacementTest>(response),
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the tao placement test");
+  }
+}
+
+/**
+ * Create retake placement test
+ */
+export async function createPlacementTestRetake(
+  originalPlacementTestId: string,
+  data: PlacementTestRetakeRequest
+): Promise<ApiResponse<PlacementTestRetakeResponse>> {
+  try {
+    const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.RETAKE(originalPlacementTestId), data);
+    const payload = extractPayload(response);
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message,
+      data: extractData<PlacementTestRetakeResponse>(response),
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the tao placement test retake");
+  }
 }
 
 /**
@@ -103,12 +257,17 @@ export async function updatePlacementTest(
   id: string,
   data: UpdatePlacementTestRequest
 ): Promise<ApiResponse<PlacementTest>> {
-  const response = await put<any>(PLACEMENT_TEST_ENDPOINTS.UPDATE(id), data);
-  return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
-  };
+  try {
+    const response = await put<any>(PLACEMENT_TEST_ENDPOINTS.UPDATE(id), data);
+    const payload = extractPayload(response);
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message,
+      data: extractData<PlacementTest>(response),
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the cap nhat placement test");
+  }
 }
 
 /**
@@ -118,12 +277,17 @@ export async function cancelPlacementTest(
   id: string,
   reason?: string
 ): Promise<ApiResponse<void>> {
-  const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.CANCEL(id), { reason });
-  return {
-    isSuccess: response.isSuccess || response.success || true,
-    message: response.message || 'Cancelled successfully',
-    data: undefined as any,
-  };
+  try {
+    const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.CANCEL(id), { reason });
+    const payload = extractPayload(response);
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message || "Cancelled successfully",
+      data: undefined as any,
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the huy placement test");
+  }
 }
 
 /**
@@ -132,12 +296,17 @@ export async function cancelPlacementTest(
 export async function markPlacementTestNoShow(
   id: string
 ): Promise<ApiResponse<void>> {
-  const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.NO_SHOW(id), {});
-  return {
-    isSuccess: response.isSuccess || response.success || true,
-    message: response.message || 'Marked as no-show',
-    data: undefined as any,
-  };
+  try {
+    const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.NO_SHOW(id), {});
+    const payload = extractPayload(response);
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message || "Marked as no-show",
+      data: undefined as any,
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the danh dau no-show placement test");
+  }
 }
 
 /**
@@ -147,12 +316,17 @@ export async function updatePlacementTestResults(
   id: string,
   results: PlacementTestResult
 ): Promise<ApiResponse<void>> {
-  const response = await put<any>(PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(id), results);
-  return {
-    isSuccess: response.isSuccess || response.success || true,
-    message: response.message || 'Results updated successfully',
-    data: undefined as any,
-  };
+  try {
+    const response = await put<any>(PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(id), results);
+    const payload = extractPayload(response);
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message || "Results updated successfully",
+      data: undefined as any,
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the cap nhat ket qua placement test");
+  }
 }
 
 /**
@@ -162,12 +336,17 @@ export async function addPlacementTestNote(
   id: string,
   note: Omit<PlacementTestNote, "id" | "createdAt" | "createdBy">
 ): Promise<ApiResponse<PlacementTestNote>> {
-  const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.ADD_NOTE(id), note);
-  return {
-    isSuccess: response.isSuccess || response.success || false,
-    message: response.message,
-    data: response.data || response,
-  };
+  try {
+    const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.ADD_NOTE(id), note);
+    const payload = extractPayload(response);
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message,
+      data: extractData<PlacementTestNote>(response),
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the them ghi chu placement test");
+  }
 }
 
 /**
@@ -176,10 +355,15 @@ export async function addPlacementTestNote(
 export async function convertPlacementTestToEnrolled(
   id: string
 ): Promise<ApiResponse<void>> {
-  const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.CONVERT_TO_ENROLLED(id), {});
-  return {
-    isSuccess: response.isSuccess || response.success || true,
-    message: response.message || 'Converted to enrolled student successfully',
-    data: undefined as any,
-  };
+  try {
+    const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.CONVERT_TO_ENROLLED(id), {});
+    const payload = extractPayload(response);
+    return {
+      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
+      message: payload?.message || "Converted to enrolled student successfully",
+      data: undefined as any,
+    };
+  } catch (error) {
+    throw toPlacementTestApiError(error, "Khong the chuyen placement test thanh hoc vien");
+  }
 }

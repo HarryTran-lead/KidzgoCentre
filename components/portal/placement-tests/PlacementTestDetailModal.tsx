@@ -163,17 +163,7 @@ export default function PlacementTestDetailModal({
                   <p className="text-4xl font-bold text-purple-600">{test.resultScore}</p>
                 </div>
               )}
-
-              {/* Level Recommendation */}
-              {test.levelRecommendation && (
-                <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <p className="text-sm text-slate-600 mb-1 flex items-center gap-2">
-                    <BookOpen size={14} />
-                    Đề xuất trình độ (Level Recommendation)
-                  </p>
-                  <p className="text-xl font-semibold text-indigo-600">{test.levelRecommendation}</p>
-                </div>
-              )}
+              
 
               {/* Program Recommendation */}
               {test.programRecommendation && (

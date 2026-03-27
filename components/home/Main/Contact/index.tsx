@@ -29,6 +29,16 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Contact() {
   const { toast } = useToast();
+  const getContactErrorMessage = (error: any): string => {
+    return (
+      error?.response?.data?.message ||
+      error?.response?.data?.detail ||
+      error?.response?.data?.title ||
+      error?.message ||
+      "Không thể gửi thông tin. Vui lòng thử lại sau."
+    );
+  };
+
   const [form, setForm] = useState({
     contactName: "",
     email: "",
@@ -88,12 +98,18 @@ export default function Contact() {
           zaloId: "",
           branchPreference: "",
         });
+      } else {
+        toast({
+          title: "Gửi liên hệ thất bại",
+          description: response.message || "Không thể gửi thông tin. Vui lòng thử lại sau.",
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
       console.error("Error submitting lead:", error);
       toast({
-        title: "Lỗi",
-        description: error.response?.data?.message || "Không thể gửi thông tin. Vui lòng thử lại sau.",
+        title: "Gửi liên hệ thất bại",
+        description: getContactErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -147,9 +163,9 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100 mt-30">
+    <div className="min-h-screen bg-linear-to-b from-emerald-50 via-green-50 to-emerald-100 mt-30">
       {/* Nội dung chính */}
-      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100 rounded-t-3xl shadow-2xl">
+      <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 -mt-40 bg-linear-to-b from-emerald-50 via-green-50 to-emerald-100 rounded-t-3xl shadow-2xl">
         <motion.div
           initial="hidden"
           animate="visible"
@@ -295,7 +311,7 @@ export default function Contact() {
           >
             <div className="group relative bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100">
               {/* Header form */}
-              <div className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 p-6 border-b border-emerald-100">
+              <div className="bg-linear-to-r from-emerald-500/10 to-green-500/10 p-6 border-b border-emerald-100">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-xl bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <MessageSquare className="w-6 h-6" />
@@ -429,7 +445,7 @@ export default function Contact() {
                       )}
                       
                       {/* Hiệu ứng nền động */}
-                      <span className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></span>
+                      <span className="absolute inset-0 rounded-full bg-linear-to-r from-emerald-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></span>
                     </button>
                   </div>
                 </form>

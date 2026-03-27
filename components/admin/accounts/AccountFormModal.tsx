@@ -106,8 +106,8 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
   if (!isOpen) return null;
  
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl max-h-[100vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4">
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-rose-500 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">

@@ -19,7 +19,9 @@ import {
   SelectValue,
 } from "@/components/lightswind/select";
 import PlacementTestTable from "@/components/portal/placement-tests/PlacementTestTable";
-import PlacementTestFormModal from "@/components/portal/placement-tests/PlacementTestFormModal";
+import PlacementTestFormModal, {
+  type PlacementTestFormSubmitPayload,
+} from "@/components/portal/placement-tests/PlacementTestFormModal";
 import ResultFormModal from "@/components/portal/placement-tests/ResultFormModal";
 import CreateAccountProfileModal from "@/components/portal/placement-tests/CreateAccountProfileModal";
 import PlacementTestDetailModal from "@/components/portal/placement-tests/PlacementTestDetailModal";
@@ -29,23 +31,28 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getAccessToken } from "@/lib/store/authToken";
 import { useCreateAccountFromTest } from "@/hooks/useCreateAccountFromTest";
 import {
+  createPlacementTest,
+  createPlacementTestRetake,
+  getPlacementTestErrorMessage,
+  updatePlacementTest,
+} from "@/lib/api/placementTestService";
+import {
   PLACEMENT_TEST_ENDPOINTS,
   USER_ENDPOINTS,
   LEAD_ENDPOINTS,
   PROFILE_ENDPOINTS,
   ADMIN_ENDPOINTS,
+  BRANCH_ENDPOINTS,
 } from "@/constants/apiURL";
 import type {
   PlacementTest,
   PlacementTestFilters,
-  CreatePlacementTestRequest,
-  UpdatePlacementTestRequest,
   PlacementTestResult,
   PlacementTestResultRequest,
 } from "@/types/placement-test";
 
 export default function PlacementTestsPage() {
-  const { user: currentUser } = useCurrentUser();
+  const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
   const [tests, setTests] = useState<PlacementTest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortKey, setSortKey] = useState<string | null>("createdAt");
@@ -64,6 +71,8 @@ export default function PlacementTestsPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState<PlacementTest | null>(null);
+  const [formDefaultMode, setFormDefaultMode] = useState<"create" | "retake">("create");
+  const [retakeSourceTestId, setRetakeSourceTestId] = useState("");
   const [confirmAction, setConfirmAction] = useState<{
     action: string;
     title: string;
@@ -84,12 +93,31 @@ export default function PlacementTestsPage() {
 
   // Mock data for dropdowns - replace with API calls
   const [leads, setLeads] = useState<any[]>([]);
-  const [studentProfiles, setStudentProfiles] = useState<any[]>([]);
+  const [studentProfiles, setStudentProfiles] = useState<
+    Array<{ id: string; fullName: string; branchId?: string; profileType?: string }>
+  >([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [invigilators, setInvigilators] = useState<any[]>([]);
+  const [retakeBranches, setRetakeBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [retakePrograms, setRetakePrograms] = useState<Array<{ id: string; name: string; branchId?: string }>>([]);
+  const [retakeTuitionPlans, setRetakeTuitionPlans] = useState<Array<{ id: string; name: string; programId: string; branchId?: string }>>([]);
   const [isLoadingDropdownData, setIsLoadingDropdownData] = useState(false);
 
-  const activeBranchId = useMemo(() => String(filters.branchId || currentUser?.branchId || ""), [filters.branchId, currentUser?.branchId]);
+  const resolveCurrentUserBranchId = (user: any): string => {
+    return String(
+      user?.branchId ||
+      user?.branch?.id ||
+      user?.branch?.branchId ||
+      user?.selectedProfile?.branchId ||
+      user?.selectedProfile?.branch?.id ||
+      user?.profiles?.[0]?.branchId ||
+      user?.profiles?.[0]?.branch?.id ||
+      "",
+    );
+  };
+
+  const currentUserBranchId = useMemo(() => resolveCurrentUserBranchId(currentUser), [currentUser]);
+  const activeBranchId = useMemo(() => String(filters.branchId || currentUserBranchId || ""), [filters.branchId, currentUserBranchId]);
 
   const sortPlacementTestsNewest = (items: PlacementTest[]) => {
     return [...items].sort((a, b) => {
@@ -112,10 +140,22 @@ export default function PlacementTestsPage() {
   // Fetch dropdown data once on mount
   useEffect(() => {
     fetchInvigilators();
-    fetchLeads();
-    fetchStudentProfiles();
-    fetchClasses();
   }, []);
+
+  useEffect(() => {
+    if (!currentUserBranchId) return;
+    fetchStudentProfiles();
+  }, [currentUserBranchId]);
+
+  useEffect(() => {
+    if (!currentUserBranchId) return;
+    fetchClasses();
+  }, [currentUserBranchId]);
+
+  useEffect(() => {
+    if (isCurrentUserLoading) return;
+    fetchLeads();
+  }, [isCurrentUserLoading, currentUserBranchId]);
 
   const fetchPlacementTests = async () => {
     setIsLoading(true);
@@ -242,11 +282,21 @@ export default function PlacementTestsPage() {
 
   const fetchLeadsForModal = async () => {
     try {
+      const accountBranchId = currentUserBranchId;
+
+      if (!accountBranchId) {
+        setLeads([]);
+        return [];
+      }
+
       // Create a completely clean URL with minimal params for modal
       const modalParams = new URLSearchParams();
       modalParams.append("status", "New");
       modalParams.append("pageSize", "1000");
-      modalParams.append("pageNumber", "1");
+      modalParams.append("page", "1");
+      if (accountBranchId) {
+        modalParams.append("branchPreference", accountBranchId);
+      }
       modalParams.append("_modal", "true"); // Flag to indicate this is for modal
       modalParams.append("_t", Date.now().toString()); // Cache buster
 
@@ -279,7 +329,19 @@ export default function PlacementTestsPage() {
           const status = lead.status;
           const isNew =
             status === "New" || status === "new" || status === "NEW";
-          return isNew;
+          if (!isNew) return false;
+
+          if (!accountBranchId) return true;
+          const leadBranchId = String(
+            lead.branchId ||
+              lead.branch?.id ||
+              lead.branch?.branchId ||
+              lead.branchPreference ||
+              lead.branchPreferenceId ||
+              lead.branchPreference?.id ||
+              "",
+          );
+          return leadBranchId === accountBranchId;
         });
 
         // Process leads with children
@@ -347,14 +409,22 @@ export default function PlacementTestsPage() {
 
   const fetchLeads = async () => {
     try {
+      const accountBranchId = currentUserBranchId;
+
+      if (!accountBranchId) {
+        setLeads([]);
+        return;
+      }
+
       // Only fetch leads with status = "New" for placement test
-      // Force clear any existing branch filter for leads fetch
       const queryParams = new URLSearchParams();
       queryParams.append("status", "New");
       queryParams.append("pageSize", "1000"); // Large page size to get all leads
-      queryParams.append("pageNumber", "1");
+      queryParams.append("page", "1");
+      if (accountBranchId) {
+        queryParams.append("branchPreference", accountBranchId);
+      }
       queryParams.append("_t", Date.now().toString()); // Cache buster
-      // Explicitly don't add branchId to get all leads regardless of branch
 
       const url = `${LEAD_ENDPOINTS.GET_ALL}?${queryParams.toString()}`;
 
@@ -383,7 +453,19 @@ export default function PlacementTestsPage() {
           const status = lead.status;
           const isNew =
             status === "New" || status === "new" || status === "NEW";
-          return isNew;
+          if (!isNew) return false;
+
+          if (!accountBranchId) return true;
+          const leadBranchId = String(
+            lead.branchId ||
+              lead.branch?.id ||
+              lead.branch?.branchId ||
+              lead.branchPreference ||
+              lead.branchPreferenceId ||
+              lead.branchPreference?.id ||
+              "",
+          );
+          return leadBranchId === accountBranchId;
         });
 
         const leadsWithChildren = await Promise.all(
@@ -445,8 +527,16 @@ export default function PlacementTestsPage() {
 
   const fetchStudentProfiles = async () => {
     try {
+      const branchId = currentUserBranchId;
+      if (!branchId) {
+        setStudentProfiles([]);
+        return;
+      }
+
       // Add pagination parameters to get all profiles
       const queryParams = new URLSearchParams();
+      queryParams.append("profileType", "Student");
+      queryParams.append("branchId", branchId);
       queryParams.append("pageSize", "1000"); // Large page size to get all profiles
       queryParams.append("pageNumber", "1");
 
@@ -474,6 +564,8 @@ export default function PlacementTestsPage() {
         const mappedProfiles = profiles.map((profile: any) => ({
           id: profile.id,
           fullName: profile.fullName || profile.studentName || "N/A",
+          branchId: profile.branchId || profile.branch?.id || profile.branch?.branchId || "",
+          profileType: profile.profileType || "",
         }));
 
         setStudentProfiles(mappedProfiles);
@@ -491,13 +583,21 @@ export default function PlacementTestsPage() {
 
   const fetchClasses = async () => {
     try {
-      // Add pagination parameters to get all classes
+      const branchId = currentUserBranchId;
+      if (!branchId) {
+        setClasses([]);
+        return;
+      }
+
+      // Use classrooms API for test room selection
       const queryParams = new URLSearchParams();
+      queryParams.append("branchId", branchId);
+      queryParams.append("isActive", "true");
       queryParams.append("pageSize", "1000"); // Large page size to get all classes
       queryParams.append("pageNumber", "1");
 
       const response = await fetch(
-        `${ADMIN_ENDPOINTS.CLASSES}?${queryParams.toString()}`,
+        `${ADMIN_ENDPOINTS.CLASSROOMS}?${queryParams.toString()}`,
         {
           headers: {
             Authorization: `Bearer ${getAccessToken()}`,
@@ -510,16 +610,18 @@ export default function PlacementTestsPage() {
 
         // Handle multiple response formats
         const classesData =
+          data.data?.classrooms?.items ||
           data.data?.items ||
-          data.data?.classes ||
+          data.data?.classrooms ||
           data.data ||
           data.items ||
-          data.classes ||
+          data.classrooms?.items ||
+          data.classrooms ||
           [];
 
         const mappedClasses = classesData.map((cls: any) => ({
           id: cls.id,
-          className: cls.className || cls.name || "N/A",
+          className: cls.roomName || cls.classroomName || cls.name || cls.code || "N/A",
         }));
 
         setClasses(mappedClasses);
@@ -532,6 +634,89 @@ export default function PlacementTestsPage() {
       }
     } catch (error) {
       console.error("❌ Error fetching classes:", error);
+    }
+  };
+
+  const fetchRetakeOptions = async () => {
+    try {
+      const token = getAccessToken();
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      const [branchRes, programRes, tuitionRes] = await Promise.all([
+        fetch(`${BRANCH_ENDPOINTS.GET_ALL_PUBLIC}?page=1&limit=1000&isActive=true`, {
+          headers,
+        }),
+        fetch(`${ADMIN_ENDPOINTS.PROGRAMS}?pageNumber=1&pageSize=1000`, {
+          headers,
+        }),
+        fetch(`${ADMIN_ENDPOINTS.TUITION_PLANS_ACTIVE}?pageNumber=1&pageSize=1000`, {
+          headers,
+        }),
+      ]);
+
+      if (branchRes.ok) {
+        const branchData = await branchRes.json();
+        const branchItems =
+          branchData?.data?.branches ||
+          branchData?.data?.items ||
+          branchData?.data ||
+          branchData?.branches ||
+          [];
+
+        const mappedBranches = branchItems
+          .map((branch: any) => ({
+            id: String(branch?.id || ""),
+            name: String(branch?.name || branch?.branchName || "N/A"),
+          }))
+          .filter((branch: { id: string }) => branch.id);
+
+        setRetakeBranches(mappedBranches);
+      }
+
+      if (programRes.ok) {
+        const programData = await programRes.json();
+        const programItems =
+          programData?.data?.programs?.items ||
+          programData?.data?.items ||
+          programData?.data?.programs ||
+          programData?.data ||
+          [];
+
+        const mappedPrograms = programItems
+          .map((program: any) => ({
+            id: String(program?.id || ""),
+            name: String(program?.name || "N/A"),
+            branchId: program?.branchId ? String(program.branchId) : undefined,
+          }))
+          .filter((program: { id: string }) => program.id);
+
+        setRetakePrograms(mappedPrograms);
+      }
+
+      if (tuitionRes.ok) {
+        const tuitionData = await tuitionRes.json();
+        const tuitionItems =
+          tuitionData?.data?.tuitionPlans?.items ||
+          tuitionData?.data?.items ||
+          tuitionData?.data?.tuitionPlans ||
+          tuitionData?.data ||
+          [];
+
+        const mappedTuitionPlans = tuitionItems
+          .map((plan: any) => ({
+            id: String(plan?.id || ""),
+            name: String(plan?.name || "N/A"),
+            programId: String(plan?.programId || ""),
+            branchId: plan?.branchId ? String(plan.branchId) : undefined,
+          }))
+          .filter((plan: { id: string; programId: string }) => plan.id && plan.programId);
+
+        setRetakeTuitionPlans(mappedTuitionPlans);
+      }
+    } catch (error) {
+      console.error("Error fetching retake options:", error);
     }
   };
 
@@ -549,6 +734,24 @@ export default function PlacementTestsPage() {
   };
 
   const handleCreate = async () => {
+    if (isCurrentUserLoading) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Đang tải thông tin tài khoản, vui lòng thử lại sau ít giây.",
+      });
+      return;
+    }
+
+    if (!currentUserBranchId) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không xác định được chi nhánh của tài khoản hiện tại.",
+      });
+      return;
+    }
+
     setIsLoadingDropdownData(true);
 
     try {
@@ -568,10 +771,20 @@ export default function PlacementTestsPage() {
         otherDataPromises.push(fetchInvigilators());
       }
 
+      if (
+        retakeBranches.length === 0 ||
+        retakePrograms.length === 0 ||
+        retakeTuitionPlans.length === 0
+      ) {
+        otherDataPromises.push(fetchRetakeOptions());
+      }
+
       // Wait for other data to be loaded
       if (otherDataPromises.length > 0) {
         await Promise.all(otherDataPromises);
       }
+      setFormDefaultMode("create");
+      setRetakeSourceTestId("");
       setSelectedTest(null);
       setIsFormModalOpen(true);
     } catch (error) {
@@ -588,7 +801,54 @@ export default function PlacementTestsPage() {
 
   const handleEdit = (test: PlacementTest) => {
     setSelectedTest(test);
+    setFormDefaultMode("create");
+    setRetakeSourceTestId("");
     setIsFormModalOpen(true);
+  };
+
+  const handleRetakeFromTable = async (test: PlacementTest) => {
+    if (test.status !== "Completed") {
+      return;
+    }
+
+    setIsLoadingDropdownData(true);
+
+    try {
+      const otherDataPromises = [];
+
+      if (studentProfiles.length === 0) {
+        otherDataPromises.push(fetchStudentProfiles());
+      }
+
+      if (classes.length === 0) {
+        otherDataPromises.push(fetchClasses());
+      }
+
+      if (
+        retakeBranches.length === 0 ||
+        retakePrograms.length === 0 ||
+        retakeTuitionPlans.length === 0
+      ) {
+        otherDataPromises.push(fetchRetakeOptions());
+      }
+
+      if (otherDataPromises.length > 0) {
+        await Promise.all(otherDataPromises);
+      }
+
+      setSelectedTest(null);
+      setFormDefaultMode("retake");
+      setRetakeSourceTestId(test.id);
+      setIsFormModalOpen(true);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu retake. Vui lòng thử lại.",
+      });
+    } finally {
+      setIsLoadingDropdownData(false);
+    }
   };
 
   const handleView = (test: PlacementTest) => {
@@ -631,43 +891,45 @@ export default function PlacementTestsPage() {
     setIsConfirmModalOpen(true);
   };
 
-  const handleFormSubmit = async (
-    data: CreatePlacementTestRequest | UpdatePlacementTestRequest,
-  ) => {
+  const handleFormSubmit = async (payload: PlacementTestFormSubmitPayload) => {
     try {
-      const url = selectedTest
-        ? PLACEMENT_TEST_ENDPOINTS.UPDATE(selectedTest.id)
-        : PLACEMENT_TEST_ENDPOINTS.CREATE;
+      if (payload.action === "update") {
+        if (!selectedTest) {
+          throw new Error("Không tìm thấy placement test để cập nhật");
+        }
+        await updatePlacementTest(selectedTest.id, payload.data);
+      }
 
-      const method = selectedTest ? "PUT" : "POST";
+      if (payload.action === "create") {
+        await createPlacementTest(payload.data);
+      }
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAccessToken()}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) throw new Error("Failed to save placement test");
+      if (payload.action === "retake") {
+        await createPlacementTestRetake(payload.originalPlacementTestId, payload.data);
+      }
 
       toast({
         title: "Thành công",
-        description: selectedTest
-          ? "Đã cập nhật placement test"
-          : "Đã tạo placement test mới",
+        description:
+          payload.action === "update"
+            ? "Đã cập nhật placement test"
+            : payload.action === "retake"
+              ? "Đã tạo placement test retake"
+              : "Đã tạo placement test mới",
       });
 
       fetchPlacementTests();
       setIsFormModalOpen(false);
+      setFormDefaultMode("create");
+      setRetakeSourceTestId("");
     } catch (error) {
       console.error("Error saving placement test:", error);
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: "Không thể lưu placement test",
+        description: getPlacementTestErrorMessage(error, "Không thể lưu placement test"),
       });
+      throw error;
     }
   };
 
@@ -944,22 +1206,36 @@ export default function PlacementTestsPage() {
           onNoShow={handleNoShow}
           onConvertToEnrolled={handleConvertToEnrolled}
           onCreateAccount={handleCreateAccountFromTest}
+          onRetake={handleRetakeFromTable}
         />
 
         {/* Modals */}
         <PlacementTestFormModal
           isOpen={isFormModalOpen}
-          onClose={() => setIsFormModalOpen(false)}
+          onClose={() => {
+            setIsFormModalOpen(false);
+            setFormDefaultMode("create");
+            setRetakeSourceTestId("");
+          }}
           onSuccess={() => {
             fetchPlacementTests();
             setIsFormModalOpen(false);
+            setFormDefaultMode("create");
+            setRetakeSourceTestId("");
           }}
           test={selectedTest}
+          defaultMode={formDefaultMode}
+          retakeSourceTestId={retakeSourceTestId}
           onSubmit={handleFormSubmit}
+          placementTests={tests}
           leads={leads}
           studentProfiles={studentProfiles}
           classes={classes}
           invigilators={filteredInvigilators}
+          branches={retakeBranches}
+          programs={retakePrograms}
+          tuitionPlans={retakeTuitionPlans}
+          defaultBranchId={String(currentUserBranchId || filters.branchId || "")}
         />
 
         <ResultFormModal
@@ -967,6 +1243,7 @@ export default function PlacementTestsPage() {
           onClose={() => setIsResultModalOpen(false)}
           onSubmit={handleResultSubmit}
           testId={selectedTest?.id || ""}
+          branchId={currentUserBranchId}
         />
 
         <PlacementTestDetailModal

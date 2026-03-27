@@ -1,14 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, FileText, Award, BookOpen, Paperclip } from "lucide-react";
+import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { getAccessToken } from "@/lib/store/authToken";
 import type { PlacementTestResultRequest } from "@/types/placement-test";
+
+type ProgramOption = {
+  id: string;
+  name: string;
+};
 
 interface ResultFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: Omit<PlacementTestResultRequest, "id">, note: string) => Promise<void>;
   testId: string;
+  branchId?: string;
   initialData?: Partial<PlacementTestResultRequest> | null;
 }
 
@@ -17,6 +25,7 @@ export default function ResultFormModal({
   onClose,
   onSubmit,
   testId,
+  branchId,
   initialData,
 }: ResultFormModalProps) {
   const [formData, setFormData] = useState({
@@ -24,12 +33,75 @@ export default function ResultFormModal({
     speakingScore: initialData?.speakingScore?.toString() || "",
     readingScore: initialData?.readingScore?.toString() || "",
     writingScore: initialData?.writingScore?.toString() || "",
-    levelRecommendation: initialData?.levelRecommendation || "",
     programRecommendation: initialData?.programRecommendation || "",
     attachmentUrl: initialData?.attachmentUrl || "",
     note: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [programOptions, setProgramOptions] = useState<ProgramOption[]>([]);
+  const [isLoadingPrograms, setIsLoadingPrograms] = useState(false);
+  const [programLoadError, setProgramLoadError] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchPrograms = async () => {
+      if (!branchId) {
+        setProgramOptions([]);
+        setProgramLoadError("Không xác định được chi nhánh để tải chương trình");
+        return;
+      }
+
+      setIsLoadingPrograms(true);
+      setProgramLoadError("");
+
+      try {
+        const queryParams = new URLSearchParams();
+        queryParams.append("branchId", branchId);
+        queryParams.append("isActive", "true");
+        queryParams.append("pageNumber", "1");
+        queryParams.append("pageSize", "1000");
+
+        const response = await fetch(
+          `${ADMIN_ENDPOINTS.PROGRAMS}?${queryParams.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${getAccessToken()}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch programs: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const items =
+          data?.data?.programs?.items ||
+          data?.data?.items ||
+          data?.data?.programs ||
+          data?.data ||
+          [];
+
+        const mapped = items
+          .map((program: any) => ({
+            id: String(program?.id || ""),
+            name: String(program?.name || ""),
+          }))
+          .filter((program: ProgramOption) => program.id && program.name);
+
+        setProgramOptions(mapped);
+      } catch (error) {
+        console.error("Error fetching programs for result modal:", error);
+        setProgramOptions([]);
+        setProgramLoadError("Không thể tải danh sách chương trình");
+      } finally {
+        setIsLoadingPrograms(false);
+      }
+    };
+
+    fetchPrograms();
+  }, [isOpen, branchId]);
 
   const computedResultScore = useMemo(() => {
     const listening = Number.parseFloat(formData.listeningScore || "0") || 0;
@@ -51,7 +123,6 @@ export default function ResultFormModal({
         readingScore: formData.readingScore ? parseFloat(formData.readingScore) : 0,
         writingScore: formData.writingScore ? parseFloat(formData.writingScore) : 0,
         resultScore: computedResultScore,
-        levelRecommendation: formData.levelRecommendation || "",
         programRecommendation: formData.programRecommendation || "",
         attachmentUrl: formData.attachmentUrl || "",
       };
@@ -168,36 +239,39 @@ export default function ResultFormModal({
             <p className="text-xs text-gray-500">Tự động tính trung bình cộng của 4 kỹ năng: Nghe, Nói, Đọc, Viết.</p>
           </div>
 
-          {/* Level Recommendation */}
-          <div className="space-y-2">
-            <label htmlFor="levelRecommendation" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <BookOpen size={16} />
-              Đề xuất trình độ (Level Recommendation)
-            </label>
-            <input
-              id="levelRecommendation"
-              type="text"
-              value={formData.levelRecommendation}
-              onChange={(e) => setFormData(prev => ({ ...prev, levelRecommendation: e.target.value }))}
-              placeholder="VD: Beginner, Elementary, Pre-Intermediate, ..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
-            />
-          </div>
-
           {/* Program Recommendation */}
           <div className="space-y-2">
             <label htmlFor="programRecommendation" className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <FileText size={16} />
               Đề xuất chương trình (Program Recommendation)
             </label>
-            <input
+            <select
               id="programRecommendation"
-              type="text"
               value={formData.programRecommendation}
               onChange={(e) => setFormData(prev => ({ ...prev, programRecommendation: e.target.value }))}
-              placeholder="VD: English Communication, IELTS Preparation, ..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
-            />
+              disabled={isLoadingPrograms || !branchId}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none disabled:bg-gray-50 disabled:opacity-80"
+            >
+              <option value="">
+                {isLoadingPrograms
+                  ? "Đang tải chương trình..."
+                  : !branchId
+                    ? "Không xác định chi nhánh"
+                    : "Chọn chương trình"}
+              </option>
+              {programOptions.map((program) => (
+                <option key={program.id} value={program.name}>
+                  {program.name}
+                </option>
+              ))}
+              {formData.programRecommendation &&
+              !programOptions.some((program) => program.name === formData.programRecommendation) ? (
+                <option value={formData.programRecommendation}>{formData.programRecommendation}</option>
+              ) : null}
+            </select>
+            {programLoadError ? (
+              <p className="text-xs text-red-600">{programLoadError}</p>
+            ) : null}
           </div>
 
           {/* Attachment URL */}

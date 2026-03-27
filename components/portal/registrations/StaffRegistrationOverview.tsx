@@ -112,28 +112,80 @@ function Info({ label, value }: { label: string; value: string }) {
 export default function StaffRegistrationOverview({ branchId, onTotalChange }: Props) {
   const { toast } = useToast();
   const [rows, setRows] = useState<Registration[]>([]);
+  const [summaryRows, setSummaryRows] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"ALL" | RegistrationStatus>("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<Registration | null>(null);
 
-  const fetchRows = useCallback(async () => {
+  const statusOptions: Array<"ALL" | RegistrationStatus> = [
+    "ALL",
+    "New",
+    "WaitingForClass",
+    "Studying",
+    "Completed",
+  ];
+
+  const fetchSummary = useCallback(async () => {
     if (!branchId) {
-      setRows([]);
+      setSummaryRows([]);
       onTotalChange?.(0);
       return;
     }
 
     try {
+      const response = await getRegistrations({
+        branchId,
+        pageNumber: 1,
+        pageSize: 1000,
+      });
+      const items = response.items || [];
+      setSummaryRows(items);
+      onTotalChange?.(response.totalCount || items.length);
+    } catch (error: any) {
+      setSummaryRows([]);
+      onTotalChange?.(0);
+      toast({
+        title: "Lỗi",
+        description: error?.message || "Không thể tải thống kê đăng ký.",
+        variant: "destructive",
+      });
+    }
+  }, [branchId, onTotalChange, toast]);
+
+  const fetchRows = useCallback(async () => {
+    if (!branchId) {
+      setRows([]);
+      setTotalCount(0);
+      setTotalPages(1);
+      return;
+    }
+
+    try {
       setLoading(true);
-      const response = await getRegistrations({ branchId, pageNumber: 1, pageSize: 500 });
+      const response = await getRegistrations({
+        branchId,
+        status: status === "ALL" ? undefined : status,
+        pageNumber: currentPage,
+        pageSize,
+      });
       setRows(response.items || []);
-      onTotalChange?.(response.totalCount || response.items.length);
+      const nextTotal = response.totalCount || response.items.length || 0;
+      setTotalCount(nextTotal);
+      setTotalPages(response.totalPages || 1);
+      if (status === "ALL") {
+        onTotalChange?.(nextTotal);
+      }
     } catch (error: any) {
       setRows([]);
-      onTotalChange?.(0);
+      setTotalCount(0);
+      setTotalPages(1);
       toast({
         title: "Lỗi",
         description: error?.message || "Không thể tải danh sách đăng ký.",
@@ -142,16 +194,23 @@ export default function StaffRegistrationOverview({ branchId, onTotalChange }: P
     } finally {
       setLoading(false);
     }
-  }, [branchId, onTotalChange, toast]);
+  }, [branchId, currentPage, pageSize, status, toast, onTotalChange]);
 
   useEffect(() => {
     fetchRows();
   }, [fetchRows]);
 
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [status, query]);
+
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
-      const statusMatched = status === "ALL" || r.status === status;
       const qMatched =
         !q ||
         [
@@ -165,23 +224,18 @@ export default function StaffRegistrationOverview({ branchId, onTotalChange }: P
           .join(" ")
           .toLowerCase()
           .includes(q);
-      return statusMatched && qMatched;
+      return qMatched;
     });
   }, [rows, query, status]);
 
-  const statusOptions = useMemo(() => {
-    const unique = Array.from(new Set(rows.map((x) => x.status)));
-    return ["ALL", ...unique] as Array<"ALL" | RegistrationStatus>;
-  }, [rows]);
-
   const statCards = useMemo(() => {
-    const waiting = rows.filter((r) => r.status === "WaitingForClass").length;
-    const studying = rows.filter((r) => r.status === "Studying").length;
-    const completed = rows.filter((r) => r.status === "Completed").length;
+    const waiting = summaryRows.filter((r) => r.status === "WaitingForClass").length;
+    const studying = summaryRows.filter((r) => r.status === "Studying").length;
+    const completed = summaryRows.filter((r) => r.status === "Completed").length;
     return [
       {
         title: "Đăng ký mới",
-        value: rows.length,
+        value: summaryRows.length,
         subtitle: "Tổng hồ sơ đăng ký",
         icon: Sparkles,
         color: "from-red-600 to-red-700",
@@ -208,7 +262,7 @@ export default function StaffRegistrationOverview({ branchId, onTotalChange }: P
         color: "from-red-500 to-red-600",
       },
     ];
-  }, [rows]);
+  }, [summaryRows]);
 
   const openDetail = async (id: string) => {
     try {
@@ -275,7 +329,10 @@ export default function StaffRegistrationOverview({ branchId, onTotalChange }: P
 
           <button
             type="button"
-            onClick={fetchRows}
+            onClick={() => {
+              fetchRows();
+              fetchSummary();
+            }}
             className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
           >
             <RefreshCw size={14} /> Làm mới
@@ -373,6 +430,48 @@ export default function StaffRegistrationOverview({ branchId, onTotalChange }: P
           </tbody>
         </table>
         </div>
+
+        {!loading && rows.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-red-100 px-4 py-3 text-sm">
+            <div className="text-gray-600">
+              Trang {currentPage}/{totalPages} • Tổng {totalCount} đăng ký
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm outline-none focus:border-red-300"
+              >
+                {[10, 20, 50].map((size) => (
+                  <option key={size} value={size}>
+                    {size} / trang
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Trước
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {detailOpen && (

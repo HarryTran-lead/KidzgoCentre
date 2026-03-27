@@ -90,6 +90,17 @@ export default function CreateAccountProfileModal({
   // Student profile form
   const [studentProfileForm, setStudentProfileForm] = useState(initialStudentProfileForm);
 
+  const getApiMessage = (payload: any, fallback: string) => {
+    return (
+      payload?.message ||
+      payload?.detail ||
+      payload?.title ||
+      payload?.error ||
+      payload?.errors?.[0] ||
+      fallback
+    );
+  };
+
   // Reset form when leadInfo changes
   const resetForm = () => {
     setCurrentStep("account");
@@ -138,7 +149,7 @@ export default function CreateAccountProfileModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Không thể tạo tài khoản");
+        throw new Error(getApiMessage(data, "Không thể tạo tài khoản"));
       }
 
       // Extract user ID from response
@@ -150,8 +161,19 @@ export default function CreateAccountProfileModal({
 
       setCreatedUserId(userId);
       setCurrentStep("parent-profile");
+      toast({
+        title: "Tạo tài khoản thành công",
+        description: "Đã tạo tài khoản phụ huynh. Tiếp tục tạo profile phụ huynh.",
+        variant: "success",
+      });
     } catch (err: any) {
-      setError(err.message || "Có lỗi xảy ra khi tạo tài khoản");
+      const message = err?.message || "Có lỗi xảy ra khi tạo tài khoản";
+      setError(message);
+      toast({
+        title: "Tạo tài khoản thất bại",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -182,7 +204,7 @@ export default function CreateAccountProfileModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Không thể tạo profile phụ huynh");
+        throw new Error(getApiMessage(data, "Không thể tạo profile phụ huynh"));
       }
 
       const parentProfileId =
@@ -193,8 +215,19 @@ export default function CreateAccountProfileModal({
 
       setCreatedParentProfileId(parentProfileId);
       setCurrentStep("student-profile");
+      toast({
+        title: "Tạo profile phụ huynh thành công",
+        description: "Đã tạo profile phụ huynh. Tiếp tục tạo profile học viên.",
+        variant: "success",
+      });
     } catch (err: any) {
-      setError(err.message || "Có lỗi xảy ra khi tạo profile phụ huynh");
+      const message = err?.message || "Có lỗi xảy ra khi tạo profile phụ huynh";
+      setError(message);
+      toast({
+        title: "Tạo profile phụ huynh thất bại",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -226,7 +259,7 @@ export default function CreateAccountProfileModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Không thể tạo profile học viên");
+        throw new Error(getApiMessage(data, "Không thể tạo profile học viên"));
       }
 
       const studentProfileId =
@@ -258,7 +291,13 @@ export default function CreateAccountProfileModal({
         variant: "success",
       });
     } catch (err: any) {
-      setError(err.message || "Có lỗi xảy ra khi tạo profile học viên");
+      const message = err?.message || "Có lỗi xảy ra khi tạo profile học viên";
+      setError(message);
+      toast({
+        title: "Tạo profile học viên thất bại",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, User, Mail, Phone, MessageSquare, Building, Tag } from "lucide-react";
 import { createLead, updateLead } from "@/lib/api/leadService";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { useToast } from "@/hooks/use-toast";
 import type { Lead } from "@/types/lead";
 import type { Branch } from "@/types/branch";
@@ -126,7 +127,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
       console.error("Error saving lead:", error);
       toast({
         title: "Lỗi",
-        description: error.response?.data?.message || "Không thể lưu thông tin lead",
+        description: getDomainErrorMessage(error, "Không thể lưu thông tin lead"),
         variant: "destructive",
       });
     } finally {
