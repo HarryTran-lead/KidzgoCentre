@@ -503,7 +503,7 @@ export default function LeaveRequestCreateModal({
       const statusText = String((record as LeaveRequestRecord | undefined)?.status ?? "").toUpperCase();
       setActionMessage(
         statusText === "APPROVED" || statusText === "AUTO_APPROVED"
-          ? "Tạo đơn xin nghỉ thành công. Hệ thống đã duyệt và sẽ tự động xếp lịch bù nếu có suất phù hợp."
+          ? "Tạo đơn xin nghỉ thành công. Đơn đã được duyệt; nếu có makeup credit, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
           : "Tạo đơn xin nghỉ thành công."
       );
       onClose();

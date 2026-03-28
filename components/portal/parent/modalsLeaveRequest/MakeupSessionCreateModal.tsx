@@ -17,9 +17,11 @@ import { get } from "@/lib/axios";
 
 import {
   getMakeupCreditStudents,
+  getMakeupCreditById,
   getMakeupCreditsByStudent,
   getMakeupCreditAvailableSessions,
 } from "@/lib/api/makeupCreditService";
+import { resolveMakeupCreditActionError } from "@/lib/makeupCreditErrors";
 import type { StudentClass } from "@/types/student/class";
 
 import type { MakeupCredit, MakeupCreditStudent, MakeupSuggestion } from "@/types/makeupCredit";
@@ -47,8 +49,8 @@ type Props = {
   lockedStudentLabel?: string | null;
   allowManualFallback?: boolean;
   initialMakeupCreditId?: string | null;
-  lockedTargetClassId?: string | null;
-  lockedTargetClassLabel?: string | null;
+  preferredTargetClassId?: string | null;
+  preferredTargetClassLabel?: string | null;
   excludedSessionId?: string | null;
   initialTargetSessionDateTime?: string | null;
 };
@@ -180,12 +182,38 @@ const creditId = (c: MakeupCredit) => (pickValue(c, ["id"]) as string | undefine
 const creditStatus = (c: MakeupCredit) => String(pickValue(c, ["status"]) ?? "").toUpperCase();
 const creditSourceSessionId = (c: MakeupCredit) =>
   (pickValue(c, ["sourceSessionId"]) as string | undefined) ?? "";
+const creditSourceSessionDate = (c: MakeupCredit) =>
+  (pickValue(c, ["sourceSessionDate", "sessionDate"]) as string | undefined) ?? "";
 const creditClassName = (c: MakeupCredit) =>
   (pickValue(c, ["className", "classTitle", "sourceClassName"]) as string | undefined) ?? "";
 const creditCreatedAt = (c: MakeupCredit) =>
   (pickValue(c, ["createdAt", "createdDate"]) as string | undefined) ?? "";
 const creditExpiresAt = (c: MakeupCredit) =>
   (pickValue(c, ["expiresAt", "expiredAt", "expiryDate"]) as string | undefined) ?? "";
+
+const creditStatusLabel = (status: string) => {
+  const normalized = String(status ?? "").trim().toUpperCase();
+  if (!normalized || normalized.includes("AVAILABLE") || normalized.includes("ACTIVE")) {
+    return "Co the xep lich";
+  }
+  if (normalized.includes("USED") || normalized.includes("CONSUMED")) {
+    return "Da xep lich";
+  }
+  if (normalized.includes("EXPIRE")) {
+    return "Da het han";
+  }
+  if (normalized.includes("CANCEL")) {
+    return "Da huy";
+  }
+  return normalized;
+};
+
+const creditClassLabel = (credit: MakeupCredit, sourceDetail?: SessionDetail | null) => {
+  const explicitClass = creditClassName(credit);
+  if (explicitClass) return explicitClass;
+  if (!sourceDetail) return "";
+  return [sourceDetail.classCode, sourceDetail.classTitle].filter(Boolean).join(" - ");
+};
 
 const isUsableCredit = (c: MakeupCredit) => {
   const st = creditStatus(c);
@@ -336,13 +364,15 @@ export default function MakeupSessionCreateModal({
   lockedStudentLabel = null,
   allowManualFallback = true,
   initialMakeupCreditId = null,
-  lockedTargetClassId = null,
-  lockedTargetClassLabel = null,
+  preferredTargetClassId = null,
+  preferredTargetClassLabel = null,
   excludedSessionId = null,
   initialTargetSessionDateTime = null,
 }: Props) {
   const isChangeMode = !!initialMakeupCreditId;
   const shouldLoadSessionsFirst = isChangeMode;
+  const lockedTargetClassId: string | null = null;
+  const lockedTargetClassLabel = preferredTargetClassLabel;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -442,7 +472,7 @@ export default function MakeupSessionCreateModal({
     setPayload((prev) => ({
       ...prev,
       makeupCreditId: initialMakeupCreditId,
-      targetClassId: lockedTargetClassId ?? prev.targetClassId,
+      targetClassId: preferredTargetClassId ?? prev.targetClassId,
       targetSessionId: "",
       date: shouldLoadSessionsFirst ? "" : nextDate || prev.date,
       time: shouldLoadSessionsFirst ? "" : nextTime || prev.time,
@@ -451,7 +481,7 @@ export default function MakeupSessionCreateModal({
   }, [
     open,
     initialMakeupCreditId,
-    lockedTargetClassId,
+    preferredTargetClassId,
     initialTargetSessionDateTime,
     shouldLoadSessionsFirst,
   ]);
@@ -482,7 +512,7 @@ export default function MakeupSessionCreateModal({
         const list = (api?.items ?? api?.students ?? api) as any[];
         setStudents(Array.isArray(list) ? list : []);
       } catch {
-        setError("Không thể tải danh sách học viên có makeup credit.");
+        setError("Không thể tải danh sách học viên có quyền học bù.");
       } finally {
         setStudentsLoading(false);
       }
@@ -513,7 +543,7 @@ export default function MakeupSessionCreateModal({
         ...p,
         makeupCreditId: initialMakeupCreditId ?? "",
         fromClassId: "",
-        targetClassId: lockedTargetClassId ?? "",
+        targetClassId: preferredTargetClassId ?? "",
         targetSessionId: "",
         date:
           shouldLoadSessionsFirst || !initialTargetSessionDateTime
@@ -530,9 +560,34 @@ export default function MakeupSessionCreateModal({
         const api = unwrap(res);
         const list = (api?.items ?? api?.credits ?? api) as any[];
         const arr = Array.isArray(list) ? (list as MakeupCredit[]) : [];
-        setCredits(arr.filter((credit) => isSelectableCredit(credit, initialMakeupCreditId)));
+        const nextCredits = [...arr];
+
+        if (
+          initialMakeupCreditId &&
+          !arr.some((credit) => creditId(credit) === initialMakeupCreditId)
+        ) {
+          try {
+            const detailRes = await getMakeupCreditById(initialMakeupCreditId);
+            const detail = unwrap(detailRes) as MakeupCredit | null;
+            if (detail && creditId(detail)) {
+              nextCredits.unshift(detail);
+            }
+          } catch {
+            // Keep the reschedule flow usable even if the detail endpoint fails.
+          }
+        }
+
+        const deduped = Array.from(
+          new Map(
+            nextCredits
+              .filter((credit) => creditId(credit))
+              .map((credit) => [creditId(credit), credit] as const)
+          ).values()
+        );
+
+        setCredits(deduped.filter((credit) => isSelectableCredit(credit, initialMakeupCreditId)));
       } catch {
-        setError("Không thể tải danh sách makeup credit theo học viên.");
+        setError("Không thể tải danh sách quyền học bù của học viên.");
       } finally {
         setCreditsLoading(false);
       }
@@ -543,7 +598,7 @@ export default function MakeupSessionCreateModal({
     open,
     payload.studentProfileId,
     initialMakeupCreditId,
-    lockedTargetClassId,
+    preferredTargetClassId,
     initialTargetSessionDateTime,
     shouldLoadSessionsFirst,
   ]);
@@ -614,7 +669,7 @@ export default function MakeupSessionCreateModal({
       setPayload((p) => ({
         ...p,
         fromClassId: "",
-        targetClassId: lockedTargetClassId ?? "",
+        targetClassId: preferredTargetClassId ?? "",
         targetSessionId: "",
       }));
 
@@ -646,7 +701,7 @@ export default function MakeupSessionCreateModal({
 
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, payload.makeupCreditId, lockedTargetClassId, shouldLoadSessionsFirst]);
+  }, [open, payload.makeupCreditId, preferredTargetClassId, shouldLoadSessionsFirst]);
 
   // Lấy danh sách buổi bù khả dụng theo đúng contract hiện tại của module makeup.
   useEffect(() => {
@@ -803,16 +858,24 @@ export default function MakeupSessionCreateModal({
   const creditOptions = useMemo(() => {
     return credits.map((c) => {
       const id = creditId(c);
-      const status = creditStatus(c) || "AVAILABLE";
-      const className = creditClassName(c);
-      const created = formatDateVN(creditCreatedAt(c));
       const expires = formatDateVN(creditExpiresAt(c));
-      const src = creditSourceSessionId(c);
+      const srcId = creditSourceSessionId(c);
 
-      const srcDetail = src ? creditSourceSessions.get(src) : undefined;
-      const srcClassText = srcDetail
-        ? [srcDetail.classCode, srcDetail.classTitle].filter(Boolean).join(" - ")
-        : "";
+      const srcDetail = srcId ? creditSourceSessions.get(srcId) : undefined;
+      const classText = creditClassLabel(c, srcDetail);
+      const sourceDate =
+        (srcDetail?.plannedDatetime ? formatDateVN(srcDetail.plannedDatetime) : "") ||
+        formatDateVN(creditSourceSessionDate(c));
+      const status = [
+        creditStatusLabel(creditStatus(c) || "AVAILABLE"),
+        sourceDate ? `Buoi nghi: ${sourceDate}` : "",
+      ]
+        .filter(Boolean)
+        .join(" • ");
+      const className = classText;
+      const srcClassText = "";
+      const created = sourceDate ? "" : formatDateVN(creditCreatedAt(c));
+      const src: string = "";
 
       const detailParts = [
         src ? `Source: ${src.slice(0, 8)}…` : "",
@@ -834,20 +897,27 @@ export default function MakeupSessionCreateModal({
     return creditOptions.find((c) => c.id === payload.makeupCreditId)?.label ?? "";
   }, [creditOptions, payload.makeupCreditId]);
 
+  const selectedCreditSummary = useMemo(() => {
+    if (!payload.makeupCreditId) return null;
+
+    const credit = credits.find((item) => creditId(item) === payload.makeupCreditId);
+    if (!credit) return null;
+
+    const sourceId = creditSourceSessionId(credit);
+    const sourceDetail = sourceId ? creditSourceSessions.get(sourceId) : undefined;
+
+    return {
+      status: creditStatusLabel(creditStatus(credit) || "AVAILABLE"),
+      sourceDate: sourceDetail?.plannedDatetime
+        ? formatDateTimeVN(sourceDetail.plannedDatetime)
+        : formatDateVN(creditSourceSessionDate(credit)),
+      classText: creditClassLabel(credit, sourceDetail),
+      created: formatDateVN(creditCreatedAt(credit)),
+      expires: formatDateVN(creditExpiresAt(credit)),
+    };
+  }, [creditSourceSessions, credits, payload.makeupCreditId]);
+
   const targetClassOptions = useMemo(() => {
-    if (lockedTargetClassId) {
-      const matchedSuggestion = suggestions.find((s: any) => suggestionClassId(s) === lockedTargetClassId);
-      const fallbackLabel =
-        lockedTargetClassLabel ??
-        (matchedSuggestion
-          ? [suggestionClassCode(matchedSuggestion), suggestionClassName(matchedSuggestion)]
-              .filter(Boolean)
-              .join(" - ")
-          : lockedTargetClassId);
-
-      return fallbackLabel ? [{ id: lockedTargetClassId, label: fallbackLabel }] : [];
-    }
-
     const map = new Map<string, string>();
     suggestions.forEach((s: any) => {
       const id = suggestionClassId(s);
@@ -858,7 +928,7 @@ export default function MakeupSessionCreateModal({
       map.set(id, [code, name].filter(Boolean).join(" - "));
     });
     return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
-  }, [suggestions, lockedTargetClassId, lockedTargetClassLabel]);
+  }, [suggestions]);
 
   const manualClassOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -901,6 +971,37 @@ export default function MakeupSessionCreateModal({
     );
   }, [payload]);
 
+  useEffect(() => {
+    if (!open) return;
+    if (!targetClassOptions.length) return;
+
+    setPayload((prev) => {
+      if (
+        prev.targetClassId &&
+        targetClassOptions.some((option) => option.id === prev.targetClassId)
+      ) {
+        return prev;
+      }
+
+      const nextClassId =
+        (preferredTargetClassId &&
+        targetClassOptions.some((option) => option.id === preferredTargetClassId)
+          ? preferredTargetClassId
+          : null) ??
+        (targetClassOptions.length === 1 ? targetClassOptions[0]?.id : null);
+
+      if (!nextClassId || nextClassId === prev.targetClassId) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        targetClassId: nextClassId,
+        targetSessionId: "",
+      };
+    });
+  }, [open, preferredTargetClassId, targetClassOptions]);
+
   const canGoStep2 = !!payload.studentProfileId && !!payload.makeupCreditId;
   const canGoStep3 = canSubmit;
 
@@ -917,16 +1018,11 @@ export default function MakeupSessionCreateModal({
       });
       onClose();
     } catch (err: any) {
-      const apiError = err?.response?.data;
-      const description =
-        apiError?.description ??
-        apiError?.detail ??
-        apiError?.message ??
-        apiError?.data?.description ??
-        apiError?.data?.detail ??
-        apiError?.data?.message ??
-        err?.message;
-      setError(description ?? "Tạo lịch bù thất bại.");
+      const description = resolveMakeupCreditActionError(
+        err,
+        isChangeMode ? "change" : "create"
+      );
+      setError(description);
     } finally {
       setSubmitting(false);
     }
@@ -954,7 +1050,7 @@ export default function MakeupSessionCreateModal({
                   {isChangeMode ? "Thay đổi lịch xếp học bù" : "Tạo lịch học bù"}
                 </h2>
                 <div className="text-sm text-gray-600">
-                  Bước {step}/3 • Chọn credit • Chọn buổi bù • Xác nhận
+                  Bước {step}/3 • Chọn buổi nghỉ • Chọn buổi bù • Xác nhận
                 </div>
               </div>
             </div>
@@ -1022,10 +1118,10 @@ export default function MakeupSessionCreateModal({
               </div>
 
               <div className="space-y-3">
-                <div className="text-sm font-semibold text-gray-800">Bước 1 • Chọn makeup credit</div>
+                <div className="text-sm font-semibold text-gray-800">Bước 1 • Chọn buổi nghỉ cần xếp học bù</div>
                 {isChangeMode ? (
                   <div className="rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800">
-                    {selectedCreditLabel || "Đang tải makeup credit..."}
+                    {selectedCreditLabel || "Đang tải thông tin buổi nghỉ..."}
                   </div>
                 ) : (
                 <div className="relative">
@@ -1039,7 +1135,7 @@ export default function MakeupSessionCreateModal({
                         ...p,
                         makeupCreditId: creditIdValue,
                         fromClassId: "",
-                        targetClassId: lockedTargetClassId ?? "",
+                        targetClassId: preferredTargetClassId ?? "",
                         targetSessionId: "",
                         date: p.date,
                         time: p.time,
@@ -1050,10 +1146,10 @@ export default function MakeupSessionCreateModal({
                       {!payload.studentProfileId
                         ? "Chọn học viên trước"
                         : creditsLoading
-                          ? "Đang tải makeup credit..."
+                          ? "Đang tải danh sách buổi nghỉ..."
                           : creditOptions.length
-                            ? "Chọn makeup credit"
-                            : "Không có credit"}
+                            ? "Chọn buổi nghỉ cần xếp học bù"
+                            : "Chưa có quyền học bù khả dụng"}
                     </option>
                     {creditOptions.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -1078,11 +1174,28 @@ export default function MakeupSessionCreateModal({
 
                 <div className="p-3 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 text-sm text-gray-700">
                   {payload.makeupCreditId
-                    ? sourceClassDisplay(sourceSession) ||
-                      (sourceSessionLoading
-                        ? "Đang lấy lớp nguồn..."
-                        : "Không có dữ liệu lớp nguồn")
-                    : "Chọn makeup credit để hiển thị lớp nguồn"}
+                    ? selectedCreditSummary
+                      ? [
+                          `Trạng thái: ${selectedCreditSummary.status}`,
+                          selectedCreditSummary.sourceDate
+                            ? `Buổi nghỉ gốc: ${selectedCreditSummary.sourceDate}`
+                            : "",
+                          selectedCreditSummary.classText
+                            ? `Lớp nghỉ: ${selectedCreditSummary.classText}`
+                            : sourceClassDisplay(sourceSession),
+                          selectedCreditSummary.expires
+                            ? `Hạn dùng: ${selectedCreditSummary.expires}`
+                            : "",
+                          !selectedCreditSummary.sourceDate && selectedCreditSummary.created
+                            ? `Cấp ngày: ${selectedCreditSummary.created}`
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")
+                      : sourceSessionLoading
+                        ? "Đang tải thông tin buổi nghỉ..."
+                        : "Không có dữ liệu buổi nghỉ gốc"
+                    : "Chọn buổi nghỉ cần xếp học bù để xem chi tiết"}
                 </div>
               </div>
             </div>
@@ -1105,7 +1218,7 @@ export default function MakeupSessionCreateModal({
                       setPayload((p) => ({
                         ...p,
                         date: e.target.value,
-                        targetClassId: lockedTargetClassId ?? "",
+                        targetClassId: preferredTargetClassId ?? "",
                         targetSessionId: "",
                       }))
                     }
@@ -1126,7 +1239,7 @@ export default function MakeupSessionCreateModal({
                       setPayload((p) => ({
                         ...p,
                         time: e.target.value,
-                        targetClassId: lockedTargetClassId ?? "",
+                        targetClassId: preferredTargetClassId ?? "",
                         targetSessionId: "",
                       }))
                     }
@@ -1157,7 +1270,7 @@ export default function MakeupSessionCreateModal({
                       >
                         <option value="">
                           {!payload.makeupCreditId
-                            ? "Chọn makeup credit trước"
+                            ? "Chọn buổi nghỉ trước"
                             : isClassLoading
                               ? shouldEnableManual
                                 ? "Đang tải lớp học..."
@@ -1186,7 +1299,7 @@ export default function MakeupSessionCreateModal({
                     </div>
                   )}
                   <div className="text-xs text-gray-500">
-                    {lockedTargetClassId ? (
+                    {isChangeMode && !shouldEnableManual ? (
                       <>Chỉ hiển thị các buổi thuộc chương trình bù đã được xếp cho credit này.</>
                     ) : shouldEnableManual ? (
                       <>Không có gợi ý, bạn có thể chọn lớp bất kỳ để bù.</>
@@ -1291,7 +1404,7 @@ export default function MakeupSessionCreateModal({
               payload.makeupCreditId &&
               suggestions.length === 0 ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  Hiá»‡n chÆ°a cÃ³ buá»•i nÃ o khÃ¡c trong chÆ°Æ¡ng trÃ¬nh bÃ¹ nÃ y Ä‘á»ƒ thay Ä‘á»•i.
+                  Hien chua co buoi nao khac con slot trong cung chuong trinh bu nay de thay doi.
                 </div>
               ) : null}
             </div>
