@@ -127,44 +127,50 @@ export function mapRedemptionStatusLabel(status: RedemptionStatus) {
 export function getRedemptionStatusClasses(status: RedemptionStatus) {
   switch (status) {
     case "Requested":
-      return "bg-amber-50 text-amber-700 border-amber-200";
+      return "bg-amber-500/20 text-amber-300 border-amber-500/30";
     case "Approved":
-      return "bg-sky-50 text-sky-700 border-sky-200";
+      return "bg-sky-500/20 text-sky-300 border-sky-500/30";
     case "Delivered":
-      return "bg-violet-50 text-violet-700 border-violet-200";
+      return "bg-purple-500/20 text-purple-300 border-purple-500/30";
     case "Received":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
     case "Cancelled":
-      return "bg-rose-50 text-rose-700 border-rose-200";
+      return "bg-rose-500/20 text-rose-300 border-rose-500/30";
     default:
-      return "bg-slate-100 text-slate-700 border-slate-200";
+      return "bg-slate-500/20 text-slate-300 border-slate-500/30";
   }
 }
 
 export function getMissionProgressClasses(status: string) {
   switch (status) {
     case "Completed":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
     case "InProgress":
-      return "bg-sky-50 text-sky-700 border-sky-200";
+      return "bg-sky-500/20 text-sky-300 border-sky-500/30";
     case "Expired":
-      return "bg-rose-50 text-rose-700 border-rose-200";
+      return "bg-rose-500/20 text-rose-300 border-rose-500/30";
     default:
-      return "bg-amber-50 text-amber-700 border-amber-200";
+      return "bg-amber-500/20 text-amber-300 border-amber-500/30";
   }
 }
+
+export type SharedTheme = "learner" | "staff";
 
 export function Panel({
   children,
   className,
+  theme = "learner",
 }: {
   children: ReactNode;
   className?: string;
+  theme?: SharedTheme;
 }) {
   return (
     <section
       className={cx(
-        "rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm shadow-slate-200/50",
+        theme === "staff"
+          ? "rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm"
+          : "rounded-3xl border border-purple-500/30 bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-xl p-5 shadow-lg shadow-purple-500/10",
         className
       )}
     >
@@ -178,21 +184,53 @@ export function MetricCard({
   label,
   value,
   hint,
-  accent = "from-red-500 via-orange-500 to-amber-500",
+  accent = "from-purple-500 via-pink-500 to-rose-500",
+  theme = "learner",
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   hint?: string;
   accent?: string;
+  theme?: SharedTheme;
 }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div
+      className={cx(
+        "rounded-3xl border backdrop-blur-sm p-5 shadow-lg",
+        theme === "staff"
+          ? "border border-red-200 bg-gradient-to-br from-white to-red-50/30"
+          : "border border-purple-500/30 bg-gradient-to-br from-slate-900/80 to-slate-950/80"
+      )}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-3xl font-black text-slate-900">{value}</p>
-          {hint ? <p className="mt-2 text-sm text-slate-500">{hint}</p> : null}
+          <p
+            className={cx(
+              "text-sm font-medium",
+              theme === "staff" ? "text-gray-600" : "text-purple-300/80"
+            )}
+          >
+            {label}
+          </p>
+          <p
+            className={cx(
+              "mt-2 text-3xl font-black",
+              theme === "staff" ? "text-gray-900" : "text-white"
+            )}
+          >
+            {value}
+          </p>
+          {hint ? (
+            <p
+              className={cx(
+                "mt-2 text-sm",
+                theme === "staff" ? "text-gray-500" : "text-purple-300/60"
+              )}
+            >
+              {hint}
+            </p>
+          ) : null}
         </div>
         <div
           className={cx(
@@ -211,17 +249,33 @@ export function SectionTitle({
   title,
   description,
   action,
+  theme = "learner",
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
+  theme?: SharedTheme;
 }) {
   return (
     <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+        <h2
+          className={cx(
+            "text-xl font-bold",
+            theme === "staff" ? "text-gray-900" : "text-white"
+          )}
+        >
+          {title}
+        </h2>
         {description ? (
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">{description}</p>
+          <p
+            className={cx(
+              "mt-1 max-w-3xl text-sm",
+              theme === "staff" ? "text-gray-500" : "text-purple-300/70"
+            )}
+          >
+            {description}
+          </p>
         ) : null}
       </div>
       {action}
@@ -239,7 +293,7 @@ export function StatusPill({
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
+        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-sm",
         className
       )}
     >
@@ -252,18 +306,48 @@ export function EmptyState({
   title,
   description,
   icon,
+  theme = "learner",
 }: {
   title: string;
   description: string;
   icon: ReactNode;
+  theme?: SharedTheme;
 }) {
   return (
-    <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
-      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-white text-slate-500 shadow-sm">
+    <div
+      className={cx(
+        "rounded-3xl border backdrop-blur-sm px-6 py-10 text-center",
+        theme === "staff"
+          ? "border-red-200 bg-gradient-to-br from-white to-red-50/30"
+          : "border-purple-500/30 bg-purple-900/20"
+      )}
+    >
+      <div
+        className={cx(
+          "mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl shadow-lg",
+          theme === "staff"
+            ? "bg-red-100 text-red-600"
+            : "bg-purple-500/20 text-purple-300"
+        )}
+      >
         {icon}
       </div>
-      <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-      <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">{description}</p>
+      <h3
+        className={cx(
+          "text-lg font-semibold",
+          theme === "staff" ? "text-gray-900" : "text-white"
+        )}
+      >
+        {title}
+      </h3>
+      <p
+        className={cx(
+          "mx-auto mt-2 max-w-xl text-sm",
+          theme === "staff" ? "text-gray-500" : "text-purple-300/70"
+        )}
+      >
+        {description}
+      </p>
     </div>
   );
 }
@@ -275,6 +359,7 @@ export function DialogShell({
   onClose,
   children,
   widthClass = "max-w-3xl",
+  theme = "learner",
 }: {
   open: boolean;
   title: string;
@@ -282,24 +367,57 @@ export function DialogShell({
   onClose: () => void;
   children: ReactNode;
   widthClass?: string;
+  theme?: SharedTheme;
 }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-8 backdrop-blur-sm">
-      <div className={cx("w-full overflow-hidden rounded-3xl bg-white shadow-2xl", widthClass)}>
-        <div className="border-b border-slate-200 px-6 py-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md px-4 py-8">
+      <div
+        className={cx(
+          "w-full overflow-hidden rounded-3xl shadow-2xl",
+          widthClass,
+          theme === "staff"
+            ? "bg-white border border-red-200"
+            : "bg-gradient-to-br from-slate-900 to-slate-950 border border-purple-500/30"
+        )}
+      >
+        <div
+          className={cx(
+            "border-b px-6 py-5",
+            theme === "staff" ? "border-red-200" : "border-purple-500/30"
+          )}
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+              <h3
+                className={cx(
+                  "text-xl font-bold",
+                  theme === "staff" ? "text-gray-900" : "text-white"
+                )}
+              >
+                {title}
+              </h3>
               {description ? (
-                <p className="mt-1 text-sm text-slate-500">{description}</p>
+                <p
+                  className={cx(
+                    "mt-1 text-sm",
+                    theme === "staff" ? "text-gray-500" : "text-purple-300/70"
+                  )}
+                >
+                  {description}
+                </p>
               ) : null}
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+              className={cx(
+                "rounded-2xl border px-3 py-2 text-sm font-medium transition",
+                theme === "staff"
+                  ? "border-red-200 text-gray-700 hover:bg-red-50 hover:border-red-400"
+                  : "border-purple-500/30 text-purple-300 hover:bg-purple-500/20 hover:border-purple-500/50"
+              )}
             >
               Đóng
             </button>
@@ -315,23 +433,36 @@ export function Tabs<T extends string>({
   value,
   onChange,
   tabs,
+  theme = "learner",
 }: {
   value: T;
   onChange: (value: T) => void;
   tabs: Array<{ id: T; label: string }>;
+  theme?: SharedTheme;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap gap-2 rounded-3xl border border-slate-200 bg-white p-2 shadow-sm">
+    <div
+      className={cx(
+        "mb-6 flex flex-wrap gap-2 rounded-3xl border backdrop-blur-sm p-2 shadow-lg",
+        theme === "staff"
+          ? "border-red-200 bg-gradient-to-br from-white to-red-50/30"
+          : "border-purple-500/30 bg-gradient-to-br from-slate-900/80 to-slate-950/80"
+      )}
+    >
       {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
           onClick={() => onChange(tab.id)}
           className={cx(
-            "rounded-2xl px-4 py-2 text-sm font-semibold transition",
+            "rounded-2xl px-4 py-2 text-sm font-semibold transition-all duration-200",
             value === tab.id
-              ? "bg-slate-900 text-white shadow-lg shadow-slate-300"
-              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              ? theme === "staff"
+                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                : "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+              : theme === "staff"
+                ? "text-gray-700 hover:bg-red-50"
+                : "text-purple-300 hover:bg-purple-500/20 hover:text-white"
           )}
         >
           {tab.label}
