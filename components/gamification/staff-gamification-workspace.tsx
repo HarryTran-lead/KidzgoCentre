@@ -1,3 +1,4 @@
+// Theme: matches accounts page (red/white light theme) — replaced by bulk update
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -114,12 +115,14 @@ type RewardFormState = {
 };
 
 const inputClass =
-  "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
+  "w-full rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100";
 const textareaClass = `${inputClass} min-h-[112px]`;
 const ghostButton =
-  "inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50";
+  "inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-red-50";
 const primaryButton =
-  "inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60";
+const dangerGhostButton =
+  "inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60";
 
 const missionSeed: MissionFormState = {
   title: "",
@@ -631,31 +634,32 @@ export function StaffGamificationWorkspace({
   }
 
   return (
-    <div className="space-y-6 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_35%),linear-gradient(180deg,_#f8fafc,_#f1f5f9)] p-4 md:p-6">
-      <Panel className="border-amber-200/70 bg-white/90">
+    <div className="space-y-6 bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
+      <Panel className="border-red-200" theme="staff">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700"><Sparkles className="h-4 w-4" />Gamification cho {title.toLowerCase()}</div>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Mission, sao, XP và đổi thưởng trong một workspace</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-600">Tạo mission, theo dõi tiến độ, cộng trừ sao và XP, quản lý kho quà, đồng thời xử lý các redemption đang chờ.</p>
+            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-700"><Sparkles className="h-4 w-4" />Gamification cho {title.toLowerCase()}</div>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-gray-900">Mission, sao, XP và đổi thưởng trong một workspace</h1>
+            <p className="mt-2 max-w-3xl text-sm text-gray-600">Tạo mission, theo dõi tiến độ, cộng trừ sao và XP, quản lý kho quà, đồng thời xử lý các redemption đang chờ.</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:w-[520px]">
-            <MetricCard icon={<Target className="h-5 w-5" />} label="Mission hiện có" value={formatNumber(missions.length)} accent="from-slate-700 via-slate-900 to-black" />
-            <MetricCard icon={<Gift className="h-5 w-5" />} label="Đơn đổi quà mở" value={formatNumber(redemptions.filter((item) => item.status !== "Received" && item.status !== "Cancelled").length)} accent="from-violet-500 via-fuchsia-500 to-pink-500" />
+            <MetricCard icon={<Target className="h-5 w-5" />} label="Mission hiện có" value={formatNumber(missions.length)} accent="from-red-600 to-red-700" theme="staff" />
+            <MetricCard icon={<Gift className="h-5 w-5" />} label="Đơn đổi quà mở" value={formatNumber(redemptions.filter((item) => item.status !== "Received" && item.status !== "Cancelled").length)} accent="from-violet-500 via-fuchsia-500 to-pink-500" theme="staff" />
           </div>
         </div>
       </Panel>
 
-      <Tabs value={activeTab} onChange={setActiveTab} tabs={tabs} />
+      <Tabs value={activeTab} onChange={setActiveTab} tabs={tabs} theme="staff" />
 
-      {loading ? <Panel className="py-14"><div className="flex items-center justify-center gap-3 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu gamification...</span></div></Panel> : null}
+      {loading ? <Panel className="py-14"><div className="flex items-center justify-center gap-3 text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu gamification...</span></div></Panel> : null}
       {!loading && pageError ? <Panel className="border-rose-200 bg-rose-50"><div className="flex items-start gap-3 text-rose-700"><AlertCircle className="mt-0.5 h-5 w-5" /><div><h2 className="text-lg font-semibold">Không thể tải dữ liệu</h2><p className="mt-1 text-sm">{pageError}</p></div></div></Panel> : null}
 
       {!loading && !pageError && activeTab === "missions" ? (
-        <Panel>
+        <Panel theme="staff">
           <SectionTitle
             title="Quản lý mission"
             description="Tạo mission mới, cập nhật phạm vi áp dụng, xem tiến độ và liên kết homework vào mission."
+            theme="staff"
             action={
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={openCreateMission} className={primaryButton}>
@@ -671,16 +675,16 @@ export function StaffGamificationWorkspace({
           />
           <div className="space-y-4">
             {missions.map((mission) => (
-              <div key={mission.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <div key={mission.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">{mission.title}</h3>
+                    <h3 className="text-lg font-bold text-gray-900">{mission.title}</h3>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                      <StatusPill label={mapMissionTypeLabel(mission.missionType)} className="border-slate-200 bg-white text-slate-700" />
+                      <StatusPill label={mapMissionTypeLabel(mission.missionType)} className="border-red-200 bg-white text-gray-700" />
                       <StatusPill label={mapMissionScopeLabel(mission.scope)} className="border-amber-200 bg-amber-50 text-amber-700" />
                     </div>
-                    {mission.description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{mission.description}</p> : null}
-                    <div className="mt-4 flex flex-wrap gap-5 text-sm text-slate-500">
+                    {mission.description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">{mission.description}</p> : null}
+                    <div className="mt-4 flex flex-wrap gap-5 text-sm text-gray-500">
                       <span>Bắt đầu: {formatDateTime(mission.startAt)}</span>
                       <span>Kết thúc: {formatDateTime(mission.endAt)}</span>
                       <span>Thưởng: {formatNumber(mission.rewardStars)} sao • {formatNumber(mission.rewardExp)} XP</span>
@@ -705,17 +709,17 @@ export function StaffGamificationWorkspace({
                 </div>
               </div>
             ))}
-            {missions.length === 0 ? <EmptyState title="Chưa có mission" description="Tạo mission đầu tiên để bắt đầu các luồng gamification cho học sinh." icon={<Target className="h-5 w-5" />} /> : null}
+            {missions.length === 0 ? <EmptyState title="Chưa có mission" description="Tạo mission đầu tiên để bắt đầu các luồng gamification cho học sinh." icon={<Target className="h-5 w-5" />} theme="staff" /> : null}
           </div>
         </Panel>
       ) : null}
 
       {!loading && !pageError && activeTab === "students" ? (
-        <Panel>
-          <SectionTitle title="Sao, XP và streak theo học sinh" description="Chọn học sinh để xem số sao, cấp độ, streak điểm danh và lịch sử giao dịch sao." />
+        <Panel theme="staff">
+          <SectionTitle title="Sao, XP và streak theo học sinh" description="Chọn học sinh để xem số sao, cấp độ, streak điểm danh và lịch sử giao dịch sao." theme="staff" />
           <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Học sinh</label>
+            <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+              <label className="mb-2 block text-sm font-semibold text-gray-700">Học sinh</label>
               <select value={selectedStudentId} onChange={(event) => setSelectedStudentId(event.target.value)} className={inputClass}>
                 <option value="">Chọn học sinh</option>
                 {students.map((student) => <option key={student.id} value={student.id}>{student.label}</option>)}
@@ -723,17 +727,17 @@ export function StaffGamificationWorkspace({
               <button type="button" onClick={() => selectedStudentId && void loadStudentSnapshot(selectedStudentId)} className={`${ghostButton} mt-3 w-full`}>Làm mới dữ liệu</button>
               <div className="mt-5 rounded-3xl border border-white bg-white p-4">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-900 text-white"><UserRound className="h-5 w-5" /></div>
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-r from-red-600 to-red-700 text-white"><UserRound className="h-5 w-5" /></div>
                   <div>
-                    <p className="font-semibold text-slate-900">{selectedStudent?.label ?? "Chưa chọn học sinh"}</p>
-                    <p className="text-sm text-slate-500">{selectedStudent?.id ?? "Hãy chọn một hồ sơ để thao tác"}</p>
+                    <p className="font-semibold text-gray-900">{selectedStudent?.label ?? "Chưa chọn học sinh"}</p>
+                    <p className="text-sm text-gray-500">{selectedStudent?.id ?? "Hãy chọn một hồ sơ để thao tác"}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              {studentLoading ? <div className="rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500"><Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />Đang tải snapshot học sinh...</div> : null}
+              {studentLoading ? <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-8 text-center text-sm text-gray-500"><Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />Đang tải snapshot học sinh...</div> : null}
               {!studentLoading && selectedStudentId ? (
                 <>
                   <div className="grid gap-4 md:grid-cols-3">
@@ -742,8 +746,8 @@ export function StaffGamificationWorkspace({
                     <MetricCard icon={<CheckCheck className="h-5 w-5" />} label="Streak hiện tại" value={`${formatNumber(studentStreak?.currentStreak)} ngày`} hint={`Kỷ lục ${formatNumber(studentStreak?.maxStreak)} ngày`} accent="from-emerald-500 via-teal-500 to-cyan-500" />
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                      <h3 className="text-lg font-bold text-slate-900">Điều chỉnh sao</h3>
+                    <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+                      <h3 className="text-lg font-bold text-gray-900">Điều chỉnh sao</h3>
                       <div className="mt-4 space-y-3">
                         <input value={studentAction.starAmount} onChange={(event) => setStudentAction((current) => ({ ...current, starAmount: event.target.value }))} className={inputClass} inputMode="numeric" placeholder="Số sao" />
                         <input value={studentAction.starReason} onChange={(event) => setStudentAction((current) => ({ ...current, starReason: event.target.value }))} className={inputClass} placeholder="Lý do" />
@@ -753,8 +757,8 @@ export function StaffGamificationWorkspace({
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                      <h3 className="text-lg font-bold text-slate-900">Điều chỉnh XP</h3>
+                    <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+                      <h3 className="text-lg font-bold text-gray-900">Điều chỉnh XP</h3>
                       <div className="mt-4 space-y-3">
                         <input value={studentAction.xpAmount} onChange={(event) => setStudentAction((current) => ({ ...current, xpAmount: event.target.value }))} className={inputClass} inputMode="numeric" placeholder="Số XP" />
                         <input value={studentAction.xpReason} onChange={(event) => setStudentAction((current) => ({ ...current, xpReason: event.target.value }))} className={inputClass} placeholder="Lý do" />
@@ -766,31 +770,31 @@ export function StaffGamificationWorkspace({
                     </div>
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                      <h3 className="text-lg font-bold text-slate-900">Giao dịch sao gần nhất</h3>
+                    <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+                      <h3 className="text-lg font-bold text-gray-900">Giao dịch sao gần nhất</h3>
                       <div className="mt-4 space-y-3">
                         {transactions.map((item) => (
                           <div key={item.id} className="rounded-2xl border border-white bg-white p-4">
                             <div className="flex items-center justify-between gap-3">
-                              <p className="font-semibold text-slate-900">{item.reason || "Không có lý do"}</p>
+                              <p className="font-semibold text-gray-900">{item.reason || "Không có lý do"}</p>
                               <p className={`text-sm font-bold ${item.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{item.amount >= 0 ? "+" : ""}{formatNumber(item.amount)}</p>
                             </div>
-                            <p className="mt-1 text-sm text-slate-500">Balance sau giao dịch: {formatNumber(item.balanceAfter)} • {formatDateTime(item.createdAt)}</p>
+                            <p className="mt-1 text-sm text-gray-500">Balance sau giao dịch: {formatNumber(item.balanceAfter)} • {formatDateTime(item.createdAt)}</p>
                           </div>
                         ))}
                         {transactions.length === 0 ? <EmptyState title="Chưa có giao dịch sao" description="Sau khi cộng hoặc trừ sao, lịch sử sẽ hiển thị tại đây." icon={<Star className="h-5 w-5" />} /> : null}
                       </div>
                     </div>
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                      <h3 className="text-lg font-bold text-slate-900">Điểm danh gần nhất</h3>
+                    <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+                      <h3 className="text-lg font-bold text-gray-900">Điểm danh gần nhất</h3>
                       <div className="mt-4 space-y-3">
                         {(studentStreak?.recentStreaks ?? []).map((item) => (
                           <div key={item.id} className="rounded-2xl border border-white bg-white p-4">
                             <div className="flex items-center justify-between gap-3">
-                              <p className="font-semibold text-slate-900">{formatDate(item.attendanceDate)}</p>
+                              <p className="font-semibold text-gray-900">{formatDate(item.attendanceDate)}</p>
                               <p className="text-sm font-semibold text-amber-600">+{formatNumber(item.rewardStars)} sao</p>
                             </div>
-                            <p className="mt-1 text-sm text-slate-500">Streak {formatNumber(item.currentStreak)} ngày • +{formatNumber(item.rewardExp)} XP</p>
+                            <p className="mt-1 text-sm text-gray-500">Streak {formatNumber(item.currentStreak)} ngày • +{formatNumber(item.rewardExp)} XP</p>
                           </div>
                         ))}
                         {(studentStreak?.recentStreaks ?? []).length === 0 ? <EmptyState title="Chưa có lịch sử streak" description="Dữ liệu điểm danh của học sinh sẽ hiển thị tại đây." icon={<CheckCheck className="h-5 w-5" />} /> : null}
@@ -806,10 +810,11 @@ export function StaffGamificationWorkspace({
       ) : null}
 
       {!loading && !pageError && canManageStore && activeTab === "rewardStore" ? (
-        <Panel>
+        <Panel theme="staff">
           <SectionTitle
             title="Kho quà thưởng"
             description="Quản lý vật phẩm đổi thưởng, giá sao, số lượng tồn và trạng thái hiển thị."
+            theme="staff"
             action={
               <button type="button" onClick={openCreateReward} className={primaryButton}>
                 <Plus className="h-4 w-4" />
@@ -819,15 +824,15 @@ export function StaffGamificationWorkspace({
           />
           <div className="grid gap-4 lg:grid-cols-2">
             {rewardItems.map((item) => (
-              <div key={item.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <div key={item.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">{item.title}</h3>
-                    <p className="mt-1 text-sm text-slate-500">{item.description || "Chưa có mô tả"}</p>
+                    <h3 className="text-lg font-bold text-gray-900">{item.title}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{item.description || "Chưa có mô tả"}</p>
                   </div>
-                  <StatusPill label={item.isActive ? "Đang mở" : "Đang ẩn"} className={item.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-700"} />
+                  <StatusPill label={item.isActive ? "Đang mở" : "Đang ẩn"} className={item.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-white text-gray-700"} />
                 </div>
-                <div className="mt-4 flex flex-wrap gap-5 text-sm text-slate-500">
+                <div className="mt-4 flex flex-wrap gap-5 text-sm text-gray-500">
                   <span>Giá: {formatNumber(item.costStars)} sao</span>
                   <span>Tồn kho: {formatNumber(item.quantity)}</span>
                   <span>Tạo lúc: {formatDateTime(item.createdAt)}</span>
@@ -853,15 +858,15 @@ export function StaffGamificationWorkspace({
       ) : null}
 
       {!loading && !pageError && activeTab === "redemptions" ? (
-        <Panel>
+        <Panel theme="staff">
           <SectionTitle
             title="Reward redemption"
             description="Theo dõi yêu cầu đổi thưởng, xem chi tiết và xử lý các trạng thái Requested, Approved, Delivered."
             action={
               canManageStore ? (
                 <div className="flex flex-wrap gap-2">
-                  <input value={batchYear} onChange={(event) => setBatchYear(event.target.value)} className="w-28 rounded-2xl border border-slate-200 px-3 py-2 text-sm" inputMode="numeric" placeholder="Năm" />
-                  <input value={batchMonth} onChange={(event) => setBatchMonth(event.target.value)} className="w-24 rounded-2xl border border-slate-200 px-3 py-2 text-sm" inputMode="numeric" placeholder="Tháng" />
+                  <input value={batchYear} onChange={(event) => setBatchYear(event.target.value)} className="w-28 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm" inputMode="numeric" placeholder="Năm" />
+                  <input value={batchMonth} onChange={(event) => setBatchMonth(event.target.value)} className="w-24 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm" inputMode="numeric" placeholder="Tháng" />
                   <button type="button" onClick={() => void runBatchDeliver()} disabled={busyAction === "batch-deliver"} className={primaryButton}>Batch deliver</button>
                 </div>
               ) : undefined
@@ -869,14 +874,14 @@ export function StaffGamificationWorkspace({
           />
           <div className="space-y-4">
             {redemptions.map((item) => (
-              <div key={item.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <div key={item.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-bold text-slate-900">{item.itemName}</h3>
+                      <h3 className="text-lg font-bold text-gray-900">{item.itemName}</h3>
                       <StatusPill label={mapRedemptionStatusLabel(item.status)} className={getRedemptionStatusClasses(item.status)} />
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-5 text-sm text-slate-500">
+                    <div className="mt-3 flex flex-wrap gap-5 text-sm text-gray-500">
                       <span>Học sinh: {item.studentName || item.studentProfileId}</span>
                       <span>Số lượng: {formatNumber(item.quantity)}</span>
                       <span>Chi nhánh: {item.branchName || "Chưa có"}</span>
@@ -899,34 +904,34 @@ export function StaffGamificationWorkspace({
 
       <DialogShell open={missionDialogOpen} onClose={() => setMissionDialogOpen(false)} title={missionForm.id ? "Cập nhật mission" : "Tạo mission mới"} description="Điền đúng phạm vi và phần thưởng để mission bám theo rule backend.">
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-slate-700">Tiêu đề</label><input value={missionForm.title} onChange={(event) => setMissionForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} /></div>
-          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-slate-700">Mô tả</label><textarea value={missionForm.description} onChange={(event) => setMissionForm((current) => ({ ...current, description: event.target.value }))} className={textareaClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Scope</label><select value={missionForm.scope} onChange={(event) => setMissionForm((current) => ({ ...current, scope: event.target.value as MissionScope }))} className={inputClass}><option value="Student">Student</option><option value="Class">Class</option><option value="Group">Group</option></select></div>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Mission type</label><select value={missionForm.missionType} onChange={(event) => setMissionForm((current) => ({ ...current, missionType: event.target.value as MissionType }))} className={inputClass}><option value="Custom">Custom</option><option value="HomeworkStreak">Homework streak</option><option value="ReadingStreak">Reading streak</option><option value="NoUnexcusedAbsence">No unexcused absence</option></select></div>
-          {missionForm.scope === "Class" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-slate-700">Lớp áp dụng</label><select value={missionForm.targetClassId} onChange={(event) => setMissionForm((current) => ({ ...current, targetClassId: event.target.value }))} className={inputClass}><option value="">Chọn lớp</option>{classOptions.map((item) => <option key={item.id} value={item.id}>{item.code ? `${item.code} - ` : ""}{item.title || item.name || item.id}</option>)}</select></div> : null}
-          {missionForm.scope === "Group" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-slate-700">Nhóm áp dụng</label><input value={missionForm.targetGroup} onChange={(event) => setMissionForm((current) => ({ ...current, targetGroup: event.target.value }))} className={inputClass} /></div> : null}
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Bắt đầu</label><input type="datetime-local" value={missionForm.startAt} onChange={(event) => setMissionForm((current) => ({ ...current, startAt: event.target.value }))} className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Kết thúc</label><input type="datetime-local" value={missionForm.endAt} onChange={(event) => setMissionForm((current) => ({ ...current, endAt: event.target.value }))} className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Reward stars</label><input value={missionForm.rewardStars} onChange={(event) => setMissionForm((current) => ({ ...current, rewardStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Reward XP</label><input value={missionForm.rewardExp} onChange={(event) => setMissionForm((current) => ({ ...current, rewardExp: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
+          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Tiêu đề</label><input value={missionForm.title} onChange={(event) => setMissionForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} /></div>
+          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Mô tả</label><textarea value={missionForm.description} onChange={(event) => setMissionForm((current) => ({ ...current, description: event.target.value }))} className={textareaClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Scope</label><select value={missionForm.scope} onChange={(event) => setMissionForm((current) => ({ ...current, scope: event.target.value as MissionScope }))} className={inputClass}><option value="Student">Student</option><option value="Class">Class</option><option value="Group">Group</option></select></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Mission type</label><select value={missionForm.missionType} onChange={(event) => setMissionForm((current) => ({ ...current, missionType: event.target.value as MissionType }))} className={inputClass}><option value="Custom">Custom</option><option value="HomeworkStreak">Homework streak</option><option value="ReadingStreak">Reading streak</option><option value="NoUnexcusedAbsence">No unexcused absence</option></select></div>
+          {missionForm.scope === "Class" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Lớp áp dụng</label><select value={missionForm.targetClassId} onChange={(event) => setMissionForm((current) => ({ ...current, targetClassId: event.target.value }))} className={inputClass}><option value="">Chọn lớp</option>{classOptions.map((item) => <option key={item.id} value={item.id}>{item.code ? `${item.code} - ` : ""}{item.title || item.name || item.id}</option>)}</select></div> : null}
+          {missionForm.scope === "Group" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Nhóm áp dụng</label><input value={missionForm.targetGroup} onChange={(event) => setMissionForm((current) => ({ ...current, targetGroup: event.target.value }))} className={inputClass} /></div> : null}
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Bắt đầu</label><input type="datetime-local" value={missionForm.startAt} onChange={(event) => setMissionForm((current) => ({ ...current, startAt: event.target.value }))} className={inputClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Kết thúc</label><input type="datetime-local" value={missionForm.endAt} onChange={(event) => setMissionForm((current) => ({ ...current, endAt: event.target.value }))} className={inputClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Reward stars</label><input value={missionForm.rewardStars} onChange={(event) => setMissionForm((current) => ({ ...current, rewardStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Reward XP</label><input value={missionForm.rewardExp} onChange={(event) => setMissionForm((current) => ({ ...current, rewardExp: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setMissionDialogOpen(false)} className={ghostButton}>Đóng</button><button type="button" onClick={() => void submitMission()} disabled={busyAction === "submit-mission"} className={primaryButton}>{busyAction === "submit-mission" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Lưu mission</button></div>
       </DialogShell>
 
-      <DialogShell open={rewardDialogOpen} onClose={() => setRewardDialogOpen(false)} title={rewardForm.id ? "Cập nhật vật phẩm" : "Tạo vật phẩm mới"} description="Cost stars phải lớn hơn 0 và quantity không được âm.">
+      <DialogShell open={rewardDialogOpen} onClose={() => setRewardDialogOpen(false)} title={rewardForm.id ? "Cập nhật vật phẩm" : "Tạo vật phẩm mới"} description="Cost stars phải lớn hơn 0 và quantity không được âm." theme="staff">
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-slate-700">Tên vật phẩm</label><input value={rewardForm.title} onChange={(event) => setRewardForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} /></div>
-          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-slate-700">Mô tả</label><textarea value={rewardForm.description} onChange={(event) => setRewardForm((current) => ({ ...current, description: event.target.value }))} className={textareaClass} /></div>
+          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Tên vật phẩm</label><input value={rewardForm.title} onChange={(event) => setRewardForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} /></div>
+          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Mô tả</label><textarea value={rewardForm.description} onChange={(event) => setRewardForm((current) => ({ ...current, description: event.target.value }))} className={textareaClass} /></div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Ảnh vật phẩm</label>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Ảnh vật phẩm</label>
             <input ref={rewardImageInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => void handleRewardImageChange(event)} />
             {rewardForm.imageUrl ? (
-              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
-                <div className="aspect-[16/8] w-full bg-slate-100">
+              <div className="overflow-hidden rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30">
+                <div className="aspect-[16/8] w-full bg-red-50">
                   <img src={rewardForm.imageUrl} alt="Ảnh vật phẩm" className="h-full w-full object-cover" />
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-red-200 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
                     <ImageIcon className="h-4 w-4" />
                     <span className="max-w-[420px] truncate">{rewardForm.imageUrl}</span>
                   </div>
@@ -943,39 +948,39 @@ export function StaffGamificationWorkspace({
                 </div>
               </div>
             ) : (
-              <button type="button" onClick={() => rewardImageInputRef.current?.click()} disabled={imageUploading} className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center transition hover:border-slate-400 hover:bg-white disabled:opacity-60">
-                {imageUploading ? <Loader2 className="h-8 w-8 animate-spin text-slate-500" /> : <Upload className="h-8 w-8 text-slate-500" />}
+              <button type="button" onClick={() => rewardImageInputRef.current?.click()} disabled={imageUploading} className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-red-200 bg-gradient-to-br from-white to-red-50/30 px-6 py-10 text-center transition hover:border-red-400 hover:bg-red-50 disabled:opacity-60">
+                {imageUploading ? <Loader2 className="h-8 w-8 animate-spin text-gray-500" /> : <Upload className="h-8 w-8 text-gray-500" />}
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">{imageUploading ? "Đang tải ảnh lên..." : "Chọn ảnh từ máy"}</p>
-                  <p className="mt-1 text-xs text-slate-500">Hỗ trợ JPG, PNG, WEBP, GIF. Tối đa 10MB.</p>
+                  <p className="text-sm font-semibold text-gray-900">{imageUploading ? "Đang tải ảnh lên..." : "Chọn ảnh từ máy"}</p>
+                  <p className="mt-1 text-xs text-gray-500">Hỗ trợ JPG, PNG, WEBP, GIF. Tối đa 10MB.</p>
                 </div>
               </button>
             )}
           </div>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Cost stars</label><input value={rewardForm.costStars} onChange={(event) => setRewardForm((current) => ({ ...current, costStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Quantity</label><input value={rewardForm.quantity} onChange={(event) => setRewardForm((current) => ({ ...current, quantity: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={rewardForm.isActive} onChange={(event) => setRewardForm((current) => ({ ...current, isActive: event.target.checked }))} />Hiển thị trên cửa hàng active</label>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Cost stars</label><input value={rewardForm.costStars} onChange={(event) => setRewardForm((current) => ({ ...current, costStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Quantity</label><input value={rewardForm.quantity} onChange={(event) => setRewardForm((current) => ({ ...current, quantity: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700"><input type="checkbox" checked={rewardForm.isActive} onChange={(event) => setRewardForm((current) => ({ ...current, isActive: event.target.checked }))} />Hiển thị trên cửa hàng active</label>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setRewardDialogOpen(false)} className={ghostButton} disabled={imageUploading}>Đóng</button><button type="button" onClick={() => void submitRewardItem()} disabled={busyAction === "submit-reward" || imageUploading} className={primaryButton}>{busyAction === "submit-reward" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Lưu vật phẩm</button></div>
       </DialogShell>
 
       <DialogShell open={progressDialog.open} onClose={() => setProgressDialog({ mission: null, items: [], open: false })} title={progressDialog.mission?.title || "Tiến độ mission"} description="Danh sách progress hiện có theo mission được chọn.">
         <div className="space-y-3">
-          {progressDialog.items.map((item) => <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-slate-900">{item.studentName || item.studentProfileId}</p><p className="mt-1 text-sm text-slate-500">Tiến độ: {formatNumber(item.progressValue)} • {formatNumber(item.progressPercentage)}%</p></div><StatusPill label={mapProgressStatusLabel(item.status)} className={getMissionProgressClasses(item.status)} /></div></div>)}
+          {progressDialog.items.map((item) => <div key={item.id} className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-gray-900">{item.studentName || item.studentProfileId}</p><p className="mt-1 text-sm text-gray-500">Tiến độ: {formatNumber(item.progressValue)} • {formatNumber(item.progressPercentage)}%</p></div><StatusPill label={mapProgressStatusLabel(item.status)} className={getMissionProgressClasses(item.status)} /></div></div>)}
           {progressDialog.items.length === 0 ? <EmptyState title="Chưa có mission progress" description="Mission chưa phát sinh progress hoặc backend chưa ghi nhận dữ liệu cho mission này." icon={<Target className="h-5 w-5" />} /> : null}
         </div>
       </DialogShell>
 
       <DialogShell open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} title="Liên kết homework với mission" description="Dùng khi cần gắn một homework hiện có vào mission đang chạy.">
         <div className="grid gap-4">
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Homework ID</label><input value={linkForm.homeworkId} onChange={(event) => setLinkForm((current) => ({ ...current, homeworkId: event.target.value }))} className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Mission ID</label><input value={linkForm.missionId} onChange={(event) => setLinkForm((current) => ({ ...current, missionId: event.target.value }))} className={inputClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Homework ID</label><input value={linkForm.homeworkId} onChange={(event) => setLinkForm((current) => ({ ...current, homeworkId: event.target.value }))} className={inputClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Mission ID</label><input value={linkForm.missionId} onChange={(event) => setLinkForm((current) => ({ ...current, missionId: event.target.value }))} className={inputClass} /></div>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setLinkDialogOpen(false)} className={ghostButton}>Đóng</button><button type="button" onClick={() => void submitLinkHomework()} disabled={busyAction === "link-homework"} className={primaryButton}>{busyAction === "link-homework" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}Liên kết</button></div>
       </DialogShell>
 
       <DialogShell open={Boolean(redemptionDetail)} onClose={() => setRedemptionDetail(null)} title={redemptionDetail?.itemName || "Chi tiết redemption"} description="Thông tin snapshot của yêu cầu đổi quà, dùng cho staff và learner follow-up.">
-        {redemptionDetail ? <div className="grid gap-3 text-sm text-slate-600"><div><span className="font-semibold text-slate-900">Trạng thái:</span> {mapRedemptionStatusLabel(redemptionDetail.status)}</div><div><span className="font-semibold text-slate-900">Học sinh:</span> {redemptionDetail.studentName || redemptionDetail.studentProfileId}</div><div><span className="font-semibold text-slate-900">Chi nhánh:</span> {redemptionDetail.branchName || "Chưa có"}</div><div><span className="font-semibold text-slate-900">Số lượng:</span> {formatNumber(redemptionDetail.quantity)}</div><div><span className="font-semibold text-slate-900">Tạo lúc:</span> {formatDateTime(redemptionDetail.createdAt)}</div><div><span className="font-semibold text-slate-900">Handled at:</span> {formatDateTime(redemptionDetail.handledAt)}</div><div><span className="font-semibold text-slate-900">Delivered at:</span> {formatDateTime(redemptionDetail.deliveredAt)}</div><div><span className="font-semibold text-slate-900">Received at:</span> {formatDateTime(redemptionDetail.receivedAt)}</div></div> : null}
+        {redemptionDetail ? <div className="grid gap-3 text-sm text-gray-600"><div><span className="font-semibold text-gray-900">Trạng thái:</span> {mapRedemptionStatusLabel(redemptionDetail.status)}</div><div><span className="font-semibold text-gray-900">Học sinh:</span> {redemptionDetail.studentName || redemptionDetail.studentProfileId}</div><div><span className="font-semibold text-gray-900">Chi nhánh:</span> {redemptionDetail.branchName || "Chưa có"}</div><div><span className="font-semibold text-gray-900">Số lượng:</span> {formatNumber(redemptionDetail.quantity)}</div><div><span className="font-semibold text-gray-900">Tạo lúc:</span> {formatDateTime(redemptionDetail.createdAt)}</div><div><span className="font-semibold text-gray-900">Handled at:</span> {formatDateTime(redemptionDetail.handledAt)}</div><div><span className="font-semibold text-gray-900">Delivered at:</span> {formatDateTime(redemptionDetail.deliveredAt)}</div><div><span className="font-semibold text-gray-900">Received at:</span> {formatDateTime(redemptionDetail.receivedAt)}</div></div> : null}
       </DialogShell>
     </div>
   );

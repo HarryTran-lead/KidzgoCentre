@@ -79,19 +79,19 @@ const COPY: Record<
   }
 > = {
   teacher: {
-    title: "Giao an & tai lieu",
-    subtitle: "Quan ly kho mau giao an va giao an thuc te cho cac buoi day cua ban.",
-    statsSuffix: "cua ban",
+    title: "Giáo án & tài liệu",
+    subtitle: "Quản lý kho mẫu giáo án và giáo án thực tế cho các buổi dạy của bạn.",
+    statsSuffix: "của bạn",
   },
   "staff-management": {
-    title: "Giao an & chat luong",
-    subtitle: "Theo doi kho mau giao an va giao an theo buoi de ra soat chat luong trien khai.",
-    statsSuffix: "toan trung tam",
+    title: "Giáo án & chất lượng",
+    subtitle: "Theo dõi kho mẫu giáo án và giáo án theo buổi để rà soát chất lượng triển khai.",
+    statsSuffix: "toàn trung tâm",
   },
   admin: {
-    title: "Giao an & hoc lieu",
-    subtitle: "Quan tri mau giao an, theo doi viec nop giao an va giu logic van hanh dong nhat.",
-    statsSuffix: "he thong",
+    title: "Giáo án & học liệu",
+    subtitle: "Quản trị mẫu giáo án, theo dõi việc nộp giáo án và giữ logic vận hành đồng nhất.",
+    statsSuffix: "hệ thống",
   },
 };
 
@@ -100,7 +100,7 @@ function cn(...values: Array<string | false | null | undefined>) {
 }
 
 function formatDate(value?: string, withTime = false) {
-  if (!value) return "Chua cap nhat";
+  if (!value) return "Chưa cập nhật";
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -113,14 +113,14 @@ function formatDate(value?: string, withTime = false) {
     year: "numeric",
     ...(withTime
       ? {
-          hour: "2-digit",
-          minute: "2-digit",
-        }
+        hour: "2-digit",
+        minute: "2-digit",
+      }
       : {}),
   });
 }
 
-function truncateText(value?: string, fallback = "Chua co noi dung") {
+function truncateText(value?: string, fallback = "Chưa có nội dung") {
   if (!value?.trim()) return fallback;
   return value.length > 120 ? `${value.slice(0, 120)}...` : value;
 }
@@ -137,13 +137,13 @@ function buildTemplateLabel(item: LessonPlanTemplate) {
   const parts = [item.title];
   if (item.programName) parts.push(item.programName);
   if (item.level) parts.push(`Level ${item.level}`);
-  if (item.sessionIndex) parts.push(`Buoi ${item.sessionIndex}`);
+  if (item.sessionIndex) parts.push(`Buổi ${item.sessionIndex}`);
   return parts.join(" • ");
 }
 
 function buildClassOption(item: any): Option {
   const label =
-    item?.code || item?.classCode || item?.title || item?.name || item?.classTitle || "Lop hoc";
+    item?.code || item?.classCode || item?.title || item?.name || item?.classTitle || "Lớp học";
   const hint = [item?.programName, item?.level].filter(Boolean).join(" • ") || undefined;
 
   return {
@@ -157,7 +157,7 @@ function buildSessionOption(item: any): Option {
   const dateSource = item?.plannedDatetime || item?.plannedDateTime || item?.sessionDate || item?.actualDatetime;
   const classLabel = item?.classCode || item?.classTitle || item?.className || "";
   const dateLabel = dateSource ? formatDate(dateSource, true) : "";
-  const label = [item?.sessionTitle, classLabel, dateLabel].filter(Boolean).join(" • ") || item?.id || "Buoi hoc";
+  const label = [item?.sessionTitle, classLabel, dateLabel].filter(Boolean).join(" • ") || item?.id || "Buổi học";
 
   return {
     id: String(item?.id || ""),
@@ -225,41 +225,41 @@ function StatusBadge({
   kind,
 }: {
   kind:
-    | "template-active"
-    | "template-inactive"
-    | "plan-submitted"
-    | "plan-draft"
-    | "with-attachment"
-    | "with-template";
+  | "template-active"
+  | "template-inactive"
+  | "plan-submitted"
+  | "plan-draft"
+  | "with-attachment"
+  | "with-template";
 }) {
   const config: Record<string, { label: string; className: string; icon: any }> = {
     "template-active": {
-      label: "Dang hoat dong",
+      label: "Đang hoạt động",
       className: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
       icon: CheckCircle2,
     },
     "template-inactive": {
-      label: "Tam an",
+      label: "Tạm ẩn",
       className: "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200",
       icon: ShieldCheck,
     },
     "plan-submitted": {
-      label: "Da nop",
+      label: "Đã nộp",
       className: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
       icon: CheckCircle2,
     },
     "plan-draft": {
-      label: "Chua nop",
+      label: "Chưa nộp",
       className: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
       icon: Clock3,
     },
     "with-attachment": {
-      label: "Co file",
+      label: "Có file",
       className: "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200",
       icon: Paperclip,
     },
     "with-template": {
-      label: "Gan mau",
+      label: "Gắn mẫu",
       className: "bg-gradient-to-r from-purple-50 to-fuchsia-50 text-purple-700 border border-purple-200",
       icon: FolderOpen,
     },
@@ -309,7 +309,7 @@ function ModalFrame({
             type="button"
             onClick={onClose}
             className="rounded-xl p-2 transition-colors hover:bg-white/15 cursor-pointer"
-            aria-label="Dong"
+            aria-label="Đóng"
           >
             <X size={18} />
           </button>
@@ -410,7 +410,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
       return;
     }
 
-    throw new Error(response.message || "Khong the tai danh sach mau giao an.");
+    throw new Error(response.message || "Không thể tải danh sách mẫu giáo án.");
   };
 
   const loadPlans = async () => {
@@ -420,7 +420,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
       return;
     }
 
-    throw new Error(response.message || "Khong the tai danh sach giao an theo buoi.");
+    throw new Error(response.message || "Không thể tải danh sách giáo án theo buổi.");
   };
 
   const loadSessionsForClass = async (classId: string) => {
@@ -484,8 +484,8 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
     if (rejected) {
       toast({
-        title: "Khong the tai du lieu",
-        description: rejected.reason?.message || "Da xay ra loi khi dong bo lesson plan.",
+        title: "Không thể tải dữ liệu",
+        description: rejected.reason?.message || "Đã xảy ra lỗi khi đồng bộ lesson plan.",
         variant: "destructive",
       });
     }
@@ -581,30 +581,30 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     if (activeTab === "templates") {
       return [
         {
-          title: "Tong mau",
+          title: "Tổng mẫu",
           value: String(templates.length),
-          subtitle: `Kho giao an ${scopeCopy.statsSuffix}`,
+          subtitle: `Kho giáo án ${scopeCopy.statsSuffix}`,
           icon: FolderOpen,
           color: "from-red-600 to-red-700",
         },
         {
-          title: "Dang hoat dong",
+          title: "Đang hoạt động",
           value: String(templates.filter((item) => getTemplateStatus(item) === "active").length),
-          subtitle: "San sang su dung",
+          subtitle: "Sẵn sàng sử dụng",
           icon: CheckCircle2,
           color: "from-emerald-500 to-teal-500",
         },
         {
-          title: "Co file dinh kem",
+          title: "Có file đính kèm",
           value: String(templates.filter((item) => item.attachment).length),
-          subtitle: "Tai lieu da tai len",
+          subtitle: "Tài liệu đã tải lên",
           icon: Paperclip,
           color: "from-blue-500 to-cyan-500",
         },
         {
-          title: "Luot ap dung",
+          title: "Lượt áp dụng",
           value: String(templates.reduce((sum, item) => sum + (item.usedCount || 0), 0)),
-          subtitle: "So lan gan vao lesson plan",
+          subtitle: "Số lần gắn vào lesson plan",
           icon: ShieldCheck,
           color: "from-amber-500 to-orange-500",
         },
@@ -613,30 +613,30 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
     return [
       {
-        title: "Tong lesson plan",
+        title: "Tổng lesson plan",
         value: String(plans.length),
-        subtitle: `Theo buoi hoc ${scopeCopy.statsSuffix}`,
+        subtitle: `Theo buổi học ${scopeCopy.statsSuffix}`,
         icon: FileText,
         color: "from-red-600 to-red-700",
       },
       {
-        title: "Da nop",
+        title: "Đã nộp",
         value: String(plans.filter((item) => getPlanStatus(item) === "submitted").length),
-        subtitle: "Da co thoi diem nop",
+        subtitle: "Đã có thời điểm nộp",
         icon: CheckCircle2,
         color: "from-emerald-500 to-teal-500",
       },
       {
-        title: "Chua nop",
+        title: "Chưa nộp",
         value: String(plans.filter((item) => getPlanStatus(item) === "draft").length),
-        subtitle: "Can cap nhat tiep",
+        subtitle: "Cần cập nhật tiếp",
         icon: Clock3,
         color: "from-amber-500 to-orange-500",
       },
       {
-        title: "Gan theo mau",
+        title: "Gắn theo mẫu",
         value: String(plans.filter((item) => item.templateId).length),
-        subtitle: "Da lien ket voi template",
+        subtitle: "Đã liên kết với template",
         icon: BookOpenCheck,
         color: "from-purple-500 to-fuchsia-500",
       },
@@ -658,16 +658,16 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
     if (!response.isSuccess) {
       toast({
-        title: "Khong the xoa",
-        description: response.message || "Vui long thu lai sau.",
+        title: "Không thể xóa",
+        description: response.message || "Vui lòng thử lại sau.",
         variant: "destructive",
       });
       return;
     }
 
     toast({
-      title: deletingTemplate ? "Da xoa mau giao an" : "Da xoa lesson plan",
-      description: "Du lieu da duoc cap nhat.",
+      title: deletingTemplate ? "Đã xóa mẫu giáo án" : "Đã xóa lesson plan",
+      description: "Dữ liệu đã được cập nhật.",
       variant: "success",
     });
 
@@ -696,7 +696,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
               className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 cursor-pointer"
             >
               <RefreshCw size={16} className={cn(refreshing && "animate-spin")} />
-              Lam moi
+              Làm mới
             </button>
             <button
               type="button"
@@ -704,7 +704,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg cursor-pointer"
             >
               <Plus size={16} />
-              {activeTab === "templates" ? "Tao mau giao an" : "Tao lesson plan"}
+              {activeTab === "templates" ? "Tạo mẫu giáo án" : "Tạo lesson plan"}
             </button>
           </div>
         </div>
@@ -712,16 +712,16 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-white to-red-50 p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-sm font-semibold text-gray-900">Flow de xuat</div>
+              <div className="text-sm font-semibold text-gray-900">Flow đề xuất</div>
               <div className="mt-1 text-sm text-gray-600">
-                1. Upload file mau giao an. 2. Tao template theo program + level + session. 3. Gan vao buoi hoc. 4. Cap nhat noi dung thuc te va ghi chu.
+                1. Upload file mẫu giáo án. 2. Tạo template theo program + level + session. 3. Gắn vào buổi học. 4. Cập nhật nội dung thực tế và ghi chú.
               </div>
             </div>
             <div className="flex flex-wrap gap-2 text-xs font-medium">
               <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Upload attachment</span>
               <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Template library</span>
-              <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Lesson plan theo buoi</span>
-              <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Theo doi chat luong</span>
+              <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Lesson plan theo buổi</span>
+              <span className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-gray-700">Theo dõi chất lượng</span>
             </div>
           </div>
         </div>
@@ -740,15 +740,15 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={activeTab === "templates" ? "Tim theo ten mau, program, level..." : "Tim theo lop, buoi hoc, nguoi nop..."}
+              placeholder={activeTab === "templates" ? "Tìm theo tên mẫu, program, level..." : "Tìm theo lớp, buổi học, người nộp..."}
               className="w-full rounded-xl border border-red-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-red-100"
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-2xl border border-red-200 bg-white/70 p-1">
-              <TabButton active={activeTab === "templates"} label="Mau giao an" onClick={() => setActiveTab("templates")} />
-              <TabButton active={activeTab === "plans"} label="Giao an theo buoi" onClick={() => setActiveTab("plans")} />
+              <TabButton active={activeTab === "templates"} label="Mẫu giáo án" onClick={() => setActiveTab("templates")} />
+              <TabButton active={activeTab === "plans"} label="Giáo án theo buổi" onClick={() => setActiveTab("plans")} />
             </div>
 
             <div className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700">
@@ -760,17 +760,17 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                     onChange={(event) => setTemplateStatusFilter(event.target.value as TemplateStatusFilter)}
                     className="bg-transparent text-sm focus:outline-none"
                   >
-                    <option value="all">Tat ca trang thai</option>
-                    <option value="active">Dang hoat dong</option>
-                    <option value="inactive">Tam an</option>
-                    <option value="withAttachment">Co file</option>
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="active">Đang hoạt động</option>
+                    <option value="inactive">Tạm ẩn</option>
+                    <option value="withAttachment">Có file</option>
                   </select>
                   <select
                     value={selectedProgramId}
                     onChange={(event) => setSelectedProgramId(event.target.value)}
                     className="border-l border-red-100 bg-transparent pl-2 text-sm focus:outline-none"
                   >
-                    <option value="all">Tat ca program</option>
+                    <option value="all">Tất cả program</option>
                     {programOptions.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -785,17 +785,17 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                     onChange={(event) => setPlanStatusFilter(event.target.value as PlanStatusFilter)}
                     className="bg-transparent text-sm focus:outline-none"
                   >
-                    <option value="all">Tat ca trang thai</option>
-                    <option value="submitted">Da nop</option>
-                    <option value="draft">Chua nop</option>
-                    <option value="withTemplate">Gan theo mau</option>
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="submitted">Đã nộp</option>
+                    <option value="draft">Chưa nộp</option>
+                    <option value="withTemplate">Gắn theo mẫu</option>
                   </select>
                   <select
                     value={selectedClassId}
                     onChange={(event) => setSelectedClassId(event.target.value)}
                     className="border-l border-red-100 bg-transparent pl-2 text-sm focus:outline-none"
                   >
-                    <option value="all">Tat ca lop</option>
+                    <option value="all">Tất cả lớp</option>
                     {classOptions.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -813,10 +813,10 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         <div className="border-b border-red-200 bg-gradient-to-r from-red-500/10 to-red-700/10 px-6 py-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-gray-900">
-              {activeTab === "templates" ? "Thu vien mau giao an" : "Danh sach lesson plan theo buoi"}
+              {activeTab === "templates" ? "Thư viện mẫu giáo án" : "Danh sách lesson plan theo buổi"}
             </h2>
             <div className="text-sm font-medium text-gray-600">
-              {activeTab === "templates" ? `${filteredTemplates.length} mau` : `${filteredPlans.length} lesson plan`}
+              {activeTab === "templates" ? `${filteredTemplates.length} mẫu` : `${filteredPlans.length} lesson plan`}
             </div>
           </div>
         </div>
@@ -824,7 +824,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
           <div className="flex items-center justify-center py-16">
             <div className="flex items-center gap-3 text-gray-600">
               <Loader2 className="animate-spin text-red-600" size={20} />
-              Dang dong bo lesson plan...
+              Đang đồng bộ lesson plan...
             </div>
           </div>
         ) : activeTab === "templates" ? (
@@ -832,19 +832,19 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             <table className="w-full">
               <thead className="border-b border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Program & tieu de</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Level / Buoi</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Program & tiêu đề</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Level / Buổi</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Attachment</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Trang thai</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Cap nhat</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Thao tac</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Cập nhật</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-100">
                 {filteredTemplates.length === 0 ? (
                   <tr>
                     <td colSpan={6}>
-                      <EmptyState title="Chua co mau giao an phu hop" subtitle="Thu thay doi bo loc, tu khoa hoac tao mau moi." />
+                      <EmptyState title="Chưa có mẫu giáo án phù hợp" subtitle="Thử thay đổi bộ lọc, từ khóa hoặc tạo mẫu mới." />
                     </td>
                   </tr>
                 ) : (
@@ -858,16 +858,17 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                           <div>
                             <div className="font-semibold text-gray-900">{item.title}</div>
                             <div className="mt-1 text-sm text-gray-500">
-                              {item.programName || "Chua gan program"}
+                              {item.programName || "Chưa gắn program"}
                             </div>
-                            <div className="mt-1 text-xs text-gray-400">{item.createdByName || "Khong ro nguoi tao"}</div>
+                            <div className="mt-1 text-xs text-gray-400">{item.createdByName || "Không rõ người tạo"}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">Level {item.level || "-"}</div>
-                        <div className="mt-1 text-sm text-gray-500">Buoi {item.sessionIndex || "-"}</div>
+                        <div className="mt-1 text-sm text-gray-500">Buổi {item.sessionIndex || "-"}</div>
                       </td>
+                      
                       <td className="px-6 py-4">
                         {item.attachment ? (
                           <button
@@ -876,10 +877,10 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                             className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
                           >
                             <Paperclip size={12} />
-                            Mo file
+                            Mở file
                           </button>
                         ) : (
-                          <span className="text-sm text-gray-400">Chua co file</span>
+                          <span className="text-sm text-gray-400">Chưa có file</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -890,7 +891,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-700">{formatDate(item.updatedAt || item.createdAt, true)}</div>
-                        <div className="mt-1 text-xs text-gray-500">Su dung: {item.usedCount || 0} lan</div>
+                        <div className="mt-1 text-xs text-gray-500">Sử dụng: {item.usedCount || 0} lần</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -898,7 +899,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                             type="button"
                             onClick={() => setDetailState({ type: "template", item })}
                             className="rounded-lg border border-red-200 bg-white p-2 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
-                            title="Xem chi tiet"
+                            title="Xem chi tiết"
                           >
                             <Eye size={15} />
                           </button>
@@ -906,7 +907,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                             type="button"
                             onClick={() => setTemplateModal(item)}
                             className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
-                            title="Chinh sua"
+                            title="Chỉnh sửa"
                           >
                             <Pencil size={15} />
                           </button>
@@ -914,7 +915,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                             type="button"
                             onClick={() => setDeleteState({ type: "template", item })}
                             className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-700 transition-colors hover:bg-red-100 cursor-pointer"
-                            title="Xoa"
+                            title="Xóa"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -931,19 +932,19 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             <table className="w-full">
               <thead className="border-b border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Lop / Buoi hoc</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Lớp / Buổi học</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Template</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Noi dung</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Trang thai</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Cap nhat</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Thao tac</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nội dung</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Cập nhật</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-100">
                 {filteredPlans.length === 0 ? (
                   <tr>
                     <td colSpan={6}>
-                      <EmptyState title="Chua co lesson plan phu hop" subtitle="Thu doi bo loc, tu khoa hoac tao lesson plan moi." />
+                      <EmptyState title="Chưa có lesson plan phù hợp" subtitle="Thử đổi bộ lọc, từ khóa hoặc tạo lesson plan mới." />
                     </td>
                   </tr>
                 ) : (
@@ -958,8 +959,8 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                               <CalendarDays size={16} />
                             </div>
                             <div>
-                              <div className="font-semibold text-gray-900">{item.classCode || item.classTitle || "Chua co lop"}</div>
-                              <div className="mt-1 text-sm text-gray-500">{item.sessionTitle || "Chua co buoi hoc"}</div>
+                              <div className="font-semibold text-gray-900">{item.classCode || item.classTitle || "Chưa có lớp"}</div>
+                              <div className="mt-1 text-sm text-gray-500">{item.sessionTitle || "Chưa có buổi học"}</div>
                               <div className="mt-1 text-xs text-gray-400">{formatDate(item.sessionDate || item.createdAt, true)}</div>
                             </div>
                           </div>
@@ -968,12 +969,12 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                           {item.templateId ? (
                             <div className="space-y-2">
                               <div className="text-sm font-medium text-gray-900">
-                                {linkedTemplate?.title || item.templateTitle || "Template da gan"}
+                                {linkedTemplate?.title || item.templateTitle || "Template đã gắn"}
                               </div>
                               <div className="text-xs text-gray-500">
                                 {item.templateLevel ? `Level ${item.templateLevel}` : linkedTemplate?.level ? `Level ${linkedTemplate.level}` : ""}
                                 {item.templateSessionIndex || linkedTemplate?.sessionIndex
-                                  ? ` • Buoi ${item.templateSessionIndex || linkedTemplate?.sessionIndex}`
+                                  ? ` • Buổi ${item.templateSessionIndex || linkedTemplate?.sessionIndex}`
                                   : ""}
                               </div>
                               {linkedTemplate?.attachment ? (
@@ -983,12 +984,12 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                                   className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
                                 >
                                   <Paperclip size={11} />
-                                  File mau
+                                  File mẫu
                                 </button>
                               ) : null}
                             </div>
                           ) : (
-                            <span className="text-sm text-gray-400">Khong gan template</span>
+                            <span className="text-sm text-gray-400">Không gắn template</span>
                           )}
                         </td>
                         <td className="px-6 py-4">
@@ -1000,12 +1001,12 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                             <StatusBadge kind={getPlanStatus(item) === "submitted" ? "plan-submitted" : "plan-draft"} />
                             {item.templateId ? <StatusBadge kind="with-template" /> : null}
                           </div>
-                          <div className="mt-2 text-xs text-gray-500">{item.submittedByName || "Chua co nguoi nop"}</div>
+                          <div className="mt-2 text-xs text-gray-500">{item.submittedByName || "Chưa có người nộp"}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-700">{formatDate(item.updatedAt || item.submittedAt || item.createdAt, true)}</div>
                           <div className="mt-1 text-xs text-gray-500">
-                            {item.submittedAt ? `Nop luc ${formatDate(item.submittedAt, true)}` : "Chua co submittedAt"}
+                            {item.submittedAt ? `Nộp lúc ${formatDate(item.submittedAt, true)}` : "Chưa có submittedAt"}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -1014,7 +1015,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                               type="button"
                               onClick={() => setDetailState({ type: "plan", item })}
                               className="rounded-lg border border-red-200 bg-white p-2 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
-                              title="Xem chi tiet"
+                              title="Xem chi tiết"
                             >
                               <Eye size={15} />
                             </button>
@@ -1022,7 +1023,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                               type="button"
                               onClick={() => setPlanModal(item)}
                               className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
-                              title="Chinh sua"
+                              title="Chỉnh sửa"
                             >
                               <Pencil size={15} />
                             </button>
@@ -1030,7 +1031,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                               type="button"
                               onClick={() => setDeleteState({ type: "plan", item })}
                               className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-700 transition-colors hover:bg-red-100 cursor-pointer"
-                              title="Xoa"
+                              title="Xóa"
                             >
                               <Trash2 size={15} />
                             </button>
@@ -1062,27 +1063,27 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             const response =
               templateModal === "create"
                 ? await createLessonPlanTemplate({
-                    programId: payload.programId,
-                    level: payload.level,
-                    title: payload.title,
-                    sessionIndex: payload.sessionIndex,
-                    attachment,
-                  })
+                  programId: payload.programId,
+                  level: payload.level,
+                  title: payload.title,
+                  sessionIndex: payload.sessionIndex,
+                  attachment,
+                })
                 : await updateLessonPlanTemplate(templateModal.id, {
-                    level: payload.level,
-                    title: payload.title,
-                    sessionIndex: payload.sessionIndex,
-                    attachment,
-                    isActive: payload.isActive,
-                  });
+                  level: payload.level,
+                  title: payload.title,
+                  sessionIndex: payload.sessionIndex,
+                  attachment,
+                  isActive: payload.isActive,
+                });
 
             if (!response.isSuccess) {
-              throw new Error(response.message || "Khong the luu mau giao an.");
+              throw new Error(response.message || "Không thể lưu mẫu giáo án.");
             }
 
             toast({
-              title: templateModal === "create" ? "Da tao mau giao an" : "Da cap nhat mau giao an",
-              description: "Du lieu da duoc dong bo thanh cong.",
+              title: templateModal === "create" ? "Đã tạo mẫu giáo án" : "Đã cập nhật mẫu giáo án",
+              description: "Dữ liệu đã được đồng bộ thành công.",
               variant: "success",
             });
 
@@ -1108,20 +1109,20 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
               planModal === "create"
                 ? await createLessonPlan(payload)
                 : await updateLessonPlan(planModal.id, {
-                    templateId: payload.templateId,
-                    plannedContent: payload.plannedContent,
-                    actualContent: payload.actualContent,
-                    actualHomework: payload.actualHomework,
-                    teacherNotes: payload.teacherNotes,
-                  });
+                  templateId: payload.templateId,
+                  plannedContent: payload.plannedContent,
+                  actualContent: payload.actualContent,
+                  actualHomework: payload.actualHomework,
+                  teacherNotes: payload.teacherNotes,
+                });
 
             if (!response.isSuccess) {
-              throw new Error(response.message || "Khong the luu lesson plan.");
+              throw new Error(response.message || "Không thể lưu lesson plan.");
             }
 
             toast({
-              title: planModal === "create" ? "Da tao lesson plan" : "Da cap nhat lesson plan",
-              description: "Thong tin buoi hoc da duoc cap nhat.",
+              title: planModal === "create" ? "Đã tạo lesson plan" : "Đã cập nhật lesson plan",
+              description: "Thông tin buổi học đã được cập nhật.",
               variant: "success",
             });
 
@@ -1142,7 +1143,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
       {deleteState ? (
         <DeleteModal
-          title={deleteState.type === "template" ? "Xoa mau giao an" : "Xoa lesson plan"}
+          title={deleteState.type === "template" ? "Xóa mẫu giáo án" : "Xóa lesson plan"}
           name={deleteState.type === "template" ? deleteState.item.title : deleteState.item.sessionTitle || deleteState.item.id}
           onClose={() => setDeleteState(null)}
           onConfirm={handleDelete}
@@ -1190,22 +1191,22 @@ function TemplateFormModal({
     setError(null);
 
     if (!programId.trim()) {
-      setError("Vui long chon program.");
+      setError("Vui lòng chọn program.");
       return;
     }
 
     if (!level.trim()) {
-      setError("Vui long nhap level.");
+      setError("Vui lòng nhập level.");
       return;
     }
 
     if (!title.trim()) {
-      setError("Vui long nhap tieu de mau giao an.");
+      setError("Vui lòng nhập tiêu đề mẫu giáo án.");
       return;
     }
 
     if (sessionIndex <= 0) {
-      setError("Session index phai lon hon 0.");
+      setError("Session index phải lớn hơn 0.");
       return;
     }
 
@@ -1224,7 +1225,7 @@ function TemplateFormModal({
         selectedFile
       );
     } catch (submitError: any) {
-      setError(submitError?.message || "Khong the luu mau giao an.");
+      setError(submitError?.message || "Không thể lưu mẫu giáo án.");
     } finally {
       setSubmitting(false);
     }
@@ -1232,8 +1233,8 @@ function TemplateFormModal({
 
   return (
     <ModalFrame
-      title={isEdit ? "Cap nhat mau giao an" : "Tao mau giao an"}
-      subtitle={isEdit ? "Chinh sua thong tin template hien co." : "Tao kho template theo program + level + session index."}
+      title={isEdit ? "Cập nhật mẫu giáo án" : "Tạo mẫu giáo án"}
+      subtitle={isEdit ? "Chỉnh sửa thông tin template hiện có." : "Tạo kho template theo program + level + session index."}
       icon={FolderOpen}
       onClose={onClose}
     >
@@ -1247,7 +1248,7 @@ function TemplateFormModal({
               disabled={isEdit}
               className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:bg-gray-50 disabled:text-gray-500"
             >
-              <option value="">Chon program</option>
+              <option value="">Chọn program</option>
               {programOptions.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
@@ -1261,11 +1262,11 @@ function TemplateFormModal({
               value={level}
               onChange={(event) => setLevel(event.target.value)}
               className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-              placeholder="Vi du: 1, Beginner, A1"
+              placeholder="Ví dụ: 1, Beginner, A1"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Tieu de</label>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Tiêu đề</label>
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -1296,10 +1297,10 @@ function TemplateFormModal({
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Tai file mau</label>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Tải file mẫu</label>
             <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-red-200 bg-red-50/50 px-4 py-3 text-sm text-gray-600 transition-colors hover:bg-red-50">
               <Upload size={16} className="text-red-600" />
-              <span>{selectedFile ? selectedFile.name : "Chon file de upload vao attachment"}</span>
+              <span>{selectedFile ? selectedFile.name : "Chọn file để upload vào attachment"}</span>
               <input
                 type="file"
                 className="hidden"
@@ -1311,7 +1312,7 @@ function TemplateFormModal({
 
         {isEdit ? (
           <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Trang thai</label>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Trạng thái</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -1321,7 +1322,7 @@ function TemplateFormModal({
                   isActive ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-red-200 bg-white text-gray-700"
                 )}
               >
-                Dang hoat dong
+                Đang hoạt động
               </button>
               <button
                 type="button"
@@ -1331,7 +1332,7 @@ function TemplateFormModal({
                   !isActive ? "border-gray-300 bg-gray-50 text-gray-700" : "border-red-200 bg-white text-gray-700"
                 )}
               >
-                Tam an
+                Tạm ẩn
               </button>
             </div>
           </div>
@@ -1345,7 +1346,7 @@ function TemplateFormModal({
             onClick={onClose}
             className="rounded-xl border border-red-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 cursor-pointer"
           >
-            Huy
+            Hủy
           </button>
           <button
             type="submit"
@@ -1353,7 +1354,7 @@ function TemplateFormModal({
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {isEdit ? "Luu thay doi" : "Tao mau giao an"}
+            {isEdit ? "Lưu thay đổi" : "Tạo mẫu giáo án"}
           </button>
         </div>
       </form>
@@ -1402,7 +1403,7 @@ function PlanFormModal({
   useEffect(() => {
     if (classId) {
       onLoadSessions(classId).catch((sessionError: any) => {
-        setError(sessionError?.message || "Khong the tai danh sach buoi hoc.");
+        setError(sessionError?.message || "Không thể tải danh sách buổi học.");
       });
     }
   }, [classId, onLoadSessions]);
@@ -1412,17 +1413,17 @@ function PlanFormModal({
     setError(null);
 
     if (!classId) {
-      setError("Vui long chon lop hoc.");
+      setError("Vui lòng chọn lớp học.");
       return;
     }
 
     if (!sessionId) {
-      setError("Vui long chon buoi hoc.");
+      setError("Vui lòng chọn buổi học.");
       return;
     }
 
     if (!plannedContent.trim()) {
-      setError("Vui long nhap noi dung du kien.");
+      setError("Vui lòng nhập nội dung dự kiến.");
       return;
     }
 
@@ -1439,7 +1440,7 @@ function PlanFormModal({
         teacherNotes: teacherNotes.trim() || undefined,
       });
     } catch (submitError: any) {
-      setError(submitError?.message || "Khong the luu lesson plan.");
+      setError(submitError?.message || "Không thể lưu lesson plan.");
     } finally {
       setSubmitting(false);
     }
@@ -1447,8 +1448,8 @@ function PlanFormModal({
 
   return (
     <ModalFrame
-      title={isEdit ? "Cap nhat lesson plan" : "Tao lesson plan theo buoi"}
-      subtitle={isEdit ? "Cap nhat noi dung du kien, thuc te va ghi chu giao vien." : "Gan lesson plan vao lop hoc va buoi hoc cu the."}
+      title={isEdit ? "Cập nhật lesson plan" : "Tạo lesson plan theo buổi"}
+      subtitle={isEdit ? "Cập nhật nội dung dự kiến, thực tế và ghi chú giáo viên." : "Gắn lesson plan vào lớp học và buổi học cụ thể."}
       icon={FilePlus2}
       onClose={onClose}
       widthClass="max-w-4xl"
@@ -1456,7 +1457,7 @@ function PlanFormModal({
       <form onSubmit={handleSubmit} className="space-y-5 p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Lop hoc</label>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Lớp học</label>
             <select
               value={classId}
               onChange={(event) => {
@@ -1468,7 +1469,7 @@ function PlanFormModal({
               disabled={isEdit}
               className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:bg-gray-50 disabled:text-gray-500"
             >
-              <option value="">Chon lop hoc</option>
+              <option value="">Chọn lớp học</option>
               {classOptions.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
@@ -1477,14 +1478,14 @@ function PlanFormModal({
             </select>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Buoi hoc</label>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Buổi học</label>
             <select
               value={sessionId}
               onChange={(event) => setSessionId(event.target.value)}
               disabled={!classId || isEdit}
               className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:bg-gray-50 disabled:text-gray-500"
             >
-              <option value="">{classId ? "Chon buoi hoc" : "Chon lop truoc"}</option>
+              <option value="">{classId ? "Chọn buổi học" : "Chọn lớp trước"}</option>
               {sessionOptions.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
@@ -1495,13 +1496,13 @@ function PlanFormModal({
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-700">Template (tuy chon)</label>
+          <label className="mb-2 block text-sm font-semibold text-gray-700">Template (tùy chọn)</label>
           <select
             value={templateId}
             onChange={(event) => setTemplateId(event.target.value)}
             className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
           >
-            <option value="">Khong gan template</option>
+            <option value="">Không gắn template</option>
             {templateOptions.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.label}
@@ -1510,25 +1511,25 @@ function PlanFormModal({
           </select>
         </div>
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-700">Noi dung du kien</label>
+          <label className="mb-2 block text-sm font-semibold text-gray-700">Nội dung dự kiến</label>
           <textarea
             value={plannedContent}
             onChange={(event) => setPlannedContent(event.target.value)}
             rows={4}
             className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-            placeholder="Nhap planned content..."
+            placeholder="Nhập planned content..."
           />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Noi dung thuc te</label>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Nội dung thực tế</label>
             <textarea
               value={actualContent}
               onChange={(event) => setActualContent(event.target.value)}
               rows={4}
               className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-              placeholder="Nhap actual content..."
+              placeholder="Nhập actual content..."
             />
           </div>
           <div>
@@ -1538,19 +1539,19 @@ function PlanFormModal({
               onChange={(event) => setActualHomework(event.target.value)}
               rows={4}
               className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-              placeholder="Nhap bai tap ve nha..."
+              placeholder="Nhập bài tập về nhà..."
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-700">Ghi chu giao vien</label>
+          <label className="mb-2 block text-sm font-semibold text-gray-700">Ghi chú giáo viên</label>
           <textarea
             value={teacherNotes}
             onChange={(event) => setTeacherNotes(event.target.value)}
             rows={3}
             className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-            placeholder="Nhap teacher notes..."
+            placeholder="Nhập teacher notes..."
           />
         </div>
 
@@ -1562,7 +1563,7 @@ function PlanFormModal({
             onClick={onClose}
             className="rounded-xl border border-red-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 cursor-pointer"
           >
-            Huy
+            Hủy
           </button>
           <button
             type="submit"
@@ -1570,7 +1571,7 @@ function PlanFormModal({
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {isEdit ? "Luu lesson plan" : "Tao lesson plan"}
+            {isEdit ? "Lưu lesson plan" : "Tạo lesson plan"}
           </button>
         </div>
       </form>
@@ -1594,21 +1595,21 @@ function DetailModal({
 
     return (
       <ModalFrame
-        title="Chi tiet mau giao an"
-        subtitle="Thong tin template dang duoc luu trong thu vien."
+        title="Chi tiết mẫu giáo án"
+        subtitle="Thông tin template đang được lưu trong thư viện."
         icon={FolderOpen}
         onClose={onClose}
       >
         <div className="space-y-5 p-6">
           <div className="grid gap-4 md:grid-cols-2">
             <InfoCard icon={BookOpenCheck} label="Program" value={item.programName || item.programId || "-"} />
-            <InfoCard icon={GraduationCap} label="Level / Buoi" value={`Level ${item.level || "-"} • Buoi ${item.sessionIndex || "-"}`} />
-            <InfoCard icon={Users} label="Nguoi tao" value={item.createdByName || "-"} />
-            <InfoCard icon={CalendarDays} label="Cap nhat" value={formatDate(item.updatedAt || item.createdAt, true)} />
+            <InfoCard icon={GraduationCap} label="Level / Buổi" value={`Level ${item.level || "-"} • Buổi ${item.sessionIndex || "-"}`} />
+            <InfoCard icon={Users} label="Người tạo" value={item.createdByName || "-"} />
+            <InfoCard icon={CalendarDays} label="Cập nhật" value={formatDate(item.updatedAt || item.createdAt, true)} />
           </div>
 
           <div className="rounded-2xl border border-red-100 bg-white p-5">
-            <div className="mb-2 text-sm font-semibold text-red-600">Tieu de</div>
+            <div className="mb-2 text-sm font-semibold text-red-600">Tiêu đề</div>
             <div className="text-gray-900">{item.title}</div>
           </div>
 
@@ -1622,11 +1623,11 @@ function DetailModal({
                   className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
                 >
                   <Paperclip size={12} />
-                  Mo file
+                  Mở file
                 </button>
               ) : null}
             </div>
-            <div className="text-sm text-gray-700">{item.attachment || "Chua co file dinh kem"}</div>
+            <div className="text-sm text-gray-700">{item.attachment || "Chưa có file đính kèm"}</div>
           </div>
 
           <div className="flex items-center justify-end border-t border-red-100 pt-4">
@@ -1635,7 +1636,7 @@ function DetailModal({
               onClick={onClose}
               className="rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
             >
-              Dong
+              Đóng
             </button>
           </div>
         </div>
@@ -1647,29 +1648,29 @@ function DetailModal({
 
   return (
     <ModalFrame
-      title="Chi tiet lesson plan"
-      subtitle="Tong hop noi dung du kien, thuc te va lien ket template."
+      title="Chi tiết lesson plan"
+      subtitle="Tổng hợp nội dung dự kiến, thực tế và liên kết template."
       icon={FileText}
       onClose={onClose}
       widthClass="max-w-4xl"
     >
       <div className="space-y-5 p-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <InfoCard icon={Users} label="Lop hoc" value={item.classCode || item.classTitle || "-"} />
-          <InfoCard icon={CalendarDays} label="Buoi hoc" value={item.sessionTitle || "-"} />
-          <InfoCard icon={ShieldCheck} label="Nguoi nop" value={item.submittedByName || "-"} />
-          <InfoCard icon={Clock3} label="Thoi gian" value={formatDate(item.submittedAt || item.updatedAt || item.createdAt, true)} />
+          <InfoCard icon={Users} label="Lớp học" value={item.classCode || item.classTitle || "-"} />
+          <InfoCard icon={CalendarDays} label="Buổi học" value={item.sessionTitle || "-"} />
+          <InfoCard icon={ShieldCheck} label="Người nộp" value={item.submittedByName || "-"} />
+          <InfoCard icon={Clock3} label="Thời gian" value={formatDate(item.submittedAt || item.updatedAt || item.createdAt, true)} />
         </div>
 
         <div className="grid gap-5 lg:grid-cols-2">
-          <ContentCard title="Noi dung du kien" content={item.plannedContent} accent="text-red-600" />
-          <ContentCard title="Noi dung thuc te" content={item.actualContent} accent="text-emerald-600" />
+          <ContentCard title="Nội dung dự kiến" content={item.plannedContent} accent="text-red-600" />
+          <ContentCard title="Nội dung thực tế" content={item.actualContent} accent="text-emerald-600" />
           <ContentCard title="Homework" content={item.actualHomework} accent="text-amber-600" />
-          <ContentCard title="Ghi chu giao vien" content={item.teacherNotes} accent="text-gray-600" />
+          <ContentCard title="Ghi chú giáo viên" content={item.teacherNotes} accent="text-gray-600" />
         </div>
         <div className="rounded-2xl border border-red-100 bg-white p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold text-red-600">Template lien ket</div>
+            <div className="text-sm font-semibold text-red-600">Template liên kết</div>
             {linkedTemplate?.attachment ? (
               <button
                 type="button"
@@ -1677,22 +1678,22 @@ function DetailModal({
                 className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
               >
                 <Paperclip size={12} />
-                Mo file mau
+                Mở file mẫu
               </button>
             ) : null}
           </div>
           {item.templateId ? (
             <div className="space-y-1 text-sm text-gray-700">
-              <div>{linkedTemplate?.title || item.templateTitle || "Template da gan"}</div>
+              <div>{linkedTemplate?.title || item.templateTitle || "Template đã gắn"}</div>
               <div className="text-gray-500">
-                {item.templateLevel ? `Level ${item.templateLevel}` : linkedTemplate?.level ? `Level ${linkedTemplate.level}` : "Khong co level"}
+                {item.templateLevel ? `Level ${item.templateLevel}` : linkedTemplate?.level ? `Level ${linkedTemplate.level}` : "Không có level"}
                 {item.templateSessionIndex || linkedTemplate?.sessionIndex
-                  ? ` • Buoi ${item.templateSessionIndex || linkedTemplate?.sessionIndex}`
+                  ? ` • Buổi ${item.templateSessionIndex || linkedTemplate?.sessionIndex}`
                   : ""}
               </div>
             </div>
           ) : (
-            <div className="text-sm text-gray-500">Lesson plan nay chua gan template.</div>
+            <div className="text-sm text-gray-500">Lesson plan này chưa gắn template.</div>
           )}
         </div>
 
@@ -1702,7 +1703,7 @@ function DetailModal({
             onClick={onClose}
             className="rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
           >
-            Dong
+            Đóng
           </button>
         </div>
       </div>
@@ -1731,7 +1732,7 @@ function DeleteModal({
     try {
       await onConfirm();
     } catch (confirmError: any) {
-      setError(confirmError?.message || "Khong the xoa du lieu.");
+      setError(confirmError?.message || "Không thể xóa dữ liệu.");
     } finally {
       setSubmitting(false);
     }
@@ -1740,14 +1741,14 @@ function DeleteModal({
   return (
     <ModalFrame
       title={title}
-      subtitle="Hanh dong nay khong the hoan tac."
+      subtitle="Hành động này không thể hoàn tác."
       icon={AlertTriangle}
       onClose={onClose}
       widthClass="max-w-md"
     >
       <div className="space-y-5 p-6">
         <div className="rounded-2xl border border-red-100 bg-red-50/60 p-4 text-sm text-gray-700">
-          Ban dang xoa: <span className="font-semibold text-gray-900">{name}</span>
+          Bạn đang xóa: <span className="font-semibold text-gray-900">{name}</span>
         </div>
 
         {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div> : null}
@@ -1758,7 +1759,7 @@ function DeleteModal({
             onClick={onClose}
             className="rounded-xl border border-red-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 cursor-pointer"
           >
-            Huy
+            Hủy
           </button>
           <button
             type="button"
@@ -1767,7 +1768,7 @@ function DeleteModal({
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {submitting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-            Xoa
+            Xóa
           </button>
         </div>
       </div>
@@ -1807,7 +1808,7 @@ function ContentCard({
   return (
     <div className="rounded-2xl border border-red-100 bg-white p-5">
       <div className={cn("mb-2 text-sm font-semibold", accent)}>{title}</div>
-      <div className="whitespace-pre-wrap text-sm leading-6 text-gray-700">{content || "Chua co noi dung."}</div>
+      <div className="whitespace-pre-wrap text-sm leading-6 text-gray-700">{content || "Chưa có nội dung."}</div>
     </div>
   );
 }
