@@ -699,7 +699,7 @@ export default function ParentAttendancePage() {
       const responseStatus = normalizeStatus((createdRecord as LeaveRequestRecord | undefined)?.status);
       setSuccessMessage(
         responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
-          ? "Đã tạo đơn xin nghỉ. Đơn đã được duyệt; nếu có makeup credit, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
+          ? "Đã tạo đơn xin nghỉ. Đơn đã được duyệt; nếu có lượt học bù, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
           : "Đã tạo đơn xin nghỉ."
       );
       closeCreateModal();
@@ -939,7 +939,7 @@ export default function ParentAttendancePage() {
             {makeupLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
             {!makeupLoading && makeupCreditSummary.available > 0 ? (
               <div className="mt-1 text-sm text-amber-700">
-                Còn {makeupCreditSummary.available}/{makeupCreditSummary.total} makeup credit chưa xếp lịch. Buổi bù chỉ xuất hiện ở đây sau khi credit được gắn vào một buổi cụ thể.
+                Còn {makeupCreditSummary.available}/{makeupCreditSummary.total} lượt học bù chưa đặt lịch. Buổi bù chỉ xuất hiện ở đây sau khi phụ huynh chọn lịch cho từng lượt.
               </div>
             ) : null}
           </div>
@@ -1003,7 +1003,7 @@ export default function ParentAttendancePage() {
                     : m.usedAt
                       ? "Buổi bù này đã được sử dụng, không thể đổi lịch."
                       : !m.makeupCreditId
-                        ? "Không thể đổi lịch vì thiếu makeup credit."
+                        ? "Không thể đổi lịch vì chưa xác định được lượt học bù."
                         : !targetClassId
                           ? "Không thể đổi lịch vì chưa xác định được lớp bù hiện tại."
                           : "Không thể đổi lịch khi buổi đã tới hoặc đã qua.";
@@ -1087,7 +1087,7 @@ export default function ParentAttendancePage() {
           }
           setSuccessMessage(
             responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
-              ? "Đã tạo đơn xin nghỉ. Đơn đã được duyệt; nếu có makeup credit, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
+              ? "Đã tạo đơn xin nghỉ. Đơn đã được duyệt; nếu có lượt học bù, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
               : "Đã tạo đơn xin nghỉ."
           );
         }}

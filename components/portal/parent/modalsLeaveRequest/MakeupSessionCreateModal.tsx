@@ -370,7 +370,7 @@ export default function MakeupSessionCreateModal({
   initialTargetSessionDateTime = null,
 }: Props) {
   const isChangeMode = !!initialMakeupCreditId;
-  const shouldLoadSessionsFirst = isChangeMode;
+  const shouldLoadSessionsFirst = true;
   const lockedTargetClassId: string | null = null;
   const lockedTargetClassLabel = preferredTargetClassLabel;
   const [submitting, setSubmitting] = useState(false);
@@ -512,7 +512,7 @@ export default function MakeupSessionCreateModal({
         const list = (api?.items ?? api?.students ?? api) as any[];
         setStudents(Array.isArray(list) ? list : []);
       } catch {
-        setError("Không thể tải danh sách học viên có quyền học bù.");
+        setError("Không thể tải danh sách học viên có lượt học bù.");
       } finally {
         setStudentsLoading(false);
       }
@@ -587,7 +587,7 @@ export default function MakeupSessionCreateModal({
 
         setCredits(deduped.filter((credit) => isSelectableCredit(credit, initialMakeupCreditId)));
       } catch {
-        setError("Không thể tải danh sách quyền học bù của học viên.");
+        setError("Không thể tải danh sách lượt học bù của học viên.");
       } finally {
         setCreditsLoading(false);
       }
@@ -671,6 +671,8 @@ export default function MakeupSessionCreateModal({
         fromClassId: "",
         targetClassId: preferredTargetClassId ?? "",
         targetSessionId: "",
+        date: "",
+        time: "",
       }));
 
       try {
@@ -868,7 +870,7 @@ export default function MakeupSessionCreateModal({
         formatDateVN(creditSourceSessionDate(c));
       const status = [
         creditStatusLabel(creditStatus(c) || "AVAILABLE"),
-        sourceDate ? `Buoi nghi: ${sourceDate}` : "",
+        sourceDate ? `Buổi nghỉ: ${sourceDate}` : "",
       ]
         .filter(Boolean)
         .join(" • ");
@@ -965,9 +967,7 @@ export default function MakeupSessionCreateModal({
       payload.studentProfileId &&
       payload.makeupCreditId &&
       payload.targetClassId &&
-      payload.targetSessionId &&
-      payload.date &&
-      payload.time
+      payload.targetSessionId
     );
   }, [payload]);
 
@@ -1034,6 +1034,27 @@ export default function MakeupSessionCreateModal({
   const isClassLoading = shouldEnableManual ? allClassesLoading : suggestionsLoading;
   const sessionsToShow = shouldEnableManual ? manualSessions : filteredSessions;
   const isSessionsLoading = shouldEnableManual ? manualSessionsLoading : suggestionsLoading;
+  const selectedTargetClassLabel =
+    classOptionsToShow.find((item) => item.id === payload.targetClassId)?.label ??
+    lockedTargetClassLabel ??
+    payload.targetClassId;
+  const selectedTargetSessionLabel = (() => {
+    const selectedSession = sessionsToShow.find(
+      (session: any) => suggestionSessionId(session) === payload.targetSessionId
+    );
+    if (!selectedSession) return payload.targetSessionId;
+
+    const code = suggestionClassCode(selectedSession);
+    const name = suggestionClassName(selectedSession);
+    const planned = suggestionPlannedDatetime(selectedSession);
+
+    return [
+      [code, name].filter(Boolean).join(" - "),
+      planned ? formatDateTimeVN(planned) : "",
+    ]
+      .filter(Boolean)
+      .join(" • ");
+  })();
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
@@ -1149,7 +1170,7 @@ export default function MakeupSessionCreateModal({
                           ? "Đang tải danh sách buổi nghỉ..."
                           : creditOptions.length
                             ? "Chọn buổi nghỉ cần xếp học bù"
-                            : "Chưa có quyền học bù khả dụng"}
+                            : "Chưa có lượt học bù khả dụng"}
                     </option>
                     {creditOptions.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -1205,50 +1226,6 @@ export default function MakeupSessionCreateModal({
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                    <Calendar size={16} className="text-red-600" />
-                    Ngày học bù
-                  </div>
-                  <input
-                    type="date"
-                    className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed cursor-pointer"
-                    value={payload.date}
-                    disabled={shouldLoadSessionsFirst}
-                    onChange={(e) =>
-                      setPayload((p) => ({
-                        ...p,
-                        date: e.target.value,
-                        targetClassId: preferredTargetClassId ?? "",
-                        targetSessionId: "",
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                    <Clock size={16} className="text-red-600" />
-                    Giờ dự kiến
-                  </div>
-                  <input
-                    type="time"
-                    className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed cursor-pointer"
-                    value={payload.time}
-                    disabled={shouldLoadSessionsFirst}
-                    onChange={(e) =>
-                      setPayload((p) => ({
-                        ...p,
-                        time: e.target.value,
-                        targetClassId: preferredTargetClassId ?? "",
-                        targetSessionId: "",
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
                   <div className="text-sm font-semibold text-gray-800">Bước 2 • Chọn lớp bù</div>
                   {lockedTargetClassId ? (
                     <div className="rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800">
@@ -1265,6 +1242,8 @@ export default function MakeupSessionCreateModal({
                             ...p,
                             targetClassId: e.target.value,
                             targetSessionId: "",
+                            date: "",
+                            time: "",
                           }))
                         }
                       >
@@ -1300,14 +1279,11 @@ export default function MakeupSessionCreateModal({
                   )}
                   <div className="text-xs text-gray-500">
                     {isChangeMode && !shouldEnableManual ? (
-                      <>Chỉ hiển thị các buổi thuộc chương trình bù đã được xếp cho credit này.</>
+                      <>Chỉ hiển thị các lớp và buổi khác còn chỗ trong cùng chương trình bù này.</>
                     ) : shouldEnableManual ? (
-                      <>Không có gợi ý, bạn có thể chọn lớp bất kỳ để bù.</>
+                      <>Hiện chưa có gợi ý tự động, bạn có thể chọn lớp bất kỳ để bù.</>
                     ) : (
-                      <>
-                        Gợi ý theo: <b>ngày {payload.date || "(chưa chọn)"}</b>,{" "}
-                        <b>buổi {deriveTimeOfDay(payload.time) || "(n/a)"}</b>
-                      </>
+                      <>Chọn lớp bù trước, sau đó chọn buổi bù. Ngày và giờ sẽ tự điền theo buổi đã chọn.</>
                     )}
                   </div>
                 </div>
@@ -1387,6 +1363,28 @@ export default function MakeupSessionCreateModal({
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <Calendar size={16} className="text-red-600" />
+                    Ngày học bù
+                  </div>
+                  <div className="flex h-11 items-center rounded-xl border border-red-300 bg-gray-50 px-4 text-sm text-gray-700">
+                    {payload.date ? formatDateVN(payload.date) : "Chọn buổi bù để xem ngày học"}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <Clock size={16} className="text-red-600" />
+                    Giờ học bù
+                  </div>
+                  <div className="flex h-11 items-center rounded-xl border border-red-300 bg-gray-50 px-4 text-sm text-gray-700">
+                    {payload.time || "Chọn buổi bù để xem giờ học"}
+                  </div>
+                </div>
+              </div>
+
               {!suggestionsLoading &&
               !shouldLoadSessionsFirst &&
               !allowManualFallback &&
@@ -1418,16 +1416,16 @@ export default function MakeupSessionCreateModal({
                   Học viên: <b>{selectedStudentName || "?"}</b>
                 </div>
                 <div>
-                  Credit: <b>{selectedCreditLabel || "?"}</b>
+                  Buổi nghỉ đã duyệt: <b>{selectedCreditLabel || "?"}</b>
                 </div>
                 <div>
                   Lớp nguồn: <b>{sourceClassDisplay(sourceSession) || "?"}</b>
                 </div>
                 <div>
-                  Lớp bù: <b>{payload.targetClassId || "?"}</b>
+                  Lớp bù: <b>{selectedTargetClassLabel || "?"}</b>
                 </div>
                 <div>
-                  Buổi bù: <b>{payload.targetSessionId || "?"}</b>
+                  Buổi bù: <b>{selectedTargetSessionLabel || "?"}</b>
                 </div>
                 <div>
                   Ngày/Giờ:{" "}
@@ -1506,10 +1504,10 @@ export default function MakeupSessionCreateModal({
             )}
           </div>
 
-          {step === 2 && !shouldLoadSessionsFirst && (
+          {step === 2 && (
             <div className="text-xs text-gray-500 p-3 rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
-              Gợi ý buổi bù phụ thuộc <b>ngày</b> + <b>buổi</b>. Nếu không có gợi ý, bạn có thể chọn
-              lớp/buổi bất kỳ.
+              Chọn <b>lớp bù</b> trước, sau đó chọn <b>buổi bù</b>. Hệ thống sẽ tự điền
+              <b> ngày</b> và <b>giờ</b> theo buổi bạn đã chọn.
             </div>
           )}
         </div>
