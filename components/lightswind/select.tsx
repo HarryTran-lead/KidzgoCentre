@@ -13,6 +13,7 @@ interface SelectContextType {
   triggerRef: React.RefObject<HTMLButtonElement>;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  selectedOptionLabel: React.ReactNode;
 }
 
 const SelectContext = React.createContext<SelectContextType | undefined>(
@@ -29,6 +30,39 @@ interface SelectProps {
   onOpenChange?: (open: boolean) => void;
   disabled?: boolean;
 }
+
+const findSelectedOptionLabel = (
+  nodes: React.ReactNode,
+  selectedValue: string
+): React.ReactNode | null => {
+  if (!selectedValue) return null;
+
+  let matchedLabel: React.ReactNode | null = null;
+
+  const traverse = (items: React.ReactNode) => {
+    React.Children.forEach(items, (item) => {
+      if (matchedLabel !== null) return;
+      if (!React.isValidElement(item)) return;
+
+      const element = item as React.ReactElement<any>;
+      const elementType = element.type as any;
+      if (
+        elementType?.displayName === "SelectItem" &&
+        element.props.value === selectedValue
+      ) {
+        matchedLabel = element.props.children;
+        return;
+      }
+
+      if (element.props?.children) {
+        traverse(element.props.children);
+      }
+    });
+  };
+
+  traverse(nodes);
+  return matchedLabel;
+};
 
 const Select: React.FC<SelectProps> = ({
   children,
@@ -65,6 +99,11 @@ const Select: React.FC<SelectProps> = ({
     }
   }, [isOpen]);
 
+  const selectedOptionLabel = React.useMemo(
+    () => findSelectedOptionLabel(children, selectedValue),
+    [children, selectedValue]
+  );
+
   const handleValueChange = React.useCallback(
     (newValue: string) => {
       if (value === undefined) {
@@ -97,6 +136,7 @@ const Select: React.FC<SelectProps> = ({
         triggerRef,
         searchQuery,
         setSearchQuery,
+        selectedOptionLabel,
       }}
     >
       {children}
@@ -126,37 +166,11 @@ const SelectValue = React.forwardRef<HTMLSpanElement, SelectValueProps>(
     if (!context) {
       throw new Error("SelectValue must be used within a Select");
     }
-    // This is a bit of a hack to get the children from the parent Select component.
-    // A better implementation would involve passing a map of values to display labels via context.
-    // For simplicity, we are assuming children are passed directly or can be inferred.
-    const parentChildren =
-      (context as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED
-        ?.children || children;
-
-    let displayValue: React.ReactNode = null;
-
-    const findDisplayValue = (nodes: React.ReactNode) => {
-      React.Children.forEach(nodes, (node) => {
-        if (!React.isValidElement(node)) return;
-        if (displayValue) return;
-
-        // Check if it's a SelectItem
-        if (
-          (node.type as any).displayName === "SelectItem" &&
-          node.props.value === context.value
-        ) {
-          displayValue = node.props.children;
-        }
-        // Check if it's a SelectGroup and recurse
-        else if ((node.type as any).displayName === "SelectGroup") {
-          findDisplayValue(node.props.children);
-        }
-      });
-    };
-
-    findDisplayValue(parentChildren);
-
-    const content = displayValue || context.value || placeholder;
+    const content =
+      children ||
+      context.selectedOptionLabel ||
+      (context.value ? null : placeholder) ||
+      null;
 
     return (
       <span ref={ref} className={cn("text-sm", className)} {...props}>
@@ -453,9 +467,9 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
         {open && (
           <motion.div
             ref={combinedRef}
-            style={calculatedStyle}
+            style={{ ...calculatedStyle, zIndex: 99999 }}
             className={cn(
-              "z-[99999] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
+              "overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
               position === "popper" &&
                 "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
               className

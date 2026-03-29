@@ -11,9 +11,9 @@ import {
   Edit,
   Eye,
   FileText,
-  UserCheck,
   UserPlus,
   School,
+  RotateCcw,
   Ban,
   MessageSquare,
   ChevronLeft,
@@ -50,9 +50,9 @@ interface PlacementTestTableProps {
   onAddNote?: (test: PlacementTest) => void;
   onCancel?: (test: PlacementTest) => void;
   onNoShow?: (test: PlacementTest) => void;
-  onConvertToEnrolled?: (test: PlacementTest) => void;
   onCreateAccount?: (test: PlacementTest) => void;
   onStartRegistration?: (test: PlacementTest) => void;
+  onRetake?: (test: PlacementTest) => void;
 }
 
 export default function PlacementTestTable({
@@ -73,9 +73,9 @@ export default function PlacementTestTable({
   onAddNote,
   onCancel,
   onNoShow,
-  onConvertToEnrolled,
   onCreateAccount,
   onStartRegistration,
+  onRetake,
 }: PlacementTestTableProps) {
   const testsArray = Array.isArray(tests) ? tests : [];
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -316,6 +316,10 @@ export default function PlacementTestTable({
                               />
                               {/* Menu */}
                               <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl border border-red-200 bg-white shadow-lg py-1">
+                                {(() => {
+                                  const shouldShowCreateAccount = !test.isAccountProfileCreated;
+                                  return (
+                                    <>
                                 {test.status === "Scheduled" && (
                                   <>
                                     {onNoShow && (
@@ -347,16 +351,7 @@ export default function PlacementTestTable({
                                     Thêm ghi chú
                                   </button>
                                 )}
-                                {test.status === "Completed" && onConvertToEnrolled && (
-                                  <button
-                                    onClick={() => { onConvertToEnrolled(test); setOpenMenuId(null); }}
-                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
-                                  >
-                                    <UserCheck size={14} />
-                                    Chuyển thành học viên
-                                  </button>
-                                )}
-                                {test.status === "Completed" && onCreateAccount && (
+                                {test.status === "Completed" && shouldShowCreateAccount && onCreateAccount && (
                                   <button
                                     onClick={() => { onCreateAccount(test); setOpenMenuId(null); }}
                                     className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
@@ -374,6 +369,18 @@ export default function PlacementTestTable({
                                     Bắt đầu đăng ký
                                   </button>
                                 )}
+                                {test.status === "Completed" && onRetake && (
+                                  <button
+                                    onClick={() => { onRetake(test); setOpenMenuId(null); }}
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                  >
+                                    <RotateCcw size={14} />
+                                    Retake
+                                  </button>
+                                )}
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </>
                           )}
@@ -443,4 +450,3 @@ export default function PlacementTestTable({
     </div>
   );
 }
-0

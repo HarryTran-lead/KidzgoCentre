@@ -1,5 +1,6 @@
 export type RegistrationStatus = "New" | "WaitingForClass" | "Studying" | "Paused" | "Completed" | "Cancelled";
 
+export type EntryType = "Immediate" | "Wait" | "Makeup" | "Retake";
 export interface RegistrationRequest {
   studentProfileId: string;
   branchId: string;
@@ -19,7 +20,7 @@ export interface UpdateRegistrationRequest {
 
 export interface AssignClassRequest {
   classId?: string | null;
-  entryType?: "Immediate" | "Wait";
+  entryType?: EntryType;
 }
 
 export interface Registration {

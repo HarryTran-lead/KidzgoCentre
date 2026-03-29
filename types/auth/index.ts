@@ -71,17 +71,8 @@ export interface UserProfile {
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
-  expiresIn: number;
-  tokenType: string;
-  user: {
-    id: string;
-    email: string;
-    fullName: string;
-    role: string;
-    isActive: boolean;
-    branchId?: string;
-  };
-  profiles?: UserProfile[];
+  role: number;
+  userId: string;
 }
 
 // Refresh Token Response

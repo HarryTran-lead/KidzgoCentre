@@ -482,7 +482,7 @@ export default function AdminRegistrationsPage() {
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <div className="text-xs text-gray-500">Học viên</div>
-                <div className="text-sm font-semibold text-gray-900">{selectedDetail.studentName || "-"}</div>
+                <div className="text-sm font-semibold text-gray-900">{selectedDetail.studentName}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500">Trạng thái</div>

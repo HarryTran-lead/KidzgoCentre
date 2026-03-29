@@ -4,9 +4,19 @@ import { useState, useEffect } from "react";
 import { X, User, Mail, Phone, MessageSquare, Building, Tag } from "lucide-react";
 import { createLead, updateLead } from "@/lib/api/leadService";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
+import { getAllProgramsForDropdown } from "@/lib/api/programService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import type { Lead } from "@/types/lead";
 import type { Branch } from "@/types/branch";
+import type { Program } from "@/types/admin/programs";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
 
@@ -21,6 +31,8 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [isProgramsLoading, setIsProgramsLoading] = useState(false);
   const [formData, setFormData] = useState({
     contactName: "",
     email: "",
@@ -52,6 +64,25 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
     
     fetchBranches();
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchPrograms = async () => {
+      try {
+        setIsProgramsLoading(true);
+        const response = await getAllProgramsForDropdown(formData.branchPreference || undefined);
+        setPrograms(response.filter((program) => program.isActive !== false));
+      } catch (error) {
+        console.error("Error fetching programs:", error);
+        setPrograms([]);
+      } finally {
+        setIsProgramsLoading(false);
+      }
+    };
+
+    fetchPrograms();
+  }, [isOpen, formData.branchPreference]);
 
   useEffect(() => {
     if (lead) {
@@ -126,7 +157,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
       console.error("Error saving lead:", error);
       toast({
         title: "Lỗi",
-        description: error.response?.data?.message || "Không thể lưu thông tin lead",
+        description: getDomainErrorMessage(error, "Không thể lưu thông tin lead"),
         variant: "destructive",
       });
     } finally {
@@ -149,7 +180,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
       `}</style>
       <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl hide-scrollbar">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 z-10 bg-linear-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">
             {lead ? "Chỉnh sửa Lead" : "Tạo Lead mới"}
           </h2>
@@ -288,31 +319,64 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Chi nhánh mong muốn
                 </label>
-                <select
-                  value={formData.branchPreference}
-                  onChange={(e) => setFormData({ ...formData, branchPreference: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
+                <Select
+                  value={formData.branchPreference || ""}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      branchPreference: value,
+                      programInterest: "",
+                    })
+                  }
                 >
-                  <option value="">Chọn chi nhánh</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10.5 rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200">
+                    <SelectValue placeholder="Chọn chi nhánh" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn chi nhánh</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Chương trình quan tâm
                 </label>
-                <input
-                  type="text"
-                  value={formData.programInterest}
-                  onChange={(e) => setFormData({ ...formData, programInterest: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-                  placeholder="Chương trình học"
-                />
+                <Select
+                  value={formData.programInterest || ""}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      programInterest: value,
+                    })
+                  }
+                  disabled={isProgramsLoading || programs.length === 0}
+                >
+                  <SelectTrigger className="h-10.5 rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200">
+                    <SelectValue
+                      placeholder={
+                        isProgramsLoading
+                          ? "Đang tải chương trình..."
+                          : programs.length > 0
+                            ? "Tìm và chọn chương trình"
+                            : "Không có chương trình"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Không chọn chương trình</SelectItem>
+                    {programs.map((program) => (
+                      <SelectItem key={program.id} value={program.id}>
+                        {program.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -356,7 +420,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+              className="px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
             >
               {isSubmitting ? "Đang lưu..." : (lead ? "Cập nhật" : "Tạo mới")}
             </button>
