@@ -55,7 +55,7 @@ export default function EnrollmentFilters({
           value={String(pageSize)}
           onValueChange={(value) => onPageSizeChange(Number(value))}
         >
-          <SelectTrigger className="h-10.5 min-w-30 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+          <SelectTrigger className="h-10 w-35 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
             <SelectValue placeholder="Số dòng" />
           </SelectTrigger>
           <SelectContent>
@@ -67,7 +67,6 @@ export default function EnrollmentFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Filter size={16} className="text-gray-500" />
         <div className="inline-flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-white p-1">
           {statusOptions.map((option) => (
             <button
@@ -90,10 +89,6 @@ export default function EnrollmentFilters({
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="text-sm text-gray-600">
-        Hiển thị <span className="font-semibold text-red-600">{totalCount}</span> ghi danh
       </div>
     </div>
   );

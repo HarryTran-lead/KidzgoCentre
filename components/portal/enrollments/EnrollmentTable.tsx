@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   BookOpen,
+  RefreshCw,
 } from "lucide-react";
 import { useState } from "react";
 import type { Enrollment } from "@/types/enrollment";
@@ -41,6 +42,7 @@ interface EnrollmentTableProps {
   onPause?: (enrollment: Enrollment) => void;
   onDrop?: (enrollment: Enrollment) => void;
   onReactivate?: (enrollment: Enrollment) => void;
+  onRefresh?: () => void;
 }
 
 export default function EnrollmentTable({
@@ -59,6 +61,7 @@ export default function EnrollmentTable({
   onPause,
   onDrop,
   onReactivate,
+  onRefresh,
 }: EnrollmentTableProps) {
   const enrollmentsArray = Array.isArray(enrollments) ? enrollments : [];
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -66,9 +69,24 @@ export default function EnrollmentTable({
   const getStatusBadge = (status: string) => {
     const statusText = STATUS_MAPPING[status as StatusType] || status;
     const statusMap: Record<string, { bg: string; text: string; border: string; icon: any }> = {
-      "Đang học": { bg: "from-red-50 to-red-100", text: "text-red-700", border: "border-red-200", icon: CheckCircle2 },
-      "Tạm nghỉ": { bg: "from-gray-50 to-gray-100", text: "text-gray-700", border: "border-gray-200", icon: PauseCircle },
-      "Đã nghỉ": { bg: "from-gray-50 to-gray-100", text: "text-gray-700", border: "border-gray-200", icon: XCircle },
+      "Đang học": {
+    bg: "from-green-50 to-green-100",
+    text: "text-green-700",
+    border: "border-green-200",
+    icon: CheckCircle2
+  },
+  "Tạm nghỉ": {
+    bg: "from-amber-50 to-amber-100",
+    text: "text-amber-700",
+    border: "border-amber-200",
+    icon: PauseCircle
+  },
+  "Đã nghỉ": {
+    bg: "from-red-50 to-red-100",
+    text: "text-red-700",
+    border: "border-red-200",
+    icon: XCircle
+  }
     };
     const config = statusMap[statusText] || statusMap["Đang học"];
     const Icon = config.icon;
@@ -153,7 +171,17 @@ export default function EnrollmentTable({
       <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Danh sách Ghi danh</h3>
-          <div className="text-sm text-gray-600">{totalCount} ghi danh</div>
+          <div className="flex items-center gap-3">
+            {onRefresh && (
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 cursor-pointer"
+              >
+                <RefreshCw size={14} /> Làm mới
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -165,8 +193,6 @@ export default function EnrollmentTable({
               <SortHeader label="Lớp" sortKeyName="classTitle" />
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Mã lớp</th>
               <SortHeader label="Ngày GD" sortKeyName="enrollDate" />
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Chương trình</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">GVCN</th>
               <SortHeader label="Trạng thái" sortKeyName="status" />
               <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Thao tác</th>
             </tr>
@@ -192,12 +218,6 @@ export default function EnrollmentTable({
                 <td className="px-4 py-3 text-gray-600">
                   {formatDate(enrollment.enrollDate)}
                 </td>
-                <td className="px-4 py-3 text-gray-600">
-                  {enrollment.programName || "N/A"}
-                </td>
-                <td className="px-4 py-3 text-gray-600">
-                  {enrollment.mainTeacherName || "N/A"}
-                </td>
                 <td className="px-4 py-3">
                   {getStatusBadge(enrollment.status)}
                 </td>
@@ -206,7 +226,7 @@ export default function EnrollmentTable({
                     <div className="relative inline-block">
                       <button
                         onClick={() => setOpenMenuId(openMenuId === enrollment.id ? null : enrollment.id)}
-                        className="p-1.5 rounded-lg hover:bg-red-100 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
                       >
                         <MoreVertical size={16} className="text-gray-500" />
                       </button>

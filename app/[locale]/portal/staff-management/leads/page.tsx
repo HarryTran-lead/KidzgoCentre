@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, type Dispatch, type SetStateAction } from "react";
 import {
   Target,
   UserPlus,
@@ -180,6 +180,8 @@ export default function Page() {
   const [debouncedTestSearchQuery, setDebouncedTestSearchQuery] = useState("");
   const [testSelectedStatus, setTestSelectedStatus] =
     useState<string>("Tất cả");
+  const [testSortKey, setTestSortKey] = useState<string | null>(null);
+  const [testSortDir, setTestSortDir] = useState<"asc" | "desc">("asc");
   const [testFromDate, setTestFromDate] = useState("");
   const [testToDate, setTestToDate] = useState("");
   const [testStatusCounts, setTestStatusCounts] = useState<
@@ -464,9 +466,12 @@ export default function Page() {
       const response = await getRegistrations({
         branchId,
         pageNumber: 1,
-        pageSize: 500,
+        pageSize: 1000,
       });
-      setRegistrationTotalCount(response.totalCount ?? response.items.length ?? 0);
+      const items = response.items || [];
+      setRegistrationTotalCount(
+        Math.max(Number(response.totalCount || 0), items.length),
+      );
     } catch (error) {
       console.error("Error fetching initial registration count:", error);
       setRegistrationTotalCount(0);
@@ -644,6 +649,37 @@ export default function Page() {
     return copy;
   }, [leads, sortKey, sortDir]);
 
+  const scopedLeadCounts = useMemo(() => {
+    const query = debouncedSearchQuery.trim().toLowerCase();
+
+    const scoped = allLeads.filter((lead) => {
+      const sourceMatched = selectedSource === "Tất cả" || lead.source === selectedSource;
+      const ownerMatched = !myLeadsOnly || lead.ownerStaffId === currentUser?.id;
+      const searchMatched =
+        !query ||
+        [
+          lead.contactName || "",
+          lead.phone || "",
+          lead.email || "",
+          lead.id || "",
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      return sourceMatched && ownerMatched && searchMatched;
+    });
+
+    const counts: Record<string, number> = {
+      "Tất cả": scoped.length,
+    };
+
+    Object.entries(STATUS_MAPPING).forEach(([engStatus, vnStatus]) => {
+      counts[vnStatus] = scoped.filter((lead) => lead.status === engStatus).length;
+    });
+
+    return counts;
+  }, [allLeads, selectedSource, myLeadsOnly, currentUser?.id, debouncedSearchQuery]);
+
   const branchScopedPlacementTests = useMemo(() => {
     return branchLeadIds !== null
       ? allPlacementTests.filter((test) => branchLeadIds.has(test.leadId))
@@ -681,6 +717,18 @@ export default function Page() {
       result = result.filter((test) => test.scheduledAt <= toDateEnd);
     }
 
+    if (testSortKey) {
+      result = [...result].sort((a: any, b: any) => {
+        const av = String(a?.[testSortKey] ?? "");
+        const bv = String(b?.[testSortKey] ?? "");
+        const compared = av.localeCompare(bv, "vi", {
+          numeric: true,
+          sensitivity: "base",
+        });
+        return testSortDir === "asc" ? compared : -compared;
+      });
+    }
+
     return result;
   }, [
     branchScopedPlacementTests,
@@ -688,6 +736,8 @@ export default function Page() {
     debouncedTestSearchQuery,
     testFromDate,
     testToDate,
+    testSortKey,
+    testSortDir,
   ]);
 
   const filteredPlacementStatusCounts = useMemo(() => {
@@ -775,15 +825,31 @@ export default function Page() {
     enrollCurrentPage * enrollPageSize,
   );
 
+  const cycleSort = (
+    key: string,
+    currentKey: string | null,
+    currentDir: "asc" | "desc",
+    setKey: Dispatch<SetStateAction<string | null>>,
+    setDir: Dispatch<SetStateAction<"asc" | "desc">>,
+    defaultDir: "asc" | "desc" = "asc",
+  ) => {
+    if (currentKey !== key) {
+      setKey(key);
+      setDir(defaultDir);
+      return;
+    }
+
+    if (currentDir === "asc") {
+      setDir("desc");
+      return;
+    }
+
+    setKey(null);
+    setDir(defaultDir);
+  };
+
   const toggleSort = (key: string) => {
-    setSortKey((prev) => {
-      if (prev !== key) {
-        setSortDir(key === "createdAt" ? "desc" : "asc");
-        return key;
-      }
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-      return prev;
-    });
+    cycleSort(key, sortKey, sortDir, setSortKey, setSortDir, key === "createdAt" ? "desc" : "asc");
   };
 
   // Modal handlers
@@ -1424,6 +1490,10 @@ export default function Page() {
     setTestCurrentPage(1);
   };
 
+  const handleTestSort = (key: string) => {
+    cycleSort(key, testSortKey, testSortDir, setTestSortKey, setTestSortDir, key === "scheduledAt" ? "desc" : "asc");
+  };
+
   // ========== Enrollment Handlers ==========
   const handleCreateEnrollment = () => {
     setIsEnrollFormModalOpen(true);
@@ -1541,12 +1611,7 @@ export default function Page() {
   };
 
   const handleEnrollSort = (key: string) => {
-    if (enrollSortKey === key) {
-      setEnrollSortDir(enrollSortDir === "asc" ? "desc" : "asc");
-    } else {
-      setEnrollSortKey(key);
-      setEnrollSortDir("asc");
-    }
+    cycleSort(key, enrollSortKey, enrollSortDir, setEnrollSortKey, setEnrollSortDir, "asc");
   };
 
   return (
@@ -1739,8 +1804,8 @@ export default function Page() {
           >
             <LeadFilters
               leads={leads}
-              totalCount={statusCounts["Tất cả"] ?? allLeads.length}
-              statusCounts={statusCounts}
+              totalCount={scopedLeadCounts["Tất cả"] ?? allLeads.length}
+              statusCounts={scopedLeadCounts}
               availableSources={availableSources}
               searchQuery={searchQuery}
               selectedStatus={selectedStatus}
@@ -1781,6 +1846,10 @@ export default function Page() {
               totalCount={totalCount}
               onPageChange={handlePageChange}
               onPageSizeChange={handlePageSizeChange}
+              onRefresh={() => {
+                fetchLeads();
+                fetchInitialData();
+              }}
             />
           </div>
         </>
@@ -1841,6 +1910,9 @@ export default function Page() {
               totalPages={placementTotalPages}
               pageSize={testPageSize}
               totalCount={placementTotalCount}
+              sortKey={testSortKey}
+              sortDir={testSortDir}
+              onSort={handleTestSort}
               onView={handleViewTest}
               onEdit={handleEditTest}
               onAddResult={handleAddResult}
@@ -1851,6 +1923,10 @@ export default function Page() {
               onStartRegistration={handleStartRegistrationFlow}
               onRetake={handleRetakeFromTable}
               onPageChange={handleTestPageChange}
+              onRefresh={() => {
+                fetchPlacementTests();
+                fetchInitialTestData();
+              }}
             />
           </div>
         </>
@@ -1929,6 +2005,10 @@ export default function Page() {
               onPause={handlePauseEnrollment}
               onDrop={handleDropEnrollment}
               onReactivate={handleReactivateEnrollment}
+              onRefresh={() => {
+                fetchEnrollments();
+                fetchInitialEnrollmentData();
+              }}
             />
           </div>
         </>
@@ -2024,6 +2104,7 @@ export default function Page() {
         onClose={() => setIsRegistrationFlowOpen(false)}
         test={selectedTest}
         branchId={resolveUserBranchId(currentUser)}
+        allowManualAssign
         onSuccess={() => {
           fetchPlacementTests();
           fetchInitialTestData();

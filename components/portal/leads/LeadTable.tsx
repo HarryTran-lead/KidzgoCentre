@@ -14,8 +14,7 @@ import {
   CalendarCheck,
   Edit,
   Eye,
-  Trash2,
-  ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 import type { Lead } from "@/types/lead";
 import LeadPagination from "./LeadPagination";
@@ -32,6 +31,8 @@ const STATUS_MAPPING: Record<StatusType, string> = {
   Lost: "Đã hủy",
 };
 
+
+
 interface LeadTableProps {
   leads: Lead[];
   isLoading?: boolean;
@@ -42,22 +43,27 @@ interface LeadTableProps {
   onView: (lead: Lead) => void;
   onAction: (lead: Lead, action: string) => void;
   onStatusChange?: (lead: Lead, newStatus: StatusType) => void;
-  currentUserId?: string; // ID của staff hiện tại để kiểm tra quyền
-  readOnly?: boolean; // Chế độ chỉ xem, ẩn các action buttons
-  // Pagination props
+  currentUserId?: string; 
+  readOnly?: boolean; 
   currentPage?: number;
   totalPages?: number;
   pageSize?: number;
   totalCount?: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
+  onRefresh?: () => void;
 }
+
+const sourceColorMap: Record<string, string> = {
+  Landing: "from-blue-50 to-blue-100 text-blue-700 border-blue-200",
+  Zalo: "from-green-50 to-green-100 text-green-700 border-green-200",
+  Default: "from-gray-50 to-gray-100 text-gray-700 border-gray-200",
+};
 
 export default function LeadTable({
   leads,
   isLoading,
   sortKey,
-  sortDir,
   onSort,
   onEdit,
   onView,
@@ -71,6 +77,7 @@ export default function LeadTable({
   totalCount = 0,
   onPageChange,
   onPageSizeChange,
+  onRefresh,
 }: LeadTableProps) {
   const getStatusBadge = (statusText: string) => {
     const statusMap: Record<string, { bg: string; text: string; border: string; icon: any }> = {
@@ -83,6 +90,7 @@ export default function LeadTable({
     };
     const config = statusMap[statusText] || statusMap["Mới"];
     const Icon = config.icon;
+
     return (
       <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-linear-to-r ${config.bg}${config.text} border ${config.border}`}>
         <Icon size={12} />
@@ -120,7 +128,15 @@ export default function LeadTable({
       <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Danh sách Lead</h3>
-          <div className="text-sm text-gray-600">{leads.length} lead</div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 cursor-pointer"
+            >
+              <RefreshCw size={14} /> Làm mới
+            </button>
+          )}
         </div>
       </div>
 
@@ -224,7 +240,11 @@ export default function LeadTable({
                 </td>
 
                 <td className="py-4 px-6">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-linear-to-r from-red-50 to-red-100 text-red-700 border border-red-200">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-linear-to-r border ${
+                      sourceColorMap[lead.source || "Default"] || sourceColorMap.Default
+                    }`}
+                  >
                     {lead.source || "Không rõ"}
                   </span>
                 </td>

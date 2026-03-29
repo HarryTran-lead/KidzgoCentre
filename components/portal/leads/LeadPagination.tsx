@@ -9,6 +9,8 @@ interface LeadPaginationProps {
   totalCount: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
+  itemLabel?: string;
+  showPageSizeSelector?: boolean;
 }
 
 export default function LeadPagination({
@@ -18,9 +20,13 @@ export default function LeadPagination({
   totalCount,
   onPageChange,
   onPageSizeChange,
+  itemLabel = "lead",
+  showPageSizeSelector = false,
 }: LeadPaginationProps) {
   const startIndex = (currentPage - 1) * pageSize + 1;
   const endIndex = Math.min(currentPage * pageSize, totalCount);
+  const safeStart = totalCount > 0 ? startIndex : 0;
+  const safeEnd = totalCount > 0 ? endIndex : 0;
 
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
@@ -56,12 +62,26 @@ export default function LeadPagination({
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-600">
               Hiển thị <span className="font-semibold text-gray-900">
-                {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)}
+                {safeStart}-{safeEnd}
               </span> trong tổng số{" "}
-              <span className="font-semibold text-gray-900">{totalCount}</span> placement test
+              <span className="font-semibold text-gray-900">{totalCount}</span> {itemLabel}
             </div>
 
             <div className="flex items-center gap-2">
+              {showPageSizeSelector && (
+                <select
+                  value={pageSize}
+                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                  className="h-9 rounded-lg border border-red-200 bg-white px-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                >
+                  {[5, 10, 20, 50].map((size) => (
+                    <option key={size} value={size}>
+                      {size} / trang
+                    </option>
+                  ))}
+                </select>
+              )}
+
               <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
