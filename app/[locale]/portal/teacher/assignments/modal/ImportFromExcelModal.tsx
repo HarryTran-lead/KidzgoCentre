@@ -3,7 +3,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import * as XLSX from 'xlsx';
 import { X, UploadCloud, Download, AlertCircle, Table, CheckCircle } from "lucide-react";
 
 interface ImportFromExcelModalProps {
@@ -54,6 +53,16 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
     };
   }, [isOpen, onClose]);
 
+  const loadXlsxModule = async () => {
+    try {
+      return await import("xlsx");
+    } catch (err) {
+      console.error(err);
+      setError("Chua the dung tinh nang Excel vi thieu thu vien xlsx.");
+      return null;
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -63,12 +72,17 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
     setIsProcessing(true);
 
     try {
+      const XLSX = await loadXlsxModule();
+      if (!XLSX) {
+        return;
+      }
+
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const parsedQuestions = jsonData.map((row: any, index) => {
+      const parsedQuestions = jsonData.map((row: any, index: number) => {
         const options = [
           row["Option A"] || row["Lựa chọn A"] || "",
           row["Option B"] || row["Lựa chọn B"] || "",
@@ -103,7 +117,12 @@ export function ImportFromExcelModal({ isOpen, onClose, onImport }: ImportFromEx
     }
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = await loadXlsxModule();
+    if (!XLSX) {
+      return;
+    }
+
     const template = [
       {
         "Question": "What is the capital of Vietnam?",

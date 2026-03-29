@@ -29,6 +29,8 @@ export interface AssignmentListItem {
   submittedAt: string | null;
   gradedAt: string | null;
   score: number | null;
+  teacherFeedback?: string | null;
+  aiFeedback?: string | null;
   isLate: boolean;
   isOverdue: boolean;
   // Legacy fields for compatibility
@@ -134,6 +136,7 @@ export interface Grading {
   teacherComment?: string;
   aiSuggestions?: string[];
   gradedFiles?: Attachment[];
+  aiFeedback?: string;
   rubricScores?: {
     criteriaId: string;
     score: number;

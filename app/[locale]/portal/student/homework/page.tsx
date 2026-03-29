@@ -21,7 +21,11 @@ import type {
   AssignmentListItem,
   SortOption,
 } from "@/types/student/homework";
-import { getStudentHomework } from "@/lib/api/studentService";
+import {
+  getStudentHomework,
+  getStudentHomeworkFeedback,
+  getStudentSubmittedHomework,
+} from "@/lib/api/studentService";
 
 // Constants
 const PAGE_SIZE = 50;
@@ -60,6 +64,23 @@ const getTypeIcon = (type: string) => {
       return <FileText size={24} />;
   }
 };
+
+const hasGradingResult = (assignment: AssignmentListItem): boolean =>
+  Boolean(
+    assignment.gradedAt ||
+      assignment.score !== null ||
+      (assignment.teacherFeedback && assignment.teacherFeedback.trim()) ||
+      (assignment.aiFeedback && assignment.aiFeedback.trim())
+  );
+
+const getFeedbackPreview = (assignment: AssignmentListItem): string =>
+  assignment.teacherFeedback?.trim() ||
+  assignment.aiFeedback?.trim() ||
+  (assignment.score !== null
+    ? `Da co diem ${assignment.score}/${assignment.maxScore ?? "-"}`
+    : assignment.gradedAt
+      ? "Da co ket qua cham bai"
+      : "");
 
 const formatDate = (dateString: string, locale: string = 'vi-VN') => {
   if (!dateString) return '-';
@@ -166,12 +187,22 @@ const isTomorrow = (dateString: string): boolean => {
 function StatusBadge({ 
   status, 
   score, 
-  maxScore 
+  maxScore,
+  isGraded = false,
 }: { 
   status: string; 
   score?: number | null; 
   maxScore?: number;
+  isGraded?: boolean;
 }) {
+  if (isGraded) {
+    return (
+      <span className="px-3 py-1 rounded-lg text-[11px] font-bold backdrop-blur-sm bg-cyan-500/30 border border-cyan-400/40 text-cyan-200">
+        {score !== undefined && score !== null ? `${score}/${maxScore}` : "Da cham"}
+      </span>
+    );
+  }
+
   const config: Record<string, { label: string; className: string }> = {
     SUBMITTED: {
       label: score !== undefined && score !== null ? `${score}/${maxScore}` : "Đã nộp",
@@ -324,16 +355,21 @@ export default function HomeworkPage() {
       setError(null);
       
       try {
-        let apiStatus: number | undefined;
-        if (statusFilter === "PENDING") apiStatus = 1;
-        else if (statusFilter === "SUBMITTED") apiStatus = 2;
-        else if (statusFilter === "MISSING") apiStatus = 3;
-        
-        const response = await getStudentHomework({
-          status: apiStatus,
-          pageNumber: 1,
-          pageSize: PAGE_SIZE,
-        });
+        const response =
+          statusFilter === "FEEDBACK"
+            ? await getStudentHomeworkFeedback({
+                pageNumber: 1,
+                pageSize: PAGE_SIZE,
+              })
+            : statusFilter === "SUBMITTED"
+            ? await getStudentSubmittedHomework({
+                pageNumber: 1,
+                pageSize: PAGE_SIZE,
+              })
+            : await getStudentHomework({
+                pageNumber: 1,
+                pageSize: PAGE_SIZE,
+              });
         
         if (response.isSuccess && response.data?.homeworkAssignments?.items) {
           setAssignments(response.data.homeworkAssignments.items);
@@ -359,6 +395,7 @@ export default function HomeworkPage() {
     submitted: assignments.filter(a => a.status === 'SUBMITTED').length,
     late: assignments.filter(a => a.status === 'LATE').length,
     missing: assignments.filter(a => a.status === 'MISSING').length,
+    feedback: assignments.filter(hasGradingResult).length,
   }), [assignments]);
 
   // Filter and sort logic
@@ -376,7 +413,7 @@ export default function HomeworkPage() {
     }
     
     // Apply status filter
-    if (statusFilter !== "ALL") {
+    if (statusFilter !== "ALL" && statusFilter !== "FEEDBACK") {
       result = result.filter(a => a.status === statusFilter);
     }
     
@@ -412,6 +449,7 @@ export default function HomeworkPage() {
     { id: 'ALL', label: 'Tất cả', count: stats.total },
     { id: 'PENDING', label: 'Chưa nộp', count: stats.notSubmitted },
     { id: 'SUBMITTED', label: 'Đã nộp', count: stats.submitted },
+    { id: 'FEEDBACK', label: 'Kết quả', count: stats.feedback },
     { id: 'LATE', label: 'Nộp trễ', count: stats.late },
     { id: 'MISSING', label: 'Quá hạn', count: stats.missing },
   ], [stats]);
@@ -520,6 +558,8 @@ export default function HomeworkPage() {
             {filteredAssignments.map((assignment) => {
               const isSubmitted = assignment.status === 'SUBMITTED' || assignment.status === 'LATE';
               const isLate = assignment.status === 'LATE';
+              const isGraded = hasGradingResult(assignment);
+              const feedbackPreview = getFeedbackPreview(assignment);
               const isDueToday = isToday(assignment.dueAt) && !isSubmitted;
 
               return (
@@ -529,6 +569,8 @@ export default function HomeworkPage() {
                   className={`rounded-2xl overflow-hidden cursor-pointer flex flex-col border backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl group ${
                     isDueToday
                       ? 'border-orange-500/50 bg-gradient-to-b from-orange-500/10 to-slate-900/90 shadow-orange-500/20'
+                      : isGraded
+                        ? 'border-cyan-500/30 bg-gradient-to-b from-cyan-500/10 to-slate-900/90 shadow-cyan-500/10'
                       : isSubmitted
                         ? isLate
                           ? 'border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-slate-900/90 shadow-amber-500/10'
@@ -539,6 +581,9 @@ export default function HomeworkPage() {
                   {/* Cover Area */}
                   <div className={`relative w-full h-36 flex items-center justify-center overflow-hidden ${
                     isDueToday ? 'bg-gradient-to-br from-orange-500/30 via-pink-500/20 to-purple-500/20' :
+                    isGraded
+                      ? 'bg-gradient-to-br from-cyan-500/20 via-sky-500/20 to-emerald-500/20'
+                      :
                     isSubmitted
                       ? isLate ? 'bg-gradient-to-br from-amber-500/20 via-orange-500/20 to-yellow-500/20' : 'bg-gradient-to-br from-green-500/20 via-emerald-500/20 to-teal-500/20'
                       : 'bg-gradient-to-br from-violet-500/20 via-purple-500/20 to-fuchsia-500/20'
@@ -552,11 +597,16 @@ export default function HomeworkPage() {
                     <div className="relative z-10 flex flex-col items-center">
                       <div className={`w-16 h-16 rounded-2xl backdrop-blur-sm flex items-center justify-center shadow-lg border ${
                         isDueToday ? 'bg-orange-500/40 border-orange-400/40' :
+                        isGraded
+                          ? 'bg-cyan-500/40 border-cyan-400/40'
+                          :
                         isSubmitted
                           ? isLate ? 'bg-amber-500/40 border-amber-400/40' : 'bg-green-500/40 border-green-400/40'
                           : 'bg-purple-500/40 border-purple-400/40'
                       }`}>
-                        {isSubmitted ? (
+                        {isGraded ? (
+                          <Award size={32} className="text-cyan-200" />
+                        ) : isSubmitted ? (
                           <CheckCircle size={32} className={isLate ? 'text-amber-400' : 'text-green-400'} />
                         ) : (
                           getTypeIcon(assignment.submissionType || "")
@@ -575,6 +625,7 @@ export default function HomeworkPage() {
                         status={assignment.status}
                         score={assignment.score}
                         maxScore={assignment.maxScore}
+                        isGraded={isGraded}
                       />
                     </div>
 
@@ -590,10 +641,18 @@ export default function HomeworkPage() {
 
                     {/* Submitted overlay */}
                     {isSubmitted && (
-                      <div className="absolute bottom-2 right-2 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-slate-900/80 backdrop-blur-sm shadow-sm border border-green-500/20">
-                        <CheckCircle size={12} className={isLate ? 'text-amber-400' : 'text-green-400'} />
-                        <span className={`text-[10px] font-bold ${isLate ? 'text-amber-300' : 'text-green-300'}`}>
-                          {isLate ? 'Nộp trễ' : 'Đã nộp'}
+                      <div className={`absolute bottom-2 right-2 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-slate-900/80 backdrop-blur-sm shadow-sm ${
+                        isGraded ? 'border border-cyan-500/20' : 'border border-green-500/20'
+                      }`}>
+                        {isGraded ? (
+                          <Award size={12} className="text-cyan-300" />
+                        ) : (
+                          <CheckCircle size={12} className={isLate ? 'text-amber-400' : 'text-green-400'} />
+                        )}
+                        <span className={`text-[10px] font-bold ${
+                          isGraded ? 'text-cyan-200' : isLate ? 'text-amber-300' : 'text-green-300'
+                        }`}>
+                          {isGraded ? 'Đã chấm' : isLate ? 'Nộp trễ' : 'Đã nộp'}
                         </span>
                       </div>
                     )}
@@ -634,9 +693,33 @@ export default function HomeworkPage() {
                       </span>
                     </div>
 
+                    {isGraded && (
+                      <div className="mb-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3">
+                        <div className="flex items-center justify-between gap-2 text-[11px] font-bold text-cyan-100">
+                          <span>
+                            {assignment.score !== null
+                              ? `Diem: ${assignment.score}/${assignment.maxScore ?? "-"}`
+                              : "Da co ket qua cham bai"}
+                          </span>
+                          {assignment.gradedAt && (
+                            <span className="text-[10px] text-cyan-200/80">
+                              {formatDate(assignment.gradedAt, locale)}
+                            </span>
+                          )}
+                        </div>
+                        {feedbackPreview && (
+                          <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-cyan-50/90">
+                            {feedbackPreview}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     <button
                       className={`w-full h-9 rounded-xl text-[12px] font-bold shadow-md hover:shadow-lg mt-auto cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 ${
-                        isSubmitted
+                        isGraded
+                          ? 'bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-600 hover:to-sky-600 text-white'
+                          : isSubmitted
                           ? isLate
                             ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
                             : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white'
@@ -645,7 +728,11 @@ export default function HomeworkPage() {
                             : 'bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white'
                       }`}
                     >
-                      {isSubmitted ? (
+                      {isGraded ? (
+                        <>
+                          <Award size={14} /> Xem kết quả
+                        </>
+                      ) : isSubmitted ? (
                         <>
                           <CheckCircle size={14} /> Xem lại
                         </>

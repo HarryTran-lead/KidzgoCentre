@@ -28,29 +28,43 @@ import {
 } from "lucide-react";
 
 import { fetchHomeworkDetail, fetchHomeworkSubmissions } from "@/lib/api/homeworkService";
-import type { HomeworkSubmission, HomeworkSubmissionItem } from "@/types/teacher/homework";
+import type {
+  HomeworkSubmission,
+  HomeworkSubmissionItem,
+  SubmissionStatusFromApi,
+} from "@/types/teacher/homework";
 
-type SubmissionStatusUi = "PENDING" | "SUBMITTED" | "REVIEWED" | "OVERDUE";
+type SubmissionStatusUi = "ASSIGNED" | "SUBMITTED" | "GRADED" | "LATE" | "MISSING";
 
-/**
- * Map API status ("Assigned" | "Submitted" | "Graded") to UI status
- */
-function mapApiStatusToUi(apiStatus: string, dueAt: string, submittedAt: string | null): SubmissionStatusUi {
-  if (apiStatus === "Submitted" || apiStatus === "Graded") {
-    return "REVIEWED";
+function mapApiStatusToUi(
+  apiStatus: string,
+  dueAt: string,
+  submittedAt: string | null
+): SubmissionStatusUi {
+  const normalizedStatus = String(apiStatus || "").trim() as SubmissionStatusFromApi;
+
+  if (
+    normalizedStatus === "Assigned" &&
+    !submittedAt &&
+    dueAt &&
+    new Date() > new Date(dueAt)
+  ) {
+    return "MISSING";
   }
-  // Check if overdue
-  if (submittedAt === null && dueAt) {
-    const now = new Date();
-    const due = new Date(dueAt);
-    if (now > due) {
-      return "OVERDUE";
-    }
+
+  switch (normalizedStatus) {
+    case "Submitted":
+      return "SUBMITTED";
+    case "Graded":
+      return "GRADED";
+    case "Late":
+      return "LATE";
+    case "Missing":
+      return "MISSING";
+    case "Assigned":
+    default:
+      return "ASSIGNED";
   }
-  if (apiStatus === "Assigned") {
-    return "PENDING";
-  }
-  return "PENDING";
 }
 
 const STATUS_CONFIG: Record<SubmissionStatusUi, {
@@ -60,7 +74,7 @@ const STATUS_CONFIG: Record<SubmissionStatusUi, {
   bgColor: string;
   borderColor: string;
 }> = {
-  PENDING: {
+  ASSIGNED: {
     text: "Chờ chấm",
     icon: Clock,
     color: "text-amber-600",
@@ -74,14 +88,21 @@ const STATUS_CONFIG: Record<SubmissionStatusUi, {
     bgColor: "bg-gradient-to-r from-sky-50 to-blue-50",
     borderColor: "border-sky-200"
   },
-  REVIEWED: {
+  GRADED: {
     text: "Đã phản hồi",
     icon: CheckCircle,
     color: "text-emerald-600",
     bgColor: "bg-gradient-to-r from-emerald-50 to-teal-50",
     borderColor: "border-emerald-200"
   },
-  OVERDUE: {
+  LATE: {
+    text: "Nộp trễ",
+    icon: AlertCircle,
+    color: "text-yellow-700",
+    bgColor: "bg-gradient-to-r from-yellow-50 to-amber-50",
+    borderColor: "border-yellow-200"
+  },
+  MISSING: {
     text: "Quá hạn",
     icon: AlertCircle,
     color: "text-red-600",
@@ -89,6 +110,12 @@ const STATUS_CONFIG: Record<SubmissionStatusUi, {
     borderColor: "border-red-200"
   }
 };
+
+STATUS_CONFIG.ASSIGNED.text = "Đã giao";
+STATUS_CONFIG.SUBMITTED.text = "Đã nộp";
+STATUS_CONFIG.GRADED.text = "Đã chấm";
+STATUS_CONFIG.LATE.text = "Nộp trễ";
+STATUS_CONFIG.MISSING.text = "Thiếu bài";
 
 // SortableHeader Component
 function SortableHeader<T extends string>({
@@ -393,12 +420,13 @@ export default function HomeworkDetailPage() {
 
   const stats = useMemo(() => {
     const total = submissions.length;
-    const pending = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "PENDING").length;
+    const assigned = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "ASSIGNED").length;
     const submitted = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "SUBMITTED").length;
-    const reviewed = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "REVIEWED").length;
-    const overdue = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "OVERDUE").length;
+    const graded = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "GRADED").length;
+    const late = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "LATE").length;
+    const missing = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "MISSING").length;
 
-    return { total, pending, submitted, reviewed, overdue };
+    return { total, assigned, submitted, graded, late, missing };
   }, [submissions]);
 
   const getAvatarColor = (index: number) => {
@@ -646,8 +674,8 @@ export default function HomeworkDetailPage() {
                 <Clock size={20} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-amber-600 truncate">Chờ chấm</div>
-                <div className="text-xl font-bold text-amber-600 leading-tight">{stats.pending}</div>
+                <div className="text-xs font-medium text-amber-600 truncate">Đã giao</div>
+                <div className="text-xl font-bold text-amber-600 leading-tight">{stats.assigned}</div>
               </div>
             </div>
           </div>
@@ -660,7 +688,7 @@ export default function HomeworkDetailPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-medium text-emerald-600 truncate">Đã chấm</div>
-                <div className="text-xl font-bold text-emerald-600 leading-tight">{stats.reviewed}</div>
+                <div className="text-xl font-bold text-emerald-600 leading-tight">{stats.graded}</div>
               </div>
             </div>
           </div>
@@ -672,8 +700,8 @@ export default function HomeworkDetailPage() {
                 <AlertCircle size={20} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-red-600 truncate">Quá hạn</div>
-                <div className="text-xl font-bold text-red-600 leading-tight">{stats.overdue}</div>
+                <div className="text-xs font-medium text-red-600 truncate">Thiếu bài</div>
+                <div className="text-xl font-bold text-red-600 leading-tight">{stats.missing}</div>
               </div>
             </div>
           </div>
@@ -701,9 +729,10 @@ export default function HomeworkDetailPage() {
                 {[
                   { k: 'ALL', label: 'Tất cả', count: submissions.length },
                   { k: 'SUBMITTED', label: 'Đã nộp', count: stats.submitted },
-                  { k: 'PENDING', label: 'Chờ chấm', count: stats.pending },
-                  { k: 'REVIEWED', label: 'Đã chấm', count: stats.reviewed },
-                  { k: 'OVERDUE', label: 'Quá hạn', count: stats.overdue },
+                  { k: 'ASSIGNED', label: 'Đã giao', count: stats.assigned },
+                  { k: 'GRADED', label: 'Đã chấm', count: stats.graded },
+                  { k: 'LATE', label: 'Nộp trễ', count: stats.late },
+                  { k: 'MISSING', label: 'Thiếu bài', count: stats.missing },
                 ].map((item) => (
                   <button
                     key={item.k}
@@ -765,7 +794,7 @@ export default function HomeworkDetailPage() {
                     />
                   </th>
                   {homework.submissionType !== "MULTIPLE_CHOICE" && (
-                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Tệp đính kèm</th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Phản hồi</th>
                   )}
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                     <SortableHeader
@@ -830,12 +859,12 @@ export default function HomeworkDetailPage() {
                       <td className="py-4 px-6">
                         {(() => {
                           const status = mapApiStatusToUi(submission.status, submission.dueAt, submission.submittedAt);
-                          const isOverdueNotSubmitted = status === "OVERDUE" && submission.submittedAt === null;
-                          const displayScore = isOverdueNotSubmitted ? 0 : submission.score;
+                          const isMissingSubmission = status === "MISSING" && submission.submittedAt === null;
+                          const displayScore = isMissingSubmission ? 0 : submission.score;
                           if (displayScore !== null && displayScore !== undefined) {
                             return (
                               <div className="flex items-center gap-1">
-                                <span className={`text-lg font-bold ${isOverdueNotSubmitted ? "text-red-500" : "text-emerald-600"}`}>{displayScore}</span>
+                                <span className={`text-lg font-bold ${isMissingSubmission ? "text-red-500" : "text-emerald-600"}`}>{displayScore}</span>
                                 <span className="text-gray-400 text-sm">/ {homework.maxScore || 10}</span>
                               </div>
                             );

@@ -310,7 +310,7 @@ function CreateAssignmentModal({
   const [book, setBook] = useState("");
   const [pages, setPages] = useState("");
   const [skills, setSkills] = useState("");
-  const [submissionType, setSubmissionType] = useState<"FILE" | "TEXT" | "FILE_AND_TEXT" | "MULTIPLE_CHOICE">("FILE");
+  const [submissionType, setSubmissionType] = useState<"FILE" | "IMAGE" | "TEXT" | "LINK" | "MULTIPLE_CHOICE">("FILE");
   const [missionId, setMissionId] = useState("");
   const [instructions, setInstructions] = useState("");
   const [expectedAnswer, setExpectedAnswer] = useState("");
@@ -553,7 +553,7 @@ function CreateAssignmentModal({
           book: book || undefined,
           pages: pages || undefined,
           skills: skills || undefined,
-          submissionType: submissionType as "FILE" | "TEXT" | "FILE_AND_TEXT" | undefined,
+          submissionType: submissionType as "FILE" | "IMAGE" | "TEXT" | "LINK" | undefined,
           maxScore: maxScore ? parseInt(maxScore) : undefined,
           rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
           missionId: missionId || undefined,
@@ -585,8 +585,10 @@ function CreateAssignmentModal({
   const submissionTypeLabel =
     submissionType === "TEXT"
       ? "Nhập text"
-      : submissionType === "FILE_AND_TEXT"
-        ? "File và text"
+      : submissionType === "IMAGE"
+        ? "Nộp ảnh"
+        : submissionType === "LINK"
+          ? "Nộp link"
         : "Nộp file";
 
   return (
@@ -883,18 +885,19 @@ function CreateAssignmentModal({
                       <Upload size={16} className="text-red-600" />
                       Hình thức nộp bài
                     </label>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                       {[
                         { value: "FILE", label: "Nộp file", hint: "Phù hợp khi học viên cần tải bài lên." },
                         { value: "TEXT", label: "Nhập text", hint: "Phù hợp cho câu trả lời ngắn hoặc tự luận." },
-                        { value: "FILE_AND_TEXT", label: "File và text", hint: "Vừa nộp file vừa ghi chú nội dung." },
+                        { value: "IMAGE", label: "Nộp ảnh", hint: "Phù hợp khi học viên gửi ảnh bài làm hoặc sản phẩm thủ công." },
+                        { value: "LINK", label: "Nộp link", hint: "Phù hợp cho Google Docs, Drive hoặc sản phẩm online." },
                       ].map((option) => {
                         const isSelected = submissionType === option.value;
                         return (
                           <button
                             key={option.value}
                             type="button"
-                            onClick={() => setSubmissionType(option.value as "FILE" | "TEXT" | "FILE_AND_TEXT")}
+                            onClick={() => setSubmissionType(option.value as "FILE" | "IMAGE" | "TEXT" | "LINK")}
                             className={clsx(
                               "rounded-2xl border p-4 text-left transition-all cursor-pointer",
                               isSelected
