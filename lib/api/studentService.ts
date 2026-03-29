@@ -15,7 +15,12 @@ import {
 import { get, post } from "@/lib/axios";
 import type { StudentClassesResponse } from "@/types/student/class";
 import type { StudentsResponse } from "@/types/student/student";
-import type { AssignmentListItem, HomeworkStats, AssignmentDetail } from "@/types/student/homework";
+import type {
+  AssignmentListItem,
+  HomeworkStats,
+  AssignmentDetail,
+  Attachment,
+} from "@/types/student/homework";
 
 type StudentClassesParams = {
   pageNumber?: number;
@@ -82,7 +87,7 @@ export async function getStudentClasses(
 
 // Student Homework Types
 export type StudentHomeworkParams = {
-  status?: number; // 1=Pending, 2=Success, 3=Failed
+  status?: number | string;
   classId?: string;
   pageNumber?: number;
   pageSize?: number;
@@ -128,6 +133,148 @@ function mapApiStatusToUiStatus(
   return "PENDING";
 }
 
+function toAbsoluteStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") {
+          return item.trim();
+        }
+        if (item && typeof item === "object") {
+          return String(
+            (item as any).url ||
+            (item as any).attachmentUrl ||
+            (item as any).linkUrl ||
+            ""
+          ).trim();
+        }
+        return "";
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function inferAttachmentType(source?: string): "PDF" | "DOC" | "DOCX" | "LINK" | "VIDEO" | "IMAGE" {
+  const normalized = String(source || "").toLowerCase();
+  if (/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/.test(normalized)) return "IMAGE";
+  if (/\.(mp4|mov|avi|webm|mkv)(\?|$)/.test(normalized)) return "VIDEO";
+  if (/\.pdf(\?|$)/.test(normalized)) return "PDF";
+  if (/\.docx(\?|$)/.test(normalized)) return "DOCX";
+  if (/\.doc(\?|$)/.test(normalized)) return "DOC";
+  return "LINK";
+}
+
+function normalizeAttachment(item: any, index: number): Attachment | null {
+  if (typeof item === "string") {
+    const url = item.trim();
+    return {
+      id: `attachment-${index}`,
+      name: url.split("/").pop() || `Tep ${index + 1}`,
+      type: inferAttachmentType(url),
+      url,
+    };
+  }
+
+  const url = String(
+    item?.url ||
+    item?.attachmentUrl ||
+    item?.fileUrl ||
+    item?.downloadUrl ||
+    ""
+  ).trim();
+
+  if (!url) {
+    return null;
+  }
+
+  return {
+    id: String(item?.id || item?.attachmentId || `attachment-${index}`),
+    name:
+      item?.name ||
+      item?.fileName ||
+      url.split("/").pop() ||
+      `Tep ${index + 1}`,
+    type: item?.type || item?.fileType || inferAttachmentType(url),
+    url,
+    size: item?.size,
+    uploadedAt: item?.uploadedAt,
+  };
+}
+
+function normalizeAttachments(value: unknown): Attachment[] {
+  const rawItems = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : [];
+
+  return rawItems
+    .map((item, index) => normalizeAttachment(item, index))
+    .filter((item): item is Attachment => Boolean(item));
+}
+
+function extractStudentHomeworkItems(responseData: any): AssignmentListItem[] {
+  if (responseData?.data?.homeworks?.items) {
+    return responseData.data.homeworks.items.map(mapToAssignmentListItem);
+  }
+  if (responseData?.data?.feedbacks?.items) {
+    return responseData.data.feedbacks.items.map(mapToAssignmentListItem);
+  }
+  if (responseData?.data?.homeworkAssignments?.items) {
+    return responseData.data.homeworkAssignments.items.map(mapToAssignmentListItem);
+  }
+  if (responseData?.homeworks?.items) {
+    return responseData.homeworks.items.map(mapToAssignmentListItem);
+  }
+  if (responseData?.feedbacks?.items) {
+    return responseData.feedbacks.items.map(mapToAssignmentListItem);
+  }
+  if (responseData?.homeworkAssignments?.items) {
+    return responseData.homeworkAssignments.items.map(mapToAssignmentListItem);
+  }
+  if (Array.isArray(responseData?.data)) {
+    return responseData.data.map(mapToAssignmentListItem);
+  }
+  if (Array.isArray(responseData)) {
+    return responseData.map(mapToAssignmentListItem);
+  }
+
+  return [];
+}
+
+function buildListPagination(responseData: any, params?: StudentHomeworkParams) {
+  return {
+    pageNumber:
+      responseData?.data?.homeworkAssignments?.pageNumber ||
+      responseData?.data?.homeworks?.pageNumber ||
+      responseData?.data?.feedbacks?.pageNumber ||
+      params?.pageNumber ||
+      1,
+    pageSize:
+      responseData?.data?.homeworkAssignments?.pageSize ||
+      responseData?.data?.homeworks?.pageSize ||
+      responseData?.data?.feedbacks?.pageSize ||
+      params?.pageSize ||
+      10,
+    totalCount:
+      responseData?.data?.homeworkAssignments?.totalCount ||
+      responseData?.data?.homeworks?.totalCount ||
+      responseData?.data?.feedbacks?.totalCount,
+  };
+}
+
 // Map API response to AssignmentListItem
 function mapToAssignmentListItem(item: any): AssignmentListItem {
   return {
@@ -150,6 +297,8 @@ function mapToAssignmentListItem(item: any): AssignmentListItem {
     submittedAt: item.submittedAt || null,
     gradedAt: item.gradedAt || null,
     score: item.score ?? null,
+    teacherFeedback: item.teacherFeedback ?? null,
+    aiFeedback: item.aiFeedback ?? null,
     isLate: item.isLate || false,
     // Legacy fields for compatibility
     title: item.assignmentTitle || item.title || "",
@@ -180,32 +329,10 @@ export async function getStudentHomework(
     params: params ?? {},
   });
 
-  // Handle response format
   const responseData = response?.data || response;
+  const items = extractStudentHomeworkItems(responseData);
+  const pagination = buildListPagination(responseData, params);
 
-  // Map items if present
-  let items: AssignmentListItem[] = [];
-  
-  // Handle multiple possible response formats
-  // Format 1: response.data.homeworks.items (API mới)
-  // Format 2: response.data.homeworkAssignments.items (API cũ)
-  // Format 3: response.homeworks.items
-  // Format 4: Array directly in data
-  if (responseData?.data?.homeworks?.items) {
-    items = responseData.data.homeworks.items.map(mapToAssignmentListItem);
-  } else if (responseData?.data?.homeworkAssignments?.items) {
-    items = responseData.data.homeworkAssignments.items.map(mapToAssignmentListItem);
-  } else if (responseData?.homeworks?.items) {
-    items = responseData.homeworks.items.map(mapToAssignmentListItem);
-  } else if (responseData?.homeworkAssignments?.items) {
-    items = responseData.homeworkAssignments.items.map(mapToAssignmentListItem);
-  } else if (Array.isArray(responseData?.data)) {
-    items = responseData.data.map(mapToAssignmentListItem);
-  } else if (Array.isArray(responseData)) {
-    items = responseData.map(mapToAssignmentListItem);
-  }
-
-  // Calculate stats from items
   const stats: HomeworkStats = {
     total: items.length,
     submitted: items.filter(i => i.status === "SUBMITTED").length,
@@ -218,28 +345,165 @@ export async function getStudentHomework(
     data: {
       homeworkAssignments: {
         items,
-        pageNumber:
-          responseData?.data?.homeworkAssignments?.pageNumber ||
-          responseData?.data?.homeworks?.pageNumber ||
-          params?.pageNumber ||
-          1,
-        pageSize:
-          responseData?.data?.homeworkAssignments?.pageSize ||
-          responseData?.data?.homeworks?.pageSize ||
-          params?.pageSize ||
-          10,
-        totalCount:
-          responseData?.data?.homeworkAssignments?.totalCount ||
-          responseData?.data?.homeworks?.totalCount ||
-          items.length,
+        pageNumber: pagination.pageNumber,
+        pageSize: pagination.pageSize,
+        totalCount: pagination.totalCount || items.length,
         totalPages:
           responseData?.data?.homeworkAssignments?.totalPages ||
           responseData?.data?.homeworks?.totalPages ||
+          responseData?.data?.feedbacks?.totalPages ||
           1,
       },
     },
     isSuccess: responseData?.isSuccess ?? true,
     message: responseData?.message,
+  };
+}
+
+async function getStudentHomeworkCollection(
+  endpoint: string,
+  params?: StudentHomeworkParams
+): Promise<StudentHomeworkResponse> {
+  const response = await get<any>(endpoint, {
+    params: params ?? {},
+  });
+
+  const responseData = response?.data || response;
+  const items = extractStudentHomeworkItems(responseData);
+  const pagination = buildListPagination(responseData, params);
+
+  return {
+    data: {
+      homeworkAssignments: {
+        items,
+        pageNumber: pagination.pageNumber,
+        pageSize: pagination.pageSize,
+        totalCount: pagination.totalCount || items.length,
+        totalPages:
+          responseData?.data?.homeworks?.totalPages ||
+          responseData?.data?.feedbacks?.totalPages ||
+          responseData?.data?.homeworkAssignments?.totalPages ||
+          1,
+      },
+    },
+    isSuccess: responseData?.isSuccess ?? true,
+    message: responseData?.message,
+  };
+}
+
+export async function getStudentSubmittedHomework(
+  params?: Omit<StudentHomeworkParams, "status">
+): Promise<StudentHomeworkResponse> {
+  const endpoint =
+    STUDENT_HOMEWORK_ENDPOINTS.GET_SUBMITTED ?? "/api/students/homework/submitted";
+  return getStudentHomeworkCollection(endpoint, params);
+}
+
+export async function getStudentHomeworkFeedback(
+  params?: Omit<StudentHomeworkParams, "status">
+): Promise<StudentHomeworkResponse> {
+  const endpoint =
+    STUDENT_HOMEWORK_ENDPOINTS.GET_FEEDBACK_MY ?? "/api/students/homework/feedback/my";
+  return getStudentHomeworkCollection(endpoint, params);
+}
+
+function formatToViDateTime(value?: string | null) {
+  if (!value) return undefined;
+  try {
+    return new Date(value).toLocaleString("vi-VN");
+  } catch {
+    return value;
+  }
+}
+
+function buildSubmissionFromDetail(item: any): AssignmentDetail["submission"] {
+  const nestedSubmission = item?.submission;
+  const fallbackFiles = [
+    ...normalizeAttachments(item?.attachmentUrls),
+    ...normalizeAttachments(item?.submission?.content?.files),
+  ];
+  const fallbackLinks = [
+    ...toAbsoluteStringArray(item?.submission?.content?.links),
+    ...toAbsoluteStringArray(item?.linkUrl),
+  ];
+  const textContent =
+    nestedSubmission?.content?.text ||
+    item?.textAnswer ||
+    undefined;
+
+  if (
+    !nestedSubmission &&
+    !item?.submittedAt &&
+    fallbackFiles.length === 0 &&
+    fallbackLinks.length === 0 &&
+    !textContent
+  ) {
+    return undefined;
+  }
+
+  return {
+    id: nestedSubmission?.id || item?.id || item?.homeworkStudentId || "submission",
+    submittedAt: nestedSubmission?.submittedAt || item?.submittedAt || "",
+    status:
+      mapApiStatusToUiStatus(nestedSubmission?.status || item?.status) === "LATE"
+        ? "LATE"
+        : "ON_TIME",
+    content: {
+      text: textContent,
+      files: fallbackFiles.length > 0 ? fallbackFiles : undefined,
+      links: fallbackLinks.length > 0 ? fallbackLinks : undefined,
+    },
+    version: nestedSubmission?.version || 1,
+  };
+}
+
+function buildGradingFromDetail(item: any): AssignmentDetail["grading"] {
+  const gradingSource = item?.grading || {};
+  const maxScore = Number(item?.maxScore || item?.max_score || gradingSource?.maxScore || gradingSource?.totalScore || 10);
+  const scoreValue =
+    gradingSource?.score ??
+    item?.score ??
+    item?.earnedPoints;
+  const teacherComment =
+    gradingSource?.teacherComment ??
+    gradingSource?.teacherFeedback ??
+    item?.teacherFeedback ??
+    undefined;
+  const aiFeedback = item?.aiFeedback ?? gradingSource?.aiFeedback ?? undefined;
+
+  if (
+    scoreValue === undefined &&
+    scoreValue !== 0 &&
+    !teacherComment &&
+    !aiFeedback &&
+    !item?.gradedAt &&
+    !gradingSource?.gradedAt
+  ) {
+    return undefined;
+  }
+
+  const numericScore = Number(scoreValue ?? 0);
+  const safeMaxScore = maxScore > 0 ? maxScore : 10;
+  const percentage =
+    gradingSource?.percentage ??
+    Math.round((numericScore / safeMaxScore) * 100);
+
+  return {
+    score: numericScore,
+    maxScore: safeMaxScore,
+    percentage,
+    correctCount: gradingSource?.correctCount ?? item?.correctCount,
+    wrongCount: gradingSource?.wrongCount ?? item?.wrongCount,
+    skippedCount: gradingSource?.skippedCount ?? item?.skippedCount,
+    totalPoints: gradingSource?.totalPoints ?? item?.totalPoints,
+    earnedPoints: gradingSource?.earnedPoints ?? item?.earnedPoints,
+    teacherComment,
+    aiSuggestions: Array.isArray(gradingSource?.aiSuggestions)
+      ? gradingSource.aiSuggestions
+      : undefined,
+    gradedFiles: normalizeAttachments(gradingSource?.gradedFiles),
+    aiFeedback,
+    rubricScores: gradingSource?.rubricScores,
   };
 }
 
@@ -254,16 +518,9 @@ export async function getStudentHomeworkById(
   try {
     const response = await get<any>(endpoint);
     const responseData = response?.data || response;
-
-    // Debug log
-    console.log("Homework detail response:", responseData);
-
-    // Handle different response formats
     let item = responseData?.data;
-    
-    // If data is nested differently
+
     if (!item && responseData) {
-      // Maybe responseData itself is the data
       if (responseData.id || responseData.homeworkStudentId) {
         item = responseData;
       }
@@ -284,6 +541,18 @@ export async function getStudentHomeworkById(
       item.homeworkSubmissionType;
     const reviewSource = item.review || {};
     const answerResultsRaw = reviewSource.answerResults || item.answerResults || [];
+    const teacherAttachments: Attachment[] = [
+      ...normalizeAttachments(item.teacherAttachments),
+      ...normalizeAttachments(item.attachments),
+      ...toAbsoluteStringArray(item.assignmentAttachmentUrl).map((url, index) => ({
+        id: `teacher-attachment-${index}`,
+        name: url.split("/").pop() || `Tai lieu ${index + 1}`,
+        type: inferAttachmentType(url),
+        url,
+      })),
+    ];
+    const submission = buildSubmissionFromDetail(item);
+    const grading = buildGradingFromDetail(item);
 
     const assignment: AssignmentDetail = {
       id: item.id || item.homeworkStudentId || "",
@@ -323,38 +592,23 @@ export async function getStudentHomeworkById(
             points: question.points,
           }))
         : [],
-      teacherAttachments: item.teacherAttachments || item.attachments || [],
+      teacherAttachments,
       allowResubmit: item.allowResubmit ?? true,
       maxResubmissions: item.maxResubmissions,
       editCount: item.editCount || 0,
-      submission: item.submission ? {
-        id: item.submission.id,
-        submittedAt: item.submission.submittedAt || "",
-        status: item.submission.status === 1 ? "ON_TIME" : "LATE",
-        content: item.submission.content,
-        version: item.submission.version || 1,
-      } : undefined,
+      submission,
       submissionHistory: item.submissionHistory?.map((sub: any) => ({
         id: sub.id,
         submittedAt: sub.submittedAt || "",
         status: sub.status === 1 ? "ON_TIME" : "LATE",
-        content: sub.content,
+        content: {
+          text: sub?.content?.text,
+          files: normalizeAttachments(sub?.content?.files),
+          links: toAbsoluteStringArray(sub?.content?.links),
+        },
         version: sub.version || 1,
       })),
-      grading: item.grading ? {
-        score: item.grading.score || 0,
-        maxScore: item.grading.maxScore || item.grading.totalScore || 10,
-        percentage: item.grading.percentage || 0,
-        correctCount: item.grading.correctCount,
-        wrongCount: item.grading.wrongCount,
-        skippedCount: item.grading.skippedCount,
-        totalPoints: item.grading.totalPoints,
-        earnedPoints: item.grading.earnedPoints,
-        teacherComment: item.grading.teacherComment,
-        aiSuggestions: item.grading.aiSuggestions,
-        gradedFiles: item.grading.gradedFiles,
-        rubricScores: item.grading.rubricScores,
-      } : undefined,
+      grading,
       review:
         Array.isArray(answerResultsRaw) && answerResultsRaw.length > 0
           ? {
@@ -378,12 +632,8 @@ export async function getStudentHomeworkById(
               })),
             }
           : undefined,
-      submittedAt: item.submittedAt
-        ? new Date(item.submittedAt).toLocaleString("vi-VN")
-        : undefined,
-      gradedAt: item.gradedAt
-        ? new Date(item.gradedAt).toLocaleString("vi-VN")
-        : undefined,
+      submittedAt: formatToViDateTime(item.submittedAt),
+      gradedAt: formatToViDateTime(item.gradedAt),
     };
 
     return {

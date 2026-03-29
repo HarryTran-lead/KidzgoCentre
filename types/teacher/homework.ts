@@ -4,7 +4,22 @@
 export type SubmissionStatus = "PENDING" | "SUBMITTED" | "REVIEWED" | "OVERDUE";
 
 // Submission status from /api/homework/submissions API
-export type SubmissionStatusFromApi = "Assigned" | "Submitted" | "Graded";
+export type SubmissionStatusFromApi =
+  | "Assigned"
+  | "Submitted"
+  | "Graded"
+  | "Late"
+  | "Missing";
+
+export type HomeworkSubmissionType =
+  | "FILE"
+  | "IMAGE"
+  | "TEXT"
+  | "LINK"
+  | "QUIZ"
+  | "MULTIPLE_CHOICE";
+
+export type QuestionBankDifficulty = "Easy" | "Medium" | "Hard";
 
 // ============ API Response Types ============
 
@@ -21,7 +36,14 @@ export interface FetchHomeworkParams {
 // Parameters for GET /api/homework/submissions
 export interface FetchHomeworkSubmissionsParams {
   classId?: string;
-  status?: number;
+  status?: number | string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+export interface FetchQuestionBankParams {
+  programId: string;
+  level?: QuestionBankDifficulty;
   pageNumber?: number;
   pageSize?: number;
 }
@@ -66,6 +88,18 @@ export interface HomeworkSubmissionItem {
   teacherFeedback: string | null;
   dueAt: string;
   createdAt: string;
+}
+
+export interface QuestionBankItem {
+  id: string;
+  questionText: string;
+  questionType: string;
+  options: string[];
+  correctAnswer: string;
+  points: number;
+  explanation?: string | null;
+  level?: QuestionBankDifficulty;
+  programId?: string;
 }
 
 // Student submission for an assignment (teacher view)
@@ -194,24 +228,45 @@ export interface CreateHomeworkPayload {
   book?: string;
   pages?: string;
   skills?: string;
-  submissionType?: "FILE" | "TEXT" | "FILE_AND_TEXT";
+  submissionType?: HomeworkSubmissionType;
   maxScore?: number;
   rewardStars?: number;
+  timeLimitMinutes?: number;
+  allowResubmit?: boolean;
   missionId?: string;
   instructions?: string;
   expectedAnswer?: string;
   rubric?: string;
+  attachment?: string;
   // Multiple choice specific fields
   questions?: MultipleChoiceQuestion[];
 }
 
-export interface  MultipleChoiceQuestion {
+export interface MultipleChoiceQuestion {
   questionText: string;
   questionType: string;
   options: string[];
   correctAnswer: string;
   points: number;
   explanation?: string;
+}
+
+export interface CreateHomeworkFromBankPayload {
+  classId: string;
+  programId: string;
+  sessionId?: string;
+  title: string;
+  description?: string;
+  dueAt: string;
+  rewardStars?: number;
+  timeLimitMinutes?: number;
+  allowResubmit?: boolean;
+  missionId?: string;
+  instructions?: string;
+  distribution: Array<{
+    level: QuestionBankDifficulty;
+    count: number;
+  }>;
 }
 
 export type CreateHomeworkResult =
@@ -226,4 +281,8 @@ export type DeleteHomeworkResult =
 // Fetch Submissions Types
 export type FetchHomeworkSubmissionsResult =
   | { ok: true; data: HomeworkSubmissionItem[] }
+  | { ok: false; error: string };
+
+export type FetchQuestionBankResult =
+  | { ok: true; data: QuestionBankItem[] }
   | { ok: false; error: string };
