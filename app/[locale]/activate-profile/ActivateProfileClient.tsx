@@ -102,9 +102,12 @@ export default function ActivateProfileClient() {
       normalizedRole = getRoleFromToken(token);
     }
 
-    const roleBasePath = normalizedRole
-      ? (ROLES[normalizedRole as keyof typeof ROLES] ?? '/portal')
-      : '/portal';
+    const roleBasePath =
+      normalizedRole === 'Parent'
+        ? '/portal'
+        : normalizedRole
+          ? (ROLES[normalizedRole as keyof typeof ROLES] ?? '/portal')
+          : '/portal';
     const destination = localizePath(roleBasePath, DEFAULT_LOCALE);
     setSuccessRedirectPath(destination);
 

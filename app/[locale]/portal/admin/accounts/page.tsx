@@ -768,7 +768,7 @@ export default function AccountsPage() {
 
       toast({
         title: "Thành công",
-        description: "Xóa profile thành công",
+        description: "Khóa profile thành công",
         variant: "success",
       });
 
@@ -779,7 +779,7 @@ export default function AccountsPage() {
       console.error("Error deleting profile:", error);
       toast({
         title: "Lỗi",
-        description: error.message || "Không thể xóa profile",
+        description: error.message || "Không thể khóa profile",
         variant: "destructive",
       });
     }
@@ -1509,7 +1509,7 @@ export default function AccountsPage() {
                             type="button"
                             onClick={() => handleOpenDeleteModal(acc)}
                             className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
-                            title="Xóa tài khoản"
+                            title="Khóa tài khoản"
                           >
                             <XCircle size={14} />
                           </button>

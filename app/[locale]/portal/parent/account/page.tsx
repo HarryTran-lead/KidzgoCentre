@@ -15,7 +15,6 @@ import {
   EyeOff,
   Heart,
 } from "lucide-react";
-import { Button } from "@/components/lightswind/button";
 
 type TabType = "profile" | "password";
 
@@ -23,7 +22,7 @@ export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    fullName: "Nguyễn Văn A",
+    name: "Nguyễn Văn A",
     phone: "0912 345 678",
     email: "parent@email.com",
     birthDate: "1985-01-01",
@@ -111,7 +110,7 @@ export default function AccountPage() {
                     <div>
                       <div className="flex flex-wrap items-center gap-3 mb-2">
                         <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                          {profileData.fullName}
+                          {profileData.name}
                         </h2>
                         <div className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs md:text-sm font-medium rounded-full">
                           Phụ huynh Kidzgo
@@ -172,10 +171,10 @@ export default function AccountPage() {
                 <div className="space-y-4">
                   <LabeledInput
                     label="Họ và tên"
-                    value={profileData.fullName}
+                    value={profileData.name}
                     disabled={!isEditing}
                     icon={<UserRound size={16} />}
-                    onChange={(value) => setProfileData({ ...profileData, fullName: value })}
+                    onChange={(value) => setProfileData({ ...profileData, name: value })}
                   />
                   <LabeledInput
                     label="Số điện thoại"
