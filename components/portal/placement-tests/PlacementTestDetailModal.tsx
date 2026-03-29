@@ -45,7 +45,6 @@ export default function PlacementTestDetailModal({
         <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold">Chi tiết Placement Test</h2>
-            <p className="text-red-100 mt-1">ID: {test.id}</p>
           </div>
           <button
             onClick={onClose}

@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { X, Calendar, MapPin, User } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
+import { getPlacementTestErrorMessage } from "@/lib/api/placementTestService";
 import type {
   PlacementTest,
   CreatePlacementTestRequest,
@@ -305,7 +313,7 @@ export default function PlacementTestFormModal({
       onClose();
     } catch (error) {
       console.error("Error submitting form:", error);
-      setFormError(error instanceof Error ? error.message : "Không thể lưu placement test");
+      setFormError(getPlacementTestErrorMessage(error, "Không thể lưu placement test"));
     } finally {
       setIsSubmitting(false);
     }
@@ -380,23 +388,28 @@ export default function PlacementTestFormModal({
                   <User size={16} />
                   Lead id
                 </label>
-                <select
-                  id="leadId"
+                <Select
                   value={formData.leadId}
-                  onChange={(e) => handleLeadChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                  onValueChange={handleLeadChange}
                 >
-                  <option value="">Chọn lead</option>
-                  {leads.length === 0 ? (
-                    <option disabled>Không có lead nào</option>
-                  ) : (
-                    leads.map((lead) => (
-                      <option key={lead.id} value={lead.id}>
-                        {lead.contactName} ({lead.children?.length || 0} bé)
-                      </option>
-                    ))
-                  )}
-                </select>
+                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                    <SelectValue placeholder="Chọn lead" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn lead</SelectItem>
+                    {leads.length === 0 ? (
+                      <SelectItem value="__no_lead__" disabled>
+                        Không có lead nào
+                      </SelectItem>
+                    ) : (
+                      leads.map((lead) => (
+                        <SelectItem key={lead.id} value={lead.id}>
+                          {lead.contactName} ({lead.children?.length || 0} bé)
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -404,22 +417,33 @@ export default function PlacementTestFormModal({
                   <User size={16} />
                   Tên bé *
                 </label>
-                <select
-                  id="leadChildId"
+                <Select
                   value={formData.leadChildId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, leadChildId: e.target.value }))}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, leadChildId: value }))}
                   disabled={!selectedLead || children.length === 0}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none disabled:opacity-50 disabled:bg-gray-50"
                 >
-                  <option value="">
-                    {!selectedLead ? "Vui lòng chọn lead trước" : children.length === 0 ? "Lead này chưa có thông tin bé" : "Chọn bé"}
-                  </option>
-                  {children.map((child) => (
-                    <option key={child.id} value={child.id}>
-                      {child.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-50 disabled:bg-gray-50">
+                    <SelectValue
+                      placeholder={
+                        !selectedLead
+                          ? "Vui lòng chọn lead trước"
+                          : children.length === 0
+                            ? "Lead này chưa có thông tin bé"
+                            : "Chọn bé"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">
+                      {!selectedLead ? "Vui lòng chọn lead trước" : children.length === 0 ? "Lead này chưa có thông tin bé" : "Chọn bé"}
+                    </SelectItem>
+                    {children.map((child) => (
+                      <SelectItem key={child.id} value={child.id}>
+                        {child.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}
@@ -431,21 +455,24 @@ export default function PlacementTestFormModal({
                   <User size={16} />
                   Hồ sơ học viên *
                 </label>
-                <select
-                  id="retakeStudentProfileId"
+                <Select
                   value={formData.retakeStudentProfileId}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, retakeStudentProfileId: e.target.value }))
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, retakeStudentProfileId: value }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
                 >
-                  <option value="">Chọn hồ sơ học viên</option>
-                  {filteredStudentProfiles.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.fullName}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                    <SelectValue placeholder="Chọn hồ sơ học viên" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn hồ sơ học viên</SelectItem>
+                    {filteredStudentProfiles.map((profile) => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -453,12 +480,10 @@ export default function PlacementTestFormModal({
                   <User size={16} />
                   Chương trình mới *
                 </label>
-                <select
-                  id="retakeProgramId"
+                <Select
                   value={formData.retakeProgramId}
-                  onChange={(e) =>
+                  onValueChange={(nextProgramId) =>
                     setFormData((prev) => {
-                      const nextProgramId = e.target.value;
                       const nextPlans = tuitionPlans.filter((plan) => {
                         if (plan.isActive === false) return false;
                         if (plan.programId !== nextProgramId) return false;
@@ -475,15 +500,19 @@ export default function PlacementTestFormModal({
                       };
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
                 >
-                  <option value="">Chọn chương trình mới</option>
-                  {filteredPrograms.map((program) => (
-                    <option key={program.id} value={program.id}>
-                      {program.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                    <SelectValue placeholder="Chọn chương trình mới" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn chương trình mới</SelectItem>
+                    {filteredPrograms.map((program) => (
+                      <SelectItem key={program.id} value={program.id}>
+                        {program.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -491,21 +520,24 @@ export default function PlacementTestFormModal({
                   <User size={16} />
                   Gói học mới *
                 </label>
-                <select
-                  id="retakeTuitionPlanId"
+                <Select
                   value={formData.retakeTuitionPlanId}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, retakeTuitionPlanId: e.target.value }))
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, retakeTuitionPlanId: value }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
                 >
-                  <option value="">Chọn gói học mới</option>
-                  {filteredTuitionPlans.map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                    <SelectValue placeholder="Chọn gói học mới" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chọn gói học mới</SelectItem>
+                    {filteredTuitionPlans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {plan.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}
@@ -532,19 +564,22 @@ export default function PlacementTestFormModal({
               <MapPin size={16} />
               Phòng test
             </label>
-            <select
-              id="room"
+            <Select
               value={formData.room}
-              onChange={(e) => setFormData(prev => ({ ...prev, room: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, room: value }))}
             >
-              <option value="">Chọn phòng test</option>
-              {classes.map((classroom) => (
-                <option key={classroom.id} value={classroom.className}>
-                  {classroom.className}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                <SelectValue placeholder="Chọn phòng test" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Chọn phòng test</SelectItem>
+                {classes.map((classroom) => (
+                  <SelectItem key={classroom.id} value={classroom.className}>
+                    {classroom.className}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Invigilator */}
@@ -553,19 +588,22 @@ export default function PlacementTestFormModal({
               <User size={16} />
               {mode === "retake" && !test ? "Người giám sát (optional)" : "Người giám sát *"}
             </label>
-            <select
-              id="invigilatorUserId"
+            <Select
               value={formData.invigilatorUserId}
-              onChange={(e) => setFormData(prev => ({ ...prev, invigilatorUserId: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, invigilatorUserId: value }))}
             >
-              <option value="">Chọn người giám sát</option>
-              {invigilators.map((invigilator) => (
-                <option key={invigilator.id} value={invigilator.id}>
-                  {invigilator.fullName} ({invigilator.role === 'Admin' ? 'Quản trị viên' : 'Nhân viên quản lý'})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                <SelectValue placeholder="Chọn người giám sát" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Chọn người giám sát</SelectItem>
+                {invigilators.map((invigilator) => (
+                  <SelectItem key={invigilator.id} value={invigilator.id}>
+                    {invigilator.fullName} ({invigilator.role === 'Admin' ? 'Quản trị viên' : 'Nhân viên quản lý'})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {!test && mode === "retake" && (

@@ -11,7 +11,6 @@ import {
   Edit,
   Eye,
   FileText,
-  UserCheck,
   UserPlus,
   School,
   RotateCcw,
@@ -51,7 +50,6 @@ interface PlacementTestTableProps {
   onAddNote?: (test: PlacementTest) => void;
   onCancel?: (test: PlacementTest) => void;
   onNoShow?: (test: PlacementTest) => void;
-  onConvertToEnrolled?: (test: PlacementTest) => void;
   onCreateAccount?: (test: PlacementTest) => void;
   onStartRegistration?: (test: PlacementTest) => void;
   onRetake?: (test: PlacementTest) => void;
@@ -75,7 +73,6 @@ export default function PlacementTestTable({
   onAddNote,
   onCancel,
   onNoShow,
-  onConvertToEnrolled,
   onCreateAccount,
   onStartRegistration,
   onRetake,
@@ -321,7 +318,6 @@ export default function PlacementTestTable({
                               <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl border border-red-200 bg-white shadow-lg py-1">
                                 {(() => {
                                   const shouldShowCreateAccount = !test.isAccountProfileCreated;
-                                  const shouldShowConvertToEnrolled = !test.isConvertedToEnrolled;
                                   return (
                                     <>
                                 {test.status === "Scheduled" && (
@@ -362,15 +358,6 @@ export default function PlacementTestTable({
                                   >
                                     <UserPlus size={14} />
                                     Tạo tài khoản & Profile
-                                  </button>
-                                )}
-                                {test.status === "Completed" && shouldShowConvertToEnrolled && onConvertToEnrolled && (
-                                  <button
-                                    onClick={() => { onConvertToEnrolled(test); setOpenMenuId(null); }}
-                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
-                                  >
-                                    <UserCheck size={14} />
-                                    Chuyển thành học viên
                                   </button>
                                 )}
                                 {test.status === "Completed" && onStartRegistration && (

@@ -75,7 +75,7 @@ export default function SelfAssignModal({
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
         {/* Header */}
-        <div className="bg-gradient-to-r from-pink-500 to-rose-500 px-6 py-4">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -179,7 +179,7 @@ export default function SelfAssignModal({
             <button
               onClick={handleSelfAssign}
               disabled={isSubmitting || !!lead.ownerStaffId}
-              className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isSubmitting ? (
                 <>

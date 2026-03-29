@@ -73,7 +73,7 @@ export default function Contact() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       const response = await createLeadPublic({
         contactName: form.contactName,
@@ -86,10 +86,11 @@ export default function Contact() {
       if (response.success) {
         toast({
           title: "Thành công!",
-          description: "Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi sớm nhất có thể.",
+          description:
+            "Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi sớm nhất có thể.",
           variant: "success",
         });
-        
+
         // Reset form
         setForm({
           contactName: "",
@@ -101,7 +102,9 @@ export default function Contact() {
       } else {
         toast({
           title: "Gửi liên hệ thất bại",
-          description: response.message || "Không thể gửi thông tin. Vui lòng thử lại sau.",
+          description:
+            response.message ||
+            "Không thể gửi thông tin. Vui lòng thử lại sau.",
           variant: "destructive",
         });
       }
@@ -119,14 +122,14 @@ export default function Contact() {
 
   const fadeInUp = {
     hidden: { opacity: 0, y: 50 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: {
         duration: 0.8,
-        ease: cubicBezier(0.22, 1, 0.36, 1)
-      }
-    }
+        ease: cubicBezier(0.22, 1, 0.36, 1),
+      },
+    },
   };
 
   const staggerContainer = {
@@ -135,21 +138,21 @@ export default function Contact() {
       opacity: 1,
       transition: {
         staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
+        delayChildren: 0.2,
+      },
+    },
   };
 
   const cardVariants = {
     hidden: { opacity: 0, y: 40, rotateX: -10 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
+    visible: {
+      opacity: 1,
+      y: 0,
       rotateX: 0,
       transition: {
         duration: 0.6,
-        ease: cubicBezier(0.22, 1, 0.36, 1)
-      }
+        ease: cubicBezier(0.22, 1, 0.36, 1),
+      },
     },
     hover: {
       y: -8,
@@ -157,9 +160,9 @@ export default function Contact() {
       transition: {
         type: "spring" as const,
         stiffness: 300,
-        damping: 25
-      }
-    }
+        damping: 25,
+      },
+    },
   };
 
   return (
@@ -186,13 +189,15 @@ export default function Contact() {
                     <PhoneCall className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">Gọi cho chúng tôi</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      Gọi cho chúng tôi
+                    </h3>
                     <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
                       Có mặt 8AM - 8PM
                     </p>
-                    <a 
-                      href="tel:+84999888777" 
+                    <a
+                      href="tel:+84999888777"
                       className="text-lg font-bold text-gray-900 hover:text-emerald-600 transition-colors flex items-center gap-2 group-hover:gap-3"
                     >
                       +84 999 888 777
@@ -217,13 +222,15 @@ export default function Contact() {
                     <Mail className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">Email</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      Email
+                    </h3>
                     <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
                       <CheckCircle className="w-3.5 h-3.5" />
                       Phản hồi trong vòng vài giờ
                     </p>
-                    <a 
-                      href="mailto:support@kidzgo.edu.vn" 
+                    <a
+                      href="mailto:support@kidzgo.edu.vn"
                       className="text-base font-semibold text-gray-900 hover:text-green-600 transition-colors flex items-center gap-2 group-hover:gap-3"
                     >
                       support@kidzgo.edu.vn
@@ -248,7 +255,9 @@ export default function Contact() {
                     <MapPin className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">Đến thăm chúng tôi</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      Đến thăm chúng tôi
+                    </h3>
                     <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
                       <Building className="w-3.5 h-3.5" />
                       Văn phòng chính
@@ -274,14 +283,32 @@ export default function Contact() {
                   <div className="w-10 h-10 rounded-lg bg-linear-to-br from-emerald-500 to-green-500 text-white grid place-items-center shadow-md">
                     <Users className="w-5 h-5" />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900">Theo dõi hành trình của chúng tôi</h3>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Theo dõi hành trình của chúng tôi
+                  </h3>
                 </div>
                 <div className="grid grid-cols-4  ">
                   {[
-                    { icon: Facebook, color: "bg-linear-to-br from-blue-500 to-blue-600", label: "Facebook" },
-                    { icon: Instagram, color: "bg-linear-to-br from-pink-500 to-orange-500", label: "Instagram" },
-                    { icon: Twitter, color: "bg-linear-to-br from-sky-500 to-blue-400", label: "Twitter" },
-                    { icon: MessageCircle, color: "bg-linear-to-br from-green-500 to-emerald-500", label: "Zalo" }
+                    {
+                      icon: Facebook,
+                      color: "bg-linear-to-br from-blue-500 to-blue-600",
+                      label: "Facebook",
+                    },
+                    {
+                      icon: Instagram,
+                      color: "bg-linear-to-br from-pink-500 to-orange-500",
+                      label: "Instagram",
+                    },
+                    {
+                      icon: Twitter,
+                      color: "bg-linear-to-br from-sky-500 to-blue-400",
+                      label: "Twitter",
+                    },
+                    {
+                      icon: MessageCircle,
+                      color: "bg-linear-to-br from-green-500 to-emerald-500",
+                      label: "Zalo",
+                    },
                   ].map((item, idx) => (
                     <a
                       key={idx}
@@ -289,12 +316,14 @@ export default function Contact() {
                       className="group/social"
                       aria-label={item.label}
                     >
-                      <div className={`
+                      <div
+                        className={`
                         w-10 h-10 aspect-square rounded-xl ${item.color} 
                         text-white grid place-items-center shadow-md
                         hover:shadow-lg transition-all duration-300
                         group-hover/social:-translate-y-1
-                      `}>
+                      `}
+                      >
                         <item.icon className="w-5 h-5" />
                       </div>
                     </a>
@@ -305,10 +334,7 @@ export default function Contact() {
           </div>
 
           {/* Form liên hệ */}
-          <motion.div
-            variants={cardVariants}
-            className="lg:col-span-2"
-          >
+          <motion.div variants={cardVariants} className="lg:col-span-2">
             <div className="group relative bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100">
               {/* Header form */}
               <div className="bg-linear-to-r from-emerald-500/10 to-green-500/10 p-6 border-b border-emerald-100">
@@ -317,8 +343,12 @@ export default function Contact() {
                     <MessageSquare className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-gray-900">Gửi tin nhắn cho chúng tôi</h3>
-                    <p className="text-gray-600">Điền vào biểu mẫu bên dưới và chúng tôi sẽ phản hồi sớm</p>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      Gửi tin nhắn cho chúng tôi
+                    </h3>
+                    <p className="text-gray-600">
+                      Điền vào biểu mẫu bên dưới và chúng tôi sẽ phản hồi sớm
+                    </p>
                   </div>
                 </div>
               </div>
@@ -340,7 +370,9 @@ export default function Contact() {
                         className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="Nguyễn Văn A"
                         value={form.contactName}
-                        onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, contactName: e.target.value })
+                        }
                       />
                     </div>
 
@@ -357,7 +389,9 @@ export default function Contact() {
                         className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="nguyenvana@example.com"
                         value={form.email}
-                        onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, email: e.target.value })
+                        }
                       />
                     </div>
                   </div>
@@ -376,62 +410,59 @@ export default function Contact() {
                         className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
                         placeholder="0999888777"
                         value={form.phone}
-                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, phone: e.target.value })
+                        }
                       />
                     </div>
-
                     <div className="group">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
-                          <MessageCircle className="w-4 h-4" />
-                          Zalo ID
+                          <Building className="w-4 h-4" />
+                          Chi nhánh mong muốn
                         </div>
                       </label>
-                      <input
-                        type="text"
-                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
-                        placeholder="Số Zalo của bạn"
-                        value={form.zaloId}
-                        onChange={(e) => setForm({ ...form, zaloId: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="group">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <div className="flex items-center gap-2">
-                        <Building className="w-4 h-4" />
-                        Chi nhánh mong muốn
-                      </div>
-                    </label>
-                    <select
-                      className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
-                      value={form.branchPreference}
-                      onChange={(e) => setForm({ ...form, branchPreference: e.target.value })}
-                      disabled={isLoadingBranches}
-                    >
-                      <option value="">
-                        {isLoadingBranches ? "Đang tải chi nhánh..." : "Chọn chi nhánh"}
-                      </option>
-                      {!isLoadingBranches && branches.length > 0 && branches.map((branch) => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name}
+                      <select
+                        className="w-full px-5 py-3.5 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all duration-300 bg-white hover:border-gray-300"
+                        value={form.branchPreference}
+                        onChange={(e) =>
+                          setForm({ ...form, branchPreference: e.target.value })
+                        }
+                        disabled={isLoadingBranches}
+                      >
+                        <option value="">
+                          {isLoadingBranches
+                            ? "Đang tải chi nhánh..."
+                            : "Chọn chi nhánh"}
                         </option>
-                      ))}
-                      {!isLoadingBranches && branches.length === 0 && (
-                        <option value="" disabled>Không có chi nhánh nào</option>
-                      )}
-                    </select>
+                        {!isLoadingBranches &&
+                          branches.length > 0 &&
+                          branches.map((branch) => (
+                            <option key={branch.id} value={branch.id}>
+                              {branch.name}
+                            </option>
+                          ))}
+                        {!isLoadingBranches && branches.length === 0 && (
+                          <option value="" disabled>
+                            Không có chi nhánh nào
+                          </option>
+                        )}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-6 border-t border-gray-100">
                     <p className="text-sm text-gray-500">
                       Bằng cách gửi, bạn đồng ý với{" "}
-                      <a href="#" className="text-emerald-600 hover:text-emerald-700 font-medium">
+                      <a
+                        href="#"
+                        className="text-emerald-600 hover:text-emerald-700 font-medium"
+                      >
                         Chính sách Bảo mật
-                      </a> của chúng tôi
+                      </a>{" "}
+                      của chúng tôi
                     </p>
-                    
+
                     <button
                       type="submit"
                       disabled={isSubmitting}
@@ -443,7 +474,7 @@ export default function Contact() {
                       {!isSubmitting && (
                         <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                       )}
-                      
+
                       {/* Hiệu ứng nền động */}
                       <span className="absolute inset-0 rounded-full bg-linear-to-r from-emerald-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></span>
                     </button>
@@ -451,21 +482,22 @@ export default function Contact() {
                 </form>
               </div>
             </div>
-
-            
           </motion.div>
         </motion.div>
       </div>
 
       {/* SVG trang trí dưới cùng */}
-      <div className="z-20 relative w-full overflow-hidden bg-[#d0fae4]" style={{ marginTop: 0, lineHeight: 0 }}>
+      <div
+        className="z-20 relative w-full overflow-hidden bg-[#d0fae4]"
+        style={{ marginTop: 0, lineHeight: 0 }}
+      >
         <Image
           src="/image/hero-deluxe-end.svg"
           alt=""
           width={1512}
           height={317}
           className="w-full h-auto"
-          style={{ display: 'block', verticalAlign: 'bottom' }}
+          style={{ display: "block", verticalAlign: "bottom" }}
         />
       </div>
     </div>

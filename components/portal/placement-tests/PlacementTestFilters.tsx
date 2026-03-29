@@ -1,6 +1,13 @@
 "use client";
 
 import { Search, Filter, Calendar } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 interface PlacementTestFiltersProps {
   searchQuery: string;
@@ -74,16 +81,20 @@ export default function PlacementTestFilters({
             />
           </div>
 
-          <select
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => onPageSizeChange(Number(value))}
           >
-            <option value={5}>5 / trang</option>
-            <option value={10}>10 / trang</option>
-            <option value={20}>20 / trang</option>
-            <option value={50}>50 / trang</option>
-          </select>
+            <SelectTrigger className="h-10.5 min-w-30 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+              <SelectValue placeholder="Số dòng" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">5 / trang</SelectItem>
+              <SelectItem value="10">10 / trang</SelectItem>
+              <SelectItem value="20">20 / trang</SelectItem>
+              <SelectItem value="50">50 / trang</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

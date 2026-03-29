@@ -156,7 +156,6 @@ export default function Page() {
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
   // Table state
-  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [sortKey, setSortKey] = useState<string | null>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -784,43 +783,6 @@ export default function Page() {
       }
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
       return prev;
-    });
-  };
-
-  // Selection handlers
-  const allVisibleIds = useMemo(
-    () => filteredAndSortedLeads.map((l) => l.id),
-    [filteredAndSortedLeads],
-  );
-  const selectedVisibleCount = useMemo(
-    () => allVisibleIds.filter((id) => selectedIds[id]).length,
-    [allVisibleIds, selectedIds],
-  );
-  const allVisibleSelected =
-    allVisibleIds.length > 0 && selectedVisibleCount === allVisibleIds.length;
-
-  const toggleSelectAllVisible = () => {
-    setSelectedIds((prev) => {
-      const next = { ...prev };
-      if (allVisibleSelected) {
-        allVisibleIds.forEach((id) => {
-          delete next[id];
-        });
-        return next;
-      }
-      allVisibleIds.forEach((id) => {
-        next[id] = true;
-      });
-      return next;
-    });
-  };
-
-  const toggleSelectOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = { ...prev };
-      if (next[id]) delete next[id];
-      else next[id] = true;
-      return next;
     });
   };
 
@@ -1805,11 +1767,8 @@ export default function Page() {
             <LeadTable
               leads={filteredAndSortedLeads}
               isLoading={isLoading}
-              selectedIds={selectedIds}
               sortKey={sortKey}
               sortDir={sortDir}
-              onSelectAll={toggleSelectAllVisible}
-              onSelectOne={toggleSelectOne}
               onSort={toggleSort}
               onEdit={handleEditLead}
               onView={handleViewLead}
@@ -1888,7 +1847,6 @@ export default function Page() {
               onAddNote={handleAddNote}
               onCancel={handleCancelTest}
               onNoShow={handleNoShowTest}
-              onConvertToEnrolled={handleConvertToEnrolled}
               onCreateAccount={handleCreateAccountFromTest}
               onStartRegistration={handleStartRegistrationFlow}
               onRetake={handleRetakeFromTable}

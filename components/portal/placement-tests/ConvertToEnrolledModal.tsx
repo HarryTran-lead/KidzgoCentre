@@ -130,12 +130,6 @@ export default function ConvertToEnrolledModal({
                 <span className="text-purple-600 font-semibold">{test.resultScore}</span>
               </p>
             )}
-            {test.levelRecommendation && (
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">Trình độ đề xuất:</span>{" "}
-                <span className="text-indigo-600 font-semibold">{test.levelRecommendation}</span>
-              </p>
-            )}
           </div>
 
           {/* Student Profile Selection with Search */}

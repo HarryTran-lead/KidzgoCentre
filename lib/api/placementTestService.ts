@@ -33,6 +33,15 @@ type ProblemPayload = {
   title?: string;
   detail?: string;
   message?: string;
+  errors?: unknown;
+};
+
+type ProblemErrorItem = {
+  code?: string;
+  description?: string;
+  message?: string;
+  type?: string;
+  field?: string;
 };
 
 export class PlacementTestApiError extends Error {
@@ -40,15 +49,27 @@ export class PlacementTestApiError extends Error {
   status?: number;
   title?: string;
   detail?: string;
+  validationMessages?: string[];
   raw?: unknown;
 
-  constructor(message: string, options?: { code?: string; status?: number; title?: string; detail?: string; raw?: unknown }) {
+  constructor(
+    message: string,
+    options?: {
+      code?: string;
+      status?: number;
+      title?: string;
+      detail?: string;
+      validationMessages?: string[];
+      raw?: unknown;
+    }
+  ) {
     super(message);
     this.name = "PlacementTestApiError";
     this.code = options?.code;
     this.status = options?.status;
     this.title = options?.title;
     this.detail = options?.detail;
+    this.validationMessages = options?.validationMessages;
     this.raw = options?.raw;
   }
 }
@@ -81,6 +102,7 @@ function extractErrorPayload(error: unknown): ProblemPayload {
       title: data?.title,
       detail: data?.detail,
       message: data?.message,
+      errors: data?.errors,
     };
   }
 
@@ -91,10 +113,83 @@ function extractErrorPayload(error: unknown): ProblemPayload {
       title: error.title,
       detail: error.detail,
       message: error.message,
+      errors: (error as any).raw?.errors,
     };
   }
 
   return {};
+}
+
+function normalizeValidationMessages(errors: unknown): string[] {
+  if (!errors) return [];
+
+  if (Array.isArray(errors)) {
+    return errors
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (!item || typeof item !== "object") return "";
+        const casted = item as ProblemErrorItem;
+        return String(casted.description || casted.message || casted.code || "").trim();
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof errors === "object") {
+    const messages: string[] = [];
+    Object.values(errors as Record<string, unknown>).forEach((value) => {
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          if (typeof item === "string" && item.trim()) messages.push(item.trim());
+        });
+      } else if (typeof value === "string" && value.trim()) {
+        messages.push(value.trim());
+      }
+    });
+    return messages;
+  }
+
+  return [];
+}
+
+function translatePlacementTestValidationMessage(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("scheduledat") && normalized.includes("cannot be in the past")) {
+    return "Thời gian test không được ở quá khứ. Vui lòng chọn thời gian hiện tại hoặc tương lai.";
+  }
+
+  if (normalized.includes("scheduledat") && normalized.includes("required")) {
+    return "Vui lòng chọn thời gian test.";
+  }
+
+  if (normalized.includes("invigilator") && normalized.includes("required")) {
+    return "Vui lòng chọn người giám sát.";
+  }
+
+  if (normalized.includes("leadchild") && normalized.includes("required")) {
+    return "Vui lòng chọn tên bé.";
+  }
+
+  if (normalized.includes("lead") && normalized.includes("required")) {
+    return "Vui lòng chọn lead.";
+  }
+
+  return message;
+}
+
+function translatePlacementTestMessage(message?: string): string {
+  if (!message) return "";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("one or more validation errors occurred")) {
+    return "Dữ liệu gửi lên chưa hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.";
+  }
+
+  if (normalized.includes("validation.general")) {
+    return "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin đã nhập.";
+  }
+
+  return message;
 }
 
 function toPlacementTestApiError(error: unknown, fallbackMessage: string): PlacementTestApiError {
@@ -103,10 +198,16 @@ function toPlacementTestApiError(error: unknown, fallbackMessage: string): Place
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
     const data = (error.response?.data || {}) as ProblemPayload;
+    const validationMessages = normalizeValidationMessages(data?.errors).map(
+      translatePlacementTestValidationMessage
+    );
+    const firstValidationMessage = validationMessages[0];
+    const translatedMessage = translatePlacementTestMessage(
+      data?.message || data?.detail || data?.title
+    );
     const message =
-      data?.message ||
-      data?.detail ||
-      data?.title ||
+      firstValidationMessage ||
+      translatedMessage ||
       error.message ||
       fallbackMessage;
 
@@ -115,6 +216,7 @@ function toPlacementTestApiError(error: unknown, fallbackMessage: string): Place
       status,
       title: data?.title,
       detail: data?.detail,
+      validationMessages,
       raw: error.response?.data,
     });
   }
@@ -135,7 +237,21 @@ export function getPlacementTestErrorMessage(error: unknown, fallbackMessage = "
   const mapped = getDomainErrorMessage(error, fallbackMessage);
   if (mapped && mapped !== fallbackMessage) return mapped;
 
-  return details.detail || details.message || details.title || fallbackMessage;
+  const validationMessages = normalizeValidationMessages(details.errors).map(
+    translatePlacementTestValidationMessage
+  );
+  if (validationMessages.length > 0) return validationMessages[0];
+
+  if (error instanceof PlacementTestApiError && error.validationMessages?.length) {
+    return error.validationMessages[0];
+  }
+
+  const translated =
+    translatePlacementTestMessage(details.detail) ||
+    translatePlacementTestMessage(details.message) ||
+    translatePlacementTestMessage(details.title);
+
+  return translated || details.detail || details.message || details.title || fallbackMessage;
 }
 
 /**

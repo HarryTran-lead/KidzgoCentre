@@ -20,7 +20,7 @@ export interface CreateUserRequest {
 // Update User Request
 export interface UpdateUserRequest {
   email?: string;
-  fullName?: string;
+  name?: string;
   username?: string;
   phone?: string;
   branchId?: string;

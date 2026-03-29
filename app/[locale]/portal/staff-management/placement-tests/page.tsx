@@ -916,6 +916,7 @@ export default function PlacementTestsPage() {
             : payload.action === "retake"
               ? "Đã tạo placement test retake"
               : "Đã tạo placement test mới",
+              variant: "success",
       });
 
       fetchPlacementTests();
@@ -1204,7 +1205,6 @@ export default function PlacementTestsPage() {
           onAddResult={handleAddResult}
           onCancel={handleCancel}
           onNoShow={handleNoShow}
-          onConvertToEnrolled={handleConvertToEnrolled}
           onCreateAccount={handleCreateAccountFromTest}
           onRetake={handleRetakeFromTable}
         />

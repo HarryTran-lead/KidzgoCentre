@@ -5,35 +5,50 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, User, Calendar, Book, UserRound, Activity, Clock, CheckCircle } from "lucide-react";
+import { Plus, Edit, Trash2, User, Calendar, Book, Activity, Clock, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import ConfirmModal from "@/components/ConfirmModal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import {
   getLeadChildren,
   createLeadChild,
   updateLeadChild,
   deleteLeadChild,
 } from "@/lib/api/leadService";
+import { getProgramsForBranchDropdown } from "@/lib/api/programService";
 import type { LeadChild, CreateLeadChildRequest } from "@/types/lead";
+import type { Program } from "@/types/admin/programs";
 
 interface LeadChildrenManagerProps {
   leadId: string;
   isEditable?: boolean;
+  onChildrenChanged?: () => void;
 }
 
 export default function LeadChildrenManager({
   leadId,
   isEditable = true,
+  onChildrenChanged,
 }: LeadChildrenManagerProps) {
   const { toast } = useToast();
+  const { user: currentUser } = useCurrentUser();
   const [children, setChildren] = useState<LeadChild[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingChild, setEditingChild] = useState<LeadChild | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{isOpen: boolean, childId: string | null}>({ isOpen: false, childId: null });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [isProgramsLoading, setIsProgramsLoading] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<CreateLeadChildRequest>({
@@ -66,14 +81,99 @@ export default function LeadChildrenManager({
     }
   }, [leadId, toast]);
 
+  const resolveCurrentUserBranchId = useCallback((): string => {
+    const user = currentUser as any;
+    return String(
+      user?.branchId ||
+      user?.branch?.id ||
+      user?.branch?.branchId ||
+      user?.selectedProfile?.branchId ||
+      user?.profiles?.[0]?.branchId ||
+      ""
+    );
+  }, [currentUser]);
+
+  const fetchPrograms = useCallback(async () => {
+    const branchId = resolveCurrentUserBranchId();
+    if (!branchId) {
+      setPrograms([]);
+      return;
+    }
+
+    try {
+      setIsProgramsLoading(true);
+      const programItems = await getProgramsForBranchDropdown(branchId);
+      const activePrograms = programItems.filter((program) => program.isActive !== false);
+      setPrograms(activePrograms);
+    } catch (error) {
+      console.error("Error fetching programs for branch:", error);
+      setPrograms([]);
+    } finally {
+      setIsProgramsLoading(false);
+    }
+  }, [resolveCurrentUserBranchId]);
+
+  const selectedProgramName = (formData.programInterest || "").trim();
+
+  const programOptions = useMemo(() => {
+    const mapped = programs
+      .filter((program) => Boolean(program.name))
+      .map((program) => ({
+        value: program.name,
+        label: program.name,
+      }));
+
+    if (selectedProgramName && !mapped.some((program) => program.value === selectedProgramName)) {
+      mapped.unshift({
+        value: selectedProgramName,
+        label: `${selectedProgramName} (đã chọn)`,
+      });
+    }
+
+    return mapped;
+  }, [programs, selectedProgramName]);
+
   useEffect(() => {
     if (leadId) {
       fetchChildren();
     }
   }, [leadId, fetchChildren]);
 
+  useEffect(() => {
+    if (isFormOpen) {
+      fetchPrograms();
+    }
+  }, [isFormOpen, fetchPrograms]);
+
+  const getAgeFromDob = (dob: string): number => {
+    const birthDate = new Date(dob);
+    const today = new Date();
+
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    const hasNotHadBirthdayYet = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate());
+
+    if (hasNotHadBirthdayYet) {
+      age -= 1;
+    }
+
+    return age;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.dob) {
+      const age = getAgeFromDob(formData.dob);
+      if (age <= 3 || age >= 99) {
+        toast({
+          title: "Ngày sinh không hợp lệ",
+          description: "Tuổi của bé phải lớn hơn 3 và nhỏ hơn 99.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
     try {
       if (editingChild) {
@@ -86,7 +186,8 @@ export default function LeadChildrenManager({
             description: "Đã cập nhật thông tin bé",
             variant: "success",
           });
-          fetchChildren();
+          await fetchChildren();
+          onChildrenChanged?.();
           resetForm();
         }
       } else {
@@ -99,7 +200,8 @@ export default function LeadChildrenManager({
             description: "Đã thêm bé mới",
             variant: "success",
           });
-          fetchChildren();
+          await fetchChildren();
+          onChildrenChanged?.();
           resetForm();
         }
       }
@@ -142,7 +244,8 @@ export default function LeadChildrenManager({
           description: "Đã xóa bé",
           variant: "success",
         });
-        fetchChildren();
+        await fetchChildren();
+        onChildrenChanged?.();
         setDeleteConfirm({ isOpen: false, childId: null });
       }
     } catch (error: any) {
@@ -179,7 +282,6 @@ export default function LeadChildrenManager({
   };
 
   if (isLoading) {
-    console.log('⏳ Loading children...');
     return (
       <div className="p-6 text-center">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-pink-500 border-r-transparent"></div>
@@ -187,8 +289,6 @@ export default function LeadChildrenManager({
       </div>
     );
   }
-
-  console.log(' Rendering children list. Count:', children.length, 'Data:', children);
 
   return (
     <div className="space-y-4">
@@ -200,7 +300,7 @@ export default function LeadChildrenManager({
         {isEditable && (
           <button
             onClick={() => setIsFormOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white hover:bg-pink-600 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors"
           >
             <Plus size={16} />
             Thêm bé mới
@@ -223,7 +323,7 @@ export default function LeadChildrenManager({
           )}
         </div>
       ) : (
-        <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2">
+        <div className="max-h-100 overflow-y-auto space-y-3 pr-2">
           {children.map((child) => (
             <div
               key={child.id}
@@ -247,11 +347,6 @@ export default function LeadChildrenManager({
                         />
                       </span>
                     )}
-                  </div>
-
-                  {/* Child ID */}
-                  <div className="text-xs text-gray-500">
-                    ID: {child.id}
                   </div>
 
                   {child.dob && (
@@ -374,32 +469,63 @@ export default function LeadChildrenManager({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Giới tính
                 </label>
-                <select
-                  value={formData.gender}
-                  onChange={(e) =>
-                    setFormData({ ...formData, gender: (e.target.value as "Male" | "Female") || undefined })
+                <Select
+                  value={formData.gender || ""}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      gender: (value as "Male" | "Female") || undefined,
+                    })
                   }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
                 >
-                  <option value="">-- Chọn giới tính --</option>
-                  <option value="Male">Nam</option>
-                  <option value="Female">Nữ</option>
-                </select>
+                  <SelectTrigger className="h-10.5 rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20">
+                    <SelectValue placeholder="-- Chọn giới tính --" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">-- Chọn giới tính --</SelectItem>
+                    <SelectItem value="Male">Nam</SelectItem>
+                    <SelectItem value="Female">Nữ</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Chương trình quan tâm
                 </label>
-                <input
-                  type="text"
-                  value={formData.programInterest}
-                  onChange={(e) =>
-                    setFormData({ ...formData, programInterest: e.target.value })
+                <Select
+                  value={formData.programInterest || ""}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      programInterest: value,
+                    })
                   }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20"
-                  placeholder="Ví dụ: Tiếng Anh thiếu nhi"
-                />
+                  disabled={isProgramsLoading || programOptions.length === 0}
+                >
+                  <SelectTrigger className="h-10.5 rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20">
+                    <SelectValue
+                      placeholder={
+                        isProgramsLoading
+                          ? "Đang tải chương trình..."
+                          : programOptions.length > 0
+                            ? "Tìm và chọn chương trình"
+                            : "Không có chương trình theo chi nhánh"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Không chọn chương trình</SelectItem>
+                    {programOptions.map((program) => (
+                      <SelectItem key={program.value} value={program.value}>
+                        {program.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Gõ vào ô chọn để tìm nhanh chương trình theo chi nhánh tài khoản.
+                </p>
               </div>
 
               <div>
@@ -427,7 +553,7 @@ export default function LeadChildrenManager({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white hover:bg-pink-600 transition-colors"
+                  className="flex-1 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors"
                 >
                   {editingChild ? "Cập nhật" : "Thêm"}
                 </button>

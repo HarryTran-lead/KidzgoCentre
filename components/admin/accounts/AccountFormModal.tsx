@@ -50,7 +50,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     if (mode === 'edit' && account) {
       setFormData({
         email: account.email,
-        name: account.name || account.username,
+        name: account.name,
         username: account.username,
         password: '',
         role: account.role,
@@ -88,7 +88,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
       } else {
         const updateData: UpdateUserRequest = {
           email: formData.email,
-          fullName: formData.name,
+          name: formData.name,
           role: formData.role,
           branchId: formData.branchId || undefined,
         };
@@ -165,8 +165,8 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             <input
               type="text"
               required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
               placeholder="Nguyễn Văn A"
             />
@@ -177,15 +177,15 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                 <UserIcon size={16} className="text-pink-600" />
-                Username <span className="text-red-500">*</span>
+                Họ tên đầy đủ <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                placeholder="staffmanage"
+                placeholder="Nguyễn Văn A"
               />
             </div>
           )}
@@ -195,14 +195,14 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                 <UserIcon size={16} className="text-pink-600" />
-                Username
+                Họ tên đầy đủ <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                placeholder="username"
+                placeholder="Nguyễn Văn A"
               />
             </div>
           )}
