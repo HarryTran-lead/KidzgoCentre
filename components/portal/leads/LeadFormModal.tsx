@@ -242,19 +242,6 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                   placeholder="email@example.com"
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Zalo ID
-                </label>
-                <input
-                  type="text"
-                  value={formData.zaloId}
-                  onChange={(e) => setFormData({ ...formData, zaloId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-                  placeholder="Zalo ID"
-                />
-              </div>
             </div>
           </div>
 
@@ -279,31 +266,9 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Campaign
-                </label>
-                <input
-                  type="text"
-                  value={formData.campaign}
-                  onChange={(e) => setFormData({ ...formData, campaign: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-                  placeholder="Tên chiến dịch"
-                />
-              </div>
+             
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Công ty
-                </label>
-                <input
-                  type="text"
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-                  placeholder="Tên công ty"
-                />
-              </div>
+             
             </div>
           </div>
 
@@ -380,18 +345,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Chủ đề
-              </label>
-              <input
-                type="text"
-                value={formData.subject}
-                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-                placeholder="Chủ đề liên hệ"
-              />
-            </div>
+            
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

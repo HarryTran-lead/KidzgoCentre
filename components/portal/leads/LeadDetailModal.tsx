@@ -150,11 +150,6 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
                 </label>
                 <p className="text-sm font-medium text-gray-900 mt-1">{lead.email || "Không có"}</p>
               </div>
-
-              <div>
-                <label className="text-xs font-medium text-gray-500">Công ty</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.company || "Không có"}</p>
-              </div>
             </div>
           </div>
 
@@ -186,15 +181,6 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
                   {lead.firstResponseAt ? new Date(lead.firstResponseAt).toLocaleString('vi-VN') : "Chưa phản hồi"}
                 </p>
               </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                  <Clock size={12} /> Hành động tiếp theo
-                </label>
-                <p className="text-sm font-medium text-gray-900 mt-1">
-                  {lead.nextActionAt ? new Date(lead.nextActionAt).toLocaleString('vi-VN') : "Chưa đặt lịch"}
-                </p>
-              </div>
 
               <div>
                 <label className="text-xs font-medium text-gray-500">Số lần tiếp xúc</label>
@@ -214,11 +200,6 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
               <div>
                 <label className="text-xs font-medium text-gray-500">Nguồn</label>
                 <p className="text-sm font-medium text-gray-900 mt-1">{lead.source || "Không có"}</p>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500">Campaign</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.campaign || "Không có"}</p>
               </div>
             </div>
           </div>
@@ -243,10 +224,6 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
                 <p className="text-sm font-medium text-gray-900 mt-1">{displayProgramInterest}</p>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="text-xs font-medium text-gray-500">Chủ đề</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.subject || "Không có"}</p>
-              </div>
             </div>
           </div>
 
@@ -286,10 +263,6 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
               <div>
                 <span className="font-medium">Ngày tạo:</span>{" "}
                 {lead.createdAt ? new Date(lead.createdAt).toLocaleString('vi-VN') : "Không có"}
-              </div>
-              <div>
-                <span className="font-medium">Cập nhật:</span>{" "}
-                {lead.updatedAt ? new Date(lead.updatedAt).toLocaleString('vi-VN') : "Không có"}
               </div>
             </div>
           </div>

@@ -79,7 +79,7 @@ export default function LeadFilters({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Tìm kiếm tên, SĐT, email, mã lead..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
             />
           </div>
           {onPageSizeChange && (
@@ -87,7 +87,7 @@ export default function LeadFilters({
               value={String(pageSize)}
               onValueChange={(value) => onPageSizeChange(Number(value))}
             >
-              <SelectTrigger className="h-10.5 min-w-30 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+              <SelectTrigger className="h-10 w-35 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
                 <SelectValue placeholder="Số dòng" />
               </SelectTrigger>
               <SelectContent>
@@ -102,12 +102,11 @@ export default function LeadFilters({
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Filter size={16} className="text-gray-500" />
             <Select
               value={selectedSource}
               onValueChange={onSourceChange}
             >
-              <SelectTrigger className="h-10.5 min-w-42.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 cursor-pointer">
+              <SelectTrigger className="h-10 w-35 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 cursor-pointer">
                 <SelectValue placeholder="Nguồn" />
               </SelectTrigger>
               <SelectContent>

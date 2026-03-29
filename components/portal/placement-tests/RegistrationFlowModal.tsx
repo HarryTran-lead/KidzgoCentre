@@ -22,6 +22,7 @@ import {
   upgradeRegistration,
   getRegistrations,
 } from "@/lib/api/registrationService";
+import { getAllClasses } from "@/lib/api/classService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 
@@ -30,6 +31,7 @@ interface RegistrationFlowModalProps {
   onClose: () => void;
   test: PlacementTest | null;
   branchId?: string;
+  allowManualAssign?: boolean;
   onSuccess?: () => void;
 }
 
@@ -127,6 +129,7 @@ export default function RegistrationFlowModal({
   onClose,
   test,
   branchId,
+  allowManualAssign = false,
   onSuccess,
 }: RegistrationFlowModalProps) {
   const { toast } = useToast();
@@ -176,13 +179,46 @@ export default function RegistrationFlowModal({
     return map[String(status || "")] || status || "Không xác định";
   }
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isLoadingManualClasses, setIsLoadingManualClasses] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isWaiting, setIsWaiting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
   const [suggestedClasses, setSuggestedClasses] = useState<any[]>([]);
+  const [manualClasses, setManualClasses] = useState<any[]>([]);
+  const [isManualMode, setIsManualMode] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState("");
   const [upgradeTuitionPlanId, setUpgradeTuitionPlanId] = useState("");
+
+  const pickClassItems = (payload: any): any[] => {
+    if (Array.isArray(payload?.data?.items)) return payload.data.items;
+    if (Array.isArray(payload?.data?.page?.items)) return payload.data.page.items;
+    if (Array.isArray(payload?.data?.classes?.items)) return payload.data.classes.items;
+    if (Array.isArray(payload?.data?.classes)) return payload.data.classes;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload)) return payload;
+    return [];
+  };
+
+  const getClassDisplayName = (cls: any) =>
+    String(cls?.className || cls?.title || cls?.name || cls?.code || cls?.id || "");
+
+  const getClassRemainingSlots = (cls: any) => {
+    if (typeof cls?.remainingSlots === "number") return cls.remainingSlots;
+    if (
+      typeof cls?.capacity === "number" &&
+      typeof cls?.currentEnrollment === "number"
+    ) {
+      return cls.capacity - cls.currentEnrollment;
+    }
+    if (
+      typeof cls?.maxStudents === "number" &&
+      typeof cls?.currentStudentCount === "number"
+    ) {
+      return cls.maxStudents - cls.currentStudentCount;
+    }
+    return null;
+  };
 
   const canCreate =
     Boolean(test?.studentProfileId) &&
@@ -309,7 +345,7 @@ export default function RegistrationFlowModal({
 
           const options = sortedRegistrations.map((r) => ({
             id: r.id,
-            label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)}`,
+            label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)} • ${r.programName}`,
           }));
           setRegistrationOptions(options);
 
@@ -324,6 +360,8 @@ export default function RegistrationFlowModal({
         }
 
         setSuggestedClasses([]);
+        setManualClasses([]);
+        setIsManualMode(false);
         setSelectedClassId("");
         setUpgradeTuitionPlanId("");
         setActiveStep("create");
@@ -506,6 +544,70 @@ export default function RegistrationFlowModal({
     }
   };
 
+  const handleLoadManualClasses = async () => {
+    if (!registrationId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn đăng ký trước khi xếp lớp thủ công.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!branchId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Không xác định được chi nhánh để lọc danh sách lớp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsLoadingManualClasses(true);
+      setIsManualMode(true);
+
+      const response = await getAllClasses({
+        pageNumber: 1,
+        pageSize: 1000,
+        branchId,
+      });
+
+      const items = pickClassItems(response)
+        .filter((item) => item?.id)
+        .filter((item) => {
+          const status = String(item?.status || "").toLowerCase();
+          return status !== "cancelled" && status !== "completed";
+        });
+
+      setManualClasses(items);
+
+      if (items.length > 0) {
+        setSelectedClassId(String(items[0].id));
+        toast({
+          title: "Thành công",
+          description: `Đã tải ${items.length} lớp để xếp lớp thủ công.`,
+          variant: "success",
+        });
+      } else {
+        setSelectedClassId("");
+        toast({
+          title: "Thông báo",
+          description: "Không có lớp phù hợp trong chi nhánh hiện tại.",
+          variant: "default",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: toVietnameseError(error, "Không thể tải danh sách lớp thủ công."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingManualClasses(false);
+    }
+  };
+
   const handleMoveToWaitingList = async () => {
     if (!registrationId) return;
 
@@ -569,7 +671,7 @@ export default function RegistrationFlowModal({
           <div>
             <h2 className="text-xl font-bold">Đăng Ký Từ Placement Test</h2>
             <p className="text-sm text-white/85">
-              Placement Test #{test?.id || "-"} • Học viên: {test?.studentName || test?.childName || "N/A"}
+              Tên học viên: {test?.studentName || test?.childName}
             </p>
           </div>
           <button onClick={onClose} className="rounded-lg p-1 hover:bg-white/15" aria-label="Đóng">
@@ -882,6 +984,16 @@ export default function RegistrationFlowModal({
 
               <button
                 type="button"
+                onClick={handleLoadManualClasses}
+                disabled={!allowManualAssign || !registrationId || isLoadingManualClasses || !branchId}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoadingManualClasses ? <Loader2 size={14} className="animate-spin" /> : <School size={14} />}
+                Xếp lớp thủ công
+              </button>
+
+              <button
+                type="button"
                 onClick={handleMoveToWaitingList}
                 disabled={!registrationId || isWaiting}
                 className="rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -925,6 +1037,58 @@ export default function RegistrationFlowModal({
                   className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isAssigning ? "Đang xếp lớp..." : "Xếp vào lớp đã chọn"}
+                </button>
+              </div>
+            )}
+
+            {allowManualAssign && isManualMode && (
+              <div className="mt-4 space-y-3 rounded-xl border border-red-200 bg-white p-3">
+                <div className="text-sm font-semibold text-gray-900">
+                  Danh sách lớp theo chi nhánh tài khoản staff
+                </div>
+
+                {manualClasses.length === 0 && !isLoadingManualClasses ? (
+                  <div className="text-xs text-gray-600">
+                    Không có lớp để xếp thủ công trong phạm vi chi nhánh hiện tại.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {manualClasses.map((cls: any) => {
+                      const classId = String(cls.id);
+                      const isSelected = selectedClassId === classId;
+                      const remainingSlots = getClassRemainingSlots(cls);
+
+                      return (
+                        <button
+                          key={classId}
+                          type="button"
+                          onClick={() => setSelectedClassId(classId)}
+                          className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                            isSelected
+                              ? "border-red-500 bg-red-100"
+                              : "border-red-200 bg-white hover:bg-red-50"
+                          }`}
+                        >
+                          <div className="text-sm font-semibold text-gray-900">{getClassDisplayName(cls)}</div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            Còn chỗ: {typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : "-"}
+                          </div>
+                          <div className="mt-0.5 text-xs text-gray-600" title={cls?.schedulePattern || ""}>
+                            Lịch: {formatSchedulePattern(cls?.schedulePattern)}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleAssignClass}
+                  disabled={!selectedClassId || isAssigning || manualClasses.length === 0}
+                  className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isAssigning ? "Đang xếp lớp..." : "Xếp vào lớp thủ công đã chọn"}
                 </button>
               </div>
             )}
