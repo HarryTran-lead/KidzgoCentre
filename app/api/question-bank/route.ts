@@ -1,24 +1,20 @@
-import { proxyJson } from "@/app/api/_utils/proxy";
-
-const BACKEND_QUESTION_BANK_ENDPOINTS = {
-  BASE: "/question-bank",
-};
+import { buildApiUrl, BACKEND_QUESTION_BANK_ENDPOINTS } from "@/constants/apiURL";
+import { forwardToBackend, getQueryString, buildFullUrl } from "@/lib/api/routeHelpers";
 
 export async function GET(req: Request) {
-  return proxyJson({
-    req,
-    endpoint: BACKEND_QUESTION_BANK_ENDPOINTS.BASE,
-    method: "GET",
-    includeQuery: true,
-  });
+  const queryString = getQueryString(req);
+  const url = buildApiUrl(BACKEND_QUESTION_BANK_ENDPOINTS.GET_ALL);
+  const fullUrl = buildFullUrl(url, queryString);
+  return forwardToBackend(req, fullUrl, { method: "GET", context: { method: "GET", endpoint: "question-bank" } });
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  return proxyJson({
-    req,
-    endpoint: BACKEND_QUESTION_BANK_ENDPOINTS.BASE,
-    method: "POST",
-    body,
-  });
+  const url = buildApiUrl(BACKEND_QUESTION_BANK_ENDPOINTS.CREATE);
+
+  // DEBUG
+  console.log("[QUESTION_BANK] URL:", url);
+  console.log("[QUESTION_BANK] BODY:", JSON.stringify(body, null, 2));
+
+  return forwardToBackend(req, url, { method: "POST", body, context: { method: "POST", endpoint: "question-bank" } });
 }
