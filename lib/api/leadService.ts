@@ -64,8 +64,12 @@ export async function getAllLeads(params?: GetAllLeadsParams): Promise<GetAllLea
     if (params.status) queryParams.append('status', params.status);
     if (params.source) queryParams.append('source', params.source);
     if (params.ownerStaffId) queryParams.append('ownerStaffId', params.ownerStaffId);
-    if (params.branchPreference) queryParams.append('branchPreference', params.branchPreference);
-    if (params.branchId) queryParams.append('branchId', params.branchId);
+    if (params.branchPreference) {
+      queryParams.append('branchPreference', params.branchPreference);
+    } else if (params.branchId) {
+      // Backward-compatible fallback: map legacy branchId usage to API-supported branchPreference.
+      queryParams.append('branchPreference', params.branchId);
+    }
   }
 
   const url = LEAD_ENDPOINTS.GET_ALL;

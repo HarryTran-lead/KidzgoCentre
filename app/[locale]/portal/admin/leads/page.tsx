@@ -57,7 +57,6 @@ export default function AdminLeadsPage() {
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   
   // Table state
-  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   
@@ -110,30 +109,6 @@ export default function AdminLeadsPage() {
     setIsDetailModalOpen(true);
   };
 
-  const handleSelectAll = () => {
-    if (Object.keys(selectedIds).length === currentLeads.length) {
-      setSelectedIds({});
-    } else {
-      const newSelectedIds: Record<string, boolean> = {};
-      currentLeads.forEach((lead) => {
-        newSelectedIds[lead.id] = true;
-      });
-      setSelectedIds(newSelectedIds);
-    }
-  };
-
-  const handleSelectOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const newSelectedIds = { ...prev };
-      if (newSelectedIds[id]) {
-        delete newSelectedIds[id];
-      } else {
-        newSelectedIds[id] = true;
-      }
-      return newSelectedIds;
-    });
-  };
-
   const handleSort = (key: string) => {
     if (sortKey === key) {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -158,7 +133,6 @@ export default function AdminLeadsPage() {
     setSearchQuery("");
     setSelectedStatus("Tất cả");
     setSelectedSource("Tất cả");
-    setSelectedIds({});
     window.location.reload();
   };
 
@@ -339,11 +313,8 @@ export default function AdminLeadsPage() {
         <LeadTable
           leads={currentLeads}
           isLoading={isLoading}
-          selectedIds={selectedIds}
           sortKey={sortKey}
           sortDir={sortDir}
-          onSelectAll={handleSelectAll}
-          onSelectOne={handleSelectOne}
           onSort={handleSort}
           onEdit={handleEdit}
           onView={handleViewDetail}

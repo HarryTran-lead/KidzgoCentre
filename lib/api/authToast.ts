@@ -43,9 +43,10 @@ export async function loginWithToast(credentials: LoginRequest): Promise<LoginAp
     const isSuccess = response.isSuccess ?? response.success ?? false;
 
     if (isSuccess) {
+      const fullName = (response as any)?.data?.user?.fullName || credentials.email;
       toast({
         title: 'Đăng nhập thành công!',
-        description: `Chào mừng ${response.data.user.fullName}`,
+        description: `Chào mừng ${fullName}`,
         duration: 3000,
       });
     } else {

@@ -1,14 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { X, FileText, Award, BookOpen, Paperclip } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { X, FileText, Award, Paperclip, Upload, Loader2 } from "lucide-react";
+import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { getAccessToken } from "@/lib/store/authToken";
+import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import type { PlacementTestResultRequest } from "@/types/placement-test";
+
+type ProgramOption = {
+  id: string;
+  name: string;
+};
 
 interface ResultFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: Omit<PlacementTestResultRequest, "id">, note: string) => Promise<void>;
   testId: string;
+  branchId?: string;
   initialData?: Partial<PlacementTestResultRequest> | null;
 }
 
@@ -17,19 +34,159 @@ export default function ResultFormModal({
   onClose,
   onSubmit,
   testId,
+  branchId,
   initialData,
 }: ResultFormModalProps) {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     listeningScore: initialData?.listeningScore?.toString() || "",
     speakingScore: initialData?.speakingScore?.toString() || "",
     readingScore: initialData?.readingScore?.toString() || "",
     writingScore: initialData?.writingScore?.toString() || "",
-    levelRecommendation: initialData?.levelRecommendation || "",
     programRecommendation: initialData?.programRecommendation || "",
     attachmentUrl: initialData?.attachmentUrl || "",
     note: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [programOptions, setProgramOptions] = useState<ProgramOption[]>([]);
+  const [isLoadingPrograms, setIsLoadingPrograms] = useState(false);
+  const [programLoadError, setProgramLoadError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+
+  const SCORE_FIELDS = [
+    { key: "listeningScore", label: "Điểm Nghe" },
+    { key: "speakingScore", label: "Điểm Nói" },
+    { key: "readingScore", label: "Điểm Đọc" },
+    { key: "writingScore", label: "Điểm Viết" },
+  ] as const;
+
+  const isValidScoreInput = (value: string): boolean => {
+    if (value === "") return true;
+    return /^\d+(\.\d{0,2})?$/.test(value);
+  };
+
+  const parseScoreOrNull = (value: string): number | null => {
+    if (value.trim() === "") return 0;
+    if (!isValidScoreInput(value)) return null;
+
+    const parsed = Number.parseFloat(value);
+    if (Number.isNaN(parsed) || parsed < 0) return null;
+    return parsed;
+  };
+
+  const handleScoreChange = (
+    field: "listeningScore" | "speakingScore" | "readingScore" | "writingScore",
+    rawValue: string,
+  ) => {
+    if (isValidScoreInput(rawValue)) {
+      setFormError("");
+      setFormData((prev) => ({ ...prev, [field]: rawValue }));
+    }
+  };
+
+  const handleAttachmentUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAttachment(true);
+    try {
+      const result = await uploadFile(file, "placement-tests");
+      if (!isUploadSuccess(result)) {
+        const errMessage =
+          result.detail ||
+          result.error ||
+          result.title ||
+          "Không thể tải tài liệu lên";
+        toast({
+          title: "Lỗi tải file",
+          description: errMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setFormData((prev) => ({ ...prev, attachmentUrl: result.url }));
+      toast({
+        title: "Thành công",
+        description: "Đã tải tài liệu lên thành công",
+        variant: "success",
+      });
+    } catch (error) {
+      console.error("Error uploading attachment:", error);
+      toast({
+        title: "Lỗi",
+        description: "Đã xảy ra lỗi khi tải tài liệu lên",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingAttachment(false);
+      event.target.value = "";
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchPrograms = async () => {
+      if (!branchId) {
+        setProgramOptions([]);
+        setProgramLoadError("Không xác định được chi nhánh để tải chương trình");
+        return;
+      }
+
+      setIsLoadingPrograms(true);
+      setProgramLoadError("");
+
+      try {
+        const queryParams = new URLSearchParams();
+        queryParams.append("branchId", branchId);
+        queryParams.append("isActive", "true");
+        queryParams.append("pageNumber", "1");
+        queryParams.append("pageSize", "1000");
+
+        const response = await fetch(
+          `${ADMIN_ENDPOINTS.PROGRAMS}?${queryParams.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${getAccessToken()}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch programs: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const items =
+          data?.data?.programs?.items ||
+          data?.data?.items ||
+          data?.data?.programs ||
+          data?.data ||
+          [];
+
+        const mapped = items
+          .map((program: any) => ({
+            id: String(program?.id || ""),
+            name: String(program?.name || ""),
+          }))
+          .filter((program: ProgramOption) => program.id && program.name);
+
+        setProgramOptions(mapped);
+      } catch (error) {
+        console.error("Error fetching programs for result modal:", error);
+        setProgramOptions([]);
+        setProgramLoadError("Không thể tải danh sách chương trình");
+      } finally {
+        setIsLoadingPrograms(false);
+      }
+    };
+
+    fetchPrograms();
+  }, [isOpen, branchId]);
 
   const computedResultScore = useMemo(() => {
     const listening = Number.parseFloat(formData.listeningScore || "0") || 0;
@@ -42,16 +199,28 @@ export default function ResultFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError("");
+
+    const parsedScores: Record<string, number> = {};
+    for (const field of SCORE_FIELDS) {
+      const raw = formData[field.key];
+      const parsed = parseScoreOrNull(raw);
+      if (parsed === null) {
+        setFormError(`${field.label} chỉ được nhập số và không được âm.`);
+        return;
+      }
+      parsedScores[field.key] = parsed;
+    }
+
     setIsSubmitting(true);
 
     try {
       const submitData: Omit<PlacementTestResultRequest, "id"> = {
-        listeningScore: formData.listeningScore ? parseFloat(formData.listeningScore) : 0,
-        speakingScore: formData.speakingScore ? parseFloat(formData.speakingScore) : 0,
-        readingScore: formData.readingScore ? parseFloat(formData.readingScore) : 0,
-        writingScore: formData.writingScore ? parseFloat(formData.writingScore) : 0,
+        listeningScore: parsedScores.listeningScore,
+        speakingScore: parsedScores.speakingScore,
+        readingScore: parsedScores.readingScore,
+        writingScore: parsedScores.writingScore,
         resultScore: computedResultScore,
-        levelRecommendation: formData.levelRecommendation || "",
         programRecommendation: formData.programRecommendation || "",
         attachmentUrl: formData.attachmentUrl || "",
       };
@@ -97,7 +266,7 @@ export default function ResultFormModal({
                 min="0"
                 max="10"
                 value={formData.listeningScore}
-                onChange={(e) => setFormData(prev => ({ ...prev, listeningScore: e.target.value }))}
+                onChange={(e) => handleScoreChange("listeningScore", e.target.value)}
                 placeholder="0.0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
@@ -112,7 +281,7 @@ export default function ResultFormModal({
                 min="0"
                 max="10"
                 value={formData.speakingScore}
-                onChange={(e) => setFormData(prev => ({ ...prev, speakingScore: e.target.value }))}
+                onChange={(e) => handleScoreChange("speakingScore", e.target.value)}
                 placeholder="0.0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
@@ -127,7 +296,7 @@ export default function ResultFormModal({
                 min="0"
                 max="10"
                 value={formData.readingScore}
-                onChange={(e) => setFormData(prev => ({ ...prev, readingScore: e.target.value }))}
+                onChange={(e) => handleScoreChange("readingScore", e.target.value)}
                 placeholder="0.0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
@@ -142,7 +311,7 @@ export default function ResultFormModal({
                 min="0"
                 max="10"
                 value={formData.writingScore}
-                onChange={(e) => setFormData(prev => ({ ...prev, writingScore: e.target.value }))}
+                onChange={(e) => handleScoreChange("writingScore", e.target.value)}
                 placeholder="0.0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
@@ -168,52 +337,98 @@ export default function ResultFormModal({
             <p className="text-xs text-gray-500">Tự động tính trung bình cộng của 4 kỹ năng: Nghe, Nói, Đọc, Viết.</p>
           </div>
 
-          {/* Level Recommendation */}
-          <div className="space-y-2">
-            <label htmlFor="levelRecommendation" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <BookOpen size={16} />
-              Đề xuất trình độ (Level Recommendation)
-            </label>
-            <input
-              id="levelRecommendation"
-              type="text"
-              value={formData.levelRecommendation}
-              onChange={(e) => setFormData(prev => ({ ...prev, levelRecommendation: e.target.value }))}
-              placeholder="VD: Beginner, Elementary, Pre-Intermediate, ..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
-            />
-          </div>
-
           {/* Program Recommendation */}
           <div className="space-y-2">
             <label htmlFor="programRecommendation" className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <FileText size={16} />
               Đề xuất chương trình (Program Recommendation)
             </label>
-            <input
-              id="programRecommendation"
-              type="text"
+            <Select
               value={formData.programRecommendation}
-              onChange={(e) => setFormData(prev => ({ ...prev, programRecommendation: e.target.value }))}
-              placeholder="VD: English Communication, IELTS Preparation, ..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
-            />
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, programRecommendation: value }))
+              }
+              disabled={isLoadingPrograms || !branchId}
+            >
+              <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:bg-gray-50 disabled:opacity-80">
+                <SelectValue
+                  placeholder={
+                    isLoadingPrograms
+                      ? "Đang tải chương trình..."
+                      : !branchId
+                        ? "Không xác định chi nhánh"
+                        : "Chọn chương trình"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Chọn chương trình</SelectItem>
+                {programOptions.map((program) => (
+                  <SelectItem key={program.id} value={program.name}>
+                    {program.name}
+                  </SelectItem>
+                ))}
+                {formData.programRecommendation &&
+                !programOptions.some((program) => program.name === formData.programRecommendation) ? (
+                  <SelectItem value={formData.programRecommendation}>
+                    {formData.programRecommendation}
+                  </SelectItem>
+                ) : null}
+              </SelectContent>
+            </Select>
+            {programLoadError ? (
+              <p className="text-xs text-red-600">{programLoadError}</p>
+            ) : null}
           </div>
 
-          {/* Attachment URL */}
+          {/* Attachment */}
           <div className="space-y-2">
             <label htmlFor="attachmentUrl" className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <Paperclip size={16} />
-              Link tài liệu đính kèm (Attachment URL)
+              Tài liệu đính kèm (Attachment)
             </label>
-            <input
-              id="attachmentUrl"
-              type="url"
-              value={formData.attachmentUrl}
-              onChange={(e) => setFormData(prev => ({ ...prev, attachmentUrl: e.target.value }))}
-              placeholder="https://..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
-            />
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  {isUploadingAttachment ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Đang tải file...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={16} />
+                      Chọn file và tải lên
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleAttachmentUpload}
+                    disabled={isUploadingAttachment}
+                  />
+                </label>
+
+                {formData.attachmentUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, attachmentUrl: "" }))}
+                    className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    Xóa file
+                  </button>
+                ) : null}
+              </div>
+
+              <input
+                id="attachmentUrl"
+                type="text"
+                value={formData.attachmentUrl}
+                readOnly
+                placeholder="Chưa có file được tải lên"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 outline-none"
+              />
+            </div>
           </div>
 
           {/* Note */}
@@ -232,6 +447,12 @@ export default function ResultFormModal({
             />
           </div>
 
+          {formError ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {formError}
+            </div>
+          ) : null}
+
           {/* Actions */}
           <div className="flex gap-3 pt-4">
             <button
@@ -244,7 +465,7 @@ export default function ResultFormModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isUploadingAttachment}
               className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
             >
               {isSubmitting ? "Đang lưu..." : "Lưu kết quả"}

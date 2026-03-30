@@ -22,53 +22,78 @@ export interface GetAllProgramsApiResponse {
   message?: string;
 }
 
+interface ProgramQueryOptions {
+  branchId?: string;
+  pageSize?: number;
+}
+
+function pickProgramItems(response: any): any[] {
+  if (Array.isArray(response?.data?.programs?.items)) {
+    return response.data.programs.items;
+  }
+  if (Array.isArray(response?.data?.items)) {
+    return response.data.items;
+  }
+  if (Array.isArray(response?.data?.programs)) {
+    return response.data.programs;
+  }
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  return [];
+}
+
+function mapProgram(item: any): Program {
+  return {
+    id: item.id || item.code || '',
+    code: item.code || null,
+    name: item.name || '',
+    totalSessions: item.totalSessions || 0,
+    defaultTuitionAmount: item.defaultTuitionAmount || 0,
+    unitPriceSession: item.unitPriceSession || 0,
+    description: item.description || null,
+    branchId: item.branchId || null,
+    isActive: item.isActive ?? true,
+  };
+}
+
+async function fetchPrograms(options?: ProgramQueryOptions): Promise<Program[]> {
+  const params = new URLSearchParams({
+    pageNumber: '1',
+    pageSize: String(options?.pageSize ?? 100),
+  });
+
+  if (options?.branchId) {
+    params.append('branchId', options.branchId);
+  }
+
+  const response = await get<any>(`${ADMIN_ENDPOINTS.PROGRAMS}?${params.toString()}`);
+  return pickProgramItems(response)
+    .map(mapProgram)
+    .filter((program: Program) => Boolean(program.id));
+}
+
 /**
  * Get all programs/courses for dropdown selection
  */
-export async function getAllProgramsForDropdown(): Promise<Program[]> {
+export async function getAllProgramsForDropdown(branchId?: string): Promise<Program[]> {
   try {
-    const response = await get<any>(`${ADMIN_ENDPOINTS.PROGRAMS}?pageNumber=1&pageSize=100`);
-    
-    console.log('Programs API Response raw:', JSON.stringify(response, null, 2));
-    
-    let items: any[] = [];
-    
-    // Based on admin programs API format: json.data.programs.items
-    if (Array.isArray(response?.data?.programs?.items)) {
-      console.log('Case: data.programs.items');
-      items = response.data.programs.items;
-    } else if (Array.isArray(response?.data?.items)) {
-      console.log('Case: data.items');
-      items = response.data.items;
-    } else if (Array.isArray(response?.data?.programs)) {
-      console.log('Case: data.programs');
-      items = response.data.programs;
-    } else if (Array.isArray(response?.data)) {
-      console.log('Case: data (direct array)');
-      items = response.data;
-    } else if (Array.isArray(response)) {
-      console.log('Case: root array');
-      items = response;
-    }
-    
-    // Map to Program type
-    const programs: Program[] = items.map((item: any) => ({
-      id: item.id || item.code || '',
-      code: item.code || null,
-      name: item.name || '',
-      level: item.level || '',
-      totalSessions: item.totalSessions || 0,
-      defaultTuitionAmount: item.defaultTuitionAmount || 0,
-      unitPriceSession: item.unitPriceSession || 0,
-      description: item.description || null,
-      branchId: item.branchId || null,
-      isActive: item.isActive ?? true,
-    })).filter((p: Program) => p.id);
-    
-    console.log('Programs mapped:', programs);
-    return programs;
+    return await fetchPrograms({ branchId });
   } catch (error) {
     console.error('Error fetching programs:', error);
+    return [];
+  }
+}
+
+export async function getProgramsForBranchDropdown(branchId: string): Promise<Program[]> {
+  try {
+    return await fetchPrograms({ branchId, pageSize: 200 });
+  } catch (error) {
+    console.error('Error fetching programs by branch:', error);
     return [];
   }
 }

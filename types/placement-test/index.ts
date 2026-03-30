@@ -23,9 +23,10 @@ export interface PlacementTest {
   speakingScore?: number;
   readingScore?: number;
   writingScore?: number;
-  levelRecommendation?: string;
   programRecommendation?: string;
   attachmentUrl?: string;
+  isAccountProfileCreated?: boolean;
+  isConvertedToEnrolled?: boolean;
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -38,7 +39,6 @@ export interface PlacementTestResultResponse {
   readingScore: number;
   writingScore: number;
   resultScore: number;
-  levelRecommendation: string;
   programRecommendation: string;
   attachmentUrl: string;
   status: 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
@@ -52,7 +52,6 @@ export interface PlacementTestResultRequest {
   readingScore: number;
   writingScore: number;
   resultScore: number;
-  levelRecommendation: string;
   programRecommendation: string;
   attachmentUrl: string;
 }
@@ -64,7 +63,6 @@ export interface PlacementTestResult {
   readingScore?: number;
   writingScore?: number;
   resultScore?: number;
-  levelRecommendation?: string;
   programRecommendation?: string;
   attachmentUrl?: string;
 }
@@ -80,8 +78,6 @@ export interface PlacementTestNote {
 export interface CreatePlacementTestRequest {
   leadId: string;
   leadChildId: string;
-  studentProfileId?: string;
-  classId?: string;
   scheduledAt: string;
   room?: string;
   invigilatorUserId: string;
@@ -95,7 +91,7 @@ export interface CreatePlacementTestResponse {
   classId?: string;
   scheduledAt: string;
   status: string;
-  room?: 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
+  room?: string;
   invigilatorUserId: string;
   createdAt: string;
 }
@@ -126,4 +122,32 @@ export interface PlacementTestListResponse {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+
+export interface PlacementTestRetakeRequest {
+  studentProfileId: string;
+  newProgramId: string;
+  newTuitionPlanId: string;
+  branchId: string;
+  scheduledAt?: string; 
+  room?: string;
+  invigilatorUserId?: string;
+  note?: string;
+}
+
+export interface PlacementTestRetakeResponse {
+  newPlacementTestId: string;
+  originalPlacementTestId: string;
+  studentProfileId: string;
+  newProgramName: string;
+  newTuitionPlanName: string;
+  placementTestStatus: 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
+  scheduledAt?: string;
+  room?: string;
+  invigilatorUserId?: string;
+  createdAt: string;
+  originalProgramName?: string;
+  originalTuitionPlanName?: string;
+  originalRemainingSessions?: number;
 }

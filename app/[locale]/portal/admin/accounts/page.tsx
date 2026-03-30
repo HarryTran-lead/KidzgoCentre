@@ -147,6 +147,28 @@ const getDepartment = (role: UserRole): string => {
   return departments[role];
 };
 
+const transformUsersToAccounts = (users: User[]): Account[] => {
+  return users.map((user) => ({
+    ...user,
+    name: user.name || user.username || user.email || 'Unknown User',
+    phone: user.branchContactPhone || '',
+    lastLoginAt: user.updatedAt,
+    avatarColor: getAvatarColor(user.id),
+    twoFactor: false,
+    department: getDepartment(user.role),
+  }));
+};
+
+const getAccountCounts = (items: Account[]) => ({
+  total: items.length,
+  admin: items.filter(a => mapRoleToDisplay(a.role) === 'Admin').length,
+  teacher: items.filter(a => mapRoleToDisplay(a.role) === 'Teacher').length,
+  parent: items.filter(a => mapRoleToDisplay(a.role) === 'Parent').length,
+  managementStaff: items.filter(a => mapRoleToDisplay(a.role) === 'ManagementStaff').length,
+  active: items.filter(a => a.isActive).length,
+  inactive: items.filter(a => !a.isActive).length,
+});
+
 
 const ROLE_INFO: Record<Role, {
   label: string;
@@ -373,73 +395,67 @@ export default function AccountsPage() {
     isApproved?: boolean;
   } | null>(null);
 
-  // Fetch users and profiles from API once (no server-side filtering for smooth UX)
-  useEffect(() => {
-    async function fetchUsersAndProfiles() {
-      try {
-        setLoading(true);
-        setProfilesLoading(true);
-        setError(null);
-        
-        // Fetch both accounts and profiles in parallel
-        const [usersResponse, profilesResponse] = await Promise.all([
-          getAllUsers({
-            pageNumber: 1,
-            pageSize: 1000, // Get all users for client-side filtering
-          }),
-          getAllStudents({
-            pageSize: 100,
-          })
-        ]);
+  const refreshAccountsTable = async () => {
+    const usersResponse = await getAllUsers({
+      pageNumber: 1,
+      pageSize: 1000,
+    });
 
-        // Process users response
-        const isSuccessful = usersResponse.success || usersResponse.isSuccess;
-        
-        if (isSuccessful && usersResponse.data) {
-          // Transform API users to Account format
-          const transformedAccounts: Account[] = usersResponse.data.items.map((user) => ({
-            ...user,
-            name: user.name || user.username || user.email || 'Unknown User', // Multiple fallbacks
-            phone: user.branchContactPhone || '',
-            lastLoginAt: user.updatedAt,
-            avatarColor: getAvatarColor(user.id),
-            twoFactor: false, // TODO: This should come from API
-            department: getDepartment(user.role),
-          }));
-          
-          setAccounts(transformedAccounts);
-          setTotalCount(transformedAccounts.length);
-          
-          // Calculate fixed counts (these won't change with filters)
-          const counts = {
-            total: transformedAccounts.length,
-            admin: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Admin').length,
-            teacher: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Teacher').length,
-            parent: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'Parent').length,
-            managementStaff: transformedAccounts.filter(a => mapRoleToDisplay(a.role) === 'ManagementStaff').length,
-            active: transformedAccounts.filter(a => a.isActive).length,
-            inactive: transformedAccounts.filter(a => !a.isActive).length,
-          };
-          setFixedCounts(counts);
-        } else {
-          setError(usersResponse.message || 'Không thể tải danh sách người dùng');
-        }
-
-        // Process profiles response
-        if (profilesResponse.data?.items) {
-          setProfiles(profilesResponse.data.items);
-          setFilteredProfiles(profilesResponse.data.items);
-        }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Đã xảy ra lỗi khi tải dữ liệu'); 
-      } finally {
-        setLoading(false);
-        setProfilesLoading(false);
-        setIsPageLoaded(true);
-      }
+    const isSuccessful = usersResponse.success || usersResponse.isSuccess;
+    if (!isSuccessful || !usersResponse.data) {
+      throw new Error(usersResponse.message || 'Không thể tải danh sách người dùng');
     }
 
+    const transformedAccounts = transformUsersToAccounts(usersResponse.data.items);
+    setAccounts(transformedAccounts);
+    setTotalCount(transformedAccounts.length);
+    setFixedCounts(getAccountCounts(transformedAccounts));
+  };
+
+  const fetchUsersAndProfiles = async () => {
+    try {
+      setLoading(true);
+      setProfilesLoading(true);
+      setError(null);
+
+      // Fetch both accounts and profiles in parallel
+      const [usersResponse, profilesResponse] = await Promise.all([
+        getAllUsers({
+          pageNumber: 1,
+          pageSize: 1000,
+        }),
+        getAllStudents({
+          pageSize: 100,
+        })
+      ]);
+
+      const isSuccessful = usersResponse.success || usersResponse.isSuccess;
+
+      if (isSuccessful && usersResponse.data) {
+        const transformedAccounts = transformUsersToAccounts(usersResponse.data.items);
+        setAccounts(transformedAccounts);
+        setTotalCount(transformedAccounts.length);
+        setFixedCounts(getAccountCounts(transformedAccounts));
+      } else {
+        setError(usersResponse.message || 'Không thể tải danh sách người dùng');
+      }
+
+      if (profilesResponse.data?.items) {
+        setProfiles(profilesResponse.data.items);
+        setFilteredProfiles(profilesResponse.data.items);
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Đã xảy ra lỗi khi tải dữ liệu');
+    } finally {
+      setLoading(false);
+      setProfilesLoading(false);
+      setIsPageLoaded(true);
+    }
+  };
+
+  // Fetch users and profiles from API once (no server-side filtering for smooth UX)
+  useEffect(() => {
     fetchUsersAndProfiles();
   }, []); // Only fetch once on mount
 
@@ -516,9 +532,8 @@ export default function AccountsPage() {
           description: "Tạo tài khoản thành công",
           variant: "success",
         });
+        await refreshAccountsTable();
         setFormModalOpen(false);
-        // Refresh the list
-        window.location.reload();
       } else {
         toast({
           title: "Lỗi",
@@ -547,12 +562,8 @@ export default function AccountsPage() {
           description: "Cập nhật tài khoản thành công",
           variant: "success",
         });
+        await refreshAccountsTable();
         setFormModalOpen(false);
-        // Refresh the list
-        setTimeout(() => {
-          window.location.reload();
-        }, 3000);
-        
       } else {
         toast({
           title: "Lỗi",
@@ -581,9 +592,8 @@ export default function AccountsPage() {
           description: "Xóa tài khoản thành công",
           variant: "success",
         });
+        await refreshAccountsTable();
         setDeleteModalOpen(false);
-        // Refresh the list
-        window.location.reload();
       } else {
         toast({
           title: "Lỗi",
@@ -758,7 +768,7 @@ export default function AccountsPage() {
 
       toast({
         title: "Thành công",
-        description: "Xóa profile thành công",
+        description: "Khóa profile thành công",
         variant: "success",
       });
 
@@ -769,7 +779,7 @@ export default function AccountsPage() {
       console.error("Error deleting profile:", error);
       toast({
         title: "Lỗi",
-        description: error.message || "Không thể xóa profile",
+        description: error.message || "Không thể khóa profile",
         variant: "destructive",
       });
     }
@@ -1145,7 +1155,7 @@ export default function AccountsPage() {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Không thể tải dữ liệu</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button 
-            onClick={() => window.location.reload()}
+            onClick={() => fetchUsersAndProfiles()}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
           >
             <RefreshCw size={16} /> Thử lại
@@ -1499,7 +1509,7 @@ export default function AccountsPage() {
                             type="button"
                             onClick={() => handleOpenDeleteModal(acc)}
                             className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
-                            title="Xóa tài khoản"
+                            title="Khóa tài khoản"
                           >
                             <XCircle size={14} />
                           </button>
@@ -2032,9 +2042,9 @@ export default function AccountsPage() {
               setSelectedProfileForDelete(null);
             }}
             onConfirm={handleConfirmDeleteProfile}
-            title="Xác nhận xóa profile"
-            message={`Bạn có chắc chắn muốn xóa profile "${selectedProfileForDelete?.name}"? Hành động này không thể hoàn tác.`}
-            confirmText="Xóa"
+            title="Xác nhận khóa profile"
+            message={`Bạn có chắc chắn muốn khóa profile "${selectedProfileForDelete?.name}"? Hành động này không thể hoàn tác.`}
+            confirmText="Khóa"
             cancelText="Hủy"
             variant="danger"
           />

@@ -156,12 +156,6 @@ export default function EnrollmentDetailModal({
                     <p className="text-xs text-gray-500">Họ tên</p>
                     <p className="text-sm font-medium">{enrollment.studentName || "N/A"}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Mã hồ sơ</p>
-                    <p className="text-sm font-medium text-gray-600">
-                      {enrollment.studentProfileId}
-                    </p>
-                  </div>
                 </div>
               </div>
 
@@ -179,14 +173,6 @@ export default function EnrollmentDetailModal({
                   <div>
                     <p className="text-xs text-gray-500">Mã lớp</p>
                     <p className="text-sm font-medium">{enrollment.classCode || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Chương trình</p>
-                    <p className="text-sm font-medium">{enrollment.programName || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">GVCN</p>
-                    <p className="text-sm font-medium">{enrollment.mainTeacherName || "N/A"}</p>
                   </div>
                   {enrollment.schedulePattern && (
                     <div className="col-span-2">
@@ -255,7 +241,7 @@ export default function EnrollmentDetailModal({
                     key={item.id}
                     className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 hover:border-purple-200 transition-colors"
                   >
-                    <div className="flex-shrink-0 mt-0.5">
+                    <div className="shrink-0 mt-0.5">
                       {getStatusBadge(item.status)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -263,12 +249,8 @@ export default function EnrollmentDetailModal({
                         {item.classTitle || item.classCode || "N/A"}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {item.programName && `${item.programName} • `}
                         Ghi danh: {formatDate(item.enrollDate)}
                       </p>
-                      {item.mainTeacherName && (
-                        <p className="text-xs text-gray-400 mt-0.5">GVCN: {item.mainTeacherName}</p>
-                      )}
                     </div>
                   </div>
                 ))
