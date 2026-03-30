@@ -2220,6 +2220,11 @@ export default function Page() {
 
   const goPage = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
+  const reloadClassesByCurrentBranch = async () => {
+    const branchId = getBranchQueryParam();
+    return fetchAdminClasses({ branchId });
+  };
+
   const handleCreateClass = async (data: ClassFormData) => {
     try {
       if (!data.programId || data.programId.trim() === "") {
@@ -2275,7 +2280,7 @@ export default function Page() {
         }
       }
 
-      const updatedClasses = await fetchAdminClasses();
+      const updatedClasses = await reloadClassesByCurrentBranch();
       setClasses(updatedClasses);
 
       toast.success({
@@ -2382,7 +2387,7 @@ export default function Page() {
       }
 
       // Refresh danh sách
-      const updatedClasses = await fetchAdminClasses();
+      const updatedClasses = await reloadClassesByCurrentBranch();
       setClasses(updatedClasses);
       toast.success({
         title: "Cập nhật lớp học thành công",
@@ -2420,7 +2425,7 @@ export default function Page() {
       await updateClassStatus(row.id, newStatus);
 
       // Refresh danh sách
-      const updatedClasses = await fetchAdminClasses();
+      const updatedClasses = await reloadClassesByCurrentBranch();
       setClasses(updatedClasses);
 
       const statusMap: Record<string, string> = {

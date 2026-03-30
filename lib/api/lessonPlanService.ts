@@ -6,7 +6,7 @@
  * before it reaches the UI.
  */
 
-import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { ADMIN_ENDPOINTS, FILE_ENDPOINTS } from "@/constants/apiURL";
 import { del, get, patch, post, put } from "@/lib/axios";
 import { getAccessToken } from "@/lib/store/authToken";
 
@@ -189,6 +189,23 @@ function numberOr(value: unknown, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function numberFromUnknown(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 function stringOr(...values: unknown[]) {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) {
@@ -200,6 +217,33 @@ function stringOr(...values: unknown[]) {
 
 function booleanOr(value: unknown, fallback = false) {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function normalizeDateString(value: unknown) {
+  if (typeof value !== "string") return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^0001-01-01([t\s].*)?$/i.test(trimmed)) return undefined;
+  if (trimmed.toLowerCase() === "null") return undefined;
+
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime()) && parsed.getUTCFullYear() <= 1) {
+    return undefined;
+  }
+
+  return trimmed;
+}
+
+function dateOr(...values: unknown[]) {
+  for (const value of values) {
+    const normalized = normalizeDateString(value);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return undefined;
 }
 
 function arrayFromCandidates<T>(root: any, candidates: string[]) {
@@ -266,41 +310,77 @@ function normalizeTemplate(item: any): LessonPlanTemplate {
     programId: stringOr(item?.programId),
     programName: stringOr(item?.programName) || undefined,
     level: stringOr(item?.level),
-    title: stringOr(item?.title, item?.name, `Session ${numberOr(item?.sessionIndex, 0)}`),
-    sessionIndex: numberOr(item?.sessionIndex),
-    attachment: stringOr(item?.attachment) || null,
+    title: stringOr(item?.title, item?.name, `Session ${numberOr(numberFromUnknown(item?.sessionIndex), 0)}`),
+    sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex)),
+    attachment: stringOr(item?.attachment, item?.attachmentUrl, item?.fileUrl, item?.file?.url, item?.file?.path) || null,
     isActive: typeof item?.isActive === "boolean" ? item.isActive : undefined,
     createdBy: stringOr(item?.createdBy) || undefined,
-    createdByName: stringOr(item?.createdByName) || undefined,
-    createdAt: stringOr(item?.createdAt) || undefined,
-    updatedAt: stringOr(item?.updatedAt) || undefined,
-    usedCount: typeof item?.usedCount === "number" ? item.usedCount : undefined,
+    createdByName:
+      stringOr(item?.createdByName, item?.creatorName, item?.createdByUser?.fullName, item?.createdByUser?.name) || undefined,
+    createdAt: dateOr(item?.createdAt),
+    updatedAt: dateOr(item?.updatedAt, item?.modifiedAt, item?.lastUpdatedAt),
+    usedCount: numberFromUnknown(item?.usedCount),
   };
 }
 
 function normalizeLessonPlan(item: any): LessonPlan {
+  const session = item?.session ?? item?.classSession ?? item?.timetableSession;
+  const lessonClass = item?.class ?? item?.classroom;
+  const template = item?.template ?? item?.lessonPlanTemplate ?? item?.linkedTemplate;
+  const submittedByUser =
+    item?.submittedByUser ??
+    item?.submittedByProfile ??
+    item?.submittedByNavigation ??
+    item?.submittedByAccount;
+  const createdByUser =
+    item?.createdByUser ??
+    item?.createdByProfile ??
+    item?.teacher ??
+    item?.teacherProfile;
+
   return {
     id: stringOr(item?.id),
-    classId: stringOr(item?.classId),
-    classCode: stringOr(item?.classCode) || undefined,
-    classTitle: stringOr(item?.classTitle, item?.className) || undefined,
-    sessionId: stringOr(item?.sessionId),
-    sessionTitle: stringOr(item?.sessionTitle) || undefined,
-    sessionDate: stringOr(item?.sessionDate) || undefined,
-    templateId: stringOr(item?.templateId) || null,
-    templateTitle: stringOr(item?.templateTitle) || undefined,
-    templateLevel: stringOr(item?.templateLevel) || undefined,
-    templateSessionIndex:
-      typeof item?.templateSessionIndex === "number" ? item.templateSessionIndex : undefined,
-    plannedContent: stringOr(item?.plannedContent) || undefined,
-    actualContent: stringOr(item?.actualContent) || undefined,
-    actualHomework: stringOr(item?.actualHomework) || undefined,
-    teacherNotes: stringOr(item?.teacherNotes) || undefined,
-    submittedBy: stringOr(item?.submittedBy) || undefined,
-    submittedByName: stringOr(item?.submittedByName) || undefined,
-    submittedAt: stringOr(item?.submittedAt) || undefined,
-    createdAt: stringOr(item?.createdAt) || undefined,
-    updatedAt: stringOr(item?.updatedAt) || undefined,
+    classId: stringOr(item?.classId, lessonClass?.id),
+    classCode: stringOr(item?.classCode, lessonClass?.classCode, lessonClass?.code) || undefined,
+    classTitle:
+      stringOr(item?.classTitle, item?.className, lessonClass?.classTitle, lessonClass?.title, lessonClass?.name) || undefined,
+    sessionId: stringOr(item?.sessionId, session?.id),
+    sessionTitle:
+      stringOr(item?.sessionTitle, item?.sessionName, session?.sessionTitle, session?.title, session?.name) || undefined,
+    sessionDate: dateOr(
+      item?.sessionDate,
+      item?.plannedDatetime,
+      item?.plannedDateTime,
+      item?.actualDatetime,
+      session?.sessionDate,
+      session?.plannedDatetime,
+      session?.plannedDateTime,
+      session?.actualDatetime
+    ),
+    templateId: stringOr(item?.templateId, template?.id) || null,
+    templateTitle: stringOr(item?.templateTitle, template?.title, template?.name) || undefined,
+    templateLevel: stringOr(item?.templateLevel, template?.level) || undefined,
+    templateSessionIndex: numberFromUnknown(item?.templateSessionIndex, template?.sessionIndex),
+    plannedContent: stringOr(item?.plannedContent, item?.planContent, item?.expectedContent) || undefined,
+    actualContent: stringOr(item?.actualContent, item?.realContent, item?.deliveredContent) || undefined,
+    actualHomework: stringOr(item?.actualHomework, item?.homework, item?.actualHomeWork) || undefined,
+    teacherNotes: stringOr(item?.teacherNotes, item?.teacherNote, item?.note, item?.notes) || undefined,
+    submittedBy: stringOr(item?.submittedBy, item?.submittedById, submittedByUser?.id, item?.updatedBy, item?.createdBy) || undefined,
+    submittedByName:
+      stringOr(
+        item?.submittedByName,
+        item?.submittedByUserName,
+        submittedByUser?.fullName,
+        submittedByUser?.name,
+        item?.updatedByName,
+        item?.createdByName,
+        createdByUser?.fullName,
+        createdByUser?.name,
+        item?.teacherName
+      ) || undefined,
+    submittedAt: dateOr(item?.submittedAt, item?.submissionDate, item?.submissionAt),
+    createdAt: dateOr(item?.createdAt),
+    updatedAt: dateOr(item?.updatedAt, item?.modifiedAt, item?.lastUpdatedAt),
   };
 }
 
@@ -470,12 +550,14 @@ export async function uploadLessonPlanFile(
     throw new Error("Chưa đăng nhập.");
   }
 
-  const endpoint =
+  const folder =
     kind === "template"
-      ? "/api/files/lesson-plan/template"
+      ? "lesson-plan/template"
       : kind === "materials"
-        ? "/api/files/lesson-plan/materials"
-        : `/api/files/lesson-plan/media?isVideo=${booleanOr(options?.isVideo, false)}`;
+        ? "lesson-plan/materials"
+        : "lesson-plan/media";
+  const resourceType = kind === "media" && booleanOr(options?.isVideo, false) ? "video" : "auto";
+  const endpoint = `${FILE_ENDPOINTS.UPLOAD}?folder=${encodeURIComponent(folder)}&resourceType=${encodeURIComponent(resourceType)}`;
 
   const formData = new FormData();
   formData.append("file", file);

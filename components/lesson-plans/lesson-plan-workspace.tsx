@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 
-import { ADMIN_ENDPOINTS } from "@/constants/apiURL";
+import { ADMIN_ENDPOINTS, BASE_URL } from "@/constants/apiURL";
 import { toast } from "@/hooks/use-toast";
 import { get } from "@/lib/axios";
 import { getAllClasses } from "@/lib/api/classService";
@@ -95,22 +95,42 @@ const COPY: Record<
   },
 };
 
+const BACKEND_ROOT_URL = BASE_URL.replace(/\/api\/?$/, "");
+
 function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
-function formatDate(value?: string, withTime = false) {
-  if (!value) return "Chưa cập nhật";
+function normalizeDateValue(value?: string | null) {
+  if (!value) return undefined;
 
-  const date = new Date(value);
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^0001-01-01([t\s].*)?$/i.test(trimmed)) return undefined;
+  if (trimmed.toLowerCase() === "null") return undefined;
+
+  const date = new Date(trimmed);
+  if (!Number.isNaN(date.getTime()) && date.getUTCFullYear() <= 1) {
+    return undefined;
+  }
+
+  return trimmed;
+}
+
+function formatDate(value?: string, withTime = false, fallback = "Chưa cập nhật") {
+  const normalized = normalizeDateValue(value);
+  if (!normalized) return fallback;
+
+  const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return normalized;
   }
 
   return date.toLocaleString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: "Asia/Ho_Chi_Minh",
     ...(withTime
       ? {
         hour: "2-digit",
@@ -130,7 +150,7 @@ function getTemplateStatus(template: LessonPlanTemplate) {
 }
 
 function getPlanStatus(plan: LessonPlan) {
-  return plan.submittedAt ? "submitted" : "draft";
+  return normalizeDateValue(plan.submittedAt) ? "submitted" : "draft";
 }
 
 function buildTemplateLabel(item: LessonPlanTemplate) {
@@ -143,8 +163,8 @@ function buildTemplateLabel(item: LessonPlanTemplate) {
 
 function buildClassOption(item: any): Option {
   const label =
-    item?.code || item?.classCode || item?.title || item?.name || item?.classTitle || "Lớp học";
-  const hint = [item?.programName, item?.level].filter(Boolean).join(" • ") || undefined;
+    item?.title || item?.name || item?.classTitle || item?.code || item?.classCode || "Lớp học";
+  const hint = [item?.code || item?.classCode, item?.programName, item?.level].filter(Boolean).join(" • ") || undefined;
 
   return {
     id: String(item?.id || ""),
@@ -154,16 +174,113 @@ function buildClassOption(item: any): Option {
 }
 
 function buildSessionOption(item: any): Option {
-  const dateSource = item?.plannedDatetime || item?.plannedDateTime || item?.sessionDate || item?.actualDatetime;
-  const classLabel = item?.classCode || item?.classTitle || item?.className || "";
-  const dateLabel = dateSource ? formatDate(dateSource, true) : "";
-  const label = [item?.sessionTitle, classLabel, dateLabel].filter(Boolean).join(" • ") || item?.id || "Buổi học";
+  const dateSource = normalizeDateValue(item?.plannedDatetime || item?.plannedDateTime || item?.sessionDate || item?.actualDatetime);
+  const classLabel = item?.classTitle || item?.classCode || item?.className || "";
+  const dateLabel = dateSource ? formatDate(dateSource, true, "") : "";
+  const label = [classLabel, dateLabel].filter(Boolean).join(" • ") || item?.sessionTitle || item?.id || "Buổi học";
+  const hint =
+    typeof item?.sessionTitle === "string" && item.sessionTitle.trim() && item.sessionTitle !== label
+      ? item.sessionTitle.trim()
+      : undefined;
 
   return {
     id: String(item?.id || ""),
     label,
-    hint: classLabel || undefined,
+    hint,
   };
+}
+
+function getClassDisplay(item: Pick<LessonPlan, "classTitle" | "classCode">) {
+  return item.classTitle || item.classCode || "Chưa có lớp";
+}
+
+function getClassSecondaryDisplay(item: Pick<LessonPlan, "classTitle" | "classCode">) {
+  if (item.classTitle && item.classCode && item.classTitle !== item.classCode) {
+    return item.classCode;
+  }
+
+  return undefined;
+}
+
+function getClassDetailDisplay(item: Pick<LessonPlan, "classTitle" | "classCode">) {
+  const primary = getClassDisplay(item);
+  const secondary = getClassSecondaryDisplay(item);
+  return secondary ? `${primary} (${secondary})` : primary;
+}
+
+function getSessionDisplay(item: Pick<LessonPlan, "sessionTitle" | "sessionDate">) {
+  const sessionTime = formatDate(item.sessionDate, true, "");
+  if (sessionTime) return sessionTime;
+  return item.sessionTitle || "Chưa có buổi học";
+}
+
+function getSessionSecondaryDisplay(item: Pick<LessonPlan, "sessionTitle" | "sessionDate">) {
+  const title = typeof item.sessionTitle === "string" ? item.sessionTitle.trim() : "";
+  const sessionTime = formatDate(item.sessionDate, true, "");
+
+  if (sessionTime && title && title !== sessionTime) {
+    return title;
+  }
+
+  return undefined;
+}
+
+function getSessionDetailDisplay(item: Pick<LessonPlan, "sessionTitle" | "sessionDate">) {
+  const primary = getSessionDisplay(item);
+  const secondary = getSessionSecondaryDisplay(item);
+  return secondary ? `${primary} • ${secondary}` : primary;
+}
+
+function getPlanActivityDate(item: Pick<LessonPlan, "updatedAt" | "createdAt">) {
+  return normalizeDateValue(item.updatedAt) || normalizeDateValue(item.createdAt);
+}
+
+function getPlanActivityLabel(item: Pick<LessonPlan, "updatedAt" | "createdAt">) {
+  return formatDate(getPlanActivityDate(item), true);
+}
+
+function getPlanActivityHint(item: Pick<LessonPlan, "submittedAt" | "updatedAt" | "createdAt">) {
+  const submittedAt = normalizeDateValue(item.submittedAt);
+  if (submittedAt) {
+    return `Nộp lúc ${formatDate(submittedAt, true)}`;
+  }
+
+  const updatedAt = normalizeDateValue(item.updatedAt);
+  if (updatedAt) {
+    return `Cập nhật lúc ${formatDate(updatedAt, true)}`;
+  }
+
+  const createdAt = normalizeDateValue(item.createdAt);
+  if (createdAt) {
+    return `Tạo lúc ${formatDate(createdAt, true)}`;
+  }
+
+  return "Chưa có thời điểm nộp";
+}
+
+function resolveAttachmentUrl(url?: string | null) {
+  if (!url) return null;
+
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (/^(https?:|blob:|data:|\/\/)/i.test(trimmed)) return trimmed;
+
+  const normalizedPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+
+  if (/^\/api\//i.test(normalizedPath)) {
+    if (typeof window === "undefined") return normalizedPath;
+    return new URL(normalizedPath, window.location.origin).toString();
+  }
+
+  if (BACKEND_ROOT_URL) {
+    return `${BACKEND_ROOT_URL}${normalizedPath}`;
+  }
+
+  if (typeof window === "undefined") {
+    return normalizedPath;
+  }
+
+  return new URL(normalizedPath, window.location.origin).toString();
 }
 
 function TabButton({
@@ -259,7 +376,7 @@ function StatusBadge({
       icon: Paperclip,
     },
     "with-template": {
-      label: "Gắn mẫu",
+      label: "Có template",
       className: "bg-gradient-to-r from-purple-50 to-fuchsia-50 text-purple-700 border border-purple-200",
       icon: FolderOpen,
     },
@@ -634,7 +751,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
         color: "from-amber-500 to-orange-500",
       },
       {
-        title: "Gắn theo mẫu",
+        title: "Có template",
         value: String(plans.filter((item) => item.templateId).length),
         subtitle: "Đã liên kết với template",
         icon: BookOpenCheck,
@@ -644,8 +761,9 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   }, [activeTab, plans, scopeCopy.statsSuffix, templates]);
 
   const openAttachment = (url?: string | null) => {
-    if (!url || typeof window === "undefined") return;
-    window.open(url, "_blank", "noopener,noreferrer");
+    const resolvedUrl = resolveAttachmentUrl(url);
+    if (!resolvedUrl || typeof window === "undefined") return;
+    window.open(resolvedUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleDelete = async () => {
@@ -740,7 +858,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={activeTab === "templates" ? "Tìm theo tên mẫu, program, level..." : "Tìm theo lớp, buổi học, người nộp..."}
+              placeholder={activeTab === "templates" ? "Tìm theo tên mẫu, program, level..." : "Tìm theo lớp, buổi học, người cập nhật..."}
               className="w-full rounded-xl border border-red-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-red-100"
             />
           </div>
@@ -788,7 +906,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                     <option value="all">Tất cả trạng thái</option>
                     <option value="submitted">Đã nộp</option>
                     <option value="draft">Chưa nộp</option>
-                    <option value="withTemplate">Gắn theo mẫu</option>
+                    <option value="withTemplate">Có template</option>
                   </select>
                   <select
                     value={selectedClassId}
@@ -959,9 +1077,14 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                               <CalendarDays size={16} />
                             </div>
                             <div>
-                              <div className="font-semibold text-gray-900">{item.classCode || item.classTitle || "Chưa có lớp"}</div>
-                              <div className="mt-1 text-sm text-gray-500">{item.sessionTitle || "Chưa có buổi học"}</div>
-                              <div className="mt-1 text-xs text-gray-400">{formatDate(item.sessionDate || item.createdAt, true)}</div>
+                              <div className="font-semibold text-gray-900">{getClassDisplay(item)}</div>
+                              {getClassSecondaryDisplay(item) ? (
+                                <div className="mt-1 text-xs text-gray-400">{getClassSecondaryDisplay(item)}</div>
+                              ) : null}
+                              <div className="mt-1 text-sm text-gray-500">{getSessionDisplay(item)}</div>
+                              {getSessionSecondaryDisplay(item) ? (
+                                <div className="mt-1 text-xs text-gray-400">{getSessionSecondaryDisplay(item)}</div>
+                              ) : null}
                             </div>
                           </div>
                         </td>
@@ -994,20 +1117,18 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                         </td>
                         <td className="px-6 py-4">
                           <div className="max-w-xl text-sm text-gray-700">{truncateText(item.actualContent || item.plannedContent)}</div>
-                          {item.actualHomework ? <div className="mt-1 text-xs text-amber-700">Homework: {truncateText(item.actualHomework, "")}</div> : null}
+                          {item.actualHomework ? <div className="mt-1 text-xs text-amber-700">Bài tập: {truncateText(item.actualHomework, "")}</div> : null}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-wrap gap-2">
                             <StatusBadge kind={getPlanStatus(item) === "submitted" ? "plan-submitted" : "plan-draft"} />
                             {item.templateId ? <StatusBadge kind="with-template" /> : null}
                           </div>
-                          <div className="mt-2 text-xs text-gray-500">{item.submittedByName || "Chưa có người nộp"}</div>
+                          <div className="mt-2 text-xs text-gray-500">{item.submittedByName || "Chưa có người cập nhật"}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-700">{formatDate(item.updatedAt || item.submittedAt || item.createdAt, true)}</div>
-                          <div className="mt-1 text-xs text-gray-500">
-                            {item.submittedAt ? `Nộp lúc ${formatDate(item.submittedAt, true)}` : "Chưa có submittedAt"}
-                          </div>
+                          <div className="text-sm text-gray-700">{getPlanActivityLabel(item)}</div>
+                          <div className="mt-1 text-xs text-gray-500">{getPlanActivityHint(item)}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
@@ -1144,7 +1265,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
       {deleteState ? (
         <DeleteModal
           title={deleteState.type === "template" ? "Xóa mẫu giáo án" : "Xóa lesson plan"}
-          name={deleteState.type === "template" ? deleteState.item.title : deleteState.item.sessionTitle || deleteState.item.id}
+          name={deleteState.type === "template" ? deleteState.item.title : getSessionDetailDisplay(deleteState.item)}
           onClose={() => setDeleteState(null)}
           onConfirm={handleDelete}
         />
@@ -1449,7 +1570,7 @@ function PlanFormModal({
   return (
     <ModalFrame
       title={isEdit ? "Cập nhật lesson plan" : "Tạo lesson plan theo buổi"}
-      subtitle={isEdit ? "Cập nhật nội dung dự kiến, thực tế và ghi chú giáo viên." : "Gắn lesson plan vào lớp học và buổi học cụ thể."}
+      subtitle={isEdit ? "Cập nhật nội dung dự kiến, thực tế, bài tập về nhà và ghi chú giáo viên." : "Gắn lesson plan vào lớp học và buổi học cụ thể."}
       icon={FilePlus2}
       onClose={onClose}
       widthClass="max-w-4xl"
@@ -1512,34 +1633,37 @@ function PlanFormModal({
         </div>
         <div>
           <label className="mb-2 block text-sm font-semibold text-gray-700">Nội dung dự kiến</label>
+          <p className="mb-2 text-xs text-gray-500">Những gì dự kiến sẽ dạy hoặc triển khai trước buổi học.</p>
           <textarea
             value={plannedContent}
             onChange={(event) => setPlannedContent(event.target.value)}
             rows={4}
             className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-            placeholder="Nhập planned content..."
+            placeholder="Mô tả nội dung dự kiến cho buổi học..."
           />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">Nội dung thực tế</label>
+            <p className="mb-2 text-xs text-gray-500">Những gì đã diễn ra thực tế sau khi kết thúc buổi học.</p>
             <textarea
               value={actualContent}
               onChange={(event) => setActualContent(event.target.value)}
               rows={4}
               className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-              placeholder="Nhập actual content..."
+              placeholder="Mô tả nội dung thực tế đã dạy..."
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Homework</label>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Bài tập về nhà</label>
+            <p className="mb-2 text-xs text-gray-500">Bài tập hoặc yêu cầu follow-up giao cho học viên sau buổi học.</p>
             <textarea
               value={actualHomework}
               onChange={(event) => setActualHomework(event.target.value)}
               rows={4}
               className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-              placeholder="Nhập bài tập về nhà..."
+              placeholder="Nhập bài tập về nhà hoặc yêu cầu follow-up..."
             />
           </div>
         </div>
@@ -1551,7 +1675,7 @@ function PlanFormModal({
             onChange={(event) => setTeacherNotes(event.target.value)}
             rows={3}
             className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
-            placeholder="Nhập teacher notes..."
+            placeholder="Nhập ghi chú thêm cho giáo viên hoặc quản lý..."
           />
         </div>
 
@@ -1656,16 +1780,16 @@ function DetailModal({
     >
       <div className="space-y-5 p-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <InfoCard icon={Users} label="Lớp học" value={item.classCode || item.classTitle || "-"} />
-          <InfoCard icon={CalendarDays} label="Buổi học" value={item.sessionTitle || "-"} />
-          <InfoCard icon={ShieldCheck} label="Người nộp" value={item.submittedByName || "-"} />
-          <InfoCard icon={Clock3} label="Thời gian" value={formatDate(item.submittedAt || item.updatedAt || item.createdAt, true)} />
+          <InfoCard icon={Users} label="Lớp học" value={getClassDetailDisplay(item)} />
+          <InfoCard icon={CalendarDays} label="Buổi học" value={getSessionDetailDisplay(item)} />
+          <InfoCard icon={ShieldCheck} label="Người cập nhật" value={item.submittedByName || "-"} />
+          <InfoCard icon={Clock3} label="Thời gian" value={getPlanActivityHint(item)} />
         </div>
 
         <div className="grid gap-5 lg:grid-cols-2">
           <ContentCard title="Nội dung dự kiến" content={item.plannedContent} accent="text-red-600" />
           <ContentCard title="Nội dung thực tế" content={item.actualContent} accent="text-emerald-600" />
-          <ContentCard title="Homework" content={item.actualHomework} accent="text-amber-600" />
+          <ContentCard title="Bài tập về nhà" content={item.actualHomework} accent="text-amber-600" />
           <ContentCard title="Ghi chú giáo viên" content={item.teacherNotes} accent="text-gray-600" />
         </div>
         <div className="rounded-2xl border border-red-100 bg-white p-5">

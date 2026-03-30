@@ -22,8 +22,10 @@ import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getStudentClasses } from "@/lib/api/studentService";
 import {
   getMakeupAllocations,
+  getMakeupCreditsByStudent,
   useMakeupCredit as applyMakeupCredit,
 } from "@/lib/api/makeupCreditService";
+import { resolveMakeupCreditActionError } from "@/lib/makeupCreditErrors";
 import { getSessionById } from "@/lib/api/sessionService";
 import { fetchStudentAttendanceHistory } from "@/app/api/teacher/attendance";
 import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveRequest/LeaveRequestCreateModal";
@@ -35,7 +37,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import type { UserProfile } from "@/types/auth";
 import type { StudentClass } from "@/types/student/class";
 import type { LeaveRequestPayload, LeaveRequestRecord, LeaveRequestStatus } from "@/types/leaveRequest";
-import type { MakeupAllocation } from "@/types/makeupCredit";
+import type { MakeupAllocation, MakeupCredit } from "@/types/makeupCredit";
 import type { SourceSession } from "@/lib/api/sessionService";
 import type { AttendanceRawStatus, StudentAttendanceHistoryItem } from "@/types/teacher/attendance";
 
@@ -48,6 +50,11 @@ type MakeupChangeTarget = {
   classLabel: string;
   sessionId?: string | null;
   sessionTime?: string | null;
+};
+
+type MakeupCreditSummary = {
+  total: number;
+  available: number;
 };
 
 /* ===================== Constants ===================== */
@@ -206,6 +213,36 @@ function extractClasses(payload: unknown): StudentClass[] {
   return [];
 }
 
+function extractMakeupCredits(payload: unknown): MakeupCredit[] {
+  if (!payload || typeof payload !== "object") return [];
+
+  const raw = payload as {
+    items?: MakeupCredit[];
+    credits?: MakeupCredit[] | { items?: MakeupCredit[] };
+    data?: MakeupCredit[] | { items?: MakeupCredit[]; credits?: MakeupCredit[] };
+  };
+
+  if (Array.isArray(raw.items)) return raw.items;
+  if (Array.isArray(raw.credits)) return raw.credits;
+  if (raw.credits && typeof raw.credits === "object" && Array.isArray(raw.credits.items)) {
+    return raw.credits.items;
+  }
+  if (Array.isArray(raw.data)) return raw.data;
+  if (raw.data && typeof raw.data === "object") {
+    if (Array.isArray(raw.data.items)) return raw.data.items;
+    if (Array.isArray(raw.data.credits)) return raw.data.credits;
+  }
+
+  return [];
+}
+
+function isAvailableMakeupCredit(credit: MakeupCredit) {
+  const status = String(credit?.status ?? "").trim().toUpperCase();
+  if (!status) return true;
+
+  return status.includes("AVAILABLE") || status.includes("ACTIVE");
+}
+
 /* ===================== UI bits (same vibe as page trên) ===================== */
 
 function Banner({ kind, text }: { kind: "error" | "success"; text: string }) {
@@ -264,6 +301,10 @@ export default function ParentAttendancePage() {
   const [makeupSessionsById, setMakeupSessionsById] = useState<Map<string, SourceSession>>(
     new Map()
   );
+  const [makeupCreditSummary, setMakeupCreditSummary] = useState<MakeupCreditSummary>({
+    total: 0,
+    available: 0,
+  });
   const [makeupLoading, setMakeupLoading] = useState(false);
   const [makeupError, setMakeupError] = useState<string | null>(null);
 
@@ -297,7 +338,7 @@ export default function ParentAttendancePage() {
     }
   }, []);
 
-  const loadMakeupAllocations = useCallback(async (studentProfileId: string) => {
+  const loadMakeupState = useCallback(async (studentProfileId: string) => {
     setMakeupLoading(true);
     setMakeupError(null);
 
@@ -312,6 +353,19 @@ export default function ParentAttendancePage() {
         : raw?.items ?? raw?.allocations?.items ?? raw?.data ?? [];
 
       setMakeupAllocations(Array.isArray(list) ? list : []);
+
+      try {
+        const creditsResponse = await getMakeupCreditsByStudent(studentProfileId);
+        const credits = extractMakeupCredits(creditsResponse?.data ?? creditsResponse);
+
+        setMakeupCreditSummary({
+          total: credits.length,
+          available: credits.filter(isAvailableMakeupCredit).length,
+        });
+      } catch (creditError) {
+        console.warn("Fetch makeup credits summary error:", creditError);
+        setMakeupCreditSummary({ total: 0, available: 0 });
+      }
 
       const sessionIds = Array.from(
         new Set(
@@ -343,6 +397,7 @@ export default function ParentAttendancePage() {
     } catch (err) {
       console.error("Fetch makeup allocations error:", err);
       setMakeupAllocations([]);
+      setMakeupCreditSummary({ total: 0, available: 0 });
       setMakeupError("Không thể tải danh sách buổi bù.");
     } finally {
       setMakeupLoading(false);
@@ -478,8 +533,8 @@ export default function ParentAttendancePage() {
 
   useEffect(() => {
     if (!formState.studentProfileId) return;
-    loadMakeupAllocations(formState.studentProfileId);
-  }, [formState.studentProfileId, loadMakeupAllocations]);
+    loadMakeupState(formState.studentProfileId);
+  }, [formState.studentProfileId, loadMakeupState]);
 
   /* ===================== Memos ===================== */
 
@@ -526,23 +581,17 @@ export default function ParentAttendancePage() {
         targetSessionId: payload.targetSessionId,
       });
 
-      await loadMakeupAllocations(payload.studentProfileId);
+      await loadMakeupState(payload.studentProfileId);
       setSuccessMessage(
         changeMakeupTarget
           ? "Đã thay đổi lịch xếp học bù thành công."
           : "Đã chọn buổi học bù thành công."
       );
     } catch (err: any) {
-      const apiError = err?.response?.data;
-      const description =
-        apiError?.description ??
-        apiError?.detail ??
-        apiError?.message ??
-        apiError?.data?.description ??
-        apiError?.data?.detail ??
-        apiError?.data?.message ??
-        err?.message;
-
+      const description = resolveMakeupCreditActionError(
+        err,
+        changeMakeupTarget ? "change" : "create"
+      );
       throw new Error(description ?? "Không thể đặt lịch học bù.");
     }
   };
@@ -579,7 +628,7 @@ export default function ParentAttendancePage() {
         try {
           await Promise.all([
             loadLeaveRequests(formState.studentProfileId),
-            loadMakeupAllocations(formState.studentProfileId),
+            loadMakeupState(formState.studentProfileId),
           ]);
         } catch (refreshError) {
           console.warn("Refresh after cancel leave request failed:", refreshError);
@@ -650,7 +699,7 @@ export default function ParentAttendancePage() {
       const responseStatus = normalizeStatus((createdRecord as LeaveRequestRecord | undefined)?.status);
       setSuccessMessage(
         responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
-          ? "Đã tạo đơn xin nghỉ. Hệ thống đã duyệt và sẽ tự động xếp lịch bù nếu có suất phù hợp."
+          ? "Đã tạo đơn xin nghỉ. Đơn đã được duyệt; nếu có lượt học bù, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
           : "Đã tạo đơn xin nghỉ."
       );
       closeCreateModal();
@@ -733,7 +782,7 @@ export default function ParentAttendancePage() {
             <div className="text-lg font-semibold text-gray-900">Lich su diem danh</div>
             {attendanceLoading ? <div className="text-sm text-gray-500 mt-1">Dang tai...</div> : null}
           </div>
-          <div className="text-sm text-gray-600 font-medium">{displayAttendance.length} ban ghi</div>
+          <div className="text-sm text-gray-600 font-medium">{attendanceHistory.length} ban ghi</div>
         </div>
 
         {!displayAttendance.length && !attendanceLoading ? (
@@ -783,7 +832,7 @@ export default function ParentAttendancePage() {
             <div className="text-lg font-semibold text-gray-900">Đơn nghỉ gần đây</div>
             {requestsLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
           </div>
-          <div className="text-sm text-gray-600 font-medium">{displayRequests.length} đơn</div>
+          <div className="text-sm text-gray-600 font-medium">{requests.length} đơn</div>
         </div>
 
         {!displayRequests.length ? (
@@ -888,9 +937,14 @@ export default function ParentAttendancePage() {
           <div>
             <div className="text-lg font-semibold text-gray-900">Buổi học bù đã sắp xếp</div>
             {makeupLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
+            {!makeupLoading && makeupCreditSummary.available > 0 ? (
+              <div className="mt-1 text-sm text-amber-700">
+                Còn {makeupCreditSummary.available}/{makeupCreditSummary.total} lượt học bù chưa đặt lịch. Buổi bù chỉ xuất hiện ở đây sau khi phụ huynh chọn lịch cho từng lượt.
+              </div>
+            ) : null}
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-sm text-gray-600 font-medium">{displayMakeup.length} buổi</div>
+            <div className="text-sm text-gray-600 font-medium">{makeupAllocations.length} buổi</div>
             <button
               type="button"
               onClick={() => openMakeupModal()}
@@ -949,7 +1003,7 @@ export default function ParentAttendancePage() {
                     : m.usedAt
                       ? "Buổi bù này đã được sử dụng, không thể đổi lịch."
                       : !m.makeupCreditId
-                        ? "Không thể đổi lịch vì thiếu makeup credit."
+                        ? "Không thể đổi lịch vì chưa xác định được lượt học bù."
                         : !targetClassId
                           ? "Không thể đổi lịch vì chưa xác định được lớp bù hiện tại."
                           : "Không thể đổi lịch khi buổi đã tới hoặc đã qua.";
@@ -1025,9 +1079,15 @@ export default function ParentAttendancePage() {
         onCreated={(record) => {
           setRequests((prev) => [record, ...prev]);
           const responseStatus = normalizeStatus(record?.status);
+          if (record?.studentProfileId) {
+            void Promise.allSettled([
+              loadLeaveRequests(record.studentProfileId),
+              loadMakeupState(record.studentProfileId),
+            ]);
+          }
           setSuccessMessage(
             responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
-              ? "Đã tạo đơn xin nghỉ. Hệ thống đã duyệt và sẽ tự động xếp lịch bù nếu có suất phù hợp."
+              ? "Đã tạo đơn xin nghỉ. Đơn đã được duyệt; nếu có lượt học bù, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
               : "Đã tạo đơn xin nghỉ."
           );
         }}
@@ -1040,8 +1100,8 @@ export default function ParentAttendancePage() {
         lockedStudentLabel={selectedStudentName}
         allowManualFallback={false}
         initialMakeupCreditId={changeMakeupTarget?.makeupCreditId ?? null}
-        lockedTargetClassId={changeMakeupTarget?.classId ?? null}
-        lockedTargetClassLabel={changeMakeupTarget?.classLabel ?? null}
+        preferredTargetClassId={changeMakeupTarget?.classId ?? null}
+        preferredTargetClassLabel={changeMakeupTarget?.classLabel ?? null}
         excludedSessionId={changeMakeupTarget?.sessionId ?? null}
         initialTargetSessionDateTime={changeMakeupTarget?.sessionTime ?? null}
       />

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { X, User, Phone, Mail, MessageSquare, Calendar, Tag, Activity, Clock, Building, FileText, Users } from "lucide-react";
 import type { Lead } from "@/types/lead";
+import { getLeadChildren } from "@/lib/api/leadService";
 import LeadChildrenManager from "./LeadChildrenManager";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
@@ -26,8 +27,45 @@ interface LeadDetailModalProps {
 
 export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnly = false }: LeadDetailModalProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'children'>('info');
+  const [childProgramInterests, setChildProgramInterests] = useState<string[]>([]);
+
+  const refreshChildProgramInterests = useCallback(async () => {
+    if (!lead?.id) {
+      setChildProgramInterests([]);
+      return;
+    }
+
+    try {
+      const response = await getLeadChildren(lead.id);
+      const interests = Array.from(
+        new Set(
+          (response.data?.children || [])
+            .map((child) => child.programInterest?.trim())
+            .filter((interest): interest is string => Boolean(interest))
+        )
+      );
+
+      setChildProgramInterests(interests);
+    } catch {
+      setChildProgramInterests([]);
+    }
+  }, [lead?.id]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setChildProgramInterests([]);
+      return;
+    }
+
+    refreshChildProgramInterests();
+  }, [isOpen, refreshChildProgramInterests]);
   
   if (!isOpen || !lead) return null;
+
+  const displayProgramInterest =
+    childProgramInterests.length > 0
+      ? childProgramInterests.join(", ")
+      : lead.programInterest || "Không có";
 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
@@ -42,11 +80,10 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
       `}</style>
       <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl hide-scrollbar">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-linear-to-r from-red-600 to-red-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-white">Chi tiết Lead</h2>
-              <p className="text-sm text-white/80 mt-1">ID: {lead.id}</p>
             </div>
             <button
               onClick={onClose}
@@ -88,7 +125,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
           {activeTab === 'info' && (
             <>
           {/* Basic Info */}
-          <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 custom-scrollbar">
+          <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5 custom-scrollbar">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <User size={16} className="text-red-600" />
               Thông tin cơ bản
@@ -97,39 +134,27 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium text-gray-500">Họ và tên</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.contactName || "N/A"}</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">{lead.contactName || "Không có"}</p>
               </div>
               
               <div>
                 <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
                   <Phone size={12} /> Số điện thoại
                 </label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.phone || "N/A"}</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">{lead.phone || "Không có"}</p>
               </div>
               
               <div>
                 <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
                   <Mail size={12} /> Email
                 </label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.email || "N/A"}</p>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                  <MessageSquare size={12} /> Zalo ID
-                </label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.zaloId || "N/A"}</p>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-gray-500">Công ty</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.company || "N/A"}</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">{lead.email || "Không có"}</p>
               </div>
             </div>
           </div>
 
           {/* Lead Status & Assignment */}
-          <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+          <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <Activity size={16} className="text-red-600" />
               Trạng thái & Phân công
@@ -139,7 +164,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
               <div>
                 <label className="text-xs font-medium text-gray-500">Trạng thái</label>
                 <p className="text-sm font-medium text-gray-900 mt-1">
-                  {lead.status ? STATUS_MAPPING[lead.status as StatusType] : "N/A"}
+                  {lead.status ? STATUS_MAPPING[lead.status as StatusType] : "Không có"}
                 </p>
               </div>
               
@@ -156,15 +181,6 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
                   {lead.firstResponseAt ? new Date(lead.firstResponseAt).toLocaleString('vi-VN') : "Chưa phản hồi"}
                 </p>
               </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                  <Clock size={12} /> Hành động tiếp theo
-                </label>
-                <p className="text-sm font-medium text-gray-900 mt-1">
-                  {lead.nextActionAt ? new Date(lead.nextActionAt).toLocaleString('vi-VN') : "Chưa đặt lịch"}
-                </p>
-              </div>
 
               <div>
                 <label className="text-xs font-medium text-gray-500">Số lần tiếp xúc</label>
@@ -174,7 +190,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
           </div>
 
           {/* Source & Campaign */}
-          <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+          <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <Tag size={16} className="text-red-600" />
               Nguồn lead
@@ -183,18 +199,13 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium text-gray-500">Nguồn</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.source || "N/A"}</p>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500">Campaign</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.campaign || "N/A"}</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">{lead.source || "Không có"}</p>
               </div>
             </div>
           </div>
 
           {/* Preferences */}
-          <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+          <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <Building size={16} className="text-red-600" />
               Sở thích
@@ -204,25 +215,21 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
               <div>
                 <label className="text-xs font-medium text-gray-500">Chi nhánh mong muốn</label>
                 <p className="text-sm font-medium text-gray-900 mt-1">
-                  {lead.branchPreferenceName || lead.branchPreference || "N/A"}
+                  {lead.branchPreferenceName || lead.branchPreference || "Không có"}
                 </p>
               </div>
               
               <div>
                 <label className="text-xs font-medium text-gray-500">Chương trình quan tâm</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.programInterest || "N/A"}</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">{displayProgramInterest}</p>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="text-xs font-medium text-gray-500">Chủ đề</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.subject || "N/A"}</p>
-              </div>
             </div>
           </div>
 
           {/* Notes */}
           {lead.notes && (
-            <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+            <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
               <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <FileText size={16} className="text-red-600" />
                 Ghi chú
@@ -233,7 +240,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
 
           {/* Conversion Info */}
           {lead.convertedStudentProfileId && (
-            <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
+            <div className="rounded-xl border border-emerald-200 bg-linear-to-br from-emerald-50 to-white p-5">
               <h3 className="text-sm font-semibold text-emerald-700 mb-3">Đã chuyển đổi</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -243,7 +250,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
                 <div>
                   <label className="text-xs font-medium text-gray-500">Ngày chuyển đổi</label>
                   <p className="text-sm font-medium text-gray-900 mt-1">
-                    {lead.convertedAt ? new Date(lead.convertedAt).toLocaleDateString('vi-VN') : "N/A"}
+                    {lead.convertedAt ? new Date(lead.convertedAt).toLocaleDateString('vi-VN') : "Không có"}
                   </p>
                 </div>
               </div>
@@ -255,11 +262,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-500">
               <div>
                 <span className="font-medium">Ngày tạo:</span>{" "}
-                {lead.createdAt ? new Date(lead.createdAt).toLocaleString('vi-VN') : "N/A"}
-              </div>
-              <div>
-                <span className="font-medium">Cập nhật:</span>{" "}
-                {lead.updatedAt ? new Date(lead.updatedAt).toLocaleString('vi-VN') : "N/A"}
+                {lead.createdAt ? new Date(lead.createdAt).toLocaleString('vi-VN') : "Không có"}
               </div>
             </div>
           </div>
@@ -278,7 +281,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
                 onEdit(lead);
                 onClose();
               }}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all"
+              className="px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all"
             >
               Chỉnh sửa
             </button>
@@ -288,7 +291,7 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
           <div className="flex items-center justify-end gap-3 pt-4 border-t">
             <button
               onClick={onClose}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all"
+              className="px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all"
             >
               Đóng
             </button>
@@ -299,8 +302,12 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
 
           {/* Tab: Children */}
           {activeTab === 'children' && (
-            <div className="rounded-xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-              <LeadChildrenManager leadId={lead.id} isEditable={!readOnly} />
+            <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
+              <LeadChildrenManager
+                leadId={lead.id}
+                isEditable={!readOnly}
+                onChildrenChanged={refreshChildProgramInterests}
+              />
             </div>
           )}
         </div>

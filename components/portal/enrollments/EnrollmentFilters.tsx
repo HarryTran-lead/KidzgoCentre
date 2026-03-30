@@ -1,6 +1,13 @@
 "use client";
 
 import { Search, Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 interface EnrollmentFiltersProps {
   searchQuery: string;
@@ -44,19 +51,22 @@ export default function EnrollmentFilters({
           />
         </div>
 
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+        <Select
+          value={String(pageSize)}
+          onValueChange={(value) => onPageSizeChange(Number(value))}
         >
-          <option value={10}>10 / trang</option>
-          <option value={20}>20 / trang</option>
-          <option value={50}>50 / trang</option>
-        </select>
+          <SelectTrigger className="h-10 w-35 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+            <SelectValue placeholder="Số dòng" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="10">10 / trang</SelectItem>
+            <SelectItem value="20">20 / trang</SelectItem>
+            <SelectItem value="50">50 / trang</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Filter size={16} className="text-gray-500" />
         <div className="inline-flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-white p-1">
           {statusOptions.map((option) => (
             <button
@@ -79,10 +89,6 @@ export default function EnrollmentFilters({
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="text-sm text-gray-600">
-        Hiển thị <span className="font-semibold text-red-600">{totalCount}</span> ghi danh
       </div>
     </div>
   );

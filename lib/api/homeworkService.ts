@@ -11,18 +11,21 @@ import { get, post, del, put } from "@/lib/axios";
 import {
   FetchHomeworkParams,
   FetchHomeworkSubmissionsParams,
-  HomeworkApiResponse,
   HomeworkSubmission,
   HomeworkSubmissionItem,
   FetchHomeworkResult,
   FetchHomeworkSubmissionsResult,
   CreateHomeworkPayload,
+  CreateHomeworkFromBankPayload,
   CreateHomeworkResult,
   DeleteHomeworkResult,
   HomeworkAttachment,
   ClassOption,
   SessionOption,
   MultipleChoiceQuestion,
+  FetchQuestionBankParams,
+  FetchQuestionBankResult,
+  QuestionBankItem,
 } from "@/types/teacher/homework";
 
 /**
@@ -151,6 +154,87 @@ export async function fetchSessions(classId: string): Promise<SessionOption[]> {
   } catch (error) {
     console.error("Error fetching sessions:", error);
     return [];
+  }
+}
+
+function extractQuestionBankItems(payload: any): any[] {
+  const candidates = [
+    payload?.data?.questionBankItems?.items,
+    payload?.data?.questionBankItems,
+    payload?.data?.items,
+    payload?.questionBankItems?.items,
+    payload?.questionBankItems,
+    payload?.items,
+    payload?.data,
+    payload,
+  ];
+
+  const raw = candidates.find((item) => Array.isArray(item));
+  return Array.isArray(raw) ? raw : [];
+}
+
+function normalizeQuestionBankItem(item: any): QuestionBankItem | null {
+  const questionId = item?.id || item?.questionId;
+  const questionText = item?.questionText || item?.text || item?.content;
+  if (!questionId || !questionText) {
+    return null;
+  }
+
+  const rawOptions = Array.isArray(item?.options)
+    ? item.options
+    : Array.isArray(item?.optionTexts)
+      ? item.optionTexts
+      : [];
+
+  const options = rawOptions
+    .map((option: any) => {
+      if (typeof option === "string") {
+        return option.trim();
+      }
+      return String(option?.text || option?.optionText || option?.content || "").trim();
+    })
+    .filter(Boolean);
+
+  return {
+    id: String(questionId),
+    questionText: String(questionText),
+    questionType: String(item?.questionType || item?.type || "MultipleChoice"),
+    options,
+    correctAnswer: String(item?.correctAnswer ?? item?.answer ?? ""),
+    points: Number(item?.points ?? item?.score ?? 1),
+    explanation: item?.explanation ?? null,
+    level: item?.level,
+    programId: item?.programId,
+  };
+}
+
+export async function fetchQuestionBankItems(
+  params: FetchQuestionBankParams
+): Promise<FetchQuestionBankResult> {
+  try {
+    const searchParams = new URLSearchParams();
+    searchParams.set("programId", params.programId);
+    if (params.level) {
+      searchParams.set("level", params.level);
+    }
+    searchParams.set("pageNumber", String(params.pageNumber ?? 1));
+    searchParams.set("pageSize", String(params.pageSize ?? 100));
+
+    const response = await get<any>(`/api/question-bank?${searchParams.toString()}`);
+    const items = extractQuestionBankItems(response)
+      .map(normalizeQuestionBankItem)
+      .filter((item): item is QuestionBankItem => Boolean(item));
+
+    return {
+      ok: true,
+      data: items,
+    };
+  } catch (error) {
+    console.error("Error fetching question bank:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Failed to fetch question bank",
+    };
   }
 }
 
@@ -312,6 +396,7 @@ export async function createMultipleChoiceHomework(
     rewardStars?: number;
     missionId?: string;
     timeLimitMinutes?: number;
+    allowResubmit?: boolean;
     instructions?: string;
     questions: MultipleChoiceQuestion[];
   }
@@ -333,6 +418,31 @@ export async function createMultipleChoiceHomework(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Failed to create multiple choice homework",
+    };
+  }
+}
+
+export async function createMultipleChoiceHomeworkFromBank(
+  payload: CreateHomeworkFromBankPayload
+): Promise<CreateHomeworkResult> {
+  try {
+    const response = await post<HomeworkSubmission>(
+      `${TEACHER_ENDPOINTS.HOMEWORK}/multiple-choice/from-bank`,
+      payload
+    );
+
+    return {
+      ok: true,
+      data: response,
+    };
+  } catch (error) {
+    console.error("Error creating question-bank homework:", error);
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create multiple choice homework from bank",
     };
   }
 }

@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, Sparkles, ArrowRight, CheckCircle2, Loader2, School, Rocket } from "lucide-react";
+import {
+  X,
+  Sparkles,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  School,
+  Rocket,
+  Clock3,
+  AlertCircle,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PlacementTest } from "@/types/placement-test";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
@@ -12,13 +22,16 @@ import {
   upgradeRegistration,
   getRegistrations,
 } from "@/lib/api/registrationService";
+import { getAllClasses } from "@/lib/api/classService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
   onClose: () => void;
   test: PlacementTest | null;
   branchId?: string;
+  allowManualAssign?: boolean;
   onSuccess?: () => void;
 }
 
@@ -28,6 +41,30 @@ type ProgramOption = {
   id: string;
   name: string;
 };
+
+const SESSIONS_PER_WEEK_OPTIONS = [
+  { value: 2, label: "2 buổi/tuần" },
+  { value: 3, label: "3 buổi/tuần" },
+];
+
+const WEEK_DAYS = [
+  { value: "2", shortLabel: "T2", label: "Thứ 2" },
+  { value: "3", shortLabel: "T3", label: "Thứ 3" },
+  { value: "4", shortLabel: "T4", label: "Thứ 4" },
+  { value: "5", shortLabel: "T5", label: "Thứ 5" },
+  { value: "6", shortLabel: "T6", label: "Thứ 6" },
+  { value: "7", shortLabel: "T7", label: "Thứ 7" },
+  { value: "CN", shortLabel: "CN", label: "Chủ nhật" },
+];
+
+const TIME_SLOTS = [
+  { value: "morning", label: "Sáng", timeRange: "08:00 - 10:00" },
+  { value: "late-morning", label: "Trưa", timeRange: "10:00 - 12:00" },
+  { value: "afternoon", label: "Chiều", timeRange: "14:00 - 16:00" },
+  { value: "late-afternoon", label: "Chiều", timeRange: "16:00 - 18:00" },
+  { value: "evening", label: "Tối", timeRange: "18:00 - 20:00" },
+  { value: "late-evening", label: "Tối", timeRange: "19:30 - 21:30" },
+];
 
 function toInputDateValue(value?: string) {
   if (!value) return "";
@@ -92,10 +129,14 @@ export default function RegistrationFlowModal({
   onClose,
   test,
   branchId,
+  allowManualAssign = false,
   onSuccess,
 }: RegistrationFlowModalProps) {
   const { toast } = useToast();
   const childName = (test?.studentName || test?.childName || "").trim();
+
+  const toVietnameseError = (error: unknown, fallback: string) =>
+    getDomainErrorMessage(error, fallback);
 
   const [tuitionPlans, setTuitionPlans] = useState<TuitionPlan[]>([]);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
@@ -105,6 +146,12 @@ export default function RegistrationFlowModal({
   const [tuitionPlanId, setTuitionPlanId] = useState("");
   const [expectedStartDate, setExpectedStartDate] = useState("");
   const [preferredSchedule, setPreferredSchedule] = useState("");
+  const [sessionsPerWeek, setSessionsPerWeek] = useState(2);
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+  const [useCustomTime, setUseCustomTime] = useState(false);
+  const [startTime, setStartTime] = useState("18:00");
+  const [endTime, setEndTime] = useState("20:00");
   const [note, setNote] = useState("");
 
   const [registrationId, setRegistrationId] = useState("");
@@ -132,15 +179,90 @@ export default function RegistrationFlowModal({
     return map[String(status || "")] || status || "Không xác định";
   }
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isLoadingManualClasses, setIsLoadingManualClasses] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isWaiting, setIsWaiting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
   const [suggestedClasses, setSuggestedClasses] = useState<any[]>([]);
+  const [manualClasses, setManualClasses] = useState<any[]>([]);
+  const [isManualMode, setIsManualMode] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState("");
   const [upgradeTuitionPlanId, setUpgradeTuitionPlanId] = useState("");
 
-  const canCreate = Boolean(test?.studentProfileId) && Boolean(branchId) && Boolean(programId) && Boolean(tuitionPlanId);
+  const pickClassItems = (payload: any): any[] => {
+    if (Array.isArray(payload?.data?.items)) return payload.data.items;
+    if (Array.isArray(payload?.data?.page?.items)) return payload.data.page.items;
+    if (Array.isArray(payload?.data?.classes?.items)) return payload.data.classes.items;
+    if (Array.isArray(payload?.data?.classes)) return payload.data.classes;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload)) return payload;
+    return [];
+  };
+
+  const getClassDisplayName = (cls: any) =>
+    String(cls?.className || cls?.title || cls?.name || cls?.code || cls?.id || "");
+
+  const getClassRemainingSlots = (cls: any) => {
+    if (typeof cls?.remainingSlots === "number") return cls.remainingSlots;
+    if (
+      typeof cls?.capacity === "number" &&
+      typeof cls?.currentEnrollment === "number"
+    ) {
+      return cls.capacity - cls.currentEnrollment;
+    }
+    if (
+      typeof cls?.maxStudents === "number" &&
+      typeof cls?.currentStudentCount === "number"
+    ) {
+      return cls.maxStudents - cls.currentStudentCount;
+    }
+    return null;
+  };
+
+  const canCreate =
+    Boolean(test?.studentProfileId) &&
+    Boolean(branchId) &&
+    Boolean(programId) &&
+    Boolean(tuitionPlanId) &&
+    Boolean(preferredSchedule.trim());
+
+  const formatDaysString = (days: string[]) => {
+    const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
+    const sortedDays = [...days].sort(
+      (a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b),
+    );
+
+    const thuDays = sortedDays.filter((d) => d !== "CN");
+    const hasSunday = sortedDays.includes("CN");
+
+    if (thuDays.length > 0) {
+      return `Thứ ${thuDays.join(",")}${hasSunday ? " & CN" : ""}`;
+    }
+    if (hasSunday) {
+      return "CN";
+    }
+    return "";
+  };
+
+  const toggleDay = (dayValue: string) => {
+    setSelectedDays((prev) => {
+      if (prev.includes(dayValue)) {
+        return prev.filter((d) => d !== dayValue);
+      }
+      if (prev.length >= sessionsPerWeek) {
+        return prev;
+      }
+      return [...prev, dayValue];
+    });
+  };
+
+  const handleSessionsPerWeekChange = (value: number) => {
+    setSessionsPerWeek(value);
+    if (selectedDays.length > value) {
+      setSelectedDays((prev) => prev.slice(0, value));
+    }
+  };
 
   const programs = useMemo<ProgramOption[]>(() => {
     const byProgram = new Map<string, string>();
@@ -199,6 +321,12 @@ export default function RegistrationFlowModal({
 
         setExpectedStartDate(toInputDateValue(test?.scheduledAt));
         setPreferredSchedule("");
+        setSessionsPerWeek(2);
+        setSelectedDays([]);
+        setSelectedTimeSlot("");
+        setUseCustomTime(false);
+        setStartTime("18:00");
+        setEndTime("20:00");
         setNote(childName);
 
         if (test?.studentProfileId) {
@@ -217,7 +345,7 @@ export default function RegistrationFlowModal({
 
           const options = sortedRegistrations.map((r) => ({
             id: r.id,
-            label: `${r.studentName || "Học viên"} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)}`,
+            label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)} • ${r.programName}`,
           }));
           setRegistrationOptions(options);
 
@@ -232,6 +360,8 @@ export default function RegistrationFlowModal({
         }
 
         setSuggestedClasses([]);
+        setManualClasses([]);
+        setIsManualMode(false);
         setSelectedClassId("");
         setUpgradeTuitionPlanId("");
         setActiveStep("create");
@@ -239,7 +369,7 @@ export default function RegistrationFlowModal({
         console.error("Error loading registration options:", error);
         toast({
           title: "Lỗi",
-          description: "Không thể tải dữ liệu chương trình/gói học.",
+          description: toVietnameseError(error, "Không thể tải dữ liệu đăng ký. Vui lòng thử lại."),
           variant: "destructive",
         });
       } finally {
@@ -263,11 +393,52 @@ export default function RegistrationFlowModal({
     }
   }, [programId, tuitionPlanId, tuitionPlans]);
 
+  useEffect(() => {
+    if (selectedDays.length === 0) {
+      setPreferredSchedule("");
+      return;
+    }
+
+    const dayString = formatDaysString(selectedDays);
+    if (!dayString) {
+      setPreferredSchedule("");
+      return;
+    }
+
+    if (!useCustomTime) {
+      const selectedRange = TIME_SLOTS.find(
+        (slot) => slot.value === selectedTimeSlot,
+      )?.timeRange;
+      if (!selectedRange) {
+        setPreferredSchedule("");
+        return;
+      }
+      setPreferredSchedule(`${dayString} (${selectedRange})`);
+      return;
+    }
+
+    if (!startTime || !endTime || startTime >= endTime) {
+      setPreferredSchedule("");
+      return;
+    }
+
+    setPreferredSchedule(`${dayString} (${startTime} - ${endTime})`);
+  }, [selectedDays, selectedTimeSlot, useCustomTime, startTime, endTime]);
+
   const handleCreateRegistration = async () => {
     if (!test?.studentProfileId || !branchId) {
       toast({
         title: "Thiếu dữ liệu",
         description: "Placement test chưa gắn Student Profile hoặc thiếu chi nhánh.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!preferredSchedule.trim()) {
+      toast({
+        title: "Thiếu lịch học",
+        description: "Vui lòng chọn ngày học và khung giờ học mong muốn.",
         variant: "destructive",
       });
       return;
@@ -307,7 +478,7 @@ export default function RegistrationFlowModal({
     } catch (error: any) {
       toast({
         title: "Lỗi",
-        description: error?.message || "Không thể tạo đăng ký.",
+        description: toVietnameseError(error, "Không thể tạo đăng ký."),
         variant: "destructive",
       });
     } finally {
@@ -324,11 +495,22 @@ export default function RegistrationFlowModal({
       setSuggestedClasses(suggestions || []);
       if (suggestions.length > 0) {
         setSelectedClassId(String(suggestions[0].id));
+        toast({
+          title: "Thành công",
+          description: `Đã gợi ý ${suggestions.length} lớp phù hợp cho đăng ký.`,
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: "Thông báo",
+          description: "Hiện chưa có lớp phù hợp với đăng ký này.",
+          variant: "default",
+        });
       }
     } catch (error: any) {
       toast({
         title: "Lỗi",
-        description: error?.message || "Không thể lấy danh sách lớp gợi ý.",
+        description: toVietnameseError(error, "Không thể lấy danh sách lớp gợi ý."),
         variant: "destructive",
       });
     } finally {
@@ -354,11 +536,75 @@ export default function RegistrationFlowModal({
     } catch (error: any) {
       toast({
         title: "Lỗi",
-        description: error?.message || "Không thể xếp lớp.",
+        description: toVietnameseError(error, "Học viên đã đăng ký lớp này"),
         variant: "destructive",
       });
     } finally {
       setIsAssigning(false);
+    }
+  };
+
+  const handleLoadManualClasses = async () => {
+    if (!registrationId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn đăng ký trước khi xếp lớp thủ công.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!branchId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Không xác định được chi nhánh để lọc danh sách lớp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsLoadingManualClasses(true);
+      setIsManualMode(true);
+
+      const response = await getAllClasses({
+        pageNumber: 1,
+        pageSize: 1000,
+        branchId,
+      });
+
+      const items = pickClassItems(response)
+        .filter((item) => item?.id)
+        .filter((item) => {
+          const status = String(item?.status || "").toLowerCase();
+          return status !== "cancelled" && status !== "completed";
+        });
+
+      setManualClasses(items);
+
+      if (items.length > 0) {
+        setSelectedClassId(String(items[0].id));
+        toast({
+          title: "Thành công",
+          description: `Đã tải ${items.length} lớp để xếp lớp thủ công.`,
+          variant: "success",
+        });
+      } else {
+        setSelectedClassId("");
+        toast({
+          title: "Thông báo",
+          description: "Không có lớp phù hợp trong chi nhánh hiện tại.",
+          variant: "default",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: toVietnameseError(error, "Không thể tải danh sách lớp thủ công."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingManualClasses(false);
     }
   };
 
@@ -372,14 +618,14 @@ export default function RegistrationFlowModal({
       });
       toast({
         title: "Thành công",
-        description: "Đã chuyển đăng ký sang chờ xếp lớp.",
+        description: "Đã chuyển đăng ký sang trạng thái chờ xếp lớp.",
         variant: "success",
       });
       onSuccess?.();
     } catch (error: any) {
       toast({
         title: "Lỗi",
-        description: error?.message || "Không thể chuyển vào waiting list.",
+        description: toVietnameseError(error, "Không thể chuyển đăng ký vào trạng thái chờ xếp lớp."),
         variant: "destructive",
       });
     } finally {
@@ -402,7 +648,7 @@ export default function RegistrationFlowModal({
     } catch (error: any) {
       toast({
         title: "Lỗi",
-        description: error?.message || "Không thể upgrade đăng ký.",
+        description: toVietnameseError(error, "Không thể nâng cấp học vụ cho đăng ký."),
         variant: "destructive",
       });
     } finally {
@@ -419,13 +665,13 @@ export default function RegistrationFlowModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl bg-linear-to-r from-red-700 via-red-600 to-rose-600 px-6 py-4 text-white">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 px-3 py-2">
+      <div className="h-auto max-h-[calc(100dvh-16px)] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl bg-linear-to-r from-red-700 via-red-600 to-rose-600 px-5 py-3 text-white">
           <div>
             <h2 className="text-xl font-bold">Đăng Ký Từ Placement Test</h2>
             <p className="text-sm text-white/85">
-              Placement Test #{test?.id || "-"} • Học viên: {test?.studentName || test?.childName || "N/A"}
+              Tên học viên: {test?.studentName || test?.childName}
             </p>
           </div>
           <button onClick={onClose} className="rounded-lg p-1 hover:bg-white/15" aria-label="Đóng">
@@ -433,8 +679,8 @@ export default function RegistrationFlowModal({
           </button>
         </div>
 
-        <div className="space-y-5 p-6">
-          <div className="rounded-2xl border border-red-200 bg-red-50/70 p-2">
+        <div className="max-h-[calc(100dvh-84px)] overflow-y-auto space-y-3 p-3 text-sm">
+          <div className="rounded-2xl border border-red-200 bg-red-50/70 p-1.5">
             <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
               {stepTabs.map((tab) => {
                 const isActive = tab.key === activeStep;
@@ -443,7 +689,7 @@ export default function RegistrationFlowModal({
                     key={tab.key}
                     type="button"
                     onClick={() => setActiveStep(tab.key)}
-                    className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
                       isActive
                         ? "bg-linear-to-r from-red-600 to-rose-600 text-white shadow"
                         : "border border-red-200 bg-white text-red-700 hover:bg-red-50"
@@ -456,24 +702,24 @@ export default function RegistrationFlowModal({
             </div>
           </div>
 
-          <div className="rounded-xl border border-red-200 bg-white px-4 py-3">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
+          <div className="rounded-xl border border-red-200 bg-white px-3 py-1.5">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto] md:items-end">
               <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Đăng ký đang thao tác (tự lấy từ hệ thống)</label>
+                <label className="text-xs font-medium text-gray-700">Đăng ký đang thao tác (tự lấy từ hệ thống)</label>
                 <select
                   value={registrationId}
                   onChange={(e) => setRegistrationId(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                 >
                   <option value="">Chưa có đăng ký nào cho học viên này</option>
                   {registrationOptions.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.id} - {item.label}
+                     {item.label}
                     </option>
                   ))}
                 </select>
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="hidden text-[11px] text-gray-500 md:block">
                 Các bước thao tác độc lập. Bạn có thể chọn bất kỳ đăng ký đã có trong hệ thống.
               </div>
             </div>
@@ -492,8 +738,8 @@ export default function RegistrationFlowModal({
           )}
 
           {activeStep === "create" && (
-          <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-            <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
+          <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-2.5">
+            <div className="mb-2 flex items-center gap-2 text-base font-semibold text-gray-900">
               <School size={18} className="text-red-600" />
               Bước 1: Tạo đăng ký học viên
             </div>
@@ -503,13 +749,13 @@ export default function RegistrationFlowModal({
                 <Loader2 size={16} className="animate-spin" /> Đang tải chương trình và gói học...
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-gray-700">Student Profile ID</label>
                   <input
                     value={test?.studentProfileId || ""}
                     disabled
-                    className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-1.5 text-sm"
                   />
                 </div>
 
@@ -518,7 +764,7 @@ export default function RegistrationFlowModal({
                   <select
                     value={programId}
                     onChange={(e) => setProgramId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   >
                     <option value="">Chọn chương trình</option>
                     {programs.map((p) => (
@@ -534,7 +780,7 @@ export default function RegistrationFlowModal({
                   <select
                     value={tuitionPlanId}
                     onChange={(e) => setTuitionPlanId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   >
                     <option value="">Chọn gói học</option>
                     {filteredTuitionPlans.map((p) => (
@@ -551,38 +797,159 @@ export default function RegistrationFlowModal({
                     type="date"
                     value={expectedStartDate}
                     onChange={(e) => setExpectedStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   />
                 </div>
 
-                <div className="space-y-1 md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700">Lịch học mong muốn</label>
-                  <input
-                    value={preferredSchedule}
-                    onChange={(e) => setPreferredSchedule(e.target.value)}
-                    placeholder="VD: T3-T5-T7 18:00"
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                  />
+                <div className="space-y-3 md:col-span-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Clock3 size={16} className="text-red-600" />
+                    Lịch học mong muốn <span className="text-red-500">*</span>
+                  </label>
+
+                  <div className="space-y-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3">
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">Số buổi học mỗi tuần</p>
+                      <div className="flex flex-wrap gap-2">
+                        {SESSIONS_PER_WEEK_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => handleSessionsPerWeekChange(option.value)}
+                            className={`rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors ${
+                              sessionsPerWeek === option.value
+                                ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
+                                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">
+                        Chọn ngày học (tối đa {sessionsPerWeek} ngày) <span className="text-red-500">*</span>
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {WEEK_DAYS.map((day) => {
+                          const isSelected = selectedDays.includes(day.value);
+                          const isDisabled =
+                            !isSelected && selectedDays.length >= sessionsPerWeek;
+
+                          return (
+                            <button
+                              key={day.value}
+                              type="button"
+                              onClick={() => toggleDay(day.value)}
+                              disabled={isDisabled}
+                              className={`min-w-20 rounded-xl border px-2 py-1.5 text-center transition-colors ${
+                                isSelected
+                                  ? "border-red-500 bg-red-100 text-red-700"
+                                  : isDisabled
+                                    ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                              }`}
+                            >
+                              <div className="text-sm font-semibold leading-none">{day.shortLabel}</div>
+                              <div className="text-[11px] leading-tight">{day.label}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-600">
+                          Khung giờ học <span className="text-red-500">*</span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setUseCustomTime((prev) => !prev)}
+                          className="text-xs font-semibold text-red-600 hover:text-red-700"
+                        >
+                          {useCustomTime ? "Chọn khung giờ mẫu" : "Nhập giờ tùy chỉnh"}
+                        </button>
+                      </div>
+
+                      {!useCustomTime ? (
+                        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                          {TIME_SLOTS.map((slot) => (
+                            <button
+                              key={slot.value}
+                              type="button"
+                              onClick={() => setSelectedTimeSlot(slot.value)}
+                              className={`rounded-xl border px-3 py-1.5 text-center transition-colors ${
+                                selectedTimeSlot === slot.value
+                                  ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
+                                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                              }`}
+                            >
+                              <div className="text-sm font-semibold leading-none">{slot.label}</div>
+                              <div className="text-[11px] leading-tight">{slot.timeRange}</div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
+                          <input
+                            type="time"
+                            value={startTime}
+                            onChange={(e) => setStartTime(e.target.value)}
+                            className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                          />
+                          <span className="text-sm text-gray-500">đến</span>
+                          <input
+                            type="time"
+                            value={endTime}
+                            onChange={(e) => setEndTime(e.target.value)}
+                            className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Chuỗi gửi backend</label>
+                    <input
+                      value={preferredSchedule}
+                      readOnly
+                      placeholder="Ví dụ: Thứ 3,5 (18:00 - 20:00)"
+                      className={`w-full rounded-xl border bg-white px-3 py-1.5 text-sm outline-none ${
+                        preferredSchedule
+                          ? "border-gray-300 text-gray-800"
+                          : "border-red-300 text-gray-500"
+                      }`}
+                    />
+                    {!preferredSchedule && (
+                      <p className="flex items-center gap-1 text-xs text-red-600">
+                        <AlertCircle size={13} /> Vui lòng chọn đủ ngày học và khung giờ.
+                      </p>
+                    )}
+                  </div> */}
                 </div>
 
                 <div className="space-y-1 md:col-span-2">
                   <label className="text-sm font-medium text-gray-700">Ghi chú</label>
                   <textarea
-                    rows={2}
+                    rows={1}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   />
                 </div>
               </div>
             )}
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleCreateRegistration}
                 disabled={!canCreate || isCreating || isBootstrapping}
-                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isCreating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                 Tạo đăng ký
@@ -613,6 +980,16 @@ export default function RegistrationFlowModal({
               >
                 {isSuggesting ? <Loader2 size={14} className="animate-spin" /> : <School size={14} />}
                 Gợi ý lớp phù hợp
+              </button>
+
+              <button
+                type="button"
+                onClick={handleLoadManualClasses}
+                disabled={!allowManualAssign || !registrationId || isLoadingManualClasses || !branchId}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoadingManualClasses ? <Loader2 size={14} className="animate-spin" /> : <School size={14} />}
+                Xếp lớp thủ công
               </button>
 
               <button
@@ -660,6 +1037,58 @@ export default function RegistrationFlowModal({
                   className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isAssigning ? "Đang xếp lớp..." : "Xếp vào lớp đã chọn"}
+                </button>
+              </div>
+            )}
+
+            {allowManualAssign && isManualMode && (
+              <div className="mt-4 space-y-3 rounded-xl border border-red-200 bg-white p-3">
+                <div className="text-sm font-semibold text-gray-900">
+                  Danh sách lớp theo chi nhánh tài khoản staff
+                </div>
+
+                {manualClasses.length === 0 && !isLoadingManualClasses ? (
+                  <div className="text-xs text-gray-600">
+                    Không có lớp để xếp thủ công trong phạm vi chi nhánh hiện tại.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {manualClasses.map((cls: any) => {
+                      const classId = String(cls.id);
+                      const isSelected = selectedClassId === classId;
+                      const remainingSlots = getClassRemainingSlots(cls);
+
+                      return (
+                        <button
+                          key={classId}
+                          type="button"
+                          onClick={() => setSelectedClassId(classId)}
+                          className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                            isSelected
+                              ? "border-red-500 bg-red-100"
+                              : "border-red-200 bg-white hover:bg-red-50"
+                          }`}
+                        >
+                          <div className="text-sm font-semibold text-gray-900">{getClassDisplayName(cls)}</div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            Còn chỗ: {typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : "-"}
+                          </div>
+                          <div className="mt-0.5 text-xs text-gray-600" title={cls?.schedulePattern || ""}>
+                            Lịch: {formatSchedulePattern(cls?.schedulePattern)}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleAssignClass}
+                  disabled={!selectedClassId || isAssigning || manualClasses.length === 0}
+                  className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isAssigning ? "Đang xếp lớp..." : "Xếp vào lớp thủ công đã chọn"}
                 </button>
               </div>
             )}

@@ -9,6 +9,7 @@ import {
   getAccessToken,
 } from '@/lib/store/authToken';
 import { DEFAULT_LOCALE, localizePath } from '@/lib/i18n';
+import { normalizeRole, ROLES, type Role } from '@/lib/role';
 import Image from 'next/image';
 import { LOGO } from '@/lib/theme/theme';
 
@@ -28,12 +29,102 @@ function hasUsableToken(token: string | null) {
   return normalized !== '' && normalized !== 'null' && normalized !== 'undefined';
 }
 
+function getRoleFromToken(token: string): Role | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payloadRaw = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadRaw);
+    const rawRole = payload?.role || payload?.userRole || payload?.user_role;
+    if (!rawRole) return null;
+    return normalizeRole(String(rawRole));
+  } catch {
+    return null;
+  }
+}
+
 export default function ActivateProfileClient() {
   const searchParams = useSearchParams();
   const profileId = searchParams.get('id');
   const [status, setStatus] = useState<Status>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  const [successRedirectPath, setSuccessRedirectPath] = useState(
+    localizePath('/portal', DEFAULT_LOCALE)
+  );
   const calledRef = useRef(false);
+
+  const setServerSession = async (payload: {
+    role: string;
+    name: string;
+    avatar: string;
+  }) => {
+    await fetch('/api/session', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  };
+
+  const resolveDashboardDestination = async (token: string) => {
+    const roleFromCookie = (() => {
+      if (typeof document === 'undefined') return null;
+      const row = document.cookie
+        .split(';')
+        .map((v) => v.trim())
+        .find((v) => v.startsWith('role='));
+      if (!row) return null;
+      return decodeURIComponent(row.substring(5));
+    })();
+
+    let normalizedRole = roleFromCookie ? normalizeRole(String(roleFromCookie)) : null;
+
+    if (!normalizedRole) {
+      try {
+        const meResponse = await fetch('/api/auth/me', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (meResponse.ok) {
+          const meData = await meResponse.json().catch(() => null);
+          const roleFromMe = meData?.data?.role ?? meData?.role;
+          if (roleFromMe) {
+            normalizedRole = normalizeRole(String(roleFromMe));
+          }
+        }
+      } catch {
+        // Keep fallback role detection below.
+      }
+    }
+
+    if (!normalizedRole) {
+      normalizedRole = getRoleFromToken(token);
+    }
+
+    const roleBasePath =
+      normalizedRole === 'Parent'
+        ? '/portal'
+        : normalizedRole
+          ? (ROLES[normalizedRole as keyof typeof ROLES] ?? '/portal')
+          : '/portal';
+    const destination = localizePath(roleBasePath, DEFAULT_LOCALE);
+    setSuccessRedirectPath(destination);
+
+    try {
+      if (normalizedRole) {
+        await setServerSession({
+          role: normalizedRole,
+          name: '',
+          avatar: '',
+        });
+      }
+    } catch {
+      // Navigation still proceeds even if session cookie write fails.
+    }
+
+    return destination;
+  };
 
   useEffect(() => {
     // Guard: only run once
@@ -61,8 +152,12 @@ export default function ActivateProfileClient() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      .then(() => {
+      .then(async () => {
+        const destination = await resolveDashboardDestination(token as string);
         setStatus('success');
+        setTimeout(() => {
+          window.location.replace(destination);
+        }, 600);
       })
       .catch((err) => {
         if (err?.response?.status === 401) {
@@ -99,7 +194,7 @@ export default function ActivateProfileClient() {
         {/* Body */}
         <div className="px-8 py-10 flex flex-col items-center gap-6 text-center">
           {status === 'loading' && <LoadingState />}
-          {status === 'success' && <SuccessState />}
+          {status === 'success' && <SuccessState destination={successRedirectPath} />}
           {status === 'error' && <ErrorState message={errorMessage} />}
         </div>
       </div>
@@ -119,7 +214,7 @@ function LoadingState() {
   );
 }
 
-function SuccessState() {
+function SuccessState({ destination }: { destination: string }) {
   return (
     <>
       <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
@@ -139,14 +234,17 @@ function SuccessState() {
           Hồ sơ đã được xác minh thành công
         </p>
         <p className="text-slate-400 text-sm mt-2">
-          Học viên có thể tiếp tục sử dụng tài khoản bình thường.
+          Hệ thống đang tự động đăng nhập và chuyển vào cổng làm việc.
         </p>
       </div>
+      <div className="mt-2 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold text-sm shadow">
+        Đang chuyển hướng...
+      </div>
       <a
-        href="/"
-        className="mt-2 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold text-sm shadow hover:opacity-90 transition-opacity"
+        href={destination}
+        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-red-200 text-red-600 font-semibold text-sm hover:bg-red-50 transition-colors"
       >
-        Về trang chủ
+        Vào dashboard ngay
       </a>
     </>
   );

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getAccessToken } from "@/lib/store/authToken";
 import { LEAD_ENDPOINTS } from "@/constants/apiURL";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { useToast } from "@/hooks/use-toast";
 import type { PlacementTest } from "@/types/placement-test";
 
@@ -53,11 +54,23 @@ export function useCreateAccountFromTest() {
         });
         setIsCreateAccountModalOpen(true);
       } else {
-        toast({ variant: "destructive", title: "Lỗi", description: "Không thể lấy thông tin lead" });
+        const payload = await leadResponse.json().catch(() => ({}));
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: getDomainErrorMessage(
+            { response: { status: leadResponse.status, data: payload } },
+            "Không thể lấy thông tin lead",
+          ),
+        });
       }
     } catch (error) {
       console.error("Error fetching lead info:", error);
-      toast({ variant: "destructive", title: "Lỗi", description: "Không thể lấy thông tin lead" });
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: getDomainErrorMessage(error, "Không thể lấy thông tin lead"),
+      });
     }
   };
 

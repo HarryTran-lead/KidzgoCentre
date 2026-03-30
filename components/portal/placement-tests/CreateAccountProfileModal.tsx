@@ -15,7 +15,11 @@ import {
   Lock,
   Building2,
 } from "lucide-react";
-import { USER_ENDPOINTS, PROFILE_ENDPOINTS } from "@/constants/apiURL";
+import {
+  USER_ENDPOINTS,
+  PROFILE_ENDPOINTS,
+  PLACEMENT_TEST_ENDPOINTS,
+} from "@/constants/apiURL";
 import { getAccessToken } from "@/lib/store/authToken";
 import { useToast } from "@/hooks/use-toast";
 import type { PlacementTest } from "@/types/placement-test";
@@ -35,7 +39,7 @@ interface CreateAccountProfileModalProps {
   onSuccess: () => void;
 }
 
-type Step = "account" | "parent-profile" | "student-profile" | "done";
+type Step = "account" | "parent-profile" | "student-profile" | "convert" | "done";
 
 export default function CreateAccountProfileModal({
   isOpen,
@@ -48,6 +52,8 @@ export default function CreateAccountProfileModal({
   const [currentStep, setCurrentStep] = useState<Step>("account");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [convertStatus, setConvertStatus] = useState<"idle" | "success" | "failed">("idle");
+  const [convertMessage, setConvertMessage] = useState<string>("");
 
   const initialAccountForm = useMemo(
     () => ({
@@ -83,6 +89,7 @@ export default function CreateAccountProfileModal({
   // Created user data
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [createdParentProfileId, setCreatedParentProfileId] = useState<string | null>(null);
+  const [createdStudentProfileId, setCreatedStudentProfileId] = useState<string | null>(null);
 
   // Parent profile form
   const [parentProfileForm, setParentProfileForm] = useState(initialParentProfileForm);
@@ -90,12 +97,95 @@ export default function CreateAccountProfileModal({
   // Student profile form
   const [studentProfileForm, setStudentProfileForm] = useState(initialStudentProfileForm);
 
+  const getApiMessage = (payload: any, fallback: string) => {
+    return (
+      payload?.message ||
+      payload?.detail ||
+      payload?.title ||
+      payload?.error ||
+      payload?.errors?.[0] ||
+      fallback
+    );
+  };
+
+  const toLower = (value: unknown) => String(value || "").toLowerCase();
+
+  const translateAccountError = (payload: any, fallback: string) => {
+    const code = String(payload?.code || "").trim();
+    const title = String(payload?.title || "").trim();
+    const detail = String(payload?.detail || payload?.message || "").trim();
+
+    if (code === "Users.EmailNotUnique" || title === "Users.EmailNotUnique") {
+      return "Email đã tồn tại trong hệ thống. Vui lòng dùng email khác.";
+    }
+
+    if (
+      code === "Users.PhoneNumberNotUnique" ||
+      code === "Users.PhoneNotUnique" ||
+      title === "Users.PhoneNumberNotUnique" ||
+      title === "Users.PhoneNotUnique"
+    ) {
+      return "Số điện thoại đã tồn tại trong hệ thống. Vui lòng dùng số khác.";
+    }
+
+    const normalized = `${toLower(detail)} ${toLower(title)}`;
+    if (normalized.includes("email") && normalized.includes("not unique")) {
+      return "Email đã tồn tại trong hệ thống. Vui lòng dùng email khác.";
+    }
+    if (
+      (normalized.includes("phone") ||
+        normalized.includes("sđt") ||
+        normalized.includes("so dien thoai")) &&
+      normalized.includes("not unique")
+    ) {
+      return "Số điện thoại đã tồn tại trong hệ thống. Vui lòng dùng số khác.";
+    }
+
+    return getApiMessage(payload, fallback);
+  };
+
+  const handleConvertToEnrolled = async (studentProfileId: string) => {
+    const token = getAccessToken();
+
+    if (!token) {
+      throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+    }
+
+    if (!test?.id || !studentProfileId) {
+      throw new Error("Thiếu dữ liệu test hoặc hồ sơ học viên để chuyển đổi.");
+    }
+
+    const response = await fetch(
+      PLACEMENT_TEST_ENDPOINTS.CONVERT_TO_ENROLLED(test.id),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ studentProfileId }),
+      }
+    );
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(
+        getApiMessage(data, "Không thể chuyển đổi thành học viên")
+      );
+    }
+
+    return getApiMessage(data, "Đã chuyển đổi thành học viên thành công.");
+  };
+
   // Reset form when leadInfo changes
   const resetForm = () => {
     setCurrentStep("account");
     setError(null);
+    setConvertStatus("idle");
+    setConvertMessage("");
     setCreatedUserId(null);
     setCreatedParentProfileId(null);
+    setCreatedStudentProfileId(null);
     setAccountForm(initialAccountForm);
     setParentProfileForm(initialParentProfileForm);
     setStudentProfileForm(initialStudentProfileForm);
@@ -138,7 +228,7 @@ export default function CreateAccountProfileModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Không thể tạo tài khoản");
+        throw new Error(translateAccountError(data, "Không thể tạo tài khoản"));
       }
 
       // Extract user ID from response
@@ -150,15 +240,31 @@ export default function CreateAccountProfileModal({
 
       setCreatedUserId(userId);
       setCurrentStep("parent-profile");
+      toast({
+        title: "Tạo tài khoản thành công",
+        description: "Đã tạo tài khoản phụ huynh. Đang chuyển sang bước tạo profile phụ huynh.",
+        variant: "success",
+      });
     } catch (err: any) {
-      setError(err.message || "Có lỗi xảy ra khi tạo tài khoản");
+      const message = err?.message || "Có lỗi xảy ra khi tạo tài khoản";
+      setError(message);
+      toast({
+        title: "Tạo tài khoản thất bại",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleCreateParentProfile = async () => {
-    if (!createdUserId) return;
+    if (!createdUserId) {
+      setError(
+        "Chưa có userId từ bước tạo tài khoản. Bạn đang ở chế độ test Tiếp tục."
+      );
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -182,7 +288,7 @@ export default function CreateAccountProfileModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Không thể tạo profile phụ huynh");
+        throw new Error(getApiMessage(data, "Không thể tạo profile phụ huynh"));
       }
 
       const parentProfileId =
@@ -193,15 +299,31 @@ export default function CreateAccountProfileModal({
 
       setCreatedParentProfileId(parentProfileId);
       setCurrentStep("student-profile");
+      toast({
+        title: "Tạo profile phụ huynh thành công",
+        description: "Đã tạo profile phụ huynh. Tiếp tục tạo profile học viên.",
+        variant: "success",
+      });
     } catch (err: any) {
-      setError(err.message || "Có lỗi xảy ra khi tạo profile phụ huynh");
+      const message = err?.message || "Có lỗi xảy ra khi tạo profile phụ huynh";
+      setError(message);
+      toast({
+        title: "Tạo profile phụ huynh thất bại",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleCreateStudentProfile = async () => {
-    if (!createdUserId) return;
+    if (!createdUserId) {
+      setError(
+        "Chưa có userId từ bước tạo tài khoản. Bạn đang ở chế độ test Tiếp tục."
+      );
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -226,11 +348,20 @@ export default function CreateAccountProfileModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Không thể tạo profile học viên");
+        throw new Error(getApiMessage(data, "Không thể tạo profile học viên"));
       }
 
-      const studentProfileId =
+      const studentProfileIdRaw =
         data.data?.id || data.data?.profileId || data.id;
+      const studentProfileId = studentProfileIdRaw
+        ? String(studentProfileIdRaw)
+        : "";
+
+      if (!studentProfileId) {
+        throw new Error("Không nhận được ID profile học viên từ server");
+      }
+
+      setCreatedStudentProfileId(studentProfileId);
 
       // Link student to parent if both profiles exist
       if (createdParentProfileId && studentProfileId) {
@@ -251,18 +382,64 @@ export default function CreateAccountProfileModal({
         }
       }
 
-      setCurrentStep("done");
+      setCurrentStep("convert");
       toast({
         title: "Thành công",
-        description: "Đã tạo tài khoản và profile thành công",
+        description: "Đã tạo profile học viên. Đang chuyển sang bước chuyển thành học viên.",
         variant: "success",
       });
     } catch (err: any) {
-      setError(err.message || "Có lỗi xảy ra khi tạo profile học viên");
+      const message = err?.message || "Có lỗi xảy ra khi tạo profile học viên";
+      setError(message);
+      toast({
+        title: "Tạo profile học viên thất bại",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleConvertStep = async () => {
+    if (!createdStudentProfileId) {
+      setError("Không có student profile để chuyển đổi thành học viên.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const message = await handleConvertToEnrolled(createdStudentProfileId);
+      setConvertStatus("success");
+      setConvertMessage(message);
+      toast({
+        title: "Chuyển đổi thành học viên thành công",
+        description: message,
+        variant: "success",
+      });
+      setCurrentStep("done");
+    } catch (err: any) {
+      const message = err?.message || "Không thể chuyển đổi thành học viên";
+      setConvertStatus("failed");
+      setConvertMessage(message);
+      setError(message);
+      toast({
+        title: "Chuyển đổi thành học viên thất bại",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentStep === "convert" && convertStatus === "idle" && !isSubmitting) {
+      handleConvertStep();
+    }
+  }, [currentStep, convertStatus, isSubmitting]);
 
   const handleClose = () => {
     if (currentStep === "done") {
@@ -278,6 +455,7 @@ export default function CreateAccountProfileModal({
     { key: "account", label: "Tạo tài khoản", icon: UserPlus },
     { key: "parent-profile", label: "Profile Phụ huynh", icon: User },
     { key: "student-profile", label: "Profile Học viên", icon: Users },
+    { key: "convert", label: "Chuyển thành học viên", icon: UserPlus },
     { key: "done", label: "Hoàn tất", icon: CheckCircle2 },
   ];
 
@@ -455,6 +633,7 @@ export default function CreateAccountProfileModal({
               </div>
               <div className="flex justify-end pt-4">
                 <button
+                  type="button"
                   onClick={handleCreateAccount}
                   disabled={
                     isSubmitting || !accountForm.email || !accountForm.username
@@ -475,10 +654,9 @@ export default function CreateAccountProfileModal({
           {/* Step 2: Create Parent Profile */}
           {currentStep === "parent-profile" && (
             <div className="space-y-4">
-              <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-sm text-rose-700">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
                 <CheckCircle2 size={14} className="inline mr-1" />
-                Tài khoản đã được tạo thành công! Tiếp tục tạo profile phụ
-                huynh.
+                Tài khoản đã được tạo thành công! Tiếp tục tạo profile phụ huynh.
               </div>
 
               <div className="space-y-4">
@@ -537,9 +715,10 @@ export default function CreateAccountProfileModal({
                   Quay lại
                 </button>
                 <button
+                  type="button"
                   onClick={handleCreateParentProfile}
                   disabled={
-                    isSubmitting || !parentProfileForm.displayName
+                    isSubmitting || !parentProfileForm.displayName || !createdUserId
                   }
                   className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -602,9 +781,10 @@ export default function CreateAccountProfileModal({
                   Quay lại
                 </button>
                 <button
+                  type="button"
                   onClick={handleCreateStudentProfile}
                   disabled={
-                    isSubmitting || !studentProfileForm.displayName
+                    isSubmitting || !studentProfileForm.displayName || !createdUserId
                   }
                   className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -621,7 +801,44 @@ export default function CreateAccountProfileModal({
             </div>
           )}
 
-          {/* Step 4: Done */}
+          {/* Step 4: Convert To Enrolled */}
+          {currentStep === "convert" && (
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+                <CheckCircle2 size={14} className="inline mr-1" />
+                Profile học viên đã được tạo thành công. Hệ thống đang chuyển thành học viên.
+              </div>
+
+              <div className="rounded-lg border border-red-200 bg-red-50/40 p-4 text-sm text-gray-700">
+                {isSubmitting && (
+                  <div className="flex items-center gap-2 text-red-700">
+                    <Loader2 size={16} className="animate-spin" />
+                    Đang chuyển thành học viên...
+                  </div>
+                )}
+                {!isSubmitting && convertStatus === "failed" && (
+                  <p className="text-rose-700">
+                    Chuyển thành học viên thất bại: {convertMessage}
+                  </p>
+                )}
+              </div>
+
+              {!isSubmitting && convertStatus === "failed" && (
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={handleConvertStep}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all"
+                  >
+                    <UserPlus size={16} />
+                    Thử lại chuyển đổi
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 5: Done */}
           {currentStep === "done" && (
             <div className="text-center py-8 space-y-4">
               <div className="w-20 h-20 rounded-full bg-linear-to-r from-red-400 to-red-500 flex items-center justify-center mx-auto shadow-lg">
@@ -641,6 +858,9 @@ export default function CreateAccountProfileModal({
                 <p>
                   Sau đó phụ huynh sẽ đăng nhập và xác minh profile qua link
                   email.
+                </p>
+                <p className="text-emerald-700">
+                  Chuyển đổi thành học viên: thành công.
                 </p>
               </div>
 

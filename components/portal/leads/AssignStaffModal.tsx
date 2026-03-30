@@ -6,6 +6,7 @@ import type { Lead } from "@/types/lead";
 import type { User } from "@/types/admin/user";
 import { assignLead } from "@/lib/api/leadService";
 import { getManagementStaff } from "@/lib/api/userService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import { useToast } from "@/hooks/use-toast";
 
 interface AssignStaffModalProps {
@@ -107,7 +108,7 @@ export default function AssignStaffModal({
       }
     } catch (err: any) {
       console.error("Error assigning staff:", err);
-      const errorMessage = err.response?.data?.message || err.message || "Đã xảy ra lỗi khi phân công nhân viên";
+      const errorMessage = getDomainErrorMessage(err, "Không thể phân công nhân viên");
       setError(errorMessage);
       toast({
         title: "Lỗi",

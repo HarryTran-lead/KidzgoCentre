@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, type Dispatch, type SetStateAction } from "react";
 import {
   Target,
   UserPlus,
@@ -17,6 +17,9 @@ import {
 import {
   getAllPlacementTests,
   createPlacementTest,
+  createPlacementTestRetake,
+  getPlacementTestErrorMessage,
+  updatePlacementTest,
 } from "@/lib/api/placementTestService";
 import { getAllUsers } from "@/lib/api/userService";
 import { getAllStudents } from "@/lib/api/profileService";
@@ -28,11 +31,13 @@ import { useCreateAccountFromTest } from "@/hooks/useCreateAccountFromTest";
 import type { Lead as LeadType } from "@/types/lead";
 import type {
   PlacementTest,
-  CreatePlacementTestRequest,
-  UpdatePlacementTestRequest,
   PlacementTestResultRequest,
 } from "@/types/placement-test";
-import { ADMIN_ENDPOINTS, PLACEMENT_TEST_ENDPOINTS } from "@/constants/apiURL";
+import {
+  ADMIN_ENDPOINTS,
+  BRANCH_ENDPOINTS,
+  PLACEMENT_TEST_ENDPOINTS,
+} from "@/constants/apiURL";
 import CreateAccountProfileModal from "@/components/portal/placement-tests/CreateAccountProfileModal";
 import {
   LeadStats,
@@ -51,6 +56,7 @@ import {
   ResultFormModal,
   RegistrationFlowModal,
 } from "@/components/portal/placement-tests";
+import type { PlacementTestFormSubmitPayload } from "@/components/portal/placement-tests/PlacementTestFormModal";
 import NoteFormModal from "@/components/portal/placement-tests/NoteFormModal";
 import ConvertToEnrolledModal from "@/components/portal/placement-tests/ConvertToEnrolledModal";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -69,6 +75,7 @@ import {
   reactivateEnrollment,
 } from "@/lib/api/enrollmentService";
 import { getRegistrations } from "@/lib/api/registrationService";
+import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
 import type { Enrollment, EnrollmentStatus } from "@/types/enrollment";
 import { StaffRegistrationOverview } from "@/components/portal/registrations";
 
@@ -149,7 +156,6 @@ export default function Page() {
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
   // Table state
-  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [sortKey, setSortKey] = useState<string | null>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -174,6 +180,8 @@ export default function Page() {
   const [debouncedTestSearchQuery, setDebouncedTestSearchQuery] = useState("");
   const [testSelectedStatus, setTestSelectedStatus] =
     useState<string>("Tất cả");
+  const [testSortKey, setTestSortKey] = useState<string | null>(null);
+  const [testSortDir, setTestSortDir] = useState<"asc" | "desc">("asc");
   const [testFromDate, setTestFromDate] = useState("");
   const [testToDate, setTestToDate] = useState("");
   const [testStatusCounts, setTestStatusCounts] = useState<
@@ -189,6 +197,8 @@ export default function Page() {
     message: string;
   } | null>(null);
   const [selectedTest, setSelectedTest] = useState<PlacementTest | null>(null);
+  const [testFormDefaultMode, setTestFormDefaultMode] = useState<"create" | "retake">("create");
+  const [retakeSourceTestId, setRetakeSourceTestId] = useState("");
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [isRegistrationFlowOpen, setIsRegistrationFlowOpen] = useState(false);
@@ -235,7 +245,7 @@ export default function Page() {
     }>
   >([]);
   const [modalStudentProfiles, setModalStudentProfiles] = useState<
-    Array<{ id: string; fullName: string }>
+    Array<{ id: string; fullName: string; branchId?: string; profileType?: string }>
   >([]);
   const [modalClasses, setModalClasses] = useState<
     Array<{ id: string; className: string }>
@@ -243,6 +253,9 @@ export default function Page() {
   const [modalInvigilators, setModalInvigilators] = useState<
     Array<{ id: string; fullName: string; role: string }>
   >([]);
+  const [retakeBranches, setRetakeBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [retakePrograms, setRetakePrograms] = useState<Array<{ id: string; name: string; branchId?: string }>>([]);
+  const [retakeTuitionPlans, setRetakeTuitionPlans] = useState<Array<{ id: string; name: string; programId: string; branchId?: string }>>([]);
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -453,9 +466,12 @@ export default function Page() {
       const response = await getRegistrations({
         branchId,
         pageNumber: 1,
-        pageSize: 500,
+        pageSize: 1000,
       });
-      setRegistrationTotalCount(response.totalCount ?? response.items.length ?? 0);
+      const items = response.items || [];
+      setRegistrationTotalCount(
+        Math.max(Number(response.totalCount || 0), items.length),
+      );
     } catch (error) {
       console.error("Error fetching initial registration count:", error);
       setRegistrationTotalCount(0);
@@ -633,6 +649,37 @@ export default function Page() {
     return copy;
   }, [leads, sortKey, sortDir]);
 
+  const scopedLeadCounts = useMemo(() => {
+    const query = debouncedSearchQuery.trim().toLowerCase();
+
+    const scoped = allLeads.filter((lead) => {
+      const sourceMatched = selectedSource === "Tất cả" || lead.source === selectedSource;
+      const ownerMatched = !myLeadsOnly || lead.ownerStaffId === currentUser?.id;
+      const searchMatched =
+        !query ||
+        [
+          lead.contactName || "",
+          lead.phone || "",
+          lead.email || "",
+          lead.id || "",
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      return sourceMatched && ownerMatched && searchMatched;
+    });
+
+    const counts: Record<string, number> = {
+      "Tất cả": scoped.length,
+    };
+
+    Object.entries(STATUS_MAPPING).forEach(([engStatus, vnStatus]) => {
+      counts[vnStatus] = scoped.filter((lead) => lead.status === engStatus).length;
+    });
+
+    return counts;
+  }, [allLeads, selectedSource, myLeadsOnly, currentUser?.id, debouncedSearchQuery]);
+
   const branchScopedPlacementTests = useMemo(() => {
     return branchLeadIds !== null
       ? allPlacementTests.filter((test) => branchLeadIds.has(test.leadId))
@@ -670,6 +717,18 @@ export default function Page() {
       result = result.filter((test) => test.scheduledAt <= toDateEnd);
     }
 
+    if (testSortKey) {
+      result = [...result].sort((a: any, b: any) => {
+        const av = String(a?.[testSortKey] ?? "");
+        const bv = String(b?.[testSortKey] ?? "");
+        const compared = av.localeCompare(bv, "vi", {
+          numeric: true,
+          sensitivity: "base",
+        });
+        return testSortDir === "asc" ? compared : -compared;
+      });
+    }
+
     return result;
   }, [
     branchScopedPlacementTests,
@@ -677,6 +736,8 @@ export default function Page() {
     debouncedTestSearchQuery,
     testFromDate,
     testToDate,
+    testSortKey,
+    testSortDir,
   ]);
 
   const filteredPlacementStatusCounts = useMemo(() => {
@@ -764,52 +825,31 @@ export default function Page() {
     enrollCurrentPage * enrollPageSize,
   );
 
+  const cycleSort = (
+    key: string,
+    currentKey: string | null,
+    currentDir: "asc" | "desc",
+    setKey: Dispatch<SetStateAction<string | null>>,
+    setDir: Dispatch<SetStateAction<"asc" | "desc">>,
+    defaultDir: "asc" | "desc" = "asc",
+  ) => {
+    if (currentKey !== key) {
+      setKey(key);
+      setDir(defaultDir);
+      return;
+    }
+
+    if (currentDir === "asc") {
+      setDir("desc");
+      return;
+    }
+
+    setKey(null);
+    setDir(defaultDir);
+  };
+
   const toggleSort = (key: string) => {
-    setSortKey((prev) => {
-      if (prev !== key) {
-        setSortDir(key === "createdAt" ? "desc" : "asc");
-        return key;
-      }
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-      return prev;
-    });
-  };
-
-  // Selection handlers
-  const allVisibleIds = useMemo(
-    () => filteredAndSortedLeads.map((l) => l.id),
-    [filteredAndSortedLeads],
-  );
-  const selectedVisibleCount = useMemo(
-    () => allVisibleIds.filter((id) => selectedIds[id]).length,
-    [allVisibleIds, selectedIds],
-  );
-  const allVisibleSelected =
-    allVisibleIds.length > 0 && selectedVisibleCount === allVisibleIds.length;
-
-  const toggleSelectAllVisible = () => {
-    setSelectedIds((prev) => {
-      const next = { ...prev };
-      if (allVisibleSelected) {
-        allVisibleIds.forEach((id) => {
-          delete next[id];
-        });
-        return next;
-      }
-      allVisibleIds.forEach((id) => {
-        next[id] = true;
-      });
-      return next;
-    });
-  };
-
-  const toggleSelectOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = { ...prev };
-      if (next[id]) delete next[id];
-      else next[id] = true;
-      return next;
-    });
+    cycleSort(key, sortKey, sortDir, setSortKey, setSortDir, key === "createdAt" ? "desc" : "asc");
   };
 
   // Modal handlers
@@ -865,8 +905,10 @@ export default function Page() {
       console.error("Error updating lead status:", error);
       toast({
         title: "Lỗi",
-        description:
-          error.response?.data?.message || "Không thể cập nhật trạng thái",
+        description: getDomainErrorMessage(
+          error,
+          "Không thể cập nhật trạng thái lead",
+        ),
         variant: "destructive",
       });
     }
@@ -925,10 +967,23 @@ export default function Page() {
 
     try {
       // Fetch all leads for this branch (không filter status để có thể tạo test cho mọi lead)
-      const leadsRes = await getAllLeads({ branchId, pageSize: 1000 });
+      const leadsRes = await getAllLeads({ branchPreference: branchId, pageSize: 1000 });
       if (leadsRes.isSuccess && leadsRes.data?.leads) {
+        const branchScopedLeads = branchId
+          ? leadsRes.data.leads.filter((lead: any) => {
+              const leadBranchId = String(
+                lead?.branchPreference ||
+                  lead?.branchPreferenceId ||
+                  lead?.branch?.id ||
+                  lead?.branchId ||
+                  "",
+              );
+              return leadBranchId === branchId;
+            })
+          : leadsRes.data.leads;
+
         const leadsWithChildren = await Promise.all(
-          leadsRes.data.leads.map(async (lead: any) => {
+          branchScopedLeads.map(async (lead: any) => {
             let children = lead.children || [];
             if (children.length === 0) {
               try {
@@ -957,12 +1012,18 @@ export default function Page() {
       }
 
       // Fetch student profiles
-      const profilesRes = await getAllStudents({ branchId, pageSize: 1000 });
+      const profilesRes = await getAllStudents({
+        branchId,
+        profileType: "Student",
+        pageSize: 1000,
+      });
       if (profilesRes.isSuccess && profilesRes.data) {
         const profiles = profilesRes.data.items || [];
         const mapped = profiles.map((p: any) => ({
           id: p.id,
           fullName: p.displayName || p.fullName || p.studentName || "N/A",
+          branchId: p.branchId || p.branch?.id || p.branch?.branchId || "",
+          profileType: p.profileType || "",
         }));
         setModalStudentProfiles(mapped);
       }
@@ -970,7 +1031,7 @@ export default function Page() {
       // Fetch classes
       try {
         const classRes = await fetch(
-          `${ADMIN_ENDPOINTS.CLASSES}?pageSize=1000&branchId=${branchId}`,
+          `${ADMIN_ENDPOINTS.CLASSROOMS}?pageSize=1000&pageNumber=1&isActive=true&branchId=${branchId}`,
           {
             headers: { Authorization: `Bearer ${getAccessToken()}` },
           },
@@ -978,13 +1039,16 @@ export default function Page() {
         if (classRes.ok) {
           const classData = await classRes.json();
           const classItems =
+            classData.data?.classrooms?.items ||
             classData.data?.items ||
-            classData.data?.classes ||
+            classData.data?.classrooms ||
             classData.data ||
+            classData.classrooms?.items ||
+            classData.classrooms ||
             [];
           const mapped = classItems.map((c: any) => ({
             id: c.id,
-            className: c.className || c.name || "N/A",
+            className: c.roomName || c.classroomName || c.name || c.code || "N/A",
           }));
           setModalClasses(mapped);
         }
@@ -1024,6 +1088,78 @@ export default function Page() {
         })),
       ];
       setModalInvigilators(invigilators);
+
+      const [branchRes, programRes, tuitionRes] = await Promise.all([
+        fetch(`${BRANCH_ENDPOINTS.GET_ALL_PUBLIC}?page=1&limit=1000&isActive=true`, {
+          headers: { Authorization: `Bearer ${getAccessToken()}` },
+        }),
+        fetch(`${ADMIN_ENDPOINTS.PROGRAMS}?pageNumber=1&pageSize=1000`, {
+          headers: { Authorization: `Bearer ${getAccessToken()}` },
+        }),
+        fetch(`${ADMIN_ENDPOINTS.TUITION_PLANS_ACTIVE}?pageNumber=1&pageSize=1000`, {
+          headers: { Authorization: `Bearer ${getAccessToken()}` },
+        }),
+      ]);
+
+      if (branchRes.ok) {
+        const branchData = await branchRes.json();
+        const branchItems =
+          branchData?.data?.branches ||
+          branchData?.data?.items ||
+          branchData?.data ||
+          branchData?.branches ||
+          [];
+
+        const mappedBranches = branchItems
+          .map((branch: any) => ({
+            id: String(branch?.id || ""),
+            name: String(branch?.name || branch?.branchName || "N/A"),
+          }))
+          .filter((branch: { id: string }) => branch.id);
+
+        setRetakeBranches(mappedBranches);
+      }
+
+      if (programRes.ok) {
+        const programData = await programRes.json();
+        const programItems =
+          programData?.data?.programs?.items ||
+          programData?.data?.items ||
+          programData?.data?.programs ||
+          programData?.data ||
+          [];
+
+        const mappedPrograms = programItems
+          .map((program: any) => ({
+            id: String(program?.id || ""),
+            name: String(program?.name || "N/A"),
+            branchId: program?.branchId ? String(program.branchId) : undefined,
+          }))
+          .filter((program: { id: string }) => program.id);
+
+        setRetakePrograms(mappedPrograms);
+      }
+
+      if (tuitionRes.ok) {
+        const tuitionData = await tuitionRes.json();
+        const tuitionItems =
+          tuitionData?.data?.tuitionPlans?.items ||
+          tuitionData?.data?.items ||
+          tuitionData?.data?.tuitionPlans ||
+          tuitionData?.data ||
+          [];
+
+        const mappedTuitionPlans = tuitionItems
+          .map((plan: any) => ({
+            id: String(plan?.id || ""),
+            name: String(plan?.name || "N/A"),
+            programId: String(plan?.programId || ""),
+            branchId: plan?.branchId ? String(plan.branchId) : undefined,
+          }))
+          .filter((plan: { id: string; programId: string }) => plan.id && plan.programId);
+
+        setRetakeTuitionPlans(mappedTuitionPlans);
+      }
     } catch (error) {
       console.error("❌ Error fetching modal dropdown data:", error);
     }
@@ -1033,6 +1169,8 @@ export default function Page() {
   const handleCreateTest = async () => {
     // Fetch dropdown data first, then open modal
     await fetchModalDropdownData();
+    setTestFormDefaultMode("create");
+    setRetakeSourceTestId("");
     setSelectedTest(null);
     setIsTestFormModalOpen(true);
   };
@@ -1043,7 +1181,21 @@ export default function Page() {
   };
 
   const handleEditTest = (test: PlacementTest) => {
+    setTestFormDefaultMode("create");
+    setRetakeSourceTestId("");
     setSelectedTest(test);
+    setIsTestFormModalOpen(true);
+  };
+
+  const handleRetakeFromTable = async (test: PlacementTest) => {
+    if (test.status !== "Completed") {
+      return;
+    }
+
+    await fetchModalDropdownData();
+    setSelectedTest(null);
+    setTestFormDefaultMode("retake");
+    setRetakeSourceTestId(test.id);
     setIsTestFormModalOpen(true);
   };
 
@@ -1092,43 +1244,31 @@ export default function Page() {
     setIsNoteModalOpen(true);
   };
 
-  const handleTestFormSubmit = async (
-    data: CreatePlacementTestRequest | UpdatePlacementTestRequest,
-  ) => {
+  const handleTestFormSubmit = async (payload: PlacementTestFormSubmitPayload) => {
     try {
-      const url = selectedTest
-        ? PLACEMENT_TEST_ENDPOINTS.UPDATE(selectedTest.id)
-        : PLACEMENT_TEST_ENDPOINTS.CREATE;
-      const method = selectedTest ? "PUT" : "POST";
+      if (payload.action === "update") {
+        if (!selectedTest) {
+          throw new Error("Không tìm thấy placement test để cập nhật");
+        }
+        await updatePlacementTest(selectedTest.id, payload.data);
+      }
 
-      console.log("[handleTestFormSubmit] Sending:", { url, method, data });
+      if (payload.action === "create") {
+        await createPlacementTest(payload.data);
+      }
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAccessToken()}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      const responseData = await response.json().catch(() => null);
-      console.log("[handleTestFormSubmit] Response:", {
-        status: response.status,
-        data: responseData,
-      });
-
-      if (!response.ok) {
-        const errorMsg =
-          responseData?.message || `Server returned ${response.status}`;
-        throw new Error(errorMsg);
+      if (payload.action === "retake") {
+        await createPlacementTestRetake(payload.originalPlacementTestId, payload.data);
       }
 
       toast({
         title: "Thành công",
-        description: selectedTest
-          ? "Đã cập nhật placement test"
-          : "Đã tạo placement test mới",
+        description:
+          payload.action === "update"
+            ? "Đã cập nhật placement test"
+            : payload.action === "retake"
+              ? "Đã tạo placement test retake"
+              : "Đã tạo placement test mới",
         variant: "success",
       });
     } catch (error) {
@@ -1136,10 +1276,7 @@ export default function Page() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Không thể lưu placement test",
+        description: getPlacementTestErrorMessage(error, "Không thể lưu placement test"),
       });
       throw error; // Re-throw to prevent modal close
     }
@@ -1339,6 +1476,8 @@ export default function Page() {
   const handleTestFormSuccess = () => {
     fetchPlacementTests();
     fetchInitialTestData();
+    setTestFormDefaultMode("create");
+    setRetakeSourceTestId("");
   };
 
   const handleTestPageChange = (page: number) => {
@@ -1349,6 +1488,10 @@ export default function Page() {
   const handleTestPageSizeChange = (size: number) => {
     setTestPageSize(size);
     setTestCurrentPage(1);
+  };
+
+  const handleTestSort = (key: string) => {
+    cycleSort(key, testSortKey, testSortDir, setTestSortKey, setTestSortDir, key === "scheduledAt" ? "desc" : "asc");
   };
 
   // ========== Enrollment Handlers ==========
@@ -1468,12 +1611,7 @@ export default function Page() {
   };
 
   const handleEnrollSort = (key: string) => {
-    if (enrollSortKey === key) {
-      setEnrollSortDir(enrollSortDir === "asc" ? "desc" : "asc");
-    } else {
-      setEnrollSortKey(key);
-      setEnrollSortDir("asc");
-    }
+    cycleSort(key, enrollSortKey, enrollSortDir, setEnrollSortKey, setEnrollSortDir, "asc");
   };
 
   return (
@@ -1666,8 +1804,8 @@ export default function Page() {
           >
             <LeadFilters
               leads={leads}
-              totalCount={statusCounts["Tất cả"] ?? allLeads.length}
-              statusCounts={statusCounts}
+              totalCount={scopedLeadCounts["Tất cả"] ?? allLeads.length}
+              statusCounts={scopedLeadCounts}
               availableSources={availableSources}
               searchQuery={searchQuery}
               selectedStatus={selectedStatus}
@@ -1694,11 +1832,8 @@ export default function Page() {
             <LeadTable
               leads={filteredAndSortedLeads}
               isLoading={isLoading}
-              selectedIds={selectedIds}
               sortKey={sortKey}
               sortDir={sortDir}
-              onSelectAll={toggleSelectAllVisible}
-              onSelectOne={toggleSelectOne}
               onSort={toggleSort}
               onEdit={handleEditLead}
               onView={handleViewLead}
@@ -1711,6 +1846,10 @@ export default function Page() {
               totalCount={totalCount}
               onPageChange={handlePageChange}
               onPageSizeChange={handlePageSizeChange}
+              onRefresh={() => {
+                fetchLeads();
+                fetchInitialData();
+              }}
             />
           </div>
         </>
@@ -1771,16 +1910,23 @@ export default function Page() {
               totalPages={placementTotalPages}
               pageSize={testPageSize}
               totalCount={placementTotalCount}
+              sortKey={testSortKey}
+              sortDir={testSortDir}
+              onSort={handleTestSort}
               onView={handleViewTest}
               onEdit={handleEditTest}
               onAddResult={handleAddResult}
               onAddNote={handleAddNote}
               onCancel={handleCancelTest}
               onNoShow={handleNoShowTest}
-              onConvertToEnrolled={handleConvertToEnrolled}
               onCreateAccount={handleCreateAccountFromTest}
               onStartRegistration={handleStartRegistrationFlow}
+              onRetake={handleRetakeFromTable}
               onPageChange={handleTestPageChange}
+              onRefresh={() => {
+                fetchPlacementTests();
+                fetchInitialTestData();
+              }}
             />
           </div>
         </>
@@ -1859,6 +2005,10 @@ export default function Page() {
               onPause={handlePauseEnrollment}
               onDrop={handleDropEnrollment}
               onReactivate={handleReactivateEnrollment}
+              onRefresh={() => {
+                fetchEnrollments();
+                fetchInitialEnrollmentData();
+              }}
             />
           </div>
         </>
@@ -1890,13 +2040,24 @@ export default function Page() {
       <PlacementTestFormModal
         isOpen={isTestFormModalOpen}
         test={selectedTest}
-        onClose={() => setIsTestFormModalOpen(false)}
+        onClose={() => {
+          setIsTestFormModalOpen(false);
+          setTestFormDefaultMode("create");
+          setRetakeSourceTestId("");
+        }}
         onSuccess={handleTestFormSuccess}
         onSubmit={handleTestFormSubmit}
+        defaultMode={testFormDefaultMode}
+        retakeSourceTestId={retakeSourceTestId}
+        placementTests={branchScopedPlacementTests}
         leads={modalLeads}
         studentProfiles={modalStudentProfiles}
         classes={modalClasses}
         invigilators={modalInvigilators}
+        branches={retakeBranches}
+        programs={retakePrograms}
+        tuitionPlans={retakeTuitionPlans}
+        defaultBranchId={resolveUserBranchId(currentUser)}
       />
 
       <PlacementTestDetailModal
@@ -1910,6 +2071,7 @@ export default function Page() {
         onClose={() => setIsTestResultModalOpen(false)}
         onSubmit={handleTestResultSubmit}
         testId={selectedTest?.id || ""}
+        branchId={resolveUserBranchId(currentUser)}
       />
 
       <NoteFormModal
@@ -1942,6 +2104,7 @@ export default function Page() {
         onClose={() => setIsRegistrationFlowOpen(false)}
         test={selectedTest}
         branchId={resolveUserBranchId(currentUser)}
+        allowManualAssign
         onSuccess={() => {
           fetchPlacementTests();
           fetchInitialTestData();

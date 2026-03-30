@@ -43,10 +43,10 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white text-2xl font-bold">
-                {account.username}
+                {account.name}
               </div>
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">{account.username}</h3>
+                <h3 className="text-2xl font-bold text-gray-900">{account.name}</h3>
                 <p className="text-sm text-gray-500">ID: {account.id}</p>
               </div>
             </div>
