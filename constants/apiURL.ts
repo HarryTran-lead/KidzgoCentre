@@ -143,7 +143,7 @@ export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
   GET: "/makeup-credits",
   GET_ALL: "/makeup-credits/all",
   GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
-  SUGGESTIONS: (id: string) => `/makeup-credits/${id}/suggestions`,
+  SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
   AVAILABLE_SESSIONS: (id: string) =>
     `/makeup-credits/${id}/parent/get-available-sessions`,
   USE: (id: string) => `/makeup-credits/${id}/use`,
@@ -506,7 +506,7 @@ export const BLOG_ENDPOINTS = {
   CREATE: '/api/blogs',
   UPDATE: (id: string) => `/api/blogs/${id}`,
   DELETE: (id: string) => `/api/blogs/${id}`,
-  
+
   // Blog-specific Operations
   PUBLISH: (id: string) => `/api/blogs/${id}/publish`,
   UNPUBLISH: (id: string) => `/api/blogs/${id}/unpublish`,
@@ -652,4 +652,26 @@ export const BACKEND_NOTIFICATION_ENDPOINTS = {
   DEVICE_TOKEN: "/notifications/device-token",
   TEMPLATES: "/notifications/templates",
   TEMPLATE_BY_ID: (id: string) => `/notifications/templates/${id}`,
+} as const;
+
+// Question Bank Endpoints (Client-side → Next.js API Routes → Backend)
+export const QUESTION_BANK_ENDPOINTS = {
+  GET_ALL: '/api/question-bank',
+  GET_BY_ID: (id: string) => `/api/question-bank/${id}`,
+  CREATE: '/api/question-bank',
+  UPDATE: (id: string) => `/api/question-bank/${id}`,
+  DELETE: (id: string) => `/api/question-bank/${id}`,
+  TOGGLE_STATUS: (id: string) => `/api/question-bank/${id}/toggle-status`,
+  IMPORT: '/api/question-bank/import',
+} as const;
+
+// Backend Question Bank Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_QUESTION_BANK_ENDPOINTS = {
+  GET_ALL: '/question-bank',
+  GET_BY_ID: (id: string) => `/question-bank/${id}`,
+  CREATE: '/question-bank',
+  UPDATE: (id: string) => `/question-bank/${id}`,
+  DELETE: (id: string) => `/question-bank/${id}`,
+  TOGGLE_STATUS: (id: string) => `/question-bank/${id}/toggle-status`,
+  IMPORT: '/question-bank/import',
 } as const;

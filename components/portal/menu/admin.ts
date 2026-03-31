@@ -15,6 +15,7 @@ import {
   FileText,
   Bell,
   Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { makeMenu, makeGroup, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -53,6 +54,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.system.teachers, Users, "/teachers"],
     [t.groups.system.branches, Building2, "/branches"],
     [t.groups.system.blogs, FileText, "/blogs"],
+    [t.groups.system.questionBank, HelpCircle, "/question-bank"],
     [t.groups.system.reports, BarChart3, "/reports"],
     [t.groups.system.gamification, Sparkles, "/gamification"],
     [t.groups.system.notifications, Bell, "/notifications"],
