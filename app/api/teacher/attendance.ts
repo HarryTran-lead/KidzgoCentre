@@ -12,6 +12,7 @@ import type {
   AttendanceRawStatus,
   AttendanceStatus,
   AttendanceSummaryApi,
+  UpdateAttendanceRequest,
   FetchAttendanceResult,
   FetchSessionResult,
   FetchSessionsParams,
@@ -23,6 +24,7 @@ import type {
   SessionApiResponse,
   SessionListApiResponse,
   Student,
+  StudentAttendanceHistoryItem,
   StudentAttendanceHistoryApiResponse,
 } from "@/types/teacher/attendance";
 
@@ -57,11 +59,73 @@ function isSessionApiItem(value: SessionResponseData | SessionApiItem | null): v
   return "id" in value || "sessionId" in value || "actualDatetime" in value || "plannedDatetime" in value;
 }
 
+function isAttendanceItemApi(value: unknown): value is AttendanceItemApi {
+  if (!value || Array.isArray(value) || typeof value !== "object") return false;
+  return "attendanceStatus" in value || "markedAt" in value || "studentProfileId" in value;
+}
+
 function getAuthHeaders(token: string): HeadersInit {
   return {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
+}
+
+function tryParseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function pickFirstErrorMessage(errors: unknown): string | null {
+  if (!errors || typeof errors !== "object") return null;
+
+  for (const value of Object.values(errors as Record<string, unknown>)) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+
+    if (Array.isArray(value)) {
+      const firstText = value.find((item): item is string => typeof item === "string" && item.trim().length > 0);
+      if (firstText) return firstText.trim();
+    }
+  }
+
+  return null;
+}
+
+function formatAttendanceErrorMessage(raw: string, fallback: string): string {
+  const text = raw.trim();
+  if (!text) return fallback;
+
+  const parsed = tryParseJson(text);
+  if (!parsed || typeof parsed !== "object") {
+    return text;
+  }
+
+  const problem = parsed as Record<string, unknown>;
+  const type = String(problem.type ?? "").toLowerCase();
+  const title = String(problem.title ?? "").toLowerCase();
+
+  if (type.includes("attendance.updatewindowclosed") || title.includes("attendance.updatewindowclosed")) {
+    return "Buổi học này chỉ được cập nhật điểm danh trong vòng 24 giờ sau khi kết thúc.";
+  }
+
+  const detail = typeof problem.detail === "string" ? problem.detail.trim() : "";
+  if (detail) return detail;
+
+  const message = typeof problem.message === "string" ? problem.message.trim() : "";
+  if (message) return message;
+
+  const firstError = pickFirstErrorMessage(problem.errors);
+  if (firstError) return firstError;
+
+  const problemTitle = typeof problem.title === "string" ? problem.title.trim() : "";
+  if (problemTitle) return problemTitle;
+
+  return fallback;
 }
 
 function formatDow(date: Date): string {
@@ -90,6 +154,43 @@ function formatDateISO(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function formatHistoryDateParts(value?: string | null): { date?: string | null; startTime?: string | null } {
+  if (!value) return {};
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return {};
+
+  const date = new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parsed);
+
+  const startTime = new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+
+  return { date, startTime };
+}
+
+function normalizeStudentAttendanceHistoryItem(item: StudentAttendanceHistoryItem): StudentAttendanceHistoryItem {
+  const sessionDateTime = String((item as any)?.sessionDateTime ?? "").trim() || undefined;
+  const derived = formatHistoryDateParts(sessionDateTime);
+  const sessionName = String(item?.sessionName ?? "").trim();
+  const className = String(item?.className ?? "").trim();
+
+  return {
+    ...item,
+    sessionDateTime,
+    sessionName: sessionName || className || undefined,
+    className: className || undefined,
+    date: String(item?.date ?? "").trim() || derived.date || undefined,
+    startTime: String(item?.startTime ?? "").trim() || derived.startTime || undefined,
+  };
 }
 
 function mapApiStatusToUi(status: unknown): AttendanceStatus | null {
@@ -190,12 +291,16 @@ function mapSessionsListResponse(json: SessionListApiResponse): FetchSessionsRes
 
 function resolveAttendanceItems(data: AttendanceApiResponse["data"]): AttendanceItemApi[] {
   if (Array.isArray(data)) return data;
-  if (!data || typeof data !== "object") return [];
+  if (!data || typeof data !== "object" || isAttendanceItemApi(data)) return [];
   if (Array.isArray(data.attendances)) return data.attendances;
   if (Array.isArray(data.students)) return data.students;
   if (Array.isArray(data.items)) return data.items;
   if (Array.isArray(data.results)) return data.results;
   return [];
+}
+
+function extractSingleAttendanceItem(data: AttendanceApiResponse["data"]): AttendanceItemApi | null {
+  return isAttendanceItemApi(data) ? data : null;
 }
 
 export async function fetchSessionDetail(
@@ -328,7 +433,7 @@ export async function fetchAttendance(
   const json: AttendanceApiResponse = await res.json();
   const data = (json?.data ?? json) as AttendanceResponseData;
   const structuredData =
-    data && !Array.isArray(data) && typeof data === "object" ? data : null;
+    data && !Array.isArray(data) && typeof data === "object" && !isAttendanceItemApi(data) ? data : null;
   const rawStudents = resolveAttendanceItems(data);
 
   const students: Student[] = rawStudents.map((item: AttendanceItemApi, idx: number) => {
@@ -400,50 +505,55 @@ export async function saveAttendance(
     throw new Error("Khong co hoc vien hop le de luu diem danh.");
   }
 
-  if (isCreate) {
-    const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`, {
-      method: "POST",
-      headers: getAuthHeaders(token),
-      body: JSON.stringify({ attendances: payload }),
-      signal,
-    });
+  // Backend bulk POST is idempotent and can both create missing records and update existing ones.
+  // That matches the Attendance API guide better than forcing PUT for the whole class after first mark.
+  void isCreate;
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Create attendance error", res.status, text);
-      throw new Error("Khong the luu diem danh.");
-    }
-    return;
+  const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}`, {
+    method: "POST",
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ attendances: payload }),
+    signal,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Save attendance error", res.status, text);
+    throw new Error(formatAttendanceErrorMessage(text, "Không thể lưu điểm danh."));
+  }
+}
+
+export async function updateAttendance(
+  sessionId: string,
+  studentProfileId: string,
+  payload: UpdateAttendanceRequest,
+  signal?: AbortSignal,
+): Promise<AttendanceItemApi | null> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Ban chua dang nhap. Vui long dang nhap lai.");
   }
 
-  const results = await Promise.all(
-    payload.map(async (item) => {
-      const res = await fetch(
-        `${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}/students/${item.studentProfileId}`,
-        {
-          method: "PUT",
-          headers: getAuthHeaders(token),
-          body: JSON.stringify({
-            attendanceStatus: item.attendanceStatus,
-            note: item.note,
-          }),
-          signal,
-        },
-      );
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Update failed for ${item.studentProfileId}`);
-      }
+  const res = await fetch(`${TEACHER_ENDPOINTS.ATTENDANCE}/${sessionId}/students/${studentProfileId}`, {
+    method: "PUT",
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({
+      attendanceStatus: payload.attendanceStatus,
+      note: payload.note,
     }),
-  ).then(
-    () => [],
-    (error) => {
-      throw error;
-    },
-  );
+    signal,
+  });
 
-  void results;
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Update attendance error", res.status, text);
+    throw new Error(
+      formatAttendanceErrorMessage(text, `Không thể cập nhật điểm danh cho học viên ${studentProfileId}.`),
+    );
+  }
+
+  const json: AttendanceApiResponse = await res.json();
+  return extractSingleAttendanceItem(json?.data);
 }
 
 export async function fetchStudentAttendanceHistory(
@@ -472,12 +582,15 @@ export async function fetchStudentAttendanceHistory(
 
   const json: StudentAttendanceHistoryApiResponse = await res.json();
   const data = json?.data ?? {};
+  const items = Array.isArray(data?.items) ? data.items.map(normalizeStudentAttendanceHistoryItem) : [];
 
   return {
-    items: Array.isArray(data?.items) ? data.items : [],
+    items,
     pageNumber: Number(data?.pageNumber ?? params?.pageNumber ?? 1),
     pageSize: Number(data?.pageSize ?? params?.pageSize ?? 10),
     totalCount: Number(data?.totalCount ?? 0),
     totalPages: Number(data?.totalPages ?? 1),
+    hasPreviousPage: Boolean(data?.hasPreviousPage),
+    hasNextPage: Boolean(data?.hasNextPage),
   };
 }

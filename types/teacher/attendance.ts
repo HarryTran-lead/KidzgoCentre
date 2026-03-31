@@ -13,6 +13,8 @@ export type Student = {
   status: AttendanceStatus | null;
   absenceRate: number;
   note?: string;
+  absenceType?: string | null;
+  hasMakeupCredit?: boolean | null;
   studentProfileId?: string;
   attendanceId?: string;
 };
@@ -54,6 +56,7 @@ export type AttendanceItemApi = {
 export type StudentAttendanceHistoryItem = {
   id?: string | null;
   sessionId?: string | null;
+  sessionDateTime?: string | null;
   sessionName?: string | null;
   date?: string | null;
   startTime?: string | null;
@@ -97,7 +100,7 @@ export type AttendanceApiResponse = {
     students?: AttendanceItemApi[];
     items?: AttendanceItemApi[];
     results?: AttendanceItemApi[];
-  } | AttendanceItemApi[];
+  } | AttendanceItemApi[] | AttendanceItemApi;
   message?: string;
 };
 
@@ -110,6 +113,8 @@ export type StudentAttendanceHistoryApiResponse = {
     pageSize?: number;
     totalPages?: number;
     totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
   };
   message?: string;
 };
@@ -159,6 +164,8 @@ export type FetchStudentAttendanceHistoryResult = {
   pageSize: number;
   totalCount: number;
   totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 };
 export type FetchSessionsParams = {
   classId?: string;
