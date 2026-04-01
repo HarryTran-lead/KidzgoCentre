@@ -187,7 +187,8 @@ export function LearnerGamificationWorkspace({
   const pendingRedemptions = redemptions.filter((x) => ["Requested", "Approved", "Delivered"].includes(x.status));
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="relative h-full overflow-y-auto">
+      <div className="space-y-6 p-4 pb-8 md:p-6 md:pb-10">
       {/* Header Card */}
       <div className="rounded-[32px] border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-slate-900/90 backdrop-blur-xl p-6 shadow-2xl shadow-purple-500/10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -416,6 +417,7 @@ export function LearnerGamificationWorkspace({
           </div>
         ) : null}
       </DialogShell>
+      </div>
     </div>
   );
 }

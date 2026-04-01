@@ -42,7 +42,7 @@ export interface FetchHomeworkSubmissionsParams {
 }
 
 export interface FetchQuestionBankParams {
-  programId: string;
+  programId?: string;
   level?: QuestionBankDifficulty;
   pageNumber?: number;
   pageSize?: number;
@@ -100,6 +100,7 @@ export interface QuestionBankItem {
   explanation?: string | null;
   level?: QuestionBankDifficulty;
   programId?: string;
+  programName?: string;
 }
 
 // Student submission for an assignment (teacher view)

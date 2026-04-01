@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 
-import { getAllProgramsForDropdown } from "@/lib/api/programService";
+import { getActiveProgramsForDropdown } from "@/lib/api/programService";
 import { fetchQuestionBankItems } from "@/lib/api/homeworkService";
 import type {
   QuestionBankDifficulty,
@@ -44,6 +44,16 @@ const LEVEL_OPTIONS: Array<{
   { value: "Medium", label: "Medium" },
   { value: "Hard", label: "Hard" },
 ];
+
+function isMultipleChoiceQuestion(question: QuestionBankItem) {
+  const questionType = String(question.questionType || "").trim().toLowerCase();
+  return [
+    "multiplechoice",
+    "multiple_choice",
+    "multiple-choice",
+    "mcq",
+  ].includes(questionType);
+}
 
 function normalizeCorrectIndex(question: QuestionBankItem) {
   const correctAnswer = String(question.correctAnswer ?? "").trim();
@@ -126,45 +136,42 @@ export function ImportFromBankModal({
 
     const loadPrograms = async () => {
       setIsLoadingPrograms(true);
-      setError(null);
       try {
-        const response = await getAllProgramsForDropdown();
+        const response = await getActiveProgramsForDropdown();
         const mappedPrograms = response.map((program) => ({
           id: program.id,
           name: program.name || program.code || program.id,
         }));
 
         setPrograms(mappedPrograms);
-        if (!selectedProgramId && mappedPrograms[0]?.id) {
-          setSelectedProgramId(mappedPrograms[0].id);
-        }
+        setSelectedProgramId((current) => current || mappedPrograms[0]?.id || "");
       } catch (loadError) {
         console.error("Error loading programs:", loadError);
-        setError("Khong tai duoc danh sach program.");
+        setPrograms([]);
       } finally {
         setIsLoadingPrograms(false);
       }
     };
 
     loadPrograms();
-  }, [isOpen, selectedProgramId]);
+  }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !selectedProgramId) return;
+    if (!isOpen) return;
 
     const loadQuestions = async () => {
       setIsLoadingQuestions(true);
       setError(null);
 
       const response = await fetchQuestionBankItems({
-        programId: selectedProgramId,
+        programId: selectedProgramId || undefined,
         level: selectedLevel === "ALL" ? undefined : selectedLevel,
         pageNumber: 1,
         pageSize: 100,
       });
 
       if (response.ok) {
-        setQuestions(response.data);
+        setQuestions(response.data.filter(isMultipleChoiceQuestion));
       } else {
         setQuestions([]);
         setError(response.error || "Khong tai duoc ngan hang cau hoi.");
@@ -178,12 +185,36 @@ export function ImportFromBankModal({
 
   useEffect(() => {
     if (!isOpen) {
+      setSelectedProgramId("");
       setSelectedQuestionIds([]);
       setSearchTerm("");
       setQuestions([]);
       setError(null);
     }
   }, [isOpen]);
+
+  const programOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+
+    programs.forEach((program) => {
+      if (!program.id) return;
+      map.set(program.id, program);
+    });
+
+    questions.forEach((question) => {
+      if (!question.programId) return;
+      if (map.has(question.programId)) return;
+
+      map.set(question.programId, {
+        id: question.programId,
+        name: question.programName || question.programId,
+      });
+    });
+
+    return Array.from(map.values()).sort((left, right) =>
+      left.name.localeCompare(right.name, "vi")
+    );
+  }, [programs, questions]);
 
   const filteredQuestions = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -195,6 +226,7 @@ export function ImportFromBankModal({
       const haystacks = [
         question.questionText,
         question.level,
+        question.programName,
         ...question.options,
       ];
       return haystacks.some((value) =>
@@ -264,13 +296,15 @@ export function ImportFromBankModal({
             <select
               value={selectedProgramId}
               onChange={(event) => setSelectedProgramId(event.target.value)}
-              disabled={isLoadingPrograms}
+              disabled={isLoadingPrograms && programOptions.length === 0}
               className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <option value="">
-                {isLoadingPrograms ? "Dang tai program..." : "Chon program"}
+                {isLoadingPrograms && programOptions.length === 0
+                  ? "Dang tai program..."
+                  : "Tat ca program"}
               </option>
-              {programs.map((program) => (
+              {programOptions.map((program) => (
                 <option key={program.id} value={program.id}>
                   {program.name}
                 </option>
@@ -357,6 +391,11 @@ export function ImportFromBankModal({
                           {question.level && (
                             <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
                               {question.level}
+                            </span>
+                          )}
+                          {question.programName && (
+                            <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+                              {question.programName}
                             </span>
                           )}
                           <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">

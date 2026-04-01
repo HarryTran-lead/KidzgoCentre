@@ -22,6 +22,21 @@ export const buildClientApiUrl = (endpoint: string): string => {
   return endpoint; // Just return the endpoint, will be relative to current domain
 };
 
+export const buildFileUrl = (value?: string | null): string => {
+  const url = value?.trim();
+
+  if (!url) {
+    return "";
+  }
+
+  if (/^(?:https?:)?\/\//i.test(url) || /^(?:data|blob):/i.test(url)) {
+    return url;
+  }
+
+  const normalizedPath = url.startsWith("/") ? url : `/${url}`;
+  return ROOT_BASE_URL ? `${ROOT_BASE_URL}${normalizedPath}` : normalizedPath;
+};
+
 // Authentication Endpoints (Client-side → Next.js API Routes)
 export const AUTH_ENDPOINTS = {
   // Authentication
@@ -312,6 +327,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
   CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
   PROGRAMS: '/api/programs',
+  PROGRAMS_ACTIVE: '/api/programs/active',
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/api/programs/${id}/monthly-leave-limit`,
   REGISTRATIONS: '/api/registrations',
   TUITION_PLANS: '/api/tuition-plans',
@@ -484,6 +500,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSES_BY_ID: (id: string) => `/classes/${id}`,
   CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
   PROGRAMS: '/programs',
+  PROGRAMS_ACTIVE: '/programs/active',
   REGISTRATIONS: '/registrations',
   PROGRAMS_BY_ID: (id: string) => `/programs/${id}`,
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/programs/${id}/monthly-leave-limit`,

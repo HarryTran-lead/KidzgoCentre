@@ -476,6 +476,9 @@ export type StudentOption = {
   id: string;
   label: string;
   studentId?: string;
+  classText?: string;
+  helperText?: string;
+  dropdownLabel?: string;
 };
 
 export function extractStudentOptions(payload: unknown): StudentOption[] {
@@ -492,20 +495,47 @@ export function extractStudentOptions(payload: unknown): StudentOption[] {
 
   for (const row of rows) {
     const item = row as StudentSummary;
+    const anyItem = row as Record<string, unknown>;
     const id = String(item.id ?? item.profileId ?? item.studentId ?? "").trim();
     if (!id) {
       continue;
     }
 
+    const classText = item.className
+      ? item.className
+      : Array.isArray(item.classNames) && item.classNames.length
+        ? item.classNames.filter(Boolean).join(", ")
+        : Array.isArray(item.classes) && item.classes.length
+          ? item.classes
+              .map((classItem) =>
+                classItem.code
+                  ? `${classItem.code} - ${classItem.name ?? classItem.className ?? classItem.title ?? classItem.id ?? ""}`.trim()
+                  : classItem.name ?? classItem.className ?? classItem.title ?? classItem.id
+              )
+              .filter(Boolean)
+              .join(", ")
+          : undefined;
+
+    const branchText = String(anyItem.branchName ?? anyItem.branchTitle ?? "").trim() || undefined;
+    const label =
+      item.fullName ||
+      item.name ||
+      item.displayName ||
+      item.userName ||
+      item.email ||
+      item.studentId ||
+      id;
+
+    const helperParts = [classText, branchText].filter(Boolean);
+    const helperText = helperParts.length > 0 ? helperParts.join(" • ") : undefined;
+
     options.push({
       id,
-      label:
-        item.displayName ||
-        item.fullName ||
-        item.name ||
-        item.userName ||
-        id,
+      label,
       studentId: item.studentId,
+      classText,
+      helperText,
+      dropdownLabel: helperText ? `${label} • ${helperText}` : label,
     });
   }
 
