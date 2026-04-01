@@ -826,7 +826,7 @@ export function StaffGamificationWorkspace({
 
       <Tabs value={activeTab} onChange={setActiveTab} tabs={tabs} theme="staff" />
 
-      {loading ? <Panel theme="staff" className="py-14"><div className="flex items-center justify-center gap-3 text-gray-500"><Loader2  className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu gamification...</span></div></Panel> : null}
+      {loading ? <Panel theme="staff" className="py-14"><div className="flex items-center justify-center gap-3 text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu gamification...</span></div></Panel> : null}
       {!loading && pageError ? <Panel theme="staff" className="border-rose-200 bg-rose-50"><div className="flex items-start gap-3 text-rose-700"><AlertCircle className="mt-0.5 h-5 w-5" /><div><h2 className="text-lg font-semibold">Không thể tải dữ liệu</h2><p className="mt-1 text-sm">{pageError}</p></div></div></Panel> : null}
 
       {!loading && !pageError && activeTab === "missions" ? (
@@ -1023,7 +1023,10 @@ export function StaffGamificationWorkspace({
                           <h3 className="truncate text-lg font-bold text-gray-900">{item.title}</h3>
                           <p className="mt-1 line-clamp-2 text-sm text-gray-500">{item.description || "Chưa có mô tả"}</p>
                         </div>
-                        <StatusPill label={item.isActive ? "Đang mở" : "Đang ẩn"} className={item.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-white text-gray-700"} />
+                        <StatusPill
+                          label={item.isActive ? "Đang mở" : "Đang ẩn"}
+                          className={item.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-white text-gray-700"}
+                        />
                       </div>
                       <div className="mt-4 flex flex-wrap gap-5 text-sm text-gray-500">
                         <span>Giá: {formatNumber(item.costStars)} sao</span>
@@ -1045,24 +1048,18 @@ export function StaffGamificationWorkspace({
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" onClick={() => openEditReward(item)} className={ghostButton}>
-                    <Pencil className="h-4 w-4" />
-                    Sửa
-                  </button>
-                  <button type="button" onClick={() => void toggleRewardStatus(item.id)} disabled={busyAction === `toggle-reward-${item.id}`} className={ghostButton}>
-                    {item.isActive ? "Ẩn vật phẩm" : "Mở vật phẩm"}
-                  </button>
-                  <button type="button" onClick={() => void removeRewardItem(item.id)} disabled={busyAction === `delete-reward-${item.id}`} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
-                    <Trash2 className="h-4 w-4" />
-                    Xóa
-                  </button>
-                </div>
-              </div>
-            ))}
-            {rewardItems.length === 0 ? <EmptyState title="Chưa có vật phẩm" description="Hãy tạo vật phẩm đầu tiên để học sinh có thể đổi thưởng." icon={<Package className="h-5 w-5" />} theme="staff" /> : null}
-          </div>
+                </div> 
+        );
+      })}
+            {rewardItems.length === 0 ? (
+              <EmptyState
+                title="Chưa có vật phẩm"
+                description="Hãy tạo vật phẩm đầu tiên để học sinh có thể đổi thưởng."
+                icon={<Package className="h-5 w-5" />}
+                theme="staff"
+              />
+            ) : null}
+          </div> {/* Đóng grid ở đúng vị trí */}
         </Panel>
       ) : null}
 
