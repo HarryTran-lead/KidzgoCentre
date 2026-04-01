@@ -43,9 +43,10 @@ export interface Mission {
   description?: string | null;
   scope: MissionScope;
   targetClassId?: string | null;
+  targetStudentId?: string | null;
   targetClassCode?: string | null;
   targetClassTitle?: string | null;
-  targetGroup?: string | null;
+  targetGroup?: string[] | string | null;
   missionType: MissionType;
   startAt?: string | null;
   endAt?: string | null;
@@ -77,7 +78,8 @@ export interface MissionProgressResponse {
 export interface MissionListParams {
   scope?: MissionScope;
   targetClassId?: string;
-  targetGroup?: string;
+  targetStudentId?: string;
+  targetGroup?: string | string[];
   missionType?: MissionType;
   searchTerm?: string;
   pageNumber?: number;
@@ -95,7 +97,8 @@ export interface UpsertMissionRequest {
   description?: string;
   scope: MissionScope;
   targetClassId?: string;
-  targetGroup?: string;
+  targetStudentId?: string;
+  targetGroup?: string[];
   missionType: MissionType;
   startAt?: string;
   endAt?: string;

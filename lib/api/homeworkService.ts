@@ -159,9 +159,11 @@ export async function fetchSessions(classId: string): Promise<SessionOption[]> {
 
 function extractQuestionBankItems(payload: any): any[] {
   const candidates = [
+    payload?.data?.items?.items,
     payload?.data?.questionBankItems?.items,
     payload?.data?.questionBankItems,
     payload?.data?.items,
+    payload?.items?.items,
     payload?.questionBankItems?.items,
     payload?.questionBankItems,
     payload?.items,
@@ -195,6 +197,16 @@ function normalizeQuestionBankItem(item: any): QuestionBankItem | null {
     })
     .filter(Boolean);
 
+  const rawLevel = item?.level;
+  const normalizedLevel: QuestionBankItem["level"] =
+    rawLevel === 0 || rawLevel === "0" || String(rawLevel).toLowerCase() === "easy"
+      ? "Easy"
+      : rawLevel === 2 || rawLevel === "2" || String(rawLevel).toLowerCase() === "hard"
+        ? "Hard"
+        : rawLevel === 1 || rawLevel === "1" || String(rawLevel).toLowerCase() === "medium"
+          ? "Medium"
+          : undefined;
+
   return {
     id: String(questionId),
     questionText: String(questionText),
@@ -203,8 +215,14 @@ function normalizeQuestionBankItem(item: any): QuestionBankItem | null {
     correctAnswer: String(item?.correctAnswer ?? item?.answer ?? ""),
     points: Number(item?.points ?? item?.score ?? 1),
     explanation: item?.explanation ?? null,
-    level: item?.level,
+    level: normalizedLevel,
     programId: item?.programId,
+    programName:
+      item?.programName ??
+      item?.courseName ??
+      item?.course ??
+      item?.program?.name ??
+      null,
   };
 }
 
@@ -213,7 +231,9 @@ export async function fetchQuestionBankItems(
 ): Promise<FetchQuestionBankResult> {
   try {
     const searchParams = new URLSearchParams();
-    searchParams.set("programId", params.programId);
+    if (params.programId) {
+      searchParams.set("programId", params.programId);
+    }
     if (params.level) {
       searchParams.set("level", params.level);
     }

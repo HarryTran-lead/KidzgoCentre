@@ -21,8 +21,10 @@ import {
   Upload,
   UserRound,
 } from "lucide-react";
+import { buildFileUrl } from "@/constants/apiURL";
 import { useToast } from "@/hooks/use-toast";
 import { isUploadSuccess, uploadFile } from "@/lib/api/fileService";
+import { fetchHomework } from "@/lib/api/homeworkService";
 import { getAllStudents } from "@/lib/api/studentService";
 import {
   addStars,
@@ -63,6 +65,7 @@ import type {
   RewardRedemption,
   RewardStoreItem,
 } from "@/types/gamification";
+import type { HomeworkSubmission } from "@/types/teacher/homework";
 import {
   DialogShell,
   EmptyState,
@@ -96,7 +99,8 @@ type MissionFormState = {
   description: string;
   scope: MissionScope;
   targetClassId: string;
-  targetGroup: string;
+  targetStudentId: string;
+  targetGroupIds: string[];
   missionType: MissionType;
   startAt: string;
   endAt: string;
@@ -114,6 +118,13 @@ type RewardFormState = {
   isActive: boolean;
 };
 
+type HomeworkLinkOption = {
+  id: string;
+  title: string;
+  classTitle?: string;
+  dueAt?: string;
+};
+
 const inputClass =
   "w-full rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100";
 const textareaClass = `${inputClass} min-h-[112px]`;
@@ -129,7 +140,8 @@ const missionSeed: MissionFormState = {
   description: "",
   scope: "Student",
   targetClassId: "",
-  targetGroup: "",
+  targetStudentId: "",
+  targetGroupIds: [],
   missionType: "Custom",
   startAt: "",
   endAt: "",
@@ -157,7 +169,7 @@ export function StaffGamificationWorkspace({
   const canManageStore = role !== "Teacher";
   const canDeleteMission = role !== "Teacher";
   const tabs = [
-    { id: "missions" as const, label: "Mission" },
+    { id: "missions" as const, label: "Nhiệm vụ" },
     { id: "students" as const, label: "Sao / XP" },
     ...(canManageStore ? ([{ id: "rewardStore" as const, label: "Kho quà" }] as const) : []),
     { id: "redemptions" as const, label: "Đổi thưởng" },
@@ -184,17 +196,73 @@ export function StaffGamificationWorkspace({
   const [progressDialog, setProgressDialog] = useState<{ mission: Mission | null; items: MissionProgress[]; open: boolean }>({ mission: null, items: [], open: false });
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkForm, setLinkForm] = useState({ homeworkId: "", missionId: "" });
+  const [homeworkOptions, setHomeworkOptions] = useState<HomeworkLinkOption[]>([]);
+  const [homeworkOptionsLoading, setHomeworkOptionsLoading] = useState(false);
+  const [homeworkOptionsError, setHomeworkOptionsError] = useState<string | null>(null);
   const [redemptionDetail, setRedemptionDetail] = useState<RewardRedemption | null>(null);
   const [studentAction, setStudentAction] = useState({ starAmount: "", starReason: "", xpAmount: "", xpReason: "" });
   const [batchYear, setBatchYear] = useState("");
   const [batchMonth, setBatchMonth] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
   const rewardImageInputRef = useRef<HTMLInputElement>(null);
+  const rewardImagePreviewUrl = buildFileUrl(rewardForm.imageUrl);
 
   const selectedStudent = useMemo(
     () => students.find((item) => item.id === selectedStudentId) ?? null,
     [selectedStudentId, students]
   );
+
+  const selectedMissionTargetStudent = useMemo(
+    () => students.find((item) => item.id === missionForm.targetStudentId) ?? null,
+    [missionForm.targetStudentId, students]
+  );
+
+  const selectedMissionGroupStudents = useMemo(
+    () =>
+      missionForm.targetGroupIds
+        .map((studentId) => students.find((item) => item.id === studentId) ?? null)
+        .filter((item): item is StudentOption => Boolean(item)),
+    [missionForm.targetGroupIds, students]
+  );
+
+  const selectedHomeworkOption = useMemo(
+    () => homeworkOptions.find((item) => item.id === linkForm.homeworkId) ?? null,
+    [homeworkOptions, linkForm.homeworkId]
+  );
+
+  const selectedMissionOption = useMemo(
+    () => missions.find((item) => item.id === linkForm.missionId) ?? null,
+    [missions, linkForm.missionId]
+  );
+
+  function normalizeMissionTargetGroup(value: Mission["targetGroup"]): string[] {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item).trim()).filter(Boolean);
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return [];
+      }
+
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item) => String(item).trim()).filter(Boolean);
+        }
+      } catch {
+        // Fallback to comma-separated values.
+      }
+
+      return trimmed
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    return [];
+  }
 
   async function loadBaseData() {
     setLoading(true);
@@ -262,7 +330,8 @@ export function StaffGamificationWorkspace({
       description: mission.description ?? "",
       scope: mission.scope,
       targetClassId: mission.targetClassId ?? "",
-      targetGroup: mission.targetGroup ?? "",
+      targetStudentId: mission.targetStudentId ?? "",
+      targetGroupIds: normalizeMissionTargetGroup(mission.targetGroup),
       missionType: mission.missionType,
       startAt: toDatetimeLocal(mission.startAt),
       endAt: toDatetimeLocal(mission.endAt),
@@ -273,6 +342,33 @@ export function StaffGamificationWorkspace({
   }
 
   async function submitMission() {
+    if (missionForm.scope === "Class" && !missionForm.targetClassId) {
+      toast({
+        title: "Thiếu lớp áp dụng",
+        description: "Vui lòng chọn lớp cho nhiệm vụ theo lớp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (missionForm.scope === "Student" && !missionForm.targetStudentId) {
+      toast({
+        title: "Thiếu học sinh áp dụng",
+        description: "Vui lòng chọn học sinh cụ thể cho nhiệm vụ này.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (missionForm.scope === "Group" && missionForm.targetGroupIds.length === 0) {
+      toast({
+        title: "Thiếu nhóm áp dụng",
+        description: "Vui lòng chọn ít nhất một học sinh cho nhiệm vụ nhóm.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setBusyAction("submit-mission");
       const payload = {
@@ -283,9 +379,13 @@ export function StaffGamificationWorkspace({
           missionForm.scope === "Class"
             ? missionForm.targetClassId || undefined
             : undefined,
+        targetStudentId:
+          missionForm.scope === "Student"
+            ? missionForm.targetStudentId || undefined
+            : undefined,
         targetGroup:
           missionForm.scope === "Group"
-            ? missionForm.targetGroup.trim() || undefined
+            ? missionForm.targetGroupIds
             : undefined,
         missionType: missionForm.missionType,
         startAt: toIsoString(missionForm.startAt),
@@ -300,14 +400,14 @@ export function StaffGamificationWorkspace({
       if (missionForm.id) await updateMission(missionForm.id, payload);
       else await createMission(payload);
       toast({
-        title: missionForm.id ? "Đã cập nhật mission" : "Đã tạo mission mới",
+        title: missionForm.id ? "Đã cập nhật nhiệm vụ" : "Đã tạo nhiệm vụ mới",
       });
       setMissionDialogOpen(false);
       setMissionForm(missionSeed);
       await loadBaseData();
     } catch (error) {
       toast({
-        title: "Không thể lưu mission",
+        title: "Không thể lưu nhiệm vụ",
         description: normalizeProblemMessage(error),
         variant: "destructive",
       });
@@ -316,16 +416,25 @@ export function StaffGamificationWorkspace({
     }
   }
 
+  function toggleMissionGroupStudent(studentId: string) {
+    setMissionForm((current) => ({
+      ...current,
+      targetGroupIds: current.targetGroupIds.includes(studentId)
+        ? current.targetGroupIds.filter((id) => id !== studentId)
+        : [...current.targetGroupIds, studentId],
+    }));
+  }
+
   async function removeMission(id: string) {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa mission này?")) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa nhiệm vụ này?")) return;
     try {
       setBusyAction(`delete-mission-${id}`);
       await deleteMission(id);
-      toast({ title: "Đã xóa mission" });
+      toast({ title: "Đã xóa nhiệm vụ" });
       await loadBaseData();
     } catch (error) {
       toast({
-        title: "Không thể xóa mission",
+        title: "Không thể xóa nhiệm vụ",
         description: normalizeProblemMessage(error),
         variant: "destructive",
       });
@@ -348,7 +457,7 @@ export function StaffGamificationWorkspace({
       });
     } catch (error) {
       toast({
-        title: "Không thể tải tiến độ mission",
+        title: "Không thể tải tiến độ nhiệm vụ",
         description: normalizeProblemMessage(error),
         variant: "destructive",
       });
@@ -360,6 +469,50 @@ export function StaffGamificationWorkspace({
   function openCreateReward() {
     setRewardForm(rewardSeed);
     setRewardDialogOpen(true);
+  }
+
+  async function loadHomeworkOptions() {
+    try {
+      setHomeworkOptionsLoading(true);
+      setHomeworkOptionsError(null);
+
+      const result = await fetchHomework({ pageNumber: 1, pageSize: 200 });
+      if (!result.ok) {
+        throw new Error(result.error || "Không thể tải danh sách bài tập.");
+      }
+
+      const optionMap = new Map<string, HomeworkLinkOption>();
+
+      for (const item of result.data.data) {
+        const homework = item as HomeworkSubmission;
+        const id = String(homework.assignmentId || homework.id || "").trim();
+        if (!id || optionMap.has(id)) {
+          continue;
+        }
+
+        optionMap.set(id, {
+          id,
+          title: homework.title || `Bài tập ${id}`,
+          classTitle: homework.classTitle || undefined,
+          dueAt: homework.dueAt || undefined,
+        });
+      }
+
+      setHomeworkOptions(Array.from(optionMap.values()));
+    } catch (error) {
+      setHomeworkOptions([]);
+      setHomeworkOptionsError(normalizeProblemMessage(error));
+    } finally {
+      setHomeworkOptionsLoading(false);
+    }
+  }
+
+  function openLinkHomeworkDialog() {
+    setLinkForm((current) => ({
+      homeworkId: current.homeworkId,
+      missionId: current.missionId,
+    }));
+    setLinkDialogOpen(true);
   }
 
   function openEditReward(item: RewardStoreItem) {
@@ -487,18 +640,27 @@ export function StaffGamificationWorkspace({
   }
 
   async function submitLinkHomework() {
+    if (!linkForm.homeworkId.trim() || !linkForm.missionId.trim()) {
+      toast({
+        title: "Thiếu thông tin liên kết",
+        description: "Vui lòng chọn bài tập và nhiệm vụ cần liên kết.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setBusyAction("link-homework");
       await linkHomeworkToMission(
         linkForm.homeworkId.trim(),
         linkForm.missionId.trim()
       );
-      toast({ title: "Đã liên kết homework với mission" });
+      toast({ title: "Đã liên kết bài tập với nhiệm vụ" });
       setLinkDialogOpen(false);
       setLinkForm({ homeworkId: "", missionId: "" });
     } catch (error) {
       toast({
-        title: "Không thể liên kết homework",
+        title: "Không thể liên kết bài tập",
         description: normalizeProblemMessage(error),
         variant: "destructive",
       });
@@ -559,11 +721,11 @@ export function StaffGamificationWorkspace({
         year: batchYear ? Number(batchYear) : undefined,
         month: batchMonth ? Number(batchMonth) : undefined,
       });
-      toast({ title: "Đã chạy batch deliver" });
+      toast({ title: "Đã chạy giao hàng loạt" });
       await loadBaseData();
     } catch (error) {
       toast({
-        title: "Không thể batch deliver",
+        title: "Không thể chạy giao hàng loạt",
         description: normalizeProblemMessage(error),
         variant: "destructive",
       });
@@ -633,6 +795,14 @@ export function StaffGamificationWorkspace({
     }
   }
 
+  useEffect(() => {
+    if (!linkDialogOpen) {
+      return;
+    }
+
+    void loadHomeworkOptions();
+  }, [linkDialogOpen]);
+
   return (
     <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
       {/* Title */}
@@ -662,18 +832,18 @@ export function StaffGamificationWorkspace({
       {!loading && !pageError && activeTab === "missions" ? (
         <Panel theme="staff">
           <SectionTitle
-            title="Quản lý mission"
-            description="Tạo mission mới, cập nhật phạm vi áp dụng, xem tiến độ và liên kết homework vào mission."
+            title="Quản lý nhiệm vụ"
+            description="Tạo nhiệm vụ mới, cập nhật phạm vi áp dụng, xem tiến độ và liên kết bài tập vào nhiệm vụ."
             theme="staff"
             action={
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={openCreateMission} className={primaryButton}>
                   <Plus className="h-4 w-4" />
-                  Tạo mission
+                  Tạo nhiệm vụ
                 </button>
-                <button type="button" onClick={() => setLinkDialogOpen(true)} className={ghostButton}>
+                <button type="button" onClick={openLinkHomeworkDialog} className={ghostButton}>
                   <Link2 className="h-4 w-4" />
-                  Link homework
+                  Liên kết bài tập
                 </button>
               </div>
             }
@@ -714,7 +884,7 @@ export function StaffGamificationWorkspace({
                 </div>
               </div>
             ))}
-            {missions.length === 0 ? <EmptyState title="Chưa có mission" description="Tạo mission đầu tiên để bắt đầu các luồng gamification cho học sinh." icon={<Target className="h-5 w-5" />} theme="staff" /> : null}
+            {missions.length === 0 ? <EmptyState title="Chưa có nhiệm vụ" description="Tạo nhiệm vụ đầu tiên để bắt đầu các luồng gamification cho học sinh." icon={<Target className="h-5 w-5" />} theme="staff" /> : null}
           </div>
         </Panel>
       ) : null}
@@ -727,7 +897,7 @@ export function StaffGamificationWorkspace({
               <label className="mb-2 block text-sm font-semibold text-gray-700">Học sinh</label>
               <select value={selectedStudentId} onChange={(event) => setSelectedStudentId(event.target.value)} className={inputClass}>
                 <option value="">Chọn học sinh</option>
-                {students.map((student) => <option key={student.id} value={student.id}>{student.label}</option>)}
+                {students.map((student) => <option key={student.id} value={student.id}>{student.dropdownLabel || student.label}</option>)}
               </select>
               <button type="button" onClick={() => selectedStudentId && void loadStudentSnapshot(selectedStudentId)} className={`${ghostButton} mt-3 w-full`}>Làm mới dữ liệu</button>
               <div className="mt-5 rounded-3xl border border-white bg-white p-4">
@@ -735,7 +905,7 @@ export function StaffGamificationWorkspace({
                   <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-r from-red-600 to-red-700 text-white"><UserRound className="h-5 w-5" /></div>
                   <div>
                     <p className="font-semibold text-gray-900">{selectedStudent?.label ?? "Chưa chọn học sinh"}</p>
-                    <p className="text-sm text-gray-500">{selectedStudent?.id ?? "Hãy chọn một hồ sơ để thao tác"}</p>
+                    <p className="text-sm text-gray-500">{selectedStudent?.helperText || selectedStudent?.studentId || "Hãy chọn một học sinh để thao tác"}</p>
                   </div>
                 </div>
               </div>
@@ -808,7 +978,7 @@ export function StaffGamificationWorkspace({
                   </div>
                 </>
               ) : null}
-              {!studentLoading && !selectedStudentId ? <EmptyState title="Chưa chọn học sinh" description="Chọn một hồ sơ học sinh ở cột bên trái để thao tác sao, XP và streak." icon={<UserRound className="h-5 w-5" />} /> : null}
+              {!studentLoading && !selectedStudentId ? <EmptyState title="Chưa chọn học sinh" description="Chọn một học sinh ở cột bên trái để thao tác sao, XP và streak." icon={<UserRound className="h-5 w-5" />} theme="staff" /> : null}
             </div>
           </div>
         </Panel>
@@ -828,19 +998,53 @@ export function StaffGamificationWorkspace({
             }
           />
           <div className="grid gap-4 lg:grid-cols-2">
-            {rewardItems.map((item) => (
-              <div key={item.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{item.title}</h3>
-                    <p className="mt-1 text-sm text-gray-500">{item.description || "Chưa có mô tả"}</p>
+            {rewardItems.map((item) => {
+              const itemImageUrl = buildFileUrl(item.imageUrl);
+
+              return (
+                <div key={item.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row">
+                    <div className="h-24 w-full shrink-0 overflow-hidden rounded-2xl border border-red-200 bg-red-50 sm:w-24">
+                      {itemImageUrl ? (
+                        <img
+                          src={itemImageUrl}
+                          alt={item.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-red-300">
+                          <Package className="h-8 w-8" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-lg font-bold text-gray-900">{item.title}</h3>
+                          <p className="mt-1 line-clamp-2 text-sm text-gray-500">{item.description || "Chưa có mô tả"}</p>
+                        </div>
+                        <StatusPill label={item.isActive ? "Đang mở" : "Đang ẩn"} className={item.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-white text-gray-700"} />
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-5 text-sm text-gray-500">
+                        <span>Giá: {formatNumber(item.costStars)} sao</span>
+                        <span>Tồn kho: {formatNumber(item.quantity)}</span>
+                        <span>Tạo lúc: {formatDateTime(item.createdAt)}</span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button type="button" onClick={() => openEditReward(item)} className={ghostButton}>
+                          <Pencil className="h-4 w-4" />
+                          Sửa
+                        </button>
+                        <button type="button" onClick={() => void toggleRewardStatus(item.id)} disabled={busyAction === `toggle-reward-${item.id}`} className={ghostButton}>
+                          {item.isActive ? "Ẩn vật phẩm" : "Mở vật phẩm"}
+                        </button>
+                        <button type="button" onClick={() => void removeRewardItem(item.id)} disabled={busyAction === `delete-reward-${item.id}`} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60">
+                          <Trash2 className="h-4 w-4" />
+                          Xóa
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <StatusPill label={item.isActive ? "Đang mở" : "Đang ẩn"} className={item.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-white text-gray-700"} />
-                </div>
-                <div className="mt-4 flex flex-wrap gap-5 text-sm text-gray-500">
-                  <span>Giá: {formatNumber(item.costStars)} sao</span>
-                  <span>Tồn kho: {formatNumber(item.quantity)}</span>
-                  <span>Tạo lúc: {formatDateTime(item.createdAt)}</span>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button type="button" onClick={() => openEditReward(item)} className={ghostButton}>
@@ -865,15 +1069,15 @@ export function StaffGamificationWorkspace({
       {!loading && !pageError && activeTab === "redemptions" ? (
         <Panel theme="staff">
           <SectionTitle
-            title="Reward redemption"
-            description="Theo dõi yêu cầu đổi thưởng, xem chi tiết và xử lý các trạng thái Requested, Approved, Delivered."
+            title="Yêu cầu đổi thưởng"
+            description="Theo dõi yêu cầu đổi thưởng, xem chi tiết và xử lý trạng thái của từng đơn."
             theme="staff"
             action={
               canManageStore ? (
                 <div className="flex flex-wrap gap-2">
                   <input value={batchYear} onChange={(event) => setBatchYear(event.target.value)} className="w-28 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm" inputMode="numeric" placeholder="Năm" />
                   <input value={batchMonth} onChange={(event) => setBatchMonth(event.target.value)} className="w-24 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm" inputMode="numeric" placeholder="Tháng" />
-                  <button type="button" onClick={() => void runBatchDeliver()} disabled={busyAction === "batch-deliver"} className={primaryButton}>Batch deliver</button>
+                  <button type="button" onClick={() => void runBatchDeliver()} disabled={busyAction === "batch-deliver"} className={primaryButton}>Giao hàng loạt</button>
                 </div>
               ) : undefined
             }
@@ -908,23 +1112,24 @@ export function StaffGamificationWorkspace({
         </Panel>
       ) : null}
 
-      <DialogShell theme="staff" open={missionDialogOpen} onClose={() => setMissionDialogOpen(false)} title={missionForm.id ? "Cập nhật mission" : "Tạo mission mới"} description="Điền đúng phạm vi và phần thưởng để mission bám theo rule backend.">
+      <DialogShell open={missionDialogOpen} onClose={() => setMissionDialogOpen(false)} title={missionForm.id ? "Cập nhật nhiệm vụ" : "Tạo nhiệm vụ mới"} description="Điền đúng phạm vi và phần thưởng để nhiệm vụ bám theo quy tắc backend." theme="staff">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Tiêu đề</label><input value={missionForm.title} onChange={(event) => setMissionForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} /></div>
           <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Mô tả</label><textarea value={missionForm.description} onChange={(event) => setMissionForm((current) => ({ ...current, description: event.target.value }))} className={textareaClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Scope</label><select value={missionForm.scope} onChange={(event) => setMissionForm((current) => ({ ...current, scope: event.target.value as MissionScope }))} className={inputClass}><option value="Student">Student</option><option value="Class">Class</option><option value="Group">Group</option></select></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Mission type</label><select value={missionForm.missionType} onChange={(event) => setMissionForm((current) => ({ ...current, missionType: event.target.value as MissionType }))} className={inputClass}><option value="Custom">Custom</option><option value="HomeworkStreak">Homework streak</option><option value="ReadingStreak">Reading streak</option><option value="NoUnexcusedAbsence">No unexcused absence</option></select></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Phạm vi</label><select value={missionForm.scope} onChange={(event) => setMissionForm((current) => ({ ...current, scope: event.target.value as MissionScope, targetClassId: "", targetStudentId: "", targetGroupIds: [] }))} className={inputClass}><option value="Student">Học sinh</option><option value="Class">Lớp</option><option value="Group">Nhóm</option></select></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Loại nhiệm vụ</label><select value={missionForm.missionType} onChange={(event) => setMissionForm((current) => ({ ...current, missionType: event.target.value as MissionType }))} className={inputClass}><option value="Custom">Tùy chỉnh</option><option value="HomeworkStreak">Chuỗi bài tập</option><option value="ReadingStreak">Chuỗi đọc</option><option value="NoUnexcusedAbsence">Không vắng mặt không phép</option></select></div>
+          {missionForm.scope === "Student" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Học sinh áp dụng</label><select value={missionForm.targetStudentId} onChange={(event) => setMissionForm((current) => ({ ...current, targetStudentId: event.target.value }))} className={inputClass}><option value="">Chọn học sinh</option>{students.map((student) => <option key={student.id} value={student.id}>{student.dropdownLabel || student.label}</option>)}</select>{selectedMissionTargetStudent ? <p className="mt-2 text-xs text-gray-500">{selectedMissionTargetStudent.helperText || selectedMissionTargetStudent.studentId || "Học sinh đã chọn"}</p> : null}</div> : null}
           {missionForm.scope === "Class" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Lớp áp dụng</label><select value={missionForm.targetClassId} onChange={(event) => setMissionForm((current) => ({ ...current, targetClassId: event.target.value }))} className={inputClass}><option value="">Chọn lớp</option>{classOptions.map((item) => <option key={item.id} value={item.id}>{item.code ? `${item.code} - ` : ""}{item.title || item.name || item.id}</option>)}</select></div> : null}
-          {missionForm.scope === "Group" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Nhóm áp dụng</label><input value={missionForm.targetGroup} onChange={(event) => setMissionForm((current) => ({ ...current, targetGroup: event.target.value }))} className={inputClass} /></div> : null}
+          {missionForm.scope === "Group" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Nhóm áp dụng</label><div className="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-red-200 bg-red-50/40 p-3">{students.map((student) => { const checked = missionForm.targetGroupIds.includes(student.id); return <label key={student.id} className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition ${checked ? "border-red-300 bg-white" : "border-transparent bg-white/70 hover:border-red-200"}`}><input type="checkbox" checked={checked} onChange={() => toggleMissionGroupStudent(student.id)} className="mt-1 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200" /><span className="min-w-0"><span className="block text-sm font-semibold text-gray-900">{student.label}</span><span className="mt-0.5 block text-xs text-gray-500">{student.helperText || student.studentId || student.id}</span></span></label>; })}{students.length === 0 ? <p className="text-sm text-gray-500">Chưa có danh sách học sinh để chọn.</p> : null}</div>{selectedMissionGroupStudents.length > 0 ? <p className="mt-2 text-xs text-gray-500">Đã chọn {selectedMissionGroupStudents.length} học sinh.</p> : null}</div> : null}
           <div><label className="mb-2 block text-sm font-semibold text-gray-700">Bắt đầu</label><input type="datetime-local" value={missionForm.startAt} onChange={(event) => setMissionForm((current) => ({ ...current, startAt: event.target.value }))} className={inputClass} /></div>
           <div><label className="mb-2 block text-sm font-semibold text-gray-700">Kết thúc</label><input type="datetime-local" value={missionForm.endAt} onChange={(event) => setMissionForm((current) => ({ ...current, endAt: event.target.value }))} className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Reward stars</label><input value={missionForm.rewardStars} onChange={(event) => setMissionForm((current) => ({ ...current, rewardStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Reward XP</label><input value={missionForm.rewardExp} onChange={(event) => setMissionForm((current) => ({ ...current, rewardExp: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Sao thưởng</label><input value={missionForm.rewardStars} onChange={(event) => setMissionForm((current) => ({ ...current, rewardStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">XP thưởng</label><input value={missionForm.rewardExp} onChange={(event) => setMissionForm((current) => ({ ...current, rewardExp: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
         </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setMissionDialogOpen(false)} className={ghostButton}>Đóng</button><button type="button" onClick={() => void submitMission()} disabled={busyAction === "submit-mission"} className={primaryButton}>{busyAction === "submit-mission" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Lưu mission</button></div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setMissionDialogOpen(false)} className={ghostButton}>Đóng</button><button type="button" onClick={() => void submitMission()} disabled={busyAction === "submit-mission"} className={primaryButton}>{busyAction === "submit-mission" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Lưu nhiệm vụ</button></div>
       </DialogShell>
 
-      <DialogShell open={rewardDialogOpen} onClose={() => setRewardDialogOpen(false)} title={rewardForm.id ? "Cập nhật vật phẩm" : "Tạo vật phẩm mới"} description="Cost stars phải lớn hơn 0 và quantity không được âm." theme="staff">
+      <DialogShell open={rewardDialogOpen} onClose={() => setRewardDialogOpen(false)} title={rewardForm.id ? "Cập nhật vật phẩm" : "Tạo vật phẩm mới"} description="Số sao đổi phải lớn hơn 0 và số lượng không được âm." theme="staff">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Tên vật phẩm</label><input value={rewardForm.title} onChange={(event) => setRewardForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} /></div>
           <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Mô tả</label><textarea value={rewardForm.description} onChange={(event) => setRewardForm((current) => ({ ...current, description: event.target.value }))} className={textareaClass} /></div>
@@ -934,7 +1139,7 @@ export function StaffGamificationWorkspace({
             {rewardForm.imageUrl ? (
               <div className="overflow-hidden rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30">
                 <div className="aspect-[16/8] w-full bg-red-50">
-                  <img src={rewardForm.imageUrl} alt="Ảnh vật phẩm" className="h-full w-full object-cover" />
+                  <img src={rewardImagePreviewUrl || rewardForm.imageUrl} alt="Ảnh vật phẩm" className="h-full w-full object-cover" />
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-red-200 px-4 py-3">
                   <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -963,30 +1168,55 @@ export function StaffGamificationWorkspace({
               </button>
             )}
           </div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Cost stars</label><input value={rewardForm.costStars} onChange={(event) => setRewardForm((current) => ({ ...current, costStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Quantity</label><input value={rewardForm.quantity} onChange={(event) => setRewardForm((current) => ({ ...current, quantity: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700"><input type="checkbox" checked={rewardForm.isActive} onChange={(event) => setRewardForm((current) => ({ ...current, isActive: event.target.checked }))} />Hiển thị trên cửa hàng active</label>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Số sao đổi</label><input value={rewardForm.costStars} onChange={(event) => setRewardForm((current) => ({ ...current, costStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Số lượng</label><input value={rewardForm.quantity} onChange={(event) => setRewardForm((current) => ({ ...current, quantity: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700"><input type="checkbox" checked={rewardForm.isActive} onChange={(event) => setRewardForm((current) => ({ ...current, isActive: event.target.checked }))} />Hiển thị trên cửa hàng</label>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setRewardDialogOpen(false)} className={ghostButton} disabled={imageUploading}>Đóng</button><button type="button" onClick={() => void submitRewardItem()} disabled={busyAction === "submit-reward" || imageUploading} className={primaryButton}>{busyAction === "submit-reward" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Lưu vật phẩm</button></div>
       </DialogShell>
 
-      <DialogShell open={progressDialog.open} onClose={() => setProgressDialog({ mission: null, items: [], open: false })} title={progressDialog.mission?.title || "Tiến độ mission"} description="Danh sách progress hiện có theo mission được chọn.">
+      <DialogShell open={progressDialog.open} onClose={() => setProgressDialog({ mission: null, items: [], open: false })} title={progressDialog.mission?.title || "Tiến độ nhiệm vụ"} description="Danh sách tiến độ hiện có theo nhiệm vụ được chọn." theme="staff">
         <div className="space-y-3">
           {progressDialog.items.map((item) => <div key={item.id} className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-gray-900">{item.studentName || item.studentProfileId}</p><p className="mt-1 text-sm text-gray-500">Tiến độ: {formatNumber(item.progressValue)} • {formatNumber(item.progressPercentage)}%</p></div><StatusPill label={mapProgressStatusLabel(item.status)} className={getMissionProgressClasses(item.status)} /></div></div>)}
-          {progressDialog.items.length === 0 ? <EmptyState title="Chưa có mission progress" description="Mission chưa phát sinh progress hoặc backend chưa ghi nhận dữ liệu cho mission này." icon={<Target className="h-5 w-5" />} /> : null}
+          {progressDialog.items.length === 0 ? <EmptyState title="Chưa có tiến độ nhiệm vụ" description="Nhiệm vụ này chưa phát sinh tiến độ hoặc backend chưa ghi nhận dữ liệu." icon={<Target className="h-5 w-5" />} theme="staff" /> : null}
         </div>
       </DialogShell>
 
-      <DialogShell theme="staff" open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} title="Liên kết homework với mission" description="Dùng khi cần gắn một homework hiện có vào mission đang chạy.">
+      <DialogShell open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} title="Liên kết bài tập với nhiệm vụ" description="Dùng khi cần gắn một bài tập hiện có vào nhiệm vụ đang chạy." theme="staff">
         <div className="grid gap-4">
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Homework ID</label><input value={linkForm.homeworkId} onChange={(event) => setLinkForm((current) => ({ ...current, homeworkId: event.target.value }))} className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Mission ID</label><input value={linkForm.missionId} onChange={(event) => setLinkForm((current) => ({ ...current, missionId: event.target.value }))} className={inputClass} /></div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Bài tập</label>
+            <select value={linkForm.homeworkId} onChange={(event) => setLinkForm((current) => ({ ...current, homeworkId: event.target.value }))} className={inputClass} disabled={homeworkOptionsLoading || homeworkOptions.length === 0}>
+              <option value="">
+                {homeworkOptionsLoading ? "Đang tải danh sách bài tập..." : homeworkOptions.length === 0 ? "Không có bài tập để chọn" : "Chọn bài tập"}
+              </option>
+              {homeworkOptions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}{item.classTitle ? ` • ${item.classTitle}` : ""}
+                </option>
+              ))}
+            </select>
+            {selectedHomeworkOption ? <p className="mt-2 text-xs text-gray-500">{selectedHomeworkOption.classTitle ? `${selectedHomeworkOption.classTitle}` : "Bài tập đã chọn"}{selectedHomeworkOption.dueAt ? ` • Hạn nộp: ${formatDateTime(selectedHomeworkOption.dueAt)}` : ""}</p> : null}
+            {homeworkOptionsError ? <p className="mt-2 text-xs text-rose-600">{homeworkOptionsError}</p> : null}
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Nhiệm vụ</label>
+            <select value={linkForm.missionId} onChange={(event) => setLinkForm((current) => ({ ...current, missionId: event.target.value }))} className={inputClass} disabled={missions.length === 0}>
+              <option value="">{missions.length === 0 ? "Không có nhiệm vụ để chọn" : "Chọn nhiệm vụ"}</option>
+              {missions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title} • {mapMissionScopeLabel(item.scope)}
+                </option>
+              ))}
+            </select>
+            {selectedMissionOption ? <p className="mt-2 text-xs text-gray-500">{mapMissionTypeLabel(selectedMissionOption.missionType)} • {mapMissionScopeLabel(selectedMissionOption.scope)}{selectedMissionOption.startAt ? ` • Bắt đầu: ${formatDateTime(selectedMissionOption.startAt)}` : ""}</p> : null}
+          </div>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setLinkDialogOpen(false)} className={ghostButton}>Đóng</button><button type="button" onClick={() => void submitLinkHomework()} disabled={busyAction === "link-homework"} className={primaryButton}>{busyAction === "link-homework" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}Liên kết</button></div>
       </DialogShell>
 
-      <DialogShell theme="staff" open={Boolean(redemptionDetail)} onClose={() => setRedemptionDetail(null)} title={redemptionDetail?.itemName || "Chi tiết redemption"} description="Thông tin snapshot của yêu cầu đổi quà, dùng cho staff và learner follow-up.">
-        {redemptionDetail ? <div className="grid gap-3 text-sm text-gray-600"><div><span className="font-semibold text-gray-900">Trạng thái:</span> {mapRedemptionStatusLabel(redemptionDetail.status)}</div><div><span className="font-semibold text-gray-900">Học sinh:</span> {redemptionDetail.studentName || redemptionDetail.studentProfileId}</div><div><span className="font-semibold text-gray-900">Chi nhánh:</span> {redemptionDetail.branchName || "Chưa có"}</div><div><span className="font-semibold text-gray-900">Số lượng:</span> {formatNumber(redemptionDetail.quantity)}</div><div><span className="font-semibold text-gray-900">Tạo lúc:</span> {formatDateTime(redemptionDetail.createdAt)}</div><div><span className="font-semibold text-gray-900">Handled at:</span> {formatDateTime(redemptionDetail.handledAt)}</div><div><span className="font-semibold text-gray-900">Delivered at:</span> {formatDateTime(redemptionDetail.deliveredAt)}</div><div><span className="font-semibold text-gray-900">Received at:</span> {formatDateTime(redemptionDetail.receivedAt)}</div></div> : null}
+      <DialogShell open={Boolean(redemptionDetail)} onClose={() => setRedemptionDetail(null)} title={redemptionDetail?.itemName || "Chi tiết yêu cầu đổi thưởng"} description="Thông tin chi tiết của yêu cầu đổi quà để staff và người học tiện theo dõi." theme="staff">
+        {redemptionDetail ? <div className="grid gap-3 text-sm text-gray-600"><div><span className="font-semibold text-gray-900">Trạng thái:</span> {mapRedemptionStatusLabel(redemptionDetail.status)}</div><div><span className="font-semibold text-gray-900">Học sinh:</span> {redemptionDetail.studentName || redemptionDetail.studentProfileId}</div><div><span className="font-semibold text-gray-900">Chi nhánh:</span> {redemptionDetail.branchName || "Chưa có"}</div><div><span className="font-semibold text-gray-900">Số lượng:</span> {formatNumber(redemptionDetail.quantity)}</div><div><span className="font-semibold text-gray-900">Tạo lúc:</span> {formatDateTime(redemptionDetail.createdAt)}</div><div><span className="font-semibold text-gray-900">Xử lý lúc:</span> {formatDateTime(redemptionDetail.handledAt)}</div><div><span className="font-semibold text-gray-900">Giao lúc:</span> {formatDateTime(redemptionDetail.deliveredAt)}</div><div><span className="font-semibold text-gray-900">Nhận lúc:</span> {formatDateTime(redemptionDetail.receivedAt)}</div></div> : null}
       </DialogShell>
     </div>
   );

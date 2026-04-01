@@ -1,12 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tooltip } from "@mui/material";
-import { toast } from "react-hot-toast";
-import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { type Locale, pickLocaleFromPath, localizePath } from "@/lib/i18n";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+import { toast } from "@/hooks/use-toast";
+import { type Locale, localizePath, pickLocaleFromPath } from "@/lib/i18n";
 
 export default function LanguageToggle() {
   const pathname = usePathname();
@@ -17,19 +18,20 @@ export default function LanguageToggle() {
   const current = (pickLocaleFromPath(pathname) ?? "vi") as Locale;
   const target: Locale = current === "vi" ? "en" : "vi";
 
-  // Hiện toast sau khi đổi ngôn ngữ thật
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const lastLocale = localStorage.getItem("lastLocale");
-      if (lastLocale && lastLocale !== current) {
-        toast.success(
+    if (typeof window === "undefined") return;
+
+    const lastLocale = localStorage.getItem("lastLocale");
+    if (lastLocale && lastLocale !== current) {
+      toast.success({
+        title: "Language updated",
+        description:
           current === "vi"
-            ? "Switched to Vietnamese Language"
-            : "Đã chuyển ngôn ngữ sang Tiếng Anh",
-          { duration: 3000 }
-        );
-        localStorage.removeItem("lastLocale");
-      }
+            ? "Vietnamese is now active."
+            : "English is now active.",
+        duration: 3000,
+      });
+      localStorage.removeItem("lastLocale");
     }
   }, [current]);
 
@@ -49,19 +51,11 @@ export default function LanguageToggle() {
   };
 
   const tooltipTitle =
-    current === "vi"
-      ? "Chuyển ngôn ngữ sang tiếng Anh"
-      : "Switch to Vietnamese language";
-
-  // Hiện cờ và chữ của NGÔN NGỮ SẮP CHUYỂN ĐẾN
+    current === "vi" ? "Switch to English" : "Switch to Vietnamese";
   const flagSrc = target === "vi" ? "/flags/vi.svg" : "/flags/en.svg";
   const label = target.toUpperCase();
-
   const hoverBorder =
-    target === "vi"
-      ? "hover:border-rose-300" // khi chuẩn bị chuyển sang VI → hover viền đỏ
-      : "hover:border-blue-300"; // khi chuẩn bị chuyển sang EN → hover viền xanh
-
+    target === "vi" ? "hover:border-rose-300" : "hover:border-blue-300";
   const loaderColor = target === "vi" ? "text-red-500" : "text-blue-500";
 
   return (
@@ -84,7 +78,7 @@ export default function LanguageToggle() {
           <>
             <Image
               src={flagSrc}
-              alt={target === "vi" ? "Vietnam Flag" : "UK Flag"}
+              alt={target === "vi" ? "Vietnam flag" : "English flag"}
               width={20}
               height={20}
               className="object-cover"

@@ -4,13 +4,11 @@ import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Toast,
-  ToastClose,
   ToastDescription,
   ToastProvider,
   ToastTitle,
   ToastViewport,
 } from "./toast";
-import { X } from "lucide-react";
 
 export function Toaster() {
   const { toasts } = useToast();
@@ -41,9 +39,6 @@ export function Toaster() {
                 {description && <ToastDescription>{description}</ToastDescription>}
               </div>
               {action}
-              <ToastClose>
-                <X className="h-4 w-4" />
-              </ToastClose>
             </Toast>
           );
         })}
