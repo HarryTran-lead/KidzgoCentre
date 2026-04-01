@@ -6,9 +6,10 @@ export type CourseRow = {
   fee: string;
   classes: string;
   students: string;
-  status: "Đang hoạt động" | "Tạm dừng";
+  status: string;
   branch?: string;
   isMakeup?: boolean | null;
+  isSupplementary?: boolean | null;
 };
 
 export interface CreateProgramRequest {
@@ -16,6 +17,7 @@ export interface CreateProgramRequest {
   name: string;
   code?: string;
   isMakeup: boolean;
+  isSupplementary: boolean;
   defaultMakeupClassId?: string | null;
   isActive?: boolean;
   totalSessions: number;
@@ -29,6 +31,7 @@ export interface Program {
   code?: string | null;
   name: string;
   isMakeup?: boolean | null;
+  isSupplementary?: boolean | null;
   totalSessions: number;
   defaultTuitionAmount: number;
   unitPriceSession: number;

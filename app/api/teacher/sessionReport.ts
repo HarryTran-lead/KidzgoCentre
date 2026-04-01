@@ -333,7 +333,7 @@ export async function enhanceSessionFeedback(
   if (!res.ok) {
     const text = await res.text();
     console.error("Enhance session feedback error", res.status, text);
-    throw new Error("Không thể AI enhance feedback.");
+    throw new Error("Không thể cải thiện nhận xét bằng AI.");
   }
 
   const json: EnhanceFeedbackApiResponse = await res.json();

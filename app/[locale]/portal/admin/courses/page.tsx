@@ -66,7 +66,25 @@ function formatNumberForInput(value?: number | null) {
     : "";
 }
 
-function StatusBadge({ value }: { value: "Đang hoạt động" | "Tạm dừng" }) {
+function getProgramTypeLabel(value: { isMakeup?: boolean | null; isSupplementary?: boolean | null }) {
+  if (value.isMakeup) return "Bù";
+  if (value.isSupplementary) return "Phụ trợ";
+  return "Chính";
+}
+
+function getProgramTypeDetailLabel(value: { isMakeup?: boolean | null; isSupplementary?: boolean | null }) {
+  if (value.isMakeup) return "Chương trình bù";
+  if (value.isSupplementary) return "Chương trình phụ trợ";
+  return "Chương trình chính";
+}
+
+function getProgramTypeBadgeClass(value: { isMakeup?: boolean | null; isSupplementary?: boolean | null }) {
+  if (value.isMakeup) return "bg-blue-100 text-blue-700 border border-blue-200";
+  if (value.isSupplementary) return "bg-violet-100 text-violet-700 border border-violet-200";
+  return "bg-gray-100 text-gray-600 border border-gray-200";
+}
+
+function StatusBadge({ value }: { value: string }) {
   const map: Record<string, string> = {
     "Đang hoạt động": "bg-green-100 text-green-700 border border-green-200",
     "Tạm dừng": "bg-gray-100 text-gray-700 border border-gray-200",
@@ -129,8 +147,9 @@ interface CourseFormData {
   code?: string;
   name: string;
   description: string;
-  status: "Đang hoạt động" | "Tạm dừng";
+  status: string;
   isMakeup: boolean;
+  isSupplementary: boolean;
   branchId: string;
   totalSessions: string;
   defaultTuitionAmount: string;
@@ -144,6 +163,7 @@ const initialFormData: CourseFormData = {
   description: "",
   status: "Đang hoạt động",
   isMakeup: false,
+  isSupplementary: false,
   branchId: "",
   totalSessions: "",
   defaultTuitionAmount: "",
@@ -259,6 +279,9 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     if (!formData.name.trim()) newErrors.name = "Tên khóa học là bắt buộc";
     if (!formData.description.trim()) newErrors.description = "Mô tả là bắt buộc";
     if (!formData.branchId) newErrors.branchId = "Chi nhánh là bắt buộc";
+    if (formData.isMakeup && formData.isSupplementary) {
+      newErrors.isSupplementary = "Chương trình không thể vừa là bù vừa là phụ trợ";
+    }
     if (!formData.totalSessions.trim() || Number(formData.totalSessions) <= 0) {
       newErrors.totalSessions = "Số buổi học phải lớn hơn 0";
     }
@@ -299,6 +322,9 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+    if ((field === "isMakeup" || field === "isSupplementary") && errors.isSupplementary) {
+      setErrors(prev => ({ ...prev, isSupplementary: undefined }));
     }
   };
 
@@ -429,13 +455,24 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
             </div>
 
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-4">
                 <div className="space-y-1">
                   <div className="text-sm font-semibold text-gray-800">Loại chương trình</div>
                   <p className="text-sm text-gray-600">
-                    Bật tùy chọn này nếu đây là chương trình bù để hệ thống có thể dùng khi auto schedule makeup.
+                    Chương trình chính là mặc định. Có thể đánh dấu phụ trợ hoặc bù, nhưng không được bật đồng thời cả hai.
                   </p>
                 </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                <label className="inline-flex items-center gap-3 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800">
+                  <input
+                    type="checkbox"
+                    checked={formData.isSupplementary}
+                    onChange={(e) => handleChange("isSupplementary", e.target.checked)}
+                    className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-300"
+                  />
+                  <span>{formData.isSupplementary ? "Chương trình phụ trợ" : "Đánh dấu phụ trợ"}</span>
+                </label>
 
                 <label className="inline-flex items-center gap-3 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800">
                   <input
@@ -446,6 +483,13 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   />
                   <span>{formData.isMakeup ? "Chương trình bù" : "Chương trình thường"}</span>
                 </label>
+                </div>
+
+                {errors.isSupplementary && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {errors.isSupplementary}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -643,7 +687,7 @@ export default function Page() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<CourseFormData | null>(null);
-  const [originalStatus, setOriginalStatus] = useState<"Đang hoạt động" | "Tạm dừng" | null>(null);
+  const [originalStatus, setOriginalStatus] = useState<string | null>(null);
   const [showToggleStatusModal, setShowToggleStatusModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<CourseRow | null>(null);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
@@ -845,15 +889,25 @@ export default function Page() {
         .replace(/[^A-Z0-9]/g, "_")
         .substring(0, 20);
 
+      if (data.isMakeup && data.isSupplementary) {
+        toast({
+          title: "Lỗi",
+          description: "Chương trình không thể vừa là bù vừa là phụ trợ",
+          type: "warning",
+        });
+        return false;
+      }
+
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        code: code,                    // Thêm field code
-        isMakeup: false,                // Thêm field isMakeup (mặc định false)
+        code: code,
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,
         description: data.description,
+        isMakeup: data.isMakeup,
+        isSupplementary: data.isSupplementary,
       };
 
       const created = await createAdminProgram(payload);
@@ -962,14 +1016,24 @@ export default function Page() {
         return false;
       }
 
+      if (data.isMakeup && data.isSupplementary) {
+        toast({
+          title: "Lỗi",
+          description: "Chương trình không thể vừa là bù vừa là phụ trợ",
+          type: "warning",
+        });
+        return false;
+      }
+
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        isMakeup: false,
         totalSessions,
         defaultTuitionAmount,
         unitPriceSession,
         description: data.description,
+        isMakeup: data.isMakeup,
+        isSupplementary: data.isSupplementary,
       };
 
       await updateAdminProgram(editingProgramId, payload);
@@ -1053,6 +1117,10 @@ export default function Page() {
         status: nextStatus,
         branchId: String(detail.branchId ?? detail.branch?.id ?? ""),
         isMakeup: typeof detail.isMakeup === "boolean" ? detail.isMakeup : !!row.isMakeup,
+        isSupplementary:
+          typeof detail.isSupplementary === "boolean"
+            ? detail.isSupplementary
+            : !!row.isSupplementary,
         totalSessions:
           typeof detail.totalSessions === "number" && detail.totalSessions > 0
             ? String(detail.totalSessions)
@@ -1381,12 +1449,10 @@ export default function Page() {
                           <span
                             className={cn(
                               "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                              c.isMakeup
-                                ? "bg-blue-100 text-blue-700 border border-blue-200"
-                                : "bg-gray-100 text-gray-600 border border-gray-200"
+                              getProgramTypeBadgeClass(c)
                             )}
                           >
-                            {c.isMakeup ? "Bù" : "Thường"}
+                            {getProgramTypeLabel(c)}
                           </span>
                         </div>
                         <div className="text-xs text-gray-500 truncate">{c.desc}</div>
@@ -1748,7 +1814,7 @@ export default function Page() {
                         Loại chương trình
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {selectedCourseDetail.isMakeup ? "Chương trình bù" : "Chương trình thường"}
+                        {getProgramTypeDetailLabel(selectedCourseDetail)}
                       </div>
                     </div>
 

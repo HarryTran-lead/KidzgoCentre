@@ -100,6 +100,13 @@ const attendanceStyles: Record<AttendanceRawStatus, string> = {
   NotMarked: "border border-amber-200 bg-amber-50 text-amber-700",
 };
 
+const attendanceAbsenceTypeLabels: Record<string, string> = {
+  WithNotice24H: "Bao truoc >= 24h",
+  Under24H: "Bao truoc < 24h",
+  NoNotice: "Khong bao truoc",
+  LongTerm: "Nghi dai han",
+};
+
 const normalizeStatus = (value?: string | null): LeaveRequestStatus => {
   if (!value) return "PENDING";
 
@@ -183,6 +190,25 @@ function toVNDateTimeLabel(value?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(d);
+}
+
+function getAttendanceHistoryTitle(item: StudentAttendanceHistoryItem) {
+  const sessionName = String(item.sessionName ?? "").trim();
+  if (sessionName) return sessionName;
+
+  const className = String(item.className ?? "").trim();
+  if (className) return className;
+
+  const sessionId = String(item.sessionId ?? "").trim();
+  if (sessionId) return `Buoi hoc ${sessionId.slice(0, 8)}`;
+
+  return "Buoi hoc";
+}
+
+function getAttendanceAbsenceTypeLabel(value?: string | null) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return null;
+  return attendanceAbsenceTypeLabels[normalized] ?? normalized;
 }
 
 function canChangeScheduledMakeup(sessionTime?: string | null, usedAt?: string | null) {
@@ -801,19 +827,23 @@ export default function ParentAttendancePage() {
               <tbody className="divide-y divide-gray-100">
                 {displayAttendance.map((item) => {
                   const status = item.attendanceStatus ?? "NotMarked";
+                  const absenceTypeLabel = getAttendanceAbsenceTypeLabel(item.absenceType);
                   return (
                     <tr key={`${item.sessionId}-${item.markedAt ?? item.date ?? ""}`}>
                       <td className="py-4 px-6 text-sm text-gray-700">
-                        <div className="font-medium text-gray-900">{item.sessionName ?? "Buoi hoc"}</div>
-                        <div className="text-xs text-gray-500">{item.className ?? "-"}</div>
+                        <div className="font-medium text-gray-900">{getAttendanceHistoryTitle(item)}</div>
+                        <div className="text-xs text-gray-500">{item.className ?? item.sessionId ?? "-"}</div>
                       </td>
                       <td className="py-4 px-6 text-sm text-gray-700">
                         {toVNDateLabel(item.date)} {item.startTime ? `- ${item.startTime}` : ""}
                       </td>
                       <td className="py-4 px-6 text-sm">
-                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${attendanceStyles[status]}`}>
-                          {attendanceLabels[status]}
-                        </span>
+                        <div className="flex flex-col gap-2">
+                          <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${attendanceStyles[status]}`}>
+                            {attendanceLabels[status]}
+                          </span>
+                          {absenceTypeLabel ? <div className="text-xs text-gray-500">{absenceTypeLabel}</div> : null}
+                        </div>
                       </td>
                       <td className="py-4 px-6 text-sm text-gray-700">{item.note ?? "-"}</td>
                     </tr>

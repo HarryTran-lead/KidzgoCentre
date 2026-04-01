@@ -18,6 +18,7 @@ import type { PlacementTestResultRequest } from "@/types/placement-test";
 type ProgramOption = {
   id: string;
   name: string;
+  isSupplementary?: boolean;
 };
 
 interface ResultFormModalProps {
@@ -44,6 +45,9 @@ export default function ResultFormModal({
     readingScore: initialData?.readingScore?.toString() || "",
     writingScore: initialData?.writingScore?.toString() || "",
     programRecommendation: initialData?.programRecommendation || "",
+    secondaryProgramRecommendation: initialData?.secondaryProgramRecommendation || "",
+    isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
+    secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
     attachmentUrl: initialData?.attachmentUrl || "",
     note: "",
   });
@@ -53,6 +57,23 @@ export default function ResultFormModal({
   const [programLoadError, setProgramLoadError] = useState("");
   const [formError, setFormError] = useState("");
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormData({
+      listeningScore: initialData?.listeningScore?.toString() || "",
+      speakingScore: initialData?.speakingScore?.toString() || "",
+      readingScore: initialData?.readingScore?.toString() || "",
+      writingScore: initialData?.writingScore?.toString() || "",
+      programRecommendation: initialData?.programRecommendation || "",
+      secondaryProgramRecommendation: initialData?.secondaryProgramRecommendation || "",
+      isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
+      secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
+      attachmentUrl: initialData?.attachmentUrl || "",
+      note: "",
+    });
+    setFormError("");
+  }, [initialData, isOpen]);
 
   const SCORE_FIELDS = [
     { key: "listeningScore", label: "Điểm Nghe" },
@@ -172,6 +193,7 @@ export default function ResultFormModal({
           .map((program: any) => ({
             id: String(program?.id || ""),
             name: String(program?.name || ""),
+            isSupplementary: Boolean(program?.isSupplementary),
           }))
           .filter((program: ProgramOption) => program.id && program.name);
 
@@ -215,6 +237,8 @@ export default function ResultFormModal({
     setIsSubmitting(true);
 
     try {
+      const secondaryProgramRecommendation = formData.secondaryProgramRecommendation.trim();
+      const secondaryProgramSkillFocus = formData.secondaryProgramSkillFocus.trim();
       const submitData: Omit<PlacementTestResultRequest, "id"> = {
         listeningScore: parsedScores.listeningScore,
         speakingScore: parsedScores.speakingScore,
@@ -222,6 +246,13 @@ export default function ResultFormModal({
         writingScore: parsedScores.writingScore,
         resultScore: computedResultScore,
         programRecommendation: formData.programRecommendation || "",
+        secondaryProgramRecommendation: secondaryProgramRecommendation || "",
+        isSecondaryProgramSupplementary: secondaryProgramRecommendation
+          ? formData.isSecondaryProgramSupplementary
+          : null,
+        secondaryProgramSkillFocus: secondaryProgramRecommendation
+          ? secondaryProgramSkillFocus || null
+          : null,
         attachmentUrl: formData.attachmentUrl || "",
       };
 
@@ -366,6 +397,7 @@ export default function ResultFormModal({
                 {programOptions.map((program) => (
                   <SelectItem key={program.id} value={program.name}>
                     {program.name}
+                    {program.isSupplementary ? " • Phụ trợ" : ""}
                   </SelectItem>
                 ))}
                 {formData.programRecommendation &&
@@ -380,6 +412,98 @@ export default function ResultFormModal({
               <p className="text-xs text-red-600">{programLoadError}</p>
             ) : null}
           </div>
+
+          <div className="space-y-2">
+            <label htmlFor="secondaryProgramRecommendation" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <FileText size={16} />
+              Đề xuất chương trình phụ / secondary
+            </label>
+            <Select
+              value={formData.secondaryProgramRecommendation}
+              onValueChange={(value) =>
+                setFormData((prev) => {
+                  const nextValue = value === "__none__" ? "" : value;
+                  return {
+                    ...prev,
+                    secondaryProgramRecommendation: nextValue,
+                    isSecondaryProgramSupplementary: nextValue
+                      ? prev.isSecondaryProgramSupplementary
+                      : false,
+                    secondaryProgramSkillFocus: nextValue ? prev.secondaryProgramSkillFocus : "",
+                  };
+                })
+              }
+              disabled={isLoadingPrograms || !branchId}
+            >
+              <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:bg-gray-50 disabled:opacity-80">
+                <SelectValue
+                  placeholder={
+                    isLoadingPrograms
+                      ? "Đang tải chương trình..."
+                      : !branchId
+                        ? "Không xác định chi nhánh"
+                        : "Chọn chương trình secondary"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Không có secondary</SelectItem>
+                {programOptions.map((program) => (
+                  <SelectItem key={`secondary-${program.id}`} value={program.name}>
+                    {program.name}
+                    {program.isSupplementary ? " • Phụ trợ" : ""}
+                  </SelectItem>
+                ))}
+                {formData.secondaryProgramRecommendation &&
+                !programOptions.some((program) => program.name === formData.secondaryProgramRecommendation) ? (
+                  <SelectItem value={formData.secondaryProgramRecommendation}>
+                    {formData.secondaryProgramRecommendation}
+                  </SelectItem>
+                ) : null}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500">
+              Để trống nếu không có track secondary. Nếu BE nhận chuỗi rỗng, các field secondary sẽ được clear.
+            </p>
+          </div>
+
+          {formData.secondaryProgramRecommendation ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <label className="flex items-center gap-3 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={formData.isSecondaryProgramSupplementary}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      isSecondaryProgramSupplementary: e.target.checked,
+                    }))
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-300"
+                />
+                Secondary là supplementary
+              </label>
+
+              <div className="space-y-2">
+                <label htmlFor="secondaryProgramSkillFocus" className="block text-sm font-medium text-gray-700">
+                  Skill focus
+                </label>
+                <input
+                  id="secondaryProgramSkillFocus"
+                  type="text"
+                  value={formData.secondaryProgramSkillFocus}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      secondaryProgramSkillFocus: e.target.value,
+                    }))
+                  }
+                  placeholder="Ví dụ: Speaking"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                />
+              </div>
+            </div>
+          ) : null}
 
           {/* Attachment */}
           <div className="space-y-2">

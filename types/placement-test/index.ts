@@ -14,7 +14,7 @@ export interface PlacementTest {
   classId?: string;
   className?: string;
   scheduledAt: string;
-  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
+  status: "Scheduled" | "Completed" | "Cancelled" | "NoShow";
   room?: string;
   invigilatorUserId?: string;
   invigilatorName?: string;
@@ -24,6 +24,9 @@ export interface PlacementTest {
   readingScore?: number;
   writingScore?: number;
   programRecommendation?: string;
+  secondaryProgramRecommendation?: string;
+  isSecondaryProgramSupplementary?: boolean;
+  secondaryProgramSkillFocus?: string;
   attachmentUrl?: string;
   isAccountProfileCreated?: boolean;
   isConvertedToEnrolled?: boolean;
@@ -40,8 +43,11 @@ export interface PlacementTestResultResponse {
   writingScore: number;
   resultScore: number;
   programRecommendation: string;
+  secondaryProgramRecommendation?: string | null;
+  isSecondaryProgramSupplementary?: boolean | null;
+  secondaryProgramSkillFocus?: string | null;
   attachmentUrl: string;
-  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
+  status: "Scheduled" | "Completed" | "Cancelled" | "NoShow";
   updatedAt: string;
 }
 
@@ -53,6 +59,9 @@ export interface PlacementTestResultRequest {
   writingScore: number;
   resultScore: number;
   programRecommendation: string;
+  secondaryProgramRecommendation?: string | null;
+  isSecondaryProgramSupplementary?: boolean | null;
+  secondaryProgramSkillFocus?: string | null;
   attachmentUrl: string;
 }
 
@@ -64,6 +73,9 @@ export interface PlacementTestResult {
   writingScore?: number;
   resultScore?: number;
   programRecommendation?: string;
+  secondaryProgramRecommendation?: string | null;
+  isSecondaryProgramSupplementary?: boolean | null;
+  secondaryProgramSkillFocus?: string | null;
   attachmentUrl?: string;
 }
 
@@ -96,14 +108,12 @@ export interface CreatePlacementTestResponse {
   createdAt: string;
 }
 
-
 export interface UpdatePlacementTestRequest {
   scheduledAt?: string;
   room?: string;
   invigilatorUserId?: string;
   notes?: string;
 }
-
 
 export interface PlacementTestFilters {
   status?: string;
@@ -124,13 +134,12 @@ export interface PlacementTestListResponse {
   totalPages: number;
 }
 
-
 export interface PlacementTestRetakeRequest {
   studentProfileId: string;
   newProgramId: string;
   newTuitionPlanId: string;
   branchId: string;
-  scheduledAt?: string; 
+  scheduledAt?: string;
   room?: string;
   invigilatorUserId?: string;
   note?: string;
@@ -142,7 +151,7 @@ export interface PlacementTestRetakeResponse {
   studentProfileId: string;
   newProgramName: string;
   newTuitionPlanName: string;
-  placementTestStatus: 'Scheduled' | 'Completed' | 'Cancelled' | 'NoShow';
+  placementTestStatus: "Scheduled" | "Completed" | "Cancelled" | "NoShow";
   scheduledAt?: string;
   room?: string;
   invigilatorUserId?: string;

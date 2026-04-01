@@ -22,6 +22,21 @@ export const buildClientApiUrl = (endpoint: string): string => {
   return endpoint; // Just return the endpoint, will be relative to current domain
 };
 
+export const buildFileUrl = (value?: string | null): string => {
+  const url = value?.trim();
+
+  if (!url) {
+    return "";
+  }
+
+  if (/^(?:https?:)?\/\//i.test(url) || /^(?:data|blob):/i.test(url)) {
+    return url;
+  }
+
+  const normalizedPath = url.startsWith("/") ? url : `/${url}`;
+  return ROOT_BASE_URL ? `${ROOT_BASE_URL}${normalizedPath}` : normalizedPath;
+};
+
 // Authentication Endpoints (Client-side → Next.js API Routes)
 export const AUTH_ENDPOINTS = {
   // Authentication
@@ -44,6 +59,7 @@ export const AUTH_ENDPOINTS = {
 export const STUDENT_ENDPOINTS = {
   GET_ALL: "/api/profiles",
   GET_CLASSES: () => `/api/students/classes`,
+  TIMETABLE: "/api/students/timetable",
 } as const;
 
 export const STUDENT_CLASS_ENDPOINTS = {
@@ -99,6 +115,7 @@ export const GAMIFICATION_ENDPOINTS = {
 
 export const BACKEND_STUDENT_ENDPOINTS = {
   GET_ALL: () => `/profiles`,
+  TIMETABLE: "/students/timetable",
 } as const;
 
 export const CLASS_ENDPOINTS = {
@@ -143,7 +160,7 @@ export const BACKEND_MAKEUP_CREDIT_ENDPOINTS = {
   GET: "/makeup-credits",
   GET_ALL: "/makeup-credits/all",
   GET_BY_ID: (id: string) => `/makeup-credits/${id}`,
-  SUGGESTIONS: (id: string) => `/makeup-credits/${id}/suggestions`,
+  SUGGESTIONS: (id: string) => `/api/makeup-credits/${id}/suggestions`,
   AVAILABLE_SESSIONS: (id: string) =>
     `/makeup-credits/${id}/parent/get-available-sessions`,
   USE: (id: string) => `/makeup-credits/${id}/use`,
@@ -312,6 +329,7 @@ export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
   CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
   PROGRAMS: '/api/programs',
+  PROGRAMS_ACTIVE: '/api/programs/active',
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/api/programs/${id}/monthly-leave-limit`,
   REGISTRATIONS: '/api/registrations',
   TUITION_PLANS: '/api/tuition-plans',
@@ -484,6 +502,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   CLASSES_BY_ID: (id: string) => `/classes/${id}`,
   CLASSES_STATUS: (id: string) => `/classes/${id}/status`,
   PROGRAMS: '/programs',
+  PROGRAMS_ACTIVE: '/programs/active',
   REGISTRATIONS: '/registrations',
   PROGRAMS_BY_ID: (id: string) => `/programs/${id}`,
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/programs/${id}/monthly-leave-limit`,
@@ -506,7 +525,7 @@ export const BLOG_ENDPOINTS = {
   CREATE: '/api/blogs',
   UPDATE: (id: string) => `/api/blogs/${id}`,
   DELETE: (id: string) => `/api/blogs/${id}`,
-  
+
   // Blog-specific Operations
   PUBLISH: (id: string) => `/api/blogs/${id}/publish`,
   UNPUBLISH: (id: string) => `/api/blogs/${id}/unpublish`,
@@ -652,4 +671,26 @@ export const BACKEND_NOTIFICATION_ENDPOINTS = {
   DEVICE_TOKEN: "/notifications/device-token",
   TEMPLATES: "/notifications/templates",
   TEMPLATE_BY_ID: (id: string) => `/notifications/templates/${id}`,
+} as const;
+
+// Question Bank Endpoints (Client-side → Next.js API Routes → Backend)
+export const QUESTION_BANK_ENDPOINTS = {
+  GET_ALL: '/api/question-bank',
+  GET_BY_ID: (id: string) => `/api/question-bank/${id}`,
+  CREATE: '/api/question-bank',
+  UPDATE: (id: string) => `/api/question-bank/${id}`,
+  DELETE: (id: string) => `/api/question-bank/${id}`,
+  TOGGLE_STATUS: (id: string) => `/api/question-bank/${id}/toggle-status`,
+  IMPORT: '/api/question-bank/import',
+} as const;
+
+// Backend Question Bank Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_QUESTION_BANK_ENDPOINTS = {
+  GET_ALL: '/question-bank',
+  GET_BY_ID: (id: string) => `/question-bank/${id}`,
+  CREATE: '/question-bank',
+  UPDATE: (id: string) => `/question-bank/${id}`,
+  DELETE: (id: string) => `/question-bank/${id}`,
+  TOGGLE_STATUS: (id: string) => `/question-bank/${id}/toggle-status`,
+  IMPORT: '/question-bank/import',
 } as const;

@@ -83,6 +83,13 @@ const STATUS_LABELS: Record<AttendanceStatus, string> = {
   notMarked: "Chưa điểm danh",
 };
 
+const STATUS_BUTTON_LABELS: Record<AttendanceStatus, string> = {
+  present: "Có mặt",
+  absent: "Vắng",
+  makeup: "Bù",
+  notMarked: "Chưa",
+};
+
 const STATUS_STYLES: Record<AttendanceStatus, { active: string; hover: string }> = {
   present: {
     active: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -100,6 +107,13 @@ const STATUS_STYLES: Record<AttendanceStatus, { active: string; hover: string }>
     active: "bg-amber-50 text-amber-700 border-amber-200",
     hover: "hover:bg-amber-50",
   },
+};
+
+const ABSENCE_TYPE_LABELS: Record<string, string> = {
+  WithNotice24H: "Báo trước >= 24h",
+  Under24H: "Báo trước < 24h",
+  NoNotice: "Không báo trước",
+  LongTerm: "Nghỉ dài hạn",
 };
 
 const SESSION_COLOR_POOL = [
@@ -183,6 +197,28 @@ const buildSessionReportKey = (sessionId: string, studentId: string, rowKey: str
   const studentKey = studentId || rowKey;
   return `${sessionId}:${studentKey}`;
 };
+
+function getAbsenceTypeLabel(value?: string | null): string | null {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return null;
+  return ABSENCE_TYPE_LABELS[normalized] ?? normalized;
+}
+
+function getStatusButtonOrder(hasMakeupCredit?: boolean | null): AttendanceStatus[] {
+  return hasMakeupCredit
+    ? ["makeup", "present", "absent", "notMarked"]
+    : ["present", "absent", "makeup", "notMarked"];
+}
+
+function normalizeAttendanceStatus(
+  status: AttendanceStatus | null | undefined,
+  hasMakeupCredit?: boolean | null,
+): AttendanceStatus | null {
+  if (hasMakeupCredit && (!status || status === "notMarked")) {
+    return "absent";
+  }
+  return status ?? null;
+}
 
 // SortableHeader Component
 function SortableHeader<T extends string>({
@@ -342,6 +378,7 @@ export default function TeacherAttendancePage() {
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
   const [isEnhancingNote, setIsEnhancingNote] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [expandedStatusRows, setExpandedStatusRows] = useState<Set<string>>(new Set());
 
   // State for multi-select checkboxes
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
@@ -487,6 +524,7 @@ export default function TeacherAttendancePage() {
     setAttendanceList([]);
     setAttendanceSummary(null);
     setAttendanceLoadingError(null);
+    setExpandedStatusRows(new Set());
     setCurrentPage(1);
   };
 
@@ -593,6 +631,7 @@ const loadSessionReports = async () => {
           // vẫn giữ fallback để saveAttendance không bị thiếu id
           studentId: safeStudentId || uniqueIdForUI,
           studentProfileId: safeStudentId || undefined,
+          status: normalizeAttendanceStatus(s.status, s.hasMakeupCredit),
           name,
           email,
           phone,
@@ -643,6 +682,14 @@ const loadSessionReports = async () => {
 
   const handleStatusChange = (rowKey: string, status: AttendanceStatus) => {
     setAttendanceList((prev) => prev.map((r) => (r.rowKey === rowKey ? { ...r, status } : r)));
+  };
+
+  const handleExpandStatusRow = (rowKey: string) => {
+    setExpandedStatusRows((prev) => {
+      const next = new Set(prev);
+      next.add(rowKey);
+      return next;
+    });
   };
 
   const handleOpenNoteModal = (record: StudentRow) => {
@@ -709,7 +756,7 @@ const loadSessionReports = async () => {
       handleCloseNoteModal();
     } catch (err: any) {
       console.error("Submit note error:", err);
-      setNoteModalError(err.message || "Khong the luu note.");
+      setNoteModalError(err.message || "Không thể lưu nhận xét.");
     } finally {
       setIsSubmittingNote(false);
     }
@@ -720,7 +767,7 @@ const loadSessionReports = async () => {
 
     const studentProfileId = String(selectedStudentForNote.studentId ?? "").trim();
     if (!GUID_REGEX.test(studentProfileId)) {
-      throw new Error("Hoc sinh chua co profile hop le de AI enhance.");
+      throw new Error("Học sinh chưa có hồ sơ hợp lệ để AI hỗ trợ viết lại.");
     }
 
     setIsEnhancingNote(true);
@@ -746,7 +793,7 @@ const loadSessionReports = async () => {
     );
     const existingReportId = String(sessionReports[reportKey]?.reportId ?? "").trim();
     if (!existingReportId) {
-      setNoteModalError("Vui long luu note truoc khi submit review.");
+      setNoteModalError("Vui lòng lưu nhận xét trước khi gửi duyệt.");
       return;
     }
 
@@ -767,7 +814,7 @@ const loadSessionReports = async () => {
 
       handleCloseNoteModal();
     } catch (err: any) {
-      setNoteModalError(err?.message || "Khong the submit session report de review.");
+      setNoteModalError(err?.message || "Không thể gửi nhận xét để duyệt.");
     } finally {
       setIsSubmittingReview(false);
     }
@@ -933,9 +980,53 @@ const loadSessionReports = async () => {
   }, [filterStatus, searchQuery, sortColumn, sortDirection]);
 
   const stats = useMemo(() => {
+    if (attendanceList.length > 0) {
+      const total = attendanceList.length;
+      const present = attendanceList.filter((student) => student.status === "present").length;
+      const absent = attendanceList.filter((student) => student.status === "absent").length;
+      const makeup = attendanceList.filter((student) => student.status === "makeup").length;
+      return { total, present, absent, makeup };
+    }
+
     if (!attendanceSummary) return null;
     return attendanceSummary;
-  }, [attendanceSummary]);
+  }, [attendanceList, attendanceSummary]);
+
+  const handleExportAttendance = useCallback(() => {
+    if (!filteredRecords.length) return;
+
+    const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const header = [
+      "Hoc vien",
+      "Ma hoc vien",
+      "Trang thai",
+      "Loai vang",
+      "Co credit hoc bu",
+      "Ghi chu",
+    ];
+
+    const rows = filteredRecords.map((record) => [
+      record.name ?? "",
+      record.studentCode ?? "",
+      record.status ? STATUS_LABELS[record.status] : "",
+      getAbsenceTypeLabel(record.absenceType) ?? "",
+      record.hasMakeupCredit ? "Co" : "Khong",
+      record.note ?? "",
+    ]);
+
+    const csv = [header, ...rows].map((row) => row.map((cell) => escapeCsv(String(cell ?? ""))).join(",")).join("\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const sessionCode = selectedLesson?.lesson?.trim() || selectedSessionId || "attendance";
+
+    link.href = url;
+    link.download = `${sessionCode.replace(/[\\/:*?"<>|]+/g, "-")}-attendance.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [filteredRecords, selectedLesson?.lesson, selectedSessionId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50/20 to-white p-4 md:p-6">
@@ -1077,7 +1168,7 @@ const loadSessionReports = async () => {
                         <div className="flex items-center gap-1.5">
                           <CalendarDays size={16} className="text-red-600" />
                           <span className="font-medium">{selectedLesson.date}</span>
-                          <span>â€¢</span>
+                          <span>•</span>
                           <span>{selectedLesson.time}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1220,7 +1311,12 @@ const loadSessionReports = async () => {
                       <option value="makeup">Học bù</option>
                       <option value="notMarked">Chưa điểm danh</option>
                     </select>
-                    <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={handleExportAttendance}
+                      disabled={!filteredRecords.length}
+                      className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    >
                       <Download size={18} className="text-gray-600" />
                     </button>
                   </div>
@@ -1268,6 +1364,8 @@ const loadSessionReports = async () => {
 
                   <tbody className="divide-y divide-gray-100">
                     {paginatedRecords.map((record) => {
+                      const absenceTypeLabel = getAbsenceTypeLabel(record.absenceType);
+                      const shouldCollapseStatus = Boolean(record.hasMakeupCredit) && !expandedStatusRows.has(record.rowKey);
 
                       return (
                         <tr
@@ -1287,7 +1385,24 @@ const loadSessionReports = async () => {
                               <StudentAvatar name={record.name ?? ""} />
                               <div>
                                 <div className="font-semibold text-gray-900">{record.name?.trim() || "(Chưa có tên)"}</div>
-                                <div className="text-xs text-gray-500">{record.phone}</div>
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                  {record.phone ? <span>{record.phone}</span> : null}
+                                  {record.track ? (
+                                    <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700">
+                                      {String(record.track).toLowerCase() === "secondary" ? "Secondary" : "Primary"}
+                                    </span>
+                                  ) : null}
+                                  {record.isMakeup ? (
+                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-700">
+                                      Makeup
+                                    </span>
+                                  ) : null}
+                                  {record.registrationId ? (
+                                    <span className="truncate" title={record.registrationId}>
+                                      Reg: {record.registrationId}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -1295,32 +1410,75 @@ const loadSessionReports = async () => {
                           <td className="px-4 py-4 text-sm text-gray-900 font-medium">{record.studentCode}</td>
 
                           <td className="px-4 py-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                              {(["present", "absent", "makeup", "notMarked"] as AttendanceStatus[]).map((status) => (
-                                <button
-                                  key={status}
-                                  onClick={() => handleStatusChange(record.rowKey, status)}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                                    record.status === status
-                                      ? STATUS_STYLES[status].active
-                                      : `border-gray-200 text-gray-600 ${STATUS_STYLES[status].hover}`
-                                  }`}
-                                >
-                                  {STATUS_LABELS[status]}
-                                </button>
-                              ))}
+                            <div className="space-y-2">
+                              {shouldCollapseStatus ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
+                                    Nghỉ có bù
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleExpandStatusRow(record.rowKey)}
+                                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                                  >
+                                    Sửa
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {getStatusButtonOrder(record.hasMakeupCredit).map((status) => {
+                                    const isActive = record.status === status;
+                                    const isSuggestedMakeup =
+                                      status === "makeup" && Boolean(record.hasMakeupCredit) && !isActive;
+
+                                    return (
+                                      <button
+                                        key={status}
+                                        onClick={() => handleStatusChange(record.rowKey, status)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                                          isActive
+                                            ? STATUS_STYLES[status].active
+                                            : isSuggestedMakeup
+                                              ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                                              : `border-gray-200 text-gray-600 ${STATUS_STYLES[status].hover}`
+                                        }`}
+                                      >
+                                        {STATUS_BUTTON_LABELS[status]}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {((record.hasMakeupCredit && !shouldCollapseStatus) || absenceTypeLabel) ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {record.hasMakeupCredit && !shouldCollapseStatus ? (
+                                    <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-700">
+                                      Có credit bù
+                                    </span>
+                                  ) : null}
+                                  {absenceTypeLabel ? (
+                                    <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-700">
+                                      {absenceTypeLabel}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ) : null}
                             </div>
                           </td>
 
                           <td className="px-4 py-4 max-w-xs">
-                            {record.note ? (
-                              <div className="flex items-center gap-1 text-amber-600 text-sm">
-                                <AlertCircle size={14} />
-                                <span className="truncate">{record.note}</span>
-                              </div>
-                            ) : (
-                              <span className="text-gray-400 text-sm">Không có</span>
-                            )}
+                            <div className="flex flex-col gap-2">
+                              {record.note ? (
+                                <div className="flex items-center gap-1 text-amber-600 text-sm">
+                                  <AlertCircle size={14} />
+                                  <span className="truncate">{record.note}</span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-sm">Không có</span>
+                              )}
+
+                            </div>
                           </td>
 
                           <td className="px-4 py-4">
@@ -1375,7 +1533,7 @@ const loadSessionReports = async () => {
           <SessionNoteModal
             open={noteModalOpen}
             studentName={selectedStudentForNote?.name || "Học sinh"}
-            sessionLabel={selectedLesson ? `${selectedLesson.lesson} â€¢ ${selectedLesson.date} â€¢ ${selectedLesson.time}` : undefined}
+            sessionLabel={selectedLesson ? `${selectedLesson.lesson} • ${selectedLesson.date} • ${selectedLesson.time}` : undefined}
             initialFeedback={
               selectedStudentForNote && selectedSessionId
                 ? sessionReports[

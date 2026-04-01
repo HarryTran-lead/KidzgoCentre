@@ -1,6 +1,6 @@
 /**
  * Teacher Attendance Types
- * 
+ *
  * Type definitions for teacher attendance related data structures
  */
 
@@ -13,8 +13,13 @@ export type Student = {
   status: AttendanceStatus | null;
   absenceRate: number;
   note?: string;
+  absenceType?: string | null;
+  hasMakeupCredit?: boolean | null;
   studentProfileId?: string;
   attendanceId?: string;
+  registrationId?: string | null;
+  track?: string | null;
+  isMakeup?: boolean | null;
 };
 
 export type LessonDetail = {
@@ -44,6 +49,9 @@ export type AttendanceItemApi = {
   sessionId?: string | null;
   studentProfileId?: string | null;
   studentName?: string | null;
+  registrationId?: string | null;
+  track?: string | null;
+  isMakeup?: boolean | null;
   attendanceStatus?: AttendanceRawStatus | null;
   absenceType?: string | null;
   hasMakeupCredit?: boolean | null;
@@ -54,6 +62,7 @@ export type AttendanceItemApi = {
 export type StudentAttendanceHistoryItem = {
   id?: string | null;
   sessionId?: string | null;
+  sessionDateTime?: string | null;
   sessionName?: string | null;
   date?: string | null;
   startTime?: string | null;
@@ -79,6 +88,9 @@ export type SessionApiItem = {
   branchName?: string | null;
   status?: string | null;
   participationType?: string | null;
+  registrationId?: string | null;
+  track?: string | null;
+  isMakeup?: boolean | null;
   attendanceSummary?: AttendanceSummaryApi;
 };
 
@@ -97,7 +109,7 @@ export type AttendanceApiResponse = {
     students?: AttendanceItemApi[];
     items?: AttendanceItemApi[];
     results?: AttendanceItemApi[];
-  } | AttendanceItemApi[];
+  } | AttendanceItemApi[] | AttendanceItemApi;
   message?: string;
 };
 
@@ -110,6 +122,8 @@ export type StudentAttendanceHistoryApiResponse = {
     pageSize?: number;
     totalPages?: number;
     totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
   };
   message?: string;
 };
@@ -121,6 +135,7 @@ export type SessionApiResponse = {
   } | SessionApiItem;
   message?: string;
 };
+
 export type SessionListApiResponse = {
   success?: boolean;
   data?: {
@@ -159,7 +174,10 @@ export type FetchStudentAttendanceHistoryResult = {
   pageSize: number;
   totalCount: number;
   totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 };
+
 export type FetchSessionsParams = {
   classId?: string;
   branchId?: string;
@@ -175,6 +193,7 @@ export type FetchSessionsResult = {
   totalCount?: number;
   totalPages?: number;
 };
+
 export type FetchSessionResult = {
   lesson: LessonDetail;
   attendance: AttendanceSummaryApi;

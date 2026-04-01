@@ -28,11 +28,17 @@ interface ProgramQueryOptions {
 }
 
 function pickProgramItems(response: any): any[] {
+  if (Array.isArray(response?.data?.items?.items)) {
+    return response.data.items.items;
+  }
   if (Array.isArray(response?.data?.programs?.items)) {
     return response.data.programs.items;
   }
   if (Array.isArray(response?.data?.items)) {
     return response.data.items;
+  }
+  if (Array.isArray(response?.items?.items)) {
+    return response.items.items;
   }
   if (Array.isArray(response?.data?.programs)) {
     return response.data.programs;
@@ -49,9 +55,11 @@ function pickProgramItems(response: any): any[] {
 
 function mapProgram(item: any): Program {
   return {
-    id: item.id || item.code || '',
-    code: item.code || null,
-    name: item.name || '',
+    id: item.id || item.programId || item.program_id || item.code || '',
+    code: item.code || item.programCode || item.program_code || null,
+    name: item.name || item.programName || item.title || item.programTitle || '',
+    isMakeup: item.isMakeup ?? item.is_makeup ?? null,
+    isSupplementary: item.isSupplementary ?? item.is_supplementary ?? null,
     totalSessions: item.totalSessions || 0,
     defaultTuitionAmount: item.defaultTuitionAmount || 0,
     unitPriceSession: item.unitPriceSession || 0,
@@ -61,7 +69,10 @@ function mapProgram(item: any): Program {
   };
 }
 
-async function fetchPrograms(options?: ProgramQueryOptions): Promise<Program[]> {
+async function fetchPrograms(
+  endpoint: string,
+  options?: ProgramQueryOptions
+): Promise<Program[]> {
   const params = new URLSearchParams({
     pageNumber: '1',
     pageSize: String(options?.pageSize ?? 100),
@@ -71,7 +82,7 @@ async function fetchPrograms(options?: ProgramQueryOptions): Promise<Program[]> 
     params.append('branchId', options.branchId);
   }
 
-  const response = await get<any>(`${ADMIN_ENDPOINTS.PROGRAMS}?${params.toString()}`);
+  const response = await get<any>(`${endpoint}?${params.toString()}`);
   return pickProgramItems(response)
     .map(mapProgram)
     .filter((program: Program) => Boolean(program.id));
@@ -82,7 +93,7 @@ async function fetchPrograms(options?: ProgramQueryOptions): Promise<Program[]> 
  */
 export async function getAllProgramsForDropdown(branchId?: string): Promise<Program[]> {
   try {
-    return await fetchPrograms({ branchId });
+    return await fetchPrograms(ADMIN_ENDPOINTS.PROGRAMS, { branchId });
   } catch (error) {
     console.error('Error fetching programs:', error);
     return [];
@@ -91,9 +102,18 @@ export async function getAllProgramsForDropdown(branchId?: string): Promise<Prog
 
 export async function getProgramsForBranchDropdown(branchId: string): Promise<Program[]> {
   try {
-    return await fetchPrograms({ branchId, pageSize: 200 });
+    return await fetchPrograms(ADMIN_ENDPOINTS.PROGRAMS, { branchId, pageSize: 200 });
   } catch (error) {
     console.error('Error fetching programs by branch:', error);
+    return [];
+  }
+}
+
+export async function getActiveProgramsForDropdown(branchId?: string): Promise<Program[]> {
+  try {
+    return await fetchPrograms(ADMIN_ENDPOINTS.PROGRAMS_ACTIVE, { branchId });
+  } catch (error) {
+    console.error('Error fetching active programs:', error);
     return [];
   }
 }

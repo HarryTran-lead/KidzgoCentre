@@ -182,6 +182,7 @@ function mapApiProgramToRow(item: any): CourseRow {
     status,
     branch,
     isMakeup: normalizeBooleanFlag(item?.isMakeup),
+    isSupplementary: normalizeBooleanFlag(item?.isSupplementary),
   };
 }
 
@@ -281,6 +282,8 @@ export async function createAdminProgram(
     code: data?.code ?? payload.code ?? null,
     name: String(data?.name ?? payload.name),
     isMakeup: normalizeBooleanFlag(data?.isMakeup) ?? payload.isMakeup ?? null,
+    isSupplementary:
+      normalizeBooleanFlag(data?.isSupplementary) ?? payload.isSupplementary ?? null,
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions
@@ -353,6 +356,7 @@ export async function fetchAdminProgramDetail(programId: string): Promise<Progra
   return {
     ...safeDetail,
     isMakeup: normalizeBooleanFlag(safeDetail?.isMakeup),
+    isSupplementary: normalizeBooleanFlag(safeDetail?.isSupplementary),
     defaultMakeupClassId:
       (typeof safeDetail?.defaultMakeupClassId === "string" && safeDetail.defaultMakeupClassId.trim()) ||
       null,
@@ -400,6 +404,8 @@ export async function updateAdminProgram(
     code: data?.code ?? null,
     name: String(data?.name ?? payload.name),
     isMakeup: normalizeBooleanFlag(data?.isMakeup) ?? payload.isMakeup ?? null,
+    isSupplementary:
+      normalizeBooleanFlag(data?.isSupplementary) ?? payload.isSupplementary ?? null,
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions

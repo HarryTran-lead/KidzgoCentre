@@ -21,7 +21,6 @@ import {
 
 import { get, post, put } from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
-import { Toaster } from "@/components/lightswind/toaster";
 
 type MCQuestionOption = {
   id?: string;
@@ -1431,7 +1430,6 @@ export default function TeacherSubmissionDetailPage() {
           )}
         </div>
       </div>
-      <Toaster />
     </div>
   );
 }
