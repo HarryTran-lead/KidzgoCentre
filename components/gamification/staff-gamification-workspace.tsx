@@ -118,9 +118,9 @@ const inputClass =
   "w-full rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100";
 const textareaClass = `${inputClass} min-h-[112px]`;
 const ghostButton =
-  "inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-red-50";
+  "inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-red-50 cursor-pointer";
 const primaryButton =
-  "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60";
 const dangerGhostButton =
   "inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60";
 
@@ -634,25 +634,30 @@ export function StaffGamificationWorkspace({
   }
 
   return (
-    <div className="space-y-6 bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
-      <Panel className="border-red-200" theme="staff">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-700"><Sparkles className="h-4 w-4" />Gamification cho {title.toLowerCase()}</div>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-gray-900">Mission, sao, XP và đổi thưởng trong một workspace</h1>
-            <p className="mt-2 max-w-3xl text-sm text-gray-600">Tạo mission, theo dõi tiến độ, cộng trừ sao và XP, quản lý kho quà, đồng thời xử lý các redemption đang chờ.</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:w-[520px]">
-            <MetricCard icon={<Target className="h-5 w-5" />} label="Mission hiện có" value={formatNumber(missions.length)} accent="from-red-600 to-red-700" theme="staff" />
-            <MetricCard icon={<Gift className="h-5 w-5" />} label="Đơn đổi quà mở" value={formatNumber(redemptions.filter((item) => item.status !== "Received" && item.status !== "Cancelled").length)} accent="from-violet-500 via-fuchsia-500 to-pink-500" theme="staff" />
-          </div>
+    <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+      {/* Title */}
+      <div className="flex items-center gap-3">
+        <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
+          <Sparkles className="text-white" size={24} />
         </div>
-      </Panel>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            Gamification cho {title.toLowerCase()}
+          </h1>
+          <p className="text-sm text-gray-600">Mission, sao, XP và đổi thưởng trong một workspace</p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <MetricCard icon={<Target className="h-5 w-5" />} label="Mission hiện có" value={formatNumber(missions.length)} accent="from-red-600 to-red-700" theme="staff" />
+        <MetricCard icon={<Gift className="h-5 w-5" />} label="Đơn đổi quà mở" value={formatNumber(redemptions.filter((item) => item.status !== "Received" && item.status !== "Cancelled").length)} accent="from-violet-500 via-fuchsia-500 to-pink-500" theme="staff" />
+      </div>
 
       <Tabs value={activeTab} onChange={setActiveTab} tabs={tabs} theme="staff" />
 
-      {loading ? <Panel className="py-14"><div className="flex items-center justify-center gap-3 text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu gamification...</span></div></Panel> : null}
-      {!loading && pageError ? <Panel className="border-rose-200 bg-rose-50"><div className="flex items-start gap-3 text-rose-700"><AlertCircle className="mt-0.5 h-5 w-5" /><div><h2 className="text-lg font-semibold">Không thể tải dữ liệu</h2><p className="mt-1 text-sm">{pageError}</p></div></div></Panel> : null}
+      {loading ? <Panel theme="staff" className="py-14"><div className="flex items-center justify-center gap-3 text-gray-500"><Loader2  className="h-5 w-5 animate-spin" /><span>Đang tải dữ liệu gamification...</span></div></Panel> : null}
+      {!loading && pageError ? <Panel theme="staff" className="border-rose-200 bg-rose-50"><div className="flex items-start gap-3 text-rose-700"><AlertCircle className="mt-0.5 h-5 w-5" /><div><h2 className="text-lg font-semibold">Không thể tải dữ liệu</h2><p className="mt-1 text-sm">{pageError}</p></div></div></Panel> : null}
 
       {!loading && !pageError && activeTab === "missions" ? (
         <Panel theme="staff">
@@ -700,7 +705,7 @@ export function StaffGamificationWorkspace({
                       Sửa
                     </button>
                     {canDeleteMission ? (
-                      <button type="button" onClick={() => void removeMission(mission.id)} disabled={busyAction === `delete-mission-${mission.id}`} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60">
+                      <button type="button" onClick={() => void removeMission(mission.id)} disabled={busyAction === `delete-mission-${mission.id}`} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                         <Trash2 className="h-4 w-4" />
                         Xóa
                       </button>
@@ -741,9 +746,9 @@ export function StaffGamificationWorkspace({
               {!studentLoading && selectedStudentId ? (
                 <>
                   <div className="grid gap-4 md:grid-cols-3">
-                    <MetricCard icon={<Star className="h-5 w-5" />} label="Số sao hiện tại" value={formatNumber(studentBalance)} accent="from-amber-500 via-orange-500 to-red-500" />
-                    <MetricCard icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={`Cấp ${formatNumber(studentLevel?.level)}`} hint={`XP: ${formatNumber(studentLevel?.xp)}`} accent="from-violet-500 via-fuchsia-500 to-pink-500" />
-                    <MetricCard icon={<CheckCheck className="h-5 w-5" />} label="Streak hiện tại" value={`${formatNumber(studentStreak?.currentStreak)} ngày`} hint={`Kỷ lục ${formatNumber(studentStreak?.maxStreak)} ngày`} accent="from-emerald-500 via-teal-500 to-cyan-500" />
+                    <MetricCard theme="staff" icon={<Star className="h-5 w-5" />} label="Số sao hiện tại" value={formatNumber(studentBalance)} accent="from-amber-500 via-orange-500 to-red-500" />
+                    <MetricCard theme="staff" icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={`Cấp ${formatNumber(studentLevel?.level)}`} hint={`XP: ${formatNumber(studentLevel?.xp)}`} accent="from-violet-500 via-fuchsia-500 to-pink-500" />
+                    <MetricCard theme="staff" icon={<CheckCheck className="h-5 w-5" />} label="Streak hiện tại" value={`${formatNumber(studentStreak?.currentStreak)} ngày`} hint={`Kỷ lục ${formatNumber(studentStreak?.maxStreak)} ngày`} accent="from-emerald-500 via-teal-500 to-cyan-500" />
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
@@ -782,7 +787,7 @@ export function StaffGamificationWorkspace({
                             <p className="mt-1 text-sm text-gray-500">Balance sau giao dịch: {formatNumber(item.balanceAfter)} • {formatDateTime(item.createdAt)}</p>
                           </div>
                         ))}
-                        {transactions.length === 0 ? <EmptyState title="Chưa có giao dịch sao" description="Sau khi cộng hoặc trừ sao, lịch sử sẽ hiển thị tại đây." icon={<Star className="h-5 w-5" />} /> : null}
+                        {transactions.length === 0 ? <EmptyState title="Chưa có giao dịch sao" description="Sau khi cộng hoặc trừ sao, lịch sử sẽ hiển thị tại đây." icon={<Star className="h-5 w-5" />} theme="staff" /> : null}
                       </div>
                     </div>
                     <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
@@ -797,7 +802,7 @@ export function StaffGamificationWorkspace({
                             <p className="mt-1 text-sm text-gray-500">Streak {formatNumber(item.currentStreak)} ngày • +{formatNumber(item.rewardExp)} XP</p>
                           </div>
                         ))}
-                        {(studentStreak?.recentStreaks ?? []).length === 0 ? <EmptyState title="Chưa có lịch sử streak" description="Dữ liệu điểm danh của học sinh sẽ hiển thị tại đây." icon={<CheckCheck className="h-5 w-5" />} /> : null}
+                        {(studentStreak?.recentStreaks ?? []).length === 0 ? <EmptyState title="Chưa có lịch sử streak" description="Dữ liệu điểm danh của học sinh sẽ hiển thị tại đây." icon={<CheckCheck className="h-5 w-5" />} theme="staff" /> : null}
                       </div>
                     </div>
                   </div>
@@ -845,14 +850,14 @@ export function StaffGamificationWorkspace({
                   <button type="button" onClick={() => void toggleRewardStatus(item.id)} disabled={busyAction === `toggle-reward-${item.id}`} className={ghostButton}>
                     {item.isActive ? "Ẩn vật phẩm" : "Mở vật phẩm"}
                   </button>
-                  <button type="button" onClick={() => void removeRewardItem(item.id)} disabled={busyAction === `delete-reward-${item.id}`} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60">
+                  <button type="button" onClick={() => void removeRewardItem(item.id)} disabled={busyAction === `delete-reward-${item.id}`} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                     <Trash2 className="h-4 w-4" />
                     Xóa
                   </button>
                 </div>
               </div>
             ))}
-            {rewardItems.length === 0 ? <EmptyState title="Chưa có vật phẩm" description="Hãy tạo vật phẩm đầu tiên để học sinh có thể đổi thưởng." icon={<Package className="h-5 w-5" />} /> : null}
+            {rewardItems.length === 0 ? <EmptyState title="Chưa có vật phẩm" description="Hãy tạo vật phẩm đầu tiên để học sinh có thể đổi thưởng." icon={<Package className="h-5 w-5" />} theme="staff" /> : null}
           </div>
         </Panel>
       ) : null}
@@ -862,6 +867,7 @@ export function StaffGamificationWorkspace({
           <SectionTitle
             title="Reward redemption"
             description="Theo dõi yêu cầu đổi thưởng, xem chi tiết và xử lý các trạng thái Requested, Approved, Delivered."
+            theme="staff"
             action={
               canManageStore ? (
                 <div className="flex flex-wrap gap-2">
@@ -897,12 +903,12 @@ export function StaffGamificationWorkspace({
                 </div>
               </div>
             ))}
-            {redemptions.length === 0 ? <EmptyState title="Chưa có đơn đổi thưởng" description="Khi học sinh gửi yêu cầu đổi quà, danh sách sẽ hiển thị tại đây." icon={<Gift className="h-5 w-5" />} /> : null}
+            {redemptions.length === 0 ? <EmptyState title="Chưa có đơn đổi thưởng" description="Khi học sinh gửi yêu cầu đổi quà, danh sách sẽ hiển thị tại đây." icon={<Gift className="h-5 w-5" />} theme="staff" /> : null}
           </div>
         </Panel>
       ) : null}
 
-      <DialogShell open={missionDialogOpen} onClose={() => setMissionDialogOpen(false)} title={missionForm.id ? "Cập nhật mission" : "Tạo mission mới"} description="Điền đúng phạm vi và phần thưởng để mission bám theo rule backend.">
+      <DialogShell theme="staff" open={missionDialogOpen} onClose={() => setMissionDialogOpen(false)} title={missionForm.id ? "Cập nhật mission" : "Tạo mission mới"} description="Điền đúng phạm vi và phần thưởng để mission bám theo rule backend.">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Tiêu đề</label><input value={missionForm.title} onChange={(event) => setMissionForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} /></div>
           <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Mô tả</label><textarea value={missionForm.description} onChange={(event) => setMissionForm((current) => ({ ...current, description: event.target.value }))} className={textareaClass} /></div>
@@ -940,7 +946,7 @@ export function StaffGamificationWorkspace({
                       {imageUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                       Đổi ảnh
                     </button>
-                    <button type="button" onClick={() => setRewardForm((current) => ({ ...current, imageUrl: "" }))} disabled={imageUploading} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60">
+                    <button type="button" onClick={() => setRewardForm((current) => ({ ...current, imageUrl: "" }))} disabled={imageUploading} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                       <Trash2 className="h-4 w-4" />
                       Xóa ảnh
                     </button>
@@ -948,7 +954,7 @@ export function StaffGamificationWorkspace({
                 </div>
               </div>
             ) : (
-              <button type="button" onClick={() => rewardImageInputRef.current?.click()} disabled={imageUploading} className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-red-200 bg-gradient-to-br from-white to-red-50/30 px-6 py-10 text-center transition hover:border-red-400 hover:bg-red-50 disabled:opacity-60">
+              <button type="button" onClick={() => rewardImageInputRef.current?.click()} disabled={imageUploading} className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-red-200 bg-gradient-to-br from-white to-red-50/30 px-6 py-10 text-center transition hover:border-red-400 hover:bg-red-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                 {imageUploading ? <Loader2 className="h-8 w-8 animate-spin text-gray-500" /> : <Upload className="h-8 w-8 text-gray-500" />}
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{imageUploading ? "Đang tải ảnh lên..." : "Chọn ảnh từ máy"}</p>
@@ -971,7 +977,7 @@ export function StaffGamificationWorkspace({
         </div>
       </DialogShell>
 
-      <DialogShell open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} title="Liên kết homework với mission" description="Dùng khi cần gắn một homework hiện có vào mission đang chạy.">
+      <DialogShell theme="staff" open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} title="Liên kết homework với mission" description="Dùng khi cần gắn một homework hiện có vào mission đang chạy.">
         <div className="grid gap-4">
           <div><label className="mb-2 block text-sm font-semibold text-gray-700">Homework ID</label><input value={linkForm.homeworkId} onChange={(event) => setLinkForm((current) => ({ ...current, homeworkId: event.target.value }))} className={inputClass} /></div>
           <div><label className="mb-2 block text-sm font-semibold text-gray-700">Mission ID</label><input value={linkForm.missionId} onChange={(event) => setLinkForm((current) => ({ ...current, missionId: event.target.value }))} className={inputClass} /></div>
@@ -979,7 +985,7 @@ export function StaffGamificationWorkspace({
         <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setLinkDialogOpen(false)} className={ghostButton}>Đóng</button><button type="button" onClick={() => void submitLinkHomework()} disabled={busyAction === "link-homework"} className={primaryButton}>{busyAction === "link-homework" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}Liên kết</button></div>
       </DialogShell>
 
-      <DialogShell open={Boolean(redemptionDetail)} onClose={() => setRedemptionDetail(null)} title={redemptionDetail?.itemName || "Chi tiết redemption"} description="Thông tin snapshot của yêu cầu đổi quà, dùng cho staff và learner follow-up.">
+      <DialogShell theme="staff" open={Boolean(redemptionDetail)} onClose={() => setRedemptionDetail(null)} title={redemptionDetail?.itemName || "Chi tiết redemption"} description="Thông tin snapshot của yêu cầu đổi quà, dùng cho staff và learner follow-up.">
         {redemptionDetail ? <div className="grid gap-3 text-sm text-gray-600"><div><span className="font-semibold text-gray-900">Trạng thái:</span> {mapRedemptionStatusLabel(redemptionDetail.status)}</div><div><span className="font-semibold text-gray-900">Học sinh:</span> {redemptionDetail.studentName || redemptionDetail.studentProfileId}</div><div><span className="font-semibold text-gray-900">Chi nhánh:</span> {redemptionDetail.branchName || "Chưa có"}</div><div><span className="font-semibold text-gray-900">Số lượng:</span> {formatNumber(redemptionDetail.quantity)}</div><div><span className="font-semibold text-gray-900">Tạo lúc:</span> {formatDateTime(redemptionDetail.createdAt)}</div><div><span className="font-semibold text-gray-900">Handled at:</span> {formatDateTime(redemptionDetail.handledAt)}</div><div><span className="font-semibold text-gray-900">Delivered at:</span> {formatDateTime(redemptionDetail.deliveredAt)}</div><div><span className="font-semibold text-gray-900">Received at:</span> {formatDateTime(redemptionDetail.receivedAt)}</div></div> : null}
       </DialogShell>
     </div>

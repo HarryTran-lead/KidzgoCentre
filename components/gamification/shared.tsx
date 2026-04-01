@@ -360,6 +360,9 @@ export function DialogShell({
   children,
   widthClass = "max-w-3xl",
   theme = "learner",
+  headerIcon,
+  footerAction,
+  showFooter = false,
 }: {
   open: boolean;
   title: string;
@@ -368,62 +371,76 @@ export function DialogShell({
   children: ReactNode;
   widthClass?: string;
   theme?: SharedTheme;
+  headerIcon?: ReactNode;
+  footerAction?: ReactNode;
+  showFooter?: boolean;
 }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md px-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
         className={cx(
-          "w-full overflow-hidden rounded-3xl shadow-2xl",
-          widthClass,
-          theme === "staff"
-            ? "bg-white border border-red-200"
-            : "bg-gradient-to-br from-slate-900 to-slate-950 border border-purple-500/30"
+          "relative w-full overflow-hidden rounded-2xl shadow-2xl border border-gray-200 bg-white",
+          widthClass
         )}
       >
-        <div
-          className={cx(
-            "border-b px-6 py-5",
-            theme === "staff" ? "border-red-200" : "border-purple-500/30"
-          )}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3
-                className={cx(
-                  "text-xl font-bold",
-                  theme === "staff" ? "text-gray-900" : "text-white"
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                {headerIcon ? (
+                  headerIcon
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                  </svg>
                 )}
-              >
-                {title}
-              </h3>
-              {description ? (
-                <p
-                  className={cx(
-                    "mt-1 text-sm",
-                    theme === "staff" ? "text-gray-500" : "text-purple-300/70"
-                  )}
-                >
-                  {description}
-                </p>
-              ) : null}
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">
+                  {title}
+                </h3>
+                {description ? (
+                  <p className="text-sm text-red-100">
+                    {description}
+                  </p>
+                ) : null}
+              </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className={cx(
-                "rounded-2xl border px-3 py-2 text-sm font-medium transition",
-                theme === "staff"
-                  ? "border-red-200 text-gray-700 hover:bg-red-50 hover:border-red-400"
-                  : "border-purple-500/30 text-purple-300 hover:bg-purple-500/20 hover:border-purple-500/50"
-              )}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label="Đóng"
             >
-              Đóng
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+              </svg>
             </button>
           </div>
         </div>
-        <div className="max-h-[75vh] overflow-y-auto px-6 py-5">{children}</div>
+        {/* Modal Body */}
+        <div className="p-6 max-h-[75vh] overflow-y-auto">{children}</div>
+        {/* Modal Footer */}
+        {showFooter && (
+          <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+            <div className="flex items-center justify-end gap-3">
+              {footerAction ? (
+                footerAction
+              ) : (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                >
+                  Đóng
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -455,7 +472,7 @@ export function Tabs<T extends string>({
           type="button"
           onClick={() => onChange(tab.id)}
           className={cx(
-            "rounded-2xl px-4 py-2 text-sm font-semibold transition-all duration-200",
+            "rounded-2xl px-4 py-2 text-sm font-semibold transition-all duration-200 cursor-pointer",
             value === tab.id
               ? theme === "staff"
                 ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
@@ -511,7 +528,6 @@ export function extractStudentOptions(payload: unknown): StudentOption[] {
 
   return options;
 }
-
 export function resolveActiveStudentProfile(
   userProfiles: UserProfile[] | undefined,
   selectedProfile: UserProfile | null | undefined,
