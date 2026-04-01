@@ -59,6 +59,7 @@ export const AUTH_ENDPOINTS = {
 export const STUDENT_ENDPOINTS = {
   GET_ALL: "/api/profiles",
   GET_CLASSES: () => `/api/students/classes`,
+  TIMETABLE: "/api/students/timetable",
 } as const;
 
 export const STUDENT_CLASS_ENDPOINTS = {
@@ -114,6 +115,7 @@ export const GAMIFICATION_ENDPOINTS = {
 
 export const BACKEND_STUDENT_ENDPOINTS = {
   GET_ALL: () => `/profiles`,
+  TIMETABLE: "/students/timetable",
 } as const;
 
 export const CLASS_ENDPOINTS = {

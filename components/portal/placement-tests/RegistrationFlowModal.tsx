@@ -25,6 +25,10 @@ import {
 import { getAllClasses } from "@/lib/api/classService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
 import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
+import type {
+  RegistrationTrackType,
+  SuggestedClassBucket,
+} from "@/types/registration";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
@@ -144,6 +148,8 @@ export default function RegistrationFlowModal({
 
   const [programId, setProgramId] = useState("");
   const [tuitionPlanId, setTuitionPlanId] = useState("");
+  const [secondaryProgramId, setSecondaryProgramId] = useState("");
+  const [secondaryProgramSkillFocus, setSecondaryProgramSkillFocus] = useState("");
   const [expectedStartDate, setExpectedStartDate] = useState("");
   const [preferredSchedule, setPreferredSchedule] = useState("");
   const [sessionsPerWeek, setSessionsPerWeek] = useState(2);
@@ -171,6 +177,7 @@ export default function RegistrationFlowModal({
     const map: Record<string, string> = {
       New: "Mới",
       WaitingForClass: "Chờ xếp lớp",
+      ClassAssigned: "Đã xếp lớp",
       Studying: "Đang học",
       Paused: "Tạm dừng",
       Completed: "Hoàn thành",
@@ -184,9 +191,10 @@ export default function RegistrationFlowModal({
   const [isWaiting, setIsWaiting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
-  const [suggestedClasses, setSuggestedClasses] = useState<any[]>([]);
+  const [suggestedClasses, setSuggestedClasses] = useState<SuggestedClassBucket | null>(null);
   const [manualClasses, setManualClasses] = useState<any[]>([]);
   const [isManualMode, setIsManualMode] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<RegistrationTrackType>("primary");
   const [selectedClassId, setSelectedClassId] = useState("");
   const [upgradeTuitionPlanId, setUpgradeTuitionPlanId] = useState("");
 
@@ -226,6 +234,16 @@ export default function RegistrationFlowModal({
     Boolean(programId) &&
     Boolean(tuitionPlanId) &&
     Boolean(preferredSchedule.trim());
+
+  const hasSecondaryTrack = Boolean(secondaryProgramId || suggestedClasses?.secondaryProgramId);
+  const activeSuggestedClasses =
+    selectedTrack === "secondary"
+      ? suggestedClasses?.secondarySuggestedClasses ?? []
+      : suggestedClasses?.suggestedClasses ?? [];
+  const activeAlternativeClasses =
+    selectedTrack === "secondary"
+      ? suggestedClasses?.secondaryAlternativeClasses ?? []
+      : suggestedClasses?.alternativeClasses ?? [];
 
   const formatDaysString = (days: string[]) => {
     const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
@@ -284,6 +302,10 @@ export default function RegistrationFlowModal({
     });
   }, [tuitionPlans, programId]);
 
+  const secondaryPrograms = useMemo(() => {
+    return programs.filter((program) => program.id !== programId);
+  }, [programId, programs]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -318,6 +340,18 @@ export default function RegistrationFlowModal({
           (p) => p.isActive && p.programId === nextProgramId
         );
         setTuitionPlanId(firstPlan?.id || "");
+        const normalizedSecondaryRecommendation = (
+          test?.secondaryProgramRecommendation || ""
+        )
+          .trim()
+          .toLowerCase();
+        const recommendedSecondaryProgram = normalizedSecondaryRecommendation
+          ? (planItems || []).find(
+              (p) => (p.programName || "").trim().toLowerCase() === normalizedSecondaryRecommendation,
+            )
+          : undefined;
+        setSecondaryProgramId(recommendedSecondaryProgram?.programId || "");
+        setSecondaryProgramSkillFocus(test?.secondaryProgramSkillFocus || "");
 
         setExpectedStartDate(toInputDateValue(test?.scheduledAt));
         setPreferredSchedule("");
@@ -359,9 +393,10 @@ export default function RegistrationFlowModal({
           setRegistrationId("");
         }
 
-        setSuggestedClasses([]);
+        setSuggestedClasses(null);
         setManualClasses([]);
         setIsManualMode(false);
+        setSelectedTrack("primary");
         setSelectedClassId("");
         setUpgradeTuitionPlanId("");
         setActiveStep("create");
@@ -378,7 +413,17 @@ export default function RegistrationFlowModal({
     };
 
     loadOptions();
-  }, [isOpen, branchId, childName, test?.id, test?.programRecommendation, test?.scheduledAt, toast]);
+  }, [
+    isOpen,
+    branchId,
+    childName,
+    test?.id,
+    test?.programRecommendation,
+    test?.secondaryProgramRecommendation,
+    test?.secondaryProgramSkillFocus,
+    test?.scheduledAt,
+    toast,
+  ]);
 
   useEffect(() => {
     if (!programId) {
@@ -452,6 +497,10 @@ export default function RegistrationFlowModal({
         branchId,
         programId,
         tuitionPlanId,
+        secondaryProgramId: secondaryProgramId || undefined,
+        secondaryProgramSkillFocus: secondaryProgramId
+          ? secondaryProgramSkillFocus || undefined
+          : undefined,
         expectedStartDate: expectedStartDate || undefined,
         preferredSchedule: preferredSchedule || undefined,
         note: note || undefined,
@@ -492,15 +541,25 @@ export default function RegistrationFlowModal({
     try {
       setIsSuggesting(true);
       const suggestions = await suggestClassesForRegistration(registrationId);
-      setSuggestedClasses(suggestions || []);
-      if (suggestions.length > 0) {
-        setSelectedClassId(String(suggestions[0].id));
+      setSuggestedClasses(suggestions);
+      const primaryCount = suggestions?.suggestedClasses?.length ?? 0;
+      const secondaryCount = suggestions?.secondarySuggestedClasses?.length ?? 0;
+      const defaultTrack: RegistrationTrackType =
+        primaryCount > 0 ? "primary" : secondaryCount > 0 ? "secondary" : "primary";
+      const defaultClass =
+        defaultTrack === "secondary"
+          ? suggestions?.secondarySuggestedClasses?.[0]
+          : suggestions?.suggestedClasses?.[0];
+      setSelectedTrack(defaultTrack);
+      if (defaultClass?.id) {
+        setSelectedClassId(String(defaultClass.id));
         toast({
           title: "Thành công",
           description: `Đã gợi ý ${suggestions.length} lớp phù hợp cho đăng ký.`,
           variant: "success",
         });
       } else {
+        setSelectedClassId("");
         toast({
           title: "Thông báo",
           description: "Hiện chưa có lớp phù hợp với đăng ký này.",
@@ -526,6 +585,7 @@ export default function RegistrationFlowModal({
       await assignClassToRegistration(registrationId, {
         classId: selectedClassId,
         entryType: "Immediate",
+        track: selectedTrack,
       });
       toast({
         title: "Thành công",
@@ -615,6 +675,7 @@ export default function RegistrationFlowModal({
       setIsWaiting(true);
       await assignClassToRegistration(registrationId, {
         entryType: "Wait",
+        track: selectedTrack,
       });
       toast({
         title: "Thành công",
@@ -789,6 +850,33 @@ export default function RegistrationFlowModal({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">Secondary program</label>
+                  <select
+                    value={secondaryProgramId}
+                    onChange={(e) => setSecondaryProgramId(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                  >
+                    <option value="">Không chọn secondary</option>
+                    {secondaryPrograms.map((p) => (
+                      <option key={`secondary-${p.id}`} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">Secondary skill focus</label>
+                  <input
+                    value={secondaryProgramSkillFocus}
+                    onChange={(e) => setSecondaryProgramSkillFocus(e.target.value)}
+                    disabled={!secondaryProgramId}
+                    placeholder="Ví dụ: Speaking"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:bg-gray-100"
+                  />
                 </div>
 
                 <div className="space-y-1">
@@ -1002,10 +1090,60 @@ export default function RegistrationFlowModal({
               </button>
             </div>
 
-            {suggestedClasses.length > 0 && (
+            {suggestedClasses && (
               <div className="mt-4 space-y-3">
+                {(hasSecondaryTrack || suggestedClasses.programName) && (
+                  <div className="rounded-xl border border-red-200 bg-white p-3">
+                    <div className="text-sm font-semibold text-gray-900">Track xếp lớp</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTrack("primary");
+                          setSelectedClassId(String(suggestedClasses.suggestedClasses?.[0]?.id ?? ""));
+                        }}
+                        className={`rounded-xl border px-3 py-1.5 text-sm font-semibold ${
+                          selectedTrack === "primary"
+                            ? "border-red-600 bg-red-600 text-white"
+                            : "border-gray-300 bg-white text-gray-700"
+                        }`}
+                      >
+                        Primary
+                        {suggestedClasses.programName ? ` • ${suggestedClasses.programName}` : ""}
+                      </button>
+                      {hasSecondaryTrack ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTrack("secondary");
+                            setSelectedClassId(
+                              String(suggestedClasses.secondarySuggestedClasses?.[0]?.id ?? ""),
+                            );
+                          }}
+                          className={`rounded-xl border px-3 py-1.5 text-sm font-semibold ${
+                            selectedTrack === "secondary"
+                              ? "border-red-600 bg-red-600 text-white"
+                              : "border-gray-300 bg-white text-gray-700"
+                          }`}
+                        >
+                          Secondary
+                          {suggestedClasses.secondaryProgramName
+                            ? ` • ${suggestedClasses.secondaryProgramName}`
+                            : ""}
+                        </button>
+                      ) : null}
+                    </div>
+                    {selectedTrack === "secondary" && suggestedClasses.secondaryProgramSkillFocus ? (
+                      <div className="mt-2 text-xs text-gray-500">
+                        Skill focus: {suggestedClasses.secondaryProgramSkillFocus}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {activeSuggestedClasses.length > 0 ? (
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {suggestedClasses.map((cls: any) => {
+                  {activeSuggestedClasses.map((cls: any) => {
                     const isSelected = selectedClassId === cls.id;
                     return (
                       <button
@@ -1029,6 +1167,20 @@ export default function RegistrationFlowModal({
                     );
                   })}
                 </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-5 text-sm text-gray-500">
+                    Chưa có lớp gợi ý cho track {selectedTrack}.
+                  </div>
+                )}
+
+                {activeAlternativeClasses.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div className="text-sm font-semibold text-amber-900">Lớp thay thế</div>
+                    <div className="mt-2 text-xs text-amber-800">
+                      Có {activeAlternativeClasses.length} lớp thay thế cho track {selectedTrack}.
+                    </div>
+                  </div>
+                )}
 
                 <button
                   type="button"

@@ -41,9 +41,11 @@ type RegistrationRow = {
   id: string;
   studentName: string;
   programName: string;
+  secondaryProgramName?: string | null;
   tuitionPlanName: string;
   expectedStartDate: string;
   className: string;
+  secondaryClassName?: string | null;
   status: RegistrationStatus;
   createdAt: string;
 };
@@ -62,9 +64,11 @@ function toRow(item: Registration): RegistrationRow {
     id: item.id,
     studentName: item.studentName || "-",
     programName: item.programName || "-",
+    secondaryProgramName: item.secondaryProgramName || null,
     tuitionPlanName: item.tuitionPlanName || "-",
     expectedStartDate: toDateOrFallback(item.expectedStartDate),
     className: item.className || "Chưa xếp lớp",
+    secondaryClassName: item.secondaryClassName || null,
     status: item.status,
     createdAt: toDateOrFallback(item.createdAt),
   };
@@ -74,6 +78,7 @@ function StatusBadge({ value }: { value: RegistrationStatus }) {
   const styleMap: Record<RegistrationStatus, string> = {
     New: "bg-blue-100 text-blue-700 border border-blue-200",
     WaitingForClass: "bg-amber-100 text-amber-700 border border-amber-200",
+    ClassAssigned: "bg-cyan-100 text-cyan-700 border border-cyan-200",
     Studying: "bg-green-100 text-green-700 border border-green-200",
     Paused: "bg-gray-100 text-gray-700 border border-gray-200",
     Completed: "bg-emerald-100 text-emerald-700 border border-emerald-200",
@@ -83,6 +88,7 @@ function StatusBadge({ value }: { value: RegistrationStatus }) {
   const labelMap: Record<RegistrationStatus, string> = {
     New: "Mới",
     WaitingForClass: "Chờ xếp lớp",
+    ClassAssigned: "Đã xếp lớp",
     Studying: "Đang học",
     Paused: "Tạm dừng",
     Completed: "Hoàn thành",
@@ -182,6 +188,7 @@ export default function AdminRegistrationsPage() {
     const map: Record<RegistrationStatus, string> = {
       New: "Mới",
       WaitingForClass: "Chờ xếp lớp",
+      ClassAssigned: "Đã xếp lớp",
       Studying: "Đang học",
       Paused: "Tạm dừng",
       Completed: "Hoàn thành",
@@ -396,14 +403,22 @@ export default function AdminRegistrationsPage() {
                 pagedRows.map((row) => (
                   <tr key={row.id} className="group hover:bg-linear-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
                     <td className="py-3 px-6 text-sm font-medium text-gray-800">{row.studentName}</td>
-                    <td className="py-3 px-6 text-sm text-gray-700">{row.programName}</td>
+                    <td className="py-3 px-6 text-sm text-gray-700">
+                      {row.secondaryProgramName
+                        ? `${row.programName} • ${row.secondaryProgramName}`
+                        : row.programName}
+                    </td>
                     <td className="py-3 px-6 text-sm text-gray-700">{row.tuitionPlanName}</td>
                     <td className="py-3 px-6 text-sm text-gray-700">
                       <span className="inline-flex items-center gap-1.5">
                         <Calendar size={14} className="text-gray-400" /> {row.expectedStartDate}
                       </span>
                     </td>
-                    <td className="py-3 px-6 text-sm text-gray-700">{row.className}</td>
+                    <td className="py-3 px-6 text-sm text-gray-700">
+                      {row.secondaryClassName
+                        ? `${row.className} • ${row.secondaryClassName}`
+                        : row.className}
+                    </td>
                     <td className="py-3 px-6 text-sm text-gray-700">
                       <StatusBadge value={row.status} />
                     </td>
@@ -496,7 +511,11 @@ export default function AdminRegistrationsPage() {
               </div>
               <div>
                 <div className="text-xs text-gray-500">Chương trình</div>
-                <div className="text-sm text-gray-900">{selectedDetail.programName || "-"}</div>
+                <div className="text-sm text-gray-900">
+                  {selectedDetail.secondaryProgramName
+                    ? `${selectedDetail.programName || "-"} • ${selectedDetail.secondaryProgramName}`
+                    : selectedDetail.programName || "-"}
+                </div>
               </div>
               <div>
                 <div className="text-xs text-gray-500">Gói học</div>
@@ -504,7 +523,17 @@ export default function AdminRegistrationsPage() {
               </div>
               <div>
                 <div className="text-xs text-gray-500">Lớp</div>
-                <div className="text-sm text-gray-900">{selectedDetail.className || "Chưa xếp lớp"}</div>
+                <div className="text-sm text-gray-900">
+                  {selectedDetail.secondaryClassName
+                    ? `${selectedDetail.className || "Chưa xếp lớp"} • ${selectedDetail.secondaryClassName}`
+                    : selectedDetail.className || "Chưa xếp lớp"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Secondary focus</div>
+                <div className="text-sm text-gray-900">
+                  {selectedDetail.secondaryProgramSkillFocus || selectedDetail.secondaryEntryType || "-"}
+                </div>
               </div>
               <div>
                 <div className="text-xs text-gray-500">Ngày dự kiến</div>

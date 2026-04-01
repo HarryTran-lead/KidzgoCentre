@@ -37,6 +37,7 @@ type Props = {
 const initialFormState: LeaveRequestPayload = {
   studentProfileId: "",
   classId: "",
+  sessionId: null,
   sessionDate: "",
   endDate: null,
   reason: "",
@@ -293,6 +294,7 @@ export default function LeaveRequestCreateModal({
         ...prev,
         studentProfileId: lockedStudentProfileId,
         classId: "",
+        sessionId: null,
       };
     });
     setClasses([]);
@@ -478,6 +480,29 @@ export default function LeaveRequestCreateModal({
     () => sessionsByDate.get(formState.sessionDate) ?? [],
     [formState.sessionDate, sessionsByDate],
   );
+  const selectedSession = useMemo(
+    () =>
+      selectedDateSessions.find((session) => session.id === formState.sessionId) ?? null,
+    [formState.sessionId, selectedDateSessions],
+  );
+
+  useEffect(() => {
+    if (!formState.sessionDate) return;
+    if (selectedDateSessions.length === 1) {
+      const onlySession = selectedDateSessions[0];
+      if (formState.sessionId !== onlySession.id) {
+        setFormState((prev) => ({ ...prev, sessionId: onlySession.id }));
+      }
+      return;
+    }
+
+    if (
+      formState.sessionId &&
+      !selectedDateSessions.some((session) => session.id === formState.sessionId)
+    ) {
+      setFormState((prev) => ({ ...prev, sessionId: null }));
+    }
+  }, [formState.sessionDate, formState.sessionId, selectedDateSessions]);
 
   const handleCreate = async () => {
     setCreating(true);
@@ -620,6 +645,7 @@ export default function LeaveRequestCreateModal({
                       ...p,
                       studentProfileId: id,
                       classId: "",
+                      sessionId: null,
                     }));
                     setClasses([]);
                   }}
@@ -669,7 +695,13 @@ export default function LeaveRequestCreateModal({
                 <select
                   className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
                   value={formState.classId}
-                  onChange={(e) => setFormState((p) => ({ ...p, classId: e.target.value }))}
+                  onChange={(e) =>
+                    setFormState((p) => ({
+                      ...p,
+                      classId: e.target.value,
+                      sessionId: null,
+                    }))
+                  }
                   disabled={!formState.studentProfileId || classesLoading}
                 >
                   <option value="">
@@ -758,6 +790,7 @@ export default function LeaveRequestCreateModal({
                               setFormState((prev) => ({
                                 ...prev,
                                 sessionDate: key,
+                                sessionId: sessions.length === 1 ? sessions[0].id : null,
                                 endDate: key,
                               }));
                             }}
@@ -804,20 +837,48 @@ export default function LeaveRequestCreateModal({
                         <div className="text-sm font-semibold text-gray-800">
                           Buổi học ngày {parseDateKey(formState.sessionDate)?.toLocaleDateString("vi-VN")}
                         </div>
+                        <p className="mt-1 text-xs text-gray-600">
+                          Chọn một buổi cụ thể nếu muốn xin nghỉ theo session. Nếu không chọn, đơn sẽ theo ngày hoặc khoảng ngày.
+                        </p>
                         <ul className="mt-2 space-y-2 text-xs text-gray-700">
                           {selectedDateSessions.map((session) => (
-                            <li key={session.id} className="rounded-xl border border-red-100 bg-white px-3 py-2">
-                              <div className="font-medium text-gray-900">
-                                {session.classTitle ?? session.classCode ?? "Buổi học"}
-                              </div>
-                              <div className="mt-1">
-                                {formatTimeRange(session)}
-                                {session.plannedTeacherName ? ` • GV: ${session.plannedTeacherName}` : ""}
-                                {session.plannedRoomName ? ` • Phòng: ${session.plannedRoomName}` : ""}
-                              </div>
+                            <li key={session.id}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    sessionId: prev.sessionId === session.id ? null : session.id,
+                                  }))
+                                }
+                                className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+                                  formState.sessionId === session.id
+                                    ? "border-red-500 bg-red-600 text-white"
+                                    : "border-red-100 bg-white text-gray-700 hover:bg-red-50"
+                                }`}
+                              >
+                                <div className="font-medium">
+                                  {session.classTitle ?? session.classCode ?? "Buổi học"}
+                                </div>
+                                <div className="mt-1">
+                                  {formatTimeRange(session)}
+                                  {session.plannedTeacherName ? ` • GV: ${session.plannedTeacherName}` : ""}
+                                  {session.plannedRoomName ? ` • Phòng: ${session.plannedRoomName}` : ""}
+                                </div>
+                                {formState.sessionId === session.id ? (
+                                  <div className="mt-2 text-[11px] font-semibold">
+                                    Đang chọn session này
+                                  </div>
+                                ) : null}
+                              </button>
                             </li>
                           ))}
                         </ul>
+                        {selectedSession ? (
+                          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                            Session đang chọn: {selectedSession.id}
+                          </div>
+                        ) : null}
                       </div>
                     )}
                   </>
@@ -836,7 +897,13 @@ export default function LeaveRequestCreateModal({
                   type="date"
                   className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
                   value={formState.sessionDate}
-                  onChange={(e) => setFormState((p) => ({ ...p, sessionDate: e.target.value }))}
+                  onChange={(e) =>
+                    setFormState((p) => ({
+                      ...p,
+                      sessionDate: e.target.value,
+                      sessionId: null,
+                    }))
+                  }
                 />
               </div>
 
@@ -849,8 +916,14 @@ export default function LeaveRequestCreateModal({
                   type="date"
                   className="h-11 w-full rounded-xl border border-red-300 bg-white px-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
                   value={formState.endDate ?? ""}
+                  disabled={Boolean(formState.sessionId)}
                   onChange={(e) => setFormState((p) => ({ ...p, endDate: e.target.value }))}
                 />
+                {formState.sessionId ? (
+                  <div className="text-xs text-gray-500">
+                    Đang chọn session cụ thể nên khoảng ngày được khóa theo buổi đã chọn.
+                  </div>
+                ) : null}
               </div>
             </div>
 

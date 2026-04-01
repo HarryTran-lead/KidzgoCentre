@@ -6,6 +6,9 @@ export type ParentTimetableSession = {
   classId: string;
   classCode?: string | null;
   classTitle?: string | null;
+  registrationId?: string | null;
+  track?: string | null;
+  isMakeup?: boolean | null;
   plannedDatetime?: string | null;
   actualDatetime?: string | null;
   durationMinutes?: number | null;

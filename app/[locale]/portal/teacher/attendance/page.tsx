@@ -1385,7 +1385,24 @@ const loadSessionReports = async () => {
                               <StudentAvatar name={record.name ?? ""} />
                               <div>
                                 <div className="font-semibold text-gray-900">{record.name?.trim() || "(Chưa có tên)"}</div>
-                                <div className="text-xs text-gray-500">{record.phone}</div>
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                  {record.phone ? <span>{record.phone}</span> : null}
+                                  {record.track ? (
+                                    <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700">
+                                      {String(record.track).toLowerCase() === "secondary" ? "Secondary" : "Primary"}
+                                    </span>
+                                  ) : null}
+                                  {record.isMakeup ? (
+                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-700">
+                                      Makeup
+                                    </span>
+                                  ) : null}
+                                  {record.registrationId ? (
+                                    <span className="truncate" title={record.registrationId}>
+                                      Reg: {record.registrationId}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
                             </div>
                           </td>

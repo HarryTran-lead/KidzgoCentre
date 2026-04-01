@@ -175,6 +175,32 @@ export default function PlacementTestDetailModal({
                 </div>
               )}
 
+              {test.secondaryProgramRecommendation && (
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <p className="text-sm text-slate-600 mb-1 flex items-center gap-2">
+                    <BookOpen size={14} />
+                    Secondary program recommendation
+                  </p>
+                  <p className="text-xl font-semibold text-fuchsia-600">
+                    {test.secondaryProgramRecommendation}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    <span className={`rounded-full px-2.5 py-1 font-semibold ${
+                      test.isSecondaryProgramSupplementary
+                        ? "bg-fuchsia-100 text-fuchsia-700"
+                        : "bg-slate-100 text-slate-700"
+                    }`}>
+                      {test.isSecondaryProgramSupplementary ? "Supplementary" : "Main track"}
+                    </span>
+                    {test.secondaryProgramSkillFocus ? (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700">
+                        Skill: {test.secondaryProgramSkillFocus}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
               {/* Attachment URL */}
               {test.attachmentUrl && (
                 <div className="bg-white p-4 rounded-lg shadow-sm">

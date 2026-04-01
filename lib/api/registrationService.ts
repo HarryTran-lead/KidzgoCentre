@@ -9,6 +9,7 @@ import type {
   RegistrationRequest,
   RegistrationStatus,
   SuggestedClass,
+  SuggestedClassBucket,
   UpdateRegistrationRequest,
 } from "@/types/registration";
 
@@ -31,6 +32,12 @@ function pickSuggestedClasses(payload: any): any[] {
   return pickItems(payload);
 }
 
+function pickSuggestedBucket(payload: any): any {
+  if (payload?.data?.data && typeof payload.data.data === "object") return payload.data.data;
+  if (payload?.data && typeof payload.data === "object") return payload.data;
+  return payload;
+}
+
 function normalizeRegistrationStatus(value: any): RegistrationStatus {
   const raw = String(value ?? "").trim();
   const normalized = raw.toLowerCase();
@@ -42,6 +49,10 @@ function normalizeRegistrationStatus(value: any): RegistrationStatus {
     case "waiting_for_class":
     case "waiting-for-class":
       return "WaitingForClass";
+    case "classassigned":
+    case "class_assigned":
+    case "class-assigned":
+      return "ClassAssigned";
     case "studying":
       return "Studying";
     case "paused":
@@ -72,6 +83,11 @@ function mapToRegistration(item: any): Registration {
     branchName: String(item?.branchName ?? ""),
     programId: String(item?.programId ?? ""),
     programName: String(item?.programName ?? ""),
+    secondaryProgramId: item?.secondaryProgramId ? String(item.secondaryProgramId) : null,
+    secondaryProgramName:
+      typeof item?.secondaryProgramName === "string" ? item.secondaryProgramName : null,
+    secondaryProgramSkillFocus:
+      typeof item?.secondaryProgramSkillFocus === "string" ? item.secondaryProgramSkillFocus : null,
     tuitionPlanId: String(item?.tuitionPlanId ?? ""),
     tuitionPlanName: String(item?.tuitionPlanName ?? ""),
     registrationDate: String(item?.registrationDate ?? ""),
@@ -82,12 +98,37 @@ function mapToRegistration(item: any): Registration {
     status: normalizeRegistrationStatus(item?.status),
     classId: String(item?.classId ?? ""),
     className: String(item?.className ?? ""),
+    secondaryClassId: item?.secondaryClassId ? String(item.secondaryClassId) : null,
+    secondaryClassName:
+      typeof item?.secondaryClassName === "string" ? item.secondaryClassName : null,
+    secondaryEntryType:
+      typeof item?.secondaryEntryType === "string" && item.secondaryEntryType.trim()
+        ? item.secondaryEntryType
+        : null,
     totalSessions: Number(item?.totalSessions ?? 0),
     usedSessions: Number(item?.usedSessions ?? 0),
     remainingSessions: Number(item?.remainingSessions ?? 0),
     expiryDate: item?.expiryDate ?? null,
     createdAt: String(item?.createdAt ?? ""),
     updatedAt: String(item?.updatedAt ?? ""),
+  };
+}
+
+function mapSuggestedClass(item: any): SuggestedClass {
+  return {
+    id: String(item?.id ?? ""),
+    code: item?.code ?? "",
+    title: item?.title ?? item?.classTitle ?? item?.name ?? "",
+    status: item?.status ?? "Planned",
+    capacity: Number(item?.capacity ?? item?.maxStudents ?? 0),
+    currentEnrollment: Number(item?.currentEnrollment ?? item?.currentStudentCount ?? 0),
+    remainingSlots: Number(item?.remainingSlots ?? 0),
+    startDate: item?.startDate ?? "",
+    endDate: item?.endDate ?? "",
+    schedulePattern: item?.schedulePattern ?? "",
+    mainTeacherName: item?.mainTeacherName ?? item?.teacherName ?? "",
+    classroomName: item?.classroomName ?? item?.roomName ?? null,
+    isClassStarted: Boolean(item?.isClassStarted),
   };
 }
 
@@ -108,7 +149,9 @@ export async function getRegistrations(
     `${REGISTRATION_ENDPOINTS.GET_ALL}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`
   );
 
-  const items = pickItems(response).map(mapToRegistration).filter((x) => x.id);
+  const items = pickItems(response)
+    .map(mapToRegistration)
+    .filter((x: Registration) => Boolean(x.id));
   const data = response?.data ?? {};
   const container = data?.page ?? data?.registrations ?? data;
   const totalCount = Number(container?.totalCount ?? data?.totalCount ?? items.length);
@@ -150,24 +193,52 @@ export async function cancelRegistration(
   return await patch<RegistrationActionResponse>(url);
 }
 
-export async function suggestClassesForRegistration(id: string): Promise<SuggestedClass[]> {
+export async function suggestClassesForRegistration(id: string): Promise<SuggestedClassBucket> {
   const response = await get<any>(REGISTRATION_ENDPOINTS.SUGGEST_CLASSES(id));
-  const items = pickSuggestedClasses(response);
-  return items.map((item) => ({
-    id: String(item?.id ?? ""),
-    code: item?.code,
-    title: item?.title,
-    status: item?.status,
-    capacity: item?.capacity,
-    currentEnrollment: item?.currentEnrollment,
-    remainingSlots: item?.remainingSlots,
-    startDate: item?.startDate,
-    endDate: item?.endDate,
-    schedulePattern: item?.schedulePattern,
-    mainTeacherName: item?.mainTeacherName,
-    classroomName: item?.classroomName,
-    isClassStarted: item?.isClassStarted,
-  })).filter((x) => x.id);
+  const bucket = pickSuggestedBucket(response);
+  const legacyItems = pickSuggestedClasses(response);
+
+  const suggestedClasses = Array.isArray(bucket?.suggestedClasses)
+    ? bucket.suggestedClasses
+    : legacyItems;
+  const alternativeClasses = Array.isArray(bucket?.alternativeClasses)
+    ? bucket.alternativeClasses
+    : [];
+  const secondarySuggestedClasses = Array.isArray(bucket?.secondarySuggestedClasses)
+    ? bucket.secondarySuggestedClasses
+    : [];
+  const secondaryAlternativeClasses = Array.isArray(bucket?.secondaryAlternativeClasses)
+    ? bucket.secondaryAlternativeClasses
+    : [];
+
+  return {
+    registrationId: String(bucket?.registrationId ?? id),
+    programName: bucket?.programName ?? null,
+    length:
+      suggestedClasses.length +
+      alternativeClasses.length +
+      secondarySuggestedClasses.length +
+      secondaryAlternativeClasses.length,
+    suggestedClasses: suggestedClasses
+      .map(mapSuggestedClass)
+      .filter((x: SuggestedClass) => Boolean(x.id)),
+    alternativeClasses: alternativeClasses
+      .map(mapSuggestedClass)
+      .filter((x: SuggestedClass) => Boolean(x.id)),
+    secondaryProgramId: bucket?.secondaryProgramId ? String(bucket.secondaryProgramId) : null,
+    secondaryProgramName:
+      typeof bucket?.secondaryProgramName === "string" ? bucket.secondaryProgramName : null,
+    secondaryProgramSkillFocus:
+      typeof bucket?.secondaryProgramSkillFocus === "string"
+        ? bucket.secondaryProgramSkillFocus
+        : null,
+    secondarySuggestedClasses: secondarySuggestedClasses
+      .map(mapSuggestedClass)
+      .filter((x: SuggestedClass) => Boolean(x.id)),
+    secondaryAlternativeClasses: secondaryAlternativeClasses
+      .map(mapSuggestedClass)
+      .filter((x: SuggestedClass) => Boolean(x.id)),
+  };
 }
 
 export async function assignClassToRegistration(
@@ -180,6 +251,7 @@ export async function assignClassToRegistration(
 export async function getWaitingListRegistrations(params?: {
   branchId?: string;
   programId?: string;
+  track?: string;
   pageNumber?: number;
   pageSize?: number;
 }): Promise<RegistrationPaginatedResponse> {
@@ -187,6 +259,7 @@ export async function getWaitingListRegistrations(params?: {
 
   if (params?.branchId) queryParams.append("branchId", params.branchId);
   if (params?.programId) queryParams.append("programId", params.programId);
+  if (params?.track) queryParams.append("track", params.track);
   if (params?.pageNumber) queryParams.append("pageNumber", params.pageNumber.toString());
   if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString());
 
@@ -194,7 +267,9 @@ export async function getWaitingListRegistrations(params?: {
     `${REGISTRATION_ENDPOINTS.WAITING_LIST}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`
   );
 
-  const items = pickItems(response).map(mapToRegistration).filter((x) => x.id);
+  const items = pickItems(response)
+    .map(mapToRegistration)
+    .filter((x: Registration) => Boolean(x.id));
   const data = response?.data ?? {};
   const container = data?.page ?? data?.registrations ?? data;
   const totalCount = Number(container?.totalCount ?? data?.totalCount ?? items.length);
@@ -213,10 +288,18 @@ export async function getWaitingListRegistrations(params?: {
 export async function transferRegistrationClass(
   id: string,
   newClassId: string,
-  effectiveDate?: string
+  effectiveDate?: string,
+  options?: {
+    track?: string;
+    sessionSelectionPattern?: string | null;
+  }
 ): Promise<RegistrationActionResponse> {
   const queryParams = new URLSearchParams({ newClassId });
   if (effectiveDate) queryParams.append("effectiveDate", effectiveDate);
+  if (options?.track) queryParams.append("track", options.track);
+  if (options?.sessionSelectionPattern?.trim()) {
+    queryParams.append("sessionSelectionPattern", options.sessionSelectionPattern.trim());
+  }
 
   return await post<RegistrationActionResponse>(
     `${REGISTRATION_ENDPOINTS.TRANSFER_CLASS(id)}?${queryParams.toString()}`
@@ -249,6 +332,8 @@ export async function createRegistrationFromPlacementTest(payload: {
   branchId: string;
   programId: string;
   tuitionPlanId: string;
+  secondaryProgramId?: string | null;
+  secondaryProgramSkillFocus?: string | null;
   expectedStartDate?: string;
   preferredSchedule?: string;
   note?: string;
@@ -263,6 +348,8 @@ export async function createRegistrationFromPlacementTest(payload: {
     branchId: payload.branchId,
     programId: payload.programId,
     tuitionPlanId: payload.tuitionPlanId,
+    secondaryProgramId: payload.secondaryProgramId,
+    secondaryProgramSkillFocus: payload.secondaryProgramSkillFocus,
     expectedStartDate: payload.expectedStartDate,
     preferredSchedule: payload.preferredSchedule,
     note: noteSegments.length > 0 ? noteSegments.join(" | ") : undefined,

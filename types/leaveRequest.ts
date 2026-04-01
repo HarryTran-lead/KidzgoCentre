@@ -11,6 +11,7 @@ export type LeaveRequestStatus =
 export interface LeaveRequestPayload {
   studentProfileId: string;
   classId: string;
+  sessionId?: string | null;
   sessionDate: string;
   endDate?: string | null;
   reason?: string | null;

@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 
-import { getActiveProgramsForDropdown } from "@/lib/api/programService";
+import { getActiveProgramsForDropdown, getAllProgramsForDropdown } from "@/lib/api/programService";
 import { fetchQuestionBankItems } from "@/lib/api/homeworkService";
 import type {
   QuestionBankDifficulty,
@@ -137,7 +137,13 @@ export function ImportFromBankModal({
     const loadPrograms = async () => {
       setIsLoadingPrograms(true);
       try {
-        const response = await getActiveProgramsForDropdown();
+        const activePrograms = await getActiveProgramsForDropdown();
+        const response =
+          activePrograms.length > 0
+            ? activePrograms
+            : (await getAllProgramsForDropdown()).filter(
+                (program) => program.isActive !== false
+              );
         const mappedPrograms = response.map((program) => ({
           id: program.id,
           name: program.name || program.code || program.id,

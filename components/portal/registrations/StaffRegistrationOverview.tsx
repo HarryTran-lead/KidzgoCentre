@@ -47,6 +47,7 @@ function statusLabel(status: RegistrationStatus) {
   const labels: Record<RegistrationStatus, string> = {
     New: "Mới",
     WaitingForClass: "Chờ xếp lớp",
+    ClassAssigned: "Đã xếp lớp",
     Studying: "Đang học",
     Paused: "Tạm dừng",
     Completed: "Hoàn thành",
@@ -59,6 +60,7 @@ function statusClass(status: RegistrationStatus) {
   const classes: Record<RegistrationStatus, string> = {
     New: "border border-blue-200 bg-blue-50 text-blue-700",
     WaitingForClass: "border border-amber-200 bg-amber-50 text-amber-700",
+    ClassAssigned: "border border-cyan-200 bg-cyan-50 text-cyan-700",
     Studying: "border border-green-200 bg-green-50 text-green-700",
     Paused: "border border-orange-200 bg-orange-50 text-orange-700",
     Completed: "border border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -85,6 +87,7 @@ function statusBadgeClass(status: RegistrationStatus) {
   const classes: Record<RegistrationStatus, string> = {
     New: "bg-blue-100 text-blue-700",
     WaitingForClass: "bg-amber-100 text-amber-700",
+    ClassAssigned: "bg-cyan-100 text-cyan-700",
     Studying: "bg-emerald-100 text-emerald-700",
     Paused: "bg-orange-100 text-orange-700",
     Completed: "bg-emerald-100 text-emerald-700",
@@ -142,9 +145,27 @@ function RegistrationDetailModal({
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
               <h3 className="text-sm font-semibold text-gray-700">Thông tin chương trình</h3>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Info label="Chương trình" value={item.programName || "-"} />
+                <Info
+                  label="Chương trình"
+                  value={
+                    item.secondaryProgramName
+                      ? `${item.programName || "-"} • ${item.secondaryProgramName}`
+                      : item.programName || "-"
+                  }
+                />
                 <Info label="Gói học" value={item.tuitionPlanName || "-"} />
-                <Info label="Lớp" value={item.className || "Chưa xếp lớp"} />
+                <Info
+                  label="Lớp"
+                  value={
+                    item.secondaryClassName
+                      ? `${item.className || "Chưa xếp lớp"} • ${item.secondaryClassName}`
+                      : item.className || "Chưa xếp lớp"
+                  }
+                />
+                <Info
+                  label="Secondary focus"
+                  value={item.secondaryProgramSkillFocus || item.secondaryEntryType || "-"}
+                />
                 <Info label="Buổi còn lại" value={String(item.remainingSessions ?? 0)} />
               </div>
             </div>
@@ -216,10 +237,11 @@ export default function StaffRegistrationOverview({
       New: summaryRows.filter((r) => r.status === "New").length,
       WaitingForClass: summaryRows.filter((r) => r.status === "WaitingForClass")
         .length,
+      ClassAssigned: summaryRows.filter((r) => r.status === "ClassAssigned").length,
       Studying: summaryRows.filter((r) => r.status === "Studying").length,
       Completed: summaryRows.filter((r) => r.status === "Completed").length,
-      Paused: 0,
-      Cancelled: 0,
+      Paused: summaryRows.filter((r) => r.status === "Paused").length,
+      Cancelled: summaryRows.filter((r) => r.status === "Cancelled").length,
     };
     return counts;
   }, [summaryRows]);
@@ -584,10 +606,16 @@ export default function StaffRegistrationOverview({
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {row.studentName || "-"}
                     </td>
-                    <td className="px-4 py-3">{row.programName || "-"}</td>
+                    <td className="px-4 py-3">
+                      {row.secondaryProgramName
+                        ? `${row.programName || "-"} • ${row.secondaryProgramName}`
+                        : row.programName || "-"}
+                    </td>
                     <td className="px-4 py-3">{row.tuitionPlanName || "-"}</td>
                     <td className="px-4 py-3">
-                      {row.className || "Chưa xếp lớp"}
+                      {row.secondaryClassName
+                        ? `${row.className || "Chưa xếp lớp"} • ${row.secondaryClassName}`
+                        : row.className || "Chưa xếp lớp"}
                     </td>
                     <td className="px-4 py-3">
                       <span

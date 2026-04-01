@@ -1,11 +1,22 @@
-export type RegistrationStatus = "New" | "WaitingForClass" | "Studying" | "Paused" | "Completed" | "Cancelled";
+export type RegistrationStatus =
+  | "New"
+  | "WaitingForClass"
+  | "ClassAssigned"
+  | "Studying"
+  | "Paused"
+  | "Completed"
+  | "Cancelled";
 
 export type EntryType = "Immediate" | "Wait" | "Makeup" | "Retake";
+export type RegistrationTrackType = "primary" | "secondary";
+
 export interface RegistrationRequest {
   studentProfileId: string;
   branchId: string;
   programId: string;
   tuitionPlanId: string;
+  secondaryProgramId?: string | null;
+  secondaryProgramSkillFocus?: string | null;
   expectedStartDate?: string | null;
   preferredSchedule?: string | null;
   note?: string | null;
@@ -16,11 +27,16 @@ export interface UpdateRegistrationRequest {
   preferredSchedule?: string | null;
   note?: string | null;
   tuitionPlanId?: string | null;
+  secondaryProgramId?: string | null;
+  secondaryProgramSkillFocus?: string | null;
+  removeSecondaryProgram?: boolean | null;
 }
 
 export interface AssignClassRequest {
   classId?: string | null;
   entryType?: EntryType;
+  track?: RegistrationTrackType;
+  sessionSelectionPattern?: string | null;
 }
 
 export interface Registration {
@@ -31,6 +47,9 @@ export interface Registration {
   branchName: string;
   programId: string;
   programName: string;
+  secondaryProgramId?: string | null;
+  secondaryProgramName?: string | null;
+  secondaryProgramSkillFocus?: string | null;
   tuitionPlanId: string;
   tuitionPlanName: string;
   registrationDate: string;
@@ -41,6 +60,9 @@ export interface Registration {
   status: RegistrationStatus;
   classId: string;
   className: string;
+  secondaryClassId?: string | null;
+  secondaryClassName?: string | null;
+  secondaryEntryType?: EntryType | null;
   totalSessions: number;
   usedSessions: number;
   remainingSessions: number;
@@ -63,6 +85,19 @@ export interface SuggestedClass {
   mainTeacherName: string;
   classroomName: string | null;
   isClassStarted: boolean;
+}
+
+export interface SuggestedClassBucket {
+  registrationId: string;
+  programName?: string | null;
+  length?: number;
+  suggestedClasses: SuggestedClass[];
+  alternativeClasses: SuggestedClass[];
+  secondaryProgramId?: string | null;
+  secondaryProgramName?: string | null;
+  secondaryProgramSkillFocus?: string | null;
+  secondarySuggestedClasses: SuggestedClass[];
+  secondaryAlternativeClasses: SuggestedClass[];
 }
 
 export interface RegistrationFilterParams {

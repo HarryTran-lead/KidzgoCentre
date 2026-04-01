@@ -58,6 +58,8 @@ function mapProgram(item: any): Program {
     id: item.id || item.programId || item.program_id || item.code || '',
     code: item.code || item.programCode || item.program_code || null,
     name: item.name || item.programName || item.title || item.programTitle || '',
+    isMakeup: item.isMakeup ?? item.is_makeup ?? null,
+    isSupplementary: item.isSupplementary ?? item.is_supplementary ?? null,
     totalSessions: item.totalSessions || 0,
     defaultTuitionAmount: item.defaultTuitionAmount || 0,
     unitPriceSession: item.unitPriceSession || 0,
