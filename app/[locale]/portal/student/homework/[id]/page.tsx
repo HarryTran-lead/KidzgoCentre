@@ -39,6 +39,7 @@ import { getStudentHomeworkById, submitHomework } from "@/lib/api/studentService
 import type { SubmitHomeworkPayload } from "@/lib/api/studentService";
 import MultipleChoiceForm from "./components/MultipleChoiceForm";
 import FileSubmissionForm from "./components/FileSubmissionForm";
+import HomeworkAiWorkspace from "./components/HomeworkAiWorkspace";
 
 // Status Badge
 function StatusBadge({ status, isGraded = false }: { status: AssignmentStatus; isGraded?: boolean }) {
@@ -606,6 +607,11 @@ export default function AssignmentDetailPage() {
               </div>
             </div>
           )}
+
+          <HomeworkAiWorkspace
+            homeworkStudentId={homeworkId}
+            assignment={assignment}
+          />
 
           {/* Submission Section */}
           {isPending && (

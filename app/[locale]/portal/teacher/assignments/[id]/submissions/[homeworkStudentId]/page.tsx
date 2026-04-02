@@ -21,6 +21,9 @@ import {
 
 import { get, post, put } from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
+import AiQuickGradeCard, {
+  type HomeworkQuickGradeResult,
+} from "./components/AiQuickGradeCard";
 
 type MCQuestionOption = {
   id?: string;
@@ -857,6 +860,34 @@ export default function TeacherSubmissionDetailPage() {
     }
   }, [homeworkStudentId]);
 
+  const handleApplyQuickGrade = useCallback((result: HomeworkQuickGradeResult) => {
+    if (!result.aiUsed) {
+      return;
+    }
+
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            status: result.status ?? prev.status ?? "Graded",
+            score:
+              result.score !== null && result.score !== undefined
+                ? result.score
+                : prev.score,
+            gradedAt: result.gradedAt ?? prev.gradedAt ?? new Date().toISOString(),
+            aiFeedback: result.summary || prev.aiFeedback,
+          }
+        : prev
+    );
+
+    if (result.score !== null && result.score !== undefined) {
+      setEditingScore(String(result.score));
+    }
+    if (result.summary) {
+      setEditingFeedback((prev) => prev || result.summary || "");
+    }
+  }, []);
+
   const handleMarkStatus = useCallback(async (status: "Late" | "Missing") => {
     if (!homeworkStudentId) return;
 
@@ -1218,6 +1249,13 @@ export default function TeacherSubmissionDetailPage() {
         </div>
 
         <div className="rounded-2xl border border-red-200 bg-white shadow-sm p-6">
+          <div className="mb-6">
+            <AiQuickGradeCard
+              homeworkStudentId={homeworkStudentId}
+              onApplied={handleApplyQuickGrade}
+            />
+          </div>
+
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">
               {isMultipleChoiceSubmission ? "Nhận xét" : "Chấm điểm & Nhận xét"}
