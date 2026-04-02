@@ -282,7 +282,7 @@ export const BACKEND_USER_ENDPOINTS = {
   CHANGE_PIN: (id: string) => `/admin/users/${id}/change-pin`,
   APPROVE: (id: string) => `/admin/users/${id}/approve`,
   APPROVE_PROFILES: '/admin/users/approve',
-  PROFILE_REACTIVATE: (id: string) => `/admin/users/profile/${id}/reactivate`,
+  PROFILE_REACTIVATE: (id: string) => `/profiles/${id}/reactivate-and-update`,
 } as const;
 
 // Teacher Endpoints
@@ -493,7 +493,7 @@ export const BACKEND_PROFILE_ENDPOINTS = {
   DELETE: (id: string) => `/profiles/${id}`,
   LINK: '/profiles/link',
   UNLINK: '/profiles/unlink',
-  REACTIVATE: (id: string) => `/profiles/${id}/reactivate`,
+  REACTIVATE: (id: string) => `/profiles/${id}/reactivate-and-update`,
 } as const;
 
 // Backend Admin Endpoints (Next.js API Routes → Backend API)

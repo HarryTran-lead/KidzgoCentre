@@ -23,13 +23,33 @@ export async function PUT(
     const { id } = await params;
     const backendUrl = buildApiUrl(BACKEND_PROFILE_ENDPOINTS.REACTIVATE(id));
 
-    const response = await fetch(backendUrl, {
+    let payload: unknown = {};
+    try {
+      payload = await request.json();
+    } catch {
+      payload = {};
+    }
+
+    let response = await fetch(backendUrl, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: authHeader,
       },
+      body: JSON.stringify(payload ?? {}),
     });
+
+    // Backend may expose this operation as PATCH.
+    if (response.status === 404 || response.status === 405) {
+      response = await fetch(backendUrl, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify(payload ?? {}),
+      });
+    }
 
     const contentType = response.headers.get('content-type') ?? '';
     const data = contentType.includes('application/json')
@@ -51,4 +71,11 @@ export async function PUT(
       { status: 500 }
     );
   }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  return PUT(request, context);
 }

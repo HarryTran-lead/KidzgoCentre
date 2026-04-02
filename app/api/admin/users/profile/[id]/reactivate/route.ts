@@ -28,14 +28,32 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const { id } = await params;
 
-    const upstream = await fetch(buildApiUrl(BACKEND_USER_ENDPOINTS.PROFILE_REACTIVATE(id)), {
+    let payload: unknown = {};
+    try {
+      payload = await req.json();
+    } catch {
+      payload = {};
+    }
+
+    let upstream = await fetch(buildApiUrl(BACKEND_USER_ENDPOINTS.PROFILE_REACTIVATE(id)), {
       method: "PATCH",
       headers: {
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify(payload ?? {}),
     });
+
+    if (upstream.status === 404 || upstream.status === 405) {
+      upstream = await fetch(buildApiUrl(BACKEND_USER_ENDPOINTS.PROFILE_REACTIVATE(id)), {
+        method: "PUT",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload ?? {}),
+      });
+    }
 
     const contentType = upstream.headers.get("content-type") ?? "";
     const data = contentType.includes("application/json")

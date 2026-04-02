@@ -66,6 +66,34 @@ export default function ActivateProfileClient() {
   };
 
   const resolveDashboardDestination = async (token: string) => {
+    const hasParentProfile = async () => {
+      try {
+        const profilesResponse = await fetch('/api/auth/profiles', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!profilesResponse.ok) return false;
+
+        const profilesData = await profilesResponse.json().catch(() => null);
+        const rawProfiles = Array.isArray(profilesData?.data)
+          ? profilesData.data
+          : Array.isArray(profilesData?.data?.profiles)
+            ? profilesData.data.profiles
+            : Array.isArray(profilesData?.profiles)
+              ? profilesData.profiles
+              : [];
+
+        return rawProfiles.some(
+          (profile: any) => String(profile?.profileType || '').toLowerCase() === 'parent'
+        );
+      } catch {
+        return false;
+      }
+    };
+
     const roleFromCookie = (() => {
       if (typeof document === 'undefined') return null;
       const row = document.cookie
@@ -100,6 +128,14 @@ export default function ActivateProfileClient() {
 
     if (!normalizedRole) {
       normalizedRole = getRoleFromToken(token);
+    }
+
+    const parentProfileDetected = await hasParentProfile();
+    if (parentProfileDetected) {
+      normalizedRole = 'Parent';
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('selectedProfile');
+      }
     }
 
     const roleBasePath =

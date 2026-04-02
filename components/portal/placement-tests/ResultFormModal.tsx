@@ -469,21 +469,6 @@ export default function ResultFormModal({
 
           {formData.secondaryProgramRecommendation ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <label className="flex items-center gap-3 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={formData.isSecondaryProgramSupplementary}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      isSecondaryProgramSupplementary: e.target.checked,
-                    }))
-                  }
-                  className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-300"
-                />
-                Secondary là supplementary
-              </label>
-
               <div className="space-y-2">
                 <label htmlFor="secondaryProgramSkillFocus" className="block text-sm font-medium text-gray-700">
                   Skill focus

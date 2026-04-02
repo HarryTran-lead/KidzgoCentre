@@ -53,6 +53,37 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
 
   // Lead - Conflict
   "Lead.DuplicateLead": "Lead đã tồn tại (trùng SĐT/email/Zalo)",
+
+  // Registration - Create/Update/Common
+  "Registration.StudentNotFound": "Không tìm thấy học viên hoặc hồ sơ không hợp lệ.",
+  "Registration.BranchNotFound": "Chi nhánh không tồn tại. Vui lòng tải lại danh sách.",
+  "Registration.ProgramNotFound": "Chương trình không tồn tại. Vui lòng tải lại danh sách.",
+  "Registration.TuitionPlanNotFound": "Gói học không hợp lệ. Vui lòng chọn lại gói học.",
+  "Registration.SecondaryProgramDuplicated": "Chương trình secondary không được trùng chương trình chính.",
+  "Registration.AlreadyExists": "Học viên đã có đăng ký đang hoạt động cho chương trình này.",
+  "Registration.NotFound": "Không tìm thấy đăng ký.",
+  "Registration.InvalidStatus": "Trạng thái đăng ký hiện tại không cho phép thao tác này.",
+  "Registration.SecondaryClassAssigned": "Đã xếp lớp cho secondary, không thể gỡ secondary lúc này.",
+  "Registration.SecondaryProgramMissing": "Thiếu chương trình secondary cho thao tác này.",
+  "Registration.ClassAlreadyAssigned": "Track này đã được xếp lớp.",
+  "DifferentProgram": "Gói học mới phải cùng chương trình với đăng ký hiện tại.",
+
+  // Suggest/Assign/Transfer/Upgrade
+  "Registration.ClassIdRequired": "Vui lòng chọn lớp trước khi xếp lớp.",
+  "Registration.ClassNotFound": "Không tìm thấy lớp. Vui lòng tải lại danh sách lớp.",
+  "Registration.ClassNotMatchingProgram": "Lớp không thuộc đúng chương trình của đăng ký.",
+  "Registration.ClassFull": "Lớp đã hết chỗ.",
+  "ClassNotAvailable": "Lớp hiện không khả dụng để xếp.",
+  "AlreadyEnrolled": "Học viên đã được ghi danh.",
+  "NoClassAssigned": "Chưa có lớp hiện tại để chuyển lớp.",
+  "Registration.CannotTransferToSameClass": "Không thể chuyển sang chính lớp hiện tại.",
+  "Registration.NoActiveRegistrationForUpgrade": "Đăng ký hiện tại không ở trạng thái cho phép nâng cấp.",
+
+  // Enrollment pattern validation
+  "Enrollment.SessionSelectionPatternInvalid": "Mẫu chọn buổi học không hợp lệ.",
+  "Enrollment.SessionSelectionPatternEmpty": "Mẫu chọn buổi học đang rỗng.",
+  "Enrollment.SessionSelectionPatternMismatch": "Mẫu chọn buổi học không khớp lịch lớp.",
+  "Enrollment.ClassSchedulePatternInvalid": "Lịch lớp không hợp lệ. Vui lòng tải lại dữ liệu lớp.",
 };
 
 function normalizeCode(value?: string): string {
@@ -70,8 +101,20 @@ export function extractDomainErrorCode(error: unknown): string | undefined {
     normalizeCode(e?.code),
   ].filter(Boolean);
 
+  const exactCodes = new Set([
+    "DifferentProgram",
+    "ClassNotAvailable",
+    "AlreadyEnrolled",
+    "NoClassAssigned",
+  ]);
+
   const domainCode = candidates.find(
-    (code) => code.startsWith("PlacementTest.") || code.startsWith("Lead."),
+    (code) =>
+      code.startsWith("PlacementTest.") ||
+      code.startsWith("Lead.") ||
+      code.startsWith("Registration.") ||
+      code.startsWith("Enrollment.") ||
+      exactCodes.has(code),
   );
 
   return domainCode || undefined;
