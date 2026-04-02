@@ -312,6 +312,58 @@ function SortableHeader({
  * Tính ngày kết thúc dựa trên ngày bắt đầu, lịch học và số buổi học
  * Sử dụng thuật toán chính xác hơn để đếm đúng số buổi
  */
+function calculateTotalSessionsFromDateRange(startDate: string, endDate: string, schedule: string): number {
+  if (!startDate || !endDate || !schedule) {
+    return 0;
+  }
+
+  try {
+    const dayMap: Record<string, number> = {
+      "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "CN": 0,
+    };
+
+    const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    if (!match) return 0;
+
+    const dayPart = match[1];
+    const daysInWeek: number[] = [];
+
+    if (dayPart.includes("Thứ")) {
+      const dayNumbers = dayPart.match(/\d+/g) || [];
+      dayNumbers.forEach((d) => {
+        if (dayMap[d] !== undefined) daysInWeek.push(dayMap[d]);
+      });
+      if (dayPart.includes("CN")) {
+        daysInWeek.push(0);
+      }
+    } else if (dayPart === "CN") {
+      daysInWeek.push(0);
+    }
+
+    if (daysInWeek.length === 0) return 0;
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    let count = 0;
+    const current = new Date(start);
+
+    while (current <= end) {
+      if (daysInWeek.includes(current.getDay())) {
+        count++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    return count;
+  } catch (error) {
+    console.error("Error calculating total sessions from date range:", error);
+    return 0;
+  }
+}
+
 function calculateEndDate(startDate: string, schedule: string, totalSessions: number): string {
   if (!startDate || !schedule || totalSessions <= 0) {
     return "";
@@ -1783,32 +1835,26 @@ function CreateClassModal({
   const handleChange = (field: keyof ClassFormData, value: any) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
-      
-      // Khi chọn program -> lấy totalSessions
-      if (field === "programId" && value) {
-        const selectedProgram = programOptions.find(p => p.id === value);
-        if (selectedProgram) {
-          newData.totalSessions = selectedProgram.totalSessions || 0;
-          console.log(`Program selected: ${selectedProgram.name}, total sessions: ${newData.totalSessions}`);
+
+      // Khi thay đổi endDate hoặc schedule hoặc startDate -> tự tính totalSessions
+      if (
+        (field === "endDate" || field === "schedule" || field === "startDate") &&
+        newData.startDate && newData.endDate && newData.schedule &&
+        newData.endDate >= newData.startDate
+      ) {
+        const calculatedSessions = calculateTotalSessionsFromDateRange(
+          newData.startDate,
+          newData.endDate,
+          newData.schedule
+        );
+        if (calculatedSessions > 0) {
+          newData.totalSessions = calculatedSessions;
         }
       }
-      
-      // Khi thay đổi startDate, schedule hoặc totalSessions -> tự tính endDate
-      if ((field === "startDate" || field === "schedule" || field === "totalSessions" || field === "programId") && 
-          newData.startDate && newData.schedule && newData.totalSessions > 0) {
-        
-        console.log(`Calculating end date: start=${newData.startDate}, schedule=${newData.schedule}, sessions=${newData.totalSessions}`);
-        
-        const calculatedEndDate = calculateEndDate(newData.startDate, newData.schedule, newData.totalSessions);
-        if (calculatedEndDate) {
-          newData.endDate = calculatedEndDate;
-          console.log(`Calculated end date: ${calculatedEndDate}`);
-        }
-      }
-      
+
       return newData;
     });
-    
+
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
@@ -1962,7 +2008,7 @@ function CreateClassModal({
                   >
                     <option value="">{loadingOptions ? "Đang tải..." : "Chọn chương trình"}</option>
                     {programOptions.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.totalSessions || 0} buổi)</option>
+                      <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                   {errors.programId && (
@@ -2100,16 +2146,15 @@ function CreateClassModal({
                 <div className="relative">
                   <input
                     type="date"
+                    data-field="endDate"
                     value={formData.endDate}
                     onChange={(e) => handleChange("endDate", e.target.value)}
+                    min={formData.startDate || undefined}
                     className={clsx(
-                      "w-full px-4 py-3 rounded-xl border bg-gray-100 text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300",
-                      "cursor-not-allowed",
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
                       errors.endDate ? "border-red-500" : "border-gray-200"
                     )}
-                    readOnly
-                    disabled
                   />
                   {errors.endDate && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -2118,7 +2163,9 @@ function CreateClassModal({
                   )}
                 </div>
                 {errors.endDate && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.endDate}</p>}
-                <p className="text-xs text-gray-500">Tự động tính từ lịch học và số buổi</p>
+                <p className="text-xs text-gray-500">
+                  {mode === "edit" ? "Chỉnh sửa ngày kết thúc để thay đổi số buổi học" : "Chọn ngày kết thúc để xác định số buổi học"}
+                </p>
               </div>
             </div>
 
