@@ -15,15 +15,9 @@ export type CourseRow = {
 export interface CreateProgramRequest {
   branchId: string;
   name: string;
-  code?: string;
+  code: string;
   isMakeup: boolean;
   isSupplementary: boolean;
-  defaultMakeupClassId?: string | null;
-  isActive?: boolean;
-  totalSessions: number;
-  defaultTuitionAmount: number;
-  unitPriceSession: number;
-  description: string;
 }
 
 export interface Program {
@@ -32,9 +26,9 @@ export interface Program {
   name: string;
   isMakeup?: boolean | null;
   isSupplementary?: boolean | null;
-  totalSessions: number;
-  defaultTuitionAmount: number;
-  unitPriceSession: number;
+  totalSessions?: number | null;
+  defaultTuitionAmount?: number | null;
+  unitPriceSession?: number | null;
   description?: string | null;
   branchId?: string | null;
   isActive?: boolean | null;

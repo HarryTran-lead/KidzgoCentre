@@ -287,16 +287,16 @@ export async function createAdminProgram(
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions
-        : payload.totalSessions,
+        : null,
     defaultTuitionAmount:
       typeof data?.defaultTuitionAmount === "number" && data.defaultTuitionAmount > 0
         ? data.defaultTuitionAmount
-        : payload.defaultTuitionAmount,
+        : null,
     unitPriceSession:
       typeof data?.unitPriceSession === "number" && data.unitPriceSession > 0
         ? data.unitPriceSession
-        : payload.unitPriceSession,
-    description: data?.description ?? payload.description ?? null,
+        : null,
+    description: data?.description ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
     isActive: normalizeIsActive(data?.isActive ?? data?.status) ?? true,
     defaultMakeupClassId:
@@ -409,16 +409,16 @@ export async function updateAdminProgram(
     totalSessions:
       typeof data?.totalSessions === "number" && data.totalSessions > 0
         ? data.totalSessions
-        : payload.totalSessions,
+        : null,
     defaultTuitionAmount:
       typeof data?.defaultTuitionAmount === "number" && data.defaultTuitionAmount > 0
         ? data.defaultTuitionAmount
-        : payload.defaultTuitionAmount,
+        : null,
     unitPriceSession:
       typeof data?.unitPriceSession === "number" && data.unitPriceSession > 0
         ? data.unitPriceSession
-        : payload.unitPriceSession,
-    description: data?.description ?? payload.description ?? null,
+        : null,
+    description: data?.description ?? null,
     branchId: data?.branchId ?? payload.branchId ?? null,
     isActive: normalizeIsActive(data?.isActive ?? data?.status),
     defaultMakeupClassId:
