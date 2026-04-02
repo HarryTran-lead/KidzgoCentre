@@ -13,6 +13,7 @@ import clsx from "clsx";
 import { 
   fetchAdminClasses, 
   createAdminClass, 
+  fetchAdminClassStudents,
   fetchAdminUsersByIds,
   fetchAdminClassDetail,
   updateAdminClass,
@@ -592,9 +593,12 @@ function convertScheduleToRRULE(schedule: string, startDate: string): string {
 interface CreateClassModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: ClassFormData) => void;
+  onSubmit: (data: ClassFormData) => Promise<void>;
   mode?: "create" | "edit";
   initialData?: ClassFormData | null;
+  currentClassId?: string | null;
+  existingClassRows?: ClassRow[];
+  currentEnrollmentCount?: number;
 }
 
 // Add Student Modal Component
@@ -623,6 +627,7 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const remainingSlots = Math.max(classCapacity - currentEnrolled, 0);
 
   // Fetch available students
   useEffect(() => {
@@ -641,31 +646,38 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
         console.log("📚 Students API response:", data);
         
         if (data.isSuccess && data.data?.items) {
-          const studentList: StudentOption[] = data.data.items.map((item: any) => {
-            // Lấy tên học viên từ profile Student hoặc từ trường name
-            const studentProfile = item.profiles?.find((p: any) => p.profileType === "Student");
-            const studentName = studentProfile?.displayName || item.name || item.email || "Học viên";
-            
-            return {
-              id: item.id,
-              name: studentName,
-              code: item.username || "",
-              profileId: studentProfile?.id || "",
-            };
-          });
+          const studentList: StudentOption[] = data.data.items
+            .map((item: any) => {
+              const studentProfile = item.profiles?.find((p: any) => p.profileType === "Student");
+              if (!studentProfile?.id) return null;
+
+              const studentName = studentProfile.displayName || item.name || item.email || "Học viên";
+
+              return {
+                id: item.id,
+                name: studentName,
+                code: item.username || "",
+                profileId: studentProfile.id,
+              };
+            })
+            .filter(Boolean) as StudentOption[];
           setStudents(studentList);
         } else if (data.data && Array.isArray(data.data)) {
-          const studentList: StudentOption[] = data.data.map((item: any) => {
-            const studentProfile = item.profiles?.find((p: any) => p.profileType === "Student");
-            const studentName = studentProfile?.displayName || item.name || item.email || "Học viên";
-            
-            return {
-              id: item.id,
-              name: studentName,
-              code: item.username || "",
-              profileId: studentProfile?.id || "",
-            };
-          });
+          const studentList: StudentOption[] = data.data
+            .map((item: any) => {
+              const studentProfile = item.profiles?.find((p: any) => p.profileType === "Student");
+              if (!studentProfile?.id) return null;
+
+              const studentName = studentProfile.displayName || item.name || item.email || "Học viên";
+
+              return {
+                id: item.id,
+                name: studentName,
+                code: item.username || "",
+                profileId: studentProfile.id,
+              };
+            })
+            .filter(Boolean) as StudentOption[];
           setStudents(studentList);
         }
       } catch (error) {
@@ -702,19 +714,37 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
   const filteredStudents = students.filter(s => 
     (s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.code.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    !enrolledStudentIds.includes(s.id)
+    !enrolledStudentIds.includes(s.id) &&
+    !enrolledStudentIds.includes(s.profileId)
   );
 
   const toggleStudent = (studentId: string) => {
-    setSelectedStudents(prev => 
-      prev.includes(studentId)
-        ? prev.filter(id => id !== studentId)
-        : [...prev, studentId]
-    );
+    setSelectedStudents(prev => {
+      if (prev.includes(studentId)) {
+        return prev.filter(id => id !== studentId);
+      }
+
+      if (prev.length >= remainingSlots) {
+        toast.warning({
+          title: "Không thể chọn thêm học viên",
+          description: `Sĩ số còn lại của lớp chỉ là ${remainingSlots}.`,
+        });
+        return prev;
+      }
+
+      return [...prev, studentId];
+    });
   };
 
   const handleSubmit = async () => {
     if (selectedStudents.length === 0) return;
+    if (selectedStudents.length > remainingSlots) {
+      toast.destructive({
+        title: "Thêm học viên thất bại",
+        description: `Không thể thêm vượt quá sĩ số còn lại (${remainingSlots}).`,
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -971,7 +1001,7 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={selectedStudents.length === 0 || isSubmitting}
+                disabled={selectedStudents.length === 0 || isSubmitting || selectedStudents.length > remainingSlots}
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
               >
                 {isSubmitting ? (
@@ -1028,7 +1058,192 @@ const initialFormData: ClassFormData = {
   description: "",
 };
 
-function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateClassModalProps) {
+type ClassFormField = keyof ClassFormData;
+type ClassFieldErrors = Partial<Record<ClassFormField, string>>;
+
+class ClassFormSubmitError extends Error {
+  fieldErrors: ClassFieldErrors;
+
+  constructor(message: string, fieldErrors: ClassFieldErrors = {}) {
+    super(message);
+    this.name = "ClassFormSubmitError";
+    this.fieldErrors = fieldErrors;
+  }
+}
+
+const CLASS_FORM_FIELD_ORDER: ClassFormField[] = [
+  "code",
+  "name",
+  "branchId",
+  "programId",
+  "mainTeacherId",
+  "assistantTeacherId",
+  "capacity",
+  "startDate",
+  "roomId",
+  "schedule",
+  "endDate",
+];
+
+function normalizeComparableText(value: string | number | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function getTodayDateString() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function extractScheduleMeta(schedule: string) {
+  const match = schedule.match(/(.+?)\s*\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+  if (!match) {
+    return {
+      days: [] as string[],
+      startTime: "",
+      endTime: "",
+    };
+  }
+
+  const [, dayPart, startTime, endTime] = match;
+  const days: string[] = [];
+
+  if (dayPart.includes("Thứ")) {
+    const dayNumbers = dayPart.match(/\d+/g) || [];
+    days.push(...dayNumbers);
+    if (dayPart.includes("CN")) {
+      days.push("CN");
+    }
+  } else if (dayPart.includes("CN")) {
+    days.push("CN");
+  }
+
+  return {
+    days: Array.from(new Set(days)).sort(),
+    startTime,
+    endTime,
+  };
+}
+
+function getClassFormErrorMessage(error: unknown): string {
+  const err = error as
+    | {
+        message?: string;
+        detail?: string;
+        title?: string;
+      }
+    | undefined;
+
+  return err?.message || err?.detail || err?.title || "Không thể lưu lớp học. Vui lòng thử lại.";
+}
+
+function buildClassSubmissionError(
+  error: unknown,
+  data: ClassFormData,
+): ClassFormSubmitError {
+  if (error instanceof ClassFormSubmitError) {
+    return error;
+  }
+
+  const err = error as
+    | {
+        message?: string;
+        detail?: string;
+        title?: string;
+        raw?: { errors?: Record<string, string[] | string> | Array<{ description?: string; code?: string }> };
+      }
+    | undefined;
+
+  const rawMessage = getClassFormErrorMessage(error);
+  const normalized = normalizeComparableText(`${err?.title || ""} ${err?.detail || ""} ${rawMessage}`);
+  const fieldErrors: ClassFieldErrors = {};
+
+  if (normalized.includes("codeexists") || normalized.includes("mã lớp") || normalized.includes("class code")) {
+    fieldErrors.code = `mã lớp ${data.code.trim()} đã tồn tại`;
+    return new ClassFormSubmitError(fieldErrors.code, fieldErrors);
+  }
+
+  if (
+    normalized.includes("already exists")
+    || normalized.includes("đã tồn tại")
+    || normalized.includes("duplicate")
+  ) {
+    if (normalized.includes("title") || normalized.includes("name") || normalized.includes("lớp")) {
+      fieldErrors.name = `lớp ${data.name.trim()} đã tồn tại`;
+      fieldErrors.programId = `lớp ${data.name.trim()} đã tồn tại`;
+      return new ClassFormSubmitError(fieldErrors.name, fieldErrors);
+    }
+  }
+
+  if (normalized.includes("assistant") && normalized.includes("main")) {
+    fieldErrors.assistantTeacherId = "giáo viên phụ và giáo viên chính không được trùng nhau";
+    return new ClassFormSubmitError(fieldErrors.assistantTeacherId, fieldErrors);
+  }
+
+  if (
+    normalized.includes("capacity")
+    || normalized.includes("sĩ số")
+    || normalized.includes("classfull")
+  ) {
+    fieldErrors.capacity = rawMessage;
+    return new ClassFormSubmitError(rawMessage, fieldErrors);
+  }
+
+  if (normalized.includes("start date") || normalized.includes("ngày bắt đầu")) {
+    fieldErrors.startDate = rawMessage;
+    return new ClassFormSubmitError(rawMessage, fieldErrors);
+  }
+
+  if (normalized.includes("room") || normalized.includes("phòng")) {
+    fieldErrors.roomId = rawMessage;
+    return new ClassFormSubmitError(rawMessage, fieldErrors);
+  }
+
+  if (normalized.includes("schedule") || normalized.includes("rrule") || normalized.includes("khung giờ")) {
+    fieldErrors.schedule = rawMessage;
+    return new ClassFormSubmitError(rawMessage, fieldErrors);
+  }
+
+  return new ClassFormSubmitError(rawMessage);
+}
+
+function buildClassStatusErrorMessage(
+  currentStatus: ClassRow["status"],
+  error: unknown,
+): string {
+  const rawMessage = getClassFormErrorMessage(error);
+  const normalized = normalizeComparableText(rawMessage);
+
+  if (
+    normalized.includes("invalid status transition")
+    || normalized.includes("statusunchanged")
+    || normalized.includes("không thể")
+  ) {
+    if (currentStatus === "Sắp khai giảng") {
+      return "không thể chuyển trạng thái lớp từ sắp khai giảng sang đang học";
+    }
+
+    if (currentStatus === "Đang học") {
+      return "không thể chuyển trạng thái lớp từ đang học sang kết thúc";
+    }
+  }
+
+  return rawMessage;
+}
+
+function CreateClassModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  mode = "create",
+  initialData,
+  currentClassId = null,
+  existingClassRows = [],
+  currentEnrollmentCount = 0,
+}: CreateClassModalProps) {
+  const { toast } = useToast();
   const [formData, setFormData] = useState<ClassFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof ClassFormData, string>>>({});
   const modalRef = useRef<HTMLDivElement>(null);
@@ -1049,6 +1264,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
   const [useCustomTime, setUseCustomTime] = useState<boolean>(false);
   const [startTime, setStartTime] = useState("18:00");
   const [endTime, setEndTime] = useState("20:00");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchSelectData = async () => {
     try {
@@ -1410,33 +1626,159 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
     }
   }, [formData.roomId, formData.schedule, existingClasses, allRooms]);
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof ClassFormData, string>> = {};
-    
-    if (!formData.code.trim()) newErrors.code = "Mã lớp là bắt buộc";
-    if (!formData.name.trim()) newErrors.name = "Tên lớp là bắt buộc";
-    if (!formData.programId) newErrors.programId = "Chương trình là bắt buộc";
-    if (!formData.branchId) newErrors.branchId = "Chi nhánh là bắt buộc";
-    if (!formData.mainTeacherId) newErrors.mainTeacherId = "Giáo viên chính là bắt buộc";
-    if (formData.capacity <= 0) newErrors.capacity = "Sĩ số phải lớn hơn 0";
-    if (!formData.startDate) newErrors.startDate = "Ngày bắt đầu là bắt buộc";
-    if (selectedDays.length === 0) newErrors.schedule = "Vui lòng chọn ít nhất 1 ngày học";
-    if (!useCustomTime && !selectedTimeSlot) newErrors.schedule = "Vui lòng chọn khung giờ học";
-    if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
-      newErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
+  const focusFirstInvalidField = (fieldErrors: ClassFieldErrors) => {
+    const firstField = CLASS_FORM_FIELD_ORDER.find((field) => fieldErrors[field]);
+    if (!firstField) return;
+
+    window.setTimeout(() => {
+      const target = modalRef.current?.querySelector<HTMLElement>(`[data-field="${firstField}"]`);
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      const focusable = target.matches("input, select, textarea, button")
+        ? target
+        : target.querySelector<HTMLElement>("input, select, textarea, button");
+      focusable?.focus();
+    }, 50);
+  };
+
+  const collectValidationErrors = (): ClassFieldErrors => {
+    const newErrors: ClassFieldErrors = {};
+    const today = getTodayDateString();
+    const selectedProgramName =
+      programOptions.find((program) => program.id === formData.programId)?.name || "";
+    const initialScheduleMeta = extractScheduleMeta(initialData?.schedule || "");
+    const currentScheduleMeta = extractScheduleMeta(formData.schedule || "");
+
+    if (!formData.code.trim()) newErrors.code = "mã lớp là bắt buộc";
+    if (!formData.name.trim()) newErrors.name = "tên lớp là bắt buộc";
+    if (!formData.programId) newErrors.programId = "chương trình là bắt buộc";
+    if (!formData.branchId) newErrors.branchId = "chi nhánh là bắt buộc";
+    if (!formData.mainTeacherId) newErrors.mainTeacherId = "giáo viên chính là bắt buộc";
+
+    if (
+      formData.mainTeacherId
+      && formData.assistantTeacherId
+      && formData.mainTeacherId === formData.assistantTeacherId
+    ) {
+      newErrors.assistantTeacherId = "giáo viên phụ và giáo viên chính không được trùng nhau";
     }
 
+    if (formData.capacity <= 0) {
+      newErrors.capacity = "sĩ số tối thiểu phải lớn hơn 0";
+    }
+
+    if (mode === "edit" && currentEnrollmentCount > 0 && formData.capacity < currentEnrollmentCount) {
+      newErrors.capacity = "sỉ số mới không được nhỏ hơn sỉ số học sinh đã tham gia vào lớp";
+    }
+
+    if (!formData.startDate) {
+      newErrors.startDate = "ngày bắt đầu là bắt buộc";
+    }
+
+    if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
+      newErrors.endDate = "ngày kết thúc phải sau ngày bắt đầu";
+    }
+
+    if (formData.status === "Sắp khai giảng" && formData.startDate && formData.startDate < today) {
+      newErrors.startDate = "không thể chọn ngày trong quá khứ";
+    }
+
+    if (selectedDays.length === 0) {
+      newErrors.schedule = "vui lòng chọn ít nhất 1 ngày học";
+    } else if (selectedDays.length < sessionsPerWeek) {
+      newErrors.schedule = `cần chọn đủ ${sessionsPerWeek} buổi học mỗi tuần`;
+    }
+
+    if (!useCustomTime && !selectedTimeSlot) {
+      newErrors.schedule = "vui lòng chọn khung giờ học";
+    }
+
+    if (useCustomTime && startTime >= endTime) {
+      newErrors.schedule = "khung giờ học không hợp lệ";
+    }
+
+    const duplicatedCode = existingClassRows.some(
+      (row) =>
+        row.id !== currentClassId
+        && normalizeComparableText(row.code) === normalizeComparableText(formData.code),
+    );
+    if (formData.code.trim() && duplicatedCode) {
+      newErrors.code = `mã lớp ${formData.code.trim()} đã tồn tại`;
+    }
+
+    const duplicatedNameInProgram = existingClassRows.some(
+      (row) =>
+        row.id !== currentClassId
+        && normalizeComparableText(row.name) === normalizeComparableText(formData.name)
+        && normalizeComparableText(row.sub) === normalizeComparableText(selectedProgramName),
+    );
+    if (formData.name.trim() && selectedProgramName && duplicatedNameInProgram) {
+      newErrors.name = `lớp ${formData.name.trim()} đã tồn tại`;
+      newErrors.programId = `lớp ${formData.name.trim()} đã tồn tại`;
+    }
+
+    if (mode === "edit" && initialData?.status === "Đang học") {
+      if (formData.startDate !== initialData.startDate) {
+        newErrors.startDate = "không thể update ngày bắt đầu khi lớp đang học";
+      }
+
+      if (formData.roomId !== initialData.roomId) {
+        newErrors.roomId = "không thể update phòng học khi lớp đang học";
+      }
+
+      const initialDays = initialScheduleMeta.days.join(",");
+      const currentDays = currentScheduleMeta.days.join(",");
+      if (initialDays !== currentDays) {
+        newErrors.schedule = "không thể update số buổi học mỗi tuần khi lớp đang học";
+      } else if (
+        initialScheduleMeta.startTime !== currentScheduleMeta.startTime
+        || initialScheduleMeta.endTime !== currentScheduleMeta.endTime
+      ) {
+        newErrors.schedule = "không thể update khung giờ học khi lớp đang học";
+      }
+    }
+
+    return newErrors;
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors = collectValidationErrors();
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const newErrors = collectValidationErrors();
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      const firstErrorMessage = CLASS_FORM_FIELD_ORDER.map((field) => newErrors[field]).find(Boolean);
+      if (firstErrorMessage) {
+        toast.destructive({
+          title: mode === "edit" ? "Cập nhật lớp học thất bại" : "Tạo lớp học thất bại",
+          description: firstErrorMessage,
+        });
+      }
+      focusFirstInvalidField(newErrors);
+      return;
+    }
+
+    setErrors({});
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
       onClose();
+    } catch (error) {
+      if (error instanceof ClassFormSubmitError && Object.keys(error.fieldErrors).length > 0) {
+        setErrors(error.fieldErrors);
+        focusFirstInvalidField(error.fieldErrors);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
 
   const handleChange = (field: keyof ClassFormData, value: any) => {
     setFormData(prev => {
@@ -1519,6 +1861,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                 <div className="relative">
                   <input
                     type="text"
+                    data-field="code"
                     value={formData.code}
                     onChange={(e) => handleChange("code", e.target.value)}
                     className={clsx(
@@ -1545,6 +1888,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                 <div className="relative">
                   <input
                     type="text"
+                    data-field="name"
                     value={formData.name}
                     onChange={(e) => handleChange("name", e.target.value)}
                     className={clsx(
@@ -1573,6 +1917,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                 </label>
                 <div className="relative">
                   <select
+                    data-field="branchId"
                     value={formData.branchId}
                     onChange={(e) => handleChange("branchId", e.target.value)}
                     disabled={loadingOptions}
@@ -1604,6 +1949,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                 </label>
                 <div className="relative">
                   <select
+                    data-field="programId"
                     value={formData.programId}
                     onChange={(e) => handleChange("programId", e.target.value)}
                     disabled={loadingOptions}
@@ -1638,6 +1984,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                 </label>
                 <div className="relative">
                   <select
+                    data-field="mainTeacherId"
                     value={formData.mainTeacherId}
                     onChange={(e) => handleChange("mainTeacherId", e.target.value)}
                     disabled={loadingOptions}
@@ -1668,6 +2015,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                   Giáo viên phụ
                 </label>
                 <select
+                  data-field="assistantTeacherId"
                   value={formData.assistantTeacherId}
                   onChange={(e) => handleChange("assistantTeacherId", e.target.value)}
                   disabled={loadingOptions}
@@ -1675,7 +2023,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
                     "focus:outline-none focus:ring-2 focus:ring-red-300",
                     "disabled:opacity-50 disabled:cursor-not-allowed",
-                    "border-gray-200"
+                    errors.assistantTeacherId ? "border-red-500" : "border-gray-200"
                   )}
                 >
                   <option value="">{loadingOptions ? "Đang tải..." : "Chọn giáo viên phụ (tùy chọn)"}</option>
@@ -1683,6 +2031,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
+                {errors.assistantTeacherId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.assistantTeacherId}</p>}
               </div>
             </div>
 
@@ -1695,6 +2044,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <div className="relative">
                 <input
                   type="number"
+                  data-field="capacity"
                   min="1"
                   max="100"
                   value={formData.capacity}
@@ -1724,6 +2074,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                 <div className="relative">
                   <input
                     type="date"
+                    data-field="startDate"
                     value={formData.startDate}
                     onChange={(e) => handleChange("startDate", e.target.value)}
                     className={clsx(
@@ -1772,7 +2123,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
             </div>
 
             {/* Row 5: Lịch học - UI MỚI */}
-            <div className="p-5 bg-gradient-to-br from-gray-50 to-red-50/30 rounded-xl border-2 border-dashed border-gray-200">
+            <div data-field="schedule" className="p-5 bg-gradient-to-br from-gray-50 to-red-50/30 rounded-xl border-2 border-dashed border-gray-200">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
                 <Clock size={16} className="text-red-600" />
                 Lịch học <span className="text-red-500">*</span>
@@ -1847,9 +2198,9 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                     Chỉ chọn {selectedDays.length} ngày nhưng đã set {sessionsPerWeek} buổi/tuần. Lịch học sẽ bị gián đoạn.
                   </p>
                 )}
-                {errors.schedule && selectedDays.length === 0 && (
+                {errors.schedule && (
                   <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle size={14} /> Vui lòng chọn ít nhất 1 ngày học
+                    <AlertCircle size={14} /> {errors.schedule}
                   </p>
                 )}
               </div>
@@ -1913,7 +2264,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               </div>
 
               {/* Chọn phòng học */}
-              <div className="space-y-2 mt-4">
+              <div data-field="roomId" className="space-y-2 mt-4">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Building2 size={16} className="text-red-600" />
                   Phòng học {formData.capacity > 0 && <span className="text-xs font-normal text-gray-500">(tối thiểu {formData.capacity} chỗ)</span>}
@@ -1962,6 +2313,7 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
                 ) : (
                   <p className="text-sm text-gray-500 italic">Vui lòng chọn chi nhánh trước</p>
                 )}
+                {errors.roomId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.roomId}</p>}
               </div>
 
               {/* Preview lịch học */}
@@ -2051,9 +2403,10 @@ function CreateClassModal({ isOpen, onClose, onSubmit, mode = "create", initialD
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {mode === "edit" ? "Lưu thay đổi" : "Tạo lớp học"}
+                {isSubmitting ? "Đang lưu..." : mode === "edit" ? "Lưu thay đổi" : "Tạo lớp học"}
               </button>
             </div>
           </div>
@@ -2092,6 +2445,7 @@ export default function Page() {
   const [enrolledStudentIds, setEnrolledStudentIds] = useState<string[]>([]);
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
+  const [editingCurrentEnrollmentCount, setEditingCurrentEnrollmentCount] = useState<number>(0);
   const [originalStatus, setOriginalStatus] = useState<ClassFormData["status"] | null>(null);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
 
@@ -2201,48 +2555,40 @@ export default function Page() {
     setPage(1);
   };
 
-  // Handle checkbox selection
-  const handleSelectAll = () => {
-    if (selectedClasses.length === pagedRows.length) {
-      setSelectedClasses([]);
-    } else {
-      setSelectedClasses(pagedRows.map(c => c.id));
-    }
-  };
-
-  const handleSelectClass = (classId: string) => {
-    setSelectedClasses(prev =>
-      prev.includes(classId)
-        ? prev.filter(id => id !== classId)
-        : [...prev, classId]
-    );
-  };
-
-  const goPage = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
-
   const reloadClassesByCurrentBranch = async () => {
     const branchId = getBranchQueryParam();
     return fetchAdminClasses({ branchId });
   };
 
+  const handleSelectAll = () => {
+    if (pagedRows.length === 0) return;
+
+    setSelectedClasses((prev) =>
+      prev.length === pagedRows.length ? [] : pagedRows.map((row) => row.id)
+    );
+  };
+
+  const handleSelectClass = (classId: string) => {
+    setSelectedClasses((prev) =>
+      prev.includes(classId)
+        ? prev.filter((id) => id !== classId)
+        : [...prev, classId]
+    );
+  };
+
+  const goPage = (nextPage: number) => {
+    setPage(Math.min(totalPages, Math.max(1, nextPage)));
+  };
   const handleCreateClass = async (data: ClassFormData) => {
     try {
-      if (!data.programId || data.programId.trim() === "") {
-        toast.warning({
-          title: "Thiếu thông tin",
-          description: "Vui lòng chọn chương trình học.",
-        });
-        return;
-      }
-
       console.log("Creating class with data:", {
         ...data,
         totalSessions: data.totalSessions,
         schedule: data.schedule,
         startDate: data.startDate,
-        endDate: data.endDate
+        endDate: data.endDate,
       });
-      
+
       const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
       console.log("Generated RRULE:", schedulePattern);
 
@@ -2257,7 +2603,7 @@ export default function Page() {
         startDate: data.startDate,
         endDate: data.endDate,
         capacity: data.capacity,
-        schedulePattern: schedulePattern,
+        schedulePattern,
         status: "Planned",
       };
 
@@ -2265,7 +2611,6 @@ export default function Page() {
 
       const created = await createAdminClass(payload);
 
-      // Sau khi tao lop thanh cong, tao cac session/lich hoc tu dong
       if (created?.id) {
         try {
           console.log("Generating sessions for class:", created.id);
@@ -2284,16 +2629,17 @@ export default function Page() {
       setClasses(updatedClasses);
 
       toast.success({
-        title: "Tạo lớp học thành công",
-        description: `Lớp ${data.name} đã được tạo với ${data.totalSessions} buổi học.`,
+        title: "T\u1ea1o l\u1edbp h\u1ecdc th\u00e0nh c\u00f4ng",
+        description: `L\u1edbp ${data.name} \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o v\u1edbi ${data.totalSessions} bu\u1ed5i h\u1ecdc.`,
       });
     } catch (err: any) {
       console.error("Failed to create class:", err);
-      const errorMessage = err?.message || "Không thể tạo lớp học. Vui lòng thử lại.";
+      const mappedError = buildClassSubmissionError(err, data);
       toast.destructive({
-        title: "Tạo lớp học thất bại",
-        description: errorMessage,
+        title: "T\u1ea1o l\u1edbp h\u1ecdc th\u1ea5t b\u1ea1i",
+        description: mappedError.message,
       });
+      throw mappedError;
     }
   };
 
@@ -2302,6 +2648,7 @@ export default function Page() {
       setIsEditModalOpen(true);
       setEditingClassId(row.id);
       setEditingInitialData(null);
+      setEditingCurrentEnrollmentCount(row.current ?? 0);
 
       const detail: any = await fetchAdminClassDetail(row.id);
 
@@ -2310,9 +2657,9 @@ export default function Page() {
 
       const rawStatus: string = (detail?.status as string | undefined) ?? "";
       const normalized = rawStatus.toLowerCase();
-      let status: ClassFormData["status"] = "Sắp khai giảng";
-      if (normalized === "active" || normalized === "ongoing") status = "Đang học";
-      else if (normalized === "closed" || normalized === "completed") status = "Đã kết thúc";
+      let status: ClassFormData["status"] = "S\u1eafp khai gi\u1ea3ng";
+      if (normalized === "active" || normalized === "ongoing") status = "\u0110ang h\u1ecdc";
+      else if (normalized === "closed" || normalized === "completed") status = "\u0110\u00e3 k\u1ebft th\u00fac";
 
       const formData: ClassFormData = {
         code: detail?.code ?? row.code ?? "",
@@ -2332,27 +2679,30 @@ export default function Page() {
       };
 
       setEditingInitialData(formData);
+      setEditingCurrentEnrollmentCount(
+        typeof detail?.currentEnrollmentCount === "number"
+          ? detail.currentEnrollmentCount
+          : row.current ?? 0
+      );
       setOriginalStatus(status);
     } catch (err: any) {
       console.error("Failed to load class detail for edit:", err);
-      alert(err?.message || "Không thể tải thông tin lớp học để chỉnh sửa.");
+      toast.destructive({
+        title: "Kh\u00f4ng th\u1ec3 t\u1ea3i l\u1edbp h\u1ecdc",
+        description: err?.message || "Kh\u00f4ng th\u1ec3 t\u1ea3i th\u00f4ng tin l\u1edbp h\u1ecdc \u0111\u1ec3 ch\u1ec9nh s\u1eeda.",
+      });
       setIsEditModalOpen(false);
       setEditingClassId(null);
       setEditingInitialData(null);
+      setEditingCurrentEnrollmentCount(0);
+      setOriginalStatus(null);
     }
   };
 
   const handleUpdateClass = async (data: ClassFormData) => {
     if (!editingClassId) return;
-    try {
-      if (!data.programId || data.programId.trim() === "") {
-        toast.warning({
-          title: "Thiếu thông tin",
-          description: "Vui lòng chọn chương trình học.",
-        });
-        return;
-      }
 
+    try {
       const schedulePattern = convertScheduleToRRULE(data.schedule, data.startDate);
 
       const payload: CreateClassRequest = {
@@ -2371,39 +2721,23 @@ export default function Page() {
 
       console.log("Updating class with payload:", payload);
 
-      // Cập nhật thông tin lớp học
       await updateAdminClass(editingClassId, payload);
 
-      // Nếu trạng thái thay đổi, gọi updateClassStatus API
-      if (originalStatus && data.status !== originalStatus) {
-        // Map UI status to API status
-        const statusMap: Record<ClassFormData["status"], string> = {
-          "Đang học": "Active",
-          "Sắp khai giảng": "Planned",
-          "Đã kết thúc": "Closed",
-        };
-        const apiStatus = statusMap[data.status] || "Planned";
-        await updateClassStatus(editingClassId, apiStatus);
-      }
-
-      // Refresh danh sách
       const updatedClasses = await reloadClassesByCurrentBranch();
       setClasses(updatedClasses);
+
       toast.success({
-        title: "Cập nhật lớp học thành công",
-        description: `Thông tin lớp ${data.name} đã được lưu.`,
+        title: "C\u1eadp nh\u1eadt l\u1edbp h\u1ecdc th\u00e0nh c\u00f4ng",
+        description: `Th\u00f4ng tin l\u1edbp ${data.name} \u0111\u00e3 \u0111\u01b0\u1ee3c l\u01b0u.`,
       });
     } catch (err: any) {
       console.error("Failed to update class:", err);
-      const errorMessage = err?.message || "Không thể cập nhật lớp học. Vui lòng thử lại.";
+      const mappedError = buildClassSubmissionError(err, data);
       toast.destructive({
-        title: "Cập nhật lớp học thất bại",
-        description: errorMessage,
+        title: "C\u1eadp nh\u1eadt l\u1edbp h\u1ecdc th\u1ea5t b\u1ea1i",
+        description: mappedError.message,
       });
-    } finally {
-      setEditingClassId(null);
-      setEditingInitialData(null);
-      setOriginalStatus(null);
+      throw mappedError;
     }
   };
 
@@ -2442,7 +2776,7 @@ export default function Page() {
       console.error("Failed to toggle class status:", err);
       toast.destructive({
         title: "Cập nhật trạng thái thất bại",
-        description: err?.message || "Không thể cập nhật trạng thái lớp học. Vui lòng thử lại.",
+        description: buildClassStatusErrorMessage(row.status, err),
       });
     }
   };
@@ -2459,22 +2793,9 @@ export default function Page() {
     setSelectedClassCapacity(classCapacity);
     setSelectedClassCurrent(currentEnrolled);
     
-    // Fetch enrolled students for this class
     try {
-      const token = getAccessToken();
-      const response = await fetch(`/api/enrollments?classId=${classId}`, {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      });
-      const data = await response.json();
-      
-      if (data.isSuccess && data.data?.items) {
-        const enrolledIds = data.data.items.map((item: any) => item.studentId || item.userId);
-        setEnrolledStudentIds(enrolledIds);
-      } else {
-        setEnrolledStudentIds([]);
-      }
+      const enrolledStudents = await fetchAdminClassStudents(classId);
+      setEnrolledStudentIds(enrolledStudents.map((student) => student.id));
     } catch (error) {
       console.error("Error fetching enrolled students:", error);
       setEnrolledStudentIds([]);
@@ -2862,6 +3183,7 @@ export default function Page() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateClass}
+        existingClassRows={classes}
       />
       {/* Edit Class Modal */}
       <CreateClassModal
@@ -2870,11 +3192,15 @@ export default function Page() {
           setIsEditModalOpen(false);
           setEditingClassId(null);
           setEditingInitialData(null);
+          setEditingCurrentEnrollmentCount(0);
           setOriginalStatus(null);
         }}
         onSubmit={handleUpdateClass}
         mode="edit"
         initialData={editingInitialData}
+        currentClassId={editingClassId}
+        existingClassRows={classes}
+        currentEnrollmentCount={editingCurrentEnrollmentCount}
       />
       {/* Add Student Modal */}
       {isAddStudentModalOpen && selectedClassId && (
