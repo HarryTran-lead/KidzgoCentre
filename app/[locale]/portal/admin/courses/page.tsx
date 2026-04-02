@@ -44,10 +44,6 @@ function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
 }
 
-function parseDigitsToNumber(value: string) {
-  return Number(value.replace(/[^\d]/g, ""));
-}
-
 function parseMonthlyLeaveLimitValue(value: string): number | null {
   const normalizedValue = value.trim();
   if (!normalizedValue) return null;
@@ -60,10 +56,15 @@ function parseMonthlyLeaveLimitValue(value: string): number | null {
   return parsedValue;
 }
 
-function formatNumberForInput(value?: number | null) {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? value.toLocaleString("vi-VN")
-    : "";
+function buildProgramCode(name: string, fallback = "PROGRAM"): string {
+  const normalizedName = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+  const baseCode = normalizedName || fallback;
+  return baseCode.slice(0, 10);
 }
 
 function getProgramTypeLabel(value: { isMakeup?: boolean | null; isSupplementary?: boolean | null }) {
@@ -146,29 +147,19 @@ interface CreateCourseModalProps {
 interface CourseFormData {
   code?: string;
   name: string;
-  description: string;
   status: string;
   isMakeup: boolean;
   isSupplementary: boolean;
   branchId: string;
-  totalSessions: string;
-  defaultTuitionAmount: string;
-  unitPriceSession: string;
-  monthlyLeaveLimit: string;
 }
 
 const initialFormData: CourseFormData = {
   code: "",
   name: "",
-  description: "",
   status: "Đang hoạt động",
   isMakeup: false,
   isSupplementary: false,
   branchId: "",
-  totalSessions: "",
-  defaultTuitionAmount: "",
-  unitPriceSession: "",
-  monthlyLeaveLimit: "",
 };
 
 function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateCourseModalProps) {
@@ -211,50 +202,6 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
     }
   }, [isOpen, mode, initialData]);
 
-  // Tự động tính giá mỗi buổi khi số buổi học hoặc học phí mặc định thay đổi
-  useEffect(() => {
-    // Nếu đang ở chế độ edit và unitPriceSession đã có giá trị, chỉ tính toán khi người dùng thay đổi
-    if (mode === "edit" && initialData) {
-      const sessionsChanged = formData.totalSessions !== initialData.totalSessions;
-      const tuitionChanged = formData.defaultTuitionAmount !== initialData.defaultTuitionAmount;
-
-      // Nếu không có thay đổi và unitPriceSession đã có giá trị, giữ nguyên
-      if (!sessionsChanged && !tuitionChanged && formData.unitPriceSession && formData.unitPriceSession.trim() !== "") {
-        return;
-      }
-    }
-
-    // Chỉ tính toán nếu có giá trị hợp lệ
-    const sessions = Number(formData.totalSessions);
-    // vi-VN thường dùng "." để phân tách hàng nghìn (vd: 200.000).
-    // Vì vậy chỉ giữ lại chữ số để parse (hỗ trợ cả "." và "," hoặc khoảng trắng).
-    const tuition = Number(formData.defaultTuitionAmount.replace(/[^\d]/g, ""));
-
-    // Nếu cả hai giá trị đều hợp lệ, tính toán giá mỗi buổi
-    if (sessions > 0 && tuition > 0 && !isNaN(sessions) && !isNaN(tuition)) {
-      const pricePerSession = Math.round(tuition / sessions);
-      const newValue = pricePerSession.toLocaleString("vi-VN");
-      setFormData(prev => {
-        // Chỉ cập nhật nếu giá trị thay đổi
-        if (prev.unitPriceSession !== newValue) {
-          return {
-            ...prev,
-            unitPriceSession: newValue
-          };
-        }
-        return prev;
-      });
-    } else if (!formData.unitPriceSession || formData.unitPriceSession.trim() === "") {
-      // Chỉ xóa nếu unitPriceSession đang trống và không thể tính toán
-      if (formData.totalSessions === "" || formData.defaultTuitionAmount === "") {
-        setFormData(prev => ({
-          ...prev,
-          unitPriceSession: ""
-        }));
-      }
-    }
-  }, [formData.totalSessions, formData.defaultTuitionAmount, mode, initialData]);
-
   const loadBranches = async () => {
     try {
       setLoadingBranches(true);
@@ -276,27 +223,10 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof CourseFormData, string>> = {};
 
-    if (!formData.name.trim()) newErrors.name = "Tên khóa học là bắt buộc";
-    if (!formData.description.trim()) newErrors.description = "Mô tả là bắt buộc";
-    if (!formData.branchId) newErrors.branchId = "Chi nhánh là bắt buộc";
+    if (!formData.name.trim()) newErrors.name = "Ten khoa hoc la bat buoc";
+    if (!formData.branchId) newErrors.branchId = "Chi nhanh la bat buoc";
     if (formData.isMakeup && formData.isSupplementary) {
-      newErrors.isSupplementary = "Chương trình không thể vừa là bù vừa là phụ trợ";
-    }
-    if (!formData.totalSessions.trim() || Number(formData.totalSessions) <= 0) {
-      newErrors.totalSessions = "Số buổi học phải lớn hơn 0";
-    }
-    if (!formData.defaultTuitionAmount.trim() || Number(formData.defaultTuitionAmount.replace(/[^\d]/g, "")) <= 0) {
-      newErrors.defaultTuitionAmount = "Học phí mặc định phải lớn hơn 0";
-    }
-    if (!formData.unitPriceSession.trim() || Number(formData.unitPriceSession.replace(/[^\d]/g, "")) <= 0) {
-      newErrors.unitPriceSession = "Giá mỗi buổi phải lớn hơn 0";
-    }
-
-    if (
-      formData.monthlyLeaveLimit.trim() &&
-      (!Number.isInteger(Number(formData.monthlyLeaveLimit)) || Number(formData.monthlyLeaveLimit) <= 0)
-    ) {
-      newErrors.monthlyLeaveLimit = "Số buổi nghỉ tối đa / tháng phải lớn hơn 0";
+      newErrors.isSupplementary = "Chuong trinh khong the vua la bu vua la phu tro";
     }
 
     setErrors(newErrors);
@@ -427,33 +357,6 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
             </div>
 
-            {/* Row 2: Mô tả */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <FileText size={16} className="text-red-600" />
-                Mô tả khóa học *
-              </label>
-              <div className="relative">
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleChange("description", e.target.value)}
-                  rows={3}
-                  className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                    errors.description ? "border-red-500" : "border-gray-200"
-                  )}
-                  placeholder="Mô tả chi tiết về khóa học..."
-                />
-                {errors.description && (
-                  <div className="absolute right-3 top-3">
-                    <AlertCircle size={18} className="text-red-500" />
-                  </div>
-                )}
-              </div>
-              {errors.description && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.description}</p>}
-            </div>
-
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <div className="space-y-4">
                 <div className="space-y-1">
@@ -471,7 +374,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     onChange={(e) => handleChange("isSupplementary", e.target.checked)}
                     className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-300"
                   />
-                  <span>{formData.isSupplementary ? "Chương trình phụ trợ" : "Đánh dấu phụ trợ"}</span>
+                  <span>{formData.isSupplementary ? "Chương trình phụ trợ" : "Đánh dấu chương trình phụ trợ"}</span>
                 </label>
 
                 <label className="inline-flex items-center gap-3 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800">
@@ -481,8 +384,23 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     onChange={(e) => handleChange("isMakeup", e.target.checked)}
                     className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-300"
                   />
-                  <span>{formData.isMakeup ? "Chương trình bù" : "Chương trình thường"}</span>
+                  <span>{formData.isMakeup ? "Chương trình bù" : "Đánh dấu chương trình bù"}</span>
                 </label>
+                </div>
+
+                <div className="rounded-xl border border-dashed border-blue-200 bg-white/70 px-3 py-2 text-sm text-gray-700">
+                  Bên trái là chương trình phụ trợ, bên phải là chương trình bù. Nếu không chọn ô nào, hệ thống sẽ tạo chương trình chính.
+                </div>
+
+                <div className="text-sm text-gray-700">
+                  Loại đang chọn:{" "}
+                  <span className="font-semibold text-gray-900">
+                    {formData.isMakeup
+                      ? "Chương trình bù"
+                      : formData.isSupplementary
+                        ? "Chương trình phụ trợ"
+                        : "Chương trình chính"}
+                  </span>
                 </div>
 
                 {errors.isSupplementary && (
@@ -493,136 +411,6 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               </div>
             </div>
 
-            {/* Row 3: Số buổi học, Học phí mặc định, Giá mỗi buổi */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Clock size={16} className="text-red-600" />
-                  Số buổi học *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.totalSessions}
-                    onChange={(e) => handleChange("totalSessions", e.target.value)}
-                    className={cn(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                      errors.totalSessions ? "border-red-500" : "border-gray-200"
-                    )}
-                    placeholder="VD: 24"
-                  />
-                  {errors.totalSessions && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.totalSessions && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.totalSessions}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <DollarSign size={16} className="text-red-600" />
-                  Học phí mặc định (VND) *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.defaultTuitionAmount}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9,]/g, "");
-                      handleChange("defaultTuitionAmount", val);
-                    }}
-                    className={cn(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                      errors.defaultTuitionAmount ? "border-red-500" : "border-gray-200"
-                    )}
-                    placeholder="VD: 3000000"
-                  />
-                  {errors.defaultTuitionAmount && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.defaultTuitionAmount && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.defaultTuitionAmount}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <DollarSign size={16} className="text-red-600" />
-                  Giá mỗi buổi (VND) *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.unitPriceSession}
-                    readOnly
-                    className={cn(
-                      "w-full px-4 py-3 rounded-xl border bg-gray-50 text-gray-700",
-                      "cursor-not-allowed",
-                      errors.unitPriceSession ? "border-red-500" : "border-gray-200"
-                    )}
-                    placeholder="Tự động tính từ học phí mặc định / số buổi học"
-                  />
-                  {errors.unitPriceSession && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.unitPriceSession && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.unitPriceSession}</p>}
-                <p className="text-xs text-gray-500">Tự động tính từ học phí mặc định chia cho số buổi học</p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <AlertCircle size={16} className="text-amber-600" />
-                    Số buổi nghỉ tối đa / tháng
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={formData.monthlyLeaveLimit}
-                      onChange={(e) => handleChange("monthlyLeaveLimit", e.target.value)}
-                      className={cn(
-                        "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                        "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                        errors.monthlyLeaveLimit ? "border-red-500" : "border-gray-200"
-                      )}
-                      placeholder="VD: 2"
-                    />
-                    {errors.monthlyLeaveLimit && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <AlertCircle size={18} className="text-red-500" />
-                      </div>
-                    )}
-                  </div>
-                  {errors.monthlyLeaveLimit && (
-                    <p className="text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle size={14} /> {errors.monthlyLeaveLimit}
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-amber-200 bg-white/80 px-4 py-3 text-sm text-amber-900">
-                  <div className="font-semibold">Cấu hình leave request theo chương trình</div>
-                  <p className="mt-1">
-                    Khi tạo mới, để trống để dùng mặc định của hệ thống. Khi chỉnh sửa, để trống sẽ giữ nguyên
-                    cấu hình hiện tại. Nếu bạn nhập giá trị, hệ thống sẽ lưu giới hạn này để áp dụng cho các lớp
-                    được tạo mới từ chương trình đó.
-                  </p>
-                </div>
-              </div>
-            </div>
 
           </form>
         </div>
@@ -835,114 +623,49 @@ export default function Page() {
     try {
       if (!data.branchId) {
         toast({
-          title: "Thiếu thông tin",
-          description: "Vui lòng chọn chi nhánh",
+          title: "Thieu thong tin",
+          description: "Vui long chon chi nhanh",
           type: "warning",
         });
         return false;
       }
-
-      const totalSessions = Number(data.totalSessions);
-      const defaultTuitionAmount = parseDigitsToNumber(data.defaultTuitionAmount);
-      const unitPriceSession = parseDigitsToNumber(data.unitPriceSession);
-      const hasMonthlyLeaveLimit = data.monthlyLeaveLimit.trim() !== "";
-      const monthlyLeaveLimit = parseMonthlyLeaveLimitValue(data.monthlyLeaveLimit);
-
-      if (Number.isNaN(totalSessions) || totalSessions <= 0) {
-        toast({
-          title: "Lỗi",
-          description: "Số buổi học không hợp lệ",
-          type: "warning",
-        });
-        return false;
-      }
-
-      if (Number.isNaN(defaultTuitionAmount) || defaultTuitionAmount <= 0) {
-        toast({
-          title: "Lỗi",
-          description: "Học phí không hợp lệ",
-          type: "warning",
-        });
-        return false;
-      }
-
-      if (Number.isNaN(unitPriceSession) || unitPriceSession <= 0) {
-        toast({
-          title: "Lỗi",
-          description: "Học phí mỗi buổi không hợp lệ",
-          type: "warning",
-        });
-        return false;
-      }
-
-      if (hasMonthlyLeaveLimit && monthlyLeaveLimit === null) {
-        toast({
-          title: "Giá trị chưa hợp lệ",
-          description: "Số buổi nghỉ tối đa / tháng phải lớn hơn 0",
-          type: "warning",
-        });
-        return false;
-      }
-
-      const code = data.name
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "_")
-        .substring(0, 20);
 
       if (data.isMakeup && data.isSupplementary) {
         toast({
-          title: "Lỗi",
-          description: "Chương trình không thể vừa là bù vừa là phụ trợ",
+          title: "Loi",
+          description: "Chuong trinh khong the vua la bu vua la phu tro",
           type: "warning",
         });
         return false;
       }
 
+      const code = data.code?.trim() || buildProgramCode(data.name);
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        code: code,
-        totalSessions,
-        defaultTuitionAmount,
-        unitPriceSession,
-        description: data.description,
+        code,
         isMakeup: data.isMakeup,
         isSupplementary: data.isSupplementary,
       };
 
-      const created = await createAdminProgram(payload);
+      await createAdminProgram(payload);
+
       const warnings: string[] = [];
-
-      if (hasMonthlyLeaveLimit) {
-        if (!created.id) {
-          warnings.push("chưa nhận được mã chương trình để lưu giới hạn nghỉ");
-        } else {
-          try {
-            await updateAdminProgramMonthlyLeaveLimit(created.id, monthlyLeaveLimit!);
-          } catch (leaveLimitError: any) {
-            console.error("Failed to save monthly leave limit after create:", leaveLimitError);
-            warnings.push(
-              leaveLimitError?.message || "chưa lưu được số buổi nghỉ tối đa / tháng"
-            );
-          }
-        }
-      }
-
       try {
         const branchId = getBranchQueryParam();
         const mapped = await fetchAdminPrograms({ branchId });
         setCourses(mapped);
       } catch (refreshError) {
         console.warn("Failed to refresh programs after create:", refreshError);
-        warnings.push("danh sách chương trình chưa được làm mới tự động");
+        warnings.push("danh sach chuong trinh chua duoc lam moi tu dong");
       }
 
       toast({
-        title: warnings.length > 0 ? "Đã tạo chương trình" : "Thành công",
+        title: warnings.length > 0 ? "Da tao chuong trinh" : "Thanh cong",
         description:
           warnings.length > 0
-            ? `Đã tạo khóa học ${data.name}, nhưng ${warnings.join("; ")}.`
-            : `Đã tạo khóa học ${data.name} thành công!`,
+            ? `Da tao chuong trinh ${data.name}, nhung ${warnings.join("; ")}.`
+            : `Da tao chuong trinh ${data.name} thanh cong!`,
         type: warnings.length > 0 ? "warning" : "success",
       });
 
@@ -950,8 +673,8 @@ export default function Page() {
     } catch (err: any) {
       console.error("Failed to create program:", err);
       toast({
-        title: "Lỗi",
-        description: err?.message || "Không thể tạo khóa học. Vui lòng thử lại.",
+        title: "Loi",
+        description: err?.message || "Khong the tao chuong trinh. Vui long thu lai.",
         type: "destructive",
       });
       return false;
@@ -964,53 +687,8 @@ export default function Page() {
     try {
       if (!data.branchId) {
         toast({
-          title: "Thiếu thông tin",
-          description: "Vui lòng chọn chi nhánh",
-          type: "warning",
-        });
-        return false;
-      }
-
-      const totalSessions = Number(data.totalSessions);
-      const defaultTuitionAmount = parseDigitsToNumber(data.defaultTuitionAmount);
-      const unitPriceSession = parseDigitsToNumber(data.unitPriceSession);
-      const hasMonthlyLeaveLimit = data.monthlyLeaveLimit.trim() !== "";
-      const monthlyLeaveLimit = parseMonthlyLeaveLimitValue(data.monthlyLeaveLimit);
-      const initialMonthlyLeaveLimit = parseMonthlyLeaveLimitValue(
-        editingInitialData?.monthlyLeaveLimit ?? ""
-      );
-
-      if (Number.isNaN(totalSessions) || totalSessions <= 0) {
-        toast({
-          title: "Lỗi",
-          description: "Số buổi học không hợp lệ",
-          type: "warning",
-        });
-        return false;
-      }
-
-      if (Number.isNaN(defaultTuitionAmount) || defaultTuitionAmount <= 0) {
-        toast({
-          title: "Lỗi",
-          description: "Học phí không hợp lệ",
-          type: "warning",
-        });
-        return false;
-      }
-
-      if (Number.isNaN(unitPriceSession) || unitPriceSession <= 0) {
-        toast({
-          title: "Lỗi",
-          description: "Học phí mỗi buổi không hợp lệ",
-          type: "warning",
-        });
-        return false;
-      }
-
-      if (hasMonthlyLeaveLimit && monthlyLeaveLimit === null) {
-        toast({
-          title: "Giá trị chưa hợp lệ",
-          description: "Số buổi nghỉ tối đa / tháng phải lớn hơn 0",
+          title: "Thieu thong tin",
+          description: "Vui long chon chi nhanh",
           type: "warning",
         });
         return false;
@@ -1018,20 +696,18 @@ export default function Page() {
 
       if (data.isMakeup && data.isSupplementary) {
         toast({
-          title: "Lỗi",
-          description: "Chương trình không thể vừa là bù vừa là phụ trợ",
+          title: "Loi",
+          description: "Chuong trinh khong the vua la bu vua la phu tro",
           type: "warning",
         });
         return false;
       }
 
+      const code = data.code?.trim() || buildProgramCode(data.name);
       const payload: CreateProgramRequest = {
         branchId: data.branchId,
         name: data.name,
-        totalSessions,
-        defaultTuitionAmount,
-        unitPriceSession,
-        description: data.description,
+        code,
         isMakeup: data.isMakeup,
         isSupplementary: data.isSupplementary,
       };
@@ -1039,28 +715,12 @@ export default function Page() {
       await updateAdminProgram(editingProgramId, payload);
 
       const warnings: string[] = [];
-
       if (originalStatus && data.status !== originalStatus) {
         try {
           await toggleProgramStatus(editingProgramId);
         } catch (toggleError: any) {
           console.error("Failed to toggle program status after update:", toggleError);
-          warnings.push(toggleError?.message || "chưa cập nhật được trạng thái chương trình");
-        }
-      }
-
-      if (
-        hasMonthlyLeaveLimit &&
-        monthlyLeaveLimit !== null &&
-        monthlyLeaveLimit !== initialMonthlyLeaveLimit
-      ) {
-        try {
-          await updateAdminProgramMonthlyLeaveLimit(editingProgramId, monthlyLeaveLimit);
-        } catch (leaveLimitError: any) {
-          console.error("Failed to save monthly leave limit after update:", leaveLimitError);
-          warnings.push(
-            leaveLimitError?.message || "chưa lưu được số buổi nghỉ tối đa / tháng"
-          );
+          warnings.push(toggleError?.message || "chua cap nhat duoc trang thai chuong trinh");
         }
       }
 
@@ -1070,15 +730,15 @@ export default function Page() {
         setCourses(mapped);
       } catch (refreshError) {
         console.warn("Failed to refresh programs after update:", refreshError);
-        warnings.push("danh sách chương trình chưa được làm mới tự động");
+        warnings.push("danh sach chuong trinh chua duoc lam moi tu dong");
       }
 
       toast({
-        title: warnings.length > 0 ? "Đã cập nhật chương trình" : "Thành công",
+        title: warnings.length > 0 ? "Da cap nhat chuong trinh" : "Thanh cong",
         description:
           warnings.length > 0
-            ? `Đã cập nhật khóa học ${data.name}, nhưng ${warnings.join("; ")}.`
-            : `Đã cập nhật khóa học ${data.name} thành công!`,
+            ? `Da cap nhat chuong trinh ${data.name}, nhung ${warnings.join("; ")}.`
+            : `Da cap nhat chuong trinh ${data.name} thanh cong!`,
         type: warnings.length > 0 ? "warning" : "success",
       });
 
@@ -1086,8 +746,8 @@ export default function Page() {
     } catch (err: any) {
       console.error("Failed to update program:", err);
       toast({
-        title: "Lỗi",
-        description: err?.message || "Không thể cập nhật khóa học. Vui lòng thử lại.",
+        title: "Loi",
+        description: err?.message || "Khong the cap nhat chuong trinh. Vui long thu lai.",
         type: "destructive",
       });
       return false;
@@ -1102,18 +762,17 @@ export default function Page() {
   const handleOpenEditCourse = async (row: CourseRow) => {
     try {
       const detail = await fetchAdminProgramDetail(row.id);
-      const currentLeaveLimit = extractProgramMonthlyLeaveLimit(detail);
       const normalizedStatus = normalizeIsActive(detail.isActive ?? detail.status);
       const nextStatus =
         normalizedStatus === true
-          ? "Đang hoạt động"
+          ? "Dang hoat dong"
           : normalizedStatus === false
-            ? "Tạm dừng"
+            ? "Tam dung"
             : row.status;
 
       const nextInitialData: CourseFormData = {
+        code: String(detail.code ?? ""),
         name: String(detail.name ?? row.name),
-        description: detail.description ?? row.desc ?? "",
         status: nextStatus,
         branchId: String(detail.branchId ?? detail.branch?.id ?? ""),
         isMakeup: typeof detail.isMakeup === "boolean" ? detail.isMakeup : !!row.isMakeup,
@@ -1121,16 +780,6 @@ export default function Page() {
           typeof detail.isSupplementary === "boolean"
             ? detail.isSupplementary
             : !!row.isSupplementary,
-        totalSessions:
-          typeof detail.totalSessions === "number" && detail.totalSessions > 0
-            ? String(detail.totalSessions)
-            : row.duration.replace(/[^0-9]/g, ""),
-        defaultTuitionAmount:
-          formatNumberForInput(detail.defaultTuitionAmount) ||
-          row.fee.replace(/[^0-9]/g, ""),
-        unitPriceSession: formatNumberForInput(detail.unitPriceSession),
-        monthlyLeaveLimit:
-          currentLeaveLimit !== null ? String(currentLeaveLimit) : "",
       };
 
       setEditingProgramId(row.id);
@@ -1140,14 +789,12 @@ export default function Page() {
     } catch (err: any) {
       console.error("Failed to load program detail for edit:", err);
       toast({
-        title: "Không thể mở form chỉnh sửa",
-        description:
-          err?.message || "Không thể tải đủ thông tin chương trình để chỉnh sửa.",
+        title: "Khong the mo form chinh sua",
+        description: err?.message || "Khong the tai du thong tin chuong trinh de chinh sua.",
         type: "destructive",
       });
     }
   };
-
   const handleViewDetail = async (row: CourseRow) => {
     try {
       setLoadingDetail(true);
@@ -1866,3 +1513,9 @@ export default function Page() {
     </>
   );
 }
+
+
+
+
+
+
