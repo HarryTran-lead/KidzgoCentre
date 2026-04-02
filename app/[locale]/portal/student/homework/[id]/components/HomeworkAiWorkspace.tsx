@@ -90,7 +90,7 @@ function WarningsBlock({ warnings }: { warnings?: string[] }) {
 
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-      <div className="mb-2 text-sm font-semibold text-amber-200">Luu y tu AI</div>
+      <div className="mb-2 text-sm font-semibold text-amber-200">AI nhắc con</div>
       <ul className="space-y-1 text-sm text-amber-50/85">
         {warnings.map((warning, index) => (
           <li key={`warning-${index}`} className="leading-relaxed">
@@ -128,7 +128,7 @@ function SpeakingResultCard({
           ) : null}
           {result.overallScore !== undefined ? (
             <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
-              Tong diem {result.overallScore}
+              Tổng điểm {result.overallScore}
             </span>
           ) : null}
         </div>
@@ -140,7 +140,7 @@ function SpeakingResultCard({
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
             <div className="text-xs uppercase tracking-wide text-slate-400">
-              Pronunciation
+              Phát âm
             </div>
             <div className="mt-2 text-xl font-bold text-cyan-200">
               {result.pronunciationScore ?? "—"}
@@ -148,7 +148,7 @@ function SpeakingResultCard({
           </div>
           <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
             <div className="text-xs uppercase tracking-wide text-slate-400">
-              Fluency
+              Trôi chảy
             </div>
             <div className="mt-2 text-xl font-bold text-cyan-200">
               {result.fluencyScore ?? "—"}
@@ -156,7 +156,7 @@ function SpeakingResultCard({
           </div>
           <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
             <div className="text-xs uppercase tracking-wide text-slate-400">
-              Accuracy
+              Chính xác
             </div>
             <div className="mt-2 text-xl font-bold text-cyan-200">
               {result.accuracyScore ?? "—"}
@@ -168,7 +168,7 @@ function SpeakingResultCard({
       {result.transcript ? (
         <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
           <div className="mb-2 text-xs uppercase tracking-wide text-slate-400">
-            Transcript
+            AI nghe được
           </div>
           <div className="text-sm leading-relaxed text-slate-200">
             {result.transcript}
@@ -177,18 +177,18 @@ function SpeakingResultCard({
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ResultPills title="Diem manh" items={result.strengths} tone="emerald" />
-        <ResultPills title="Can cai thien" items={result.issues} tone="rose" />
+        <ResultPills title="Điểm mạnh" items={result.strengths} tone="emerald" />
+        <ResultPills title="Cần cải thiện" items={result.issues} tone="rose" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ResultPills
-          title="Tu can luyen"
+          title="Từ cần luyện"
           items={result.mispronouncedWords}
           tone="amber"
         />
         <ResultPills
-          title="Ke hoach luyen tap"
+          title="Kế hoạch luyện tập"
           items={result.practicePlan}
           tone="blue"
         />
@@ -197,7 +197,7 @@ function SpeakingResultCard({
       {result.wordFeedback.length > 0 ? (
         <div className="space-y-3">
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Phan hoi theo tu
+            AI gợi ý theo từng từ
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {result.wordFeedback.map((item, index) => (
@@ -208,7 +208,7 @@ function SpeakingResultCard({
                 <div className="font-semibold text-white">{item.word}</div>
                 {item.heardAs ? (
                   <div className="mt-1 text-xs text-slate-400">
-                    AI nghe duoc: {item.heardAs}
+                    AI nghe được: {item.heardAs}
                   </div>
                 ) : null}
                 <div className="mt-2 text-sm text-rose-200">{item.issue}</div>
@@ -271,8 +271,8 @@ export default function HomeworkAiWorkspace({
 
     if (!response.isSuccess || !response.data) {
       toast({
-        title: "Khong the lay goi y",
-        description: response.message || "Vui long thu lai sau.",
+        title: "Không thể lấy gợi ý",
+        description: response.message || "Vui lòng thử lại sau.",
         type: "destructive",
       });
       return;
@@ -292,8 +292,8 @@ export default function HomeworkAiWorkspace({
 
     if (!response.isSuccess || !response.data) {
       toast({
-        title: "Khong the lay bai luyen them",
-        description: response.message || "Vui long thu lai sau.",
+        title: "Không thể lấy bài luyện thêm",
+        description: response.message || "Vui lòng thử lại sau.",
         type: "destructive",
       });
       return;
@@ -312,8 +312,8 @@ export default function HomeworkAiWorkspace({
 
     if (!response.isSuccess || !response.data) {
       toast({
-        title: "Khong the phan tich bai noi",
-        description: response.message || "Vui long thu lai sau.",
+        title: "Không thể phân tích bài nói",
+        description: response.message || "Vui lòng thử lại sau.",
         type: "destructive",
       });
       return;
@@ -325,8 +325,8 @@ export default function HomeworkAiWorkspace({
   const handleSpeakingPractice = async () => {
     if (!practiceFile) {
       toast({
-        title: "Chua co file speaking",
-        description: "Hay chon audio/video truoc khi gui cho AI.",
+        title: "Chưa có file speaking",
+        description: "Hãy chọn audio/video trước khi gửi cho AI.",
         type: "warning",
       });
       return;
@@ -346,8 +346,8 @@ export default function HomeworkAiWorkspace({
 
     if (!response.isSuccess || !response.data) {
       toast({
-        title: "Khong the luyen noi voi AI",
-        description: response.message || "Vui long thu lai sau.",
+        title: "Không thể luyện nói với AI",
+        description: response.message || "Vui lòng thử lại sau.",
         type: "destructive",
       });
       return;
@@ -362,23 +362,22 @@ export default function HomeworkAiWorkspace({
         <div>
           <div className="flex items-center gap-2 text-fuchsia-200">
             <Bot size={20} className="text-fuchsia-300" />
-            <h2 className="text-lg font-semibold text-white">Tro ly AI cho bai tap</h2>
+            <h2 className="text-lg font-semibold text-white">AI giúp bài tập</h2>
           </div>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
-            Goi y, bai luyen them va phan tich speaking se chi ho tro ban luyen tap.
-            He thong khong tu dong doi diem hay trang thai bai nop.
+            AI sẽ gợi ý cho con học tốt hơn. AI không tự nộp bài hay đổi điểm thay con.
           </p>
         </div>
 
         <label className="inline-flex items-center gap-2 rounded-xl border border-fuchsia-500/20 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
           <Languages size={16} className="text-fuchsia-300" />
-          <span>Ngoan ngu</span>
+            <span>Ngôn ngữ</span>
           <select
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
             className="rounded-lg border border-fuchsia-400/20 bg-slate-950/80 px-2 py-1 text-sm text-white outline-none"
           >
-            <option value="vi">Tieng Viet</option>
+            <option value="vi">Tiếng Việt</option>
             <option value="en">English</option>
           </select>
         </label>
@@ -388,14 +387,14 @@ export default function HomeworkAiWorkspace({
         <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-950/50 p-5">
           <div className="flex items-center gap-2 text-white">
             <Lightbulb size={18} className="text-amber-300" />
-            <h3 className="font-semibold">AI ho tro bai hien tai</h3>
+            <h3 className="font-semibold">AI giúp bài này</h3>
           </div>
 
           <textarea
             value={currentAnswerText}
             onChange={(event) => setCurrentAnswerText(event.target.value)}
             rows={4}
-            placeholder="Neu muon, ban co the dan cau tra loi hien tai de AI goi y sat hon..."
+            placeholder="Nếu muốn, con có thể dán câu trả lời vào đây để AI gợi ý sát hơn..."
             className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-fuchsia-400/40"
           />
 
@@ -411,7 +410,7 @@ export default function HomeworkAiWorkspace({
                 ) : (
                   <Lightbulb size={15} />
                 )}
-                Xin goi y
+                Gợi ý cho con
               </button>
             )}
 
@@ -426,7 +425,7 @@ export default function HomeworkAiWorkspace({
                 ) : (
                   <Sparkles size={15} />
                 )}
-                Luyen tap them
+                Them bai de con luyen
               </button>
             )}
           </div>
@@ -434,7 +433,7 @@ export default function HomeworkAiWorkspace({
           {hintResult && (
             <div className="mt-5 space-y-4 rounded-2xl border border-amber-500/20 bg-slate-900/60 p-5">
               <div>
-                <div className="text-sm font-semibold text-white">Goi y tu AI</div>
+                  <div className="text-sm font-semibold text-white">Gợi ý từ AI</div>
                 {hintResult.summary ? (
                   <p className="mt-1 text-sm leading-relaxed text-slate-300">
                     {hintResult.summary}
@@ -447,15 +446,15 @@ export default function HomeworkAiWorkspace({
                 ) : null}
               </div>
 
-              <ResultPills title="Huong goi y" items={hintResult.hints} tone="amber" />
+              <ResultPills title="Hướng gợi ý" items={hintResult.hints} tone="amber" />
               <div className="grid gap-4 lg:grid-cols-2">
                 <ResultPills
-                  title="Ngu phap nen xem lai"
+                  title="Ngữ pháp nên xem lại"
                   items={hintResult.grammarFocus}
                   tone="blue"
                 />
                 <ResultPills
-                  title="Tu vung nen on"
+                  title="Từ vựng nên ôn"
                   items={hintResult.vocabularyFocus}
                   tone="purple"
                 />
@@ -468,7 +467,7 @@ export default function HomeworkAiWorkspace({
             <div className="mt-5 space-y-4 rounded-2xl border border-fuchsia-500/20 bg-slate-900/60 p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-white">Bai luyen tap goi y</div>
+                  <div className="text-sm font-semibold text-white">Bài luyện tập gợi ý</div>
                   {recommendResult.summary ? (
                     <p className="mt-1 text-sm leading-relaxed text-slate-300">
                       {recommendResult.summary}
@@ -477,19 +476,19 @@ export default function HomeworkAiWorkspace({
                 </div>
                 {recommendResult.focusSkill ? (
                   <span className="rounded-full border border-fuchsia-400/20 bg-fuchsia-500/10 px-3 py-1 text-xs font-semibold text-fuchsia-100">
-                    Focus: {recommendResult.focusSkill}
+                    Tập trung: {recommendResult.focusSkill}
                   </span>
                 ) : null}
               </div>
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <ResultPills
-                  title="Topics"
+                  title="Chu de"
                   items={recommendResult.topics}
                   tone="purple"
                 />
                 <ResultPills
-                  title="Dang bai"
+                  title="Kieu luyen"
                   items={recommendResult.practiceTypes}
                   tone="blue"
                 />
@@ -497,12 +496,12 @@ export default function HomeworkAiWorkspace({
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <ResultPills
-                  title="Grammar tags"
+                  title="Ngữ pháp"
                   items={recommendResult.grammarTags}
                   tone="amber"
                 />
                 <ResultPills
-                  title="Vocabulary tags"
+                  title="Từ vựng"
                   items={recommendResult.vocabularyTags}
                   tone="emerald"
                 />
@@ -518,7 +517,7 @@ export default function HomeworkAiWorkspace({
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold text-white">
-                            Cau {index + 1}
+                            Bài {index + 1}
                           </div>
                           <div className="mt-1 text-sm leading-relaxed text-slate-200">
                             {item.questionText}
@@ -571,7 +570,7 @@ export default function HomeworkAiWorkspace({
         <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-slate-950/50 p-5">
           <div className="flex items-center gap-2 text-white">
             <Mic size={18} className="text-cyan-300" />
-            <h3 className="font-semibold">AI Speaking</h3>
+            <h3 className="font-semibold">Nghe bài nói</h3>
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-2">
@@ -580,14 +579,14 @@ export default function HomeworkAiWorkspace({
                 value={currentTranscript}
                 onChange={(event) => setCurrentTranscript(event.target.value)}
                 rows={5}
-                placeholder="Dan transcript tam neu ban muon AI phan tich theo text..."
+                placeholder="Nếu muốn, con có thể dán transcript vào đây..."
                 className="w-full rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/40"
               />
 
               {assignment.speakingExpectedText ? (
                 <div className="rounded-xl border border-slate-700 bg-slate-900/70 p-4">
                   <div className="text-xs uppercase tracking-wide text-slate-400">
-                    Expected text
+                    Đoạn mẫu
                   </div>
                   <div className="mt-2 text-sm text-slate-200">
                     {assignment.speakingExpectedText}
@@ -597,7 +596,7 @@ export default function HomeworkAiWorkspace({
 
               {(assignment.targetWords || []).length > 0 && (
                 <ResultPills
-                  title="Target words"
+                  title="Từ cần luyện"
                   items={assignment.targetWords}
                   tone="cyan"
                 />
@@ -613,7 +612,7 @@ export default function HomeworkAiWorkspace({
                 ) : (
                   <MessageSquareText size={15} />
                 )}
-                Phan tich bai noi hien tai
+                Nghe bài nói này
               </button>
             </div>
 
@@ -621,10 +620,10 @@ export default function HomeworkAiWorkspace({
               <label className="flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-cyan-400/25 bg-slate-900/60 px-4 py-6 text-center transition hover:border-cyan-300/40 hover:bg-slate-900/80">
                 <UploadCloud size={24} className="text-cyan-300" />
                 <div className="mt-3 text-sm font-semibold text-white">
-                  Tai file audio/video de luyen noi
+                  Tải file để AI nghe
                 </div>
                 <div className="mt-1 text-xs text-slate-400">
-                  WebM, MP4, MP3, MOV...
+                  Audio hoặc video đều được
                 </div>
                 <input
                   type="file"
@@ -643,7 +642,7 @@ export default function HomeworkAiWorkspace({
                 value={practiceInstructions}
                 onChange={(event) => setPracticeInstructions(event.target.value)}
                 rows={3}
-                placeholder="Huong dan them cho AI neu can, vi du: nghe cach nhan trong am va ending sounds."
+                placeholder="Nếu muốn, con có thể nhắn AI nghe kỹ hơn một điểm nào đó."
                 className="w-full rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/40"
               />
 
@@ -657,7 +656,7 @@ export default function HomeworkAiWorkspace({
                 ) : (
                   <Mic size={15} />
                 )}
-                Luyen noi voi AI
+                Luyện nói với AI
               </button>
             </div>
           </div>
@@ -665,13 +664,13 @@ export default function HomeworkAiWorkspace({
           <div className="mt-5 space-y-4">
             {speakingResult ? (
               <SpeakingResultCard
-                title="Phan tich tu bai nop hien tai"
+                title="Ket qua tu bai nop hien tai"
                 result={speakingResult}
               />
             ) : null}
             {practiceResult ? (
               <SpeakingResultCard
-                title="Phan tich tu file practice"
+                title="Ket qua tu file con vua tai"
                 result={practiceResult}
               />
             ) : null}

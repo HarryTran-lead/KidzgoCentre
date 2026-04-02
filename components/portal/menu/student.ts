@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   History,
   ClipboardList,
+  Bot,
   Upload,
   GraduationCap,
   MessageSquare,
@@ -58,6 +59,12 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     label: t.items.homework,
     icon: ClipboardList,
     href: `${root}/homework`,
+  };
+
+  const aiTutorItem: MenuItem = {
+    label: t.items.aiTutor,
+    icon: Bot,
+    href: `${root}/ai-tutor`,
   };
 
   // 📊 Báo cáo & Kiểm tra
@@ -117,6 +124,7 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     scheduleItem,
     attendanceItem,
     homeworkItem,
+    aiTutorItem,
     reportsTestsGroup,
     gamificationGroup,
     mediaGroup,
