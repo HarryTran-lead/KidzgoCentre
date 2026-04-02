@@ -3,7 +3,12 @@
 import { getAccessToken } from "@/lib/store/authToken";
 import { QUESTION_BANK_ENDPOINTS } from "@/constants/apiURL";
 
-export type QuestionType = "MultipleChoice" | "TrueFalse" | "Essay" | "FillInBlank";
+export type QuestionType =
+    | "MultipleChoice"
+    | "TrueFalse"
+    | "Essay"
+    | "FillInBlank"
+    | "TextInput";
 export type DifficultyLevel = "Easy" | "Medium" | "Hard";
 export type QuestionStatus = "Đang hoạt động" | "Tạm dừng";
 
@@ -34,6 +39,42 @@ export interface QuestionDetail extends Omit<QuestionRow, "programId"> {
     questionText?: string;
     questionType?: QuestionType;
     level?: DifficultyLevel;
+}
+
+export interface AiGeneratedQuestionDraft {
+    questionText: string;
+    questionType: "MultipleChoice" | "TextInput";
+    options: string[];
+    correctAnswer: string;
+    points: number;
+    explanation?: string | null;
+    topic?: string | null;
+    skill?: string | null;
+    grammarTags: string[];
+    vocabularyTags: string[];
+    level?: DifficultyLevel;
+}
+
+export interface AiGenerateQuestionPayload {
+    programId: string;
+    topic: string;
+    questionType?: "MultipleChoice" | "TextInput";
+    questionCount?: number;
+    level?: DifficultyLevel;
+    skill?: string;
+    taskStyle?: "standard" | "translation";
+    grammarTags?: string[];
+    vocabularyTags?: string[];
+    instructions?: string;
+    language?: string;
+    pointsPerQuestion?: number;
+}
+
+export interface AiGenerateQuestionResult {
+    aiUsed: boolean;
+    summary?: string;
+    warnings: string[];
+    items: AiGeneratedQuestionDraft[];
 }
 
 function normalizeBooleanFlag(value: any): boolean | null {
@@ -73,6 +114,7 @@ function mapRow(item: any): QuestionRow {
     const questionType = item?.type ?? item?.questionType ?? item?.question_type ?? "MultipleChoice";
     const type: QuestionType =
         questionType === "MULTIPLE_CHOICE" || questionType === "MultipleChoice" ? "MultipleChoice"
+        : questionType === "TEXT_INPUT" || questionType === "TextInput" ? "TextInput"
         : questionType === "TRUE_FALSE" || questionType === "TrueFalse" ? "TrueFalse"
         : questionType === "ESSAY" || questionType === "Essay" ? "Essay"
         : questionType === "FILL_IN_BLANK" || questionType === "FillInBlank" ? "FillInBlank"
@@ -245,4 +287,65 @@ export async function importQuestions(programId: string, file: File): Promise<an
     }
     const j = text ? JSON.parse(text) : null;
     return j?.data ?? j;
+}
+
+export async function generateAiQuestionDrafts(
+    payload: AiGenerateQuestionPayload
+): Promise<AiGenerateQuestionResult> {
+    const token = getAccessToken();
+    if (!token) throw new Error("Ban chua dang nhap.");
+
+    const res = await fetch(QUESTION_BANK_ENDPOINTS.AI_GENERATE, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const text = await res.text();
+    const json = text ? JSON.parse(text) : null;
+
+    if (!res.ok) {
+        throw new Error(json?.message ?? json?.detail ?? "Khong the tao draft cau hoi bang AI.");
+    }
+
+    const data = json?.data ?? json ?? {};
+    const items = Array.isArray(data?.items)
+        ? data.items.map((item: any) => ({
+            questionText: String(item?.questionText ?? item?.content ?? ""),
+            questionType:
+                item?.questionType === "TextInput" || item?.questionType === "TEXT_INPUT"
+                    ? "TextInput"
+                    : "MultipleChoice",
+            options: Array.isArray(item?.options)
+                ? item.options.map((option: any) => String(option ?? "").trim()).filter(Boolean)
+                : [],
+            correctAnswer: String(item?.correctAnswer ?? ""),
+            points: Number(item?.points ?? payload.pointsPerQuestion ?? 1),
+            explanation: item?.explanation ?? null,
+            topic: item?.topic ?? null,
+            skill: item?.skill ?? null,
+            grammarTags: Array.isArray(item?.grammarTags)
+                ? item.grammarTags.map((tag: any) => String(tag ?? "").trim()).filter(Boolean)
+                : [],
+            vocabularyTags: Array.isArray(item?.vocabularyTags)
+                ? item.vocabularyTags.map((tag: any) => String(tag ?? "").trim()).filter(Boolean)
+                : [],
+            level:
+                item?.level === "Easy" || item?.level === "Medium" || item?.level === "Hard"
+                    ? item.level
+                    : (payload.level ?? "Medium"),
+        }))
+        : [];
+
+    return {
+        aiUsed: Boolean(data?.aiUsed),
+        summary: data?.summary,
+        warnings: Array.isArray(data?.warnings)
+            ? data.warnings.map((warning: any) => String(warning ?? "").trim()).filter(Boolean)
+            : [],
+        items,
+    };
 }

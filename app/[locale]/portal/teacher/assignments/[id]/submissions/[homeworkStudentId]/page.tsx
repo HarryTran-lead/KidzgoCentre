@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -21,6 +21,9 @@ import {
 
 import { get, post, put } from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
+import AiQuickGradeCard, {
+  type HomeworkQuickGradeResult,
+} from "./components/AiQuickGradeCard";
 
 type MCQuestionOption = {
   id?: string;
@@ -426,6 +429,178 @@ function normalizeStatusLabel(status?: string | null) {
   }
 }
 
+type ParsedAiFeedback = {
+  summary?: string;
+  strengths: string[];
+  issues: string[];
+  suggestions: string[];
+  warnings: string[];
+};
+
+function toArrayOfStrings(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => String(item ?? "").trim())
+    .filter(Boolean);
+}
+
+function parseAiFeedbackValue(value: unknown): ParsedAiFeedback | null {
+  if (!value) {
+    return null;
+  }
+
+  let payload: any = value;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    try {
+      payload = JSON.parse(trimmed);
+    } catch {
+      return null;
+    }
+  }
+
+  const resolved = payload?.result ?? payload?.data ?? payload;
+  const summary = String(resolved?.summary ?? "").trim();
+  const strengths = toArrayOfStrings(resolved?.strengths);
+  const issues = toArrayOfStrings(resolved?.issues);
+  const suggestions = toArrayOfStrings(resolved?.suggestions);
+  const warnings = toArrayOfStrings(payload?.warnings ?? resolved?.warnings);
+
+  if (!summary && strengths.length === 0 && issues.length === 0 && suggestions.length === 0 && warnings.length === 0) {
+    return null;
+  }
+
+  return {
+    summary: summary || undefined,
+    strengths,
+    issues,
+    suggestions,
+    warnings,
+  };
+}
+
+function formatAiFeedbackText(value?: string | null) {
+  const parsed = parseAiFeedbackValue(value);
+  if (!parsed) {
+    return value || "";
+  }
+
+  const sections: string[] = [];
+  if (parsed.summary) {
+    sections.push(parsed.summary);
+  }
+  if (parsed.strengths.length > 0) {
+    sections.push(`Điểm mạnh:\n${parsed.strengths.map((item) => `- ${item}`).join("\n")}`);
+  }
+  if (parsed.issues.length > 0) {
+    sections.push(`Cần cải thiện:\n${parsed.issues.map((item) => `- ${item}`).join("\n")}`);
+  }
+  if (parsed.suggestions.length > 0) {
+    sections.push(`Gợi ý:\n${parsed.suggestions.map((item) => `- ${item}`).join("\n")}`);
+  }
+  if (parsed.warnings.length > 0) {
+    sections.push(`Lưu ý:\n${parsed.warnings.map((item) => `- ${item}`).join("\n")}`);
+  }
+
+  return sections.join("\n\n").trim();
+}
+
+function buildQuickGradeFeedback(result: HomeworkQuickGradeResult): string {
+  const sections: string[] = [];
+
+  if (result.summary) {
+    sections.push(result.summary.trim());
+  }
+
+  if (result.strengths.length > 0) {
+    sections.push(
+      `Diem manh:\n${result.strengths.map((item) => `- ${item}`).join("\n")}`
+    );
+  }
+
+  if (result.issues.length > 0) {
+    sections.push(
+      `Can cai thien:\n${result.issues.map((item) => `- ${item}`).join("\n")}`
+    );
+  }
+
+  if (result.suggestions.length > 0) {
+    sections.push(
+      `Goi y:\n${result.suggestions.map((item) => `- ${item}`).join("\n")}`
+    );
+  }
+
+  return sections.filter(Boolean).join("\n\n").trim();
+}
+
+function formatReadableAiFeedbackText(value?: string | null) {
+  const parsed = parseAiFeedbackValue(value);
+  if (!parsed) {
+    return value || "";
+  }
+
+  const sections: string[] = [];
+  if (parsed.summary) {
+    sections.push(parsed.summary);
+  }
+  if (parsed.strengths.length > 0) {
+    sections.push(`Điểm mạnh:\n${parsed.strengths.map((item) => `- ${item}`).join("\n")}`);
+  }
+  if (parsed.issues.length > 0) {
+    sections.push(`Cần cải thiện:\n${parsed.issues.map((item) => `- ${item}`).join("\n")}`);
+  }
+  if (parsed.suggestions.length > 0) {
+    sections.push(`Gợi ý:\n${parsed.suggestions.map((item) => `- ${item}`).join("\n")}`);
+  }
+  if (parsed.warnings.length > 0) {
+    sections.push(`Lưu ý:\n${parsed.warnings.map((item) => `- ${item}`).join("\n")}`);
+  }
+
+  return sections.join("\n\n").trim();
+}
+
+function buildReadableQuickGradeFeedback(result: HomeworkQuickGradeResult): string {
+  const sections: string[] = [];
+
+  if (result.summary) {
+    sections.push(result.summary.trim());
+  }
+
+  if (result.strengths.length > 0) {
+    sections.push(
+      `Điểm mạnh:\n${result.strengths.map((item) => `- ${item}`).join("\n")}`
+    );
+  }
+
+  if (result.issues.length > 0) {
+    sections.push(
+      `Cần cải thiện:\n${result.issues.map((item) => `- ${item}`).join("\n")}`
+    );
+  }
+
+  if (result.suggestions.length > 0) {
+    sections.push(
+      `Gợi ý:\n${result.suggestions.map((item) => `- ${item}`).join("\n")}`
+    );
+  }
+
+  if (result.warnings.length > 0) {
+    sections.push(
+      `Lưu ý:\n${result.warnings.map((item) => `- ${item}`).join("\n")}`
+    );
+  }
+
+  return sections.filter(Boolean).join("\n\n").trim();
+}
+
 export default function TeacherSubmissionDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -448,6 +623,7 @@ export default function TeacherSubmissionDetailPage() {
   const [showGradingForm, setShowGradingForm] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [isMarkingStatus, setIsMarkingStatus] = useState(false);
+  const gradingPanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -762,14 +938,19 @@ export default function TeacherSubmissionDetailPage() {
   const normalizedStatus = String(data?.status || "").toLowerCase();
   const canMarkLate = normalizedStatus === "assigned";
   const canMarkMissing = normalizedStatus === "assigned" || normalizedStatus === "late";
+  const parsedAiFeedback = useMemo(() => parseAiFeedbackValue(data?.aiFeedback), [data?.aiFeedback]);
+  const formattedAiFeedback = useMemo(
+    () => formatReadableAiFeedbackText(data?.aiFeedback),
+    [data?.aiFeedback]
+  );
 
   // Fill editing fields when data loads
   useEffect(() => {
     if (data) {
       setEditingScore(data.score !== null && data.score !== undefined ? String(data.score) : "");
-      setEditingFeedback(data.teacherFeedback || "");
+      setEditingFeedback(data.teacherFeedback || formattedAiFeedback || "");
     }
-  }, [data]);
+  }, [data, formattedAiFeedback]);
 
   const handleSaveGrade = useCallback(async () => {
     if (!homeworkStudentId) return;
@@ -844,8 +1025,9 @@ export default function TeacherSubmissionDetailPage() {
       const response = await post<any>(`/api/homework/submissions/${homeworkStudentId}/ai-feedback`, {});
       const body = response?.data || response;
       const aiText: string = body?.aiFeedback || body?.data?.aiFeedback || "";
-      if (aiText) {
-        setEditingFeedback((prev) => (prev ? `${prev}\n\n${aiText}` : aiText));
+      const formattedText = formatReadableAiFeedbackText(aiText);
+      if (formattedText) {
+        setEditingFeedback((prev) => (prev ? `${prev}\n\n${formattedText}` : formattedText));
       } else {
         toast({ title: "Thông báo", description: "Không tạo được phản hồi AI. Vui lòng thử lại.", type: "warning" });
       }
@@ -856,6 +1038,44 @@ export default function TeacherSubmissionDetailPage() {
       setAiLoading(false);
     }
   }, [homeworkStudentId]);
+
+  const handleApplyQuickGrade = useCallback((result: HomeworkQuickGradeResult) => {
+    if (!result.aiUsed) {
+      return;
+    }
+
+    const generatedFeedback = buildReadableQuickGradeFeedback(result);
+
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            status: result.status ?? prev.status ?? "Graded",
+            score:
+              result.score !== null && result.score !== undefined
+                ? result.score
+                : prev.score,
+            gradedAt: result.gradedAt ?? prev.gradedAt ?? new Date().toISOString(),
+            aiFeedback: generatedFeedback || result.summary || prev.aiFeedback,
+          }
+        : prev
+    );
+
+    if (result.score !== null && result.score !== undefined) {
+      setEditingScore(String(result.score));
+    }
+    if (generatedFeedback) {
+      setEditingFeedback(generatedFeedback);
+    }
+    setShowGradingForm(true);
+
+    setTimeout(() => {
+      gradingPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
+  }, []);
 
   const handleMarkStatus = useCallback(async (status: "Late" | "Missing") => {
     if (!homeworkStudentId) return;
@@ -1217,7 +1437,17 @@ export default function TeacherSubmissionDetailPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-red-200 bg-white shadow-sm p-6">
+        <div
+          ref={gradingPanelRef}
+          className="rounded-2xl border border-red-200 bg-white shadow-sm p-6"
+        >
+          <div className="mb-6">
+            <AiQuickGradeCard
+              homeworkStudentId={homeworkStudentId}
+              onApplied={handleApplyQuickGrade}
+            />
+          </div>
+
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">
               {isMultipleChoiceSubmission ? "Nhận xét" : "Chấm điểm & Nhận xét"}
@@ -1250,8 +1480,8 @@ export default function TeacherSubmissionDetailPage() {
                     setEditingScore("0");
                     setEditingFeedback("Quá hạn nộp bài");
                   } else {
-                    setEditingScore(data?.score !== null && data?.score !== undefined ? String(data.score) : "");
-                    setEditingFeedback(data?.teacherFeedback || "");
+                    setEditingScore((prev) => prev || (data?.score !== null && data?.score !== undefined ? String(data.score) : ""));
+                    setEditingFeedback((prev) => prev || data?.teacherFeedback || formattedAiFeedback || "");
                   }
                   setShowGradingForm(true);
                 }}
@@ -1305,8 +1535,68 @@ export default function TeacherSubmissionDetailPage() {
 
               <div>
                 <div className="text-gray-500 mb-2 font-medium">Phản hồi từ AI</div>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 whitespace-pre-wrap text-sm text-amber-800">
-                  {data.aiFeedback || <span className="italic text-amber-400">Chưa có phản hồi AI</span>}
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  {parsedAiFeedback ? (
+                    <div className="space-y-4">
+                      {parsedAiFeedback.summary ? (
+                        <p className="whitespace-pre-wrap leading-relaxed">
+                          {parsedAiFeedback.summary}
+                        </p>
+                      ) : null}
+                      {parsedAiFeedback.strengths.length > 0 ? (
+                        <div>
+                          <div className="mb-2 font-semibold text-amber-950">Điểm mạnh</div>
+                          <ul className="space-y-1">
+                            {parsedAiFeedback.strengths.map((item, index) => (
+                              <li key={`ai-strength-${index}`} className="leading-relaxed">
+                                • {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {parsedAiFeedback.issues.length > 0 ? (
+                        <div>
+                          <div className="mb-2 font-semibold text-amber-950">Cần cải thiện</div>
+                          <ul className="space-y-1">
+                            {parsedAiFeedback.issues.map((item, index) => (
+                              <li key={`ai-issue-${index}`} className="leading-relaxed">
+                                • {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {parsedAiFeedback.suggestions.length > 0 ? (
+                        <div>
+                          <div className="mb-2 font-semibold text-amber-950">Gợi ý</div>
+                          <ul className="space-y-1">
+                            {parsedAiFeedback.suggestions.map((item, index) => (
+                              <li key={`ai-suggestion-${index}`} className="leading-relaxed">
+                                • {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {parsedAiFeedback.warnings.length > 0 ? (
+                        <div>
+                          <div className="mb-2 font-semibold text-amber-950">Lưu ý</div>
+                          <ul className="space-y-1">
+                            {parsedAiFeedback.warnings.map((item, index) => (
+                              <li key={`ai-warning-${index}`} className="leading-relaxed">
+                                • {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : formattedAiFeedback ? (
+                    <div className="whitespace-pre-wrap leading-relaxed">{formattedAiFeedback}</div>
+                  ) : (
+                    <span className="italic text-amber-500">Chưa có phản hồi AI</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1402,7 +1692,7 @@ export default function TeacherSubmissionDetailPage() {
                     setShowGradingForm(false);
                     if (data) {
                       setEditingScore(data.score !== null && data.score !== undefined ? String(data.score) : "");
-                      setEditingFeedback(data.teacherFeedback || "");
+                      setEditingFeedback(data.teacherFeedback || formattedAiFeedback || "");
                     }
                   }}
                   className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"

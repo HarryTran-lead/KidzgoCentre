@@ -12,7 +12,7 @@ import {
   STUDENT_ENDPOINTS,
   STUDENT_HOMEWORK_ENDPOINTS,
 } from "@/constants/apiURL";
-import { get, post } from "@/lib/axios";
+import { get, post, request } from "@/lib/axios";
 import type { StudentClassesResponse } from "@/types/student/class";
 import type { StudentsResponse } from "@/types/student/student";
 import type {
@@ -20,6 +20,9 @@ import type {
   HomeworkStats,
   AssignmentDetail,
   Attachment,
+  HomeworkAiHintResult,
+  HomeworkAiRecommendationResult,
+  HomeworkSpeakingAnalysisResult,
 } from "@/types/student/homework";
 
 type StudentClassesParams = {
@@ -223,6 +226,23 @@ function normalizeAttachments(value: unknown): Attachment[] {
   return rawItems
     .map((item, index) => normalizeAttachment(item, index))
     .filter((item): item is Attachment => Boolean(item));
+}
+
+function toStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item ?? "").trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
 }
 
 function extractStudentHomeworkItems(responseData: any): AssignmentListItem[] {
@@ -634,6 +654,25 @@ export async function getStudentHomeworkById(
           : undefined,
       submittedAt: formatToViDateTime(item.submittedAt),
       gradedAt: formatToViDateTime(item.gradedAt),
+      aiHintEnabled: Boolean(item.aiHintEnabled ?? item.isAiHintEnabled ?? item.assignment?.aiHintEnabled),
+      aiRecommendEnabled: Boolean(
+        item.aiRecommendEnabled ?? item.isAiRecommendEnabled ?? item.assignment?.aiRecommendEnabled
+      ),
+      speakingMode:
+        item.speakingMode ??
+        item.assignment?.speakingMode ??
+        item.mode ??
+        null,
+      targetWords: toStringArray(
+        item.targetWords ??
+          item.assignment?.targetWords ??
+          item.speakingTargetWords
+      ),
+      speakingExpectedText:
+        item.speakingExpectedText ??
+        item.expectedText ??
+        item.assignment?.speakingExpectedText ??
+        null,
     };
 
     return {
@@ -647,6 +686,240 @@ export async function getStudentHomeworkById(
       data: null,
       isSuccess: false,
       message: error?.message || "Lỗi khi tải bài tập",
+    };
+  }
+}
+
+type StudentAiActionResponse<T> = {
+  data?: T;
+  isSuccess: boolean;
+  message?: string;
+};
+
+type HomeworkAiBasePayload = {
+  language?: string;
+};
+
+export type HomeworkAiHintPayload = HomeworkAiBasePayload & {
+  currentAnswerText?: string;
+};
+
+export type HomeworkAiRecommendationPayload = HomeworkAiBasePayload & {
+  currentAnswerText?: string;
+  maxItems?: number;
+};
+
+export type HomeworkAiSpeakingAnalysisPayload = HomeworkAiBasePayload & {
+  currentTranscript?: string;
+};
+
+export type HomeworkAiSpeakingPracticePayload = HomeworkAiBasePayload & {
+  file: File;
+  homeworkStudentId?: string;
+  mode?: string;
+  expectedText?: string;
+  targetWords?: string;
+  instructions?: string;
+};
+
+function normalizeAiHintResult(payload: any): HomeworkAiHintResult {
+  return {
+    aiUsed: Boolean(payload?.aiUsed),
+    summary: payload?.summary,
+    hints: toStringArray(payload?.hints),
+    grammarFocus: toStringArray(payload?.grammarFocus),
+    vocabularyFocus: toStringArray(payload?.vocabularyFocus),
+    encouragement: payload?.encouragement,
+    warnings: toStringArray(payload?.warnings),
+  };
+}
+
+function normalizeAiRecommendationResult(payload: any): HomeworkAiRecommendationResult {
+  const items = Array.isArray(payload?.items)
+    ? payload.items.map((item: any) => ({
+        questionBankItemId: String(item?.questionBankItemId ?? item?.id ?? ""),
+        questionText: String(item?.questionText ?? item?.content ?? ""),
+        questionType: String(item?.questionType ?? item?.type ?? ""),
+        options: toStringArray(item?.options),
+        topic: item?.topic ?? null,
+        skill: item?.skill ?? null,
+        grammarTags: toStringArray(item?.grammarTags),
+        vocabularyTags: toStringArray(item?.vocabularyTags),
+        level: item?.level,
+        points: item?.points !== undefined ? Number(item.points) : undefined,
+        reason: item?.reason,
+      }))
+    : [];
+
+  return {
+    aiUsed: Boolean(payload?.aiUsed),
+    summary: payload?.summary,
+    focusSkill: payload?.focusSkill,
+    topics: toStringArray(payload?.topics),
+    grammarTags: toStringArray(payload?.grammarTags),
+    vocabularyTags: toStringArray(payload?.vocabularyTags),
+    recommendedLevels: toStringArray(payload?.recommendedLevels),
+    practiceTypes: toStringArray(payload?.practiceTypes),
+    warnings: toStringArray(payload?.warnings),
+    items,
+  };
+}
+
+function normalizeSpeakingAnalysisResult(payload: any): HomeworkSpeakingAnalysisResult {
+  const confidence =
+    payload?.confidence && typeof payload.confidence === "object"
+      ? Object.fromEntries(
+          Object.entries(payload.confidence).map(([key, value]) => [
+            key,
+            value === undefined || value === null ? undefined : Number(value),
+          ])
+        )
+      : undefined;
+
+  return {
+    aiUsed: Boolean(payload?.aiUsed),
+    summary: payload?.summary,
+    transcript: payload?.transcript,
+    overallScore:
+      payload?.overallScore !== undefined ? Number(payload.overallScore) : undefined,
+    pronunciationScore:
+      payload?.pronunciationScore !== undefined
+        ? Number(payload.pronunciationScore)
+        : undefined,
+    fluencyScore:
+      payload?.fluencyScore !== undefined ? Number(payload.fluencyScore) : undefined,
+    accuracyScore:
+      payload?.accuracyScore !== undefined ? Number(payload.accuracyScore) : undefined,
+    stars: payload?.stars !== undefined ? Number(payload.stars) : undefined,
+    strengths: toStringArray(payload?.strengths),
+    issues: toStringArray(payload?.issues),
+    mispronouncedWords: toStringArray(payload?.mispronouncedWords),
+    wordFeedback: Array.isArray(payload?.wordFeedback)
+      ? payload.wordFeedback.map((item: any) => ({
+          word: String(item?.word ?? ""),
+          heardAs: item?.heardAs ?? null,
+          issue: String(item?.issue ?? ""),
+          tip: String(item?.tip ?? ""),
+        }))
+      : [],
+    suggestions: toStringArray(payload?.suggestions),
+    practicePlan: toStringArray(payload?.practicePlan),
+    confidence: confidence as HomeworkSpeakingAnalysisResult["confidence"],
+    warnings: toStringArray(payload?.warnings),
+  };
+}
+
+async function performStudentAiAction<T>(
+  endpoint: string,
+  body: Record<string, unknown>,
+  normalizer: (payload: any) => T
+): Promise<StudentAiActionResponse<T>> {
+  try {
+    const response = await post<any>(endpoint, body);
+    const responseData = response?.data || response;
+    const payload = responseData?.data ?? responseData;
+
+    return {
+      data: normalizer(payload),
+      isSuccess: responseData?.isSuccess ?? true,
+      message: responseData?.message,
+    };
+  } catch (error: any) {
+    return {
+      isSuccess: false,
+      message:
+        error?.response?.data?.message ||
+        error?.response?.data?.detail ||
+        error?.message ||
+        "Khong the goi tro ly AI",
+    };
+  }
+}
+
+export async function getStudentHomeworkHint(
+  homeworkStudentId: string,
+  payload: HomeworkAiHintPayload = {}
+): Promise<StudentAiActionResponse<HomeworkAiHintResult>> {
+  return performStudentAiAction(
+    STUDENT_HOMEWORK_ENDPOINTS.GET_HINT(homeworkStudentId),
+    payload,
+    normalizeAiHintResult
+  );
+}
+
+export async function getStudentHomeworkRecommendations(
+  homeworkStudentId: string,
+  payload: HomeworkAiRecommendationPayload = {}
+): Promise<StudentAiActionResponse<HomeworkAiRecommendationResult>> {
+  return performStudentAiAction(
+    STUDENT_HOMEWORK_ENDPOINTS.GET_RECOMMENDATIONS(homeworkStudentId),
+    payload,
+    normalizeAiRecommendationResult
+  );
+}
+
+export async function getStudentHomeworkSpeakingAnalysis(
+  homeworkStudentId: string,
+  payload: HomeworkAiSpeakingAnalysisPayload = {}
+): Promise<StudentAiActionResponse<HomeworkSpeakingAnalysisResult>> {
+  return performStudentAiAction(
+    STUDENT_HOMEWORK_ENDPOINTS.GET_SPEAKING_ANALYSIS(homeworkStudentId),
+    payload,
+    normalizeSpeakingAnalysisResult
+  );
+}
+
+export async function analyzeStudentSpeakingPractice(
+  payload: HomeworkAiSpeakingPracticePayload
+): Promise<StudentAiActionResponse<HomeworkSpeakingAnalysisResult>> {
+  const formData = new FormData();
+  formData.append("file", payload.file);
+
+  if (payload.homeworkStudentId) {
+    formData.append("homeworkStudentId", payload.homeworkStudentId);
+  }
+  if (payload.language) {
+    formData.append("language", payload.language);
+  }
+  if (payload.mode) {
+    formData.append("mode", payload.mode);
+  }
+  if (payload.expectedText) {
+    formData.append("expectedText", payload.expectedText);
+  }
+  if (payload.targetWords) {
+    formData.append("targetWords", payload.targetWords);
+  }
+  if (payload.instructions) {
+    formData.append("instructions", payload.instructions);
+  }
+
+  try {
+    const response = await request<any>({
+      url: STUDENT_HOMEWORK_ENDPOINTS.ANALYZE_SPEAKING,
+      method: "POST",
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    const responseData = response?.data || response;
+    const aiPayload = responseData?.data ?? responseData;
+
+    return {
+      data: normalizeSpeakingAnalysisResult(aiPayload),
+      isSuccess: responseData?.isSuccess ?? true,
+      message: responseData?.message,
+    };
+  } catch (error: any) {
+    return {
+      isSuccess: false,
+      message:
+        error?.response?.data?.message ||
+        error?.response?.data?.detail ||
+        error?.message ||
+        "Khong the phan tich file speaking",
     };
   }
 }

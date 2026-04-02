@@ -71,6 +71,12 @@ export const STUDENT_HOMEWORK_ENDPOINTS = {
   GET_SUBMITTED: "/api/students/homework/submitted",
   GET_FEEDBACK_MY: "/api/students/homework/feedback/my",
   GET_BY_ID: (homeworkStudentId: string) => `/api/students/homework/${homeworkStudentId}`,
+  GET_HINT: (homeworkStudentId: string) => `/api/students/homework/${homeworkStudentId}/hint`,
+  GET_RECOMMENDATIONS: (homeworkStudentId: string) =>
+    `/api/students/homework/${homeworkStudentId}/recommendations`,
+  GET_SPEAKING_ANALYSIS: (homeworkStudentId: string) =>
+    `/api/students/homework/${homeworkStudentId}/speaking-analysis`,
+  ANALYZE_SPEAKING: "/api/students/ai-speaking/analyze",
   SUBMIT: "/api/students/homework/submit",
   SUBMIT_MULTIPLE_CHOICE: "/api/students/homework/multiple-choice/submit",
 } as const;
@@ -678,6 +684,7 @@ export const QUESTION_BANK_ENDPOINTS = {
   GET_ALL: '/api/question-bank',
   GET_BY_ID: (id: string) => `/api/question-bank/${id}`,
   CREATE: '/api/question-bank',
+  AI_GENERATE: '/api/question-bank/ai-generate',
   UPDATE: (id: string) => `/api/question-bank/${id}`,
   DELETE: (id: string) => `/api/question-bank/${id}`,
   TOGGLE_STATUS: (id: string) => `/api/question-bank/${id}/toggle-status`,
@@ -689,6 +696,7 @@ export const BACKEND_QUESTION_BANK_ENDPOINTS = {
   GET_ALL: '/question-bank',
   GET_BY_ID: (id: string) => `/question-bank/${id}`,
   CREATE: '/question-bank',
+  AI_GENERATE: '/question-bank/ai-generate',
   UPDATE: (id: string) => `/question-bank/${id}`,
   DELETE: (id: string) => `/question-bank/${id}`,
   TOGGLE_STATUS: (id: string) => `/question-bank/${id}/toggle-status`,
