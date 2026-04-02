@@ -71,7 +71,8 @@ export interface CreateLeadPublicRequest {
 export interface CreateLeadRequest extends CreateLeadPublicRequest {
   status?: string;
   source?: string;
-  assignedTo?: string;
+  ownerStaffId?: string;
+  assignedTo?: string; // Legacy alias retained for older callers.
   children?: CreateLeadChildRequest[];
 }
 
@@ -196,12 +197,19 @@ export interface GetLeadActivitiesApiResponse {
 }
 
 export interface GetLeadSLAApiResponse {
-  success: boolean;
+  success?: boolean;
+  isSuccess?: boolean;
   data: {
     leadId: string;
+    createdAt?: string;
+    firstResponseAt?: string | null;
+    timeToFirstResponse?: string | number | null;
+    slaTargetHours?: number | null;
+    isSLACompliant?: boolean | null;
+    isSLAOverdue?: boolean | null;
     responseTime?: number;
     resolutionTime?: number;
-    slaStatus: string;
+    slaStatus?: string;
   };
   message?: string;
 }

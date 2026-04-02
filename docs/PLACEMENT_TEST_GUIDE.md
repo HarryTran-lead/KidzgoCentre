@@ -1,4 +1,7 @@
 # Placement Test Management System
+> Legacy note: Tai lieu nay mo ta mot flow cu.
+> Ban can doi chieu moi nhat cho Flow 1 nam o:
+> [FLOW_1_ENROLLMENT_PLACEMENT_REGISTRATION_CLASSES_AUDIT.md](./FLOW_1_ENROLLMENT_PLACEMENT_REGISTRATION_CLASSES_AUDIT.md)
 
 Hệ thống quản lý Placement Test (Kiểm tra đầu vào) cho trung tâm Kidz Go.
 

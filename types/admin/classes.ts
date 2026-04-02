@@ -17,13 +17,13 @@ export interface CreateClassRequest {
   programId: string;
   code: string;
   title: string;
-  mainTeacherId: string;
+  mainTeacherId?: string;
   assistantTeacherId?: string;
   roomId?: string;
   startDate: string; // ISO date format: "2026-03-24"
-  endDate: string; // ISO date format: "2026-03-24"
+  endDate?: string; // Backend may auto-calculate when schedule pattern and program data are available.
   capacity: number;
-  schedulePattern: string; // RRULE format: "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=8;BYMINUTE=30;DURATION=60"
+  schedulePattern?: string; // RRULE format: "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=8;BYMINUTE=30;DURATION=60"
   status?: string; // Auto set to "Planned" when creating new class
 }
 
