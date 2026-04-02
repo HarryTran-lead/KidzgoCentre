@@ -88,11 +88,13 @@ export interface PlacementTestNote {
 }
 
 export interface CreatePlacementTestRequest {
-  leadId: string;
-  leadChildId: string;
+  leadId?: string;
+  leadChildId?: string;
   scheduledAt: string;
   room?: string;
-  invigilatorUserId: string;
+  invigilatorUserId?: string;
+  studentProfileId?: string;
+  classId?: string;
 }
 
 export interface CreatePlacementTestResponse {
@@ -112,16 +114,22 @@ export interface UpdatePlacementTestRequest {
   scheduledAt?: string;
   room?: string;
   invigilatorUserId?: string;
+  studentProfileId?: string;
+  classId?: string;
   notes?: string;
 }
 
 export interface PlacementTestFilters {
+  leadId?: string;
+  studentProfileId?: string;
   status?: string;
   branchId?: string;
   assignedTeacherId?: string;
   fromDate?: string;
   toDate?: string;
   searchTerm?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc" | "Ascending" | "Descending";
   page?: number;
   pageSize?: number;
 }

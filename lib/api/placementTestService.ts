@@ -267,7 +267,7 @@ export async function getAllPlacementTests(params?: {
   fromDate?: string;
   toDate?: string;
   sortBy?: string;
-  sortOrder?: "asc" | "desc";
+  sortOrder?: "asc" | "desc" | "Ascending" | "Descending";
 }): Promise<ApiResponse<PaginatedResponse<PlacementTest>>> {
   try {
     const queryParams = new URLSearchParams();
@@ -469,10 +469,14 @@ export async function addPlacementTestNote(
  * Convert placement test to enrolled student
  */
 export async function convertPlacementTestToEnrolled(
-  id: string
+  id: string,
+  body?: { studentProfileId?: string }
 ): Promise<ApiResponse<void>> {
   try {
-    const response = await post<any>(PLACEMENT_TEST_ENDPOINTS.CONVERT_TO_ENROLLED(id), {});
+    const response = await post<any>(
+      PLACEMENT_TEST_ENDPOINTS.CONVERT_TO_ENROLLED(id),
+      body ?? {}
+    );
     const payload = extractPayload(response);
     return {
       isSuccess: payload?.isSuccess ?? payload?.success ?? true,
