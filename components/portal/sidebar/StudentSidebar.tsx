@@ -170,6 +170,11 @@ export default function StudentSidebar({
       iconSrc: "/icons/homework.png",
       badge: 2,
     },
+    {
+      label: "AI Tutor",
+      href: `${roleRoot}/ai-tutor`,
+      iconSrc: "/icons/quest.png",
+    },
     { 
       label: "Gamification", 
       href: `${roleRoot}/gamification`,

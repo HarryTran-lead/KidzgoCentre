@@ -16,6 +16,7 @@ export const menuStudent = {
       attendance: "Điểm danh",
       // Bài tập
       homework: "Bài tập",
+      aiTutor: "AI Tutor",
       // Báo cáo & Kiểm tra
       testResults: "Kết quả kiểm tra",
       monthlyReports: "Báo cáo học tập",
@@ -50,6 +51,7 @@ export const menuStudent = {
       attendance: "Attendance",
       // Homework
       homework: "Homework",
+      aiTutor: "AI Tutor",
       // Reports & Tests
       testResults: "Test Results",
       monthlyReports: "Learning Reports",

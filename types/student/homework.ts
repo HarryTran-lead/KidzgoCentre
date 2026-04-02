@@ -79,6 +79,11 @@ export interface AssignmentDetail {
   submittedAt?: string;
   gradedAt?: string;
   editCount: number;
+  aiHintEnabled?: boolean;
+  aiRecommendEnabled?: boolean;
+  speakingMode?: string | null;
+  targetWords?: string[];
+  speakingExpectedText?: string | null;
 }
 
 export interface HomeworkQuestionOption {
@@ -200,3 +205,74 @@ export interface StatusBadgeConfig {
 }
 
 export type AssignmentStatusConfig = Record<AssignmentStatus, StatusBadgeConfig>;
+
+export interface HomeworkAiHintResult {
+  aiUsed: boolean;
+  summary?: string;
+  hints: string[];
+  grammarFocus: string[];
+  vocabularyFocus: string[];
+  encouragement?: string;
+  warnings: string[];
+}
+
+export interface HomeworkRecommendationItem {
+  questionBankItemId: string;
+  questionText: string;
+  questionType: string;
+  options: string[];
+  topic?: string | null;
+  skill?: string | null;
+  grammarTags: string[];
+  vocabularyTags: string[];
+  level?: string;
+  points?: number;
+  reason?: string;
+}
+
+export interface HomeworkAiRecommendationResult {
+  aiUsed: boolean;
+  summary?: string;
+  focusSkill?: string;
+  topics: string[];
+  grammarTags: string[];
+  vocabularyTags: string[];
+  recommendedLevels: string[];
+  practiceTypes: string[];
+  warnings: string[];
+  items: HomeworkRecommendationItem[];
+}
+
+export interface HomeworkSpeakingWordFeedback {
+  word: string;
+  heardAs?: string | null;
+  issue: string;
+  tip: string;
+}
+
+export interface HomeworkSpeakingConfidence {
+  overall?: number;
+  pronunciation?: number;
+  fluency?: number;
+  accuracy?: number;
+  [key: string]: number | undefined;
+}
+
+export interface HomeworkSpeakingAnalysisResult {
+  aiUsed: boolean;
+  summary?: string;
+  transcript?: string;
+  overallScore?: number;
+  pronunciationScore?: number;
+  fluencyScore?: number;
+  accuracyScore?: number;
+  stars?: number;
+  strengths: string[];
+  issues: string[];
+  mispronouncedWords: string[];
+  wordFeedback: HomeworkSpeakingWordFeedback[];
+  suggestions: string[];
+  practicePlan: string[];
+  confidence?: HomeworkSpeakingConfidence;
+  warnings: string[];
+}

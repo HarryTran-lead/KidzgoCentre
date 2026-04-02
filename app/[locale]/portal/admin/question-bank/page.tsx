@@ -5,7 +5,7 @@ import {
   Plus, Search, HelpCircle, FileQuestion, BarChart3,
   Eye, Pencil, Clock, ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, X, AlertCircle, BookOpen,
-  Building2, Power, PowerOff, Trash2, Copy, Layers, Loader2, Star,
+  Building2, Power, PowerOff, Trash2, Copy, Layers, Loader2, Sparkles, Star,
   Upload, FileText, CheckCircle2, Download,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -18,12 +18,18 @@ import {
 import type { QuestionRow } from "@/app/api/admin/question-bank";
 import { fetchAdminPrograms } from "@/app/api/admin/programs";
 import type { CourseRow } from "@/types/admin/programs";
+import AiCreatorModal from "@/components/question-bank/AiCreatorModal";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
 }
 
-type QuestionType = "MultipleChoice" | "TrueFalse" | "Essay" | "FillInBlank";
+type QuestionType =
+  | "MultipleChoice"
+  | "TrueFalse"
+  | "Essay"
+  | "FillInBlank"
+  | "TextInput";
 type DifficultyLevel = "Easy" | "Medium" | "Hard";
 type SortField = "content" | "type" | "difficulty" | "course" | "status" | "createdAt" | "usageCount";
 type SortDirection = "asc" | "desc" | null;
@@ -31,6 +37,7 @@ const PAGE_SIZE = 10;
 
 function QuestionTypeBadge({ type }: { type: QuestionType }) {
   const map: Record<QuestionType, { label: string; className: string }> = {
+    TextInput: { label: "Text Input", className: "bg-sky-100 text-sky-700 border-sky-200" },
     MultipleChoice: { label: "Trắc nghiệm", className: "bg-blue-100 text-blue-700 border-blue-200" },
     TrueFalse: { label: "Đúng/Sai", className: "bg-purple-100 text-purple-700 border-purple-200" },
     Essay: { label: "Tự luận", className: "bg-amber-100 text-amber-700 border-amber-200" },
@@ -327,7 +334,7 @@ export default function Page() {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [page, setPage] = useState(1);
-  const [typeFilter, setTypeFilter] = useState<"ALL" | "MultipleChoice" | "TrueFalse" | "Essay" | "FillInBlank">("ALL");
+  const [typeFilter, setTypeFilter] = useState<"ALL" | "MultipleChoice" | "TrueFalse" | "Essay" | "FillInBlank" | "TextInput">("ALL");
   const [difficultyFilter, setDifficultyFilter] = useState<"ALL" | "Easy" | "Medium" | "Hard">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "Đang hoạt động" | "Tạm dừng">("ALL");
   const [loading, setLoading] = useState(true);
@@ -352,6 +359,7 @@ export default function Page() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedForDelete, setSelectedForDelete] = useState<QuestionRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showAiCreatorModal, setShowAiCreatorModal] = useState(false);
 
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
 
@@ -550,6 +558,16 @@ export default function Page() {
     finally { setIsImporting(false); }
   };
 
+  const handleAiCreatorSaved = async (count: number) => {
+    const { data: refreshed } = await fetchAdminQuestions({ pageNumber: 1, pageSize: 200 });
+    setQuestions(refreshed);
+    toast({
+      title: "Thanh cong",
+      description: `Da tao ${count} cau hoi tu AI Creator.`,
+      type: "success",
+    });
+  };
+
   const handleDownloadTemplate = (format: "csv" | "excel" | "word" | "pdf") => {
     const headers = ["QuestionText", "Options", "CorrectAnswer", "Level", "Points", "Explanation"];
     const sampleRows = [
@@ -634,6 +652,7 @@ ${rows}
       <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
         <div className={cn("flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4")}>
           <div className="flex items-center gap-3">
+            <button onClick={() => { setShowAiCreatorModal(true); if (courseOptions.length === 0) loadCourses(); }} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"><Sparkles size={18} />AI Creator</button>
             <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg"><HelpCircle className="text-white" size={24} /></div>
             <div><h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Quản lý ngân hàng câu hỏi</h1><p className="text-sm text-gray-600">Quản lý câu hỏi, phân loại và độ khó</p></div>
           </div>
@@ -911,6 +930,13 @@ ${rows}
           </div>
         </div>
       )}
+      <AiCreatorModal
+        isOpen={showAiCreatorModal}
+        onClose={() => setShowAiCreatorModal(false)}
+        courseOptions={courseOptions}
+        loadingCourses={loadingCourses}
+        onSaved={handleAiCreatorSaved}
+      />
     </>
   );
 }
