@@ -115,14 +115,22 @@ function mapToRegistration(item: any): Registration {
 }
 
 function mapSuggestedClass(item: any): SuggestedClass {
+  const capacity = Number(item?.capacity ?? item?.maxStudents ?? 0);
+  const currentEnrollment = Number(
+    item?.currentEnrollment ?? item?.currentEnrollmentCount ?? item?.currentStudentCount ?? 0,
+  );
+  const remainingSlots = Number(
+    item?.remainingSlots ?? Math.max(0, capacity - currentEnrollment),
+  );
+
   return {
     id: String(item?.id ?? ""),
     code: item?.code ?? "",
     title: item?.title ?? item?.classTitle ?? item?.name ?? "",
     status: item?.status ?? "Planned",
-    capacity: Number(item?.capacity ?? item?.maxStudents ?? 0),
-    currentEnrollment: Number(item?.currentEnrollment ?? item?.currentStudentCount ?? 0),
-    remainingSlots: Number(item?.remainingSlots ?? 0),
+    capacity,
+    currentEnrollment,
+    remainingSlots,
     startDate: item?.startDate ?? "",
     endDate: item?.endDate ?? "",
     schedulePattern: item?.schedulePattern ?? "",

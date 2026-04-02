@@ -1,17 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  X,
-  Sparkles,
-  ArrowRight,
-  CheckCircle2,
-  Loader2,
-  School,
-  Rocket,
-  Clock3,
-  AlertCircle,
-} from "lucide-react";
+import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PlacementTest } from "@/types/placement-test";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
@@ -24,11 +14,17 @@ import {
 } from "@/lib/api/registrationService";
 import { getAllClasses } from "@/lib/api/classService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
-import { getDomainErrorMessage } from "@/lib/api/domainErrorMessage";
+import {
+  extractDomainErrorCode,
+  getDomainErrorMessage,
+} from "@/lib/api/domainErrorMessage";
 import type {
   RegistrationTrackType,
   SuggestedClassBucket,
 } from "@/types/registration";
+import CreateRegistrationStep from "@/components/portal/placement-tests/registration-flow/CreateRegistrationStep";
+import SuggestAssignStep from "@/components/portal/placement-tests/registration-flow/SuggestAssignStep";
+import UpgradeRegistrationStep from "@/components/portal/placement-tests/registration-flow/UpgradeRegistrationStep";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
@@ -40,6 +36,7 @@ interface RegistrationFlowModalProps {
 }
 
 type StepKey = "create" | "suggest" | "upgrade";
+type AssignViewMode = "none" | "suggested" | "manual";
 
 type ProgramOption = {
   id: string;
@@ -118,7 +115,8 @@ function formatSchedulePattern(value?: string | null) {
 
   const pieces: string[] = [];
   if (days.length > 0) pieces.push(`Thứ: ${days.join(", ")}`);
-  if (hour) pieces.push(`Lúc: ${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`);
+  if (hour)
+    pieces.push(`Lúc: ${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`);
   if (duration) pieces.push(`Thời lượng: ${duration} phút`);
 
   if (pieces.length === 0) {
@@ -142,14 +140,34 @@ export default function RegistrationFlowModal({
   const toVietnameseError = (error: unknown, fallback: string) =>
     getDomainErrorMessage(error, fallback);
 
+  const getErrorStatus = (error: unknown) =>
+    Number((error as any)?.response?.status || (error as any)?.status || 0);
+
+  const showDomainErrorToast = (error: unknown, fallback: string) => {
+    const status = getErrorStatus(error);
+    const code = extractDomainErrorCode(error);
+    const isWarning =
+      status === 409 ||
+      code === "Registration.AlreadyExists" ||
+      code === "AlreadyEnrolled";
+
+    toast({
+      title: isWarning ? "Cảnh báo" : "Lỗi",
+      description: toVietnameseError(error, fallback),
+      variant: isWarning ? "warning" : "destructive",
+    });
+  };
+
   const [tuitionPlans, setTuitionPlans] = useState<TuitionPlan[]>([]);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [activeStep, setActiveStep] = useState<StepKey>("create");
 
   const [programId, setProgramId] = useState("");
   const [tuitionPlanId, setTuitionPlanId] = useState("");
+  const [isSecondaryEnabled, setIsSecondaryEnabled] = useState(false);
   const [secondaryProgramId, setSecondaryProgramId] = useState("");
-  const [secondaryProgramSkillFocus, setSecondaryProgramSkillFocus] = useState("");
+  const [secondaryProgramSkillFocus, setSecondaryProgramSkillFocus] =
+    useState("");
   const [expectedStartDate, setExpectedStartDate] = useState("");
   const [preferredSchedule, setPreferredSchedule] = useState("");
   const [sessionsPerWeek, setSessionsPerWeek] = useState(2);
@@ -162,9 +180,16 @@ export default function RegistrationFlowModal({
 
   const [registrationId, setRegistrationId] = useState("");
   const [registrationOptions, setRegistrationOptions] = useState<
-    Array<{ id: string; label: string }>
+    Array<{ id: string; label: string; studentProfileId: string }>
   >([]);
+  const [resolvedStudentProfileId, setResolvedStudentProfileId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+
+  const normalizeName = (value?: string | null) =>
+    String(value || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
 
   function toDisplayDate(value?: string) {
     if (!value) return "-";
@@ -191,17 +216,23 @@ export default function RegistrationFlowModal({
   const [isWaiting, setIsWaiting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
-  const [suggestedClasses, setSuggestedClasses] = useState<SuggestedClassBucket | null>(null);
+  const [suggestedClasses, setSuggestedClasses] =
+    useState<SuggestedClassBucket | null>(null);
   const [manualClasses, setManualClasses] = useState<any[]>([]);
-  const [isManualMode, setIsManualMode] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<RegistrationTrackType>("primary");
+  const [assignViewMode, setAssignViewMode] = useState<AssignViewMode>("none");
+  const [selectedTrack, setSelectedTrack] =
+    useState<RegistrationTrackType>("primary");
   const [selectedClassId, setSelectedClassId] = useState("");
+  const [manualPrimaryClassId, setManualPrimaryClassId] = useState("");
+  const [manualSecondaryClassId, setManualSecondaryClassId] = useState("");
   const [upgradeTuitionPlanId, setUpgradeTuitionPlanId] = useState("");
 
   const pickClassItems = (payload: any): any[] => {
     if (Array.isArray(payload?.data?.items)) return payload.data.items;
-    if (Array.isArray(payload?.data?.page?.items)) return payload.data.page.items;
-    if (Array.isArray(payload?.data?.classes?.items)) return payload.data.classes.items;
+    if (Array.isArray(payload?.data?.page?.items))
+      return payload.data.page.items;
+    if (Array.isArray(payload?.data?.classes?.items))
+      return payload.data.classes.items;
     if (Array.isArray(payload?.data?.classes)) return payload.data.classes;
     if (Array.isArray(payload?.data)) return payload.data;
     if (Array.isArray(payload)) return payload;
@@ -209,7 +240,9 @@ export default function RegistrationFlowModal({
   };
 
   const getClassDisplayName = (cls: any) =>
-    String(cls?.className || cls?.title || cls?.name || cls?.code || cls?.id || "");
+    String(
+      cls?.className || cls?.title || cls?.name || cls?.code || cls?.id || "",
+    );
 
   const getClassRemainingSlots = (cls: any) => {
     if (typeof cls?.remainingSlots === "number") return cls.remainingSlots;
@@ -220,6 +253,12 @@ export default function RegistrationFlowModal({
       return cls.capacity - cls.currentEnrollment;
     }
     if (
+      typeof cls?.capacity === "number" &&
+      typeof cls?.currentEnrollmentCount === "number"
+    ) {
+      return cls.capacity - cls.currentEnrollmentCount;
+    }
+    if (
       typeof cls?.maxStudents === "number" &&
       typeof cls?.currentStudentCount === "number"
     ) {
@@ -228,22 +267,46 @@ export default function RegistrationFlowModal({
     return null;
   };
 
+  const effectiveStudentProfileId = String(
+    test?.studentProfileId || resolvedStudentProfileId || "",
+  ).trim();
+
   const canCreate =
-    Boolean(test?.studentProfileId) &&
+    Boolean(effectiveStudentProfileId) &&
     Boolean(branchId) &&
     Boolean(programId) &&
     Boolean(tuitionPlanId) &&
     Boolean(preferredSchedule.trim());
 
-  const hasSecondaryTrack = Boolean(secondaryProgramId || suggestedClasses?.secondaryProgramId);
+  const hasSecondaryTrack = Boolean(
+    secondaryProgramId || suggestedClasses?.secondaryProgramId,
+  );
+  const manualClassOptions = useMemo(
+    () =>
+      manualClasses.map((cls) => {
+        const classId = String(cls?.id || "");
+        const remainingSlots = getClassRemainingSlots(cls);
+        const scheduleLabel = formatSchedulePattern(cls?.schedulePattern);
+        const className = getClassDisplayName(cls);
+        const safeRemaining =
+          typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
+        return {
+          id: classId,
+          remainingSlots: safeRemaining,
+          disabled: safeRemaining !== null && safeRemaining <= 0,
+          label: `${className} • Còn chỗ: ${safeRemaining ?? "-"} • Lịch: ${scheduleLabel}`,
+        };
+      }),
+    [manualClasses],
+  );
   const activeSuggestedClasses =
     selectedTrack === "secondary"
-      ? suggestedClasses?.secondarySuggestedClasses ?? []
-      : suggestedClasses?.suggestedClasses ?? [];
+      ? (suggestedClasses?.secondarySuggestedClasses ?? [])
+      : (suggestedClasses?.suggestedClasses ?? []);
   const activeAlternativeClasses =
     selectedTrack === "secondary"
-      ? suggestedClasses?.secondaryAlternativeClasses ?? []
-      : suggestedClasses?.alternativeClasses ?? [];
+      ? (suggestedClasses?.secondaryAlternativeClasses ?? [])
+      : (suggestedClasses?.alternativeClasses ?? []);
 
   const formatDaysString = (days: string[]) => {
     const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
@@ -327,17 +390,24 @@ export default function RegistrationFlowModal({
 
         setTuitionPlans(planItems || []);
 
-        const normalizedRecommendation = (test?.programRecommendation || "").trim().toLowerCase();
+        const normalizedRecommendation = (test?.programRecommendation || "")
+          .trim()
+          .toLowerCase();
         const recommendedProgram = normalizedRecommendation
-          ? (planItems || []).find((p) => (p.programName || "").toLowerCase() === normalizedRecommendation)
+          ? (planItems || []).find(
+              (p) =>
+                (p.programName || "").toLowerCase() ===
+                normalizedRecommendation,
+            )
           : undefined;
 
-        const firstProgramId = (planItems || []).find((p) => p.isActive)?.programId || "";
+        const firstProgramId =
+          (planItems || []).find((p) => p.isActive)?.programId || "";
         const nextProgramId = recommendedProgram?.programId || firstProgramId;
         setProgramId(nextProgramId);
 
         const firstPlan = (planItems || []).find(
-          (p) => p.isActive && p.programId === nextProgramId
+          (p) => p.isActive && p.programId === nextProgramId,
         );
         setTuitionPlanId(firstPlan?.id || "");
         const normalizedSecondaryRecommendation = (
@@ -347,9 +417,12 @@ export default function RegistrationFlowModal({
           .toLowerCase();
         const recommendedSecondaryProgram = normalizedSecondaryRecommendation
           ? (planItems || []).find(
-              (p) => (p.programName || "").trim().toLowerCase() === normalizedSecondaryRecommendation,
+              (p) =>
+                (p.programName || "").trim().toLowerCase() ===
+                normalizedSecondaryRecommendation,
             )
           : undefined;
+        setIsSecondaryEnabled(false);
         setSecondaryProgramId(recommendedSecondaryProgram?.programId || "");
         setSecondaryProgramSkillFocus(test?.secondaryProgramSkillFocus || "");
 
@@ -362,49 +435,85 @@ export default function RegistrationFlowModal({
         setStartTime("18:00");
         setEndTime("20:00");
         setNote(childName);
+        setResolvedStudentProfileId("");
 
-        if (test?.studentProfileId) {
+        if (test?.studentProfileId || childName) {
           const registrationsResponse = await getRegistrations({
-            studentProfileId: test.studentProfileId,
             branchId,
             pageNumber: 1,
-            pageSize: 200,
+            pageSize: 500,
           });
 
-          const sortedRegistrations = [...(registrationsResponse.items || [])].sort((a, b) => {
-            const bt = new Date(b.createdAt || b.registrationDate || "").getTime();
-            const at = new Date(a.createdAt || a.registrationDate || "").getTime();
-            return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
+          const normalizedChildName = normalizeName(childName);
+          const filteredRegistrations = (
+            registrationsResponse.items || []
+          ).filter((r) => {
+            if (test?.studentProfileId) {
+              return (
+                String(r.studentProfileId || "") ===
+                String(test.studentProfileId)
+              );
+            }
+            if (!normalizedChildName) {
+              return false;
+            }
+            return normalizeName(r.studentName) === normalizedChildName;
           });
+
+          const sortedRegistrations = [...filteredRegistrations].sort(
+            (a, b) => {
+              const bt = new Date(
+                b.createdAt || b.registrationDate || "",
+              ).getTime();
+              const at = new Date(
+                a.createdAt || a.registrationDate || "",
+              ).getTime();
+              return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
+            },
+          );
 
           const options = sortedRegistrations.map((r) => ({
             id: r.id,
-            label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)} • ${r.programName}`,
+            studentProfileId: String(r.studentProfileId || ""),
+            label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)} • ${r.programName}${r.secondaryProgramName ? ` • ${r.secondaryProgramName}` : ''}`,
           }));
           setRegistrationOptions(options);
 
-          const placementLinked = sortedRegistrations.find((r) =>
-            String(r.note || "").includes(`PlacementTest:${test.id}`)
-          );
+          const placementLinked = test?.id
+            ? sortedRegistrations.find((r) =>
+                String(r.note || "").includes(`PlacementTest:${test.id}`),
+              )
+            : undefined;
           const defaultRegistration = placementLinked || sortedRegistrations[0];
           setRegistrationId(defaultRegistration?.id || "");
+          if (!test?.studentProfileId) {
+            setResolvedStudentProfileId(
+              String(defaultRegistration?.studentProfileId || ""),
+            );
+          }
         } else {
           setRegistrationOptions([]);
           setRegistrationId("");
+          setResolvedStudentProfileId("");
         }
 
         setSuggestedClasses(null);
         setManualClasses([]);
-        setIsManualMode(false);
+        setAssignViewMode("none");
         setSelectedTrack("primary");
         setSelectedClassId("");
+        setManualPrimaryClassId("");
+        setManualSecondaryClassId("");
         setUpgradeTuitionPlanId("");
         setActiveStep("create");
       } catch (error) {
         console.error("Error loading registration options:", error);
         toast({
           title: "Lỗi",
-          description: toVietnameseError(error, "Không thể tải dữ liệu đăng ký. Vui lòng thử lại."),
+          description: toVietnameseError(
+            error,
+            "Không thể tải dữ liệu đăng ký. Vui lòng thử lại.",
+          ),
           variant: "destructive",
         });
       } finally {
@@ -426,14 +535,37 @@ export default function RegistrationFlowModal({
   ]);
 
   useEffect(() => {
+    if (test?.studentProfileId) {
+      setResolvedStudentProfileId("");
+      return;
+    }
+
+    if (!registrationId) {
+      setResolvedStudentProfileId("");
+      return;
+    }
+
+    const selectedRegistration = registrationOptions.find(
+      (item) => item.id === registrationId,
+    );
+    setResolvedStudentProfileId(
+      String(selectedRegistration?.studentProfileId || ""),
+    );
+  }, [test?.studentProfileId, registrationId, registrationOptions]);
+
+  useEffect(() => {
     if (!programId) {
       setTuitionPlanId("");
       return;
     }
 
-    const match = tuitionPlans.find((p) => p.id === tuitionPlanId && p.programId === programId && p.isActive);
+    const match = tuitionPlans.find(
+      (p) => p.id === tuitionPlanId && p.programId === programId && p.isActive,
+    );
     if (!match) {
-      const first = tuitionPlans.find((p) => p.programId === programId && p.isActive);
+      const first = tuitionPlans.find(
+        (p) => p.programId === programId && p.isActive,
+      );
       setTuitionPlanId(first?.id || "");
     }
   }, [programId, tuitionPlanId, tuitionPlans]);
@@ -471,10 +603,20 @@ export default function RegistrationFlowModal({
   }, [selectedDays, selectedTimeSlot, useCustomTime, startTime, endTime]);
 
   const handleCreateRegistration = async () => {
-    if (!test?.studentProfileId || !branchId) {
+    if (!test?.id) {
       toast({
         title: "Thiếu dữ liệu",
-        description: "Placement test chưa gắn Student Profile hoặc thiếu chi nhánh.",
+        description: "Không tìm thấy placement test để tạo đăng ký.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!effectiveStudentProfileId || !branchId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description:
+          "Không tìm thấy Student Profile để tạo đăng ký hoặc thiếu chi nhánh. Vui lòng chọn đăng ký hiện có hoặc tạo profile trước.",
         variant: "destructive",
       });
       return;
@@ -491,20 +633,24 @@ export default function RegistrationFlowModal({
 
     try {
       setIsCreating(true);
-      const { registrationId: createdId } = await createRegistrationFromPlacementTest({
-        placementTestId: test.id,
-        studentProfileId: test.studentProfileId,
-        branchId,
-        programId,
-        tuitionPlanId,
-        secondaryProgramId: secondaryProgramId || undefined,
-        secondaryProgramSkillFocus: secondaryProgramId
-          ? secondaryProgramSkillFocus || undefined
-          : undefined,
-        expectedStartDate: expectedStartDate || undefined,
-        preferredSchedule: preferredSchedule || undefined,
-        note: note || undefined,
-      });
+      const { registrationId: createdId } =
+        await createRegistrationFromPlacementTest({
+          placementTestId: test.id,
+          studentProfileId: effectiveStudentProfileId,
+          branchId,
+          programId,
+          tuitionPlanId,
+          secondaryProgramId: isSecondaryEnabled
+            ? secondaryProgramId || undefined
+            : undefined,
+          secondaryProgramSkillFocus:
+            isSecondaryEnabled && secondaryProgramId
+              ? secondaryProgramSkillFocus || undefined
+              : undefined,
+          expectedStartDate: expectedStartDate || undefined,
+          preferredSchedule: preferredSchedule || undefined,
+          note: note || undefined,
+        });
 
       setRegistrationId(createdId);
       setRegistrationOptions((prev) => {
@@ -513,6 +659,7 @@ export default function RegistrationFlowModal({
         return [
           {
             id: createdId,
+            studentProfileId: effectiveStudentProfileId,
             label: `${childName || "Học viên"} • Mới • ${toDisplayDate(new Date().toISOString())}`,
           },
           ...prev,
@@ -525,11 +672,18 @@ export default function RegistrationFlowModal({
       });
       onSuccess?.();
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: toVietnameseError(error, "Không thể tạo đăng ký."),
-        variant: "destructive",
-      });
+      const code = extractDomainErrorCode(error);
+      if (code === "Registration.TuitionPlanNotFound") {
+        setTuitionPlanId("");
+      }
+      if (code === "Registration.ProgramNotFound") {
+        setProgramId("");
+        setTuitionPlanId("");
+      }
+      if (code === "Registration.SecondaryProgramDuplicated") {
+        setIsSecondaryEnabled(true);
+      }
+      showDomainErrorToast(error, "Không thể tạo đăng ký.");
     } finally {
       setIsCreating(false);
     }
@@ -540,12 +694,18 @@ export default function RegistrationFlowModal({
 
     try {
       setIsSuggesting(true);
+      setAssignViewMode("suggested");
       const suggestions = await suggestClassesForRegistration(registrationId);
       setSuggestedClasses(suggestions);
       const primaryCount = suggestions?.suggestedClasses?.length ?? 0;
-      const secondaryCount = suggestions?.secondarySuggestedClasses?.length ?? 0;
+      const secondaryCount =
+        suggestions?.secondarySuggestedClasses?.length ?? 0;
       const defaultTrack: RegistrationTrackType =
-        primaryCount > 0 ? "primary" : secondaryCount > 0 ? "secondary" : "primary";
+        primaryCount > 0
+          ? "primary"
+          : secondaryCount > 0
+            ? "secondary"
+            : "primary";
       const defaultClass =
         defaultTrack === "secondary"
           ? suggestions?.secondarySuggestedClasses?.[0]
@@ -569,7 +729,10 @@ export default function RegistrationFlowModal({
     } catch (error: any) {
       toast({
         title: "Lỗi",
-        description: toVietnameseError(error, "Không thể lấy danh sách lớp gợi ý."),
+        description: toVietnameseError(
+          error,
+          "Không thể lấy danh sách lớp gợi ý.",
+        ),
         variant: "destructive",
       });
     } finally {
@@ -593,12 +756,9 @@ export default function RegistrationFlowModal({
         variant: "success",
       });
       onSuccess?.();
+      onClose();
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: toVietnameseError(error, "Học viên đã đăng ký lớp này"),
-        variant: "destructive",
-      });
+      showDomainErrorToast(error, "Không thể xếp lớp này.");
     } finally {
       setIsAssigning(false);
     }
@@ -625,7 +785,7 @@ export default function RegistrationFlowModal({
 
     try {
       setIsLoadingManualClasses(true);
-      setIsManualMode(true);
+      setAssignViewMode("manual");
 
       const response = await getAllClasses({
         pageNumber: 1,
@@ -643,14 +803,25 @@ export default function RegistrationFlowModal({
       setManualClasses(items);
 
       if (items.length > 0) {
-        setSelectedClassId(String(items[0].id));
+        const selectable = items.filter((item) => {
+          const remaining = getClassRemainingSlots(item);
+          return typeof remaining !== "number" || remaining > 0;
+        });
+        const fallback = items[0];
+        const firstClass = selectable[0] || fallback;
+        const secondClass = selectable[1] || selectable[0] || fallback;
+        const firstClassId = String(firstClass?.id || "");
+        const secondClassId = String(secondClass?.id || firstClass?.id || "");
+        setManualPrimaryClassId(firstClassId);
+        setManualSecondaryClassId(secondClassId);
         toast({
           title: "Thành công",
           description: `Đã tải ${items.length} lớp để xếp lớp thủ công.`,
           variant: "success",
         });
       } else {
-        setSelectedClassId("");
+        setManualPrimaryClassId("");
+        setManualSecondaryClassId("");
         toast({
           title: "Thông báo",
           description: "Không có lớp phù hợp trong chi nhánh hiện tại.",
@@ -658,13 +829,65 @@ export default function RegistrationFlowModal({
         });
       }
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: toVietnameseError(error, "Không thể tải danh sách lớp thủ công."),
-        variant: "destructive",
-      });
+      showDomainErrorToast(error, "Không thể tải danh sách lớp thủ công.");
     } finally {
       setIsLoadingManualClasses(false);
+    }
+  };
+
+  const handleAssignManualClasses = async () => {
+    if (!registrationId || !manualPrimaryClassId) return;
+
+    if (hasSecondaryTrack) {
+      if (!manualSecondaryClassId) {
+        toast({
+          title: "Thiếu dữ liệu",
+          description: "Vui lòng chọn lớp cho chương trình secondary.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (manualSecondaryClassId === manualPrimaryClassId) {
+        toast({
+          title: "Không hợp lệ",
+          description: "Lớp Primary và Secondary phải khác nhau.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    try {
+      setIsAssigning(true);
+
+      await assignClassToRegistration(registrationId, {
+        classId: manualPrimaryClassId,
+        entryType: "Immediate",
+        track: "primary",
+      });
+
+      if (hasSecondaryTrack) {
+        await assignClassToRegistration(registrationId, {
+          classId: manualSecondaryClassId,
+          entryType: "Immediate",
+          track: "secondary",
+        });
+      }
+
+      toast({
+        title: "Thành công",
+        description: hasSecondaryTrack
+          ? "Đã xếp lớp thủ công cho cả Primary và Secondary."
+          : "Đã xếp lớp thủ công cho chương trình Primary.",
+        variant: "success",
+      });
+      onSuccess?.();
+      onClose();
+    } catch (error: any) {
+      showDomainErrorToast(error, "Không thể xếp lớp thủ công.");
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -684,11 +907,10 @@ export default function RegistrationFlowModal({
       });
       onSuccess?.();
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: toVietnameseError(error, "Không thể chuyển đăng ký vào trạng thái chờ xếp lớp."),
-        variant: "destructive",
-      });
+      showDomainErrorToast(
+        error,
+        "Không thể chuyển đăng ký vào trạng thái chờ xếp lớp.",
+      );
     } finally {
       setIsWaiting(false);
     }
@@ -707,11 +929,7 @@ export default function RegistrationFlowModal({
       });
       onSuccess?.();
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: toVietnameseError(error, "Không thể nâng cấp học vụ cho đăng ký."),
-        variant: "destructive",
-      });
+      showDomainErrorToast(error, "Không thể nâng cấp học vụ cho đăng ký.");
     } finally {
       setIsUpgrading(false);
     }
@@ -720,14 +938,17 @@ export default function RegistrationFlowModal({
   if (!isOpen) return null;
 
   const stepTabs: Array<{ key: StepKey; label: string }> = [
-    { key: "create", label: "Bước 1: Tạo đăng ký" },
-    { key: "suggest", label: "Bước 2: Gợi ý & xếp lớp" },
-    { key: "upgrade", label: "Bước 3: Học vụ phát sinh" },
+    { key: "create", label: "Tạo đăng ký" },
+    { key: "suggest", label: "Gợi ý & xếp lớp" },
+    { key: "upgrade", label: "Học vụ phát sinh" },
   ];
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 px-3 py-2">
-      <div className="h-auto max-h-[calc(100dvh-16px)] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 px-2 py-2 md:px-4 md:py-4">
+      <div
+        className="h-[90dvh] overflow-hidden rounded-2xl bg-white shadow-2xl flex flex-col"
+        style={{ width: "96vw", maxWidth: "1150px" }}
+      >
         <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl bg-linear-to-r from-red-700 via-red-600 to-rose-600 px-5 py-3 text-white">
           <div>
             <h2 className="text-xl font-bold">Đăng Ký Từ Placement Test</h2>
@@ -735,555 +956,178 @@ export default function RegistrationFlowModal({
               Tên học viên: {test?.studentName || test?.childName}
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-white/15" aria-label="Đóng">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1 hover:bg-white/15"
+            aria-label="Đóng"
+          >
             <X size={22} />
           </button>
         </div>
 
-        <div className="max-h-[calc(100dvh-84px)] overflow-y-auto space-y-3 p-3 text-sm">
-          <div className="rounded-2xl border border-red-200 bg-red-50/70 p-1.5">
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-              {stepTabs.map((tab) => {
-                const isActive = tab.key === activeStep;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveStep(tab.key)}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      isActive
-                        ? "bg-linear-to-r from-red-600 to-rose-600 text-white shadow"
-                        : "border border-red-200 bg-white text-red-700 hover:bg-red-50"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+        <div className="h-[calc(100%-76px)] p-3 text-sm">
+          <div className="flex h-full flex-col gap-3">
+            <div className="rounded-2xl border border-red-200 bg-red-50/70 p-1.5">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                {stepTabs.map((tab) => {
+                  const isActive = tab.key === activeStep;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveStep(tab.key)}
+                      className={`rounded-xl px-3 py-2 text-center text-xs font-semibold transition-colors ${
+                        isActive
+                          ? "bg-linear-to-r from-red-600 to-rose-600 text-white shadow"
+                          : "border border-red-200 bg-white text-red-700 hover:bg-red-50"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <div className="rounded-xl border border-red-200 bg-white px-3 py-1.5">
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="rounded-xl border border-red-200 bg-white px-3 py-2">
               <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Đăng ký đang thao tác (tự lấy từ hệ thống)</label>
+                <label className="text-xs font-medium text-gray-700">
+                  Đăng ký đang thao tác (tự lấy từ hệ thống)
+                </label>
                 <select
                   value={registrationId}
-                  onChange={(e) => setRegistrationId(e.target.value)}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    setRegistrationId(nextId);
+                    if (!test?.studentProfileId) {
+                      const selectedRegistration = registrationOptions.find(
+                        (item) => item.id === nextId,
+                      );
+                      setResolvedStudentProfileId(
+                        String(selectedRegistration?.studentProfileId || ""),
+                      );
+                    }
+                  }}
                   className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                 >
                   <option value="">Chưa có đăng ký nào cho học viên này</option>
                   {registrationOptions.map((item) => (
                     <option key={item.id} value={item.id}>
-                     {item.label}
+                      {item.label}
                     </option>
                   ))}
                 </select>
               </div>
-              <div className="hidden text-[11px] text-gray-500 md:block">
-                Các bước thao tác độc lập. Bạn có thể chọn bất kỳ đăng ký đã có trong hệ thống.
+              <div className="mt-2 text-[11px] text-gray-500">
+                Các bước thao tác độc lập. Bạn có thể chọn bất kỳ đăng ký đã có
+                trong hệ thống.
               </div>
             </div>
-          </div>
 
-          {!test?.studentProfileId && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Placement test này chưa có Student Profile. Vui lòng dùng chức năng "Tạo tài khoản & Profile" trước khi tạo đăng ký.
-            </div>
-          )}
-
-          {!!test?.studentProfileId && !branchId && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              Không xác định được chi nhánh của tài khoản staff đang đăng nhập. Vui lòng kiểm tra lại hồ sơ tài khoản.
-            </div>
-          )}
-
-          {activeStep === "create" && (
-          <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-2.5">
-            <div className="mb-2 flex items-center gap-2 text-base font-semibold text-gray-900">
-              <School size={18} className="text-red-600" />
-              Bước 1: Tạo đăng ký học viên
-            </div>
-
-            {isBootstrapping ? (
-              <div className="flex items-center gap-2 py-6 text-sm text-gray-600">
-                <Loader2 size={16} className="animate-spin" /> Đang tải chương trình và gói học...
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Student Profile ID</label>
-                  <input
-                    value={test?.studentProfileId || ""}
-                    disabled
-                    className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-1.5 text-sm"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Chương trình</label>
-                  <select
-                    value={programId}
-                    onChange={(e) => setProgramId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                  >
-                    <option value="">Chọn chương trình</option>
-                    {programs.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Gói học</label>
-                  <select
-                    value={tuitionPlanId}
-                    onChange={(e) => setTuitionPlanId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                  >
-                    <option value="">Chọn gói học</option>
-                    {filteredTuitionPlans.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.totalSessions} buổi)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Secondary program</label>
-                  <select
-                    value={secondaryProgramId}
-                    onChange={(e) => setSecondaryProgramId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                  >
-                    <option value="">Không chọn secondary</option>
-                    {secondaryPrograms.map((p) => (
-                      <option key={`secondary-${p.id}`} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Secondary skill focus</label>
-                  <input
-                    value={secondaryProgramSkillFocus}
-                    onChange={(e) => setSecondaryProgramSkillFocus(e.target.value)}
-                    disabled={!secondaryProgramId}
-                    placeholder="Ví dụ: Speaking"
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:bg-gray-100"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Ngày dự kiến bắt đầu</label>
-                  <input
-                    type="date"
-                    value={expectedStartDate}
-                    onChange={(e) => setExpectedStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                  />
-                </div>
-
-                <div className="space-y-3 md:col-span-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Clock3 size={16} className="text-red-600" />
-                    Lịch học mong muốn <span className="text-red-500">*</span>
-                  </label>
-
-                  <div className="space-y-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3">
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">Số buổi học mỗi tuần</p>
-                      <div className="flex flex-wrap gap-2">
-                        {SESSIONS_PER_WEEK_OPTIONS.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => handleSessionsPerWeekChange(option.value)}
-                            className={`rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors ${
-                              sessionsPerWeek === option.value
-                                ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
-                                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">
-                        Chọn ngày học (tối đa {sessionsPerWeek} ngày) <span className="text-red-500">*</span>
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {WEEK_DAYS.map((day) => {
-                          const isSelected = selectedDays.includes(day.value);
-                          const isDisabled =
-                            !isSelected && selectedDays.length >= sessionsPerWeek;
-
-                          return (
-                            <button
-                              key={day.value}
-                              type="button"
-                              onClick={() => toggleDay(day.value)}
-                              disabled={isDisabled}
-                              className={`min-w-20 rounded-xl border px-2 py-1.5 text-center transition-colors ${
-                                isSelected
-                                  ? "border-red-500 bg-red-100 text-red-700"
-                                  : isDisabled
-                                    ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                              }`}
-                            >
-                              <div className="text-sm font-semibold leading-none">{day.shortLabel}</div>
-                              <div className="text-[11px] leading-tight">{day.label}</div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-600">
-                          Khung giờ học <span className="text-red-500">*</span>
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setUseCustomTime((prev) => !prev)}
-                          className="text-xs font-semibold text-red-600 hover:text-red-700"
-                        >
-                          {useCustomTime ? "Chọn khung giờ mẫu" : "Nhập giờ tùy chỉnh"}
-                        </button>
-                      </div>
-
-                      {!useCustomTime ? (
-                        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                          {TIME_SLOTS.map((slot) => (
-                            <button
-                              key={slot.value}
-                              type="button"
-                              onClick={() => setSelectedTimeSlot(slot.value)}
-                              className={`rounded-xl border px-3 py-1.5 text-center transition-colors ${
-                                selectedTimeSlot === slot.value
-                                  ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
-                                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                              }`}
-                            >
-                              <div className="text-sm font-semibold leading-none">{slot.label}</div>
-                              <div className="text-[11px] leading-tight">{slot.timeRange}</div>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
-                          <input
-                            type="time"
-                            value={startTime}
-                            onChange={(e) => setStartTime(e.target.value)}
-                            className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                          />
-                          <span className="text-sm text-gray-500">đến</span>
-                          <input
-                            type="time"
-                            value={endTime}
-                            onChange={(e) => setEndTime(e.target.value)}
-                            className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* <div className="space-y-1">
-                    <label className="text-xs font-semibold text-gray-500">Chuỗi gửi backend</label>
-                    <input
-                      value={preferredSchedule}
-                      readOnly
-                      placeholder="Ví dụ: Thứ 3,5 (18:00 - 20:00)"
-                      className={`w-full rounded-xl border bg-white px-3 py-1.5 text-sm outline-none ${
-                        preferredSchedule
-                          ? "border-gray-300 text-gray-800"
-                          : "border-red-300 text-gray-500"
-                      }`}
-                    />
-                    {!preferredSchedule && (
-                      <p className="flex items-center gap-1 text-xs text-red-600">
-                        <AlertCircle size={13} /> Vui lòng chọn đủ ngày học và khung giờ.
-                      </p>
-                    )}
-                  </div> */}
-                </div>
-
-                <div className="space-y-1 md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700">Ghi chú</label>
-                  <textarea
-                    rows={1}
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                  />
-                </div>
+            {!effectiveStudentProfileId && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Placement test này chưa có Student Profile. Vui lòng dùng chức
+                năng "Tạo tài khoản & Profile" trước khi tạo đăng ký.
               </div>
             )}
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCreateRegistration}
-                disabled={!canCreate || isCreating || isBootstrapping}
-                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isCreating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                Tạo đăng ký
-              </button>
+            {!!test?.studentProfileId && !branchId && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                Không xác định được chi nhánh của tài khoản staff đang đăng
+                nhập. Vui lòng kiểm tra lại hồ sơ tài khoản.
+              </div>
+            )}
 
-              {registrationId && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                  <CheckCircle2 size={12} /> registrationId: {registrationId}
-                </span>
+            <div className="min-h-0 overflow-y-auto pr-1">
+              {activeStep === "create" && (
+                <CreateRegistrationStep
+                  isBootstrapping={isBootstrapping}
+                  effectiveStudentProfileId={effectiveStudentProfileId}
+                  programId={programId}
+                  setProgramId={setProgramId}
+                  tuitionPlanId={tuitionPlanId}
+                  setTuitionPlanId={setTuitionPlanId}
+                  isSecondaryEnabled={isSecondaryEnabled}
+                  setIsSecondaryEnabled={setIsSecondaryEnabled}
+                  secondaryProgramId={secondaryProgramId}
+                  setSecondaryProgramId={setSecondaryProgramId}
+                  secondaryProgramSkillFocus={secondaryProgramSkillFocus}
+                  setSecondaryProgramSkillFocus={setSecondaryProgramSkillFocus}
+                  expectedStartDate={expectedStartDate}
+                  setExpectedStartDate={setExpectedStartDate}
+                  sessionsPerWeek={sessionsPerWeek}
+                  handleSessionsPerWeekChange={handleSessionsPerWeekChange}
+                  selectedDays={selectedDays}
+                  toggleDay={toggleDay}
+                  selectedTimeSlot={selectedTimeSlot}
+                  setSelectedTimeSlot={setSelectedTimeSlot}
+                  useCustomTime={useCustomTime}
+                  setUseCustomTime={setUseCustomTime}
+                  startTime={startTime}
+                  setStartTime={setStartTime}
+                  endTime={endTime}
+                  setEndTime={setEndTime}
+                  note={note}
+                  setNote={setNote}
+                  handleCreateRegistration={handleCreateRegistration}
+                  canCreate={canCreate}
+                  isCreating={isCreating}
+                  registrationId={registrationId}
+                  programs={programs}
+                  filteredTuitionPlans={filteredTuitionPlans}
+                  secondaryPrograms={secondaryPrograms}
+                  sessionsPerWeekOptions={SESSIONS_PER_WEEK_OPTIONS}
+                  weekDays={WEEK_DAYS}
+                  timeSlots={TIME_SLOTS}
+                />
+              )}
+
+              {activeStep === "suggest" && (
+                <SuggestAssignStep
+                  registrationId={registrationId}
+                  isSuggesting={isSuggesting}
+                  assignViewMode={assignViewMode}
+                  handleSuggestClasses={handleSuggestClasses}
+                  allowManualAssign={allowManualAssign}
+                  handleLoadManualClasses={handleLoadManualClasses}
+                  isLoadingManualClasses={isLoadingManualClasses}
+                  branchId={branchId}
+                  handleMoveToWaitingList={handleMoveToWaitingList}
+                  isWaiting={isWaiting}
+                  suggestedClasses={suggestedClasses}
+                  hasSecondaryTrack={hasSecondaryTrack}
+                  selectedTrack={selectedTrack}
+                  setSelectedTrack={setSelectedTrack}
+                  selectedClassId={selectedClassId}
+                  setSelectedClassId={setSelectedClassId}
+                  activeSuggestedClasses={activeSuggestedClasses}
+                  activeAlternativeClasses={activeAlternativeClasses}
+                  formatSchedulePattern={formatSchedulePattern}
+                  handleAssignClass={handleAssignClass}
+                  isAssigning={isAssigning}
+                  manualClasses={manualClasses}
+                  manualClassOptions={manualClassOptions}
+                  manualPrimaryClassId={manualPrimaryClassId}
+                  setManualPrimaryClassId={setManualPrimaryClassId}
+                  manualSecondaryClassId={manualSecondaryClassId}
+                  setManualSecondaryClassId={setManualSecondaryClassId}
+                  handleAssignManualClasses={handleAssignManualClasses}
+                />
+              )}
+
+              {activeStep === "upgrade" && (
+                <UpgradeRegistrationStep
+                  upgradeTuitionPlanId={upgradeTuitionPlanId}
+                  setUpgradeTuitionPlanId={setUpgradeTuitionPlanId}
+                  filteredTuitionPlans={filteredTuitionPlans}
+                  tuitionPlanId={tuitionPlanId}
+                  handleUpgrade={handleUpgrade}
+                  registrationId={registrationId}
+                  isUpgrading={isUpgrading}
+                />
               )}
             </div>
           </div>
-          )}
-
-          {activeStep === "suggest" && (
-          <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-            <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
-              <ArrowRight size={18} className="text-red-600" />
-              Bước 2: Gợi ý lớp phù hợp và xếp lớp
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleSuggestClasses}
-                disabled={!registrationId || isSuggesting}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSuggesting ? <Loader2 size={14} className="animate-spin" /> : <School size={14} />}
-                Gợi ý lớp phù hợp
-              </button>
-
-              <button
-                type="button"
-                onClick={handleLoadManualClasses}
-                disabled={!allowManualAssign || !registrationId || isLoadingManualClasses || !branchId}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isLoadingManualClasses ? <Loader2 size={14} className="animate-spin" /> : <School size={14} />}
-                Xếp lớp thủ công
-              </button>
-
-              <button
-                type="button"
-                onClick={handleMoveToWaitingList}
-                disabled={!registrationId || isWaiting}
-                className="rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isWaiting ? "Đang xử lý..." : "Đưa vào waiting list"}
-              </button>
-            </div>
-
-            {suggestedClasses && (
-              <div className="mt-4 space-y-3">
-                {(hasSecondaryTrack || suggestedClasses.programName) && (
-                  <div className="rounded-xl border border-red-200 bg-white p-3">
-                    <div className="text-sm font-semibold text-gray-900">Track xếp lớp</div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedTrack("primary");
-                          setSelectedClassId(String(suggestedClasses.suggestedClasses?.[0]?.id ?? ""));
-                        }}
-                        className={`rounded-xl border px-3 py-1.5 text-sm font-semibold ${
-                          selectedTrack === "primary"
-                            ? "border-red-600 bg-red-600 text-white"
-                            : "border-gray-300 bg-white text-gray-700"
-                        }`}
-                      >
-                        Primary
-                        {suggestedClasses.programName ? ` • ${suggestedClasses.programName}` : ""}
-                      </button>
-                      {hasSecondaryTrack ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedTrack("secondary");
-                            setSelectedClassId(
-                              String(suggestedClasses.secondarySuggestedClasses?.[0]?.id ?? ""),
-                            );
-                          }}
-                          className={`rounded-xl border px-3 py-1.5 text-sm font-semibold ${
-                            selectedTrack === "secondary"
-                              ? "border-red-600 bg-red-600 text-white"
-                              : "border-gray-300 bg-white text-gray-700"
-                          }`}
-                        >
-                          Secondary
-                          {suggestedClasses.secondaryProgramName
-                            ? ` • ${suggestedClasses.secondaryProgramName}`
-                            : ""}
-                        </button>
-                      ) : null}
-                    </div>
-                    {selectedTrack === "secondary" && suggestedClasses.secondaryProgramSkillFocus ? (
-                      <div className="mt-2 text-xs text-gray-500">
-                        Skill focus: {suggestedClasses.secondaryProgramSkillFocus}
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-
-                {activeSuggestedClasses.length > 0 ? (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {activeSuggestedClasses.map((cls: any) => {
-                    const isSelected = selectedClassId === cls.id;
-                    return (
-                      <button
-                        key={cls.id}
-                        type="button"
-                        onClick={() => setSelectedClassId(String(cls.id))}
-                        className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                          isSelected
-                            ? "border-red-500 bg-red-100"
-                            : "border-red-200 bg-white hover:bg-red-50"
-                        }`}
-                      >
-                        <div className="text-sm font-semibold text-gray-900">{cls.title || cls.code || cls.id}</div>
-                        <div className="mt-1 text-xs text-gray-600">
-                          Còn chỗ: {typeof cls.remainingSlots === "number" ? cls.remainingSlots : "-"}
-                        </div>
-                        <div className="mt-0.5 text-xs text-gray-600" title={cls.schedulePattern || ""}>
-                          Lịch: {formatSchedulePattern(cls.schedulePattern)}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-5 text-sm text-gray-500">
-                    Chưa có lớp gợi ý cho track {selectedTrack}.
-                  </div>
-                )}
-
-                {activeAlternativeClasses.length > 0 && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                    <div className="text-sm font-semibold text-amber-900">Lớp thay thế</div>
-                    <div className="mt-2 text-xs text-amber-800">
-                      Có {activeAlternativeClasses.length} lớp thay thế cho track {selectedTrack}.
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleAssignClass}
-                  disabled={!selectedClassId || isAssigning}
-                  className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isAssigning ? "Đang xếp lớp..." : "Xếp vào lớp đã chọn"}
-                </button>
-              </div>
-            )}
-
-            {allowManualAssign && isManualMode && (
-              <div className="mt-4 space-y-3 rounded-xl border border-red-200 bg-white p-3">
-                <div className="text-sm font-semibold text-gray-900">
-                  Danh sách lớp theo chi nhánh tài khoản staff
-                </div>
-
-                {manualClasses.length === 0 && !isLoadingManualClasses ? (
-                  <div className="text-xs text-gray-600">
-                    Không có lớp để xếp thủ công trong phạm vi chi nhánh hiện tại.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {manualClasses.map((cls: any) => {
-                      const classId = String(cls.id);
-                      const isSelected = selectedClassId === classId;
-                      const remainingSlots = getClassRemainingSlots(cls);
-
-                      return (
-                        <button
-                          key={classId}
-                          type="button"
-                          onClick={() => setSelectedClassId(classId)}
-                          className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                            isSelected
-                              ? "border-red-500 bg-red-100"
-                              : "border-red-200 bg-white hover:bg-red-50"
-                          }`}
-                        >
-                          <div className="text-sm font-semibold text-gray-900">{getClassDisplayName(cls)}</div>
-                          <div className="mt-1 text-xs text-gray-600">
-                            Còn chỗ: {typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : "-"}
-                          </div>
-                          <div className="mt-0.5 text-xs text-gray-600" title={cls?.schedulePattern || ""}>
-                            Lịch: {formatSchedulePattern(cls?.schedulePattern)}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleAssignClass}
-                  disabled={!selectedClassId || isAssigning || manualClasses.length === 0}
-                  className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isAssigning ? "Đang xếp lớp..." : "Xếp vào lớp thủ công đã chọn"}
-                </button>
-              </div>
-            )}
-          </div>
-          )}
-
-          {activeStep === "upgrade" && (
-          <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-            <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
-              <Rocket size={18} className="text-red-600" />
-              Bước 3: Học vụ phát sinh (Upgrade)
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Gói học mới</label>
-                <select
-                  value={upgradeTuitionPlanId}
-                  onChange={(e) => setUpgradeTuitionPlanId(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                >
-                  <option value="">Chọn gói để upgrade</option>
-                  {filteredTuitionPlans
-                    .filter((p) => p.id !== tuitionPlanId)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.totalSessions} buổi)
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleUpgrade}
-                disabled={!registrationId || !upgradeTuitionPlanId || isUpgrading}
-                className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isUpgrading ? "Đang upgrade..." : "Upgrade"}
-              </button>
-            </div>
-          </div>
-          )}
         </div>
       </div>
     </div>
