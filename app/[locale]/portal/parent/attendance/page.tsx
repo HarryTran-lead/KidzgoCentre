@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarCheck,
   MessageSquare,
@@ -33,6 +33,7 @@ import MakeupSessionCreateModal, {
   type CreateMakeupPayload,
 } from "@/components/portal/parent/modalsLeaveRequest/MakeupSessionCreateModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import { useToast } from "@/hooks/use-toast";
 
 import type { UserProfile } from "@/types/auth";
 import type { StudentClass } from "@/types/student/class";
@@ -87,10 +88,10 @@ const statusStyles: Record<LeaveRequestStatus, string> = {
 };
 
 const attendanceLabels: Record<AttendanceRawStatus, string> = {
-  Present: "Co mat",
-  Absent: "Vang mat",
-  Makeup: "Hoc bu",
-  NotMarked: "Chua diem danh",
+  Present: "Có mặt",
+  Absent: "Vắng mặt",
+  Makeup: "Học bù",
+  NotMarked: "Chưa điểm danh",
 };
 
 const attendanceStyles: Record<AttendanceRawStatus, string> = {
@@ -101,9 +102,9 @@ const attendanceStyles: Record<AttendanceRawStatus, string> = {
 };
 
 const attendanceAbsenceTypeLabels: Record<string, string> = {
-  WithNotice24H: "Bao truoc >= 24h",
-  Under24H: "Bao truoc < 24h",
-  NoNotice: "Khong bao truoc",
+  WithNotice24H: "Báo trước >= 24h",
+  Under24H: "Báo trước < 24h",
+  NoNotice: "Không báo trước",
   LongTerm: "Nghi dai han",
 };
 
@@ -200,9 +201,9 @@ function getAttendanceHistoryTitle(item: StudentAttendanceHistoryItem) {
   if (className) return className;
 
   const sessionId = String(item.sessionId ?? "").trim();
-  if (sessionId) return `Buoi hoc ${sessionId.slice(0, 8)}`;
+  if (sessionId) return `Buổi học ${sessionId.slice(0, 8)}`;
 
-  return "Buoi hoc";
+  return "Buổi học";
 }
 
 function getAttendanceAbsenceTypeLabel(value?: string | null) {
@@ -336,6 +337,8 @@ export default function ParentAttendancePage() {
 
   // Form state (used inside modal)
   const [formState, setFormState] = useState<FormState>(initialFormState);
+  const pageMessageRef = useRef<HTMLDivElement | null>(null);
+  const { toast } = useToast();
 
   const loadLeaveRequests = useCallback(async (studentProfileId: string) => {
     setRequestsLoading(true);
@@ -548,7 +551,7 @@ export default function ParentAttendancePage() {
       } catch (err) {
         console.error("Fetch attendance history error:", err);
         setAttendanceHistory([]);
-        setAttendanceError("Khong the tai lich su diem danh.");
+        setAttendanceError("Không thể tải lịch sử điểm danh.");
       } finally {
         setAttendanceLoading(false);
       }
@@ -574,6 +577,12 @@ export default function ParentAttendancePage() {
     const match = classes.find((item) => item.id === classId);
     return match ? classLabel(match) : classId;
   };
+
+  const scrollToMessages = useCallback(() => {
+    requestAnimationFrame(() => {
+      pageMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   /* ===================== Actions ===================== */
 
@@ -665,9 +674,24 @@ export default function ParentAttendancePage() {
 
       setSuccessMessage(refreshWarning ?? "Đã hủy đơn xin nghỉ thành công.");
       setCancelTarget(null);
+      toast({
+        title: "Hủy đơn nghỉ thành công",
+        description:
+          refreshWarning ?? "Đã hủy đơn xin nghỉ thành công.",
+        variant: refreshWarning ? "warning" : "success",
+      });
+      scrollToMessages();
     } catch (err: any) {
       console.error("Cancel leave request error:", err);
-      setError(err?.message || "Không thể hủy đơn xin nghỉ. Vui lòng thử lại.");
+      const errorText = err?.message || "Không thể hủy đơn xin nghỉ. Vui lòng thử lại.";
+      setError(errorText);
+      setCancelTarget(null);
+      toast({
+        title: "Không thể hủy đơn nghỉ",
+        description: errorText,
+        variant: "destructive",
+      });
+      scrollToMessages();
     } finally {
       setCancelSubmitting(false);
     }
@@ -786,7 +810,7 @@ export default function ParentAttendancePage() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition disabled:opacity-60"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
               disabled={profilesLoading || !!profilesError}
             >
               <Plus size={16} />
@@ -795,6 +819,8 @@ export default function ParentAttendancePage() {
           </div>
         </div>
       </div>
+
+      <div ref={pageMessageRef} />
 
       {/* Messages */}
       {profilesError && <Banner kind="error" text={profilesError} />}
@@ -805,23 +831,23 @@ export default function ParentAttendancePage() {
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <div>
-            <div className="text-lg font-semibold text-gray-900">Lich su diem danh</div>
-            {attendanceLoading ? <div className="text-sm text-gray-500 mt-1">Dang tai...</div> : null}
+            <div className="text-lg font-semibold text-gray-900">Lịch sử điểm danh</div>
+            {attendanceLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải...</div> : null}
           </div>
-          <div className="text-sm text-gray-600 font-medium">{attendanceHistory.length} ban ghi</div>
+          <div className="text-sm text-gray-600 font-medium">{attendanceHistory.length} bản ghi</div>
         </div>
 
         {!displayAttendance.length && !attendanceLoading ? (
-          <div className="px-6 py-10 text-sm text-gray-600">Chua co lich su diem danh.</div>
+          <div className="px-6 py-10 text-sm text-gray-600">Chưa có lịch sử điểm danh.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
                 <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Buoi hoc</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ngay hoc</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Trang thai</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ghi chu</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Buổi học</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ngày học</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ghi chú</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -979,7 +1005,7 @@ export default function ParentAttendancePage() {
               type="button"
               onClick={() => openMakeupModal()}
               disabled={!formState.studentProfileId}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition disabled:opacity-60"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plus size={16} />
               Chọn buổi học bù

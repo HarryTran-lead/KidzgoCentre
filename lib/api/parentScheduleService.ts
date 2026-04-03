@@ -31,6 +31,8 @@ export type ParentTimetableResponse = {
 export async function getParentTimetable(params?: {
   from?: string;
   to?: string;
+  studentProfileId?: string;
+  classId?: string;
 }): Promise<ParentTimetableResponse> {
   const endpoint = PARENT_ENDPOINTS.TIMETABLE ?? "/api/parent/timetable";
   return get<ParentTimetableResponse>(endpoint, {
