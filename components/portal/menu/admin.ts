@@ -1,23 +1,24 @@
 import {
-  LayoutDashboard,
-  Users,
-  BookOpen,
-  GraduationCap,
-  UserCheck,
-  Building2,
-  CalendarRange,
-  CalendarClock,
-  ClipboardCheck,
-  Inbox,
-  Settings,
-  Building,
   BarChart3,
-  FileText,
   Bell,
-  Sparkles,
+  BookOpen,
+  Building,
+  Building2,
+  CalendarClock,
+  CalendarRange,
+  ClipboardCheck,
+  FileText,
+  Folder,
+  GraduationCap,
   HelpCircle,
+  Inbox,
+  LayoutDashboard,
+  Settings,
+  Sparkles,
+  UserCheck,
+  Users,
 } from "lucide-react";
-import { makeMenu, makeGroup, type RawItem } from "./utils";
+import { makeGroup, makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
 import { getMessages } from "@/lib/dict";
 import type { Locale } from "@/lib/i18n";
@@ -29,9 +30,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.quick.businessOverview, LayoutDashboard, ""],
     [t.quick.centerOverview, Building, "/center"],
   ];
-
   const leads: RawItem[] = [[t.groups.leads.manageLeads, Inbox, "/leads"]];
-
   const learning: RawItem[] = [
     [t.groups.learning.courses.list, GraduationCap, "/courses"],
     [t.groups.learning.tuitionPlans.list, GraduationCap, "/tuition-plans"],
@@ -39,7 +38,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.learning.classes.list, BookOpen, "/classes"],
     [t.groups.learning.students.list, Users, "/students"],
   ];
-
   const ops: RawItem[] = [
     [t.groups.ops.rooms, Building2, "/rooms"],
     [t.groups.ops.schedule, CalendarRange, "/schedule"],
@@ -47,8 +45,8 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.ops.feedback, ClipboardCheck, "/feedback"],
     [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
     [t.groups.ops.documents, FileText, "/documents"],
+    [t.groups.ops.teachingMaterials, Folder, "/materials"],
   ];
-
   const system: RawItem[] = [
     [t.groups.system.accounts, Settings, "/accounts"],
     [t.groups.system.teachers, Users, "/teachers"],

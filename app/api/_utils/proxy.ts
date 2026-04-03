@@ -71,6 +71,19 @@ type ProxyPassthroughOptions = {
   includeQuery?: boolean;
 };
 
+const PASSTHROUGH_RESPONSE_HEADERS = [
+  "content-type",
+  "content-disposition",
+  "content-length",
+  "cache-control",
+  "pragma",
+  "expires",
+  "accept-ranges",
+  "content-range",
+  "etag",
+  "last-modified",
+];
+
 export async function proxyPassthrough({
   req,
   endpoint,
@@ -100,21 +113,21 @@ export async function proxyPassthrough({
     };
 
     if (!["GET", "HEAD"].includes(req.method.toUpperCase())) {
-      const rawBody = await req.text();
-      if (rawBody) {
+      const rawBody = await req.arrayBuffer();
+      if (rawBody.byteLength > 0) {
         requestInit.body = rawBody;
       }
     }
 
     const upstream = await fetch(upstreamUrl, requestInit);
-    const responseText = await upstream.text();
     const upstreamType = upstream.headers.get("content-type") ?? "";
 
-    if (!responseText) {
-      return new NextResponse(null, { status: upstream.status });
-    }
-
     if (upstreamType.includes("application/json")) {
+      const responseText = await upstream.text();
+      if (!responseText) {
+        return new NextResponse(null, { status: upstream.status });
+      }
+
       try {
         return NextResponse.json(JSON.parse(responseText), {
           status: upstream.status,
@@ -127,11 +140,20 @@ export async function proxyPassthrough({
       }
     }
 
-    return new NextResponse(responseText, {
+    const responseHeaders = new Headers();
+
+    for (const headerName of PASSTHROUGH_RESPONSE_HEADERS) {
+      const value = upstream.headers.get(headerName);
+      if (value) {
+        responseHeaders.set(headerName, value);
+      }
+    }
+
+    const responseBody = await upstream.arrayBuffer();
+
+    return new NextResponse(responseBody.byteLength > 0 ? responseBody : null, {
       status: upstream.status,
-      headers: {
-        "Content-Type": upstreamType || "text/plain; charset=utf-8",
-      },
+      headers: responseHeaders,
     });
   } catch (error) {
     console.error("Proxy passthrough error:", error);
