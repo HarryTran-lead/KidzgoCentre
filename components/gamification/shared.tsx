@@ -49,23 +49,198 @@ export function toIsoString(value?: string) {
   return date.toISOString();
 }
 
-export function normalizeProblemMessage(error: unknown) {
+function collectProblemMessages(value: unknown): string[] {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectProblemMessages(item));
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized ? [normalized] : [];
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    if (typeof record.message === "string") {
+      return collectProblemMessages(record.message);
+    }
+
+    if (typeof record.detail === "string") {
+      return collectProblemMessages(record.detail);
+    }
+
+    if (typeof record.description === "string") {
+      return collectProblemMessages(record.description);
+    }
+
+    return Object.values(record).flatMap((item) => collectProblemMessages(item));
+  }
+
+  return [String(value)];
+}
+
+function translateProblemMessage(message?: string) {
+  const trimmed = String(message || "").trim();
+  if (!trimmed) return "";
+
+  const normalized = trimmed.toLowerCase();
+
+  if (normalized.includes("one or more validation errors occurred")) {
+    return "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.";
+  }
+
+  if (normalized.includes("validation.general")) {
+    return "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại thông tin đã nhập.";
+  }
+
+  if (
+    (normalized.includes("start") || normalized.includes("bắt đầu")) &&
+    (normalized.includes("past") || normalized.includes("quá khứ"))
+  ) {
+    return "Ngày bắt đầu không được ở trong quá khứ.";
+  }
+
+  if (
+    (normalized.includes("end") || normalized.includes("kết thúc")) &&
+    (normalized.includes("start") || normalized.includes("bắt đầu")) &&
+    (
+      normalized.includes("after") ||
+      normalized.includes("before") ||
+      normalized.includes("greater than")
+    )
+  ) {
+    return "Ngày kết thúc phải sau ngày bắt đầu.";
+  }
+
+  if (
+    (normalized.includes("mission type") || normalized.includes("loại nhiệm vụ")) &&
+    normalized.includes("required")
+  ) {
+    return "Vui lòng chọn loại nhiệm vụ.";
+  }
+
+  if (
+    (normalized.includes("targetstudent") || normalized.includes("student")) &&
+    normalized.includes("required")
+  ) {
+    return "Vui lòng chọn học sinh áp dụng.";
+  }
+
+  if (
+    (normalized.includes("targetclass") || normalized.includes("class")) &&
+    normalized.includes("required")
+  ) {
+    return "Vui lòng chọn lớp áp dụng.";
+  }
+
+  if (
+    (normalized.includes("targetgroup") || normalized.includes("group")) &&
+    normalized.includes("required")
+  ) {
+    return "Vui lòng chọn ít nhất một học sinh cho nhóm áp dụng.";
+  }
+
+  if (
+    (normalized.includes("rewardstars") || normalized.includes("reward stars") || normalized.includes("sao thưởng")) &&
+    (
+      normalized.includes("greater than 0") ||
+      normalized.includes("greater than zero") ||
+      normalized.includes("lớn hơn 0")
+    )
+  ) {
+    return "Sao thưởng phải lớn hơn 0.";
+  }
+
+  if (
+    (normalized.includes("rewardexp") || normalized.includes("reward xp") || normalized.includes("xp thưởng")) &&
+    (
+      normalized.includes("greater than 0") ||
+      normalized.includes("greater than zero") ||
+      normalized.includes("lớn hơn 0")
+    )
+  ) {
+    return "XP thưởng phải lớn hơn 0.";
+  }
+
+  if (
+    (normalized.includes("cost stars") || normalized.includes("coststars") || normalized.includes("số sao đổi")) &&
+    (
+      normalized.includes("greater than 0") ||
+      normalized.includes("greater than zero") ||
+      normalized.includes("lớn hơn 0")
+    )
+  ) {
+    return "Số sao đổi phải lớn hơn 0.";
+  }
+
+  if (
+    (normalized.includes("quantity") || normalized.includes("số lượng")) &&
+    (
+      normalized.includes("greater than or equal to 0") ||
+      normalized.includes("greater than or equal to zero") ||
+      normalized.includes("cannot be negative") ||
+      normalized.includes("không được âm")
+    )
+  ) {
+    return "Số lượng không được âm.";
+  }
+
+  if (
+    normalized.includes("amount") &&
+    (
+      normalized.includes("greater than 0") ||
+      normalized.includes("greater than zero") ||
+      normalized.includes("lớn hơn 0")
+    )
+  ) {
+    if (normalized.includes("xp")) {
+      return "Số XP phải lớn hơn 0.";
+    }
+
+    if (normalized.includes("star") || normalized.includes("sao")) {
+      return "Số sao phải lớn hơn 0.";
+    }
+
+    return "Giá trị nhập phải lớn hơn 0.";
+  }
+
+  return trimmed;
+}
+
+export function normalizeProblemMessages(error: unknown) {
   const fallback = "Đã có lỗi xảy ra. Vui lòng thử lại.";
 
   if (!error || typeof error !== "object") {
-    return fallback;
+    return [fallback];
   }
 
   const anyError = error as Record<string, any>;
   const responseData = anyError?.response?.data;
+  const validationMessages = collectProblemMessages(responseData?.errors)
+    .map((message) => translateProblemMessage(message))
+    .filter(Boolean);
 
-  return (
-    responseData?.detail ||
-    responseData?.message ||
-    responseData?.title ||
-    anyError?.message ||
-    fallback
-  );
+  if (validationMessages.length > 0) {
+    return validationMessages;
+  }
+
+  const directMessages = [
+    responseData?.detail,
+    responseData?.message,
+    responseData?.title,
+    anyError?.message,
+  ]
+    .map((message) => translateProblemMessage(message))
+    .filter(Boolean);
+
+  return directMessages.length > 0 ? directMessages : [fallback];
+}
+
+export function normalizeProblemMessage(error: unknown) {
+  return normalizeProblemMessages(error)[0];
 }
 
 export function mapMissionScopeLabel(scope: MissionScope) {
@@ -378,53 +553,71 @@ export function DialogShell({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div
         className={cx(
-          "relative w-full overflow-hidden rounded-2xl shadow-2xl border border-gray-200 bg-white",
+          "relative w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl",
           widthClass
         )}
       >
-        {/* Modal Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+              <div className="rounded-xl bg-white/20 p-2 backdrop-blur-sm">
                 {headerIcon ? (
                   headerIcon
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-white"
+                  >
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
                   </svg>
                 )}
               </div>
               <div>
-                <h3 className="text-2xl font-bold text-white">
-                  {title}
-                </h3>
+                <h3 className="text-2xl font-bold text-white">{title}</h3>
                 {description ? (
-                  <p className="text-sm text-red-100">
-                    {description}
-                  </p>
+                  <p className="text-sm text-red-100">{description}</p>
                 ) : null}
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              className="cursor-pointer rounded-full p-2 transition-colors hover:bg-white/20"
               aria-label="Đóng"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-white"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
               </svg>
             </button>
           </div>
         </div>
-        {/* Modal Body */}
-        <div className="p-6 max-h-[75vh] overflow-y-auto">{children}</div>
-        {/* Modal Footer */}
-        {showFooter && (
+
+        <div className="max-h-[75vh] overflow-y-auto p-6">{children}</div>
+
+        {showFooter ? (
           <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
             <div className="flex items-center justify-end gap-3">
               {footerAction ? (
@@ -433,14 +626,14 @@ export function DialogShell({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                  className="cursor-pointer rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-2.5 font-semibold text-white transition-all hover:shadow-lg hover:shadow-red-500/25"
                 >
                   Đóng
                 </button>
               )}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -460,7 +653,7 @@ export function Tabs<T extends string>({
   return (
     <div
       className={cx(
-        "mb-6 flex flex-wrap gap-2 rounded-3xl border backdrop-blur-sm p-2 shadow-lg",
+        "mb-6 flex flex-wrap gap-2 rounded-3xl border p-2 shadow-lg backdrop-blur-sm",
         theme === "staff"
           ? "border-red-200 bg-gradient-to-br from-white to-red-50/30"
           : "border-purple-500/30 bg-gradient-to-br from-slate-900/80 to-slate-950/80"
@@ -472,7 +665,7 @@ export function Tabs<T extends string>({
           type="button"
           onClick={() => onChange(tab.id)}
           className={cx(
-            "rounded-2xl px-4 py-2 text-sm font-semibold transition-all duration-200 cursor-pointer",
+            "cursor-pointer rounded-2xl px-4 py-2 text-sm font-semibold transition-all duration-200",
             value === tab.id
               ? theme === "staff"
                 ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
@@ -558,6 +751,7 @@ export function extractStudentOptions(payload: unknown): StudentOption[] {
 
   return options;
 }
+
 export function resolveActiveStudentProfile(
   userProfiles: UserProfile[] | undefined,
   selectedProfile: UserProfile | null | undefined,

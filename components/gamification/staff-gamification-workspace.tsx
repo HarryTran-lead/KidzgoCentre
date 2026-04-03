@@ -67,6 +67,7 @@ import type {
 } from "@/types/gamification";
 import type { HomeworkSubmission } from "@/types/teacher/homework";
 import {
+  cx,
   DialogShell,
   EmptyState,
   MetricCard,
@@ -85,6 +86,7 @@ import {
   mapProgressStatusLabel,
   mapRedemptionStatusLabel,
   normalizeProblemMessage,
+  normalizeProblemMessages,
   toDatetimeLocal,
   toIsoString,
   type StudentOption,
@@ -101,7 +103,7 @@ type MissionFormState = {
   targetClassId: string;
   targetStudentId: string;
   targetGroupIds: string[];
-  missionType: MissionType;
+  missionType: MissionType | "";
   startAt: string;
   endAt: string;
   rewardStars: string;
@@ -117,6 +119,34 @@ type RewardFormState = {
   quantity: string;
   isActive: boolean;
 };
+
+type MissionFormErrors = Partial<
+  Record<
+    | "title"
+    | "missionType"
+    | "targetClassId"
+    | "targetStudentId"
+    | "targetGroupIds"
+    | "startAt"
+    | "endAt"
+    | "rewardStars"
+    | "rewardExp",
+    string
+  >
+>;
+
+type RewardFormErrors = Partial<
+  Record<"title" | "costStars" | "quantity", string>
+>;
+
+type StudentActionState = {
+  starAmount: string;
+  starReason: string;
+  xpAmount: string;
+  xpReason: string;
+};
+
+type StudentActionErrors = Partial<Record<"starAmount" | "xpAmount", string>>;
 
 type HomeworkLinkOption = {
   id: string;
@@ -134,6 +164,7 @@ const primaryButton =
   "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60";
 const dangerGhostButton =
   "inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60";
+const errorTextClass = "mt-2 text-xs font-medium text-rose-600";
 
 const missionSeed: MissionFormState = {
   title: "",
@@ -142,7 +173,7 @@ const missionSeed: MissionFormState = {
   targetClassId: "",
   targetStudentId: "",
   targetGroupIds: [],
-  missionType: "Custom",
+  missionType: "",
   startAt: "",
   endAt: "",
   rewardStars: "",
@@ -157,6 +188,56 @@ const rewardSeed: RewardFormState = {
   quantity: "",
   isActive: true,
 };
+
+const studentActionSeed: StudentActionState = {
+  starAmount: "",
+  starReason: "",
+  xpAmount: "",
+  xpReason: "",
+};
+
+function FormLabel({
+  label,
+  required = false,
+}: {
+  label: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="mb-2 block text-sm font-semibold text-gray-700">
+      {label}
+      {required ? <span className="ml-1 text-rose-500">*</span> : null}
+    </label>
+  );
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className={errorTextClass}>{message}</p>;
+}
+
+function getFieldClass(baseClass: string, hasError?: boolean) {
+  return cx(
+    baseClass,
+    hasError
+      ? "border-rose-300 bg-rose-50/70 text-rose-900 placeholder:text-rose-300 focus:border-rose-400 focus:ring-rose-100"
+      : undefined
+  );
+}
+
+function getCurrentMinute() {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  return now;
+}
+
+function parseNumericInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
 
 export function StaffGamificationWorkspace({
   role,
@@ -190,7 +271,9 @@ export function StaffGamificationWorkspace({
   const [studentStreak, setStudentStreak] = useState<AttendanceStreakInfo | null>(null);
   const [transactions, setTransactions] = useState<Awaited<ReturnType<typeof getStarTransactions>>["transactions"]>([]);
   const [missionForm, setMissionForm] = useState<MissionFormState>(missionSeed);
+  const [missionErrors, setMissionErrors] = useState<MissionFormErrors>({});
   const [rewardForm, setRewardForm] = useState<RewardFormState>(rewardSeed);
+  const [rewardErrors, setRewardErrors] = useState<RewardFormErrors>({});
   const [missionDialogOpen, setMissionDialogOpen] = useState(false);
   const [rewardDialogOpen, setRewardDialogOpen] = useState(false);
   const [progressDialog, setProgressDialog] = useState<{ mission: Mission | null; items: MissionProgress[]; open: boolean }>({ mission: null, items: [], open: false });
@@ -200,7 +283,8 @@ export function StaffGamificationWorkspace({
   const [homeworkOptionsLoading, setHomeworkOptionsLoading] = useState(false);
   const [homeworkOptionsError, setHomeworkOptionsError] = useState<string | null>(null);
   const [redemptionDetail, setRedemptionDetail] = useState<RewardRedemption | null>(null);
-  const [studentAction, setStudentAction] = useState({ starAmount: "", starReason: "", xpAmount: "", xpReason: "" });
+  const [studentAction, setStudentAction] = useState<StudentActionState>(studentActionSeed);
+  const [studentActionErrors, setStudentActionErrors] = useState<StudentActionErrors>({});
   const [batchYear, setBatchYear] = useState("");
   const [batchMonth, setBatchMonth] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
@@ -264,6 +348,235 @@ export function StaffGamificationWorkspace({
     return [];
   }
 
+  function closeMissionDialog() {
+    setMissionDialogOpen(false);
+    setMissionErrors({});
+  }
+
+  function closeRewardDialog() {
+    setRewardDialogOpen(false);
+    setRewardErrors({});
+  }
+
+  function clearMissionErrors(fields: Array<keyof MissionFormErrors>) {
+    setMissionErrors((current) => {
+      if (fields.every((field) => !current[field])) {
+        return current;
+      }
+
+      const next = { ...current };
+      for (const field of fields) {
+        delete next[field];
+      }
+      return next;
+    });
+  }
+
+  function clearRewardErrors(fields: Array<keyof RewardFormErrors>) {
+    setRewardErrors((current) => {
+      if (fields.every((field) => !current[field])) {
+        return current;
+      }
+
+      const next = { ...current };
+      for (const field of fields) {
+        delete next[field];
+      }
+      return next;
+    });
+  }
+
+  function clearStudentActionErrors(fields: Array<keyof StudentActionErrors>) {
+    setStudentActionErrors((current) => {
+      if (fields.every((field) => !current[field])) {
+        return current;
+      }
+
+      const next = { ...current };
+      for (const field of fields) {
+        delete next[field];
+      }
+      return next;
+    });
+  }
+
+  function inferMissionErrorsFromMessages(messages: string[]): MissionFormErrors {
+    const nextErrors: MissionFormErrors = {};
+
+    for (const message of messages) {
+      const normalized = message.toLowerCase();
+
+      if (normalized.includes("tiêu đề") || normalized.includes("title")) {
+        nextErrors.title = "Vui lòng nhập tiêu đề nhiệm vụ.";
+      }
+
+      if (normalized.includes("loại nhiệm vụ") || normalized.includes("mission type")) {
+        nextErrors.missionType = "Vui lòng chọn loại nhiệm vụ.";
+      }
+
+      if (normalized.includes("lớp áp dụng") || normalized.includes("targetclass") || normalized.includes("class")) {
+        nextErrors.targetClassId = "Vui lòng chọn lớp áp dụng.";
+      }
+
+      if (normalized.includes("học sinh áp dụng") || normalized.includes("targetstudent")) {
+        nextErrors.targetStudentId = "Vui lòng chọn học sinh áp dụng.";
+      }
+
+      if (normalized.includes("nhóm áp dụng") || normalized.includes("targetgroup") || normalized.includes("group")) {
+        nextErrors.targetGroupIds = "Vui lòng chọn ít nhất một học sinh cho nhóm áp dụng.";
+      }
+
+      if (normalized.includes("ngày bắt đầu") || normalized.includes("start")) {
+        nextErrors.startAt = normalized.includes("quá khứ") || normalized.includes("past")
+          ? "Ngày bắt đầu không được ở trong quá khứ."
+          : "Vui lòng kiểm tra lại ngày bắt đầu.";
+      }
+
+      if (normalized.includes("ngày kết thúc") || normalized.includes("end")) {
+        nextErrors.endAt = normalized.includes("sau ngày bắt đầu") || normalized.includes("after")
+          ? "Ngày kết thúc phải sau ngày bắt đầu."
+          : "Vui lòng kiểm tra lại ngày kết thúc.";
+      }
+
+      if (normalized.includes("sao thưởng") || normalized.includes("rewardstars")) {
+        nextErrors.rewardStars = "Sao thưởng phải lớn hơn 0.";
+      }
+
+      if (normalized.includes("xp thưởng") || normalized.includes("rewardexp")) {
+        nextErrors.rewardExp = "XP thưởng phải lớn hơn 0.";
+      }
+    }
+
+    return nextErrors;
+  }
+
+  function inferRewardErrorsFromMessages(messages: string[]): RewardFormErrors {
+    const nextErrors: RewardFormErrors = {};
+
+    for (const message of messages) {
+      const normalized = message.toLowerCase();
+
+      if (normalized.includes("tên vật phẩm") || normalized.includes("title")) {
+        nextErrors.title = "Vui lòng nhập tên vật phẩm.";
+      }
+
+      if (normalized.includes("số sao đổi") || normalized.includes("coststars") || normalized.includes("cost stars")) {
+        nextErrors.costStars = "Số sao đổi phải lớn hơn 0.";
+      }
+
+      if (normalized.includes("số lượng") || normalized.includes("quantity")) {
+        nextErrors.quantity = "Số lượng không được âm.";
+      }
+    }
+
+    return nextErrors;
+  }
+
+  function validateMissionForm() {
+    const nextErrors: MissionFormErrors = {};
+    const startDate = missionForm.startAt ? new Date(missionForm.startAt) : null;
+    const endDate = missionForm.endAt ? new Date(missionForm.endAt) : null;
+    const rewardStars = parseNumericInput(missionForm.rewardStars);
+    const rewardExp = parseNumericInput(missionForm.rewardExp);
+
+    if (!missionForm.title.trim()) {
+      nextErrors.title = "Vui lòng nhập tiêu đề nhiệm vụ.";
+    }
+
+    if (!missionForm.missionType) {
+      nextErrors.missionType = "Vui lòng chọn loại nhiệm vụ.";
+    }
+
+    if (missionForm.scope === "Student" && !missionForm.targetStudentId) {
+      nextErrors.targetStudentId = "Vui lòng chọn học sinh áp dụng.";
+    }
+
+    if (missionForm.scope === "Class" && !missionForm.targetClassId) {
+      nextErrors.targetClassId = "Vui lòng chọn lớp áp dụng.";
+    }
+
+    if (missionForm.scope === "Group" && missionForm.targetGroupIds.length === 0) {
+      nextErrors.targetGroupIds = "Vui lòng chọn ít nhất một học sinh cho nhóm áp dụng.";
+    }
+
+    if (!missionForm.startAt) {
+      nextErrors.startAt = "Vui lòng chọn ngày bắt đầu.";
+    } else if (!startDate || Number.isNaN(startDate.getTime())) {
+      nextErrors.startAt = "Ngày bắt đầu không hợp lệ.";
+    } else if (startDate.getTime() < getCurrentMinute().getTime()) {
+      nextErrors.startAt = "Ngày bắt đầu không được ở trong quá khứ.";
+    }
+
+    if (!missionForm.endAt) {
+      nextErrors.endAt = "Vui lòng chọn ngày kết thúc.";
+    } else if (!endDate || Number.isNaN(endDate.getTime())) {
+      nextErrors.endAt = "Ngày kết thúc không hợp lệ.";
+    }
+
+    if (
+      !nextErrors.startAt &&
+      !nextErrors.endAt &&
+      startDate &&
+      endDate &&
+      endDate.getTime() <= startDate.getTime()
+    ) {
+      nextErrors.endAt = "Ngày kết thúc phải sau ngày bắt đầu.";
+    }
+
+    if (rewardStars === null) {
+      nextErrors.rewardStars = "Vui lòng nhập sao thưởng.";
+    } else if (Number.isNaN(rewardStars) || rewardStars <= 0) {
+      nextErrors.rewardStars = "Sao thưởng phải lớn hơn 0.";
+    }
+
+    if (rewardExp === null) {
+      nextErrors.rewardExp = "Vui lòng nhập XP thưởng.";
+    } else if (Number.isNaN(rewardExp) || rewardExp <= 0) {
+      nextErrors.rewardExp = "XP thưởng phải lớn hơn 0.";
+    }
+
+    return nextErrors;
+  }
+
+  function validateRewardForm() {
+    const nextErrors: RewardFormErrors = {};
+    const costStars = parseNumericInput(rewardForm.costStars);
+    const quantity = parseNumericInput(rewardForm.quantity);
+
+    if (!rewardForm.title.trim()) {
+      nextErrors.title = "Vui lòng nhập tên vật phẩm.";
+    }
+
+    if (costStars === null) {
+      nextErrors.costStars = "Vui lòng nhập số sao đổi.";
+    } else if (Number.isNaN(costStars) || costStars <= 0) {
+      nextErrors.costStars = "Số sao đổi phải lớn hơn 0.";
+    }
+
+    if (quantity !== null && (Number.isNaN(quantity) || quantity < 0)) {
+      nextErrors.quantity = "Số lượng không được âm.";
+    }
+
+    return nextErrors;
+  }
+
+  function validateStudentAction(action: "addStars" | "deductStars" | "addXp" | "deductXp") {
+    const field = action.includes("Stars") ? "starAmount" : "xpAmount";
+    const label = field === "starAmount" ? "số sao" : "số XP";
+    const amount = parseNumericInput(
+      field === "starAmount" ? studentAction.starAmount : studentAction.xpAmount
+    );
+    const nextErrors: StudentActionErrors = {};
+
+    if (amount === null) {
+      nextErrors[field] = `Vui lòng nhập ${label}.`;
+    } else if (Number.isNaN(amount) || amount <= 0) {
+      nextErrors[field] = `${label === "số sao" ? "Số sao" : "Số XP"} phải lớn hơn 0.`;
+    }
+
+    return nextErrors;
+  }
+
   async function loadBaseData() {
     setLoading(true);
     setPageError(null);
@@ -315,15 +628,19 @@ export function StaffGamificationWorkspace({
   }, []);
 
   useEffect(() => {
+    setStudentAction(studentActionSeed);
+    setStudentActionErrors({});
     if (selectedStudentId) void loadStudentSnapshot(selectedStudentId);
   }, [selectedStudentId]);
 
   function openCreateMission() {
     setMissionForm(missionSeed);
+    setMissionErrors({});
     setMissionDialogOpen(true);
   }
 
   function openEditMission(mission: Mission) {
+    setMissionErrors({});
     setMissionForm({
       id: mission.id,
       title: mission.title,
@@ -342,8 +659,20 @@ export function StaffGamificationWorkspace({
   }
 
   async function submitMission() {
+    const nextErrors = validateMissionForm();
+    if (Object.keys(nextErrors).length > 0) {
+      setMissionErrors(nextErrors);
+      toast.destructive({
+        title: "Thông tin nhiệm vụ chưa hợp lệ",
+        description:
+          Object.values(nextErrors)[0] ||
+          "Vui lòng kiểm tra lại các trường được đánh dấu đỏ.",
+      });
+      return;
+    }
+
     if (missionForm.scope === "Class" && !missionForm.targetClassId) {
-      toast({
+      toast.destructive({
         title: "Thiếu lớp áp dụng",
         description: "Vui lòng chọn lớp cho nhiệm vụ theo lớp.",
         variant: "destructive",
@@ -352,7 +681,7 @@ export function StaffGamificationWorkspace({
     }
 
     if (missionForm.scope === "Student" && !missionForm.targetStudentId) {
-      toast({
+      toast.destructive({
         title: "Thiếu học sinh áp dụng",
         description: "Vui lòng chọn học sinh cụ thể cho nhiệm vụ này.",
         variant: "destructive",
@@ -361,7 +690,7 @@ export function StaffGamificationWorkspace({
     }
 
     if (missionForm.scope === "Group" && missionForm.targetGroupIds.length === 0) {
-      toast({
+      toast.destructive({
         title: "Thiếu nhóm áp dụng",
         description: "Vui lòng chọn ít nhất một học sinh cho nhiệm vụ nhóm.",
         variant: "destructive",
@@ -387,29 +716,29 @@ export function StaffGamificationWorkspace({
           missionForm.scope === "Group"
             ? missionForm.targetGroupIds
             : undefined,
-        missionType: missionForm.missionType,
+        missionType: missionForm.missionType as MissionType,
         startAt: toIsoString(missionForm.startAt),
         endAt: toIsoString(missionForm.endAt),
-        rewardStars: missionForm.rewardStars
-          ? Number(missionForm.rewardStars)
-          : undefined,
-        rewardExp: missionForm.rewardExp
-          ? Number(missionForm.rewardExp)
-          : undefined,
+        rewardStars: Number(missionForm.rewardStars),
+        rewardExp: Number(missionForm.rewardExp),
       };
       if (missionForm.id) await updateMission(missionForm.id, payload);
       else await createMission(payload);
-      toast({
+      toast.success({
         title: missionForm.id ? "Đã cập nhật nhiệm vụ" : "Đã tạo nhiệm vụ mới",
       });
-      setMissionDialogOpen(false);
+      closeMissionDialog();
       setMissionForm(missionSeed);
       await loadBaseData();
     } catch (error) {
-      toast({
+      const messages = normalizeProblemMessages(error);
+      const backendErrors = inferMissionErrorsFromMessages(messages);
+      if (Object.keys(backendErrors).length > 0) {
+        setMissionErrors((current) => ({ ...current, ...backendErrors }));
+      }
+      toast.destructive({
         title: "Không thể lưu nhiệm vụ",
-        description: normalizeProblemMessage(error),
-        variant: "destructive",
+        description: messages[0] || normalizeProblemMessage(error),
       });
     } finally {
       setBusyAction(null);
@@ -417,6 +746,7 @@ export function StaffGamificationWorkspace({
   }
 
   function toggleMissionGroupStudent(studentId: string) {
+    clearMissionErrors(["targetGroupIds"]);
     setMissionForm((current) => ({
       ...current,
       targetGroupIds: current.targetGroupIds.includes(studentId)
@@ -430,7 +760,7 @@ export function StaffGamificationWorkspace({
     try {
       setBusyAction(`delete-mission-${id}`);
       await deleteMission(id);
-      toast({ title: "Đã xóa nhiệm vụ" });
+      toast.success({ title: "Đã xóa nhiệm vụ" });
       await loadBaseData();
     } catch (error) {
       toast({
@@ -468,6 +798,7 @@ export function StaffGamificationWorkspace({
 
   function openCreateReward() {
     setRewardForm(rewardSeed);
+    setRewardErrors({});
     setRewardDialogOpen(true);
   }
 
@@ -516,6 +847,7 @@ export function StaffGamificationWorkspace({
   }
 
   function openEditReward(item: RewardStoreItem) {
+    setRewardErrors({});
     setRewardForm({
       id: item.id,
       title: item.title,
@@ -529,31 +861,47 @@ export function StaffGamificationWorkspace({
   }
 
   async function submitRewardItem() {
+    const nextErrors = validateRewardForm();
+    if (Object.keys(nextErrors).length > 0) {
+      setRewardErrors(nextErrors);
+      toast.destructive({
+        title: "Thông tin vật phẩm chưa hợp lệ",
+        description:
+          Object.values(nextErrors)[0] ||
+          "Vui lòng kiểm tra lại các trường được đánh dấu đỏ.",
+      });
+      return;
+    }
+
     try {
       setBusyAction("submit-reward");
       const payload = {
         title: rewardForm.title.trim(),
         description: rewardForm.description.trim() || undefined,
         imageUrl: rewardForm.imageUrl.trim() || undefined,
-        costStars: Number(rewardForm.costStars || 0),
-        quantity: Number(rewardForm.quantity || 0),
+        costStars: Number(rewardForm.costStars),
+        quantity: rewardForm.quantity.trim() ? Number(rewardForm.quantity) : 0,
         isActive: rewardForm.isActive,
       };
       if (rewardForm.id) await updateRewardStoreItem(rewardForm.id, payload);
       else await createRewardStoreItem(payload);
-      toast({
+      toast.success({
         title: rewardForm.id
           ? "Đã cập nhật quà thưởng"
           : "Đã tạo quà thưởng mới",
       });
-      setRewardDialogOpen(false);
+      closeRewardDialog();
       setRewardForm(rewardSeed);
       await loadBaseData();
     } catch (error) {
-      toast({
+      const messages = normalizeProblemMessages(error);
+      const backendErrors = inferRewardErrorsFromMessages(messages);
+      if (Object.keys(backendErrors).length > 0) {
+        setRewardErrors((current) => ({ ...current, ...backendErrors }));
+      }
+      toast.destructive({
         title: "Không thể lưu quà thưởng",
-        description: normalizeProblemMessage(error),
-        variant: "destructive",
+        description: messages[0] || normalizeProblemMessage(error),
       });
     } finally {
       setBusyAction(null);
@@ -565,7 +913,7 @@ export function StaffGamificationWorkspace({
     try {
       setBusyAction(`delete-reward-${id}`);
       await deleteRewardStoreItem(id);
-      toast({ title: "Đã xoá vật phẩm" });
+      toast.success({ title: "Đã xoá vật phẩm" });
       await loadBaseData();
     } catch (error) {
       toast({
@@ -582,6 +930,7 @@ export function StaffGamificationWorkspace({
     try {
       setBusyAction(`toggle-reward-${id}`);
       await toggleRewardStoreItemStatus(id);
+      toast.success({ title: "Đã cập nhật trạng thái vật phẩm" });
       await loadBaseData();
     } catch (error) {
       toast({
@@ -598,6 +947,19 @@ export function StaffGamificationWorkspace({
     action: "addStars" | "deductStars" | "addXp" | "deductXp"
   ) {
     if (!selectedStudentId) return;
+
+    const nextErrors = validateStudentAction(action);
+    if (Object.keys(nextErrors).length > 0) {
+      setStudentActionErrors((current) => ({ ...current, ...nextErrors }));
+      toast.destructive({
+        title: "Dữ liệu điều chỉnh chưa hợp lệ",
+        description:
+          Object.values(nextErrors)[0] ||
+          "Vui lòng kiểm tra lại giá trị vừa nhập.",
+      });
+      return;
+    }
+
     try {
       setBusyAction(action);
       const amount = Number(
@@ -620,19 +982,14 @@ export function StaffGamificationWorkspace({
         await addXp({ studentProfileId: selectedStudentId, amount, reason });
       if (action === "deductXp")
         await deductXp({ studentProfileId: selectedStudentId, amount, reason });
-      toast({ title: "Đã cập nhật dữ liệu học sinh" });
+      toast.success({ title: "Đã cập nhật dữ liệu học sinh" });
       await loadStudentSnapshot(selectedStudentId);
-      setStudentAction({
-        starAmount: "",
-        starReason: "",
-        xpAmount: "",
-        xpReason: "",
-      });
+      setStudentAction(studentActionSeed);
+      setStudentActionErrors({});
     } catch (error) {
-      toast({
+      toast.destructive({
         title: "Không thể cập nhật dữ liệu",
         description: normalizeProblemMessage(error),
-        variant: "destructive",
       });
     } finally {
       setBusyAction(null);
@@ -655,7 +1012,7 @@ export function StaffGamificationWorkspace({
         linkForm.homeworkId.trim(),
         linkForm.missionId.trim()
       );
-      toast({ title: "Đã liên kết bài tập với nhiệm vụ" });
+      toast.success({ title: "Đã liên kết bài tập với nhiệm vụ" });
       setLinkDialogOpen(false);
       setLinkForm({ homeworkId: "", missionId: "" });
     } catch (error) {
@@ -697,7 +1054,7 @@ export function StaffGamificationWorkspace({
         await cancelRewardRedemption(id, { reason: reason.trim() || undefined });
       }
       if (action === "deliver") await markRewardRedemptionDelivered(id);
-      toast({ title: "Đã cập nhật trạng thái đổi thưởng" });
+      toast.success({ title: "Đã cập nhật trạng thái đổi thưởng" });
       await loadBaseData();
       if (redemptionDetail?.id === id) {
         const latest = await getRewardRedemption(id);
@@ -721,7 +1078,7 @@ export function StaffGamificationWorkspace({
         year: batchYear ? Number(batchYear) : undefined,
         month: batchMonth ? Number(batchMonth) : undefined,
       });
-      toast({ title: "Đã chạy giao hàng loạt" });
+      toast.success({ title: "Đã chạy giao hàng loạt" });
       await loadBaseData();
     } catch (error) {
       toast({
@@ -777,7 +1134,7 @@ export function StaffGamificationWorkspace({
       }
 
       setRewardForm((current) => ({ ...current, imageUrl: result.url }));
-      toast({
+      toast.success({
         title: "Đã tải ảnh lên",
         description: "Ảnh vật phẩm đã sẵn sàng để lưu.",
       });
@@ -924,7 +1281,20 @@ export function StaffGamificationWorkspace({
                     <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
                       <h3 className="text-lg font-bold text-gray-900">Điều chỉnh sao</h3>
                       <div className="mt-4 space-y-3">
-                        <input value={studentAction.starAmount} onChange={(event) => setStudentAction((current) => ({ ...current, starAmount: event.target.value }))} className={inputClass} inputMode="numeric" placeholder="Số sao" />
+                        <input
+                          value={studentAction.starAmount}
+                          onChange={(event) => {
+                            clearStudentActionErrors(["starAmount"]);
+                            setStudentAction((current) => ({
+                              ...current,
+                              starAmount: event.target.value,
+                            }));
+                          }}
+                          className={getFieldClass(inputClass, Boolean(studentActionErrors.starAmount))}
+                          inputMode="numeric"
+                          placeholder="Số sao"
+                        />
+                        <FieldError message={studentActionErrors.starAmount} />
                         <input value={studentAction.starReason} onChange={(event) => setStudentAction((current) => ({ ...current, starReason: event.target.value }))} className={inputClass} placeholder="Lý do" />
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => void runStudentAction("addStars")} disabled={busyAction === "addStars"} className={primaryButton}><Plus className="h-4 w-4" />Cộng sao</button>
@@ -935,7 +1305,20 @@ export function StaffGamificationWorkspace({
                     <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
                       <h3 className="text-lg font-bold text-gray-900">Điều chỉnh XP</h3>
                       <div className="mt-4 space-y-3">
-                        <input value={studentAction.xpAmount} onChange={(event) => setStudentAction((current) => ({ ...current, xpAmount: event.target.value }))} className={inputClass} inputMode="numeric" placeholder="Số XP" />
+                        <input
+                          value={studentAction.xpAmount}
+                          onChange={(event) => {
+                            clearStudentActionErrors(["xpAmount"]);
+                            setStudentAction((current) => ({
+                              ...current,
+                              xpAmount: event.target.value,
+                            }));
+                          }}
+                          className={getFieldClass(inputClass, Boolean(studentActionErrors.xpAmount))}
+                          inputMode="numeric"
+                          placeholder="Số XP"
+                        />
+                        <FieldError message={studentActionErrors.xpAmount} />
                         <input value={studentAction.xpReason} onChange={(event) => setStudentAction((current) => ({ ...current, xpReason: event.target.value }))} className={inputClass} placeholder="Lý do" />
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => void runStudentAction("addXp")} disabled={busyAction === "addXp"} className={primaryButton}><Plus className="h-4 w-4" />Cộng XP</button>
@@ -1109,34 +1492,321 @@ export function StaffGamificationWorkspace({
         </Panel>
       ) : null}
 
-      <DialogShell open={missionDialogOpen} onClose={() => setMissionDialogOpen(false)} title={missionForm.id ? "Cập nhật nhiệm vụ" : "Tạo nhiệm vụ mới"} description="Điền đúng phạm vi và phần thưởng để nhiệm vụ bám theo quy tắc backend." theme="staff">
+      <DialogShell
+        open={missionDialogOpen}
+        onClose={closeMissionDialog}
+        title={missionForm.id ? "Cập nhật nhiệm vụ" : "Tạo nhiệm vụ mới"}
+        description="Điền đúng phạm vi và phần thưởng để nhiệm vụ bám theo quy tắc backend."
+        theme="staff"
+      >
+        <p className="mb-4 text-xs font-medium text-rose-600">
+          Các trường đánh dấu * là bắt buộc.
+        </p>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Tiêu đề</label><input value={missionForm.title} onChange={(event) => setMissionForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} /></div>
-          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Mô tả</label><textarea value={missionForm.description} onChange={(event) => setMissionForm((current) => ({ ...current, description: event.target.value }))} className={textareaClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Phạm vi</label><select value={missionForm.scope} onChange={(event) => setMissionForm((current) => ({ ...current, scope: event.target.value as MissionScope, targetClassId: "", targetStudentId: "", targetGroupIds: [] }))} className={inputClass}><option value="Student">Học sinh</option><option value="Class">Lớp</option><option value="Group">Nhóm</option></select></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Loại nhiệm vụ</label><select value={missionForm.missionType} onChange={(event) => setMissionForm((current) => ({ ...current, missionType: event.target.value as MissionType }))} className={inputClass}><option value="Custom">Tùy chỉnh</option><option value="HomeworkStreak">Chuỗi bài tập</option><option value="ReadingStreak">Chuỗi đọc</option><option value="NoUnexcusedAbsence">Không vắng mặt không phép</option></select></div>
-          {missionForm.scope === "Student" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Học sinh áp dụng</label><select value={missionForm.targetStudentId} onChange={(event) => setMissionForm((current) => ({ ...current, targetStudentId: event.target.value }))} className={inputClass}><option value="">Chọn học sinh</option>{students.map((student) => <option key={student.id} value={student.id}>{student.dropdownLabel || student.label}</option>)}</select>{selectedMissionTargetStudent ? <p className="mt-2 text-xs text-gray-500">{selectedMissionTargetStudent.helperText || selectedMissionTargetStudent.studentId || "Học sinh đã chọn"}</p> : null}</div> : null}
-          {missionForm.scope === "Class" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Lớp áp dụng</label><select value={missionForm.targetClassId} onChange={(event) => setMissionForm((current) => ({ ...current, targetClassId: event.target.value }))} className={inputClass}><option value="">Chọn lớp</option>{classOptions.map((item) => <option key={item.id} value={item.id}>{item.code ? `${item.code} - ` : ""}{item.title || item.name || item.id}</option>)}</select></div> : null}
-          {missionForm.scope === "Group" ? <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Nhóm áp dụng</label><div className="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-red-200 bg-red-50/40 p-3">{students.map((student) => { const checked = missionForm.targetGroupIds.includes(student.id); return <label key={student.id} className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition ${checked ? "border-red-300 bg-white" : "border-transparent bg-white/70 hover:border-red-200"}`}><input type="checkbox" checked={checked} onChange={() => toggleMissionGroupStudent(student.id)} className="mt-1 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200" /><span className="min-w-0"><span className="block text-sm font-semibold text-gray-900">{student.label}</span><span className="mt-0.5 block text-xs text-gray-500">{student.helperText || student.studentId || student.id}</span></span></label>; })}{students.length === 0 ? <p className="text-sm text-gray-500">Chưa có danh sách học sinh để chọn.</p> : null}</div>{selectedMissionGroupStudents.length > 0 ? <p className="mt-2 text-xs text-gray-500">Đã chọn {selectedMissionGroupStudents.length} học sinh.</p> : null}</div> : null}
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Bắt đầu</label><input type="datetime-local" value={missionForm.startAt} onChange={(event) => setMissionForm((current) => ({ ...current, startAt: event.target.value }))} className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Kết thúc</label><input type="datetime-local" value={missionForm.endAt} onChange={(event) => setMissionForm((current) => ({ ...current, endAt: event.target.value }))} className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Sao thưởng</label><input value={missionForm.rewardStars} onChange={(event) => setMissionForm((current) => ({ ...current, rewardStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">XP thưởng</label><input value={missionForm.rewardExp} onChange={(event) => setMissionForm((current) => ({ ...current, rewardExp: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
+          <div className="md:col-span-2">
+            <FormLabel label="Tiêu đề" required />
+            <input
+              value={missionForm.title}
+              onChange={(event) => {
+                clearMissionErrors(["title"]);
+                setMissionForm((current) => ({ ...current, title: event.target.value }));
+              }}
+              className={getFieldClass(inputClass, Boolean(missionErrors.title))}
+            />
+            <FieldError message={missionErrors.title} />
+          </div>
+
+          <div className="md:col-span-2">
+            <FormLabel label="Mô tả" />
+            <textarea
+              value={missionForm.description}
+              onChange={(event) =>
+                setMissionForm((current) => ({ ...current, description: event.target.value }))
+              }
+              className={textareaClass}
+            />
+          </div>
+
+          <div>
+            <FormLabel label="Phạm vi" />
+            <select
+              value={missionForm.scope}
+              onChange={(event) => {
+                clearMissionErrors(["targetClassId", "targetStudentId", "targetGroupIds"]);
+                setMissionForm((current) => ({
+                  ...current,
+                  scope: event.target.value as MissionScope,
+                  targetClassId: "",
+                  targetStudentId: "",
+                  targetGroupIds: [],
+                }));
+              }}
+              className={inputClass}
+            >
+              <option value="Student">Học sinh</option>
+              <option value="Class">Lớp</option>
+              <option value="Group">Nhóm</option>
+            </select>
+          </div>
+
+          <div>
+            <FormLabel label="Loại nhiệm vụ" required />
+            <select
+              value={missionForm.missionType}
+              onChange={(event) => {
+                clearMissionErrors(["missionType"]);
+                setMissionForm((current) => ({
+                  ...current,
+                  missionType: event.target.value as MissionType | "",
+                }));
+              }}
+              className={getFieldClass(inputClass, Boolean(missionErrors.missionType))}
+            >
+              <option value="">Chọn loại nhiệm vụ</option>
+              <option value="Custom">Tùy chỉnh</option>
+              <option value="HomeworkStreak">Chuỗi bài tập</option>
+              <option value="ReadingStreak">Chuỗi đọc</option>
+              <option value="NoUnexcusedAbsence">Không vắng mặt không phép</option>
+            </select>
+            <FieldError message={missionErrors.missionType} />
+          </div>
+
+          {missionForm.scope === "Student" ? (
+            <div className="md:col-span-2">
+              <FormLabel label="Học sinh áp dụng" required />
+              <select
+                value={missionForm.targetStudentId}
+                onChange={(event) => {
+                  clearMissionErrors(["targetStudentId"]);
+                  setMissionForm((current) => ({
+                    ...current,
+                    targetStudentId: event.target.value,
+                  }));
+                }}
+                className={getFieldClass(inputClass, Boolean(missionErrors.targetStudentId))}
+              >
+                <option value="">Chọn học sinh</option>
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.dropdownLabel || student.label}
+                  </option>
+                ))}
+              </select>
+              <FieldError message={missionErrors.targetStudentId} />
+              {selectedMissionTargetStudent ? (
+                <p className="mt-2 text-xs text-gray-500">
+                  {selectedMissionTargetStudent.helperText ||
+                    selectedMissionTargetStudent.studentId ||
+                    "Học sinh đã chọn"}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {missionForm.scope === "Class" ? (
+            <div className="md:col-span-2">
+              <FormLabel label="Lớp áp dụng" required />
+              <select
+                value={missionForm.targetClassId}
+                onChange={(event) => {
+                  clearMissionErrors(["targetClassId"]);
+                  setMissionForm((current) => ({
+                    ...current,
+                    targetClassId: event.target.value,
+                  }));
+                }}
+                className={getFieldClass(inputClass, Boolean(missionErrors.targetClassId))}
+              >
+                <option value="">Chọn lớp</option>
+                {classOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.code ? `${item.code} - ` : ""}
+                    {item.title || item.name || item.id}
+                  </option>
+                ))}
+              </select>
+              <FieldError message={missionErrors.targetClassId} />
+            </div>
+          ) : null}
+
+          {missionForm.scope === "Group" ? (
+            <div className="md:col-span-2">
+              <FormLabel label="Nhóm áp dụng" required />
+              <div
+                className={cx(
+                  "max-h-64 space-y-2 overflow-y-auto rounded-2xl border p-3",
+                  missionErrors.targetGroupIds
+                    ? "border-rose-300 bg-rose-50/70"
+                    : "border-red-200 bg-red-50/40"
+                )}
+              >
+                {students.map((student) => {
+                  const checked = missionForm.targetGroupIds.includes(student.id);
+
+                  return (
+                    <label
+                      key={student.id}
+                      className={cx(
+                        "flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition",
+                        checked
+                          ? "border-red-300 bg-white"
+                          : "border-transparent bg-white/70 hover:border-red-200"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleMissionGroupStudent(student.id)}
+                        className="mt-1 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-gray-900">
+                          {student.label}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-gray-500">
+                          {student.helperText || student.studentId || student.id}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+                {students.length === 0 ? (
+                  <p className="text-sm text-gray-500">Chưa có danh sách học sinh để chọn.</p>
+                ) : null}
+              </div>
+              <FieldError message={missionErrors.targetGroupIds} />
+              {selectedMissionGroupStudents.length > 0 ? (
+                <p className="mt-2 text-xs text-gray-500">
+                  Đã chọn {selectedMissionGroupStudents.length} học sinh.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div>
+            <FormLabel label="Bắt đầu" required />
+            <input
+              type="datetime-local"
+              value={missionForm.startAt}
+              onChange={(event) => {
+                clearMissionErrors(["startAt"]);
+                setMissionForm((current) => ({ ...current, startAt: event.target.value }));
+              }}
+              className={getFieldClass(inputClass, Boolean(missionErrors.startAt))}
+            />
+            <FieldError message={missionErrors.startAt} />
+          </div>
+
+          <div>
+            <FormLabel label="Kết thúc" required />
+            <input
+              type="datetime-local"
+              value={missionForm.endAt}
+              onChange={(event) => {
+                clearMissionErrors(["endAt"]);
+                setMissionForm((current) => ({ ...current, endAt: event.target.value }));
+              }}
+              className={getFieldClass(inputClass, Boolean(missionErrors.endAt))}
+            />
+            <FieldError message={missionErrors.endAt} />
+          </div>
+
+          <div>
+            <FormLabel label="Sao thưởng" required />
+            <input
+              value={missionForm.rewardStars}
+              onChange={(event) => {
+                clearMissionErrors(["rewardStars"]);
+                setMissionForm((current) => ({ ...current, rewardStars: event.target.value }));
+              }}
+              inputMode="numeric"
+              className={getFieldClass(inputClass, Boolean(missionErrors.rewardStars))}
+            />
+            <FieldError message={missionErrors.rewardStars} />
+          </div>
+
+          <div>
+            <FormLabel label="XP thưởng" required />
+            <input
+              value={missionForm.rewardExp}
+              onChange={(event) => {
+                clearMissionErrors(["rewardExp"]);
+                setMissionForm((current) => ({ ...current, rewardExp: event.target.value }));
+              }}
+              inputMode="numeric"
+              className={getFieldClass(inputClass, Boolean(missionErrors.rewardExp))}
+            />
+            <FieldError message={missionErrors.rewardExp} />
+          </div>
         </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setMissionDialogOpen(false)} className={ghostButton}>Đóng</button><button type="button" onClick={() => void submitMission()} disabled={busyAction === "submit-mission"} className={primaryButton}>{busyAction === "submit-mission" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Lưu nhiệm vụ</button></div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={closeMissionDialog} className={ghostButton}>
+            Đóng
+          </button>
+          <button
+            type="button"
+            onClick={() => void submitMission()}
+            disabled={busyAction === "submit-mission"}
+            className={primaryButton}
+          >
+            {busyAction === "submit-mission" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Lưu nhiệm vụ
+          </button>
+        </div>
       </DialogShell>
 
-      <DialogShell open={rewardDialogOpen} onClose={() => setRewardDialogOpen(false)} title={rewardForm.id ? "Cập nhật vật phẩm" : "Tạo vật phẩm mới"} description="Số sao đổi phải lớn hơn 0 và số lượng không được âm." theme="staff">
+      <DialogShell
+        open={rewardDialogOpen}
+        onClose={closeRewardDialog}
+        title={rewardForm.id ? "Cập nhật vật phẩm" : "Tạo vật phẩm mới"}
+        description="Số sao đổi phải lớn hơn 0 và số lượng không được âm."
+        theme="staff"
+      >
+        <p className="mb-4 text-xs font-medium text-rose-600">
+          Các trường đánh dấu * là bắt buộc.
+        </p>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Tên vật phẩm</label><input value={rewardForm.title} onChange={(event) => setRewardForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} /></div>
-          <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-gray-700">Mô tả</label><textarea value={rewardForm.description} onChange={(event) => setRewardForm((current) => ({ ...current, description: event.target.value }))} className={textareaClass} /></div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Ảnh vật phẩm</label>
-            <input ref={rewardImageInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => void handleRewardImageChange(event)} />
+            <FormLabel label="Tên vật phẩm" required />
+            <input
+              value={rewardForm.title}
+              onChange={(event) => {
+                clearRewardErrors(["title"]);
+                setRewardForm((current) => ({ ...current, title: event.target.value }));
+              }}
+              className={getFieldClass(inputClass, Boolean(rewardErrors.title))}
+            />
+            <FieldError message={rewardErrors.title} />
+          </div>
+
+          <div className="md:col-span-2">
+            <FormLabel label="Mô tả" />
+            <textarea
+              value={rewardForm.description}
+              onChange={(event) =>
+                setRewardForm((current) => ({ ...current, description: event.target.value }))
+              }
+              className={textareaClass}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <FormLabel label="Ảnh vật phẩm" />
+            <input
+              ref={rewardImageInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={(event) => void handleRewardImageChange(event)}
+            />
             {rewardForm.imageUrl ? (
               <div className="overflow-hidden rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30">
                 <div className="aspect-[16/8] w-full bg-red-50">
-                  <img src={rewardImagePreviewUrl || rewardForm.imageUrl} alt="Ảnh vật phẩm" className="h-full w-full object-cover" />
+                  <img
+                    src={rewardImagePreviewUrl || rewardForm.imageUrl}
+                    alt="Ảnh vật phẩm"
+                    className="h-full w-full object-cover"
+                  />
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-red-200 px-4 py-3">
                   <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -1144,11 +1814,21 @@ export function StaffGamificationWorkspace({
                     <span className="max-w-[420px] truncate">{rewardForm.imageUrl}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => rewardImageInputRef.current?.click()} disabled={imageUploading} className={ghostButton}>
+                    <button
+                      type="button"
+                      onClick={() => rewardImageInputRef.current?.click()}
+                      disabled={imageUploading}
+                      className={ghostButton}
+                    >
                       {imageUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                       Đổi ảnh
                     </button>
-                    <button type="button" onClick={() => setRewardForm((current) => ({ ...current, imageUrl: "" }))} disabled={imageUploading} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                    <button
+                      type="button"
+                      onClick={() => setRewardForm((current) => ({ ...current, imageUrl: "" }))}
+                      disabled={imageUploading}
+                      className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
                       <Trash2 className="h-4 w-4" />
                       Xóa ảnh
                     </button>
@@ -1156,20 +1836,81 @@ export function StaffGamificationWorkspace({
                 </div>
               </div>
             ) : (
-              <button type="button" onClick={() => rewardImageInputRef.current?.click()} disabled={imageUploading} className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-red-200 bg-gradient-to-br from-white to-red-50/30 px-6 py-10 text-center transition hover:border-red-400 hover:bg-red-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+              <button
+                type="button"
+                onClick={() => rewardImageInputRef.current?.click()}
+                disabled={imageUploading}
+                className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-red-200 bg-gradient-to-br from-white to-red-50/30 px-6 py-10 text-center transition hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
                 {imageUploading ? <Loader2 className="h-8 w-8 animate-spin text-gray-500" /> : <Upload className="h-8 w-8 text-gray-500" />}
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{imageUploading ? "Đang tải ảnh lên..." : "Chọn ảnh từ máy"}</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {imageUploading ? "Đang tải ảnh lên..." : "Chọn ảnh từ máy"}
+                  </p>
                   <p className="mt-1 text-xs text-gray-500">Hỗ trợ JPG, PNG, WEBP, GIF. Tối đa 10MB.</p>
                 </div>
               </button>
             )}
           </div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Số sao đổi</label><input value={rewardForm.costStars} onChange={(event) => setRewardForm((current) => ({ ...current, costStars: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
-          <div><label className="mb-2 block text-sm font-semibold text-gray-700">Số lượng</label><input value={rewardForm.quantity} onChange={(event) => setRewardForm((current) => ({ ...current, quantity: event.target.value }))} inputMode="numeric" className={inputClass} /></div>
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700"><input type="checkbox" checked={rewardForm.isActive} onChange={(event) => setRewardForm((current) => ({ ...current, isActive: event.target.checked }))} />Hiển thị trên cửa hàng</label>
+
+          <div>
+            <FormLabel label="Số sao đổi" required />
+            <input
+              value={rewardForm.costStars}
+              onChange={(event) => {
+                clearRewardErrors(["costStars"]);
+                setRewardForm((current) => ({ ...current, costStars: event.target.value }));
+              }}
+              inputMode="numeric"
+              className={getFieldClass(inputClass, Boolean(rewardErrors.costStars))}
+            />
+            <FieldError message={rewardErrors.costStars} />
+          </div>
+
+          <div>
+            <FormLabel label="Số lượng" />
+            <input
+              value={rewardForm.quantity}
+              onChange={(event) => {
+                clearRewardErrors(["quantity"]);
+                setRewardForm((current) => ({ ...current, quantity: event.target.value }));
+              }}
+              inputMode="numeric"
+              className={getFieldClass(inputClass, Boolean(rewardErrors.quantity))}
+            />
+            <FieldError message={rewardErrors.quantity} />
+          </div>
+
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={rewardForm.isActive}
+              onChange={(event) =>
+                setRewardForm((current) => ({ ...current, isActive: event.target.checked }))
+              }
+            />
+            Hiển thị trên cửa hàng
+          </label>
         </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setRewardDialogOpen(false)} className={ghostButton} disabled={imageUploading}>Đóng</button><button type="button" onClick={() => void submitRewardItem()} disabled={busyAction === "submit-reward" || imageUploading} className={primaryButton}>{busyAction === "submit-reward" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Lưu vật phẩm</button></div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={closeRewardDialog}
+            className={ghostButton}
+            disabled={imageUploading}
+          >
+            Đóng
+          </button>
+          <button
+            type="button"
+            onClick={() => void submitRewardItem()}
+            disabled={busyAction === "submit-reward" || imageUploading}
+            className={primaryButton}
+          >
+            {busyAction === "submit-reward" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Lưu vật phẩm
+          </button>
+        </div>
       </DialogShell>
 
       <DialogShell open={progressDialog.open} onClose={() => setProgressDialog({ mission: null, items: [], open: false })} title={progressDialog.mission?.title || "Tiến độ nhiệm vụ"} description="Danh sách tiến độ hiện có theo nhiệm vụ được chọn." theme="staff">
