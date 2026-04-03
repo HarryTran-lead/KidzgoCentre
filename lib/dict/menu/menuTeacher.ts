@@ -1,4 +1,3 @@
-// lib/dict/menu/menuTeacher.ts
 export const menuTeacher = {
   vi: {
     items: {
@@ -7,6 +6,7 @@ export const menuTeacher = {
       myClasses: "Lớp học của tôi",
       schedule: "Lịch giảng dạy",
       subjects: "Giáo án & Tài liệu",
+      materials: "Kho tài liệu",
       assignments: "Bài tập & Nộp bài",
       gamification: "Gamification",
       attendance: "Điểm danh",
@@ -23,6 +23,7 @@ export const menuTeacher = {
       myClasses: "My Classes",
       schedule: "Teaching Schedule",
       subjects: "Lesson Plans & Materials",
+      materials: "Teaching Materials",
       assignments: "Assignments & Submissions",
       gamification: "Gamification",
       attendance: "Attendance",

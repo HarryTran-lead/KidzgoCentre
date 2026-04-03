@@ -610,11 +610,29 @@ export const FILE_ENDPOINTS = {
   TRANSFORM: '/api/files/transform',
 } as const;
 
+export const TEACHING_MATERIALS_ENDPOINTS = {
+  BASE: "/api/teaching-materials",
+  BY_ID: (id: string) => `/api/teaching-materials/${id}`,
+  LESSON_BUNDLE: "/api/teaching-materials/lesson-bundle",
+  UPLOAD: "/api/teaching-materials/upload",
+  PREVIEW: (id: string) => `/api/teaching-materials/${id}/preview`,
+  DOWNLOAD: (id: string) => `/api/teaching-materials/${id}/download`,
+} as const;
+
 // Backend File Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_FILE_ENDPOINTS = {
   UPLOAD: '/files/upload',
   DELETE: '/files',
   TRANSFORM: '/files/transform',
+} as const;
+
+export const BACKEND_TEACHING_MATERIALS_ENDPOINTS = {
+  BASE: "/teaching-materials",
+  BY_ID: (id: string) => `/teaching-materials/${id}`,
+  LESSON_BUNDLE: "/teaching-materials/lesson-bundle",
+  UPLOAD: "/teaching-materials/upload",
+  PREVIEW: (id: string) => `/teaching-materials/${id}/preview`,
+  DOWNLOAD: (id: string) => `/teaching-materials/${id}/download`,
 } as const;
 
 // Dashboard Overview Endpoints (Client-side → Next.js API Routes)

@@ -11,21 +11,11 @@ export const menuAdmin = {
       },
       learning: {
         title: "Học tập",
-        courses: {
-          list: "Danh sách khóa học",
-        },
-        tuitionPlans: {
-          list: "Danh sach goi hoc",
-        },
-        registrations: {
-          list: "Danh sach dang ky lop",
-        },
-        classes: {
-          list: "Danh sách lớp học",
-        },
-        students: {
-          list: "Danh sách học viên",
-        },
+        courses: { list: "Danh sách khóa học" },
+        tuitionPlans: { list: "Danh sách gói học" },
+        registrations: { list: "Danh sách đăng ký lớp" },
+        classes: { list: "Danh sách lớp học" },
+        students: { list: "Danh sách học viên" },
       },
       ops: {
         title: "Vận hành",
@@ -33,9 +23,10 @@ export const menuAdmin = {
         schedule: "Lịch & Phân bổ",
         pauseEnrollments: "Bảo lưu học",
         fees: "Học phí & Công nợ",
-        feedback: "Feedback lop hoc",
-        extracurricular: "Ngoai khoa & Trai he",
-        documents: "Giao an & Tai lieu",
+        feedback: "Feedback lớp học",
+        extracurricular: "Ngoại khóa & Trại hè",
+        documents: "Giáo án & Tài liệu",
+        teachingMaterials: "Teaching Materials",
       },
       finance: {
         title: "Tài chính",
@@ -68,21 +59,11 @@ export const menuAdmin = {
       },
       learning: {
         title: "Learning",
-        courses: {
-          list: "Courses",
-        },
-        tuitionPlans: {
-          list: "Tuition Plans",
-        },
-        registrations: {
-          list: "Registrations",
-        },
-        classes: {
-          list: "Classes",
-        },
-        students: {
-          list: "Students",
-        },
+        courses: { list: "Courses" },
+        tuitionPlans: { list: "Tuition Plans" },
+        registrations: { list: "Registrations" },
+        classes: { list: "Classes" },
+        students: { list: "Students" },
       },
       ops: {
         title: "Operations",
@@ -93,6 +74,7 @@ export const menuAdmin = {
         feedback: "Class Feedback",
         extracurricular: "Extracurricular & Camps",
         documents: "Lesson Plans & Materials",
+        teachingMaterials: "Teaching Materials",
       },
       finance: {
         title: "Finance",
