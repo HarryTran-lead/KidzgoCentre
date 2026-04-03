@@ -433,11 +433,27 @@ export async function updatePlacementTestResults(
   results: PlacementTestResult
 ): Promise<ApiResponse<void>> {
   try {
-    const response = await put<any>(PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(id), results);
-    const payload = extractPayload(response);
+    const payload = {
+      listeningScore: results.listeningScore ?? 0,
+      speakingScore: results.speakingScore ?? 0,
+      readingScore: results.readingScore ?? 0,
+      writingScore: results.writingScore ?? 0,
+      resultScore: results.resultScore ?? 0,
+      programRecommendationId: results.programRecommendationId,
+      secondaryProgramRecommendationId:
+        results.secondaryProgramRecommendation || undefined,
+      secondaryProgramSkillFocus: results.secondaryProgramSkillFocus || undefined,
+      attachmentUrl: results.attachmentUrl || "",
+    };
+
+    const response = await put<any>(
+      PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(id),
+      payload,
+    );
+    const responsePayload = extractPayload(response);
     return {
-      isSuccess: payload?.isSuccess ?? payload?.success ?? true,
-      message: payload?.message || "Results updated successfully",
+      isSuccess: responsePayload?.isSuccess ?? responsePayload?.success ?? true,
+      message: responsePayload?.message || "Results updated successfully",
       data: undefined as any,
     };
   } catch (error) {

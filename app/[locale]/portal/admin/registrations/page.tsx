@@ -530,9 +530,9 @@ export default function AdminRegistrationsPage() {
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-500">Secondary focus</div>
+                <div className="text-xs text-gray-500">Chú trọng kĩ năng</div>
                 <div className="text-sm text-gray-900">
-                  {selectedDetail.secondaryProgramSkillFocus || selectedDetail.secondaryEntryType || "-"}
+                  {selectedDetail.secondaryProgramSkillFocus || selectedDetail.secondaryEntryType || "Không có"}
                 </div>
               </div>
               <div>

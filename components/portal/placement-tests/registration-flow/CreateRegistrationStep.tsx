@@ -107,7 +107,7 @@ export default function CreateRegistrationStep({
     <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-3 h-full flex flex-col">
       <div className="mb-2 flex items-center gap-2 text-base font-semibold text-gray-900 shrink-0">
         <School size={18} className="text-red-600" />
-        Bước 1: Tạo đăng ký học viên
+        Tạo đăng ký học viên
       </div>
 
       {isBootstrapping ? (
@@ -353,11 +353,7 @@ export default function CreateRegistrationStep({
 
           {/* KHU VỰC FOOTER: Nút Tạo & ID (Dưới cùng bên phải) */}
           <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-3 border-t border-red-100 shrink-0">
-            {registrationId && (
-              <span className="inline-flex justify-center items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700">
-                <CheckCircle2 size={16} /> ID: {registrationId}
-              </span>
-            )}
+          
 
             {/* Nút Tạo đăng ký (Ngoài cùng bên phải) */}
             <button
@@ -366,7 +362,7 @@ export default function CreateRegistrationStep({
               disabled={!canCreate || isCreating || isBootstrapping}
               className="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-8 py-2.5 text-sm font-bold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-60 transition-all hover:opacity-90"
             >
-              {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              {isCreating ? <Loader2 size={16} className="animate-spin" /> : null}
               Tạo đăng ký
             </button>
           </div>

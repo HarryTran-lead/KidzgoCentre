@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import {
+  ArrowRightLeft,
   ArrowUpDown,
   BookOpen,
   CheckCircle2,
@@ -11,28 +11,39 @@ import {
   Eye,
   Loader2,
   RefreshCw,
+  Rocket,
   Search,
   Sparkles,
-  X,
+  Users,
 } from "lucide-react";
 import LeadPagination from "@/components/portal/leads/LeadPagination";
+import RegistrationAssignModal from "@/components/portal/registrations/modals/RegistrationAssignModal";
+import RegistrationDetailModal from "@/components/portal/registrations/modals/RegistrationDetailModal";
+import RegistrationTransferModal from "@/components/portal/registrations/modals/RegistrationTransferModal";
+import RegistrationUpgradeModal from "@/components/portal/registrations/modals/RegistrationUpgradeModal";
 import { useToast } from "@/hooks/use-toast";
 import {
+  assignClassToRegistration,
   getRegistrationById,
   getRegistrations,
+  suggestClassesForRegistration,
+  transferRegistrationClass,
+  upgradeRegistration,
 } from "@/lib/api/registrationService";
-import type { Registration, RegistrationStatus } from "@/types/registration";
+import { getAllClasses } from "@/lib/api/classService";
+import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
+import type { TuitionPlan } from "@/types/admin/tuition_plan";
+import type {
+  Registration,
+  RegistrationStatus,
+  RegistrationTrackType,
+  SuggestedClassBucket,
+} from "@/types/registration";
 import RegistrationFilters from "./RegistrationFilters";
 
 type Props = {
   branchId?: string;
   onTotalChange?: (total: number) => void;
-};
-
-type RegistrationDetailModalProps = {
-  item: Registration | null;
-  isLoading: boolean;
-  onClose: () => void;
 };
 
 type RegistrationSortKey =
@@ -76,137 +87,80 @@ function toDate(value?: string | null) {
   return d.toLocaleDateString("vi-VN");
 }
 
-function toDateTime(value?: string | null) {
+function formatSchedulePattern(value?: string | null) {
   if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString("vi-VN");
-}
+  const raw = String(value).trim();
+  if (!raw) return "-";
+  if (!raw.includes("RRULE")) return raw.length > 80 ? `${raw.slice(0, 77)}...` : raw;
 
-function statusBadgeClass(status: RegistrationStatus) {
-  const classes: Record<RegistrationStatus, string> = {
-    New: "bg-blue-100 text-blue-700",
-    WaitingForClass: "bg-amber-100 text-amber-700",
-    ClassAssigned: "bg-cyan-100 text-cyan-700",
-    Studying: "bg-emerald-100 text-emerald-700",
-    Paused: "bg-orange-100 text-orange-700",
-    Completed: "bg-emerald-100 text-emerald-700",
-    Cancelled: "bg-rose-100 text-rose-700",
+  const normalized = raw.replace(/^RRULE:/i, "");
+  const tokens = normalized.split(";").map((item) => item.trim());
+  const map = new Map<string, string>();
+
+  tokens.forEach((token) => {
+    const [k, v] = token.split("=");
+    if (!k || !v) return;
+    map.set(k.toUpperCase(), v);
+  });
+
+  const dayMap: Record<string, string> = {
+    MO: "T2",
+    TU: "T3",
+    WE: "T4",
+    TH: "T5",
+    FR: "T6",
+    SA: "T7",
+    SU: "CN",
   };
-  return classes[status];
+
+  const days = (map.get("BYDAY") || "")
+    .split(",")
+    .map((d) => d.trim().toUpperCase())
+    .filter(Boolean)
+    .map((d) => dayMap[d] || d);
+  const hour = map.get("BYHOUR");
+  const minute = map.get("BYMINUTE") || "0";
+
+  const pieces: string[] = [];
+  if (days.length > 0) pieces.push(`Thứ: ${days.join(", ")}`);
+  if (hour) pieces.push(`Lúc: ${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`);
+
+  return pieces.length > 0 ? pieces.join(" • ") : raw;
 }
 
-function RegistrationDetailModal({
-  item,
-  isLoading,
-  onClose,
-}: RegistrationDetailModalProps) {
-  if (!item && !isLoading) return null;
-
-  if (typeof window === "undefined") return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 flex items-center justify-between border-b border-red-100 bg-linear-to-r from-red-600 to-red-700 px-5 py-3 text-white">
-          <h3 className="text-lg font-semibold">Chi tiết đăng ký</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-1.5 hover:bg-white/15"
-            aria-label="Đóng"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-gray-600">
-            <Loader2 size={16} className="animate-spin" /> Đang tải chi tiết...
-          </div>
-        ) : item ? (
-          <div className="space-y-4 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-100 bg-red-50/50 p-4">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-500">Học viên</div>
-                <div className="text-lg font-semibold text-gray-900">{item.studentName || "-"}</div>
-              </div>
-              <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${statusBadgeClass(item.status)}`}>
-                {statusLabel(item.status)}
-              </span>
-            </div>
-
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700">Thông tin chương trình</h3>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Info
-                  label="Chương trình"
-                  value={
-                    item.secondaryProgramName
-                      ? `${item.programName || "-"} • ${item.secondaryProgramName}`
-                      : item.programName || "-"
-                  }
-                />
-                <Info label="Gói học" value={item.tuitionPlanName || "-"} />
-                <Info
-                  label="Lớp"
-                  value={
-                    item.secondaryClassName
-                      ? `${item.className || "Chưa xếp lớp"} • ${item.secondaryClassName}`
-                      : item.className || "Chưa xếp lớp"
-                  }
-                />
-                <Info
-                  label="Secondary focus"
-                  value={item.secondaryProgramSkillFocus || item.secondaryEntryType || "-"}
-                />
-                <Info label="Buổi còn lại" value={String(item.remainingSessions ?? 0)} />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700">Thông tin lịch học</h3>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Info label="Ngày dự kiến" value={toDate(item.expectedStartDate)} />
-                <Info label="Ngày bắt đầu thực tế" value={toDate(item.actualStartDate)} />
-                <Info label="Lịch học mong muốn" value={item.preferredSchedule || "-"} />
-                <Info label="Ngày hết hạn" value={toDate(item.expiryDate)} />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-red-200 bg-red-50/40 p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700">Thông tin hệ thống</h3>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Info label="Ngày tạo" value={toDateTime(item.createdAt)} />
-                <Info label="Cập nhật lần cuối" value={toDateTime(item.updatedAt)} />
-              </div>
-              <Info label="Ghi chú" value={item.note || "-"} />
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </div>,
-    document.body,
-  );
+function pickClassItems(payload: any): any[] {
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.data?.page?.items)) return payload.data.page.items;
+  if (Array.isArray(payload?.data?.classes?.items)) return payload.data.classes.items;
+  if (Array.isArray(payload?.data?.classes)) return payload.data.classes;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
 }
 
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-white p-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-        {label}
-      </div>
-      <div className="mt-1 break-all text-sm font-semibold text-gray-900">
-        {value}
-      </div>
-    </div>
-  );
+function getClassRemainingSlots(cls: any) {
+  if (typeof cls?.remainingSlots === "number") return cls.remainingSlots;
+  if (typeof cls?.capacity === "number" && typeof cls?.currentEnrollment === "number") {
+    return cls.capacity - cls.currentEnrollment;
+  }
+  if (typeof cls?.capacity === "number" && typeof cls?.currentEnrollmentCount === "number") {
+    return cls.capacity - cls.currentEnrollmentCount;
+  }
+  if (typeof cls?.maxStudents === "number" && typeof cls?.currentStudentCount === "number") {
+    return cls.maxStudents - cls.currentStudentCount;
+  }
+  return null;
+}
+
+function getClassDisplayName(cls: any) {
+  return String(cls?.className || cls?.title || cls?.name || cls?.code || cls?.id || "");
+}
+
+function normalizeText(value?: string | null) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 export default function StaffRegistrationOverview({
@@ -230,6 +184,133 @@ export default function StaffRegistrationOverview({
   );
   const [sortKey, setSortKey] = useState<RegistrationSortKey | null>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const [selectedActionRegistration, setSelectedActionRegistration] =
+    useState<Registration | null>(null);
+
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeTuitionPlanId, setUpgradeTuitionPlanId] = useState("");
+  const [upgradeTuitionPlans, setUpgradeTuitionPlans] = useState<TuitionPlan[]>([]);
+  const [isLoadingUpgradeOptions, setIsLoadingUpgradeOptions] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignViewMode, setAssignViewMode] = useState<"none" | "suggested" | "manual">("none");
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [suggestedClasses, setSuggestedClasses] = useState<SuggestedClassBucket | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<RegistrationTrackType>("primary");
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [manualClasses, setManualClasses] = useState<any[]>([]);
+  const [manualPrimaryClassId, setManualPrimaryClassId] = useState("");
+  const [manualSecondaryClassId, setManualSecondaryClassId] = useState("");
+  const [isLoadingManualClasses, setIsLoadingManualClasses] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [isWaiting, setIsWaiting] = useState(false);
+
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferTrack, setTransferTrack] = useState<RegistrationTrackType>("primary");
+  const [transferClassId, setTransferClassId] = useState("");
+  const [transferEffectiveDate, setTransferEffectiveDate] = useState("");
+  const [transferSessionPattern, setTransferSessionPattern] = useState("");
+  const [transferClasses, setTransferClasses] = useState<any[]>([]);
+  const [isLoadingTransferClasses, setIsLoadingTransferClasses] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  const filteredUpgradeTuitionPlans = useMemo(() => {
+    const targetProgramId = selectedActionRegistration?.programId || "";
+    return upgradeTuitionPlans.filter((p) => {
+      if (!p.isActive) return false;
+      if (!targetProgramId) return true;
+      return p.programId === targetProgramId;
+    });
+  }, [upgradeTuitionPlans, selectedActionRegistration?.programId]);
+
+  const hasSecondaryTrack = useMemo(
+    () =>
+      Boolean(
+        selectedActionRegistration?.secondaryProgramId ||
+          suggestedClasses?.secondaryProgramId,
+      ),
+    [selectedActionRegistration?.secondaryProgramId, suggestedClasses?.secondaryProgramId],
+  );
+
+  const activeSuggestedClasses =
+    selectedTrack === "secondary"
+      ? (suggestedClasses?.secondarySuggestedClasses ?? [])
+      : (suggestedClasses?.suggestedClasses ?? []);
+
+  const activeAlternativeClasses =
+    selectedTrack === "secondary"
+      ? (suggestedClasses?.secondaryAlternativeClasses ?? [])
+      : (suggestedClasses?.alternativeClasses ?? []);
+
+  const manualClassOptions = useMemo(
+    () =>
+      manualClasses.map((cls) => {
+        const classId = String(cls?.id || "");
+        const remainingSlots = getClassRemainingSlots(cls);
+        const scheduleLabel = formatSchedulePattern(cls?.schedulePattern);
+        const className = getClassDisplayName(cls);
+        const safeRemaining =
+          typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
+        return {
+          id: classId,
+          remainingSlots: safeRemaining,
+          disabled: safeRemaining !== null && safeRemaining <= 0,
+          label: `${className} • Còn chỗ: ${safeRemaining ?? "-"} • Lịch: ${scheduleLabel}`,
+        };
+      }),
+    [manualClasses],
+  );
+
+  const transferClassOptions = useMemo(
+    () =>
+      transferClasses
+        .map((cls) => {
+          const id = String(cls?.id || "");
+          const remainingSlots = getClassRemainingSlots(cls);
+          const safeRemaining =
+            typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : null;
+          return {
+            id,
+            name: getClassDisplayName(cls),
+            schedule: formatSchedulePattern(cls?.schedulePattern),
+            remainingSlots: safeRemaining,
+            programId: String(cls?.programId || cls?.program?.id || ""),
+            programName: String(cls?.programName || cls?.program?.name || ""),
+            levelName: String(cls?.levelName || cls?.courseLevel || ""),
+          };
+        })
+        .filter((item) => {
+          if (!item.id) return false;
+
+          const targetProgramId =
+            transferTrack === "secondary"
+              ? String(selectedActionRegistration?.secondaryProgramId || "")
+              : String(selectedActionRegistration?.programId || "");
+          const targetProgramName =
+            transferTrack === "secondary"
+              ? String(selectedActionRegistration?.secondaryProgramName || "")
+              : String(selectedActionRegistration?.programName || "");
+
+          const sameProgramById = targetProgramId
+            ? item.programId === targetProgramId
+            : true;
+          const sameProgramByName = !targetProgramId && targetProgramName
+            ? normalizeText(item.programName) === normalizeText(targetProgramName)
+            : true;
+
+          if (!sameProgramById || !sameProgramByName) return false;
+
+          const currentClassId =
+            transferTrack === "secondary"
+              ? String(selectedActionRegistration?.secondaryClassId || "")
+              : String(selectedActionRegistration?.classId || "");
+          if (currentClassId && item.id === currentClassId) return false;
+          return item.remainingSlots === null || item.remainingSlots > 0;
+        }),
+    [transferClasses, transferTrack, selectedActionRegistration?.classId, selectedActionRegistration?.secondaryClassId],
+  );
 
   const registrationStatusCounts = useMemo(() => {
     const counts: Record<"ALL" | RegistrationStatus, number> = {
@@ -488,6 +569,383 @@ export default function StaffRegistrationOverview({
     }
   };
 
+  const getErrorMessage = (error: any, fallback: string) => {
+    return (
+      error?.response?.data?.detail ||
+      error?.response?.data?.message ||
+      error?.message ||
+      fallback
+    );
+  };
+
+  const refreshRegistrationData = async () => {
+    await Promise.all([fetchRows(), fetchSummary()]);
+  };
+
+  const openUpgradeModal = async (row: Registration) => {
+    const targetBranchId = String(row.branchId || branchId || "");
+    if (!targetBranchId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Không xác định được chi nhánh để tải danh sách gói học.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSelectedActionRegistration(row);
+      setUpgradeOpen(true);
+      setUpgradeTuitionPlanId("");
+      setIsLoadingUpgradeOptions(true);
+      const plans = await getTuitionPlans({
+        pageNumber: 1,
+        pageSize: 500,
+        branchId: targetBranchId,
+      });
+      setUpgradeTuitionPlans(plans || []);
+    } catch (error: any) {
+      setUpgradeOpen(false);
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể tải danh sách gói học."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingUpgradeOptions(false);
+    }
+  };
+
+  const handleUpgradeRegistration = async () => {
+    if (!selectedActionRegistration?.id || !upgradeTuitionPlanId) return;
+
+    try {
+      setIsUpgrading(true);
+      await upgradeRegistration(selectedActionRegistration.id, upgradeTuitionPlanId);
+      toast({
+        title: "Thành công",
+        description: "Đã gia hạn gói học cho đăng ký.",
+        variant: "success",
+      });
+      setUpgradeOpen(false);
+      await refreshRegistrationData();
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể gia hạn gói học."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
+  const openAssignModal = (row: Registration) => {
+    setSelectedActionRegistration(row);
+    setAssignOpen(true);
+    setAssignViewMode("none");
+    setSuggestedClasses(null);
+    setSelectedTrack("primary");
+    setSelectedClassId("");
+    setManualClasses([]);
+    setManualPrimaryClassId("");
+    setManualSecondaryClassId("");
+  };
+
+  const handleSuggestClasses = async () => {
+    if (!selectedActionRegistration?.id) return;
+
+    try {
+      setIsSuggesting(true);
+      setAssignViewMode("suggested");
+      const suggestions = await suggestClassesForRegistration(selectedActionRegistration.id);
+      setSuggestedClasses(suggestions);
+
+      const primaryCount = suggestions?.suggestedClasses?.length ?? 0;
+      const secondaryCount = suggestions?.secondarySuggestedClasses?.length ?? 0;
+      const defaultTrack: RegistrationTrackType =
+        primaryCount > 0 ? "primary" : secondaryCount > 0 ? "secondary" : "primary";
+      const defaultClass =
+        defaultTrack === "secondary"
+          ? suggestions?.secondarySuggestedClasses?.[0]
+          : suggestions?.suggestedClasses?.[0];
+
+      setSelectedTrack(defaultTrack);
+      setSelectedClassId(defaultClass?.id ? String(defaultClass.id) : "");
+
+      toast({
+        title: "Thành công",
+        description:
+          defaultClass?.id
+            ? `Đã gợi ý ${suggestions.length || 0} lớp phù hợp cho đăng ký.`
+            : "Hiện chưa có lớp gợi ý phù hợp.",
+        variant: defaultClass?.id ? "success" : "default",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể lấy danh sách lớp gợi ý."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const handleLoadManualClasses = async () => {
+    const targetBranchId = String(selectedActionRegistration?.branchId || branchId || "");
+    if (!targetBranchId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Không xác định được chi nhánh để tải lớp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsLoadingManualClasses(true);
+      setAssignViewMode("manual");
+
+      const response = await getAllClasses({
+        pageNumber: 1,
+        pageSize: 1000,
+        branchId: targetBranchId,
+      });
+
+      const items = pickClassItems(response)
+        .filter((item) => item?.id)
+        .filter((item) => {
+          const statusValue = String(item?.status || "").toLowerCase();
+          return statusValue !== "cancelled" && statusValue !== "completed";
+        });
+
+      setManualClasses(items);
+
+      if (items.length > 0) {
+        const selectable = items.filter((item) => {
+          const remaining = getClassRemainingSlots(item);
+          return typeof remaining !== "number" || remaining > 0;
+        });
+        const fallback = items[0];
+        const firstClass = selectable[0] || fallback;
+        const secondClass = selectable[1] || selectable[0] || fallback;
+        setManualPrimaryClassId(String(firstClass?.id || ""));
+        setManualSecondaryClassId(String(secondClass?.id || firstClass?.id || ""));
+      } else {
+        setManualPrimaryClassId("");
+        setManualSecondaryClassId("");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể tải danh sách lớp thủ công."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingManualClasses(false);
+    }
+  };
+
+  const handleAssignClass = async () => {
+    if (!selectedActionRegistration?.id || !selectedClassId) return;
+
+    try {
+      setIsAssigning(true);
+      await assignClassToRegistration(selectedActionRegistration.id, {
+        classId: selectedClassId,
+        entryType: "Immediate",
+        track: selectedTrack,
+      });
+      toast({
+        title: "Thành công",
+        description: "Đã xếp lớp cho đăng ký.",
+        variant: "success",
+      });
+      setAssignOpen(false);
+      await refreshRegistrationData();
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể xếp lớp đã chọn."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleAssignManualClasses = async () => {
+    if (!selectedActionRegistration?.id || !manualPrimaryClassId) return;
+
+    if (hasSecondaryTrack && !manualSecondaryClassId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn lớp cho chương trình secondary.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (hasSecondaryTrack && manualPrimaryClassId === manualSecondaryClassId) {
+      toast({
+        title: "Không hợp lệ",
+        description: "Lớp Primary và Secondary phải khác nhau.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsAssigning(true);
+      await assignClassToRegistration(selectedActionRegistration.id, {
+        classId: manualPrimaryClassId,
+        entryType: "Immediate",
+        track: "primary",
+      });
+
+      if (hasSecondaryTrack && manualSecondaryClassId) {
+        await assignClassToRegistration(selectedActionRegistration.id, {
+          classId: manualSecondaryClassId,
+          entryType: "Immediate",
+          track: "secondary",
+        });
+      }
+
+      toast({
+        title: "Thành công",
+        description: "Đã xếp lớp thủ công cho đăng ký.",
+        variant: "success",
+      });
+      setAssignOpen(false);
+      await refreshRegistrationData();
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể xếp lớp thủ công."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleMoveToWaitingList = async () => {
+    if (!selectedActionRegistration?.id) return;
+
+    try {
+      setIsWaiting(true);
+      await assignClassToRegistration(selectedActionRegistration.id, {
+        entryType: "Wait",
+        track: selectedTrack,
+      });
+      toast({
+        title: "Thành công",
+        description: "Đã chuyển đăng ký vào danh sách chờ xếp lớp.",
+        variant: "success",
+      });
+      await refreshRegistrationData();
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể chuyển vào danh sách chờ."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsWaiting(false);
+    }
+  };
+
+  const openTransferModal = async (row: Registration) => {
+    const targetBranchId = String(row.branchId || branchId || "");
+    if (!targetBranchId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Không xác định được chi nhánh để tải lớp chuyển.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSelectedActionRegistration(row);
+      setTransferOpen(true);
+      setTransferTrack(row.classId ? "primary" : "secondary");
+      setTransferClassId("");
+      setTransferEffectiveDate("");
+      setTransferSessionPattern("");
+      setIsLoadingTransferClasses(true);
+
+      const response = await getAllClasses({
+        pageNumber: 1,
+        pageSize: 1000,
+        branchId: targetBranchId,
+      });
+      const items = pickClassItems(response)
+        .filter((item) => item?.id)
+        .filter((item) => {
+          const statusValue = String(item?.status || "").toLowerCase();
+          return statusValue !== "cancelled" && statusValue !== "completed";
+        });
+
+      setTransferClasses(items);
+    } catch (error: any) {
+      setTransferOpen(false);
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể tải danh sách lớp để chuyển."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingTransferClasses(false);
+    }
+  };
+
+  const handleTransferClass = async () => {
+    if (!selectedActionRegistration?.id || !transferClassId) {
+      toast({
+        title: "Thiếu dữ liệu",
+        description: "Vui lòng chọn lớp mới để chuyển.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsTransferring(true);
+      await transferRegistrationClass(
+        selectedActionRegistration.id,
+        transferClassId,
+        transferEffectiveDate || undefined,
+        {
+          track: transferTrack,
+          sessionSelectionPattern: transferSessionPattern || undefined,
+        },
+      );
+
+      toast({
+        title: "Thành công",
+        description: "Đã chuyển lớp cho đăng ký.",
+        variant: "success",
+      });
+      setTransferOpen(false);
+      await refreshRegistrationData();
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể chuyển lớp."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!transferOpen) return;
+    setTransferClassId("");
+  }, [transferTrack, transferOpen]);
+
   return (
     <div className="space-y-4">
       {!branchId && (
@@ -626,13 +1084,49 @@ export default function StaffRegistrationOverview({
                     </td>
                     <td className="px-4 py-3">{toDate(row.createdAt)}</td>
                     <td className="px-4 py-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => openDetail(row.id)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                      >
-                        <Eye size={12} />
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openDetail(row.id)}
+                          title="Xem chi tiết"
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                        >
+                          <Eye size={12} />
+                        </button>
+
+                        {(!row.classId || row.status === "WaitingForClass" || row.status === "New") && (
+                          <button
+                            type="button"
+                            onClick={() => openAssignModal(row)}
+                            title="Gợi ý và xếp lớp"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          >
+                            <Users size={12} />
+                          </button>
+                        )}
+
+                        {row.status !== "Cancelled" && (
+                          <button
+                            type="button"
+                            onClick={() => openUpgradeModal(row)}
+                            title="Gia hạn gói học"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          >
+                            <Rocket size={12} />
+                          </button>
+                        )}
+
+                        {(row.classId || row.secondaryClassId) && row.status !== "Cancelled" && (
+                          <button
+                            type="button"
+                            onClick={() => openTransferModal(row)}
+                            title="Chuyển lớp"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          >
+                            <ArrowRightLeft size={12} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -657,16 +1151,77 @@ export default function StaffRegistrationOverview({
         )}
       </div>
 
-      {detailOpen && (
-        <RegistrationDetailModal
-          item={selectedDetail}
-          isLoading={detailLoading}
-          onClose={() => {
-            setDetailOpen(false);
-            setSelectedDetail(null);
-          }}
-        />
-      )}
+      <RegistrationDetailModal
+        isOpen={detailOpen}
+        item={selectedDetail}
+        isLoading={detailLoading}
+        onClose={() => {
+          setDetailOpen(false);
+          setSelectedDetail(null);
+        }}
+      />
+
+      <RegistrationUpgradeModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        isLoadingOptions={isLoadingUpgradeOptions}
+        upgradeTuitionPlanId={upgradeTuitionPlanId}
+        setUpgradeTuitionPlanId={setUpgradeTuitionPlanId}
+        filteredTuitionPlans={filteredUpgradeTuitionPlans}
+        selectedRegistration={selectedActionRegistration}
+        handleUpgrade={handleUpgradeRegistration}
+        isUpgrading={isUpgrading}
+      />
+
+      <RegistrationAssignModal
+        isOpen={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        selectedRegistration={selectedActionRegistration}
+        branchId={branchId}
+        isSuggesting={isSuggesting}
+        assignViewMode={assignViewMode}
+        handleSuggestClasses={handleSuggestClasses}
+        handleLoadManualClasses={handleLoadManualClasses}
+        isLoadingManualClasses={isLoadingManualClasses}
+        handleMoveToWaitingList={handleMoveToWaitingList}
+        isWaiting={isWaiting}
+        suggestedClasses={suggestedClasses}
+        hasSecondaryTrack={hasSecondaryTrack}
+        selectedTrack={selectedTrack}
+        setSelectedTrack={setSelectedTrack}
+        selectedClassId={selectedClassId}
+        setSelectedClassId={setSelectedClassId}
+        activeSuggestedClasses={activeSuggestedClasses}
+        activeAlternativeClasses={activeAlternativeClasses}
+        formatSchedulePattern={formatSchedulePattern}
+        handleAssignClass={handleAssignClass}
+        isAssigning={isAssigning}
+        manualClasses={manualClasses}
+        manualClassOptions={manualClassOptions}
+        manualPrimaryClassId={manualPrimaryClassId}
+        setManualPrimaryClassId={setManualPrimaryClassId}
+        manualSecondaryClassId={manualSecondaryClassId}
+        setManualSecondaryClassId={setManualSecondaryClassId}
+        handleAssignManualClasses={handleAssignManualClasses}
+      />
+
+      <RegistrationTransferModal
+        isOpen={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        selectedRegistration={selectedActionRegistration}
+        transferTrack={transferTrack}
+        setTransferTrack={setTransferTrack}
+        transferClassId={transferClassId}
+        setTransferClassId={setTransferClassId}
+        transferEffectiveDate={transferEffectiveDate}
+        setTransferEffectiveDate={setTransferEffectiveDate}
+        transferSessionPattern={transferSessionPattern}
+        setTransferSessionPattern={setTransferSessionPattern}
+        transferClassOptions={transferClassOptions}
+        isLoadingTransferClasses={isLoadingTransferClasses}
+        isTransferring={isTransferring}
+        onConfirmTransfer={handleTransferClass}
+      />
     </div>
   );
 }
