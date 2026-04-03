@@ -14,6 +14,8 @@ type ReportItem = {
   status: string;
   month: number;
   year: number;
+  pdfUrl?: string;
+  pdfGeneratedAt?: string;
   comments?: Array<{ id: string; content: string; createdAt?: string; authorName?: string; commenterName?: string }>;
 };
 
@@ -148,6 +150,19 @@ export default function ReportsTab({
     } finally {
       setSubmitFlowLoading(false);
     }
+  };
+
+  const handlePdfAction = async () => {
+    if (!displayReport) return;
+
+    if (displayReport.pdfUrl) {
+      window.open(displayReport.pdfUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (!isTeacher && !canManage) return;
+
+    await runAction(displayReport.id, "generate-pdf");
   };
 
   return (
@@ -612,9 +627,23 @@ export default function ReportsTab({
                   </div>
                 </>
               )}
-              <button className="w-full rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer flex items-center justify-center gap-2">
+              <button
+                disabled={
+                  !displayReport ||
+                  actionLoading[`${displayReport.id}:generate-pdf`] ||
+                  (!displayReport.pdfUrl && !isTeacher && !canManage)
+                }
+                onClick={handlePdfAction}
+                className="w-full rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              >
                 <Download size={14} />
-                Export/PDF
+                {displayReport && actionLoading[`${displayReport.id}:generate-pdf`]
+                  ? "Đang tạo PDF..."
+                  : displayReport?.pdfUrl
+                    ? "Xem PDF"
+                    : isTeacher || canManage
+                      ? "Tạo PDF"
+                      : "Chưa có PDF"}
               </button>
             </div>
           ) : (

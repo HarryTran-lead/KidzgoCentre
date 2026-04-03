@@ -28,6 +28,11 @@ const STATUS_ALIAS: Record<string, string> = {
   Review: "Submitted",
 };
 
+function normalizeStatus(status?: string) {
+  const normalized = String(status ?? "").trim();
+  return STATUS_ALIAS[normalized] ?? normalized;
+}
+
 type MonthlyJob = {
   id: string;
   branchId: string;
@@ -63,6 +68,12 @@ type MonthlyReport = {
   month: number;
   year: number;
   draftContent?: string;
+  finalContent?: string;
+  pdfUrl?: string;
+  pdfGeneratedAt?: string;
+  programId?: string;
+  programName?: string;
+  topicsData?: string;
   comments?: MonthlyComment[];
   updatedAt?: string;
 };
@@ -718,7 +729,9 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   const filteredReports = useMemo(() => {
     return reports.filter((r) => {
       const q = searchQuery.trim().toLowerCase();
-      const statusOk = statusFilter === "Tất cả" || r.status === statusFilter;
+      const reportStatus = normalizeStatus(r.status);
+      const selectedStatus = normalizeStatus(statusFilter);
+      const statusOk = statusFilter === "Tất cả" || reportStatus === selectedStatus;
       const textOk =
         !q ||
         (r.studentName || "").toLowerCase().includes(q) ||
@@ -824,8 +837,6 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
     if (fromList) return fromList;
     return reports.find((report) => report.studentProfileId === selectedStudentId)?.studentName || selectedStudentId;
   }, [managementStudents, reports, selectedStudentId]);
-
-  const normalizeStatus = (status: ReportStatus) => STATUS_ALIAS[status] ?? status;
 
   const managementClassProgress = useMemo(() => {
     const map = new Map<

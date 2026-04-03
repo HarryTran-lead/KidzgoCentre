@@ -42,6 +42,9 @@ type MonthlyReport = {
   month?: number;
   year?: number;
   draftContent?: string;
+  finalContent?: string;
+  pdfUrl?: string;
+  pdfGeneratedAt?: string;
   updatedAt?: string;
 };
 
@@ -78,6 +81,11 @@ type SessionReportPayload = Paginated<Record<string, unknown>> & {
 const STATUS_ALIAS: Record<string, string> = {
   Review: "Submitted",
 };
+
+function openPdfWindow(url?: string) {
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 function dedupeById<T extends { id: string }>(items: T[]): T[] {
   return Array.from(new Map(items.map((item) => [item.id, item])).values());
@@ -116,6 +124,18 @@ function unwrapRecord(raw: Record<string, unknown>): Record<string, unknown> {
 function pickValue(raw: Record<string, unknown>, ...keys: string[]) {
   for (const key of keys) {
     const value = pickPathValue(raw, key);
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function pickValueFromRecords(
+  records: Array<Record<string, unknown> | null | undefined>,
+  ...keys: string[]
+) {
+  for (const record of records) {
+    if (!record) continue;
+    const value = pickValue(record, ...keys);
     if (value) return value;
   }
   return undefined;
@@ -376,6 +396,8 @@ export default function TestsPage() {
   const [activeSessionReport, setActiveSessionReport] = useState<SessionReport | null>(null);
   const [profileSelectionRevision, setProfileSelectionRevision] = useState(0);
   const [studentContextReady, setStudentContextReady] = useState(false);
+  const [studentContextToken, setStudentContextToken] = useState("");
+  const [studentContextError, setStudentContextError] = useState<string | null>(null);
   const [studentContextRevision, setStudentContextRevision] = useState(0);
   const { selectedProfile, setSelectedProfile } = useSelectedStudentProfile();
 
@@ -471,48 +493,100 @@ export default function TestsPage() {
   useEffect(() => {
     if (!activeStudent?.id) {
       setStudentContextReady(false);
+      setStudentContextToken("");
+      setStudentContextError(null);
+      setPublishedReports([]);
+      setPublishedSessionReports([]);
       return;
     }
 
     let alive = true;
     setStudentContextReady(false);
+    setStudentContextError(null);
+    setPublishedReports([]);
+    setPublishedSessionReports([]);
 
     const syncStudentContext = async () => {
       try {
         const response = await selectStudent({ profileId: activeStudent.id });
         if (!alive) return;
 
-        const isSuccess = response.isSuccess ?? response.success ?? false;
-        if (isSuccess) {
-          const syncedToken = response.data?.accessToken?.trim();
-          if (syncedToken) {
-            setAccessToken(syncedToken);
-          }
+        const responseRecord = asRecord(response);
+        const responseDataRecord = asRecord(responseRecord?.data);
+        const nestedDataRecord = asRecord(responseDataRecord?.data);
+        const payloadRecord = nestedDataRecord ?? responseDataRecord ?? responseRecord;
+        const isSuccess =
+          Boolean(
+            responseRecord?.isSuccess ??
+              responseRecord?.success ??
+              responseDataRecord?.isSuccess ??
+              responseDataRecord?.success ??
+              payloadRecord?.isSuccess ??
+              payloadRecord?.success
+          );
 
-          const syncedProfile = response.data?.selectedProfile ?? activeStudent;
-          const syncedStudentId =
-            response.data?.studentId ??
-            syncedProfile.studentId ??
-            activeStudent.studentId;
-
-          if (
-            syncedProfile?.id &&
-            (selectedProfile?.id !== syncedProfile.id ||
-              selectedProfile?.studentId !== syncedStudentId)
-          ) {
-            setSelectedProfile({
-              ...syncedProfile,
-              studentId: syncedStudentId,
-            });
-          }
-
-          setStudentContextRevision((value) => value + 1);
+        if (!isSuccess) {
+          throw new Error(
+            pickValueFromRecords(
+              [payloadRecord, responseDataRecord, responseRecord],
+              "message",
+              "error",
+              "title"
+            ) || "Không thể đồng bộ học viên đã chọn."
+          );
         }
+
+        const syncedToken =
+          pickValueFromRecords(
+            [payloadRecord, responseDataRecord, responseRecord],
+            "accessToken",
+            "token"
+          )?.trim() || "";
+
+        if (syncedToken) {
+          setAccessToken(syncedToken);
+          setStudentContextToken(syncedToken);
+        } else {
+          setStudentContextToken("");
+        }
+
+        const syncedProfileRecord =
+          asRecord(payloadRecord?.selectedProfile) ??
+          asRecord(responseDataRecord?.selectedProfile) ??
+          asRecord(responseRecord?.selectedProfile);
+        const syncedProfile = (syncedProfileRecord as UserProfile | null) ?? activeStudent;
+        const syncedStudentId =
+          pickValueFromRecords(
+            [payloadRecord, responseDataRecord, responseRecord],
+            "studentId",
+            "selectedProfile.studentId"
+          ) ??
+          syncedProfile.studentId ??
+          activeStudent.studentId;
+
+        if (
+          syncedProfile?.id &&
+          (selectedProfile?.id !== syncedProfile.id ||
+            selectedProfile?.studentId !== syncedStudentId)
+        ) {
+          setSelectedProfile({
+            ...syncedProfile,
+            studentId: syncedStudentId,
+          });
+        }
+
+        setStudentContextRevision((value) => value + 1);
+        setStudentContextReady(true);
       } catch (error) {
         console.error("Sync selected student context error:", error);
-      } finally {
         if (alive) {
-          setStudentContextReady(true);
+          setStudentContextReady(false);
+          setStudentContextToken("");
+          setStudentContextError(
+            error instanceof Error
+              ? error.message
+              : "Không thể đồng bộ học viên đã chọn."
+          );
         }
       }
     };
@@ -580,7 +654,7 @@ export default function TestsPage() {
       setReportsLoading(true);
       setReportsError(null);
       try {
-        const token = getToken();
+        const token = studentContextToken || getToken();
         const query = new URLSearchParams({
           studentProfileId: activeStudentQueryIds[0] ?? activeStudentProfileId,
           month: `${new Date().getMonth() + 1}`,
@@ -684,7 +758,7 @@ export default function TestsPage() {
     };
 
     loadPublishedReports();
-  }, [activeStudentIdentitySet, activeStudentQueryIds, profileSelectionRevision, studentContextReady, studentContextRevision]);
+  }, [activeStudentIdentitySet, activeStudentQueryIds, profileSelectionRevision, studentContextReady, studentContextRevision, studentContextToken]);
 
   useEffect(() => {
     if (!activeStudentQueryIds.length) {
@@ -732,7 +806,7 @@ export default function TestsPage() {
           pageSize: `${sessionPageSize}`,
         });
 
-        const token = getToken();
+        const token = studentContextToken || getToken();
         const response = await fetch(`/api/session-reports?${query.toString()}`, {
           method: "GET",
           credentials: "include",
@@ -827,7 +901,7 @@ export default function TestsPage() {
     };
 
     loadPublishedSessionReports();
-  }, [activeStudentIdentitySet, activeStudentQueryIds, profileSelectionRevision, studentContextReady, studentContextRevision]);
+  }, [activeStudentIdentitySet, activeStudentQueryIds, profileSelectionRevision, studentContextReady, studentContextRevision, studentContextToken]);
 
   const selectedStudentName = useMemo(() => {
     if (selectedProfile?.displayName) return selectedProfile.displayName;
@@ -1009,6 +1083,12 @@ export default function TestsPage() {
         </TabButton>
       </div>
 
+      {studentContextError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {studentContextError}
+        </div>
+      )}
+
       {(activeTab === "monthly" || activeTab === "session" || activeTab === "history") && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Phụ huynh chỉ xem báo cáo ở trạng thái <span className="font-semibold">Đã xuất bản</span>. Nếu bên
@@ -1152,13 +1232,13 @@ export default function TestsPage() {
                     <div>Cập nhật: {formatDateTime(report.updatedAt)}</div>
                   </div>
 
-                  <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-xs text-gray-600 line-clamp-3">
-                      {normalizeDraftContent(report.draftContent) || "Published report"}
-                    </p>
-                  </div>
+                    <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="text-xs text-gray-600 line-clamp-3">
+                        {normalizeDraftContent(report.finalContent ?? report.draftContent) || "Published report"}
+                      </p>
+                    </div>
 
-                                    <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       size="sm"
                       className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white h-8 text-xs"
@@ -1169,11 +1249,12 @@ export default function TestsPage() {
                     </Button>
                     <Button
                       size="sm"
-                      className="w-full bg-gradient-to-r from-red-200 to-red-300 text-white h-8 text-xs"
-                      disabled
+                      className="w-full bg-gradient-to-r from-red-200 to-red-300 text-white h-8 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={!report.pdfUrl}
+                      onClick={() => openPdfWindow(report.pdfUrl)}
                     >
                       <Download className="w-3.5 h-3.5 mr-1" />
-                      PDF soon
+                      {report.pdfUrl ? "Open PDF" : "PDF soon"}
                     </Button>
                   </div>
                 </CardContent>
@@ -1307,13 +1388,23 @@ export default function TestsPage() {
                   {activeReport?.studentName ?? selectedStudentName} - {activeReport?.month ?? "?"}/{activeReport?.year ?? "?"}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setDetailOpen(false)}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                Close
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openPdfWindow(activeReport?.pdfUrl)}
+                  disabled={!activeReport?.pdfUrl}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailOpen(false)}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             <div className="p-4 overflow-y-auto max-h-[70vh] space-y-3">
@@ -1329,7 +1420,8 @@ export default function TestsPage() {
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <div className="text-sm font-semibold text-gray-900 mb-2">Content</div>
                 <div className="text-sm text-gray-700 whitespace-pre-line leading-6">
-                  {normalizeDraftContent(activeReport?.draftContent) || "Published report has no visible content."}
+                  {normalizeDraftContent(activeReport?.finalContent ?? activeReport?.draftContent) ||
+                    "Published report has no visible content."}
                 </div>
               </div>
             </div>
