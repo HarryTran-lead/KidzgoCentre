@@ -2043,7 +2043,7 @@ export default function AccountsPage() {
             }}
             onConfirm={handleConfirmDeleteProfile}
             title="Xác nhận khóa profile"
-            message={`Bạn có chắc chắn muốn khóa profile "${selectedProfileForDelete?.name}"? Hành động này không thể hoàn tác.`}
+            message={`Bạn có chắc chắn muốn khóa profile "${selectedProfileForDelete?.name}"?`}
             confirmText="Khóa"
             cancelText="Hủy"
             variant="danger"
@@ -2219,7 +2219,7 @@ export default function AccountsPage() {
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={handleDeleteUser}
         title="Xác nhận xóa tài khoản"
-        message={`Bạn có chắc chắn muốn xóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"? Hành động này không thể hoàn tác.`}
+        message={`Bạn có chắc chắn muốn xóa tài khoản "${selectedAccount?.name || selectedAccount?.username}"?`}
         confirmText="Xóa"
         cancelText="Hủy"
         variant="danger"
