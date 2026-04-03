@@ -72,9 +72,8 @@ export interface PlacementTestResult {
   readingScore?: number;
   writingScore?: number;
   resultScore?: number;
-  programRecommendation?: string;
+  programRecommendationId?: string;
   secondaryProgramRecommendation?: string | null;
-  isSecondaryProgramSupplementary?: boolean | null;
   secondaryProgramSkillFocus?: string | null;
   attachmentUrl?: string;
 }

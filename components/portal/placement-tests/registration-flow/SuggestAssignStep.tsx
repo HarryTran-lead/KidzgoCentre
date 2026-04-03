@@ -71,7 +71,7 @@ export default function SuggestAssignStep({
     <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
       <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
         <ArrowRight size={18} className="text-red-600" />
-        Bước 2: Gợi ý lớp phù hợp và xếp lớp
+       Gợi ý lớp phù hợp và xếp lớp
       </div>
 
       <div className="space-y-3">
@@ -110,7 +110,7 @@ export default function SuggestAssignStep({
             disabled={!registrationId || isWaiting}
             className="w-full rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isWaiting ? "Đang xử lý..." : "Đưa vào waiting list"}
+            {isWaiting ? "Đang xử lý..." : "Đưa vào danh sách chờ"}
           </button>
         </div>
 

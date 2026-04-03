@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/registrationService";
 import { getAllClasses } from "@/lib/api/classService";
 import { getTuitionPlans } from "@/lib/api/tuitionPlanService";
+import { getActiveProgramsForDropdown } from "@/lib/api/programService";
 import {
   extractDomainErrorCode,
   getDomainErrorMessage,
@@ -22,6 +23,7 @@ import type {
   RegistrationTrackType,
   SuggestedClassBucket,
 } from "@/types/registration";
+import type { Program } from "@/types/admin/programs";
 import CreateRegistrationStep from "@/components/portal/placement-tests/registration-flow/CreateRegistrationStep";
 import SuggestAssignStep from "@/components/portal/placement-tests/registration-flow/SuggestAssignStep";
 import UpgradeRegistrationStep from "@/components/portal/placement-tests/registration-flow/UpgradeRegistrationStep";
@@ -41,6 +43,8 @@ type AssignViewMode = "none" | "suggested" | "manual";
 type ProgramOption = {
   id: string;
   name: string;
+  isMakeup?: boolean | null;
+  isSupplementary?: boolean | null;
 };
 
 const SESSIONS_PER_WEEK_OPTIONS = [
@@ -159,6 +163,7 @@ export default function RegistrationFlowModal({
   };
 
   const [tuitionPlans, setTuitionPlans] = useState<TuitionPlan[]>([]);
+  const [activePrograms, setActivePrograms] = useState<Program[]>([]);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [activeStep, setActiveStep] = useState<StepKey>("create");
 
@@ -180,7 +185,18 @@ export default function RegistrationFlowModal({
 
   const [registrationId, setRegistrationId] = useState("");
   const [registrationOptions, setRegistrationOptions] = useState<
-    Array<{ id: string; label: string; studentProfileId: string }>
+    Array<{
+      id: string;
+      label: string;
+      studentProfileId: string;
+      programId: string;
+      programName: string;
+      tuitionPlanId: string;
+      tuitionPlanName: string;
+      totalSessions: number;
+      usedSessions: number;
+      remainingSessions: number;
+    }>
   >([]);
   const [resolvedStudentProfileId, setResolvedStudentProfileId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -345,6 +361,16 @@ export default function RegistrationFlowModal({
     }
   };
 
+  const activeProgramMap = useMemo(
+    () =>
+      new Map<string, Program>(
+        activePrograms
+          .filter((program) => Boolean(program?.id))
+          .map((program) => [String(program.id), program]),
+      ),
+    [activePrograms],
+  );
+
   const programs = useMemo<ProgramOption[]>(() => {
     const byProgram = new Map<string, string>();
     tuitionPlans.forEach((plan) => {
@@ -354,8 +380,16 @@ export default function RegistrationFlowModal({
         byProgram.set(plan.programId, plan.programName || "Chương trình");
       }
     });
-    return Array.from(byProgram.entries()).map(([id, name]) => ({ id, name }));
-  }, [tuitionPlans]);
+    return Array.from(byProgram.entries()).map(([id, name]) => {
+      const matchedProgram = activeProgramMap.get(id);
+      return {
+        id,
+        name,
+        isMakeup: matchedProgram?.isMakeup ?? null,
+        isSupplementary: matchedProgram?.isSupplementary ?? null,
+      };
+    });
+  }, [tuitionPlans, activeProgramMap]);
 
   const filteredTuitionPlans = useMemo(() => {
     return tuitionPlans.filter((p) => {
@@ -365,8 +399,38 @@ export default function RegistrationFlowModal({
     });
   }, [tuitionPlans, programId]);
 
+  const selectedRegistration = useMemo(
+    () => registrationOptions.find((item) => item.id === registrationId),
+    [registrationId, registrationOptions],
+  );
+
+  const selectedRegistrationProgramId = selectedRegistration?.programId || "";
+  const selectedRegistrationProgramName = selectedRegistration?.programName || "";
+  const selectedRegistrationTuitionPlanId =
+    selectedRegistration?.tuitionPlanId || "";
+  const selectedRegistrationTuitionPlanName =
+    selectedRegistration?.tuitionPlanName || "";
+  const selectedRegistrationTotalSessions =
+    Number(selectedRegistration?.totalSessions ?? 0) || 0;
+  const selectedRegistrationUsedSessions =
+    Number(selectedRegistration?.usedSessions ?? 0) || 0;
+  const selectedRegistrationRemainingSessions =
+    Number(selectedRegistration?.remainingSessions ?? 0) || 0;
+
+  const filteredUpgradeTuitionPlans = useMemo(() => {
+    const targetProgramId = selectedRegistrationProgramId || programId;
+    return tuitionPlans.filter((p) => {
+      if (!p.isActive) return false;
+      if (!targetProgramId) return true;
+      return p.programId === targetProgramId;
+    });
+  }, [tuitionPlans, selectedRegistrationProgramId, programId]);
+
   const secondaryPrograms = useMemo(() => {
-    return programs.filter((program) => program.id !== programId);
+    return programs.filter((program) => {
+      const isMainProgram = !program.isMakeup && !program.isSupplementary;
+      return program.id !== programId && isMainProgram;
+    });
   }, [programId, programs]);
 
   useEffect(() => {
@@ -377,18 +441,23 @@ export default function RegistrationFlowModal({
         setIsBootstrapping(true);
         if (!branchId) {
           setTuitionPlans([]);
+          setActivePrograms([]);
           setProgramId("");
           setTuitionPlanId("");
           return;
         }
 
-        const planItems = await getTuitionPlans({
-          pageNumber: 1,
-          pageSize: 500,
-          branchId,
-        });
+        const [planItems, activeProgramItems] = await Promise.all([
+          getTuitionPlans({
+            pageNumber: 1,
+            pageSize: 500,
+            branchId,
+          }),
+          getActiveProgramsForDropdown(branchId),
+        ]);
 
         setTuitionPlans(planItems || []);
+        setActivePrograms(activeProgramItems || []);
 
         const normalizedRecommendation = (test?.programRecommendation || "")
           .trim()
@@ -415,15 +484,28 @@ export default function RegistrationFlowModal({
         )
           .trim()
           .toLowerCase();
+        const mainProgramIds = new Set(
+          (activeProgramItems || [])
+            .filter((program) => !program?.isMakeup && !program?.isSupplementary)
+            .map((program) => String(program.id || ""))
+            .filter(Boolean),
+        );
         const recommendedSecondaryProgram = normalizedSecondaryRecommendation
           ? (planItems || []).find(
               (p) =>
+                mainProgramIds.has(String(p.programId || "")) &&
                 (p.programName || "").trim().toLowerCase() ===
                 normalizedSecondaryRecommendation,
             )
           : undefined;
         setIsSecondaryEnabled(false);
-        setSecondaryProgramId(recommendedSecondaryProgram?.programId || "");
+        const nextSecondaryProgramId =
+          recommendedSecondaryProgram?.programId || "";
+        setSecondaryProgramId(
+          nextSecondaryProgramId && nextSecondaryProgramId !== nextProgramId
+            ? nextSecondaryProgramId
+            : "",
+        );
         setSecondaryProgramSkillFocus(test?.secondaryProgramSkillFocus || "");
 
         setExpectedStartDate(toInputDateValue(test?.scheduledAt));
@@ -475,6 +557,13 @@ export default function RegistrationFlowModal({
           const options = sortedRegistrations.map((r) => ({
             id: r.id,
             studentProfileId: String(r.studentProfileId || ""),
+            programId: String(r.programId || ""),
+            programName: String(r.programName || ""),
+            tuitionPlanId: String(r.tuitionPlanId || ""),
+            tuitionPlanName: String(r.tuitionPlanName || ""),
+            totalSessions: Number(r.totalSessions ?? 0),
+            usedSessions: Number(r.usedSessions ?? 0),
+            remainingSessions: Number(r.remainingSessions ?? 0),
             label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)} • ${r.programName}${r.secondaryProgramName ? ` • ${r.secondaryProgramName}` : ''}`,
           }));
           setRegistrationOptions(options);
@@ -660,6 +749,18 @@ export default function RegistrationFlowModal({
           {
             id: createdId,
             studentProfileId: effectiveStudentProfileId,
+            programId,
+            programName:
+              tuitionPlans.find((p) => p.programId === programId)?.programName ||
+              "",
+            tuitionPlanId,
+            tuitionPlanName:
+              tuitionPlans.find((p) => p.id === tuitionPlanId)?.name || "",
+            totalSessions:
+              tuitionPlans.find((p) => p.id === tuitionPlanId)?.totalSessions || 0,
+            usedSessions: 0,
+            remainingSessions:
+              tuitionPlans.find((p) => p.id === tuitionPlanId)?.totalSessions || 0,
             label: `${childName || "Học viên"} • Mới • ${toDisplayDate(new Date().toISOString())}`,
           },
           ...prev,
@@ -935,6 +1036,10 @@ export default function RegistrationFlowModal({
     }
   };
 
+  useEffect(() => {
+    setUpgradeTuitionPlanId("");
+  }, [registrationId]);
+
   if (!isOpen) return null;
 
   const stepTabs: Array<{ key: StepKey; label: string }> = [
@@ -1119,11 +1224,16 @@ export default function RegistrationFlowModal({
                 <UpgradeRegistrationStep
                   upgradeTuitionPlanId={upgradeTuitionPlanId}
                   setUpgradeTuitionPlanId={setUpgradeTuitionPlanId}
-                  filteredTuitionPlans={filteredTuitionPlans}
-                  tuitionPlanId={tuitionPlanId}
+                  filteredTuitionPlans={filteredUpgradeTuitionPlans}
+                  tuitionPlanId={selectedRegistrationTuitionPlanId || tuitionPlanId}
                   handleUpgrade={handleUpgrade}
                   registrationId={registrationId}
                   isUpgrading={isUpgrading}
+                  selectedProgramName={selectedRegistrationProgramName}
+                  currentTuitionPlanName={selectedRegistrationTuitionPlanName}
+                  totalSessions={selectedRegistrationTotalSessions}
+                  usedSessions={selectedRegistrationUsedSessions}
+                  remainingSessions={selectedRegistrationRemainingSessions}
                 />
               )}
             </div>

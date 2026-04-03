@@ -271,7 +271,7 @@ export default function ResultFormModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-linear-to-r from-pink-500 to-rose-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
+        <div className="sticky top-0 bg-linear-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl flex justify-between items-center">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Award size={24} />
             Nhập kết quả Placement Test
@@ -416,7 +416,7 @@ export default function ResultFormModal({
           <div className="space-y-2">
             <label htmlFor="secondaryProgramRecommendation" className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <FileText size={16} />
-              Đề xuất chương trình phụ / secondary
+              Đề xuất chương trình song song / secondary
             </label>
             <Select
               value={formData.secondaryProgramRecommendation}
@@ -463,7 +463,7 @@ export default function ResultFormModal({
               </SelectContent>
             </Select>
             <p className="text-xs text-gray-500">
-              Để trống nếu không có track secondary. Nếu BE nhận chuỗi rỗng, các field secondary sẽ được clear.
+              Để trống nếu không có học chương trình song song.
             </p>
           </div>
 
@@ -575,7 +575,7 @@ export default function ResultFormModal({
             <button
               type="submit"
               disabled={isSubmitting || isUploadingAttachment}
-              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
             >
               {isSubmitting ? "Đang lưu..." : "Lưu kết quả"}
             </button>
