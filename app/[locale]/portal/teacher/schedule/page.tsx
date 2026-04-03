@@ -299,10 +299,8 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
               </button> */}
               <button
                 onClick={() => {
-                  const [startTime] = lesson.time.split(' - ');
-                  const [hour, minute] = startTime.split(':');
-                  const lessonDate = data?.date || new Date().toISOString().split('T')[0];
-                  router.push(`/${locale}/portal/teacher/attendance?date=${lessonDate}&time=${hour}:${minute}&class=${encodeURIComponent(lesson.course)}`);
+                  const lessonDate = data?.date || formatDateISO(new Date());
+                  router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${lessonDate}`);
                 }}
                 className="text-xs bg-gradient-to-r from-red-600 to-red-700 hover:shadow-md backdrop-blur-sm rounded-lg px-2 py-1 transition-all cursor-pointer text-white"
               >
@@ -607,7 +605,8 @@ function GridLessonCard({
     <div className="relative group">
       <div
         onClick={() => {
-          router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${date}`);
+          const lessonDate = date || formatDateISO(new Date());
+          router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${lessonDate}`);
         }}
         className={`rounded-lg ${lightColor} p-3 text-gray-900 cursor-pointer hover:shadow-md transition-all border border-gray-200`}
       >
@@ -915,6 +914,7 @@ function DayCard({ data, onColorChange }: { data: DaySchedule; onColorChange?: (
             locale={locale}
             router={router}
             onColorChange={onColorChange}
+            date={data.date}
           />
         ))}
       </div>
@@ -981,7 +981,8 @@ function DayLessonCard({
             )}
             <button
               onClick={() => {
-                router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${date}`);
+                const lessonDate = date || formatDateISO(new Date());
+                router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${lessonDate}`);
               }}
               className="opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 cursor-pointer"
             >

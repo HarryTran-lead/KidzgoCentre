@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   CalendarDays,
   ArrowRightLeft,
@@ -53,6 +53,7 @@ type FilterField = {
 
 type SessionCard = {
   id: string;
+  sessionDate: string | null;
   className: string;
   classCode: string;
   room: string;
@@ -128,6 +129,29 @@ const SESSION_COLOR_POOL = [
 
 const ZERO_GUID = "00000000-0000-0000-0000-000000000000";
 const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function getLocalIsoDate(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDateParam(value?: string | null): string | null {
+  const normalized = String(value ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
+  return normalized;
+}
+
+function getSessionIsoDate(session?: SessionApiItem | null): string | null {
+  const raw = session?.actualDatetime ?? session?.plannedDatetime ?? null;
+  if (!raw) return null;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return getLocalIsoDate(parsed);
+}
 
 type SessionReportState = {
   reportId: string;
@@ -327,16 +351,22 @@ function Pagination({
 }
 
 export default function TeacherAttendancePage() {
+  const router = useRouter();
+  const params = useParams();
   const searchParams = useSearchParams();
+  const locale = String(params?.locale ?? "");
+  const requestedDate = normalizeDateParam(searchParams.get("date"));
+  const requestedSessionId = String(searchParams.get("sessionId") ?? "").trim() || null;
+  const requestedTime = String(searchParams.get("time") ?? "").trim();
+  const requestedClass = String(searchParams.get("class") ?? "").trim();
+  const initialDate = requestedDate ?? getLocalIsoDate();
   const [sessions, setSessions] = useState<SessionApiItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>(() => {
-    const today = new Date();
-    const iso = today.toISOString().slice(0, 10);
-    return { from: iso, to: iso };
+    return { from: initialDate, to: initialDate };
   });
 
   const [filters, setFilters] = useState<FilterField>({
@@ -347,7 +377,8 @@ export default function TeacherAttendancePage() {
     status: "",
   });
 
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(requestedSessionId);
+  const [enableDefaultSessionSelection, setEnableDefaultSessionSelection] = useState(true);
 
   const [attendanceList, setAttendanceList] = useState<StudentRow[]>([]);
   const [attendanceSummary, setAttendanceSummary] = useState<{
@@ -384,6 +415,16 @@ export default function TeacherAttendancePage() {
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 
   const recordsPerPage = 8;
+
+  const handleSessionSelect = useCallback((sessionId: string) => {
+    setEnableDefaultSessionSelection(true);
+    setSelectedSessionId(sessionId);
+    setAttendanceList([]);
+    setAttendanceSummary(null);
+    setAttendanceLoadingError(null);
+    setExpandedStatusRows(new Set());
+    setCurrentPage(1);
+  }, []);
 
   const fetchSessionData = useCallback(async () => {
     try {
@@ -422,42 +463,47 @@ export default function TeacherAttendancePage() {
     setIsPageLoaded(true);
   }, []);
 
-  // Auto-select session from URL params
   useEffect(() => {
-    if (!sessions.length) return;
+    if (!requestedDate) return;
 
-    const sessionIdParam = searchParams.get("sessionId");
-    const dateParam = searchParams.get("date");
-    const timeParam = searchParams.get("time");
-    const classParam = searchParams.get("class");
+    setDateRange((prev) => {
+      if (prev.from === requestedDate && prev.to === requestedDate) {
+        return prev;
+      }
+      return { from: requestedDate, to: requestedDate };
+    });
+  }, [requestedDate]);
 
-    if (dateParam && (dateParam !== dateRange.from || dateParam !== dateRange.to)) {
-      setDateRange({ from: dateParam, to: dateParam });
+  useEffect(() => {
+    if (requestedSessionId && selectedSessionId !== requestedSessionId) {
+      handleSessionSelect(requestedSessionId);
+      return;
     }
 
-    if (sessionIdParam) {
-      const matchingSession = sessions.find((session: any) => String(session.id ?? session.sessionId ?? "") === sessionIdParam);
-      if (matchingSession) {
-        handleSessionSelect(sessionIdParam);
-      }
-    } else if (timeParam && classParam) {
+    if (!sessions.length) return;
+
+    if (requestedTime && requestedClass) {
       const matchingSession = sessions.find((session: any) => {
         const lesson = mapSessionToLessonDetail(session);
         const [startTime] = lesson.time.split(" - ");
-        return startTime === timeParam && lesson.course === classParam;
+        return startTime === requestedTime && lesson.course === requestedClass;
       });
 
       if (matchingSession) {
         const lesson = mapSessionToLessonDetail(matchingSession);
-        handleSessionSelect(lesson.id);
+        if (selectedSessionId !== lesson.id) {
+          handleSessionSelect(lesson.id);
+        }
       }
-    } else {
+      return;
+    }
+
+    if (!selectedSessionId && enableDefaultSessionSelection) {
       const firstSession = sessions[0];
       const lesson = mapSessionToLessonDetail(firstSession);
       handleSessionSelect(lesson.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, searchParams]);
+  }, [enableDefaultSessionSelection, handleSessionSelect, requestedClass, requestedSessionId, requestedTime, selectedSessionId, sessions]);
 
   const selectedSession = useMemo(() => {
     if (!selectedSessionId) return null;
@@ -474,6 +520,7 @@ export default function TeacherAttendancePage() {
       const lesson = mapSessionToLessonDetail(session);
       return {
         id: lesson.id,
+        sessionDate: getSessionIsoDate(session),
         className: lesson.lesson,
         classCode: lesson.course,
         room: lesson.room,
@@ -519,14 +566,25 @@ export default function TeacherAttendancePage() {
     setCurrentPage(1);
   };
 
-  const handleSessionSelect = (sessionId: string) => {
-    setSelectedSessionId(sessionId);
-    setAttendanceList([]);
-    setAttendanceSummary(null);
+  const handleChooseOtherSession = useCallback(() => {
+    setEnableDefaultSessionSelection(false);
+    setSelectedSessionId(null);
     setAttendanceLoadingError(null);
     setExpandedStatusRows(new Set());
     setCurrentPage(1);
-  };
+
+    const nextParams = new URLSearchParams();
+    if (dateRange.from) {
+      nextParams.set("date", dateRange.from);
+    }
+
+    const query = nextParams.toString();
+    router.replace(`/${locale}/portal/teacher/attendance${query ? `?${query}` : ""}`);
+  }, [dateRange.from, locale, router]);
+
+  const handleBackToSchedule = useCallback(() => {
+    router.push(`/${locale}/portal/teacher/schedule`);
+  }, [locale, router]);
 
   const refreshAttendance = useCallback(async () => {
     if (!selectedSessionId) return;
@@ -1200,7 +1258,15 @@ const loadSessionReports = async () => {
 
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setSelectedSessionId(null)}
+                    onClick={handleBackToSchedule}
+                    className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center gap-2 cursor-pointer"
+                  >
+                    <CalendarDays size={16} />
+                    Lịch giảng dạy
+                  </button>
+
+                  <button
+                    onClick={handleChooseOtherSession}
                     className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center gap-2 cursor-pointer"
                   >
                     <ChevronLeft size={16} />

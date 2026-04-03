@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/lightswind/card";
 import { Button } from "@/components/lightswind/button";
-import { getProfiles } from "@/lib/api/authService";
+import { getProfiles, selectStudent } from "@/lib/api/authService";
+import { setAccessToken } from "@/lib/store/authToken";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import type { UserProfile } from "@/types/auth";
 
@@ -78,32 +79,112 @@ const STATUS_ALIAS: Record<string, string> = {
   Review: "Submitted",
 };
 
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  return Array.from(new Map(items.map((item) => [item.id, item])).values());
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function pickPathValue(raw: Record<string, unknown>, path: string): string | undefined {
+  const parts = path.split(".");
+  let current: unknown = raw;
+
+  for (const part of parts) {
+    const record = asRecord(current);
+    if (!record) return undefined;
+    current = record[part];
+  }
+
+  if (current === undefined || current === null) return undefined;
+  const text = String(current).trim();
+  return text || undefined;
+}
+
+function unwrapRecord(raw: Record<string, unknown>): Record<string, unknown> {
+  const nested =
+    asRecord(raw.item) ??
+    asRecord(raw.sessionReport) ??
+    asRecord(raw.data);
+
+  if (!nested) return raw;
+  return unwrapRecord(nested);
+}
+
 function pickValue(raw: Record<string, unknown>, ...keys: string[]) {
   for (const key of keys) {
-    const value = raw[key];
-    if (value !== undefined && value !== null && String(value).trim()) return String(value);
+    const value = pickPathValue(raw, key);
+    if (value) return value;
   }
   return undefined;
 }
 
 function normalizeSessionReport(raw: Record<string, unknown>): SessionReport | null {
-  const id = pickValue(raw, "id", "Id", "reportId", "ReportId");
+  const record = unwrapRecord(raw);
+  const id = pickValue(record, "id", "Id", "reportId", "ReportId");
   if (!id) return null;
   return {
     id,
-    sessionId: pickValue(raw, "sessionId", "SessionId"),
-    studentProfileId: pickValue(raw, "studentProfileId", "StudentProfileId"),
-    studentName: pickValue(raw, "studentName", "StudentName", "displayName"),
-    teacherName: pickValue(raw, "teacherName", "TeacherName"),
-    className: pickValue(raw, "className", "ClassName"),
-    teacherUserId: pickValue(raw, "teacherUserId", "TeacherUserId"),
-    classId: pickValue(raw, "classId", "ClassId"),
-    reportDate: pickValue(raw, "reportDate", "ReportDate"),
-    feedback: pickValue(raw, "feedback", "Feedback"),
-    reason: pickValue(raw, "reason", "Reason", "rejectReason", "RejectReason", "rejectionReason", "RejectionReason"),
-    status: pickValue(raw, "status", "Status"),
-    updatedAt: pickValue(raw, "updatedAt", "UpdatedAt"),
-    createdAt: pickValue(raw, "createdAt", "CreatedAt"),
+    sessionId: pickValue(record, "sessionId", "SessionId", "session.id", "session.sessionId"),
+    studentProfileId: pickValue(
+      record,
+      "studentProfileId",
+      "StudentProfileId",
+      "studentProfile.id",
+      "student.id",
+      "profile.id",
+    ),
+    studentName: pickValue(
+      record,
+      "studentName",
+      "StudentName",
+      "displayName",
+      "studentProfile.displayName",
+      "studentProfile.fullName",
+      "student.displayName",
+      "student.fullName",
+      "student.name",
+    ),
+    teacherName: pickValue(
+      record,
+      "teacherName",
+      "TeacherName",
+      "teacher.displayName",
+      "teacher.fullName",
+      "teacher.name",
+    ),
+    className: pickValue(
+      record,
+      "className",
+      "ClassName",
+      "class.name",
+      "class.className",
+      "course.name",
+    ),
+    teacherUserId: pickValue(record, "teacherUserId", "TeacherUserId", "teacher.id", "teacher.userId"),
+    classId: pickValue(record, "classId", "ClassId", "class.id", "course.id"),
+    reportDate: pickValue(
+      record,
+      "reportDate",
+      "ReportDate",
+      "session.actualDatetime",
+      "session.plannedDatetime",
+    ),
+    feedback: pickValue(record, "feedback", "Feedback"),
+    reason: pickValue(
+      record,
+      "reason",
+      "Reason",
+      "rejectReason",
+      "RejectReason",
+      "rejectionReason",
+      "RejectionReason",
+    ),
+    status: pickValue(record, "status", "Status", "reportStatus", "ReportStatus"),
+    updatedAt: pickValue(record, "updatedAt", "UpdatedAt"),
+    createdAt: pickValue(record, "createdAt", "CreatedAt"),
   };
 }
 
@@ -294,6 +375,8 @@ export default function TestsPage() {
   const [sessionDetailError, setSessionDetailError] = useState<string | null>(null);
   const [activeSessionReport, setActiveSessionReport] = useState<SessionReport | null>(null);
   const [profileSelectionRevision, setProfileSelectionRevision] = useState(0);
+  const [studentContextReady, setStudentContextReady] = useState(false);
+  const [studentContextRevision, setStudentContextRevision] = useState(0);
   const { selectedProfile, setSelectedProfile } = useSelectedStudentProfile();
 
   const activeStudent = useMemo(() => {
@@ -322,7 +405,7 @@ export default function TestsPage() {
     return studentProfiles[0] ?? null;
   }, [selectedProfile, studentProfiles]);
 
-  const activeStudentProfileId = activeStudent?.id ?? activeStudent?.studentId ?? "";
+  const activeStudentProfileId = activeStudent?.studentId ?? activeStudent?.id ?? "";
 
   const activeStudentIdentitySet = useMemo(() => {
     const ids = [
@@ -333,6 +416,19 @@ export default function TestsPage() {
     ].filter((value): value is string => Boolean(value?.trim()));
 
     return new Set(ids);
+  }, [activeStudent?.id, activeStudent?.studentId, selectedProfile?.id, selectedProfile?.studentId]);
+
+  const activeStudentQueryIds = useMemo(() => {
+    return Array.from(
+      new Set(
+        [
+          activeStudent?.studentId,
+          activeStudent?.id,
+          selectedProfile?.studentId,
+          selectedProfile?.id,
+        ].filter((value): value is string => Boolean(value?.trim())),
+      ),
+    );
   }, [activeStudent?.id, activeStudent?.studentId, selectedProfile?.id, selectedProfile?.studentId]);
 
   useEffect(() => {
@@ -372,6 +468,62 @@ export default function TestsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!activeStudent?.id) {
+      setStudentContextReady(false);
+      return;
+    }
+
+    let alive = true;
+    setStudentContextReady(false);
+
+    const syncStudentContext = async () => {
+      try {
+        const response = await selectStudent({ profileId: activeStudent.id });
+        if (!alive) return;
+
+        const isSuccess = response.isSuccess ?? response.success ?? false;
+        if (isSuccess) {
+          const syncedToken = response.data?.accessToken?.trim();
+          if (syncedToken) {
+            setAccessToken(syncedToken);
+          }
+
+          const syncedProfile = response.data?.selectedProfile ?? activeStudent;
+          const syncedStudentId =
+            response.data?.studentId ??
+            syncedProfile.studentId ??
+            activeStudent.studentId;
+
+          if (
+            syncedProfile?.id &&
+            (selectedProfile?.id !== syncedProfile.id ||
+              selectedProfile?.studentId !== syncedStudentId)
+          ) {
+            setSelectedProfile({
+              ...syncedProfile,
+              studentId: syncedStudentId,
+            });
+          }
+
+          setStudentContextRevision((value) => value + 1);
+        }
+      } catch (error) {
+        console.error("Sync selected student context error:", error);
+      } finally {
+        if (alive) {
+          setStudentContextReady(true);
+        }
+      }
+    };
+
+    void syncStudentContext();
+
+    return () => {
+      alive = false;
+    };
+  }, [activeStudent?.id, activeStudent?.studentId, selectedProfile?.id, selectedProfile?.studentId, setSelectedProfile]);
+
   const getToken = () => {
     if (typeof window === "undefined") return "";
 
@@ -394,8 +546,12 @@ export default function TestsPage() {
   };
 
   useEffect(() => {
-    if (!activeStudentProfileId) {
+    if (!activeStudentQueryIds.length) {
       setPublishedReports([]);
+      return;
+    }
+
+    if (!studentContextReady) {
       return;
     }
 
@@ -426,7 +582,7 @@ export default function TestsPage() {
       try {
         const token = getToken();
         const query = new URLSearchParams({
-          studentProfileId: activeStudentProfileId,
+          studentProfileId: activeStudentQueryIds[0] ?? activeStudentProfileId,
           month: `${new Date().getMonth() + 1}`,
           year: `${new Date().getFullYear()}`,
           pageNumber: "1",
@@ -448,7 +604,8 @@ export default function TestsPage() {
         }
 
         const root = (payload?.data ?? payload) as ReportPayload;
-        const reports = getPaginatedItems<MonthlyReport>(root, "reports")
+        const buildPublishedMonthlyReports = (reportPayload: ReportPayload) =>
+          getPaginatedItems<MonthlyReport>(reportPayload, "reports")
           .filter((item) =>
             item.studentProfileId
               ? activeStudentIdentitySet.has(String(item.studentProfileId).trim())
@@ -461,7 +618,63 @@ export default function TestsPage() {
             return bTime - aTime;
           });
 
-        setPublishedReports(reports);
+        let reports = buildPublishedMonthlyReports(root);
+
+        if (reports.length === 0 && activeStudentQueryIds.length > 1) {
+          for (const fallbackStudentProfileId of activeStudentQueryIds.slice(1)) {
+            const fallbackQuery = new URLSearchParams({
+              studentProfileId: fallbackStudentProfileId,
+              month: `${new Date().getMonth() + 1}`,
+              year: `${new Date().getFullYear()}`,
+              pageNumber: "1",
+              pageSize: `${reportPageSize}`,
+            });
+            const fallbackResponse = await fetch(`/api/monthly-reports?${fallbackQuery.toString()}`, {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              cache: "no-store",
+            });
+
+            if (!fallbackResponse.ok) {
+              continue;
+            }
+
+            const fallbackText = await fallbackResponse.text();
+            const fallbackPayload = fallbackText ? JSON.parse(fallbackText) : {};
+            reports = buildPublishedMonthlyReports((fallbackPayload?.data ?? fallbackPayload) as ReportPayload);
+            if (reports.length > 0) {
+              break;
+            }
+          }
+        }
+
+        if (reports.length === 0) {
+          const fallbackQuery = new URLSearchParams({
+            month: `${new Date().getMonth() + 1}`,
+            year: `${new Date().getFullYear()}`,
+            pageNumber: "1",
+            pageSize: `${reportPageSize}`,
+          });
+          const fallbackResponse = await fetch(`/api/monthly-reports?${fallbackQuery.toString()}`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            cache: "no-store",
+          });
+
+          if (fallbackResponse.ok) {
+            const fallbackText = await fallbackResponse.text();
+            const fallbackPayload = fallbackText ? JSON.parse(fallbackText) : {};
+            reports = buildPublishedMonthlyReports((fallbackPayload?.data ?? fallbackPayload) as ReportPayload);
+          }
+        }
+
+        setPublishedReports(dedupeById(reports.filter((item): item is MonthlyReport => Boolean(item.id))));
       } catch (error) {
         setPublishedReports([]);
         setReportsError(error instanceof Error ? error.message : "Không thể tải báo cáo đã publish.");
@@ -471,17 +684,21 @@ export default function TestsPage() {
     };
 
     loadPublishedReports();
-  }, [activeStudentIdentitySet, activeStudentProfileId, profileSelectionRevision]);
+  }, [activeStudentIdentitySet, activeStudentQueryIds, profileSelectionRevision, studentContextReady, studentContextRevision]);
 
   useEffect(() => {
-    if (!activeStudentProfileId) {
+    if (!activeStudentQueryIds.length) {
       setPublishedSessionReports([]);
+      return;
+    }
+
+    if (!studentContextReady) {
       return;
     }
 
     const normalizeStatus = (status?: ReportStatus) =>
       String(STATUS_ALIAS[status ?? ""] ?? status ?? "").trim().toUpperCase();
-    const sessionPageSize = 200;
+    const sessionPageSize = 10;
 
     const getSessionItems = (payload: SessionReportPayload | undefined): Record<string, unknown>[] => {
       if (!payload) return [];
@@ -510,7 +727,7 @@ export default function TestsPage() {
       setSessionReportsError(null);
       try {
         const query = new URLSearchParams({
-          studentProfileId: activeStudentProfileId,
+          studentProfileId: activeStudentQueryIds[0] ?? activeStudentProfileId,
           pageNumber: "1",
           pageSize: `${sessionPageSize}`,
         });
@@ -532,7 +749,8 @@ export default function TestsPage() {
         }
 
         const root = (payload?.data ?? payload) as SessionReportPayload;
-        const rows = getSessionItems(root)
+        const buildPublishedSessionReports = (sessionPayload: SessionReportPayload) =>
+          getSessionItems(sessionPayload)
           .map((item) => normalizeSessionReport(item))
           .filter((item): item is SessionReport => Boolean(item))
           .filter((item) =>
@@ -547,7 +765,59 @@ export default function TestsPage() {
             return bTime - aTime;
           });
 
-        setPublishedSessionReports(rows);
+        let rows = buildPublishedSessionReports(root);
+
+        if (rows.length === 0 && activeStudentQueryIds.length > 1) {
+          for (const fallbackStudentProfileId of activeStudentQueryIds.slice(1)) {
+            const fallbackQuery = new URLSearchParams({
+              studentProfileId: fallbackStudentProfileId,
+              pageNumber: "1",
+              pageSize: `${sessionPageSize}`,
+            });
+            const fallbackResponse = await fetch(`/api/session-reports?${fallbackQuery.toString()}`, {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              cache: "no-store",
+            });
+
+            if (!fallbackResponse.ok) {
+              continue;
+            }
+
+            const fallbackText = await fallbackResponse.text();
+            const fallbackPayload = fallbackText ? JSON.parse(fallbackText) : {};
+            rows = buildPublishedSessionReports((fallbackPayload?.data ?? fallbackPayload) as SessionReportPayload);
+            if (rows.length > 0) {
+              break;
+            }
+          }
+        }
+
+        if (rows.length === 0) {
+          const fallbackQuery = new URLSearchParams({
+            pageNumber: "1",
+            pageSize: `${sessionPageSize}`,
+          });
+          const fallbackResponse = await fetch(`/api/session-reports?${fallbackQuery.toString()}`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            cache: "no-store",
+          });
+
+          if (fallbackResponse.ok) {
+            const fallbackText = await fallbackResponse.text();
+            const fallbackPayload = fallbackText ? JSON.parse(fallbackText) : {};
+            rows = buildPublishedSessionReports((fallbackPayload?.data ?? fallbackPayload) as SessionReportPayload);
+          }
+        }
+
+        setPublishedSessionReports(dedupeById(rows));
       } catch (error) {
         setPublishedSessionReports([]);
         setSessionReportsError(error instanceof Error ? error.message : "Không thể tải báo cáo theo buổi.");
@@ -557,7 +827,7 @@ export default function TestsPage() {
     };
 
     loadPublishedSessionReports();
-  }, [activeStudentIdentitySet, activeStudentProfileId, profileSelectionRevision]);
+  }, [activeStudentIdentitySet, activeStudentQueryIds, profileSelectionRevision, studentContextReady, studentContextRevision]);
 
   const selectedStudentName = useMemo(() => {
     if (selectedProfile?.displayName) return selectedProfile.displayName;
