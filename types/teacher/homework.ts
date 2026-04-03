@@ -239,6 +239,8 @@ export interface CreateHomeworkPayload {
   expectedAnswer?: string;
   rubric?: string;
   attachment?: string;
+  attachmentUrls?: string[];
+  attachments?: string[];
   // Multiple choice specific fields
   questions?: MultipleChoiceQuestion[];
 }

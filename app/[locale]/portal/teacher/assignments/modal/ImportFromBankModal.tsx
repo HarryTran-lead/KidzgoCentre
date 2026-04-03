@@ -46,19 +46,44 @@ const LEVEL_OPTIONS: Array<{
 ];
 
 function isMultipleChoiceQuestion(question: QuestionBankItem) {
-  const questionType = String(question.questionType || "").trim().toLowerCase();
-  return [
-    "multiplechoice",
-    "multiple_choice",
-    "multiple-choice",
-    "mcq",
-  ].includes(questionType);
+  const questionType = String(question.questionType || "")
+    .trim()
+    .replace(/[\s_-]+/g, "")
+    .toLowerCase();
+
+  if (
+    [
+      "multiplechoice",
+      "multiplechoices",
+      "mcq",
+      "0",
+    ].includes(questionType)
+  ) {
+    return true;
+  }
+
+  return question.options.length >= 2 && Boolean(String(question.correctAnswer ?? "").trim());
 }
 
 function normalizeCorrectIndex(question: QuestionBankItem) {
   const correctAnswer = String(question.correctAnswer ?? "").trim();
   if (/^\d+$/.test(correctAnswer)) {
-    return Number(correctAnswer);
+    const numericIndex = Number(correctAnswer);
+    if (numericIndex >= 0 && numericIndex < question.options.length) {
+      return numericIndex;
+    }
+
+    if (numericIndex > 0 && numericIndex - 1 < question.options.length) {
+      return numericIndex - 1;
+    }
+  }
+
+  const normalizedLabel = correctAnswer.replace(/[\.\)]/g, "").trim().toUpperCase();
+  if (/^[A-Z]$/.test(normalizedLabel)) {
+    const alphaIndex = normalizedLabel.charCodeAt(0) - 65;
+    if (alphaIndex >= 0 && alphaIndex < question.options.length) {
+      return alphaIndex;
+    }
   }
 
   const matchedIndex = question.options.findIndex(

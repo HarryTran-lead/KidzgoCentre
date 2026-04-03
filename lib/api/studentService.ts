@@ -20,9 +20,11 @@ import type {
   HomeworkStats,
   AssignmentDetail,
   Attachment,
+  HomeworkQuestion,
   HomeworkAiHintResult,
   HomeworkAiRecommendationResult,
   HomeworkSpeakingAnalysisResult,
+  QuizReviewAnswer,
 } from "@/types/student/homework";
 
 type StudentClassesParams = {
@@ -527,6 +529,343 @@ function buildGradingFromDetail(item: any): AssignmentDetail["grading"] {
   };
 }
 
+function isValueDefined<T>(value: T | null | undefined): value is T {
+  return value !== undefined && value !== null;
+}
+
+function pickFirstDefined<T>(...values: Array<T | null | undefined>): T | undefined {
+  return values.find(isValueDefined);
+}
+
+function normalizeComparableText(value?: string | number | null) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^[A-Z][\.\)]\s*/i, "")
+    .toLowerCase();
+}
+
+function optionLabelFromIndex(index: number) {
+  return String.fromCharCode(65 + index);
+}
+
+function isMatchingQuestionOption(
+  optionId: string,
+  optionText: string,
+  index: number,
+  correctAnswer?: string | number | null,
+  correctOptionId?: string | number | null
+) {
+  const normalizedOptionId = normalizeComparableText(optionId);
+  const normalizedOptionText = normalizeComparableText(optionText);
+  const normalizedCorrectAnswer = normalizeComparableText(correctAnswer);
+  const normalizedCorrectOptionId = normalizeComparableText(correctOptionId);
+
+  if (normalizedCorrectOptionId && normalizedOptionId === normalizedCorrectOptionId) {
+    return true;
+  }
+
+  if (!normalizedCorrectAnswer) {
+    return false;
+  }
+
+  const zeroBasedIndex = String(index);
+  const optionLabel = normalizeComparableText(optionLabelFromIndex(index));
+
+  return [
+    normalizedOptionId,
+    normalizedOptionText,
+    normalizeComparableText(zeroBasedIndex),
+    optionLabel,
+    normalizeComparableText(`${optionLabelFromIndex(index)}. ${optionText}`),
+    normalizeComparableText(`${optionLabelFromIndex(index)}) ${optionText}`),
+  ].includes(normalizedCorrectAnswer);
+}
+
+function normalizeHomeworkQuestion(
+  question: any,
+  index: number
+): HomeworkQuestion {
+  const questionId = String(
+    pickFirstDefined(question?.id, question?.questionId, `question-${index}`)
+  );
+  const correctAnswer = pickFirstDefined(
+    question?.correctAnswer,
+    question?.correctOptionText,
+    question?.answer,
+    question?.correctAnswerIndex
+  );
+  const correctOptionId = pickFirstDefined(
+    question?.correctOptionId,
+    question?.correctAnswerId
+  );
+  const rawOptions = Array.isArray(question?.options)
+    ? question.options
+    : Array.isArray(question?.optionTexts)
+      ? question.optionTexts
+      : Array.isArray(question?.optionsText)
+        ? question.optionsText
+        : [];
+
+  const options = rawOptions
+    .map((option: any, optionIndex: number) => {
+      const optionText = String(
+        typeof option === "string"
+          ? option
+          : pickFirstDefined(
+              option?.text,
+              option?.optionText,
+              option?.content,
+              option?.label,
+              ""
+            )
+      ).trim();
+
+      if (!optionText) {
+        return null;
+      }
+
+      const optionId = String(
+        pickFirstDefined(
+          option?.id,
+          option?.optionId,
+          option?.answerId,
+          optionIndex
+        )
+      );
+
+      return {
+        id: optionId,
+        text: optionText,
+        isCorrect:
+          option?.isCorrect === true ||
+          isMatchingQuestionOption(
+            optionId,
+            optionText,
+            optionIndex,
+            correctAnswer,
+            correctOptionId
+          ),
+      };
+    })
+    .filter(
+      (option: HomeworkQuestion["options"][number] | null): option is HomeworkQuestion["options"][number] =>
+        option !== null
+    );
+
+  return {
+    id: questionId,
+    questionText: String(
+      pickFirstDefined(question?.questionText, question?.text, question?.content, "")
+    ),
+    questionType: question?.questionType,
+    options,
+    explanation: question?.explanation,
+    points: question?.points,
+  };
+}
+
+function parseMultipleChoiceAnswersFromText(value?: string | null) {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeAnswerResultFlag(value: unknown): boolean | undefined {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return value === 1 ? true : value === 0 ? false : undefined;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return undefined;
+    if (["true", "1", "correct", "yes"].includes(normalized)) return true;
+    if (["false", "0", "wrong", "incorrect", "no"].includes(normalized)) return false;
+  }
+
+  return undefined;
+}
+
+function extractHomeworkAnswerResults(item: any, reviewSource: any) {
+  const candidates = [
+    reviewSource?.answerResults,
+    item?.answerResults,
+    item?.answers,
+    item?.questionAnswers,
+    item?.multipleChoiceAnswers,
+    item?.submissionAnswers,
+    parseMultipleChoiceAnswersFromText(item?.textAnswer),
+  ];
+
+  const rawResults = candidates.find((candidate) => Array.isArray(candidate));
+  if (!Array.isArray(rawResults)) {
+    return [];
+  }
+
+  return rawResults.map((result: any) => ({
+    questionId: String(
+      pickFirstDefined(result?.questionId, result?.QuestionId, result?.id, "")
+    ),
+    questionText: String(
+      pickFirstDefined(result?.questionText, result?.QuestionText, "")
+    ).trim() || undefined,
+    selectedOptionId: pickFirstDefined(
+      result?.selectedOptionId,
+      result?.SelectedOptionId,
+      result?.answerId
+    ),
+    selectedOptionText: String(
+      pickFirstDefined(
+        result?.selectedOptionText,
+        result?.SelectedOptionText,
+        result?.studentAnswer,
+        result?.selectedAnswer,
+        ""
+      )
+    ).trim() || undefined,
+    correctOptionId: pickFirstDefined(
+      result?.correctOptionId,
+      result?.CorrectOptionId,
+      result?.correctAnswerId
+    ),
+    correctOptionText: String(
+      pickFirstDefined(
+        result?.correctOptionText,
+        result?.CorrectOptionText,
+        result?.correctAnswer,
+        ""
+      )
+    ).trim() || undefined,
+    isCorrect: normalizeAnswerResultFlag(result?.isCorrect),
+    earnedPoints:
+      result?.earnedPoints ?? result?.score ?? result?.points ?? undefined,
+    maxPoints: result?.maxPoints ?? result?.points ?? undefined,
+    explanation: String(result?.explanation ?? "").trim() || undefined,
+  }));
+}
+
+function buildTeacherAttachmentList(item: any): Attachment[] {
+  const urls = [
+    ...toAbsoluteStringArray(item?.assignmentAttachmentUrl),
+    ...toAbsoluteStringArray(item?.assignmentAttachmentUrls),
+    ...toAbsoluteStringArray(item?.attachment),
+    ...toAbsoluteStringArray(item?.attachmentUrl),
+    ...toAbsoluteStringArray(item?.assignment?.attachment),
+    ...toAbsoluteStringArray(item?.assignment?.attachmentUrl),
+  ];
+
+  const urlAttachments = urls.map((url, index) => ({
+    id: `teacher-attachment-${index}`,
+    name: url.split("/").pop() || `Tai lieu ${index + 1}`,
+    type: inferAttachmentType(url),
+    url,
+  }));
+
+  return [
+    ...normalizeAttachments(item?.teacherAttachments),
+    ...normalizeAttachments(item?.attachments),
+    ...normalizeAttachments(item?.assignmentAttachments),
+    ...normalizeAttachments(item?.assignment?.attachments),
+    ...normalizeAttachments(item?.assignment?.teacherAttachments),
+    ...urlAttachments,
+  ].filter(
+    (attachment, index, array) =>
+      array.findIndex((candidate) => candidate.url === attachment.url) === index
+  );
+}
+
+function buildQuizReviewFromDetail(
+  item: any,
+  reviewSource: any,
+  questions: HomeworkQuestion[]
+): AssignmentDetail["review"] {
+  const rawAnswerResults = extractHomeworkAnswerResults(item, reviewSource);
+  const normalizedStatus = String(item?.status ?? "").trim().toUpperCase();
+  const hasSubmissionState =
+    Boolean(item?.submittedAt) ||
+    ["SUBMITTED", "GRADED", "LATE", "MISSING", "REVIEWED"].includes(normalizedStatus);
+
+  if (questions.length === 0 || (!hasSubmissionState && rawAnswerResults.length === 0)) {
+    return undefined;
+  }
+
+  const answerResults: QuizReviewAnswer[] = questions.map((question, index) => {
+    const matchedResult =
+      rawAnswerResults.find(
+        (result) =>
+          normalizeComparableText(result.questionId) ===
+          normalizeComparableText(question.id)
+      ) ?? rawAnswerResults[index];
+
+    const selectedOption = question.options.find((option, optionIndex) =>
+      isMatchingQuestionOption(
+        option.id,
+        option.text,
+        optionIndex,
+        matchedResult?.selectedOptionId ?? matchedResult?.selectedOptionText,
+        matchedResult?.selectedOptionId
+      )
+    );
+    const correctOption = question.options.find((option) => option.isCorrect);
+    const hasSelection = Boolean(
+      String(
+        pickFirstDefined(
+          matchedResult?.selectedOptionId,
+          matchedResult?.selectedOptionText,
+          ""
+        )
+      ).trim()
+    );
+    const inferredIsCorrect =
+      matchedResult?.isCorrect ??
+      (hasSelection && selectedOption && correctOption
+        ? normalizeComparableText(selectedOption.id) ===
+          normalizeComparableText(correctOption.id)
+        : undefined);
+
+    return {
+      questionId: question.id,
+      questionText: question.questionText,
+      selectedOptionId:
+        matchedResult?.selectedOptionId !== undefined &&
+        matchedResult?.selectedOptionId !== null
+          ? String(matchedResult.selectedOptionId)
+          : selectedOption?.id,
+      selectedOptionText:
+        matchedResult?.selectedOptionText ?? selectedOption?.text ?? undefined,
+      correctOptionId: correctOption?.id,
+      correctOptionText:
+        matchedResult?.correctOptionText ?? correctOption?.text ?? undefined,
+      isCorrect: inferredIsCorrect,
+      earnedPoints:
+        matchedResult?.earnedPoints ??
+        (inferredIsCorrect && question.points ? question.points : 0),
+      maxPoints: matchedResult?.maxPoints ?? question.points,
+      explanation: matchedResult?.explanation ?? question.explanation,
+    };
+  });
+
+  return {
+    showReview: Boolean(reviewSource?.showReview ?? hasSubmissionState),
+    showCorrectAnswer: reviewSource?.showCorrectAnswer ?? item?.showCorrectAnswer ?? true,
+    showExplanation: reviewSource?.showExplanation ?? item?.showExplanation ?? true,
+    primaryActionLabel: reviewSource?.primaryActionLabel ?? item?.primaryActionLabel,
+    answerResults,
+  };
+}
+
 /**
  * Get student homework detail by ID
  */
@@ -560,19 +899,15 @@ export async function getStudentHomeworkById(
       item.assignmentSubmissionType ||
       item.homeworkSubmissionType;
     const reviewSource = item.review || {};
-    const answerResultsRaw = reviewSource.answerResults || item.answerResults || [];
-    const teacherAttachments: Attachment[] = [
-      ...normalizeAttachments(item.teacherAttachments),
-      ...normalizeAttachments(item.attachments),
-      ...toAbsoluteStringArray(item.assignmentAttachmentUrl).map((url, index) => ({
-        id: `teacher-attachment-${index}`,
-        name: url.split("/").pop() || `Tai lieu ${index + 1}`,
-        type: inferAttachmentType(url),
-        url,
-      })),
-    ];
+    const questions = Array.isArray(item.questions)
+      ? item.questions.map((question: any, index: number) =>
+          normalizeHomeworkQuestion(question, index)
+        )
+      : [];
+    const teacherAttachments = buildTeacherAttachmentList(item);
     const submission = buildSubmissionFromDetail(item);
     const grading = buildGradingFromDetail(item);
+    const review = buildQuizReviewFromDetail(item, reviewSource, questions);
 
     const assignment: AssignmentDetail = {
       id: item.id || item.homeworkStudentId || "",
@@ -594,24 +929,7 @@ export async function getStudentHomeworkById(
       instructions: item.instructions || "",
       requirements: item.requirements || [],
       rubric: item.rubric || [],
-      questions: Array.isArray(item.questions)
-        ? item.questions.map((question: any, index: number) => ({
-            id: question.id || question.questionId || `question-${index}`,
-            questionText: question.questionText || question.text || "",
-            questionType: question.questionType,
-            options: Array.isArray(question.options)
-              ? question.options.map((option: any, optionIndex: number) => ({
-                  id:
-                    option.id ||
-                    option.optionId ||
-                    `${question.id || question.questionId || `question-${index}`}-option-${optionIndex}`,
-                  text: typeof option === "string" ? option : option.text || option.content || "",
-                }))
-              : [],
-            explanation: question.explanation,
-            points: question.points,
-          }))
-        : [],
+      questions,
       teacherAttachments,
       allowResubmit: item.allowResubmit ?? true,
       maxResubmissions: item.maxResubmissions,
@@ -629,29 +947,7 @@ export async function getStudentHomeworkById(
         version: sub.version || 1,
       })),
       grading,
-      review:
-        Array.isArray(answerResultsRaw) && answerResultsRaw.length > 0
-          ? {
-              showReview: Boolean(reviewSource.showReview ?? item.showReview ?? true),
-              showCorrectAnswer: reviewSource.showCorrectAnswer ?? item.showCorrectAnswer,
-              showExplanation: reviewSource.showExplanation ?? item.showExplanation,
-              primaryActionLabel: reviewSource.primaryActionLabel ?? item.primaryActionLabel,
-              answerResults: answerResultsRaw.map((result: any) => ({
-                questionId: result.questionId || "",
-                questionText: result.questionText,
-                selectedOptionId: result.selectedOptionId,
-                selectedOptionText:
-                  result.selectedOptionText || result.studentAnswer || result.selectedAnswer,
-                correctOptionId: result.correctOptionId,
-                correctOptionText:
-                  result.correctOptionText || result.correctAnswer,
-                isCorrect: Boolean(result.isCorrect),
-                earnedPoints: result.earnedPoints ?? result.points,
-                maxPoints: result.maxPoints ?? result.points,
-                explanation: result.explanation,
-              })),
-            }
-          : undefined,
+      review,
       submittedAt: formatToViDateTime(item.submittedAt),
       gradedAt: formatToViDateTime(item.gradedAt),
       aiHintEnabled: Boolean(item.aiHintEnabled ?? item.isAiHintEnabled ?? item.assignment?.aiHintEnabled),

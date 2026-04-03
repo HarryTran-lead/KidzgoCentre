@@ -106,21 +106,35 @@ type SubmissionDetail = {
   [key: string]: unknown;
 };
 
-function normalizeComparable(value?: string | null) {
-  return String(value || "")
+function isValueDefined<T>(value: T | null | undefined): value is T {
+  return value !== undefined && value !== null;
+}
+
+function pickFirstDefined<T>(...values: Array<T | null | undefined>): T | undefined {
+  for (const value of values) {
+    if (isValueDefined(value)) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeComparable(value?: string | number | null) {
+  return String(value ?? "")
     .trim()
     .replace(/^[A-Z][\.\)]\s*/i, "")
     .toLowerCase();
 }
 
-function isUuidLike(value?: string | null) {
+function isUuidLike(value?: string | number | null) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || "").trim()
+    String(value ?? "").trim()
   );
 }
 
-function hasReadableQuestionText(value?: string | null) {
-  const trimmed = String(value || "").trim();
+function hasReadableQuestionText(value?: string | number | null) {
+  const trimmed = String(value ?? "").trim();
   if (!trimmed) return false;
   if (trimmed.includes("Ã") || trimmed.includes("Æ")) return false;
   if (/^question\s*\([0-9a-f]{6,}/i.test(trimmed)) return false;
@@ -128,8 +142,8 @@ function hasReadableQuestionText(value?: string | null) {
   return true;
 }
 
-function hasReadableOptionText(value?: string | null) {
-  const trimmed = String(value || "").trim();
+function hasReadableOptionText(value?: string | number | null) {
+  const trimmed = String(value ?? "").trim();
   if (!trimmed) return false;
   if (trimmed.includes("Ã") || trimmed.includes("Æ")) return false;
   if (trimmed.toLowerCase() === "chua chon") return false;
@@ -145,8 +159,8 @@ function isMatchingOption(
   optionId: string,
   optionText: string,
   index: number,
-  correctAnswer?: string,
-  correctOptionId?: string
+  correctAnswer?: string | number | null,
+  correctOptionId?: string | number | null
 ) {
   const normalizedOptionId = normalizeComparable(optionId);
   const normalizedOptionText = normalizeComparable(optionText);
@@ -165,6 +179,7 @@ function isMatchingOption(
   return [
     normalizedOptionId,
     normalizedOptionText,
+    normalizeComparable(String(index)),
     optionLabel,
     normalizeComparable(`${optionLabelFromIndex(index)}. ${optionText}`),
     normalizeComparable(`${optionLabelFromIndex(index)}) ${optionText}`),
@@ -181,11 +196,21 @@ function normalizeQuestionOptions(
   }
 
   return rawOptions.map((option: any, index) => {
-    const optionId = String(option?.optionId || option?.id || `option-${index}`);
+    const optionId = String(
+      pickFirstDefined(option?.optionId, option?.id, index) ?? `option-${index}`
+    );
     const optionText =
       typeof option === "string"
         ? option
-        : String(option?.text || option?.optionText || option?.content || option?.label || "");
+        : String(
+            pickFirstDefined(
+              option?.text,
+              option?.optionText,
+              option?.content,
+              option?.label,
+              ""
+            ) ?? ""
+          );
 
     return {
       id: optionId,
@@ -200,9 +225,19 @@ function normalizeQuestionOptions(
 }
 
 function normalizeQuestion(rawQuestion: any, index: number): MCQuestion {
-  const questionId = rawQuestion?.questionId || rawQuestion?.id || `question-${index}`;
-  const correctAnswer = rawQuestion?.correctAnswer || rawQuestion?.correctOptionText || rawQuestion?.answer;
-  const correctOptionId = rawQuestion?.correctOptionId || rawQuestion?.correctAnswerId;
+  const questionId = String(
+    pickFirstDefined(rawQuestion?.questionId, rawQuestion?.id, `question-${index}`)
+  );
+  const correctAnswer = pickFirstDefined(
+    rawQuestion?.correctAnswer,
+    rawQuestion?.correctOptionText,
+    rawQuestion?.answer,
+    rawQuestion?.correctAnswerIndex
+  );
+  const correctOptionId = pickFirstDefined(
+    rawQuestion?.correctOptionId,
+    rawQuestion?.correctAnswerId
+  );
   const rawOptions = Array.isArray(rawQuestion?.options)
     ? rawQuestion.options
     : Array.isArray(rawQuestion?.optionsText)
@@ -258,13 +293,25 @@ function parseTextAnswerAsMC(textAnswer?: string | null): MultipleChoiceAnswerIt
     const parsed = JSON.parse(textAnswer);
     if (!Array.isArray(parsed)) return [];
     return parsed.map((item: any) => ({
-      questionId: item?.QuestionId || item?.questionId,
-      questionText: item?.QuestionText || item?.questionText,
-      selectedOptionId: item?.SelectedOptionId || item?.selectedOptionId,
-      selectedOptionText: item?.SelectedOptionText || item?.selectedOptionText,
+      questionId: pickFirstDefined(item?.QuestionId, item?.questionId)?.toString(),
+      questionText: pickFirstDefined(item?.QuestionText, item?.questionText),
+      selectedOptionId: pickFirstDefined(
+        item?.SelectedOptionId,
+        item?.selectedOptionId
+      )?.toString(),
+      selectedOptionText: pickFirstDefined(
+        item?.SelectedOptionText,
+        item?.selectedOptionText
+      ),
       selectedAnswer: item?.selectedAnswer,
-      correctOptionId: item?.CorrectOptionId || item?.correctOptionId,
-      correctOptionText: item?.CorrectOptionText || item?.correctOptionText,
+      correctOptionId: pickFirstDefined(
+        item?.CorrectOptionId,
+        item?.correctOptionId
+      )?.toString(),
+      correctOptionText: pickFirstDefined(
+        item?.CorrectOptionText,
+        item?.correctOptionText
+      ),
       isCorrect: item?.isCorrect,
       points: item?.points ?? item?.maxPoints,
       maxPoints: item?.maxPoints ?? item?.points,
@@ -322,20 +369,28 @@ function extractMultipleChoiceAnswers(detail?: SubmissionDetail | null): Multipl
   if (!raw) return [];
 
   return raw.map((item: any) => ({
-    questionId: item?.questionId || item?.QuestionId,
-    questionText: item?.questionText || item?.QuestionText,
-    selectedOptionId: item?.selectedOptionId || item?.SelectedOptionId || null,
-    selectedOptionText:
-      item?.selectedOptionText ||
-      item?.SelectedOptionText ||
-      item?.studentAnswer ||
-      item?.selectedAnswer,
+    questionId: pickFirstDefined(item?.questionId, item?.QuestionId)?.toString(),
+    questionText: pickFirstDefined(item?.questionText, item?.QuestionText),
+    selectedOptionId: pickFirstDefined(
+      item?.selectedOptionId,
+      item?.SelectedOptionId
+    )?.toString(),
+    selectedOptionText: pickFirstDefined(
+      item?.selectedOptionText,
+      item?.SelectedOptionText,
+      item?.studentAnswer,
+      item?.selectedAnswer
+    ),
     selectedAnswer: item?.selectedAnswer || item?.studentAnswer,
-    correctOptionId: item?.correctOptionId || item?.CorrectOptionId,
-    correctOptionText:
-      item?.correctOptionText ||
-      item?.CorrectOptionText ||
-      item?.correctAnswer,
+    correctOptionId: pickFirstDefined(
+      item?.correctOptionId,
+      item?.CorrectOptionId
+    )?.toString(),
+    correctOptionText: pickFirstDefined(
+      item?.correctOptionText,
+      item?.CorrectOptionText,
+      item?.correctAnswer
+    ),
     isCorrect: item?.isCorrect,
     points: item?.points ?? item?.maxPoints,
     maxPoints: item?.maxPoints ?? item?.points,
@@ -725,6 +780,27 @@ export default function TeacherSubmissionDetailPage() {
   const multipleChoiceAnswers = useMemo(() => extractMultipleChoiceAnswers(data), [data]);
   const showCorrectAnswer = data?.review?.showCorrectAnswer ?? true;
   const showExplanation = data?.review?.showExplanation ?? true;
+  const matchesChoiceOption = useCallback(
+    (
+      option: MCQuestionOption | undefined,
+      optionIndex: number,
+      answerValue?: string | null,
+      answerOptionId?: string | null
+    ) => {
+      if (!option) {
+        return false;
+      }
+
+      return isMatchingOption(
+        String(pickFirstDefined(option.optionId, option.id) ?? optionIndex),
+        String(pickFirstDefined(option.optionText, option.text, "") ?? ""),
+        optionIndex,
+        answerValue,
+        answerOptionId ?? undefined
+      );
+    },
+    []
+  );
 
   // Merge assignment questions with student answers
   const questionsWithAnswers = useMemo(() => {
@@ -738,20 +814,34 @@ export default function TeacherSubmissionDetailPage() {
       }));
     }
 
-    return assignmentQuestions.map((question) => {
+    return assignmentQuestions.map((question, questionIndex) => {
       const questionId = question.questionId || question.id || "";
-      const answer = multipleChoiceAnswers.find(
-        (a) => (a.questionId || "").toLowerCase() === questionId.toLowerCase()
-      );
+      const answer =
+        multipleChoiceAnswers.find(
+          (a) => (a.questionId || "").toLowerCase() === questionId.toLowerCase()
+        ) ?? multipleChoiceAnswers[questionIndex];
 
       const allOptions = [...(question.options || []), ...(question.optionsText || [])];
-      const selectedOption = answer?.selectedOptionId
-        ? allOptions.find((o) => (o.optionId || o.id || "").toLowerCase() === (answer.selectedOptionId || "").toLowerCase())
-        : null;
-      const correctOption = allOptions.find((o) => o.isCorrect === true) ||
-        (answer?.correctOptionId
-          ? allOptions.find((o) => (o.optionId || o.id || "").toLowerCase() === (answer.correctOptionId || "").toLowerCase())
-          : null);
+      const selectedOption =
+        allOptions.find((option, optionIndex) =>
+          matchesChoiceOption(
+            option,
+            optionIndex,
+            answer?.selectedOptionId ?? answer?.selectedOptionText ?? answer?.selectedAnswer,
+            answer?.selectedOptionId ?? undefined
+          )
+        ) ?? null;
+      const correctOption =
+        allOptions.find((o) => o.isCorrect === true) ||
+        allOptions.find((option, optionIndex) =>
+          matchesChoiceOption(
+            option,
+            optionIndex,
+            answer?.correctOptionText ?? answer?.correctOptionId,
+            answer?.correctOptionId ?? undefined
+          )
+        ) ||
+        null;
 
       return {
         ...(answer || {}),
@@ -765,7 +855,7 @@ export default function TeacherSubmissionDetailPage() {
         earnedPoints: answer?.earnedPoints,
       };
     });
-  }, [assignmentQuestions, multipleChoiceAnswers]);
+  }, [assignmentQuestions, matchesChoiceOption, multipleChoiceAnswers]);
 
   const quizQuestions = useMemo(() => {
     if (assignmentQuestions.length === 0) {
@@ -782,33 +872,38 @@ export default function TeacherSubmissionDetailPage() {
       }));
     }
 
-    return assignmentQuestions.map((question) => {
+    return assignmentQuestions.map((question, questionIndex) => {
       const questionId = question.questionId || question.id || "";
-      const answer = multipleChoiceAnswers.find(
-        (item) => (item.questionId || "").toLowerCase() === questionId.toLowerCase()
-      );
+      const answer =
+        multipleChoiceAnswers.find(
+          (item) => (item.questionId || "").toLowerCase() === questionId.toLowerCase()
+        ) ?? multipleChoiceAnswers[questionIndex];
       const normalizedOptions =
         question.options && question.options.length > 0
           ? question.options
           : question.optionsText && question.optionsText.length > 0
             ? question.optionsText
             : answer?.options || [];
-      const selectedOption = answer?.selectedOptionId
-        ? normalizedOptions.find(
-            (option) =>
-              (option.optionId || option.id || "").toLowerCase() ===
-              (answer.selectedOptionId || "").toLowerCase()
+      const selectedOption =
+        normalizedOptions.find((option, optionIndex) =>
+          matchesChoiceOption(
+            option,
+            optionIndex,
+            answer?.selectedOptionId ?? answer?.selectedOptionText ?? answer?.selectedAnswer,
+            answer?.selectedOptionId ?? undefined
           )
-        : null;
+        ) ?? null;
       const correctOption =
         normalizedOptions.find((option) => option.isCorrect === true) ||
-        (answer?.correctOptionId
-          ? normalizedOptions.find(
-              (option) =>
-                (option.optionId || option.id || "").toLowerCase() ===
-                (answer.correctOptionId || "").toLowerCase()
-            )
-          : null);
+        normalizedOptions.find((option, optionIndex) =>
+          matchesChoiceOption(
+            option,
+            optionIndex,
+            answer?.correctOptionText ?? answer?.correctOptionId,
+            answer?.correctOptionId ?? undefined
+          )
+        ) ||
+        null;
 
       return {
         ...(answer || {}),
@@ -837,7 +932,7 @@ export default function TeacherSubmissionDetailPage() {
         explanation: answer?.explanation || question.explanation,
       };
     });
-  }, [assignmentQuestions, multipleChoiceAnswers]);
+  }, [assignmentQuestions, matchesChoiceOption, multipleChoiceAnswers]);
 
   const multipleChoiceSummary = useMemo(() => {
     const total = quizQuestions.length;

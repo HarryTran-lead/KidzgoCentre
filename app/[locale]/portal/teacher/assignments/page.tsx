@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 
 import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSessions, deleteHomework, updateHomework, createMultipleChoiceHomework } from "@/lib/api/homeworkService";
+import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 import type { HomeworkSubmission, CreateHomeworkPayload, ClassOption, SessionOption, MultipleChoiceQuestion } from "@/types/teacher/homework";
 import { ImportFromBankModal } from "./modal/ImportFromBankModal";
 import { ImportFromExcelModal } from "./modal/ImportFromExcelModal";
@@ -544,6 +545,25 @@ function CreateAssignmentModal({
           setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");
         }
       } else {
+        const uploadedAttachmentUrls: string[] = [];
+
+        for (const attachment of attachments) {
+          const uploadResult = await uploadFile(attachment, "homework");
+          if (!isUploadSuccess(uploadResult) || !uploadResult.url) {
+            setError(
+              !isUploadSuccess(uploadResult)
+                ? uploadResult.detail ||
+                    uploadResult.error ||
+                    uploadResult.title ||
+                    `KhÃ´ng thá»ƒ táº£i file ${attachment.name}`
+                : `KhÃ´ng thá»ƒ táº£i file ${attachment.name}`
+            );
+            return;
+          }
+
+          uploadedAttachmentUrls.push(uploadResult.url);
+        }
+
         const payload: CreateHomeworkPayload = {
           title,
           description,
@@ -560,6 +580,11 @@ function CreateAssignmentModal({
           instructions: instructions || undefined,
           expectedAnswer: expectedAnswer || undefined,
           rubric: rubric || undefined,
+          attachment: uploadedAttachmentUrls[0] || undefined,
+          attachmentUrls:
+            uploadedAttachmentUrls.length > 0 ? uploadedAttachmentUrls : undefined,
+          attachments:
+            uploadedAttachmentUrls.length > 0 ? uploadedAttachmentUrls : undefined,
         };
 
         const result = await createHomework(payload);

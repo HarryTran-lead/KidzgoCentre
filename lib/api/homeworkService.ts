@@ -175,6 +175,40 @@ function extractQuestionBankItems(payload: any): any[] {
   return Array.isArray(raw) ? raw : [];
 }
 
+function normalizeQuestionType(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "MultipleChoice";
+  const compact = raw.replace(/[\s_-]+/g, "").toLowerCase();
+
+  if (["multiplechoice", "multiplechoices", "mcq"].includes(compact)) {
+    return "MultipleChoice";
+  }
+
+  if (["textinput", "text"].includes(compact)) {
+    return "TextInput";
+  }
+
+  if (["truefalse", "boolean"].includes(compact)) {
+    return "TrueFalse";
+  }
+
+  if (["fillinblank", "fillblank"].includes(compact)) {
+    return "FillInBlank";
+  }
+
+  if (compact === "essay") {
+    return "Essay";
+  }
+
+  if (raw === "0") return "MultipleChoice";
+  if (raw === "1") return "TextInput";
+  if (raw === "2") return "TrueFalse";
+  if (raw === "3") return "Essay";
+  if (raw === "4") return "FillInBlank";
+
+  return raw;
+}
+
 function normalizeQuestionBankItem(item: any): QuestionBankItem | null {
   const questionId = item?.id || item?.questionId;
   const questionText = item?.questionText || item?.text || item?.content;
@@ -186,6 +220,8 @@ function normalizeQuestionBankItem(item: any): QuestionBankItem | null {
     ? item.options
     : Array.isArray(item?.optionTexts)
       ? item.optionTexts
+      : Array.isArray(item?.answers)
+        ? item.answers
       : [];
 
   const options = rawOptions
@@ -210,9 +246,16 @@ function normalizeQuestionBankItem(item: any): QuestionBankItem | null {
   return {
     id: String(questionId),
     questionText: String(questionText),
-    questionType: String(item?.questionType || item?.type || "MultipleChoice"),
+    questionType: normalizeQuestionType(item?.questionType ?? item?.type),
     options,
-    correctAnswer: String(item?.correctAnswer ?? item?.answer ?? ""),
+    correctAnswer: String(
+      item?.correctAnswer ??
+      item?.correctOptionId ??
+      item?.correctAnswerId ??
+      item?.correctAnswerIndex ??
+      item?.answer ??
+      ""
+    ),
     points: Number(item?.points ?? item?.score ?? 1),
     explanation: item?.explanation ?? null,
     level: normalizedLevel,

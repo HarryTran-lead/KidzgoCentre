@@ -45,8 +45,22 @@ type NormalizedAnswerResult = {
   maxPoints?: number;
 };
 
-function normalizeComparable(value?: string | null) {
-  return String(value || "")
+function isValueDefined<T>(value: T | null | undefined): value is T {
+  return value !== undefined && value !== null;
+}
+
+function pickFirstDefined<T>(...values: Array<T | null | undefined>): T | undefined {
+  for (const value of values) {
+    if (isValueDefined(value)) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeComparable(value?: string | number | null) {
+  return String(value ?? "")
     .trim()
     .replace(/^[A-Z][\.\)]\s*/i, "")
     .toLowerCase();
@@ -60,8 +74,8 @@ function isMatchingOption(
   optionId: string,
   optionText: string,
   index: number,
-  correctAnswer?: string,
-  correctOptionId?: string
+  correctAnswer?: string | number | null,
+  correctOptionId?: string | number | null
 ) {
   const normalizedOptionId = normalizeComparable(optionId);
   const normalizedOptionText = normalizeComparable(optionText);
@@ -80,6 +94,7 @@ function isMatchingOption(
   return [
     normalizedOptionId,
     normalizedOptionText,
+    normalizeComparable(String(index)),
     optionLabel,
     normalizeComparable(`${optionLabelFromIndex(index)}. ${optionText}`),
     normalizeComparable(`${optionLabelFromIndex(index)}) ${optionText}`),
@@ -144,16 +159,20 @@ function normalizeQuestionOptions(
   const options: NormalizedOption[] = [];
 
   rawOptions.forEach((option: any, index) => {
-    const optionId = String(option?.optionId || option?.id || `option-${index}`);
+    const optionId = String(
+      pickFirstDefined(option?.optionId, option?.id, index) ?? `option-${index}`
+    );
     const optionText =
       typeof option === "string"
         ? option
         : String(
-            option?.text ||
-              option?.optionText ||
-              option?.content ||
-              option?.label ||
+            pickFirstDefined(
+              option?.text,
+              option?.optionText,
+              option?.content,
+              option?.label,
               ""
+            ) ?? ""
           );
 
     if (!optionText.trim()) {
@@ -176,14 +195,18 @@ function normalizeQuestionOptions(
 
 function normalizeQuestion(rawQuestion: any, index: number): NormalizedQuestion {
   const questionId = String(
-    rawQuestion?.questionId || rawQuestion?.id || `question-${index}`
+    pickFirstDefined(rawQuestion?.questionId, rawQuestion?.id, `question-${index}`)
   );
-  const correctAnswer =
-    rawQuestion?.correctAnswer ||
-    rawQuestion?.correctOptionText ||
-    rawQuestion?.answer;
-  const correctOptionId =
-    rawQuestion?.correctOptionId || rawQuestion?.correctAnswerId;
+  const correctAnswer = pickFirstDefined(
+    rawQuestion?.correctAnswer,
+    rawQuestion?.correctOptionText,
+    rawQuestion?.answer,
+    rawQuestion?.correctAnswerIndex
+  );
+  const correctOptionId = pickFirstDefined(
+    rawQuestion?.correctOptionId,
+    rawQuestion?.correctAnswerId
+  );
   const rawOptions = Array.isArray(rawQuestion?.options)
     ? rawQuestion.options
     : Array.isArray(rawQuestion?.optionsText)
@@ -226,18 +249,22 @@ function normalizeAnswerResult(raw: any): NormalizedAnswerResult {
     questionId: raw?.questionId || raw?.QuestionId || raw?.id,
     questionText: raw?.questionText || raw?.QuestionText,
     selectedOptionId:
-      raw?.selectedOptionId || raw?.SelectedOptionId || raw?.answerId,
+      pickFirstDefined(raw?.selectedOptionId, raw?.SelectedOptionId, raw?.answerId)?.toString(),
     selectedOptionText:
-      raw?.selectedOptionText ||
-      raw?.SelectedOptionText ||
-      raw?.studentAnswer ||
-      raw?.selectedAnswer,
+      pickFirstDefined(
+        raw?.selectedOptionText,
+        raw?.SelectedOptionText,
+        raw?.studentAnswer,
+        raw?.selectedAnswer
+      ),
     correctOptionId:
-      raw?.correctOptionId || raw?.CorrectOptionId || raw?.correctAnswerId,
+      pickFirstDefined(raw?.correctOptionId, raw?.CorrectOptionId, raw?.correctAnswerId)?.toString(),
     correctOptionText:
-      raw?.correctOptionText ||
-      raw?.CorrectOptionText ||
-      raw?.correctAnswer,
+      pickFirstDefined(
+        raw?.correctOptionText,
+        raw?.CorrectOptionText,
+        raw?.correctAnswer
+      ),
     explanation: raw?.explanation,
     isCorrect: raw?.isCorrect,
     earnedPoints: raw?.earnedPoints ?? raw?.score ?? raw?.points,
@@ -280,13 +307,26 @@ function findQuestionOption(
   const normalizedOptionId = normalizeComparable(optionId);
   const normalizedOptionText = normalizeComparable(optionText);
 
-  return question.options.find((option) => {
-    const candidateId = normalizeComparable(option.optionId || option.id);
-    const candidateText = normalizeComparable(option.optionText || option.text);
+  return question.options.find((option, index) => {
+    const resolvedOptionId = String(
+      pickFirstDefined(option.optionId, option.id) ?? index
+    );
+    const resolvedOptionText = String(
+      pickFirstDefined(option.optionText, option.text, "") ?? ""
+    );
+    const candidateId = normalizeComparable(resolvedOptionId);
+    const candidateText = normalizeComparable(resolvedOptionText);
 
     return (
       (normalizedOptionId && candidateId === normalizedOptionId) ||
-      (normalizedOptionText && candidateText === normalizedOptionText)
+      (normalizedOptionText && candidateText === normalizedOptionText) ||
+      isMatchingOption(
+        resolvedOptionId,
+        resolvedOptionText,
+        index,
+        optionText ?? optionId,
+        optionId
+      )
     );
   });
 }
@@ -361,35 +401,46 @@ function buildAnswerResults(
       findCorrectQuestionOption(question);
 
     const mergedResult: NormalizedAnswerResult = {
-      questionId:
-        rawResult?.questionId ||
-        studentResult?.questionId ||
-        question?.questionId,
-      questionText:
-        rawResult?.questionText ||
-        studentResult?.questionText ||
-        question?.questionText,
-      selectedOptionId:
-        rawResult?.selectedOptionId || studentResult?.selectedOptionId,
+      questionId: pickFirstDefined(
+        rawResult?.questionId,
+        studentResult?.questionId,
+        question?.questionId
+      ),
+      questionText: pickFirstDefined(
+        rawResult?.questionText,
+        studentResult?.questionText,
+        question?.questionText
+      ),
+      selectedOptionId: pickFirstDefined(
+        rawResult?.selectedOptionId,
+        studentResult?.selectedOptionId
+      ),
       selectedOptionText:
-        rawResult?.selectedOptionText ||
-        studentResult?.selectedOptionText ||
-        selectedOption?.optionText ||
-        selectedOption?.text,
-      correctOptionId:
-        rawResult?.correctOptionId ||
-        studentResult?.correctOptionId ||
-        correctOption?.optionId ||
-        correctOption?.id,
+        pickFirstDefined(
+          rawResult?.selectedOptionText,
+          studentResult?.selectedOptionText,
+          selectedOption?.optionText,
+          selectedOption?.text
+        ),
+      correctOptionId: pickFirstDefined(
+        rawResult?.correctOptionId,
+        studentResult?.correctOptionId,
+        correctOption?.optionId,
+        correctOption?.id
+      ),
       correctOptionText:
-        rawResult?.correctOptionText ||
-        studentResult?.correctOptionText ||
-        correctOption?.optionText ||
-        correctOption?.text,
+        pickFirstDefined(
+          rawResult?.correctOptionText,
+          studentResult?.correctOptionText,
+          correctOption?.optionText,
+          correctOption?.text
+        ),
       explanation:
-        rawResult?.explanation ||
-        studentResult?.explanation ||
-        question?.explanation,
+        pickFirstDefined(
+          rawResult?.explanation,
+          studentResult?.explanation,
+          question?.explanation
+        ),
       isCorrect: rawResult?.isCorrect ?? studentResult?.isCorrect,
       earnedPoints: rawResult?.earnedPoints ?? studentResult?.earnedPoints,
       maxPoints:
@@ -401,9 +452,9 @@ function buildAnswerResults(
     if (
       mergedResult.questionId ||
       mergedResult.questionText ||
-      mergedResult.selectedOptionId ||
+      isValueDefined(mergedResult.selectedOptionId) ||
       mergedResult.selectedOptionText ||
-      mergedResult.correctOptionId ||
+      isValueDefined(mergedResult.correctOptionId) ||
       mergedResult.correctOptionText
     ) {
       mergedResults.push(mergedResult);

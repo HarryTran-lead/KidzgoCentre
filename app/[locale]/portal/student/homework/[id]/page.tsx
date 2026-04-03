@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -280,6 +280,18 @@ export default function AssignmentDetailPage() {
   const canReviewQuiz = isMultipleChoiceAssignment &&
     assignment?.review?.showReview &&
     (assignment.review.answerResults?.length ?? 0) > 0;
+  const reviewAnswerResults = assignment?.review?.answerResults ?? [];
+  const reviewSummary = useMemo(
+    () => ({
+      correct: reviewAnswerResults.filter((item) => item.isCorrect === true).length,
+      wrong: reviewAnswerResults.filter((item) => item.isCorrect === false).length,
+      earnedPoints: reviewAnswerResults.reduce(
+        (sum, item) => sum + (item.earnedPoints || 0),
+        0
+      ),
+    }),
+    [reviewAnswerResults]
+  );
   const hasGradingResult = Boolean(
     assignment?.grading ||
       assignment?.gradedAt ||
@@ -583,9 +595,15 @@ export default function AssignmentDetailPage() {
                             )}
                           </div>
                         </div>
-                        <button className="p-2 hover:bg-purple-500/20 rounded-lg transition">
+                        <a
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          download
+                          className="p-2 hover:bg-purple-500/20 rounded-lg transition"
+                        >
                           <Download size={18} className="text-purple-400" />
-                        </button>
+                        </a>
                       </div>
                     ))}
                   </div>
@@ -805,19 +823,19 @@ export default function AssignmentDetailPage() {
                 <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4">
                   <div className="text-sm text-green-400 font-medium">Câu đúng</div>
                   <div className="mt-1 text-2xl font-black text-green-400">
-                    {assignment.grading?.correctCount ?? assignment.review!.answerResults.filter((item) => item.isCorrect).length}
+                    {reviewSummary.correct}
                   </div>
                 </div>
                 <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
                   <div className="text-sm text-rose-400 font-medium">Câu sai</div>
                   <div className="mt-1 text-2xl font-black text-rose-400">
-                    {assignment.grading?.wrongCount ?? assignment.review!.answerResults.filter((item) => !item.isCorrect).length}
+                    {reviewSummary.wrong}
                   </div>
                 </div>
                 <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
                   <div className="text-sm text-blue-400 font-medium">Điểm đạt được</div>
                   <div className="mt-1 text-2xl font-black text-blue-400">
-                    {assignment.grading?.earnedPoints ?? assignment.review!.answerResults.reduce((sum, item) => sum + (item.earnedPoints || 0), 0)}
+                    {assignment.grading?.earnedPoints ?? reviewSummary.earnedPoints}
                   </div>
                 </div>
               </div>
@@ -827,18 +845,22 @@ export default function AssignmentDetailPage() {
                   <div
                     key={`${result.questionId}-${index}`}
                     className={`rounded-xl border p-4 backdrop-blur-sm ${
-                      result.isCorrect
+                      result.isCorrect === true
                         ? "border-green-500/30 bg-green-500/10"
-                        : "border-rose-500/30 bg-rose-500/10"
+                        : result.isCorrect === false
+                          ? "border-rose-500/30 bg-rose-500/10"
+                          : "border-slate-500/30 bg-slate-800/40"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          {result.isCorrect ? (
+                          {result.isCorrect === true ? (
                             <CircleCheck size={18} className="text-green-400" />
-                          ) : (
+                          ) : result.isCorrect === false ? (
                             <CircleX size={18} className="text-rose-400" />
+                          ) : (
+                            <Clock size={18} className="text-slate-400" />
                           )}
                           <h3 className="font-semibold text-white">
                             Câu {index + 1}{result.questionText ? `: ${result.questionText}` : ""}
@@ -848,7 +870,15 @@ export default function AssignmentDetailPage() {
                         <div className="space-y-2 text-sm">
                           <div>
                             <span className="font-medium text-slate-400">Bạn đã chọn:</span>{" "}
-                            <span className={result.isCorrect ? "text-green-400" : "text-rose-400"}>
+                            <span
+                              className={
+                                result.isCorrect === true
+                                  ? "text-green-400"
+                                  : result.isCorrect === false
+                                    ? "text-rose-400"
+                                    : "text-slate-300"
+                              }
+                            >
                               {result.selectedOptionText || "Chưa trả lời"}
                             </span>
                           </div>
@@ -875,12 +905,18 @@ export default function AssignmentDetailPage() {
 
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-bold ${
-                          result.isCorrect
+                          result.isCorrect === true
                             ? "bg-green-500/30 text-green-300 border border-green-400/40"
-                            : "bg-rose-500/30 text-rose-300 border border-rose-400/40"
+                            : result.isCorrect === false
+                              ? "bg-rose-500/30 text-rose-300 border border-rose-400/40"
+                              : "bg-slate-700/60 text-slate-200 border border-slate-500/40"
                         }`}
                       >
-                        {result.isCorrect ? "Đúng" : "Sai"}
+                        {result.isCorrect === true
+                          ? "Đúng"
+                          : result.isCorrect === false
+                            ? "Sai"
+                            : "Chưa trả lời"}
                       </span>
                     </div>
                   </div>

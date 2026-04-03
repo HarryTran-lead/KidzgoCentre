@@ -89,6 +89,7 @@ export interface AssignmentDetail {
 export interface HomeworkQuestionOption {
   id: string;
   text: string;
+  isCorrect?: boolean;
 }
 
 export interface HomeworkQuestion {
@@ -156,7 +157,7 @@ export interface QuizReviewAnswer {
   selectedOptionText?: string;
   correctOptionId?: string;
   correctOptionText?: string;
-  isCorrect: boolean;
+  isCorrect?: boolean;
   earnedPoints?: number;
   maxPoints?: number;
   explanation?: string;
