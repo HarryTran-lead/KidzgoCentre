@@ -293,6 +293,9 @@ export const BACKEND_USER_ENDPOINTS = {
 
 // Teacher Endpoints
 export const TEACHER_ENDPOINTS = {
+  DASHBOARD: "/api/teacher/dashboard",
+  PROFILE: "/api/teacher/profile",
+  TIMESHEET: "/api/teacher/timesheet",
   CLASSES: '/api/teacher/classes',
   TIMETABLE: '/api/teacher/timetable',
   ENROLLMENTS: '/api/enrollments',
@@ -669,12 +672,37 @@ export const BACKEND_DASHBOARD_ENDPOINTS = {
 export const PARENT_ENDPOINTS = {
   TIMETABLE: "/api/parent/timetable",
   OVERVIEW: "/api/parent/overview",
+  INVOICES: "/api/parent/invoices",
+  PAYMENTS: "/api/parent/payments",
+  HOMEWORK: "/api/parent/homework",
+  PROGRESS: "/api/parent/progress",
+  MEDIA: "/api/parent/media",
+  APPROVALS: "/api/parent/approvals",
+  TESTS: "/api/parent/tests",
+  TEST_BY_ID: (id: string) => `/api/parent/tests/${id}`,
 } as const;
 
 // Backend Parent Endpoints (Next.js API Routes -> Backend API)
 export const BACKEND_PARENT_ENDPOINTS = {
   TIMETABLE: "/parent/timetable",
   OVERVIEW: "/parent/overview",
+  INVOICES: "/parent/invoices",
+  PAYMENTS: "/parent/payments",
+  HOMEWORK: "/parent/homework",
+  PROGRESS: "/parent/progress",
+  MEDIA: "/parent/media",
+  APPROVALS: "/parent/approvals",
+  TESTS: "/parent/tests",
+  TEST_BY_ID: (id: string) => `/parent/tests/${id}`,
+} as const;
+
+export const STUDENT_PORTAL_ENDPOINTS = {
+  DASHBOARD: "/api/student/dashboard",
+  PROFILE: "/api/student/profile",
+  REPORTS: "/api/student/reports",
+  MEDIA: "/api/student/media",
+  TESTS: "/api/student/tests",
+  TEST_BY_ID: (id: string) => `/api/student/tests/${id}`,
 } as const;
 
 export const NOTIFICATION_ENDPOINTS = {
@@ -690,11 +718,52 @@ export const NOTIFICATION_ENDPOINTS = {
 export const BACKEND_NOTIFICATION_ENDPOINTS = {
   BASE: "/notifications",
   BROADCAST: "/notifications/broadcast",
+  BROADCAST_HISTORY: "/notifications/broadcast-history",
   MARK_READ: (id: string) => `/notifications/${id}/read`,
   RETRY: (id: string) => `/notifications/${id}/retry`,
   DEVICE_TOKEN: "/notifications/device-token",
   TEMPLATES: "/notifications/templates",
   TEMPLATE_BY_ID: (id: string) => `/notifications/templates/${id}`,
+} as const;
+
+export const FINANCE_ENDPOINTS = {
+  CASHBOOK: "/api/finance/cashbook",
+  CASHBOOK_BY_ID: (id: string) => `/api/finance/cashbook/${id}`,
+  FEES: "/api/finance/fees",
+  PAYROLL: "/api/finance/payroll",
+  ACCOUNTANT_DASHBOARD: "/api/finance/accountant/dashboard",
+  DUES: "/api/finance/dues",
+  INVOICES: "/api/finance/invoices",
+  INVOICE_BY_ID: (id: string) => `/api/finance/invoices/${id}`,
+  INVOICE_SEND: (id: string) => `/api/finance/invoices/${id}/send`,
+  PAYOS_TRANSACTIONS: "/api/finance/payos/transactions",
+  PAYOS_GENERATE_LINK: "/api/finance/payos/generate-link",
+  PAYOS_GENERATE_QR: "/api/finance/payos/generate-qr",
+  ADJUSTMENTS: "/api/finance/adjustments",
+  AUDIT_LOGS: "/api/finance/audit-logs",
+  REPORTS: "/api/finance/reports",
+} as const;
+
+export const EXTRACURRICULAR_PROGRAM_ENDPOINTS = {
+  BASE: "/api/extracurricular-programs",
+  BY_ID: (id: string) => `/api/extracurricular-programs/${id}`,
+} as const;
+
+export const STAFF_PORTAL_ENDPOINTS = {
+  DASHBOARD: "/api/staff/dashboard",
+  ANNOUNCEMENTS: "/api/staff/announcements",
+  ENROLLMENTS_PENDING: "/api/staff/enrollments/pending",
+  ENROLLMENT_APPROVE: (id: string) => `/api/staff/enrollments/${id}/approve`,
+  ENROLLMENT_REJECT: (id: string) => `/api/staff/enrollments/${id}/reject`,
+  FEES_SUMMARY: "/api/staff/fees/summary",
+  STUDENTS: "/api/staff/students",
+} as const;
+
+export const STAFF_MANAGEMENT_PORTAL_ENDPOINTS = {
+  STUDENTS: "/api/staff-management/students",
+  MEDIA: "/api/staff-management/media",
+  MEDIA_APPROVE: (id: string) => `/api/staff-management/media/${id}/approve`,
+  MEDIA_REJECT: (id: string) => `/api/staff-management/media/${id}/reject`,
 } as const;
 
 // Question Bank Endpoints (Client-side → Next.js API Routes → Backend)

@@ -1,7 +1,7 @@
 "use client";
 
 import { NOTIFICATION_ENDPOINTS } from "@/constants/apiURL";
-import type { Role } from "@/lib/role";
+import { normalizeRole, type Role } from "@/lib/role";
 import { getAccessToken } from "@/lib/store/authToken";
 import type {
   BackendNotificationRole,
@@ -54,6 +54,23 @@ type NotificationListResponse = {
 
 type NotificationListItem =
   NonNullable<NotificationListResponse["data"]["items"]>[number];
+
+type BroadcastHistoryItem = {
+  id?: string;
+  campaignId?: string;
+  title?: string;
+  content?: string | null;
+  message?: string | null;
+  role?: string | null;
+  audience?: string | null;
+  channel?: string | null;
+  kind?: string | null;
+  createdAt?: string | null;
+  senderRole?: string | null;
+  senderName?: string | null;
+  createdCount?: number | null;
+  deliveredCount?: number | null;
+};
 
 const EVENT_NAME = "kidzgo:notifications-updated";
 
@@ -112,7 +129,7 @@ export async function fetchNotifications(role: Role, unreadOnly = false) {
 export async function fetchBroadcastHistory(senderRole?: Role) {
   const params = new URLSearchParams();
   if (senderRole) {
-    params.set("senderRole", senderRole);
+    params.set("senderRole", toBackendNotificationRole(senderRole));
   }
   const queryString = params.toString();
 
@@ -126,8 +143,24 @@ export async function fetchBroadcastHistory(senderRole?: Role) {
     },
   );
   const json = await response.json();
+  const items = Array.isArray(json?.data)
+    ? (json.data as BroadcastHistoryItem[])
+    : Array.isArray(json?.data?.items)
+    ? (json.data.items as BroadcastHistoryItem[])
+    : [];
 
-  return Array.isArray(json?.data) ? (json.data as NotificationCampaign[]) : [];
+  return items.map((item) => ({
+    id: item.id ?? item.campaignId ?? crypto.randomUUID(),
+    title: item.title ?? "Broadcast",
+    message: item.message ?? item.content ?? "",
+    audience: mapBroadcastAudience(item.audience ?? item.role),
+    channel: normalizeBroadcastChannel(item.channel),
+    kind: normalizeBroadcastKind(item.kind),
+    createdAt: item.createdAt ?? new Date().toISOString(),
+    senderRole: normalizeSenderRole(item.senderRole),
+    senderName: item.senderName ?? "KidzGo Centre",
+    deliveredCount: Number(item.deliveredCount ?? item.createdCount ?? 0),
+  })) as NotificationCampaign[];
 }
 
 export async function fetchNotificationTemplates() {
@@ -234,7 +267,7 @@ export async function broadcastNotification(input: {
       role,
       kind: input.kind,
       priority: input.priority ?? "medium",
-      senderRole: input.senderRole,
+      senderRole: toBackendNotificationRole(input.senderRole),
       senderName: input.senderName,
       userIds: [],
       profileIds: [],
@@ -278,10 +311,10 @@ export async function ingestForegroundNotification(payload: {
       content: payload.body,
       deeplink: payload.link ?? null,
       channel: "Push",
-      role: payload.targetRole,
+      role: toBackendNotificationRole(payload.targetRole),
       kind: payload.kind,
       priority: payload.priority,
-      senderRole: payload.senderRole,
+      senderRole: toBackendNotificationRole(payload.senderRole),
       senderName: payload.senderName,
       userIds: [],
       profileIds: [],
@@ -289,4 +322,82 @@ export async function ingestForegroundNotification(payload: {
     }),
   });
   emitNotificationsChanged();
+}
+
+function normalizeBroadcastChannel(
+  value?: string | null
+): NotificationCampaign["channel"] {
+  if (value === "Push" || value === "Email" || value === "ZaloOa") {
+    return value;
+  }
+
+  return "InApp";
+}
+
+function normalizeBroadcastKind(
+  value?: string | null
+): NotificationCampaign["kind"] {
+  if (
+    value === "schedule" ||
+    value === "report" ||
+    value === "payment" ||
+    value === "homework" ||
+    value === "feedback" ||
+    value === "event"
+  ) {
+    return value;
+  }
+
+  return "system";
+}
+
+function mapBroadcastAudience(value?: string | null): NotificationAudience {
+  if (!value) {
+    return "all";
+  }
+
+  const tokens = value
+    .split(/[,+]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const signature = [...new Set(tokens)].sort().join("|");
+
+  if (signature === "Parent|Student") {
+    return "family";
+  }
+
+  if (signature === "Teacher") {
+    return "teaching";
+  }
+
+  if (signature === "AccountantStaff|Admin|ManagementStaff") {
+    return "management";
+  }
+
+  if (signature === "AccountantStaff|Admin|ManagementStaff|Parent|Student|Teacher") {
+    return "all";
+  }
+
+  return (tokens[0] as NotificationAudience) || "all";
+}
+
+function normalizeSenderRole(value?: string | null): Role {
+  return normalizeRole(value ?? undefined);
+}
+
+function toBackendNotificationRole(
+  value?: Role | string | null
+): BackendNotificationRole {
+  const normalizedRole = normalizeRole(value ?? undefined);
+
+  if (normalizedRole === "Staff_Manager") {
+    return "ManagementStaff";
+  }
+
+  if (normalizedRole === "Staff_Accountant") {
+    return "AccountantStaff";
+  }
+
+  return normalizedRole;
 }
