@@ -20,8 +20,10 @@ export default function Page() {
         selectedBranchId ? { branchId: selectedBranchId } : undefined
       );
 
-      if (response?.data) {
-        setData(response.data);
+      const summaryData = (response?.data as any)?.summary || response?.data;
+
+      if (summaryData) {
+        setData(summaryData);
       } else {
         setError("Dashboard API returned empty data.");
       }
