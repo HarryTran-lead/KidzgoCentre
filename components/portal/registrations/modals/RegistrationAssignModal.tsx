@@ -41,6 +41,10 @@ type RegistrationAssignModalProps = {
   setManualPrimaryClassId: (value: string) => void;
   manualSecondaryClassId: string;
   setManualSecondaryClassId: (value: string) => void;
+  manualPrimarySessionPattern: string;
+  setManualPrimarySessionPattern: (value: string) => void;
+  manualSecondarySessionPattern: string;
+  setManualSecondarySessionPattern: (value: string) => void;
   handleAssignManualClasses: () => void;
 };
 
@@ -73,6 +77,10 @@ export default function RegistrationAssignModal({
   setManualPrimaryClassId,
   manualSecondaryClassId,
   setManualSecondaryClassId,
+  manualPrimarySessionPattern,
+  setManualPrimarySessionPattern,
+  manualSecondarySessionPattern,
+  setManualSecondarySessionPattern,
   handleAssignManualClasses,
 }: RegistrationAssignModalProps) {
   if (!isOpen) return null;
@@ -80,7 +88,7 @@ export default function RegistrationAssignModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
       <div
@@ -133,6 +141,11 @@ export default function RegistrationAssignModal({
             setManualPrimaryClassId={setManualPrimaryClassId}
             manualSecondaryClassId={manualSecondaryClassId}
             setManualSecondaryClassId={setManualSecondaryClassId}
+            preferredSchedule={selectedRegistration?.preferredSchedule}
+            manualPrimarySessionPattern={manualPrimarySessionPattern}
+            setManualPrimarySessionPattern={setManualPrimarySessionPattern}
+            manualSecondarySessionPattern={manualSecondarySessionPattern}
+            setManualSecondarySessionPattern={setManualSecondarySessionPattern}
             handleAssignManualClasses={handleAssignManualClasses}
           />
         </div>
