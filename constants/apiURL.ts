@@ -351,7 +351,10 @@ export const ADMIN_ENDPOINTS = {
   SESSIONS_GENERATE_FROM_PATTERN: '/api/sessions/generate-from-pattern',
   LESSON_PLAN_TEMPLATES: '/api/lesson-plan-templates',
   LESSON_PLAN_TEMPLATES_BY_ID: (id: string) => `/api/lesson-plan-templates/${id}`,
+  LESSON_PLAN_TEMPLATES_IMPORT: '/api/lesson-plan-templates/import',
   LESSON_PLANS: '/api/lesson-plans',
+  LESSON_PLANS_BY_ID: (id: string) => `/api/lesson-plans/${id}`,
+  LESSON_PLANS_CLASS_SYLLABUS: (classId: string) => `/api/lesson-plans/classes/${classId}/syllabus`,
 } as const;
 
 // Lead Endpoints (Client-side → Next.js API Routes)
