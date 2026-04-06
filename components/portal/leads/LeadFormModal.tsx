@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
-import { X, User, Mail, Phone, MessageSquare, Building, Tag } from "lucide-react";
+import { X, User, Mail, Phone, MessageSquare, Building, Tag, AlertCircle } from "lucide-react";
 import { createLead, updateLead } from "@/lib/api/leadService";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
 import { getAllProgramsForDropdown } from "@/lib/api/programService";
@@ -168,218 +168,295 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
-      <style jsx>{`
-        .hide-scrollbar {
-          scrollbar-width: none; /* Firefox */
-          -ms-overflow-style: none; /* IE and Edge */
-        }
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none; /* Chrome, Safari, Opera */
-        }
-      `}</style>
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl hide-scrollbar">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-linear-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">
-            {lead ? "Chỉnh sửa Lead" : "Tạo Lead mới"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/10 transition-colors text-white"
-          >
-            <X size={20} />
-          </button>
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        {/* Header - Gradient đỏ như modal mẫu */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <User size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  {lead ? "Chỉnh sửa Lead" : "Tạo Lead mới"}
+                </h2>
+                <p className="text-sm text-red-100">
+                  {lead ? "Chỉnh sửa thông tin lead" : "Nhập thông tin chi tiết về lead mới"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Đóng"
+            >
+              <X size={24} className="text-white" />
+            </button>
+          </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Basic Info */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <User size={16} />
-              Thông tin cơ bản
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Họ và tên <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.contactName}
-                  onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-                  placeholder="Nguyễn Văn A"
-                  required
-                />
+        {/* Form Body */}
+        <div className="p-6 max-h-[75vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Info Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-red-100">
+                  <User size={16} className="text-red-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Thông tin cơ bản</h3>
               </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    Họ và tên <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.contactName}
+                    onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    placeholder="Nguyễn Văn A"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số điện thoại <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-                  placeholder="0987654321"
-                  required
-                />
-              </div>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    Số điện thoại <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    placeholder="0987654321"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-                  placeholder="email@example.com"
-                />
-              </div>
-            </div>
-          </div>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Mail size={16} className="text-gray-400" />
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    placeholder="email@example.com"
+                  />
+                </div>
 
-          {/* Lead Source */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <Tag size={16} />
-              Nguồn lead
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nguồn
-                </label>
-                <input
-                  type="text"
-                  value={formData.source}
-                  onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-                  placeholder="Website, Facebook, Zalo..."
-                />
-              </div>
-
-             
-
-             
-            </div>
-          </div>
-
-          {/* Preferences */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <Building size={16} />
-              Sở thích & Ghi chú
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chi nhánh mong muốn
-                </label>
-                <Select
-                  value={formData.branchPreference || ""}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      branchPreference: value,
-                      programInterest: "",
-                    })
-                  }
-                >
-                  <SelectTrigger className="h-10.5 rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200">
-                    <SelectValue placeholder="Chọn chi nhánh" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Chọn chi nhánh</SelectItem>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chương trình quan tâm
-                </label>
-                <Select
-                  value={formData.programInterest || ""}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      programInterest: value,
-                    })
-                  }
-                  disabled={isProgramsLoading || programs.length === 0}
-                >
-                  <SelectTrigger className="h-10.5 rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200">
-                    <SelectValue
-                      placeholder={
-                        isProgramsLoading
-                          ? "Đang tải chương trình..."
-                          : programs.length > 0
-                            ? "Tìm và chọn chương trình"
-                            : "Không có chương trình"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Không chọn chương trình</SelectItem>
-                    {programs.map((program) => (
-                      <SelectItem key={program.id} value={program.id}>
-                        {program.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    Zalo ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.zaloId}
+                    onChange={(e) => setFormData({ ...formData, zaloId: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    placeholder="Zalo ID"
+                  />
+                </div> */}
               </div>
             </div>
 
-            
+            {/* Lead Source Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-red-100">
+                  <Tag size={16} className="text-red-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Nguồn lead</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    Nguồn
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.source}
+                    onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    placeholder="Website, Facebook, Zalo..."
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Ghi chú
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none resize-none"
-                placeholder="Ghi chú thêm..."
-              />
+                {/* <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    Chiến dịch
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campaign}
+                    onChange={(e) => setFormData({ ...formData, campaign: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                    placeholder="Tên chiến dịch"
+                  />
+                </div> */}
+              </div>
             </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t">
+            {/* Preferences Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-red-100">
+                  <Building size={16} className="text-red-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Sở thích & Ghi chú</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    Chi nhánh mong muốn
+                  </label>
+                  <Select
+                    value={formData.branchPreference || ""}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        branchPreference: value,
+                        programInterest: "",
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                      <SelectValue placeholder="Chọn chi nhánh" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Chọn chi nhánh</SelectItem>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    Chương trình quan tâm
+                  </label>
+                  <Select
+                    value={formData.programInterest || ""}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        programInterest: value,
+                      })
+                    }
+                    disabled={isProgramsLoading || programs.length === 0}
+                  >
+                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                      <SelectValue
+                        placeholder={
+                          isProgramsLoading
+                            ? "Đang tải chương trình..."
+                            : programs.length > 0
+                              ? "Tìm và chọn chương trình"
+                              : "Không có chương trình"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Không chọn chương trình</SelectItem>
+                      {programs.map((program) => (
+                        <SelectItem key={program.id} value={program.id}>
+                          {program.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  Ghi chú
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                  placeholder="Ghi chú thêm..."
+                />
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Hủy
+              Hủy bỏ
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
-            >
-              {isSubmitting ? "Đang lưu..." : (lead ? "Cập nhật" : "Tạo mới")}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (lead) {
+                    setFormData({
+                      contactName: lead.contactName || "",
+                      email: lead.email || "",
+                      phone: lead.phone || "",
+                      zaloId: lead.zaloId || "",
+                      source: lead.source || "",
+                      campaign: lead.campaign || "",
+                      company: lead.company || "",
+                      subject: lead.subject || "",
+                      branchPreference: lead.branchPreference || "",
+                      programInterest: lead.programInterest || "",
+                      notes: lead.notes || "",
+                    });
+                  } else {
+                    setFormData({
+                      contactName: "",
+                      email: "",
+                      phone: "",
+                      zaloId: "",
+                      source: "",
+                      campaign: "",
+                      company: "",
+                      subject: "",
+                      branchPreference: "",
+                      programInterest: "",
+                      notes: "",
+                    });
+                  }
+                }}
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {lead ? "Khôi phục" : "Đặt lại"}
+              </button>
+              <button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSubmitting ? "Đang lưu..." : (lead ? "Cập nhật" : "Tạo mới")}
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
