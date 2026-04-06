@@ -190,7 +190,7 @@ function TabButton({
       onClick={onClick}
       className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 cursor-pointer ${
         active
-          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+          ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
           : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
       }`}
     >
@@ -230,8 +230,6 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   const payrollLine = useMemo(
     () => mapBreakdownToLine(humanResources?.payrollRunStatusBreakdown),
     [humanResources?.payrollRunStatusBreakdown]
-    () => mapBreakdownToLine(humanResources?.payrollRunStatusBreakdown),
-    [humanResources?.payrollRunStatusBreakdown]
   );
 
   const homeworkBars = useMemo<BarChartDatum[]>(
@@ -241,7 +239,6 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       { label: "Đã chấm", value: num(homework?.gradedCount, homework?.graded), color: "#f59e0b" },
       { label: "Thiếu", value: num(homework?.missingCount), color: "#ef4444" },
     ],
-    [homework]
     [homework]
   );
 
@@ -253,7 +250,6 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       { label: "Quản trị", value: num(humanResources?.adminCount), color: "#8b5cf6" },
     ],
     [humanResources]
-    [humanResources]
   );
 
   const hrTrendLine = useMemo<LineChartDatum[]>(
@@ -263,7 +259,6 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       { label: "Xử lý lương", value: num(humanResources?.payrollProcessed), color: "#10b981" },
       { label: "Chờ xử lý", value: num(humanResources?.payrollPending), color: "#f59e0b" },
     ],
-    [humanResources]
     [humanResources]
   );
 
@@ -295,7 +290,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   return (
     <div className="space-y-7">
       {/* Updated header with red/gray theme */}
-      <div className="rounded-3xl border border-gray-200/80 bg-gradient-to-br from-white via-white to-red-50 p-5 shadow-[0_10px_40px_-24px_rgba(15,23,42,0.5)] md:p-6">
+      <div className="rounded-3xl border border-gray-200/80 bg-linear-to-br from-white via-white to-red-50 p-5 shadow-[0_10px_40px_-24px_rgba(15,23,42,0.5)] md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900 md:text-2xl">Bảng điều khiển quản trị</h1>
@@ -325,7 +320,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
               <button
                 type="button"
                 onClick={onRefresh}
-                className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 cursor-pointer"
+                className="rounded-xl bg-linear-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 cursor-pointer"
               >
                 Làm mới
               </button>
@@ -454,10 +449,6 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
 
             <ChartCard title="Placement test hoàn thành">
               <div className="grid grid-cols-2 gap-3">
-                <KpiCard title="Tổng bài test" value={formatNumber(num(placementTests?.total, placementTests?.totalTests))} icon={<ClipboardCheck size={16} />} />
-                <KpiCard title="Hoàn thành" value={formatNumber(num(placementTests?.completed, placementTests?.completedTests))} icon={<GraduationCap size={16} />} />
-                <KpiCard title="Không tham dự" value={formatNumber(num(placementTests?.noShow, placementTests?.noShowTests))} icon={<Users size={16} />} />
-                <KpiCard title="Tỷ lệ hoàn thành" value={formatPercent(placementTests?.completionRate)} icon={<TrendingUp size={16} />} />
                 <KpiCard title="Tổng bài test" value={formatNumber(num(placementTests?.total, placementTests?.totalTests))} icon={<ClipboardCheck size={16} />} />
                 <KpiCard title="Hoàn thành" value={formatNumber(num(placementTests?.completed, placementTests?.completedTests))} icon={<GraduationCap size={16} />} />
                 <KpiCard title="Không tham dự" value={formatNumber(num(placementTests?.noShow, placementTests?.noShowTests))} icon={<Users size={16} />} />
