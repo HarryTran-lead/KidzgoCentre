@@ -1,16 +1,15 @@
-import { ApiResponse } from '../apiResponse';
-
-// ==================== Status Breakdown ====================
-
-export interface StatusBreakdownItem {
+// Interface dùng chung cho các mảng thống kê trạng thái (statusBreakdown)
+export interface StatusBreakdown {
   status: string;
   count: number;
   percentage: number;
 }
 
-// ==================== Dashboard: Attendance ====================
+// ---------------------------------------------------------
+// CÁC INTERFACE CHO TỪNG MODULE TRONG SUMMARY
+// ---------------------------------------------------------
 
-export interface DashboardAttendance {
+export interface AttendanceSummary {
   totalSessions: number;
   presentCount: number;
   absentCount: number;
@@ -21,12 +20,10 @@ export interface DashboardAttendance {
   presentRate: number;
   absentRate: number;
   makeupRate: number;
-  statusBreakdown: StatusBreakdownItem[];
+  statusBreakdown: StatusBreakdown[];
 }
 
-// ==================== Dashboard: Homework ====================
-
-export interface DashboardHomework {
+export interface HomeworkSummary {
   total: number;
   pending: number;
   submitted: number;
@@ -41,12 +38,10 @@ export interface DashboardHomework {
   overdueCount: number;
   submissionRate: number;
   gradedRate: number;
-  statusBreakdown: StatusBreakdownItem[];
+  statusBreakdown: StatusBreakdown[];
 }
 
-// ==================== Dashboard: Leave ====================
-
-export interface DashboardLeave {
+export interface LeaveSummary {
   total: number;
   pending: number;
   approved: number;
@@ -56,12 +51,10 @@ export interface DashboardLeave {
   approvedRequests: number;
   rejectedRequests: number;
   approvalRate: number;
-  statusBreakdown: StatusBreakdownItem[];
+  statusBreakdown: StatusBreakdown[];
 }
 
-// ==================== Dashboard: Makeup Credits ====================
-
-export interface DashboardMakeupCredits {
+export interface MakeupCreditsSummary {
   totalCredits: number;
   usedCredits: number;
   availableCredits: number;
@@ -70,12 +63,10 @@ export interface DashboardMakeupCredits {
   availableCreditsCount: number;
   expiredCreditsCount: number;
   utilizationRate: number;
-  statusBreakdown: StatusBreakdownItem[];
+  statusBreakdown: StatusBreakdown[];
 }
 
-// ==================== Dashboard: Students ====================
-
-export interface DashboardStudents {
+export interface StudentsSummary {
   total: number;
   active: number;
   inactive: number;
@@ -88,9 +79,7 @@ export interface DashboardStudents {
   activeStudentRate: number;
 }
 
-// ==================== Dashboard: Enrollments ====================
-
-export interface DashboardEnrollments {
+export interface EnrollmentsSummary {
   total: number;
   active: number;
   paused: number;
@@ -103,12 +92,10 @@ export interface DashboardEnrollments {
   newEnrollmentsThisMonth: number;
   newEnrollmentsInSelectedRange: number;
   activeEnrollmentRate: number;
-  statusBreakdown: StatusBreakdownItem[];
+  statusBreakdown: StatusBreakdown[];
 }
 
-// ==================== Dashboard: Leads ====================
-
-export interface DashboardLeads {
+export interface LeadsSummary {
   total: number;
   new: number;
   contacted: number;
@@ -126,12 +113,10 @@ export interface DashboardLeads {
   lostLeads: number;
   noShowLeads: number;
   qualificationRate: number;
-  statusBreakdown: StatusBreakdownItem[];
+  statusBreakdown: StatusBreakdown[];
 }
 
-// ==================== Dashboard: Placement Tests ====================
-
-export interface DashboardPlacementTests {
+export interface PlacementTestsSummary {
   total: number;
   scheduled: number;
   completed: number;
@@ -144,12 +129,10 @@ export interface DashboardPlacementTests {
   cancelledTests: number;
   completionRate: number;
   noShowRate: number;
-  statusBreakdown: StatusBreakdownItem[];
+  statusBreakdown: StatusBreakdown[];
 }
 
-// ==================== Dashboard: Finance ====================
-
-export interface DashboardFinance {
+export interface FinanceSummary {
   totalRevenue: number;
   monthRevenue: number;
   payOSRevenue: number;
@@ -163,12 +146,10 @@ export interface DashboardFinance {
   collectedInSelectedRange: number;
   totalOutstandingAmount: number;
   collectionRate: number;
-  invoiceStatusBreakdown: StatusBreakdownItem[];
+  invoiceStatusBreakdown: StatusBreakdown[];
 }
 
-// ==================== Dashboard: Human Resources ====================
-
-export interface DashboardHumanResources {
+export interface HumanResourcesSummary {
   totalStaff: number;
   totalWorkHours: number;
   totalPayroll: number;
@@ -182,165 +163,65 @@ export interface DashboardHumanResources {
   payrollPaidInSelectedRange: number;
   payrollRunApprovedOrPaidCount: number;
   payrollRunDraftCount: number;
-  payrollRunStatusBreakdown: StatusBreakdownItem[];
+  payrollRunStatusBreakdown: StatusBreakdown[];
 }
 
-// ==================== API Response Types: New Dashboard ====================
+// ---------------------------------------------------------
+// CÁC INTERFACE BAO NGOÀI (ROOT & DATA)
+// ---------------------------------------------------------
 
-/** GET /api/dashboard/overall */
-export interface DashboardOverallResponse {
-  attendance: DashboardAttendance;
-  homework: DashboardHomework;
-  leave: DashboardLeave;
-  makeupCredits: DashboardMakeupCredits;
-  students: DashboardStudents;
-  enrollments: DashboardEnrollments;
-  leads: DashboardLeads;
-  placementTests: DashboardPlacementTests;
-  finance: DashboardFinance;
-  humanResources: DashboardHumanResources;
+export interface BranchSummary {
+  branchId: string;
+  branchName: string;
+  totalStudents: number;
+  totalRevenue: number;
+  attendanceRate: number;
+  activeClasses: number;
 }
 
-/** GET /api/dashboard/student */
-export type DashboardStudentResponse = DashboardStudents;
-
-/** GET /api/dashboard/academic */
-export interface DashboardAcademicResponse {
-  attendance: DashboardAttendance;
-  homework: DashboardHomework;
-  leave: DashboardLeave;
-  makeupCredits: DashboardMakeupCredits;
+export interface StudentDistribution {
+  branchId: string;
+  branchName: string;
+  studentCount: number;
 }
 
-/** GET /api/dashboard/finance */
-export type DashboardFinanceResponse = DashboardFinance;
-
-/** GET /api/dashboard/hr */
-export type DashboardHRResponse = DashboardHumanResources;
-
-/** GET /api/dashboard/leads */
-export interface DashboardLeadsResponse {
-  leads: DashboardLeads;
-  placementTests: DashboardPlacementTests;
+export interface DashboardSummaryData {
+  attendance: AttendanceSummary;
+  homework: HomeworkSummary;
+  leave: LeaveSummary;
+  makeupCredits: MakeupCreditsSummary;
+  students: StudentsSummary;
+  enrollments: EnrollmentsSummary;
+  leads: LeadsSummary;
+  placementTests: PlacementTestsSummary;
+  finance: FinanceSummary;
+  humanResources: HumanResourcesSummary;
 }
 
-// ==================== Dashboard Query Params ====================
+export interface DashboardData {
+  branchSummaries: BranchSummary[];
+  revenueTrend: any[]; // Bạn có thể update type cụ thể nếu mảng này trả về dữ liệu thật
+  studentDistribution: StudentDistribution[];
+  attendanceTrend: any[]; // Tương tự như revenueTrend
+  summary: DashboardSummaryData;
+}
+
+export interface DashboardResponse {
+  success: boolean;
+  data: DashboardData;
+}
+
+// ---------------------------------------------------------
+// BACKWARD-COMPAT TYPES FOR EXISTING ADMIN DASHBOARD FLOW
+// ---------------------------------------------------------
+
+export type StatusBreakdownItem = StatusBreakdown;
 
 export interface DashboardQueryParams {
   branchId?: string;
   fromDate?: string;
   toDate?: string;
 }
-
-// ==================== API Response Wrappers ====================
-
-export type DashboardOverallApiResponse = ApiResponse<DashboardOverallResponse>;
-export type DashboardStudentApiResponse = ApiResponse<DashboardStudentResponse>;
-export type DashboardAcademicApiResponse = ApiResponse<DashboardAcademicResponse>;
-export type DashboardFinanceApiResponse = ApiResponse<DashboardFinanceResponse>;
-export type DashboardHRApiResponse = ApiResponse<DashboardHRResponse>;
-export type DashboardLeadsApiResponse = ApiResponse<DashboardLeadsResponse>;
-
-// ==================== Legacy: Dashboard Statistics (kept for backward compat) ====================
-
-export interface DashboardStatistics {
-  totalBranches: number;
-  totalClasses: number;
-  activeClasses: number;
-  totalStudents: number;
-  totalSessions: number;
-  upcomingSessions: number;
-  totalRevenue: number;
-  pendingPayments: number;
-  pendingReports: number;
-  openTickets: number;
-}
-
-// ==================== Legacy: Summary DTOs ====================
-
-export interface BranchSummaryDto {
-  id: string;
-  code: string;
-  name: string;
-  classCount: number;
-  studentCount: number;
-}
-
-export interface ClassSummaryDto {
-  id: string;
-  code: string;
-  title: string;
-  branchId: string;
-  branchName: string;
-  status: string;
-  enrollmentCount: number;
-  capacity: number;
-}
-
-export interface SessionSummaryDto {
-  id: string;
-  classId: string;
-  classCode: string;
-  plannedDatetime: string;
-  status: string;
-}
-
-export interface StudentSummaryDto {
-  profileId: string;
-  displayName: string;
-  branchId: string;
-  branchName: string;
-  activeEnrollments: number;
-}
-
-export interface EnrollmentSummaryDto {
-  id: string;
-  classCode: string;
-  studentName: string;
-  enrollDate: string;
-  status: string;
-}
-
-export interface InvoiceSummaryDto {
-  id: string;
-  invoiceNumber: string;
-  studentName: string;
-  amount: number;
-  paymentStatus: string;
-  dueDate: string | null;
-}
-
-export interface ReportSummaryDto {
-  id: string;
-  studentName: string;
-  classCode: string;
-  status: string;
-  reportMonth: string;
-}
-
-export interface TicketSummaryDto {
-  id: string;
-  title: string;
-  status: string;
-  priority: string;
-  createdAt: string;
-}
-
-// ==================== Legacy: Admin Overview Response ====================
-
-export interface AdminOverviewResponse {
-  statistics: DashboardStatistics;
-  branches: BranchSummaryDto[];
-  classes: ClassSummaryDto[];
-  upcomingSessions: SessionSummaryDto[];
-  students: StudentSummaryDto[];
-  recentEnrollments: EnrollmentSummaryDto[];
-  pendingInvoices: InvoiceSummaryDto[];
-  pendingReports: ReportSummaryDto[];
-  openTickets: TicketSummaryDto[];
-}
-
-// ==================== Legacy: Query Params ====================
 
 export interface AdminOverviewParams {
   branchId?: string;
@@ -351,7 +232,34 @@ export interface AdminOverviewParams {
   toDate?: string;
 }
 
-// ==================== Legacy: API Response Types ====================
+export interface DashboardApiResponse<T> {
+  isSuccess?: boolean;
+  success?: boolean;
+  message?: string;
+  data: T;
+}
 
-export type AdminOverviewApiResponse = ApiResponse<AdminOverviewResponse>;
+export type DashboardOverallResponse = DashboardSummaryData;
+export type DashboardStudentResponse = StudentsSummary;
+export interface DashboardAcademicResponse {
+  attendance: AttendanceSummary;
+  homework: HomeworkSummary;
+  leave: LeaveSummary;
+  makeupCredits: MakeupCreditsSummary;
+}
+export type DashboardFinanceResponse = FinanceSummary;
+export type DashboardHRResponse = HumanResourcesSummary;
+export interface DashboardLeadsResponse {
+  leads: LeadsSummary;
+  placementTests: PlacementTestsSummary;
+}
 
+export type DashboardOverallApiResponse = DashboardApiResponse<
+  DashboardSummaryData | DashboardData
+>;
+export type DashboardStudentApiResponse = DashboardApiResponse<DashboardStudentResponse>;
+export type DashboardAcademicApiResponse = DashboardApiResponse<DashboardAcademicResponse>;
+export type DashboardFinanceApiResponse = DashboardApiResponse<DashboardFinanceResponse>;
+export type DashboardHRApiResponse = DashboardApiResponse<DashboardHRResponse>;
+export type DashboardLeadsApiResponse = DashboardApiResponse<DashboardLeadsResponse>;
+export type AdminOverviewApiResponse = DashboardApiResponse<any>;

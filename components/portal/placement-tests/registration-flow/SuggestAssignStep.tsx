@@ -1,5 +1,110 @@
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Loader2, School } from "lucide-react";
-import type { RegistrationTrackType, SuggestedClassBucket } from "@/types/registration";
+import type {
+  RegistrationTrackType,
+  SuggestedClassBucket,
+} from "@/types/registration";
+
+const WEEK_DAYS = [
+  { value: "2", shortLabel: "T2", label: "Thứ 2", rrule: "MO" },
+  { value: "3", shortLabel: "T3", label: "Thứ 3", rrule: "TU" },
+  { value: "4", shortLabel: "T4", label: "Thứ 4", rrule: "WE" },
+  { value: "5", shortLabel: "T5", label: "Thứ 5", rrule: "TH" },
+  { value: "6", shortLabel: "T6", label: "Thứ 6", rrule: "FR" },
+  { value: "7", shortLabel: "T7", label: "Thứ 7", rrule: "SA" },
+  { value: "CN", shortLabel: "CN", label: "Chủ nhật", rrule: "SU" },
+] as const;
+
+const RRULE_TO_DAY: Record<string, string> = {
+  MO: "2",
+  TU: "3",
+  WE: "4",
+  TH: "5",
+  FR: "6",
+  SA: "7",
+  SU: "CN",
+};
+
+function parseClassScheduleMeta(pattern?: string | null) {
+  const raw = String(pattern || "").trim();
+  if (!raw) {
+    return { availableDays: [] as string[], defaultTime: "" };
+  }
+
+  const normalized = raw.replace(/^RRULE:/i, "");
+  const tokens = normalized.split(";").map((item) => item.trim());
+  const map = new Map<string, string>();
+
+  tokens.forEach((token) => {
+    const [k, v] = token.split("=");
+    if (!k || !v) return;
+    map.set(k.toUpperCase(), v);
+  });
+
+  const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
+  const availableDays = (map.get("BYDAY") || "")
+    .split(",")
+    .map(
+      (value) =>
+        RRULE_TO_DAY[
+          String(value || "")
+            .trim()
+            .toUpperCase()
+        ],
+    )
+    .filter(Boolean)
+    .sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+
+  const hourRaw = map.get("BYHOUR");
+  const minuteRaw = map.get("BYMINUTE") || "0";
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  const defaultTime =
+    Number.isFinite(hour) && Number.isFinite(minute)
+      ? `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+      : "";
+
+  return { availableDays, defaultTime };
+}
+
+function buildSessionSelectionPattern(
+  days: string[],
+  startTime: string,
+): string {
+  if (!startTime || days.length === 0) return "";
+
+  const dayOrder = ["2", "3", "4", "5", "6", "7", "CN"];
+  const byDay = [...new Set(days)]
+    .sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b))
+    .map((dayValue) => WEEK_DAYS.find((day) => day.value === dayValue)?.rrule)
+    .filter(Boolean)
+    .join(",");
+
+  if (!byDay) return "";
+
+  const [hourRaw, minuteRaw] = String(startTime).split(":");
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return "";
+
+  return `FREQ=WEEKLY;BYDAY=${byDay};BYHOUR=${hour};BYMINUTE=${minute}`;
+}
+
+function parsePreferredScheduleDays(schedule?: string | null): string[] {
+  const raw = String(schedule || "").toUpperCase();
+  if (!raw) return [];
+
+  const result = new Set<string>();
+  if (raw.includes("CN")) result.add("CN");
+
+  const thuMatches = raw.matchAll(/(?:THỨ\s*|T)([2-7])/g);
+  for (const match of thuMatches) {
+    if (match[1]) result.add(match[1]);
+  }
+
+  const order = ["2", "3", "4", "5", "6", "7", "CN"];
+  return Array.from(result).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+}
 
 interface SuggestAssignStepProps {
   registrationId: string;
@@ -34,6 +139,11 @@ interface SuggestAssignStepProps {
   setManualPrimaryClassId: (value: string) => void;
   manualSecondaryClassId: string;
   setManualSecondaryClassId: (value: string) => void;
+  preferredSchedule?: string | null;
+  manualPrimarySessionPattern: string;
+  setManualPrimarySessionPattern: (value: string) => void;
+  manualSecondarySessionPattern: string;
+  setManualSecondarySessionPattern: (value: string) => void;
   handleAssignManualClasses: () => void;
 }
 
@@ -65,13 +175,220 @@ export default function SuggestAssignStep({
   setManualPrimaryClassId,
   manualSecondaryClassId,
   setManualSecondaryClassId,
+  preferredSchedule,
+  manualPrimarySessionPattern,
+  setManualPrimarySessionPattern,
+  manualSecondarySessionPattern,
+  setManualSecondarySessionPattern,
   handleAssignManualClasses,
 }: SuggestAssignStepProps) {
+  const classMap = useMemo(
+    () =>
+      new Map<string, any>(
+        manualClasses
+          .map((cls) => [String(cls?.id || ""), cls] as const)
+          .filter(([id]) => Boolean(id)),
+      ),
+    [manualClasses],
+  );
+
+  const primaryScheduleMeta = useMemo(
+    () =>
+      parseClassScheduleMeta(
+        classMap.get(manualPrimaryClassId)?.schedulePattern,
+      ),
+    [classMap, manualPrimaryClassId],
+  );
+  const secondaryScheduleMeta = useMemo(
+    () =>
+      parseClassScheduleMeta(
+        classMap.get(manualSecondaryClassId)?.schedulePattern,
+      ),
+    [classMap, manualSecondaryClassId],
+  );
+
+  const [manualPrimaryDays, setManualPrimaryDays] = useState<string[]>([]);
+  const [manualPrimaryTime, setManualPrimaryTime] = useState("");
+  const [manualSecondaryDays, setManualSecondaryDays] = useState<string[]>([]);
+  const [manualSecondaryTime, setManualSecondaryTime] = useState("");
+
+  const preferredDays = useMemo(
+    () => parsePreferredScheduleDays(preferredSchedule),
+    [preferredSchedule],
+  );
+
+  const selectedTotalDays = useMemo(() => {
+    const merged = new Set<string>([
+      ...manualPrimaryDays,
+      ...manualSecondaryDays,
+    ]);
+    return merged.size;
+  }, [manualPrimaryDays, manualSecondaryDays]);
+
+  useEffect(() => {
+    if (assignViewMode !== "manual") return;
+    setManualPrimaryDays((prev) => {
+      const kept = prev.filter((day) =>
+        primaryScheduleMeta.availableDays.includes(day),
+      );
+      if (kept.length > 0) return kept;
+      return primaryScheduleMeta.availableDays[0]
+        ? [primaryScheduleMeta.availableDays[0]]
+        : [];
+    });
+    setManualPrimaryTime(
+      (prev) => prev || primaryScheduleMeta.defaultTime || "",
+    );
+  }, [
+    assignViewMode,
+    primaryScheduleMeta.availableDays,
+    primaryScheduleMeta.defaultTime,
+  ]);
+
+  useEffect(() => {
+    if (assignViewMode !== "manual") return;
+    setManualSecondaryDays((prev) => {
+      const kept = prev.filter((day) =>
+        secondaryScheduleMeta.availableDays.includes(day),
+      );
+      if (kept.length > 0) return kept;
+      return secondaryScheduleMeta.availableDays[0]
+        ? [secondaryScheduleMeta.availableDays[0]]
+        : [];
+    });
+    setManualSecondaryTime(
+      (prev) => prev || secondaryScheduleMeta.defaultTime || "",
+    );
+  }, [
+    assignViewMode,
+    secondaryScheduleMeta.availableDays,
+    secondaryScheduleMeta.defaultTime,
+  ]);
+
+  useEffect(() => {
+    setManualPrimarySessionPattern(
+      buildSessionSelectionPattern(manualPrimaryDays, manualPrimaryTime),
+    );
+  }, [manualPrimaryDays, manualPrimaryTime, setManualPrimarySessionPattern]);
+
+  useEffect(() => {
+    if (!hasSecondaryTrack) {
+      setManualSecondarySessionPattern("");
+      return;
+    }
+
+    setManualSecondarySessionPattern(
+      buildSessionSelectionPattern(manualSecondaryDays, manualSecondaryTime),
+    );
+  }, [
+    hasSecondaryTrack,
+    manualSecondaryDays,
+    manualSecondaryTime,
+    setManualSecondarySessionPattern,
+  ]);
+
+  const toggleTrackDay = (
+    value: string,
+    selectedDays: string[],
+    availableDays: string[],
+    setter: (next: string[]) => void,
+  ) => {
+    if (!availableDays.includes(value)) return;
+    if (selectedDays.includes(value)) {
+      setter(selectedDays.filter((day) => day !== value));
+      return;
+    }
+    setter([...selectedDays, value]);
+  };
+
+  const renderTrackSessionSelector = ({
+    title,
+    selectedClassId,
+    selectedDays,
+    setSelectedDays,
+    selectedTime,
+    setSelectedTime,
+    scheduleMeta,
+    pattern,
+  }: {
+    title: string;
+    selectedClassId: string;
+    selectedDays: string[];
+    setSelectedDays: (value: string[]) => void;
+    selectedTime: string;
+    setSelectedTime: (value: string) => void;
+    scheduleMeta: { availableDays: string[]; defaultTime: string };
+    pattern: string;
+  }) => {
+    if (!selectedClassId) return null;
+
+    return (
+      <div className="space-y-2 rounded-xl border border-red-100 bg-red-50/40 p-3">
+        <div className="text-xs font-semibold text-gray-700">{title}</div>
+
+        <div className="space-y-1">
+          <div className="text-[11px] text-gray-500">
+            Chọn ngày học thuộc lịch của lớp đã chọn
+          </div>
+          <div className="grid grid-cols-4 gap-1.5 md:grid-cols-7">
+            {WEEK_DAYS.map((day) => {
+              const available = scheduleMeta.availableDays.includes(day.value);
+              const active = selectedDays.includes(day.value);
+              return (
+                <button
+                  key={`${title}-${day.value}`}
+                  type="button"
+                  onClick={() =>
+                    toggleTrackDay(
+                      day.value,
+                      selectedDays,
+                      scheduleMeta.availableDays,
+                      setSelectedDays,
+                    )
+                  }
+                  disabled={!available}
+                  className={`rounded-lg border px-1.5 py-1 text-center text-[11px] transition-colors ${
+                    active
+                      ? "border-red-500 bg-red-100 text-red-700"
+                      : available
+                        ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                        : "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  <div className="font-semibold leading-none">
+                    {day.shortLabel}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[11px] text-gray-500">
+            Giờ bắt đầu buổi học
+          </label>
+          <input
+            type="time"
+            value={selectedTime}
+            onChange={(e) => setSelectedTime(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+          />
+          {scheduleMeta.defaultTime ? (
+            <p className="text-[11px] text-gray-500">
+              Giờ học của lớp: {scheduleMeta.defaultTime}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
       <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
         <ArrowRight size={18} className="text-red-600" />
-       Gợi ý lớp phù hợp và xếp lớp
+        Gợi ý lớp phù hợp và xếp lớp
       </div>
 
       <div className="space-y-3">
@@ -86,21 +403,34 @@ export default function SuggestAssignStep({
                 : "border-red-300 bg-white text-red-700"
             }`}
           >
-            {isSuggesting ? <Loader2 size={14} className="animate-spin" /> : <School size={14} />}
+            {isSuggesting ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <School size={14} />
+            )}
             Gợi ý lớp phù hợp
           </button>
 
           <button
             type="button"
             onClick={handleLoadManualClasses}
-            disabled={!allowManualAssign || !registrationId || isLoadingManualClasses || !branchId}
+            disabled={
+              !allowManualAssign ||
+              !registrationId ||
+              isLoadingManualClasses ||
+              !branchId
+            }
             className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
               assignViewMode === "manual"
                 ? "border-red-600 bg-red-600 text-white"
                 : "border-red-300 bg-white text-red-700"
             }`}
           >
-            {isLoadingManualClasses ? <Loader2 size={14} className="animate-spin" /> : <School size={14} />}
+            {isLoadingManualClasses ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <School size={14} />
+            )}
             Xếp lớp thủ công
           </button>
 
@@ -115,21 +445,23 @@ export default function SuggestAssignStep({
         </div>
 
         <div className="rounded-xl border border-red-100 bg-white/80 p-3">
-          <p className="pb-2 text-xs text-gray-500">
-            Mỗi lần chỉ hiển thị một giao diện xếp lớp để thao tác nhanh và ít rối.
-          </p>
-
           {assignViewMode === "suggested" && suggestedClasses && (
             <div className="space-y-3">
               {(hasSecondaryTrack || suggestedClasses.programName) && (
                 <div className="rounded-xl border border-red-200 bg-white p-3">
-                  <div className="text-sm font-semibold text-gray-900">Track xếp lớp</div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    Track xếp lớp
+                  </div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         setSelectedTrack("primary");
-                        setSelectedClassId(String(suggestedClasses.suggestedClasses?.[0]?.id ?? ""));
+                        setSelectedClassId(
+                          String(
+                            suggestedClasses.suggestedClasses?.[0]?.id ?? "",
+                          ),
+                        );
                       }}
                       className={`rounded-xl border px-3 py-1.5 text-sm font-semibold ${
                         selectedTrack === "primary"
@@ -138,14 +470,21 @@ export default function SuggestAssignStep({
                       }`}
                     >
                       Primary
-                      {suggestedClasses.programName ? ` • ${suggestedClasses.programName}` : ""}
+                      {suggestedClasses.programName
+                        ? ` • ${suggestedClasses.programName}`
+                        : ""}
                     </button>
                     {hasSecondaryTrack ? (
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedTrack("secondary");
-                          setSelectedClassId(String(suggestedClasses.secondarySuggestedClasses?.[0]?.id ?? ""));
+                          setSelectedClassId(
+                            String(
+                              suggestedClasses.secondarySuggestedClasses?.[0]
+                                ?.id ?? "",
+                            ),
+                          );
                         }}
                         className={`rounded-xl border px-3 py-1.5 text-sm font-semibold ${
                           selectedTrack === "secondary"
@@ -154,11 +493,14 @@ export default function SuggestAssignStep({
                         }`}
                       >
                         Secondary
-                        {suggestedClasses.secondaryProgramName ? ` • ${suggestedClasses.secondaryProgramName}` : ""}
+                        {suggestedClasses.secondaryProgramName
+                          ? ` • ${suggestedClasses.secondaryProgramName}`
+                          : ""}
                       </button>
                     ) : null}
                   </div>
-                  {selectedTrack === "secondary" && suggestedClasses.secondaryProgramSkillFocus ? (
+                  {selectedTrack === "secondary" &&
+                  suggestedClasses.secondaryProgramSkillFocus ? (
                     <div className="mt-2 text-xs text-gray-500">
                       Skill focus: {suggestedClasses.secondaryProgramSkillFocus}
                     </div>
@@ -173,9 +515,11 @@ export default function SuggestAssignStep({
                     const remainingSlots =
                       typeof cls.remainingSlots === "number"
                         ? cls.remainingSlots
-                        : typeof cls.capacity === "number" && typeof cls.currentEnrollment === "number"
+                        : typeof cls.capacity === "number" &&
+                            typeof cls.currentEnrollment === "number"
                           ? cls.capacity - cls.currentEnrollment
-                          : typeof cls.capacity === "number" && typeof cls.currentEnrollmentCount === "number"
+                          : typeof cls.capacity === "number" &&
+                              typeof cls.currentEnrollmentCount === "number"
                             ? cls.capacity - cls.currentEnrollmentCount
                             : null;
                     return (
@@ -189,11 +533,19 @@ export default function SuggestAssignStep({
                             : "border-red-200 bg-white hover:bg-red-50"
                         }`}
                       >
-                        <div className="text-sm font-semibold text-gray-900">{cls.code}</div>
-                        <div className="mt-1 text-xs text-gray-600">
-                          Còn chỗ: {typeof remainingSlots === "number" ? Math.max(0, remainingSlots) : "-"}
+                        <div className="text-sm font-semibold text-gray-900">
+                          {cls.code}
                         </div>
-                        <div className="mt-0.5 text-xs text-gray-600" title={cls.schedulePattern || ""}>
+                        <div className="mt-1 text-xs text-gray-600">
+                          Còn chỗ:{" "}
+                          {typeof remainingSlots === "number"
+                            ? Math.max(0, remainingSlots)
+                            : "-"}
+                        </div>
+                        <div
+                          className="mt-0.5 text-xs text-gray-600"
+                          title={cls.schedulePattern || ""}
+                        >
                           Lịch: {formatSchedulePattern(cls.schedulePattern)}
                         </div>
                       </button>
@@ -208,9 +560,12 @@ export default function SuggestAssignStep({
 
               {activeAlternativeClasses.length > 0 && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <div className="text-sm font-semibold text-amber-900">Lớp thay thế</div>
+                  <div className="text-sm font-semibold text-amber-900">
+                    Lớp thay thế
+                  </div>
                   <div className="mt-2 text-xs text-amber-800">
-                    Có {activeAlternativeClasses.length} lớp thay thế cho track {selectedTrack}.
+                    Có {activeAlternativeClasses.length} lớp thay thế cho track{" "}
+                    {selectedTrack}.
                   </div>
                 </div>
               )}
@@ -228,10 +583,18 @@ export default function SuggestAssignStep({
 
           {allowManualAssign && assignViewMode === "manual" && (
             <div className="space-y-3 rounded-xl border border-red-200 bg-white p-3">
-              <div className="text-sm font-semibold text-gray-900">Xếp lớp thủ công theo chương trình</div>
-              <p className="text-xs text-gray-500">
-                Chế độ thủ công sẽ gọi API assign class riêng cho từng track. Nếu có secondary, hệ thống sẽ gọi 2 lần: Primary rồi Secondary.
-              </p>
+              <div className="text-sm font-semibold text-gray-900">
+                Xếp lớp thủ công theo chương trình
+              </div>
+              <div className="rounded-xl border border-red-100 bg-red-50/50 px-3 py-2 text-sm text-gray-700">
+                <div>
+                  Lịch mong muốn của học viên: <span className="font-semibold">{preferredSchedule || "Chưa có"}</span>
+                </div>
+                {/* <div className="mt-1 text-[11px] text-gray-500">
+                  Tổng ngày đã chọn cho manual assign: {selectedTotalDays}
+                  {preferredDays.length > 0 ? ` / ${preferredDays.length} ngày mong muốn` : ""}
+                </div> */}
+              </div>
 
               {manualClasses.length === 0 && !isLoadingManualClasses ? (
                 <div className="text-xs text-gray-600">
@@ -240,7 +603,9 @@ export default function SuggestAssignStep({
               ) : (
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-gray-700">Lớp cho chương trình Primary</label>
+                    <label className="text-xs font-semibold text-gray-700">
+                      Lớp cho chương trình Primary
+                    </label>
                     <select
                       value={manualPrimaryClassId}
                       onChange={(e) => setManualPrimaryClassId(e.target.value)}
@@ -257,14 +622,29 @@ export default function SuggestAssignStep({
                         </option>
                       ))}
                     </select>
+
+                    {renderTrackSessionSelector({
+                      title: "Primary - chọn ngày/giờ học",
+                      selectedClassId: manualPrimaryClassId,
+                      selectedDays: manualPrimaryDays,
+                      setSelectedDays: setManualPrimaryDays,
+                      selectedTime: manualPrimaryTime,
+                      setSelectedTime: setManualPrimaryTime,
+                      scheduleMeta: primaryScheduleMeta,
+                      pattern: manualPrimarySessionPattern,
+                    })}
                   </div>
 
                   {hasSecondaryTrack && (
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-gray-700">Lớp cho chương trình Secondary</label>
+                      <label className="text-xs font-semibold text-gray-700">
+                        Lớp cho chương trình Secondary
+                      </label>
                       <select
                         value={manualSecondaryClassId}
-                        onChange={(e) => setManualSecondaryClassId(e.target.value)}
+                        onChange={(e) =>
+                          setManualSecondaryClassId(e.target.value)
+                        }
                         className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                       >
                         <option value="">Chọn lớp Secondary</option>
@@ -278,6 +658,17 @@ export default function SuggestAssignStep({
                           </option>
                         ))}
                       </select>
+
+                      {renderTrackSessionSelector({
+                        title: "Secondary - chọn ngày/giờ học",
+                        selectedClassId: manualSecondaryClassId,
+                        selectedDays: manualSecondaryDays,
+                        setSelectedDays: setManualSecondaryDays,
+                        selectedTime: manualSecondaryTime,
+                        setSelectedTime: setManualSecondaryTime,
+                        scheduleMeta: secondaryScheduleMeta,
+                        pattern: manualSecondarySessionPattern,
+                      })}
                     </div>
                   )}
                 </div>
@@ -305,7 +696,8 @@ export default function SuggestAssignStep({
 
           {assignViewMode === "none" && (
             <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-sm text-gray-500">
-              Chọn "Gợi ý lớp phù hợp" hoặc "Xếp lớp thủ công" để bắt đầu thao tác xếp lớp.
+              Chọn "Gợi ý lớp phù hợp" hoặc "Xếp lớp thủ công" để bắt đầu thao
+              tác xếp lớp.
             </div>
           )}
         </div>

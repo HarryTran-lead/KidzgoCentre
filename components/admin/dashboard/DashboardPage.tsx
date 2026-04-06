@@ -190,7 +190,7 @@ function TabButton({
       onClick={onClick}
       className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 cursor-pointer ${
         active
-          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+          ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-md"
           : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
       }`}
     >
@@ -209,6 +209,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   const attendance = data?.attendance;
   const homework = data?.homework;
   const leave = data?.leave;
+  const makeupCredits = data?.makeupCredits;
   const placementTests = data?.placementTests;
   const humanResources = data?.humanResources;
 
@@ -224,7 +225,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   const placementLine = useMemo(() => mapBreakdownToLine(placementTests?.statusBreakdown), [placementTests?.statusBreakdown]);
   const attendanceLine = useMemo(() => mapBreakdownToLine(attendance?.statusBreakdown), [attendance?.statusBreakdown]);
   const enrollmentLine = useMemo(() => mapBreakdownToLine(enrollments?.statusBreakdown), [enrollments?.statusBreakdown]);
-  const makeupLine = useMemo(() => mapBreakdownToLine(data?.makeupCredits?.statusBreakdown), [data?.makeupCredits?.statusBreakdown]);
+  const makeupLine = useMemo(() => mapBreakdownToLine(makeupCredits?.statusBreakdown), [makeupCredits?.statusBreakdown]);
   const leaveLine = useMemo(() => mapBreakdownToLine(leave?.statusBreakdown), [leave?.statusBreakdown]);
   const payrollLine = useMemo(
     () => mapBreakdownToLine(humanResources?.payrollRunStatusBreakdown),
@@ -233,30 +234,30 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
 
   const homeworkBars = useMemo<BarChartDatum[]>(
     () => [
-      { label: "Đã giao", value: num(homework?.assignedCount, homework?.total), color: "#dc2626" },
-      { label: "Đã nộp", value: num(homework?.submittedCount, homework?.submitted), color: "#404040" },
-      { label: "Đã chấm", value: num(homework?.gradedCount, homework?.graded), color: "#171717" },
-      { label: "Thiếu", value: num(homework?.missingCount), color: "#991b1b" },
+      { label: "Đã giao", value: num(homework?.assignedCount, homework?.total), color: "#3b82f6" },
+      { label: "Đã nộp", value: num(homework?.submittedCount, homework?.submitted), color: "#10b981" },
+      { label: "Đã chấm", value: num(homework?.gradedCount, homework?.graded), color: "#f59e0b" },
+      { label: "Thiếu", value: num(homework?.missingCount), color: "#ef4444" },
     ],
     [homework]
   );
 
   const hrRoleBars = useMemo<BarChartDatum[]>(
     () => [
-      { label: "Giáo viên", value: num(humanResources?.teacherCount), color: "#dc2626" },
-      { label: "Quản lý", value: num(humanResources?.managementStaffCount), color: "#404040" },
-      { label: "Kế toán", value: num(humanResources?.accountantStaffCount), color: "#171717" },
-      { label: "Quản trị", value: num(humanResources?.adminCount), color: "#991b1b" },
+      { label: "Giáo viên", value: num(humanResources?.teacherCount), color: "#10b981" },
+      { label: "Quản lý", value: num(humanResources?.managementStaffCount), color: "#3b82f6" },
+      { label: "Kế toán", value: num(humanResources?.accountantStaffCount), color: "#f59e0b" },
+      { label: "Quản trị", value: num(humanResources?.adminCount), color: "#8b5cf6" },
     ],
     [humanResources]
   );
 
   const hrTrendLine = useMemo<LineChartDatum[]>(
     () => [
-      { label: "Giờ làm", value: num(humanResources?.totalWorkHours), color: "#dc2626" },
-      { label: "Giờ TB", value: num(humanResources?.averageWorkHoursPerStaff), color: "#404040" },
-      { label: "Xử lý lương", value: num(humanResources?.payrollProcessed), color: "#171717" },
-      { label: "Chờ xử lý", value: num(humanResources?.payrollPending), color: "#991b1b" },
+      { label: "Giờ làm", value: num(humanResources?.totalWorkHours), color: "#2563eb" },
+      { label: "Giờ TB", value: num(humanResources?.averageWorkHoursPerStaff), color: "#0ea5e9" },
+      { label: "Xử lý lương", value: num(humanResources?.payrollProcessed), color: "#10b981" },
+      { label: "Chờ xử lý", value: num(humanResources?.payrollPending), color: "#f59e0b" },
     ],
     [humanResources]
   );
@@ -289,7 +290,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   return (
     <div className="space-y-7">
       {/* Updated header with red/gray theme */}
-      <div className="rounded-3xl border border-gray-200/80 bg-gradient-to-br from-white via-white to-red-50 p-5 shadow-[0_10px_40px_-24px_rgba(15,23,42,0.5)] md:p-6">
+      <div className="rounded-3xl border border-gray-200/80 bg-linear-to-br from-white via-white to-red-50 p-5 shadow-[0_10px_40px_-24px_rgba(15,23,42,0.5)] md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900 md:text-2xl">Bảng điều khiển quản trị</h1>
@@ -319,7 +320,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
               <button
                 type="button"
                 onClick={onRefresh}
-                className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 cursor-pointer"
+                className="rounded-xl bg-linear-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 cursor-pointer"
               >
                 Làm mới
               </button>
@@ -356,29 +357,28 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <ChartCard title="Phễu lead" rightContent={`Chuyển đổi: ${formatPercent(conversionRate)}`}>
+            <ChartCard title="Lead theo trạng thái" rightContent={`Chuyển đổi: ${formatPercent(leads?.conversionRate)}`}>
               <FunnelChart data={leadsBreakdown} />
-            </ChartCard>
-
-            <ChartCard title="Trạng thái điểm danh (Line)" rightContent={`Tỷ lệ: ${formatPercent(attendanceRate)}`}>
-              <DashboardLineChart data={attendanceLine} height={220} strokeColor="#dc2626" />
+            </ChartCard> 
+            <ChartCard title="Trạng thái điểm danh  " rightContent={`Tỷ lệ: ${formatPercent(attendance?.attendanceRate)}`}>
+              <DashboardLineChart data={attendanceLine} height={220} strokeColor="#0ea5e9" />
               <Legend data={attendanceLine} />
             </ChartCard>
 
-            <ChartCard title="Trạng thái ghi danh (Line)" rightContent={`Đang hoạt động: ${formatNumber(activeEnrollments)}`}>
-              <DashboardLineChart data={enrollmentLine} height={220} strokeColor="#404040" />
+            <ChartCard title="Trạng thái ghi danh  " rightContent={`Đang hoạt động: ${formatNumber(activeEnrollments)}`}>
+              <DashboardLineChart data={enrollmentLine} height={220} strokeColor="#6366f1" />
               <Legend data={enrollmentLine} />
             </ChartCard>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <ChartCard title="Placement test theo trạng thái (Line)">
-              <DashboardLineChart data={placementLine} height={240} strokeColor="#dc2626" />
+            <ChartCard title="Placement test theo trạng thái  ">
+              <DashboardLineChart data={placementLine} height={240} strokeColor="#10b981" />
               <Legend data={placementLine} />
             </ChartCard>
 
-            <ChartCard title="Leads theo trạng thái (Line)">
-              <DashboardLineChart data={leadsLine} height={240} strokeColor="#404040" />
+            <ChartCard title="Leads theo trạng thái  ">
+              <DashboardLineChart data={leadsLine} height={240} strokeColor="#2563eb" />
               <Legend data={leadsLine} />
             </ChartCard>
           </section>
@@ -393,22 +393,22 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
               <KpiCard title="Tổng lead" value={formatNumber(num(leads?.total, leads?.totalLeads))} icon={<UserPlus size={18} />} />
               <KpiCard title="Lead mới" value={formatNumber(num(leads?.new, leads?.newLeads))} icon={<Activity size={18} />} />
               <KpiCard title="Lead đã ghi danh" value={formatNumber(num(leads?.enrolled, leads?.enrolledLeads))} icon={<GraduationCap size={18} />} />
-              <KpiCard title="Tỷ lệ chuyển đổi" value={formatPercent(conversionRate)} icon={<TrendingUp size={18} />} />
+              <KpiCard title="Tỷ lệ chuyển đổi" value={formatPercent(leads?.conversionRate)} icon={<TrendingUp size={18} />} />
             </div>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <ChartCard title="Phễu lead theo trạng thái">
+            <ChartCard title="Lead theo trạng thái">
               <FunnelChart data={leadsBreakdown} />
             </ChartCard>
 
-            <ChartCard title="Trạng thái lead (Line)">
-              <DashboardLineChart data={leadsLine} height={220} strokeColor="#dc2626" />
+            <ChartCard title="Trạng thái lead  ">
+              <DashboardLineChart data={leadsLine} height={220} strokeColor="#2563eb" />
               <Legend data={leadsLine} />
             </ChartCard>
 
-            <ChartCard title="Placement test theo trạng thái (Line)">
-              <DashboardLineChart data={placementLine} height={220} strokeColor="#404040" />
+            <ChartCard title="Placement test theo trạng thái  ">
+              <DashboardLineChart data={placementLine} height={220} strokeColor="#10b981" />
               <Legend data={placementLine} />
             </ChartCard>
           </section>
@@ -420,7 +420,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           <section>
             <SectionTitle title="Học vụ" subtitle="Điểm danh, bài tập, nghỉ phép, tín chỉ bù" />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard title="Tỷ lệ điểm danh" value={formatPercent(attendanceRate)} icon={<ClipboardCheck size={18} />} />
+              <KpiCard title="Tỷ lệ điểm danh" value={formatPercent(attendance?.attendanceRate)} icon={<ClipboardCheck size={18} />} />
               <KpiCard title="Tỷ lệ nộp bài" value={formatPercent(homework?.submissionRate)} icon={<BookOpen size={18} />} />
               <KpiCard title="Tỷ lệ chấm bài" value={formatPercent(homework?.gradedRate)} icon={<Activity size={18} />} />
               <KpiCard title="Đơn nghỉ phép" value={formatNumber(num(leave?.total, leave?.totalRequests))} icon={<CalendarDays size={18} />} />
@@ -428,8 +428,8 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <ChartCard title="Điểm danh (Line)">
-              <DashboardLineChart data={attendanceLine} height={220} strokeColor="#dc2626" />
+            <ChartCard title="Điểm danh  ">
+              <DashboardLineChart data={attendanceLine} height={220} strokeColor="#0ea5e9" />
               <Legend data={attendanceLine} />
             </ChartCard>
 
@@ -437,13 +437,13 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
               <DashboardBarChart data={homeworkBars} height={220} />
             </ChartCard>
 
-            <ChartCard title="Nghỉ phép theo trạng thái (Line)">
-              <DashboardLineChart data={leaveLine} height={220} strokeColor="#404040" />
+            <ChartCard title="Nghỉ phép theo trạng thái  ">
+              <DashboardLineChart data={leaveLine} height={220} strokeColor="#8b5cf6" />
               <Legend data={leaveLine} />
             </ChartCard>
 
-            <ChartCard title="Tín chỉ bù theo trạng thái (Line)">
-              <DashboardLineChart data={makeupLine} height={220} strokeColor="#171717" />
+            <ChartCard title="Tín chỉ bù theo trạng thái  ">
+              <DashboardLineChart data={makeupLine} height={220} strokeColor="#f59e0b" />
               <Legend data={makeupLine} />
             </ChartCard>
 
@@ -464,7 +464,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           <section>
             <SectionTitle title="Nhân sự (HR)" subtitle="Cơ cấu nhân sự và bảng lương" />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <KpiCard title="Tổng nhân sự" value={formatNumber(totalStaff)} icon={<Briefcase size={18} />} />
+              <KpiCard title="Tổng nhân sự" value={formatNumber(humanResources?.totalStaff)} icon={<Briefcase size={18} />} />
               <KpiCard title="Giáo viên" value={formatNumber(humanResources?.teacherCount)} icon={<Users size={18} />} />
               <KpiCard title="Quản lý" value={formatNumber(humanResources?.managementStaffCount)} icon={<UserCog size={18} />} />
               <KpiCard title="Quản trị" value={formatNumber(humanResources?.adminCount)} icon={<UserCog size={18} />} />
@@ -477,13 +477,13 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
               <DashboardBarChart data={hrRoleBars} layout="vertical" height={240} />
             </ChartCard>
 
-            <ChartCard title="Trạng thái payroll run (Line)">
-              <DashboardLineChart data={payrollLine} height={220} strokeColor="#dc2626" />
+            <ChartCard title="Trạng thái payroll run  ">
+              <DashboardLineChart data={payrollLine} height={220} strokeColor="#06b6d4" />
               <Legend data={payrollLine} />
             </ChartCard>
 
-            <ChartCard title="Xu hướng vận hành HR (Line)">
-              <DashboardLineChart data={hrTrendLine} height={220} strokeColor="#404040" />
+            <ChartCard title="Xu hướng vận hành HR  ">
+              <DashboardLineChart data={hrTrendLine} height={220} strokeColor="#0f766e" />
               <Legend data={hrTrendLine} />
             </ChartCard>
           </section>
