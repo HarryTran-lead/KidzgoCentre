@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, BookOpen, Search } from "lucide-react";
+import { X, BookOpen, Users, Calendar } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import { getAccessToken } from "@/lib/store/authToken";
 
 interface ClassOption {
@@ -43,16 +50,12 @@ export default function EnrollmentFormModal({
   const [debouncedClassQuery, setDebouncedClassQuery] = useState("");
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
-  const [showClassDropdown, setShowClassDropdown] = useState(false);
-  const [selectedClassName, setSelectedClassName] = useState("");
 
   // Student profile search state
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [debouncedStudentQuery, setDebouncedStudentQuery] = useState("");
   const [studentProfiles, setStudentProfiles] = useState<StudentProfileOption[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
-  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
-  const [selectedStudentName, setSelectedStudentName] = useState("");
 
   // Debounce class search
   useEffect(() => {
@@ -139,10 +142,16 @@ export default function EnrollmentFormModal({
       setEnrollDate(new Date().toISOString().split("T")[0]);
       setClassSearchQuery("");
       setStudentSearchQuery("");
-      setSelectedClassName("");
-      setSelectedStudentName("");
     }
   }, [isOpen]);
+
+  const handleReset = () => {
+    setClassId("");
+    setStudentProfileId("");
+    setEnrollDate(new Date().toISOString().split("T")[0]);
+    setClassSearchQuery("");
+    setStudentSearchQuery("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,187 +170,208 @@ export default function EnrollmentFormModal({
 
   if (!isOpen) return null;
 
+  // Lấy tên lớp đã chọn để hiển thị
+  const selectedClass = classes.find(c => c.id === classId);
+  const selectedClassDisplay = selectedClass ? `${selectedClass.code} - ${selectedClass.title}` : "";
+
+  // Lấy tên học viên đã chọn để hiển thị
+  const selectedStudent = studentProfiles.find(s => s.id === studentProfileId);
+  const selectedStudentDisplay = selectedStudent ? selectedStudent.fullName : "";
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="bg-linear-to-r from-red-600 to-red-700 text-white p-5 rounded-t-2xl flex justify-between items-center">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <BookOpen size={22} />
-            Tạo ghi danh mới
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/10 transition-colors text-white"
-          >
-            <X size={22} />
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        {/* Header - Gradient đỏ như modal mẫu */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <BookOpen size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">Tạo ghi danh mới</h2>
+                <p className="text-sm text-red-100">Nhập thông tin chi tiết về ghi danh</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Đóng"
+            >
+              <X size={24} className="text-white" />
+            </button>
+          </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Class Selection */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Chọn lớp học <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                value={classId ? selectedClassName : classSearchQuery}
-                onChange={(e) => {
-                  setClassSearchQuery(e.target.value);
-                  setClassId("");
-                  setSelectedClassName("");
-                  setShowClassDropdown(true);
-                }}
-                onFocus={() => setShowClassDropdown(true)}
-                placeholder="Tìm kiếm lớp học..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none text-sm"
-              />
-              {classId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setClassId("");
-                    setSelectedClassName("");
+        {/* Form Body */}
+        <div className="p-6 max-h-[75vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Class Selection */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <div className="p-1.5 rounded-lg bg-red-100">
+                  <BookOpen size={16} className="text-red-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Thông tin lớp học</h3>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <BookOpen size={16} className="text-gray-400" />
+                  Chọn lớp học <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={classId}
+                  onValueChange={(value) => {
+                    setClassId(value);
                     setClassSearchQuery("");
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <X size={14} />
-                </button>
-              )}
-              {showClassDropdown && !classId && (
-                <>
-                  <div className="fixed inset-0 z-9998" onClick={() => setShowClassDropdown(false)} />
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-48 overflow-y-auto z-9999">
+                  <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                    <SelectValue placeholder="Chọn lớp học">
+                      {selectedClassDisplay}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="sticky top-0 bg-white p-2 border-b border-gray-100">
+                      <input
+                        type="text"
+                        value={classSearchQuery}
+                        onChange={(e) => setClassSearchQuery(e.target.value)}
+                        placeholder="Tìm kiếm lớp học..."
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
                     {isLoadingClasses ? (
                       <div className="px-4 py-3 text-sm text-gray-500 text-center">Đang tải...</div>
                     ) : classes.length === 0 ? (
                       <div className="px-4 py-3 text-sm text-gray-500 text-center">Không tìm thấy lớp học</div>
                     ) : (
                       classes.map((cls) => (
-                        <button
-                          key={cls.id}
-                          type="button"
-                          onClick={() => {
-                            setClassId(cls.id);
-                            setSelectedClassName(`${cls.code} - ${cls.title}`);
-                            setShowClassDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-sm"
-                        >
+                        <SelectItem key={cls.id} value={cls.id}>
                           <span className="font-medium text-red-600">{cls.code}</span>
                           <span className="text-gray-600"> - {cls.title}</span>
-                        </button>
+                        </SelectItem>
                       ))
                     )}
-                  </div>
-                </>
-              )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
 
-          {/* Student Profile Selection */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Chọn học viên <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                value={studentProfileId ? selectedStudentName : studentSearchQuery}
-                onChange={(e) => {
-                  setStudentSearchQuery(e.target.value);
-                  setStudentProfileId("");
-                  setSelectedStudentName("");
-                  setShowStudentDropdown(true);
-                }}
-                onFocus={() => setShowStudentDropdown(true)}
-                placeholder="Tìm kiếm học viên..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none text-sm"
-              />
-              {studentProfileId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStudentProfileId("");
-                    setSelectedStudentName("");
+            {/* Student Profile Selection */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <div className="p-1.5 rounded-lg bg-red-100">
+                  <Users size={16} className="text-red-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Thông tin học viên</h3>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Users size={16} className="text-gray-400" />
+                  Chọn học viên <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={studentProfileId}
+                  onValueChange={(value) => {
+                    setStudentProfileId(value);
                     setStudentSearchQuery("");
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <X size={14} />
-                </button>
-              )}
-              {showStudentDropdown && !studentProfileId && (
-                <>
-                  <div className="fixed inset-0 z-9998" onClick={() => setShowStudentDropdown(false)} />
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-48 overflow-y-auto z-9999">
+                  <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                    <SelectValue placeholder="Chọn học viên">
+                      {selectedStudentDisplay}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="sticky top-0 bg-white p-2 border-b border-gray-100">
+                      <input
+                        type="text"
+                        value={studentSearchQuery}
+                        onChange={(e) => setStudentSearchQuery(e.target.value)}
+                        placeholder="Tìm kiếm học viên..."
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
                     {isLoadingStudents ? (
                       <div className="px-4 py-3 text-sm text-gray-500 text-center">Đang tải...</div>
                     ) : studentProfiles.length === 0 ? (
                       <div className="px-4 py-3 text-sm text-gray-500 text-center">Không tìm thấy học viên</div>
                     ) : (
                       studentProfiles.map((profile) => (
-                        <button
-                          key={profile.id}
-                          type="button"
-                          onClick={() => {
-                            setStudentProfileId(profile.id);
-                            setSelectedStudentName(profile.fullName);
-                            setShowStudentDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-sm"
-                        >
-                          <span className="font-medium">{profile.fullName}</span>
+                        <SelectItem key={profile.id} value={profile.id}>
+                          <span className="font-medium text-gray-900">{profile.fullName}</span>
                           <span className="text-gray-400 text-xs ml-2">({profile.id.slice(0, 8)}...)</span>
-                        </button>
+                        </SelectItem>
                       ))
                     )}
-                  </div>
-                </>
-              )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
 
-          {/* Enroll Date */}
-          <div className="space-y-2">
-            <label htmlFor="enrollDate" className="block text-sm font-medium text-gray-700">
-              Ngày ghi danh <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="enrollDate"
-              type="date"
-              value={enrollDate}
-              onChange={(e) => setEnrollDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none text-sm"
-              required
-            />
-          </div>
+            {/* Enroll Date */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <div className="p-1.5 rounded-lg bg-red-100">
+                  <Calendar size={16} className="text-red-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Thời gian ghi danh</h3>
+              </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Calendar size={16} className="text-gray-400" />
+                  Ngày ghi danh <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={enrollDate}
+                  onChange={(e) => setEnrollDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all text-sm"
+                  required
+                />
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer - Giống modal mẫu */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-red-50 transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Hủy
+              Hủy bỏ
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !classId || !studentProfileId || !enrollDate}
-              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
-            >
-              {isSubmitting ? "Đang xử lý..." : "Tạo ghi danh"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Đặt lại
+              </button>
+              <button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={isSubmitting || !classId || !studentProfileId || !enrollDate}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSubmitting ? "Đang xử lý..." : "Tạo ghi danh"}
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

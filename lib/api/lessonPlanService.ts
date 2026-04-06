@@ -1,19 +1,19 @@
-/**
- * Lesson Plan + Lesson Plan Template API helper functions.
- *
- * The backend responses in this project are not fully consistent between
- * list/detail/create endpoints, so this service normalizes the data shape
- * before it reaches the UI.
- */
-
 import { ADMIN_ENDPOINTS, FILE_ENDPOINTS } from "@/constants/apiURL";
-import { del, get, patch, post, put } from "@/lib/axios";
+import { get, post, put } from "@/lib/axios";
 import { getAccessToken } from "@/lib/store/authToken";
 
 type ApiLikeResponse = {
   success?: boolean;
   isSuccess?: boolean;
   data?: unknown;
+  message?: string;
+};
+
+type ProblemDetails = {
+  title?: string;
+  detail?: string;
+  status?: number;
+  error?: string;
   message?: string;
 };
 
@@ -25,6 +25,16 @@ type PaginatedItems<T> = {
   totalPages: number;
 };
 
+export interface ServiceResponse<T> {
+  isSuccess: boolean;
+  data: T;
+  message?: string;
+  status?: number;
+  title?: string;
+  detail?: string;
+  raw?: unknown;
+}
+
 export interface LessonPlanTemplate {
   id: string;
   programId: string;
@@ -32,6 +42,9 @@ export interface LessonPlanTemplate {
   level: string;
   title: string;
   sessionIndex: number;
+  syllabusMetadata?: string | null;
+  syllabusContent?: string | null;
+  sourceFileName?: string | null;
   attachment?: string | null;
   isActive?: boolean;
   createdBy?: string;
@@ -56,15 +69,39 @@ export interface CreateLessonPlanTemplateRequest {
   level: string;
   title: string;
   sessionIndex: number;
+  syllabusMetadata?: string | null;
+  syllabusContent?: string | null;
+  sourceFileName?: string | null;
   attachment?: string | null;
 }
 
 export interface UpdateLessonPlanTemplateRequest {
-  level?: string;
-  title?: string;
-  sessionIndex?: number;
+  level?: string | null;
+  title?: string | null;
+  sessionIndex?: number | null;
+  syllabusMetadata?: string | null;
+  syllabusContent?: string | null;
+  sourceFileName?: string | null;
   attachment?: string | null;
-  isActive?: boolean;
+  isActive?: boolean | null;
+}
+
+export interface ImportedProgramSummary {
+  programId: string;
+  programName?: string;
+  importedSessions: number;
+}
+
+export interface ImportLessonPlanTemplatesRequest {
+  file: File;
+  programId?: string;
+  level?: string;
+  overwriteExisting?: boolean;
+}
+
+export interface ImportLessonPlanTemplatesResult {
+  importedCount: number;
+  programs: ImportedProgramSummary[];
 }
 
 export interface LessonPlan {
@@ -79,89 +116,62 @@ export interface LessonPlan {
   templateTitle?: string;
   templateLevel?: string;
   templateSessionIndex?: number;
-  plannedContent?: string;
-  actualContent?: string;
-  actualHomework?: string;
-  teacherNotes?: string;
-  submittedBy?: string;
-  submittedByName?: string;
-  submittedAt?: string;
+  plannedContent?: string | null;
+  actualContent?: string | null;
+  actualHomework?: string | null;
+  teacherNotes?: string | null;
+  submittedBy?: string | null;
+  submittedByName?: string | null;
+  submittedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
-}
-
-export interface GetLessonPlansParams {
-  sessionId?: string;
-  classId?: string;
-  templateId?: string;
-  submittedBy?: string;
-  fromDate?: string;
-  toDate?: string;
-  includeDeleted?: boolean;
-  pageNumber?: number;
-  pageSize?: number;
 }
 
 export interface CreateLessonPlanRequest {
   classId: string;
   sessionId: string;
   templateId?: string | null;
-  plannedContent: string;
-  actualContent?: string;
-  actualHomework?: string;
-  teacherNotes?: string;
+  plannedContent?: string | null;
+  actualContent?: string | null;
+  actualHomework?: string | null;
+  teacherNotes?: string | null;
 }
 
 export interface UpdateLessonPlanRequest {
   templateId?: string | null;
-  plannedContent?: string;
-  actualContent?: string;
-  actualHomework?: string;
-  teacherNotes?: string;
+  plannedContent?: string | null;
+  actualContent?: string | null;
+  actualHomework?: string | null;
+  teacherNotes?: string | null;
 }
 
-export interface UpdateLessonPlanActualRequest {
-  actualContent?: string;
-  actualHomework?: string;
-  teacherNotes?: string;
+export interface ClassLessonPlanSyllabusSession {
+  sessionId: string;
+  sessionIndex: number;
+  sessionDate?: string | null;
+  plannedTeacherId?: string | null;
+  plannedTeacherName?: string | null;
+  actualTeacherId?: string | null;
+  actualTeacherName?: string | null;
+  lessonPlanId?: string | null;
+  templateId?: string | null;
+  templateTitle?: string | null;
+  templateSyllabusContent?: string | null;
+  plannedContent?: string | null;
+  actualContent?: string | null;
+  actualHomework?: string | null;
+  teacherNotes?: string | null;
+  canEdit: boolean;
 }
 
-export interface LessonPlanTemplateListResponse {
-  isSuccess: boolean;
-  data: {
-    templates: PaginatedItems<LessonPlanTemplate>;
-  };
-  message?: string;
-  raw?: unknown;
-}
-
-export interface LessonPlanTemplateResponse {
-  isSuccess: boolean;
-  data: LessonPlanTemplate | null;
-  message?: string;
-  raw?: unknown;
-}
-
-export interface LessonPlanListResponse {
-  isSuccess: boolean;
-  data: {
-    lessonPlans: PaginatedItems<LessonPlan>;
-  };
-  message?: string;
-  raw?: unknown;
-}
-
-export interface LessonPlanResponse {
-  isSuccess: boolean;
-  data: LessonPlan | null;
-  message?: string;
-  raw?: unknown;
-}
-
-export interface DeleteEntityResponse {
-  isSuccess: boolean;
-  message?: string;
-  raw?: unknown;
+export interface ClassLessonPlanSyllabus {
+  classId: string;
+  classCode?: string;
+  classTitle?: string;
+  programId?: string;
+  programName?: string;
+  syllabusMetadata?: string | null;
+  sessions: ClassLessonPlanSyllabusSession[];
 }
 
 export interface LessonPlanFileUploadResponse {
@@ -212,6 +222,7 @@ function stringOr(...values: unknown[]) {
       return value;
     }
   }
+
   return "";
 }
 
@@ -246,26 +257,9 @@ function dateOr(...values: unknown[]) {
   return undefined;
 }
 
-function arrayFromCandidates<T>(root: any, candidates: string[]) {
-  for (const candidate of candidates) {
-    const direct = root?.[candidate];
-    if (Array.isArray(direct)) {
-      return direct as T[];
-    }
-    if (Array.isArray(direct?.items)) {
-      return direct.items as T[];
-    }
-  }
-
-  if (Array.isArray(root?.items)) {
-    return root.items as T[];
-  }
-
-  if (Array.isArray(root)) {
-    return root as T[];
-  }
-
-  return [] as T[];
+function normalizeNullableString(...values: unknown[]) {
+  const value = stringOr(...values);
+  return value || null;
 }
 
 function paginationFromCandidates<T>(root: any, candidates: string[]): PaginatedItems<T> {
@@ -304,6 +298,22 @@ function paginationFromCandidates<T>(root: any, candidates: string[]): Paginated
   };
 }
 
+function buildQuery<T extends object>(params?: T) {
+  const query = new URLSearchParams();
+
+  if (!params) return query.toString();
+
+  Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+
+    query.append(key, String(value));
+  });
+
+  return query.toString();
+}
+
 function normalizeTemplate(item: any): LessonPlanTemplate {
   return {
     id: stringOr(item?.id),
@@ -312,7 +322,10 @@ function normalizeTemplate(item: any): LessonPlanTemplate {
     level: stringOr(item?.level),
     title: stringOr(item?.title, item?.name, `Session ${numberOr(numberFromUnknown(item?.sessionIndex), 0)}`),
     sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex)),
-    attachment: stringOr(item?.attachment, item?.attachmentUrl, item?.fileUrl, item?.file?.url, item?.file?.path) || null,
+    syllabusMetadata: normalizeNullableString(item?.syllabusMetadata),
+    syllabusContent: normalizeNullableString(item?.syllabusContent),
+    sourceFileName: normalizeNullableString(item?.sourceFileName),
+    attachment: normalizeNullableString(item?.attachment, item?.attachmentUrl, item?.fileUrl, item?.file?.url, item?.file?.path),
     isActive: typeof item?.isActive === "boolean" ? item.isActive : undefined,
     createdBy: stringOr(item?.createdBy) || undefined,
     createdByName:
@@ -357,17 +370,17 @@ function normalizeLessonPlan(item: any): LessonPlan {
       session?.plannedDateTime,
       session?.actualDatetime
     ),
-    templateId: stringOr(item?.templateId, template?.id) || null,
+    templateId: normalizeNullableString(item?.templateId, template?.id),
     templateTitle: stringOr(item?.templateTitle, template?.title, template?.name) || undefined,
     templateLevel: stringOr(item?.templateLevel, template?.level) || undefined,
     templateSessionIndex: numberFromUnknown(item?.templateSessionIndex, template?.sessionIndex),
-    plannedContent: stringOr(item?.plannedContent, item?.planContent, item?.expectedContent) || undefined,
-    actualContent: stringOr(item?.actualContent, item?.realContent, item?.deliveredContent) || undefined,
-    actualHomework: stringOr(item?.actualHomework, item?.homework, item?.actualHomeWork) || undefined,
-    teacherNotes: stringOr(item?.teacherNotes, item?.teacherNote, item?.note, item?.notes) || undefined,
-    submittedBy: stringOr(item?.submittedBy, item?.submittedById, submittedByUser?.id, item?.updatedBy, item?.createdBy) || undefined,
+    plannedContent: normalizeNullableString(item?.plannedContent, item?.planContent, item?.expectedContent),
+    actualContent: normalizeNullableString(item?.actualContent, item?.realContent, item?.deliveredContent),
+    actualHomework: normalizeNullableString(item?.actualHomework, item?.homework, item?.actualHomeWork),
+    teacherNotes: normalizeNullableString(item?.teacherNotes, item?.teacherNote, item?.note, item?.notes),
+    submittedBy: normalizeNullableString(item?.submittedBy, item?.submittedById, submittedByUser?.id, item?.updatedBy, item?.createdBy),
     submittedByName:
-      stringOr(
+      normalizeNullableString(
         item?.submittedByName,
         item?.submittedByUserName,
         submittedByUser?.fullName,
@@ -377,166 +390,282 @@ function normalizeLessonPlan(item: any): LessonPlan {
         createdByUser?.fullName,
         createdByUser?.name,
         item?.teacherName
-      ) || undefined,
-    submittedAt: dateOr(item?.submittedAt, item?.submissionDate, item?.submissionAt),
+      ),
+    submittedAt: dateOr(item?.submittedAt, item?.submissionDate, item?.submissionAt) || null,
     createdAt: dateOr(item?.createdAt),
     updatedAt: dateOr(item?.updatedAt, item?.modifiedAt, item?.lastUpdatedAt),
   };
 }
 
-function buildQuery<T extends object>(params?: T) {
-  const query = new URLSearchParams();
-
-  if (!params) return query.toString();
-
-  Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") {
-      return;
-    }
-    query.append(key, String(value));
-  });
-
-  return query.toString();
+function normalizeSyllabusSession(item: any): ClassLessonPlanSyllabusSession {
+  return {
+    sessionId: stringOr(item?.sessionId),
+    sessionIndex: numberOr(numberFromUnknown(item?.sessionIndex)),
+    sessionDate: dateOr(item?.sessionDate) || null,
+    plannedTeacherId: normalizeNullableString(item?.plannedTeacherId),
+    plannedTeacherName: normalizeNullableString(item?.plannedTeacherName),
+    actualTeacherId: normalizeNullableString(item?.actualTeacherId),
+    actualTeacherName: normalizeNullableString(item?.actualTeacherName),
+    lessonPlanId: normalizeNullableString(item?.lessonPlanId),
+    templateId: normalizeNullableString(item?.templateId),
+    templateTitle: normalizeNullableString(item?.templateTitle),
+    templateSyllabusContent: normalizeNullableString(item?.templateSyllabusContent),
+    plannedContent: normalizeNullableString(item?.plannedContent),
+    actualContent: normalizeNullableString(item?.actualContent),
+    actualHomework: normalizeNullableString(item?.actualHomework),
+    teacherNotes: normalizeNullableString(item?.teacherNotes),
+    canEdit: booleanOr(item?.canEdit, false),
+  };
 }
 
-function templateResponse(response: ApiLikeResponse): LessonPlanTemplateResponse {
-  const data = unwrapData<any>(response);
-  const item = data?.lessonPlanTemplate ?? data?.template ?? data;
+function normalizeSyllabus(data: any): ClassLessonPlanSyllabus {
+  return {
+    classId: stringOr(data?.classId),
+    classCode: stringOr(data?.classCode) || undefined,
+    classTitle: stringOr(data?.classTitle) || undefined,
+    programId: stringOr(data?.programId) || undefined,
+    programName: stringOr(data?.programName) || undefined,
+    syllabusMetadata: normalizeNullableString(data?.syllabusMetadata),
+    sessions: Array.isArray(data?.sessions) ? data.sessions.map(normalizeSyllabusSession) : [],
+  };
+}
+
+function normalizeImportedProgram(item: any): ImportedProgramSummary {
+  return {
+    programId: stringOr(item?.programId),
+    programName: stringOr(item?.programName) || undefined,
+    importedSessions: numberOr(numberFromUnknown(item?.importedSessions)),
+  };
+}
+
+function extractErrorInfo(error: any) {
+  const payload = (error?.response?.data || error?.data || {}) as ProblemDetails;
+  const status = error?.response?.status ?? payload?.status;
+  const title = payload?.title;
+  const detail = payload?.detail;
+  const message = stringOr(detail, payload?.error, payload?.message, title, error?.message, "Request failed");
 
   return {
+    isSuccess: false as const,
+    message,
+    status,
+    title,
+    detail,
+    raw: error?.response?.data ?? error,
+  };
+}
+
+function successResponse<T>(data: T, response: ApiLikeResponse): ServiceResponse<T> {
+  return {
     isSuccess: isSuccess(response),
-    data: item ? normalizeTemplate(item) : null,
+    data,
     message: response?.message,
     raw: response,
   };
 }
 
-function lessonPlanResponse(response: ApiLikeResponse): LessonPlanResponse {
-  const data = unwrapData<any>(response);
-  const item = data?.lessonPlan ?? data?.plan ?? data;
-
+function errorResponse<T>(fallback: T, error: any): ServiceResponse<T> {
   return {
-    isSuccess: isSuccess(response),
-    data: item ? normalizeLessonPlan(item) : null,
-    message: response?.message,
-    raw: response,
+    ...extractErrorInfo(error),
+    data: fallback,
   };
 }
 
 export async function getAllLessonPlanTemplates(
   params?: GetLessonPlanTemplatesParams
-): Promise<LessonPlanTemplateListResponse> {
-  const query = buildQuery(params);
-  const url = `${ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES}${query ? `?${query}` : ""}`;
-  const response = await get<ApiLikeResponse>(url);
-  const data = unwrapData<any>(response);
-  const pagination = paginationFromCandidates<any>(data, [
-    "templates",
-    "Templates",
-    "lessonPlanTemplates",
-    "LessonPlanTemplates",
-  ]);
+): Promise<ServiceResponse<{ templates: PaginatedItems<LessonPlanTemplate> }>> {
+  try {
+    const query = buildQuery(params);
+    const url = `${ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES}${query ? `?${query}` : ""}`;
+    const response = await get<ApiLikeResponse>(url);
+    const data = unwrapData<any>(response);
+    const pagination = paginationFromCandidates<any>(data, [
+      "templates",
+      "Templates",
+      "lessonPlanTemplates",
+      "LessonPlanTemplates",
+    ]);
 
-  return {
-    isSuccess: isSuccess(response),
-    data: {
-      templates: {
-        ...pagination,
-        items: pagination.items.map(normalizeTemplate),
+    return successResponse(
+      {
+        templates: {
+          ...pagination,
+          items: pagination.items.map(normalizeTemplate),
+        },
       },
-    },
-    message: response?.message,
-    raw: response,
-  };
+      response
+    );
+  } catch (error) {
+    return errorResponse(
+      {
+        templates: {
+          items: [],
+          pageNumber: 1,
+          pageSize: 10,
+          totalCount: 0,
+          totalPages: 1,
+        },
+      },
+      error
+    );
+  }
 }
 
-export async function getLessonPlanTemplateById(id: string): Promise<LessonPlanTemplateResponse> {
-  const response = await get<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_BY_ID(id));
-  return templateResponse(response);
+export async function getLessonPlanTemplateById(id: string): Promise<ServiceResponse<LessonPlanTemplate | null>> {
+  try {
+    const response = await get<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_BY_ID(id));
+    const data = unwrapData<any>(response);
+    const item = data?.lessonPlanTemplate ?? data?.template ?? data;
+
+    return successResponse(item ? normalizeTemplate(item) : null, response);
+  } catch (error) {
+    return errorResponse(null, error);
+  }
 }
 
 export async function createLessonPlanTemplate(
   data: CreateLessonPlanTemplateRequest
-): Promise<LessonPlanTemplateResponse> {
-  const response = await post<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES, data);
-  return templateResponse(response);
+): Promise<ServiceResponse<LessonPlanTemplate | null>> {
+  try {
+    const response = await post<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES, data);
+    const responseData = unwrapData<any>(response);
+    const item = responseData?.lessonPlanTemplate ?? responseData?.template ?? responseData;
+
+    return successResponse(item ? normalizeTemplate(item) : null, response);
+  } catch (error) {
+    return errorResponse(null, error);
+  }
 }
 
 export async function updateLessonPlanTemplate(
   id: string,
   data: UpdateLessonPlanTemplateRequest
-): Promise<LessonPlanTemplateResponse> {
-  const response = await put<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_BY_ID(id), data);
-  return templateResponse(response);
+): Promise<ServiceResponse<LessonPlanTemplate | null>> {
+  try {
+    const response = await put<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_BY_ID(id), data);
+    const responseData = unwrapData<any>(response);
+    const item = responseData?.lessonPlanTemplate ?? responseData?.template ?? responseData;
+
+    return successResponse(item ? normalizeTemplate(item) : null, response);
+  } catch (error) {
+    return errorResponse(null, error);
+  }
 }
 
-export async function deleteLessonPlanTemplate(id: string): Promise<DeleteEntityResponse> {
-  const response = await del<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_BY_ID(id));
-  return {
-    isSuccess: isSuccess(response),
-    message: response?.message,
-    raw: response,
-  };
-}
+export async function importLessonPlanTemplates(
+  payload: ImportLessonPlanTemplatesRequest
+): Promise<ServiceResponse<ImportLessonPlanTemplatesResult | null>> {
+  const token = getAccessToken();
 
-export async function getAllLessonPlans(params?: GetLessonPlansParams): Promise<LessonPlanListResponse> {
-  const query = buildQuery(params);
-  const url = `${ADMIN_ENDPOINTS.LESSON_PLANS}${query ? `?${query}` : ""}`;
-  const response = await get<ApiLikeResponse>(url);
-  const data = unwrapData<any>(response);
-  const pagination = paginationFromCandidates<any>(data, [
-    "lessonPlans",
-    "LessonPlans",
-    "plans",
-    "Plans",
-  ]);
+  if (!token) {
+    return {
+      isSuccess: false,
+      data: null,
+      message: "Chua dang nhap.",
+    };
+  }
 
-  return {
-    isSuccess: isSuccess(response),
-    data: {
-      lessonPlans: {
-        ...pagination,
-        items: pagination.items.map(normalizeLessonPlan),
+  try {
+    const query = new URLSearchParams();
+
+    if (payload.programId) query.append("programId", payload.programId);
+    if (payload.level) query.append("level", payload.level);
+    if (payload.overwriteExisting !== undefined) {
+      query.append("overwriteExisting", String(payload.overwriteExisting));
+    }
+
+    const url = `${ADMIN_ENDPOINTS.LESSON_PLAN_TEMPLATES_IMPORT}${query.toString() ? `?${query.toString()}` : ""}`;
+    const formData = new FormData();
+    formData.append("file", payload.file);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
       },
-    },
-    message: response?.message,
-    raw: response,
-  };
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return {
+        isSuccess: false,
+        data: null,
+        message: stringOr(data?.detail, data?.error, data?.message, data?.title, "Import file that bai."),
+        status: typeof data?.status === "number" ? data.status : response.status,
+        title: stringOr(data?.title) || undefined,
+        detail: stringOr(data?.detail) || undefined,
+        raw: data,
+      };
+    }
+
+    const payloadData = data?.data ?? data;
+
+    return {
+      isSuccess: true,
+      data: {
+        importedCount: numberOr(numberFromUnknown(payloadData?.importedCount)),
+        programs: Array.isArray(payloadData?.programs) ? payloadData.programs.map(normalizeImportedProgram) : [],
+      },
+      message: data?.message,
+      raw: data,
+    };
+  } catch (error) {
+    return errorResponse(null, error);
+  }
 }
 
-export async function getLessonPlanById(id: string): Promise<LessonPlanResponse> {
-  const response = await get<ApiLikeResponse>(`${ADMIN_ENDPOINTS.LESSON_PLANS}/${id}`);
-  return lessonPlanResponse(response);
+export async function getClassLessonPlanSyllabus(
+  classId: string
+): Promise<ServiceResponse<ClassLessonPlanSyllabus | null>> {
+  try {
+    const response = await get<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLANS_CLASS_SYLLABUS(classId));
+    const data = unwrapData<any>(response);
+
+    return successResponse(data ? normalizeSyllabus(data) : null, response);
+  } catch (error) {
+    return errorResponse(null, error);
+  }
 }
 
-export async function createLessonPlan(data: CreateLessonPlanRequest): Promise<LessonPlanResponse> {
-  const response = await post<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLANS, data);
-  return lessonPlanResponse(response);
+export async function getLessonPlanById(id: string): Promise<ServiceResponse<LessonPlan | null>> {
+  try {
+    const response = await get<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLANS_BY_ID(id));
+    const data = unwrapData<any>(response);
+    const item = data?.lessonPlan ?? data?.plan ?? data;
+
+    return successResponse(item ? normalizeLessonPlan(item) : null, response);
+  } catch (error) {
+    return errorResponse(null, error);
+  }
+}
+
+export async function createLessonPlan(data: CreateLessonPlanRequest): Promise<ServiceResponse<LessonPlan | null>> {
+  try {
+    const response = await post<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLANS, data);
+    const responseData = unwrapData<any>(response);
+    const item = responseData?.lessonPlan ?? responseData?.plan ?? responseData;
+
+    return successResponse(item ? normalizeLessonPlan(item) : null, response);
+  } catch (error) {
+    return errorResponse(null, error);
+  }
 }
 
 export async function updateLessonPlan(
   id: string,
   data: UpdateLessonPlanRequest
-): Promise<LessonPlanResponse> {
-  const response = await put<ApiLikeResponse>(`${ADMIN_ENDPOINTS.LESSON_PLANS}/${id}`, data);
-  return lessonPlanResponse(response);
-}
+): Promise<ServiceResponse<LessonPlan | null>> {
+  try {
+    const response = await put<ApiLikeResponse>(ADMIN_ENDPOINTS.LESSON_PLANS_BY_ID(id), data);
+    const responseData = unwrapData<any>(response);
+    const item = responseData?.lessonPlan ?? responseData?.plan ?? responseData;
 
-export async function updateLessonPlanActual(
-  id: string,
-  data: UpdateLessonPlanActualRequest
-): Promise<LessonPlanResponse> {
-  const response = await patch<ApiLikeResponse>(`${ADMIN_ENDPOINTS.LESSON_PLANS}/${id}/actual`, data);
-  return lessonPlanResponse(response);
-}
-
-export async function deleteLessonPlan(id: string): Promise<DeleteEntityResponse> {
-  const response = await del<ApiLikeResponse>(`${ADMIN_ENDPOINTS.LESSON_PLANS}/${id}`);
-  return {
-    isSuccess: isSuccess(response),
-    message: response?.message,
-    raw: response,
-  };
+    return successResponse(item ? normalizeLessonPlan(item) : null, response);
+  } catch (error) {
+    return errorResponse(null, error);
+  }
 }
 
 export async function uploadLessonPlanFile(
@@ -547,7 +676,7 @@ export async function uploadLessonPlanFile(
   const token = getAccessToken();
 
   if (!token) {
-    throw new Error("Chưa đăng nhập.");
+    throw new Error("Chua dang nhap.");
   }
 
   const folder =
@@ -573,9 +702,7 @@ export async function uploadLessonPlanFile(
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(
-      stringOr(data?.message, data?.error, data?.detail, data?.title, "Tải file lên thất bại.")
-    );
+    throw new Error(stringOr(data?.message, data?.error, data?.detail, data?.title, "Tai file len that bai."));
   }
 
   return {
@@ -586,15 +713,3 @@ export async function uploadLessonPlanFile(
     resourceType: stringOr(data?.resourceType) || undefined,
   };
 }
-
-export function getTemplateItems(response: LessonPlanTemplateListResponse) {
-  return response.data.templates.items;
-}
-
-export function getLessonPlanItems(response: LessonPlanListResponse) {
-  return response.data.lessonPlans.items;
-}
-
-// Backward-compatible aliases for older imports.
-export const listLessonPlanTemplates = getAllLessonPlanTemplates;
-export const listLessonPlans = getAllLessonPlans;

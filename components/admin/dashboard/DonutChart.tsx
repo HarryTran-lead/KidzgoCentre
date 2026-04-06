@@ -29,7 +29,7 @@ export default function DonutChart({
   noDataText = "Không có dữ liệu",
 }: DonutChartProps) {
   if (!hasRenderableData(data)) {
-    return <div className="flex h-full min-h-45 items-center justify-center text-sm text-slate-400">{noDataText}</div>;
+    return <div className="flex h-full min-h-45 items-center justify-center text-sm text-gray-400">{noDataText}</div>;
   }
 
   return (
@@ -43,7 +43,7 @@ export default function DonutChart({
           </Pie>
           <Tooltip
             formatter={(value: number | undefined, name) => [(value ?? 0).toLocaleString("vi-VN"), name]}
-            contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0" }}
+            contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", backgroundColor: "white" }}
           />
         </PieChart>
       </ResponsiveContainer>

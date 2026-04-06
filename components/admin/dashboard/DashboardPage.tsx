@@ -24,7 +24,7 @@ import DashboardLineChart, { type LineChartDatum } from "./LineChart";
 import FunnelChart from "./FunnelChart";
 
 interface DashboardPageProps {
-  data: DashboardOverallResponse | null;
+  data: Partial<DashboardOverallResponse> | null;
   loading?: boolean;
   error?: string | null;
   onRefresh?: () => void;
@@ -32,7 +32,8 @@ interface DashboardPageProps {
 
 type DashboardTab = "overview" | "leads" | "academic" | "hr";
 
-const CHART_COLORS = ["#10b981", "#2563eb", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#f97316"];
+// Updated color palette: Red and Gray theme
+const CHART_COLORS = ["#dc2626", "#404040", "#171717", "#991b1b", "#4b5563", "#6b7280", "#9ca3af"];
 
 const STATUS_TRANSLATIONS: Record<string, string> = {
   active: "Đang hoạt động",
@@ -126,7 +127,7 @@ function formatMoney(value: number | undefined): string {
 
 function EmptyBlock({ text = "Không có dữ liệu" }: { text?: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-400">
+    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-400">
       {text}
     </div>
   );
@@ -138,12 +139,12 @@ function Legend({ data }: { data: LineChartDatum[] }) {
   return (
     <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
       {data.map((item) => (
-        <div key={item.label} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
-          <div className="flex items-center gap-2 text-sm text-slate-600">
+        <div key={item.label} className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
             <span>{item.label}</span>
           </div>
-          <span className="text-sm font-semibold text-slate-900">{item.value.toLocaleString("vi-VN")}</span>
+          <span className="text-sm font-semibold text-gray-900">{item.value.toLocaleString("vi-VN")}</span>
         </div>
       ))}
     </div>
@@ -154,10 +155,10 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle?: string })
   return (
     <div className="flex items-end justify-between gap-3">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        {subtitle ? <p className="mt-1 text-sm text-gray-500">{subtitle}</p> : null}
       </div>
-      <span className="inline-flex items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+      <span className="inline-flex items-center gap-1 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
         <Sparkles size={12} /> Live view
       </span>
     </div>
@@ -168,7 +169,7 @@ function LoadingGrid() {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: 9 }).map((_, index) => (
-        <div key={index} className="h-44 animate-pulse rounded-3xl border border-slate-200 bg-white p-4 shadow-sm" />
+        <div key={index} className="h-44 animate-pulse rounded-3xl border border-gray-200 bg-white p-4 shadow-sm" />
       ))}
     </div>
   );
@@ -187,10 +188,10 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+      className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 cursor-pointer ${
         active
-          ? "bg-linear-to-r from-cyan-600 to-blue-700 text-white shadow-md"
-          : "text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+          : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
       }`}
     >
       {label}
@@ -229,6 +230,8 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   const payrollLine = useMemo(
     () => mapBreakdownToLine(humanResources?.payrollRunStatusBreakdown),
     [humanResources?.payrollRunStatusBreakdown]
+    () => mapBreakdownToLine(humanResources?.payrollRunStatusBreakdown),
+    [humanResources?.payrollRunStatusBreakdown]
   );
 
   const homeworkBars = useMemo<BarChartDatum[]>(
@@ -238,6 +241,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       { label: "Đã chấm", value: num(homework?.gradedCount, homework?.graded), color: "#f59e0b" },
       { label: "Thiếu", value: num(homework?.missingCount), color: "#ef4444" },
     ],
+    [homework]
     [homework]
   );
 
@@ -249,6 +253,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       { label: "Quản trị", value: num(humanResources?.adminCount), color: "#8b5cf6" },
     ],
     [humanResources]
+    [humanResources]
   );
 
   const hrTrendLine = useMemo<LineChartDatum[]>(
@@ -258,6 +263,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       { label: "Xử lý lương", value: num(humanResources?.payrollProcessed), color: "#10b981" },
       { label: "Chờ xử lý", value: num(humanResources?.payrollPending), color: "#f59e0b" },
     ],
+    [humanResources]
     [humanResources]
   );
 
@@ -273,7 +279,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           <button
             type="button"
             onClick={onRefresh}
-            className="mt-3 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700"
+            className="mt-3 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 cursor-pointer"
           >
             Tải lại
           </button>
@@ -288,26 +294,27 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
 
   return (
     <div className="space-y-7">
-      <div className="rounded-3xl border border-slate-200/80 bg-linear-to-br from-white via-white to-sky-50 p-5 shadow-[0_10px_40px_-24px_rgba(15,23,42,0.5)] md:p-6">
+      {/* Updated header with red/gray theme */}
+      <div className="rounded-3xl border border-gray-200/80 bg-gradient-to-br from-white via-white to-red-50 p-5 shadow-[0_10px_40px_-24px_rgba(15,23,42,0.5)] md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 md:text-2xl">Bảng điều khiển quản trị</h1>
-            <p className="mt-1 text-sm text-slate-500">Tổng hợp dữ liệu vận hành theo thời gian thực, tối ưu cho theo dõi nhanh.</p>
+            <h1 className="text-xl font-bold text-gray-900 md:text-2xl">Bảng điều khiển quản trị</h1>
+            <p className="mt-1 text-sm text-gray-500">Tổng hợp dữ liệu vận hành theo thời gian thực, tối ưu cho theo dõi nhanh.</p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">Học viên: {formatNumber(studentsTotal)}</span>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">Lead: {formatNumber(totalLeads)}</span>
-              <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">Điểm danh: {formatPercent(attendanceRate)}</span>
+              <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">Học viên: {formatNumber(studentsTotal)}</span>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">Lead: {formatNumber(totalLeads)}</span>
+              <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">Điểm danh: {formatPercent(attendanceRate)}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+            <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600">
               <CalendarDays size={16} />
               <span>Khoảng thời gian</span>
               <select
                 value={selectedRange}
                 onChange={(e) => setSelectedRange(e.target.value)}
-                className="border-none bg-transparent text-sm font-medium text-slate-700 outline-none"
+                className="border-none bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer"
               >
                 <option value="7d">7 ngày gần nhất</option>
                 <option value="30d">30 ngày gần nhất</option>
@@ -318,7 +325,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
               <button
                 type="button"
                 onClick={onRefresh}
-                className="rounded-xl bg-linear-to-r from-cyan-600 to-blue-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+                className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 cursor-pointer"
               >
                 Làm mới
               </button>
@@ -327,7 +334,8 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
         </div>
       </div>
 
-      <div className="sticky top-2 z-10 flex w-full flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-white/95 p-2 shadow-sm backdrop-blur">
+      {/* Tab buttons with red gradient */}
+      <div className="sticky top-2 z-10 flex w-full flex-wrap gap-2 rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-sm backdrop-blur">
         <TabButton active={activeTab === "overview"} label="Overview" onClick={() => setActiveTab("overview")} />
         <TabButton active={activeTab === "leads"} label="Leads" onClick={() => setActiveTab("leads")} />
         <TabButton active={activeTab === "academic"} label="Academic" onClick={() => setActiveTab("academic")} />
@@ -450,6 +458,10 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
                 <KpiCard title="Hoàn thành" value={formatNumber(num(placementTests?.completed, placementTests?.completedTests))} icon={<GraduationCap size={16} />} />
                 <KpiCard title="Không tham dự" value={formatNumber(num(placementTests?.noShow, placementTests?.noShowTests))} icon={<Users size={16} />} />
                 <KpiCard title="Tỷ lệ hoàn thành" value={formatPercent(placementTests?.completionRate)} icon={<TrendingUp size={16} />} />
+                <KpiCard title="Tổng bài test" value={formatNumber(num(placementTests?.total, placementTests?.totalTests))} icon={<ClipboardCheck size={16} />} />
+                <KpiCard title="Hoàn thành" value={formatNumber(num(placementTests?.completed, placementTests?.completedTests))} icon={<GraduationCap size={16} />} />
+                <KpiCard title="Không tham dự" value={formatNumber(num(placementTests?.noShow, placementTests?.noShowTests))} icon={<Users size={16} />} />
+                <KpiCard title="Tỷ lệ hoàn thành" value={formatPercent(placementTests?.completionRate)} icon={<TrendingUp size={16} />} />
               </div>
             </ChartCard>
           </section>
@@ -488,7 +500,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       ) : null}
 
       {loading ? (
-        <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-3 text-center text-sm text-cyan-700">
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-3 text-center text-sm text-red-700">
           Đang làm mới dữ liệu...
         </div>
       ) : null}

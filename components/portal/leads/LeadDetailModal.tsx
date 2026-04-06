@@ -68,38 +68,36 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
       : lead.programInterest || "Không có";
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
-      <style jsx>{`
-        .hide-scrollbar {
-          scrollbar-width: none; /* Firefox */
-          -ms-overflow-style: none; /* IE and Edge */
-        }
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none; /* Chrome, Safari, Opera */
-        }
-      `}</style>
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl hide-scrollbar">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-linear-to-r from-red-600 to-red-700 px-6 py-4">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        {/* Header - Gradient đỏ như modal mẫu */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">Chi tiết Lead</h2>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <User size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">Chi tiết Lead</h2>
+                <p className="text-sm text-red-100">Thông tin chi tiết về khách hàng tiềm năng</p>
+              </div>
             </div>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg hover:bg-white/10 transition-colors text-white"
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label="Đóng"
             >
-              <X size={20} />
+              <X size={24} className="text-white" />
             </button>
           </div>
           
           {/* Tabs */}
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-6">
             <button
               onClick={() => setActiveTab('info')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                 activeTab === 'info'
-                  ? 'bg-white text-red-600'
+                  ? 'bg-white text-red-600 shadow-md'
                   : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
@@ -108,9 +106,9 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
             </button>
             <button
               onClick={() => setActiveTab('children')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                 activeTab === 'children'
-                  ? 'bg-white text-red-600'
+                  ? 'bg-white text-red-600 shadow-md'
                   : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
@@ -120,196 +118,213 @@ export default function LeadDetailModal({ isOpen, lead, onClose, onEdit, readOnl
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Tab: Lead Info */}
-          {activeTab === 'info' && (
-            <>
-          {/* Basic Info */}
-          <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5 custom-scrollbar">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <User size={16} className="text-red-600" />
-              Thông tin cơ bản
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-medium text-gray-500">Họ và tên</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.contactName || "Không có"}</p>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                  <Phone size={12} /> Số điện thoại
-                </label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.phone || "Không có"}</p>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                  <Mail size={12} /> Email
-                </label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.email || "Không có"}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Lead Status & Assignment */}
-          <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <Activity size={16} className="text-red-600" />
-              Trạng thái & Phân công
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-medium text-gray-500">Trạng thái</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">
-                  {lead.status ? STATUS_MAPPING[lead.status as StatusType] : "Không có"}
-                </p>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500">Phụ trách</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.ownerStaffName || "Chưa phân công"}</p>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                  <Calendar size={12} /> Phản hồi lần đầu
-                </label>
-                <p className="text-sm font-medium text-gray-900 mt-1">
-                  {lead.firstResponseAt ? new Date(lead.firstResponseAt).toLocaleString('vi-VN') : "Chưa phản hồi"}
-                </p>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-gray-500">Số lần tiếp xúc</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.touchCount || 0} lần</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Source & Campaign */}
-          <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <Tag size={16} className="text-red-600" />
-              Nguồn lead
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-medium text-gray-500">Nguồn</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{lead.source || "Không có"}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Preferences */}
-          <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <Building size={16} className="text-red-600" />
-              Sở thích
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-medium text-gray-500">Chi nhánh mong muốn</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">
-                  {lead.branchPreferenceName || lead.branchPreference || "Không có"}
-                </p>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-gray-500">Chương trình quan tâm</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{displayProgramInterest}</p>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Notes */}
-          {lead.notes && (
-            <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <FileText size={16} className="text-red-600" />
-                Ghi chú
-              </h3>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{lead.notes}</p>
-            </div>
-          )}
-
-          {/* Conversion Info */}
-          {lead.convertedStudentProfileId && (
-            <div className="rounded-xl border border-emerald-200 bg-linear-to-br from-emerald-50 to-white p-5">
-              <h3 className="text-sm font-semibold text-emerald-700 mb-3">Đã chuyển đổi</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-gray-500">ID học viên</label>
-                  <p className="text-sm font-medium text-gray-900 mt-1">{lead.convertedStudentProfileId}</p>
+        {/* Form Body - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
+            {/* Tab: Lead Info */}
+            {activeTab === 'info' && (
+              <>
+                {/* Basic Info */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-red-100">
+                      <User size={16} className="text-red-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-700">Thông tin cơ bản</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">Họ và tên</label>
+                      <p className="text-sm font-medium text-gray-900">{lead.contactName || "Không có"}</p>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                        <Phone size={12} /> Số điện thoại
+                      </label>
+                      <p className="text-sm font-medium text-gray-900">{lead.phone || "Không có"}</p>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                        <Mail size={12} /> Email
+                      </label>
+                      <p className="text-sm font-medium text-gray-900">{lead.email || "Không có"}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500">Ngày chuyển đổi</label>
-                  <p className="text-sm font-medium text-gray-900 mt-1">
-                    {lead.convertedAt ? new Date(lead.convertedAt).toLocaleDateString('vi-VN') : "Không có"}
-                  </p>
+
+                {/* Lead Status & Assignment */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-red-100">
+                      <Activity size={16} className="text-red-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-700">Trạng thái & Phân công</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">Trạng thái</label>
+                      <p className="text-sm font-medium text-gray-900">
+                        {lead.status ? STATUS_MAPPING[lead.status as StatusType] : "Không có"}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">Phụ trách</label>
+                      <p className="text-sm font-medium text-gray-900">{lead.ownerStaffName || "Chưa phân công"}</p>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                        <Calendar size={12} /> Phản hồi lần đầu
+                      </label>
+                      <p className="text-sm font-medium text-gray-900">
+                        {lead.firstResponseAt ? new Date(lead.firstResponseAt).toLocaleString('vi-VN') : "Chưa phản hồi"}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">Số lần tiếp xúc</label>
+                      <p className="text-sm font-medium text-gray-900">{lead.touchCount || 0} lần</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* Metadata */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-500">
-              <div>
-                <span className="font-medium">Ngày tạo:</span>{" "}
-                {lead.createdAt ? new Date(lead.createdAt).toLocaleString('vi-VN') : "Không có"}
-              </div>
-            </div>
-          </div>
+                {/* Source & Campaign */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-red-100">
+                      <Tag size={16} className="text-red-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-700">Nguồn lead</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">Nguồn</label>
+                      <p className="text-sm font-medium text-gray-900">{lead.source || "Không có"}</p>
+                    </div>
+                  </div>
+                </div>
 
-          {/* Actions - Only show in info tab */}
-          {!readOnly && (
-          <div className="flex items-center justify-end gap-3 pt-4 border-t">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Đóng
-            </button>
-            <button
-              onClick={() => {
-                onEdit(lead);
-                onClose();
-              }}
-              className="px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all"
-            >
-              Chỉnh sửa
-            </button>
-          </div>
-          )}
-          {readOnly && (
-          <div className="flex items-center justify-end gap-3 pt-4 border-t">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all"
-            >
-              Đóng
-            </button>
-          </div>
-          )}
-            </>
-          )}
+                {/* Preferences */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-red-100">
+                      <Building size={16} className="text-red-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-700">Sở thích</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">Chi nhánh mong muốn</label>
+                      <p className="text-sm font-medium text-gray-900">
+                        {lead.branchPreferenceName || lead.branchPreference || "Không có"}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">Chương trình quan tâm</label>
+                      <p className="text-sm font-medium text-gray-900">{displayProgramInterest}</p>
+                    </div>
+                  </div>
+                </div>
 
-          {/* Tab: Children */}
-          {activeTab === 'children' && (
-            <div className="rounded-xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-5">
+                {/* Notes */}
+                {lead.notes && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-red-100">
+                        <FileText size={16} className="text-red-600" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-700">Ghi chú</h3>
+                    </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      {lead.notes}
+                    </p>
+                  </div>
+                )}
+
+                {/* Conversion Info */}
+                {lead.convertedStudentProfileId && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-emerald-100">
+                        <Users size={16} className="text-emerald-600" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-emerald-700">Đã chuyển đổi</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-emerald-50/30 p-4 rounded-xl border border-emerald-200">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-500">ID học viên</label>
+                        <p className="text-sm font-medium text-gray-900">{lead.convertedStudentProfileId}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-500">Ngày chuyển đổi</label>
+                        <p className="text-sm font-medium text-gray-900">
+                          {lead.convertedAt ? new Date(lead.convertedAt).toLocaleDateString('vi-VN') : "Không có"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Metadata */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-gray-100">
+                      <Clock size={16} className="text-gray-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-700">Thông tin hệ thống</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-500 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <div>
+                      <span className="font-medium">Ngày tạo:</span>{" "}
+                      {lead.createdAt ? new Date(lead.createdAt).toLocaleString('vi-VN') : "Không có"}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Tab: Children */}
+            {activeTab === 'children' && (
               <LeadChildrenManager
                 leadId={lead.id}
                 isEditable={!readOnly}
                 onChildrenChanged={refreshChildProgramInterests}
               />
-            </div>
-          )}
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex items-center justify-end gap-3">
+            {!readOnly && (
+              <button
+                onClick={() => {
+                  onEdit(lead);
+                  onClose();
+                }}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Chỉnh sửa
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+            >
+              Đóng
+            </button>
+          </div>
         </div>
       </div>
     </div>
