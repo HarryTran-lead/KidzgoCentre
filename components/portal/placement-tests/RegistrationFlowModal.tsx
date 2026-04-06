@@ -1025,12 +1025,12 @@ export default function RegistrationFlowModal({
       await upgradeRegistration(registrationId, upgradeTuitionPlanId);
       toast({
         title: "Thành công",
-        description: "Đã nâng cấp học vụ/gói học cho đăng ký.",
+        description: "Đã cập nhật gói học trên cùng đăng ký hiện tại.",
         variant: "success",
       });
       onSuccess?.();
     } catch (error: any) {
-      showDomainErrorToast(error, "Không thể nâng cấp học vụ cho đăng ký.");
+      showDomainErrorToast(error, "Không thể cập nhật gói học cho đăng ký.");
     } finally {
       setIsUpgrading(false);
     }

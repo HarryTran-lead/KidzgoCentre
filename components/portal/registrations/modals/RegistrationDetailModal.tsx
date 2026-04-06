@@ -14,10 +14,10 @@ type RegistrationDetailModalProps = {
 function statusLabel(status: RegistrationStatus) {
   const labels: Record<RegistrationStatus, string> = {
     New: "Mới",
-    WaitingForClass: "Cho xếp lớp",
+    WaitingForClass: "Chờ xếp lớp",
     ClassAssigned: "Đã xếp lớp",
     Studying: "Đang học",
-    Paused: "ạm dừng",
+    Paused: "Tạm dừng",
     Completed: "Hoàn thành",
     Cancelled: "Đã hủy",
   };
@@ -87,7 +87,7 @@ export default function RegistrationDetailModal({
             type="button"
             onClick={onClose}
             className="rounded-md p-1.5 hover:bg-white/15"
-            aria-label="Dong"
+            aria-label="Đóng"
           >
             <X size={18} />
           </button>
@@ -102,7 +102,9 @@ export default function RegistrationDetailModal({
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-100 bg-red-50/50 p-4">
               <div>
                 <div className="text-xs uppercase tracking-wide text-gray-500">Học viên</div>
-                <div className="text-lg font-semibold text-gray-900">{item.studentName || "Không có thông tin"}</div>
+                <div className="text-lg font-semibold text-gray-900">
+                  {item.studentName || "Không có thông tin"}
+                </div>
               </div>
               <span
                 className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${statusBadgeClass(item.status)}`}
@@ -132,9 +134,11 @@ export default function RegistrationDetailModal({
                   }
                 />
                 <Info
-                  label="Chu trong ki nang"
+                  label="Chú trọng kỹ năng"
                   value={item.secondaryProgramSkillFocus || item.secondaryEntryType || "-"}
                 />
+                <Info label="Tổng số buổi" value={String(item.totalSessions ?? 0)} />
+                <Info label="Đã học" value={String(item.usedSessions ?? 0)} />
                 <Info label="Buổi còn lại" value={String(item.remainingSessions ?? 0)} />
               </div>
             </div>
@@ -144,9 +148,14 @@ export default function RegistrationDetailModal({
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Info label="Ngày dự kiến" value={toDate(item.expectedStartDate)} />
                 <Info label="Ngày bắt đầu thực tế" value={toDate(item.actualStartDate)} />
-                <Info label="ịch học mong muốn" value={item.preferredSchedule || "-"} />
-                <Info label="Ngày hết hạn" value={toDate(item.expiryDate)} />
+                <Info label="Lịch học mong muốn" value={item.preferredSchedule || "-"} />
+                {item.expiryDate ? (
+                  <Info label="ExpiryDate nội bộ" value={toDate(item.expiryDate)} />
+                ) : null}
               </div>
+              <p className="text-xs text-gray-500">
+                `ExpiryDate` hiện chỉ là field giữ lại ở entity và chưa tham gia business logic registration.
+              </p>
             </div>
 
             <div className="space-y-3 rounded-xl border border-red-200 bg-red-50/40 p-4">

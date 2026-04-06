@@ -42,7 +42,7 @@ export default function RegistrationUpgradeModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between bg-linear-to-r from-red-600 to-red-700 px-5 py-3 text-white">
-          <h3 className="text-lg font-semibold">Gia hạn gói học</h3>
+          <h3 className="text-lg font-semibold">Cập nhật gói học</h3>
           <button
             type="button"
             onClick={onClose}

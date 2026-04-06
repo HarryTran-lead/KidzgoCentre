@@ -16,11 +16,13 @@ export async function getAllClasses(params?: {
   pageNumber?: number;
   pageSize?: number;
   branchId?: string;
+  schedulePattern?: string;
 }): Promise<any> {
   const queryParams = new URLSearchParams();
   if (params?.pageNumber) queryParams.append("pageNumber", params.pageNumber.toString());
   if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString());
   if (params?.branchId) queryParams.append("branchId", params.branchId);
+  if (params?.schedulePattern) queryParams.append("schedulePattern", params.schedulePattern);
 
   const url = queryParams.toString()
     ? `${CLASS_ENDPOINTS.GET_ALL}?${queryParams.toString()}`

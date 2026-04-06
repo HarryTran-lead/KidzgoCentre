@@ -624,7 +624,7 @@ export default function StaffRegistrationOverview({
       await upgradeRegistration(selectedActionRegistration.id, upgradeTuitionPlanId);
       toast({
         title: "Thành công",
-        description: "Đã gia hạn gói học cho đăng ký.",
+        description: "Đã cập nhật gói học trên cùng đăng ký hiện tại.",
         variant: "success",
       });
       setUpgradeOpen(false);
@@ -632,7 +632,7 @@ export default function StaffRegistrationOverview({
     } catch (error: any) {
       toast({
         title: "Lỗi",
-        description: getErrorMessage(error, "Không thể gia hạn gói học."),
+        description: getErrorMessage(error, "Không thể cập nhật gói học cho đăng ký."),
         variant: "destructive",
       });
     } finally {
@@ -1109,7 +1109,7 @@ export default function StaffRegistrationOverview({
                           <button
                             type="button"
                             onClick={() => openUpgradeModal(row)}
-                            title="Gia hạn gói học"
+                            title="Cập nhật gói học"
                             className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                           >
                             <Rocket size={12} />

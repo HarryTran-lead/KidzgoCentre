@@ -122,5 +122,16 @@ export interface RegistrationActionResponse {
   isSuccess?: boolean;
   success?: boolean;
   message?: string;
-  data?: any;
+  id?: string;
+  registrationId?: string;
+  originalRegistrationId?: string;
+  newRegistrationId?: string;
+  data?: {
+    id?: string;
+    registrationId?: string;
+    originalRegistrationId?: string;
+    newRegistrationId?: string;
+    registration?: Registration;
+    [key: string]: any;
+  } | any;
 }
