@@ -203,6 +203,8 @@ export default function StaffRegistrationOverview({
   const [manualClasses, setManualClasses] = useState<any[]>([]);
   const [manualPrimaryClassId, setManualPrimaryClassId] = useState("");
   const [manualSecondaryClassId, setManualSecondaryClassId] = useState("");
+  const [manualPrimarySessionPattern, setManualPrimarySessionPattern] = useState("");
+  const [manualSecondarySessionPattern, setManualSecondarySessionPattern] = useState("");
   const [isLoadingManualClasses, setIsLoadingManualClasses] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isWaiting, setIsWaiting] = useState(false);
@@ -650,6 +652,8 @@ export default function StaffRegistrationOverview({
     setManualClasses([]);
     setManualPrimaryClassId("");
     setManualSecondaryClassId("");
+    setManualPrimarySessionPattern("");
+    setManualSecondarySessionPattern("");
   };
 
   const handleSuggestClasses = async () => {
@@ -736,6 +740,9 @@ export default function StaffRegistrationOverview({
         setManualPrimaryClassId("");
         setManualSecondaryClassId("");
       }
+
+      setManualPrimarySessionPattern("");
+      setManualSecondarySessionPattern("");
     } catch (error: any) {
       toast({
         title: "Lỗi",
@@ -796,12 +803,31 @@ export default function StaffRegistrationOverview({
       return;
     }
 
+    if (!manualPrimarySessionPattern) {
+      toast({
+        title: "Thiếu lịch học",
+        description: "Vui lòng chọn ngày/giờ học cho lớp Primary.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (hasSecondaryTrack && !manualSecondarySessionPattern) {
+      toast({
+        title: "Thiếu lịch học",
+        description: "Vui lòng chọn ngày/giờ học cho lớp Secondary.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsAssigning(true);
       await assignClassToRegistration(selectedActionRegistration.id, {
         classId: manualPrimaryClassId,
         entryType: "Immediate",
         track: "primary",
+        sessionSelectionPattern: manualPrimarySessionPattern,
       });
 
       if (hasSecondaryTrack && manualSecondaryClassId) {
@@ -809,6 +835,7 @@ export default function StaffRegistrationOverview({
           classId: manualSecondaryClassId,
           entryType: "Immediate",
           track: "secondary",
+          sessionSelectionPattern: manualSecondarySessionPattern,
         });
       }
 
@@ -1202,6 +1229,10 @@ export default function StaffRegistrationOverview({
         setManualPrimaryClassId={setManualPrimaryClassId}
         manualSecondaryClassId={manualSecondaryClassId}
         setManualSecondaryClassId={setManualSecondaryClassId}
+        manualPrimarySessionPattern={manualPrimarySessionPattern}
+        setManualPrimarySessionPattern={setManualPrimarySessionPattern}
+        manualSecondarySessionPattern={manualSecondarySessionPattern}
+        setManualSecondarySessionPattern={setManualSecondarySessionPattern}
         handleAssignManualClasses={handleAssignManualClasses}
       />
 

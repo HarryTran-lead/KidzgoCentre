@@ -189,6 +189,7 @@ export default function RegistrationFlowModal({
       id: string;
       label: string;
       studentProfileId: string;
+      preferredSchedule?: string;
       programId: string;
       programName: string;
       tuitionPlanId: string;
@@ -241,6 +242,10 @@ export default function RegistrationFlowModal({
   const [selectedClassId, setSelectedClassId] = useState("");
   const [manualPrimaryClassId, setManualPrimaryClassId] = useState("");
   const [manualSecondaryClassId, setManualSecondaryClassId] = useState("");
+  const [manualPrimarySessionPattern, setManualPrimarySessionPattern] =
+    useState("");
+  const [manualSecondarySessionPattern, setManualSecondarySessionPattern] =
+    useState("");
   const [upgradeTuitionPlanId, setUpgradeTuitionPlanId] = useState("");
 
   const pickClassItems = (payload: any): any[] => {
@@ -403,6 +408,8 @@ export default function RegistrationFlowModal({
     () => registrationOptions.find((item) => item.id === registrationId),
     [registrationId, registrationOptions],
   );
+  const selectedRegistrationPreferredSchedule =
+    selectedRegistration?.preferredSchedule || "";
 
   const selectedRegistrationProgramId = selectedRegistration?.programId || "";
   const selectedRegistrationProgramName = selectedRegistration?.programName || "";
@@ -557,6 +564,7 @@ export default function RegistrationFlowModal({
           const options = sortedRegistrations.map((r) => ({
             id: r.id,
             studentProfileId: String(r.studentProfileId || ""),
+            preferredSchedule: String(r.preferredSchedule || ""),
             programId: String(r.programId || ""),
             programName: String(r.programName || ""),
             tuitionPlanId: String(r.tuitionPlanId || ""),
@@ -593,6 +601,8 @@ export default function RegistrationFlowModal({
         setSelectedClassId("");
         setManualPrimaryClassId("");
         setManualSecondaryClassId("");
+        setManualPrimarySessionPattern("");
+        setManualSecondarySessionPattern("");
         setUpgradeTuitionPlanId("");
         setActiveStep("create");
       } catch (error) {
@@ -915,6 +925,8 @@ export default function RegistrationFlowModal({
         const secondClassId = String(secondClass?.id || firstClass?.id || "");
         setManualPrimaryClassId(firstClassId);
         setManualSecondaryClassId(secondClassId);
+        setManualPrimarySessionPattern("");
+        setManualSecondarySessionPattern("");
         toast({
           title: "Thành công",
           description: `Đã tải ${items.length} lớp để xếp lớp thủ công.`,
@@ -923,6 +935,8 @@ export default function RegistrationFlowModal({
       } else {
         setManualPrimaryClassId("");
         setManualSecondaryClassId("");
+        setManualPrimarySessionPattern("");
+        setManualSecondarySessionPattern("");
         toast({
           title: "Thông báo",
           description: "Không có lớp phù hợp trong chi nhánh hiện tại.",
@@ -959,6 +973,24 @@ export default function RegistrationFlowModal({
       }
     }
 
+    if (!manualPrimarySessionPattern) {
+      toast({
+        title: "Thiếu lịch học",
+        description: "Vui lòng chọn ngày/giờ học cho lớp Primary.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (hasSecondaryTrack && !manualSecondarySessionPattern) {
+      toast({
+        title: "Thiếu lịch học",
+        description: "Vui lòng chọn ngày/giờ học cho lớp Secondary.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsAssigning(true);
 
@@ -966,6 +998,7 @@ export default function RegistrationFlowModal({
         classId: manualPrimaryClassId,
         entryType: "Immediate",
         track: "primary",
+        sessionSelectionPattern: manualPrimarySessionPattern,
       });
 
       if (hasSecondaryTrack) {
@@ -973,6 +1006,7 @@ export default function RegistrationFlowModal({
           classId: manualSecondaryClassId,
           entryType: "Immediate",
           track: "secondary",
+          sessionSelectionPattern: manualSecondarySessionPattern,
         });
       }
 
@@ -1216,6 +1250,11 @@ export default function RegistrationFlowModal({
                   setManualPrimaryClassId={setManualPrimaryClassId}
                   manualSecondaryClassId={manualSecondaryClassId}
                   setManualSecondaryClassId={setManualSecondaryClassId}
+                  preferredSchedule={selectedRegistrationPreferredSchedule}
+                  manualPrimarySessionPattern={manualPrimarySessionPattern}
+                  setManualPrimarySessionPattern={setManualPrimarySessionPattern}
+                  manualSecondarySessionPattern={manualSecondarySessionPattern}
+                  setManualSecondarySessionPattern={setManualSecondarySessionPattern}
                   handleAssignManualClasses={handleAssignManualClasses}
                 />
               )}
