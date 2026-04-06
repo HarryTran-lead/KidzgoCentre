@@ -24,7 +24,7 @@ import DashboardLineChart, { type LineChartDatum } from "./LineChart";
 import FunnelChart from "./FunnelChart";
 
 interface DashboardPageProps {
-  data: DashboardOverallResponse | null;
+  data: Partial<DashboardOverallResponse> | null;
   loading?: boolean;
   error?: string | null;
   onRefresh?: () => void;
@@ -202,53 +202,62 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
   const [selectedRange, setSelectedRange] = useState("30d");
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
 
-  const studentsTotal = num(data?.students?.total, data?.students?.totalStudents);
-  const activeEnrollments = num(data?.enrollments?.active, data?.enrollments?.activeEnrollments);
-  const totalLeads = num(data?.leads?.total, data?.leads?.totalLeads);
-  const conversionRate = percent(data?.leads?.conversionRate);
-  const attendanceRate = percent(data?.attendance?.attendanceRate);
-  const totalStaff = num(data?.humanResources?.totalStaff);
+  const students = data?.students;
+  const enrollments = data?.enrollments;
+  const leads = data?.leads;
+  const attendance = data?.attendance;
+  const homework = data?.homework;
+  const leave = data?.leave;
+  const placementTests = data?.placementTests;
+  const humanResources = data?.humanResources;
 
-  const leadsBreakdown = useMemo(() => mapBreakdownToBar(data?.leads?.statusBreakdown), [data?.leads?.statusBreakdown]);
-  const leadsLine = useMemo(() => mapBreakdownToLine(data?.leads?.statusBreakdown), [data?.leads?.statusBreakdown]);
-  const placementLine = useMemo(() => mapBreakdownToLine(data?.placementTests?.statusBreakdown), [data?.placementTests?.statusBreakdown]);
-  const attendanceLine = useMemo(() => mapBreakdownToLine(data?.attendance?.statusBreakdown), [data?.attendance?.statusBreakdown]);
-  const enrollmentLine = useMemo(() => mapBreakdownToLine(data?.enrollments?.statusBreakdown), [data?.enrollments?.statusBreakdown]);
+  const studentsTotal = num(students?.total, students?.totalStudents);
+  const activeEnrollments = num(enrollments?.active, enrollments?.activeEnrollments);
+  const totalLeads = num(leads?.total, leads?.totalLeads);
+  const conversionRate = percent(leads?.conversionRate);
+  const attendanceRate = percent(attendance?.attendanceRate);
+  const totalStaff = num(humanResources?.totalStaff);
+
+  const leadsBreakdown = useMemo(() => mapBreakdownToBar(leads?.statusBreakdown), [leads?.statusBreakdown]);
+  const leadsLine = useMemo(() => mapBreakdownToLine(leads?.statusBreakdown), [leads?.statusBreakdown]);
+  const placementLine = useMemo(() => mapBreakdownToLine(placementTests?.statusBreakdown), [placementTests?.statusBreakdown]);
+  const attendanceLine = useMemo(() => mapBreakdownToLine(attendance?.statusBreakdown), [attendance?.statusBreakdown]);
+  const enrollmentLine = useMemo(() => mapBreakdownToLine(enrollments?.statusBreakdown), [enrollments?.statusBreakdown]);
   const makeupLine = useMemo(() => mapBreakdownToLine(data?.makeupCredits?.statusBreakdown), [data?.makeupCredits?.statusBreakdown]);
-  const leaveLine = useMemo(() => mapBreakdownToLine(data?.leave?.statusBreakdown), [data?.leave?.statusBreakdown]);
+  const leaveLine = useMemo(() => mapBreakdownToLine(leave?.statusBreakdown), [leave?.statusBreakdown]);
   const payrollLine = useMemo(
-    () => mapBreakdownToLine(data?.humanResources?.payrollRunStatusBreakdown),
-    [data?.humanResources?.payrollRunStatusBreakdown]
+    () => mapBreakdownToLine(humanResources?.payrollRunStatusBreakdown),
+    [humanResources?.payrollRunStatusBreakdown]
   );
 
   const homeworkBars = useMemo<BarChartDatum[]>(
     () => [
-      { label: "Đã giao", value: num(data?.homework?.assignedCount, data?.homework?.total), color: "#3b82f6" },
-      { label: "Đã nộp", value: num(data?.homework?.submittedCount, data?.homework?.submitted), color: "#10b981" },
-      { label: "Đã chấm", value: num(data?.homework?.gradedCount, data?.homework?.graded), color: "#f59e0b" },
-      { label: "Thiếu", value: num(data?.homework?.missingCount), color: "#ef4444" },
+      { label: "Đã giao", value: num(homework?.assignedCount, homework?.total), color: "#3b82f6" },
+      { label: "Đã nộp", value: num(homework?.submittedCount, homework?.submitted), color: "#10b981" },
+      { label: "Đã chấm", value: num(homework?.gradedCount, homework?.graded), color: "#f59e0b" },
+      { label: "Thiếu", value: num(homework?.missingCount), color: "#ef4444" },
     ],
-    [data?.homework]
+    [homework]
   );
 
   const hrRoleBars = useMemo<BarChartDatum[]>(
     () => [
-      { label: "Giáo viên", value: num(data?.humanResources?.teacherCount), color: "#10b981" },
-      { label: "Quản lý", value: num(data?.humanResources?.managementStaffCount), color: "#3b82f6" },
-      { label: "Kế toán", value: num(data?.humanResources?.accountantStaffCount), color: "#f59e0b" },
-      { label: "Quản trị", value: num(data?.humanResources?.adminCount), color: "#8b5cf6" },
+      { label: "Giáo viên", value: num(humanResources?.teacherCount), color: "#10b981" },
+      { label: "Quản lý", value: num(humanResources?.managementStaffCount), color: "#3b82f6" },
+      { label: "Kế toán", value: num(humanResources?.accountantStaffCount), color: "#f59e0b" },
+      { label: "Quản trị", value: num(humanResources?.adminCount), color: "#8b5cf6" },
     ],
-    [data?.humanResources]
+    [humanResources]
   );
 
   const hrTrendLine = useMemo<LineChartDatum[]>(
     () => [
-      { label: "Giờ làm", value: num(data?.humanResources?.totalWorkHours), color: "#2563eb" },
-      { label: "Giờ TB", value: num(data?.humanResources?.averageWorkHoursPerStaff), color: "#0ea5e9" },
-      { label: "Xử lý lương", value: num(data?.humanResources?.payrollProcessed), color: "#10b981" },
-      { label: "Chờ xử lý", value: num(data?.humanResources?.payrollPending), color: "#f59e0b" },
+      { label: "Giờ làm", value: num(humanResources?.totalWorkHours), color: "#2563eb" },
+      { label: "Giờ TB", value: num(humanResources?.averageWorkHoursPerStaff), color: "#0ea5e9" },
+      { label: "Xử lý lương", value: num(humanResources?.payrollProcessed), color: "#10b981" },
+      { label: "Chờ xử lý", value: num(humanResources?.payrollPending), color: "#f59e0b" },
     ],
-    [data?.humanResources]
+    [humanResources]
   );
 
   if (loading && !data) {
@@ -344,11 +353,11 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <ChartCard title="Phễu lead" rightContent={`Chuyển đổi: ${formatPercent(data.leads.conversionRate)}`}>
+            <ChartCard title="Phễu lead" rightContent={`Chuyển đổi: ${formatPercent(conversionRate)}`}>
               <FunnelChart data={leadsBreakdown} />
             </ChartCard>
 
-            <ChartCard title="Trạng thái điểm danh (Line)" rightContent={`Tỷ lệ: ${formatPercent(data.attendance.attendanceRate)}`}>
+            <ChartCard title="Trạng thái điểm danh (Line)" rightContent={`Tỷ lệ: ${formatPercent(attendanceRate)}`}>
               <DashboardLineChart data={attendanceLine} height={220} strokeColor="#0ea5e9" />
               <Legend data={attendanceLine} />
             </ChartCard>
@@ -378,10 +387,10 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           <section>
             <SectionTitle title="Leads & Placement Test" subtitle="Theo dõi hiệu quả tuyển sinh và xếp lớp" />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard title="Tổng lead" value={formatNumber(num(data.leads.total, data.leads.totalLeads))} icon={<UserPlus size={18} />} />
-              <KpiCard title="Lead mới" value={formatNumber(num(data.leads.new, data.leads.newLeads))} icon={<Activity size={18} />} />
-              <KpiCard title="Lead đã ghi danh" value={formatNumber(num(data.leads.enrolled, data.leads.enrolledLeads))} icon={<GraduationCap size={18} />} />
-              <KpiCard title="Tỷ lệ chuyển đổi" value={formatPercent(data.leads.conversionRate)} icon={<TrendingUp size={18} />} />
+              <KpiCard title="Tổng lead" value={formatNumber(num(leads?.total, leads?.totalLeads))} icon={<UserPlus size={18} />} />
+              <KpiCard title="Lead mới" value={formatNumber(num(leads?.new, leads?.newLeads))} icon={<Activity size={18} />} />
+              <KpiCard title="Lead đã ghi danh" value={formatNumber(num(leads?.enrolled, leads?.enrolledLeads))} icon={<GraduationCap size={18} />} />
+              <KpiCard title="Tỷ lệ chuyển đổi" value={formatPercent(conversionRate)} icon={<TrendingUp size={18} />} />
             </div>
           </section>
 
@@ -408,10 +417,10 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           <section>
             <SectionTitle title="Học vụ" subtitle="Điểm danh, bài tập, nghỉ phép, tín chỉ bù" />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard title="Tỷ lệ điểm danh" value={formatPercent(data.attendance.attendanceRate)} icon={<ClipboardCheck size={18} />} />
-              <KpiCard title="Tỷ lệ nộp bài" value={formatPercent(data.homework.submissionRate)} icon={<BookOpen size={18} />} />
-              <KpiCard title="Tỷ lệ chấm bài" value={formatPercent(data.homework.gradedRate)} icon={<Activity size={18} />} />
-              <KpiCard title="Đơn nghỉ phép" value={formatNumber(num(data.leave.total, data.leave.totalRequests))} icon={<CalendarDays size={18} />} />
+              <KpiCard title="Tỷ lệ điểm danh" value={formatPercent(attendanceRate)} icon={<ClipboardCheck size={18} />} />
+              <KpiCard title="Tỷ lệ nộp bài" value={formatPercent(homework?.submissionRate)} icon={<BookOpen size={18} />} />
+              <KpiCard title="Tỷ lệ chấm bài" value={formatPercent(homework?.gradedRate)} icon={<Activity size={18} />} />
+              <KpiCard title="Đơn nghỉ phép" value={formatNumber(num(leave?.total, leave?.totalRequests))} icon={<CalendarDays size={18} />} />
             </div>
           </section>
 
@@ -437,10 +446,10 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
 
             <ChartCard title="Placement test hoàn thành">
               <div className="grid grid-cols-2 gap-3">
-                <KpiCard title="Tổng bài test" value={formatNumber(num(data.placementTests.total, data.placementTests.totalTests))} icon={<ClipboardCheck size={16} />} />
-                <KpiCard title="Hoàn thành" value={formatNumber(num(data.placementTests.completed, data.placementTests.completedTests))} icon={<GraduationCap size={16} />} />
-                <KpiCard title="Không tham dự" value={formatNumber(num(data.placementTests.noShow, data.placementTests.noShowTests))} icon={<Users size={16} />} />
-                <KpiCard title="Tỷ lệ hoàn thành" value={formatPercent(data.placementTests.completionRate)} icon={<TrendingUp size={16} />} />
+                <KpiCard title="Tổng bài test" value={formatNumber(num(placementTests?.total, placementTests?.totalTests))} icon={<ClipboardCheck size={16} />} />
+                <KpiCard title="Hoàn thành" value={formatNumber(num(placementTests?.completed, placementTests?.completedTests))} icon={<GraduationCap size={16} />} />
+                <KpiCard title="Không tham dự" value={formatNumber(num(placementTests?.noShow, placementTests?.noShowTests))} icon={<Users size={16} />} />
+                <KpiCard title="Tỷ lệ hoàn thành" value={formatPercent(placementTests?.completionRate)} icon={<TrendingUp size={16} />} />
               </div>
             </ChartCard>
           </section>
@@ -452,11 +461,11 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           <section>
             <SectionTitle title="Nhân sự (HR)" subtitle="Cơ cấu nhân sự và bảng lương" />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <KpiCard title="Tổng nhân sự" value={formatNumber(data.humanResources.totalStaff)} icon={<Briefcase size={18} />} />
-              <KpiCard title="Giáo viên" value={formatNumber(data.humanResources.teacherCount)} icon={<Users size={18} />} />
-              <KpiCard title="Quản lý" value={formatNumber(data.humanResources.managementStaffCount)} icon={<UserCog size={18} />} />
-              <KpiCard title="Quản trị" value={formatNumber(data.humanResources.adminCount)} icon={<UserCog size={18} />} />
-              <KpiCard title="Tổng lương" value={formatMoney(data.humanResources.totalPayroll)} icon={<Wallet size={18} />} />
+              <KpiCard title="Tổng nhân sự" value={formatNumber(totalStaff)} icon={<Briefcase size={18} />} />
+              <KpiCard title="Giáo viên" value={formatNumber(humanResources?.teacherCount)} icon={<Users size={18} />} />
+              <KpiCard title="Quản lý" value={formatNumber(humanResources?.managementStaffCount)} icon={<UserCog size={18} />} />
+              <KpiCard title="Quản trị" value={formatNumber(humanResources?.adminCount)} icon={<UserCog size={18} />} />
+              <KpiCard title="Tổng lương" value={formatMoney(humanResources?.totalPayroll)} icon={<Wallet size={18} />} />
             </div>
           </section>
 
