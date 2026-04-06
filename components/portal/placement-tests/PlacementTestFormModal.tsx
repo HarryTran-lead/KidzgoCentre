@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Calendar, MapPin, User } from "lucide-react";
+import { X, Calendar, MapPin, User, Clock, Building, BookOpen, CreditCard, FileText } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -62,7 +62,7 @@ interface PlacementTestFormModalProps {
   leads?: Array<{ id: string; contactName: string; children?: Array<{ id: string; name: string }> }>;
   studentProfiles?: Array<{ id: string; fullName: string; branchId?: string; profileType?: string }>;
   classes?: Array<{ id: string; className: string }>;
-  invigilators?: Array<{ id: string; fullName: string; role: string }>; // Admin + ManagementStaff
+  invigilators?: Array<{ id: string; fullName: string; role: string }>;
   branches?: BranchOption[];
   programs?: ProgramOption[];
   tuitionPlans?: TuitionPlanOption[];
@@ -218,6 +218,54 @@ export default function PlacementTestFormModal({
     return `${value}:00${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
   };
 
+  const handleReset = () => {
+    if (test) {
+      // Reset về dữ liệu ban đầu của test
+      setFormData({
+        leadId: test.leadId || "",
+        leadChildId: test.leadChildId || "",
+        scheduledAt: test.scheduledAt ? (() => {
+          const d = new Date(test.scheduledAt);
+          const pad = (n: number) => String(n).padStart(2, "0");
+          return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        })() : "",
+        room: test.room || "",
+        invigilatorUserId: test.invigilatorUserId || "",
+        originalPlacementTestId: retakeSourceTestId || "",
+        retakeStudentProfileId: inferredRetakeStudentProfileId,
+        retakeBranchId: defaultBranchId,
+        retakeProgramId: "",
+        retakeTuitionPlanId: "",
+        retakeNote: "",
+        notes: test.notes || "",
+      });
+      setSelectedLead(test.leadId || "");
+      if (test.leadId) {
+        const lead = leads.find(l => l.id === test.leadId);
+        setChildren(lead?.children || []);
+      }
+    } else {
+      // Reset form về trống
+      setFormData({
+        leadId: "",
+        leadChildId: "",
+        scheduledAt: "",
+        room: "",
+        invigilatorUserId: "",
+        originalPlacementTestId: retakeSourceTestId || "",
+        retakeStudentProfileId: inferredRetakeStudentProfileId,
+        retakeBranchId: defaultBranchId,
+        retakeProgramId: "",
+        retakeTuitionPlanId: "",
+        retakeNote: "",
+        notes: "",
+      });
+      setSelectedLead("");
+      setChildren([]);
+    }
+    setFormError("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -322,356 +370,407 @@ export default function PlacementTestFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-9999 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-screen overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-linear-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl flex justify-between items-center">
-          <h2 className="text-2xl font-bold">
-            {test ? "Chỉnh sửa Placement Test" : mode === "create" ? "Tạo Placement Test mới" : "Tạo Placement Test Retake"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors"
-          >
-            <X size={24} />
-          </button>
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        {/* Header - Gradient đỏ như modal mẫu */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <Calendar size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  {test ? "Chỉnh sửa Placement Test" : mode === "create" ? "Tạo Placement Test mới" : "Tạo Placement Test Retake"}
+                </h2>
+                <p className="text-sm text-red-100">
+                  {test ? "Chỉnh sửa thông tin placement test" : mode === "create" ? "Nhập thông tin chi tiết về placement test mới" : "Tạo retake từ placement test đã hoàn thành"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Đóng"
+            >
+              <X size={24} className="text-white" />
+            </button>
+          </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {!test && allowModeSwitch && (
-            <div className="grid grid-cols-2 gap-2 rounded-xl border border-red-200 p-1 bg-red-50/50">
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("create");
-                  setFormError("");
-                }}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                  mode === "create"
-                    ? "bg-red-600 text-white"
-                    : "bg-white text-gray-700 hover:bg-red-100"
-                }`}
-              >
-                Tạo mới
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!retakeSourceTestId) {
-                    setFormError("Vui lòng chọn Retake từ thao tác của placement test đã hoàn thành");
-                    return;
-                  }
-                  setMode("retake");
-                  setFormData((prev) => ({
-                    ...prev,
-                    retakeBranchId: defaultBranchId || prev.retakeBranchId,
-                  }));
-                  setFormError("");
-                }}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                  mode === "retake"
-                    ? "bg-red-600 text-white"
-                    : "bg-white text-gray-700 hover:bg-red-100"
-                }`}
-              >
-                Retake
-              </button>
-            </div>
-          )}
-
-          {/* Lead Selection (only for create) */}
-          {!test && mode === "create" && (
-            <>
-              <div className="space-y-2">
-                <label htmlFor="leadId" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <User size={16} />
-                  Lead id
-                </label>
-                <Select
-                  value={formData.leadId}
-                  onValueChange={handleLeadChange}
-                >
-                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
-                    <SelectValue placeholder="Chọn lead" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Chọn lead</SelectItem>
-                    {leads.length === 0 ? (
-                      <SelectItem value="__no_lead__" disabled>
-                        Không có lead nào
-                      </SelectItem>
-                    ) : (
-                      leads.map((lead) => (
-                        <SelectItem key={lead.id} value={lead.id}>
-                          {lead.contactName} ({lead.children?.length || 0} bé)
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="leadChildId" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <User size={16} />
-                  Tên bé *
-                </label>
-                <Select
-                  value={formData.leadChildId}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, leadChildId: value }))}
-                  disabled={!selectedLead || children.length === 0}
-                >
-                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 disabled:opacity-50 disabled:bg-gray-50">
-                    <SelectValue
-                      placeholder={
-                        !selectedLead
-                          ? "Vui lòng chọn lead trước"
-                          : children.length === 0
-                            ? "Lead này chưa có thông tin bé"
-                            : "Chọn bé"
+        {/* Form Body */}
+        <div className="p-6 max-h-[75vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Mode Switch Buttons */}
+            {!test && allowModeSwitch && (
+              <div className="rounded-2xl border border-red-200 bg-red-50/50 p-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("create");
+                      setFormError("");
+                    }}
+                    className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+                      mode === "create"
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                        : "bg-white text-gray-700 hover:bg-red-100"
+                    }`}
+                  >
+                    Tạo mới
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!retakeSourceTestId) {
+                        setFormError("Vui lòng chọn Retake từ thao tác của placement test đã hoàn thành");
+                        return;
                       }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">
-                      {!selectedLead ? "Vui lòng chọn lead trước" : children.length === 0 ? "Lead này chưa có thông tin bé" : "Chọn bé"}
-                    </SelectItem>
-                    {children.map((child) => (
-                      <SelectItem key={child.id} value={child.id}>
-                        {child.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-
-          {!test && mode === "retake" && (
-            <>
-              <div className="space-y-2">
-                <label htmlFor="retakeStudentProfileId" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <User size={16} />
-                  Hồ sơ học viên *
-                </label>
-                <Select
-                  value={formData.retakeStudentProfileId}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, retakeStudentProfileId: value }))
-                  }
-                >
-                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
-                    <SelectValue placeholder="Chọn hồ sơ học viên" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Chọn hồ sơ học viên</SelectItem>
-                    {filteredStudentProfiles.map((profile) => (
-                      <SelectItem key={profile.id} value={profile.id}>
-                        {profile.fullName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="retakeProgramId" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <User size={16} />
-                  Chương trình mới *
-                </label>
-                <Select
-                  value={formData.retakeProgramId}
-                  onValueChange={(nextProgramId) =>
-                    setFormData((prev) => {
-                      const nextPlans = tuitionPlans.filter((plan) => {
-                        if (plan.isActive === false) return false;
-                        if (plan.programId !== nextProgramId) return false;
-                        if (effectiveRetakeBranchId && plan.branchId && plan.branchId !== effectiveRetakeBranchId) {
-                          return false;
-                        }
-                        return true;
-                      });
-
-                      return {
+                      setMode("retake");
+                      setFormData((prev) => ({
                         ...prev,
-                        retakeProgramId: nextProgramId,
-                        retakeTuitionPlanId: nextPlans[0]?.id || "",
-                      };
-                    })
-                  }
-                >
-                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
-                    <SelectValue placeholder="Chọn chương trình mới" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Chọn chương trình mới</SelectItem>
-                    {filteredPrograms.map((program) => (
-                      <SelectItem key={program.id} value={program.id}>
-                        {program.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        retakeBranchId: defaultBranchId || prev.retakeBranchId,
+                      }));
+                      setFormError("");
+                    }}
+                    className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+                      mode === "retake"
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                        : "bg-white text-gray-700 hover:bg-red-100"
+                    }`}
+                  >
+                    Retake
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Lead Selection (only for create) - Vertical Layout */}
+            {!test && mode === "create" && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                  <div className="p-1.5 rounded-lg bg-red-100">
+                    <User size={16} className="text-red-600" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-700">Thông tin Lead</h3>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <User size={16} className="text-gray-400" />
+                      Lead
+                    </label>
+                    <Select value={formData.leadId} onValueChange={handleLeadChange}>
+                      <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                        <SelectValue placeholder="Chọn lead" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Chọn lead</SelectItem>
+                        {leads.length === 0 ? (
+                          <SelectItem value="__no_lead__" disabled>
+                            Không có lead nào
+                          </SelectItem>
+                        ) : (
+                          leads.map((lead) => (
+                            <SelectItem key={lead.id} value={lead.id}>
+                              {lead.contactName} ({lead.children?.length || 0} bé)
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <User size={16} className="text-gray-400" />
+                      Tên bé <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={formData.leadChildId}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, leadChildId: value }))}
+                      disabled={!selectedLead || children.length === 0}
+                    >
+                      <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all disabled:opacity-50 disabled:bg-gray-50">
+                        <SelectValue
+                          placeholder={
+                            !selectedLead
+                              ? "Vui lòng chọn lead trước"
+                              : children.length === 0
+                                ? "Lead này chưa có thông tin bé"
+                                : "Chọn bé"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">
+                          {!selectedLead ? "Vui lòng chọn lead trước" : children.length === 0 ? "Lead này chưa có thông tin bé" : "Chọn bé"}
+                        </SelectItem>
+                        {children.map((child) => (
+                          <SelectItem key={child.id} value={child.id}>
+                            {child.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Retake Section - Vertical Layout */}
+            {!test && mode === "retake" && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                  <div className="p-1.5 rounded-lg bg-red-100">
+                    <Building size={16} className="text-red-600" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-700">Thông tin Retake</h3>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <User size={16} className="text-gray-400" />
+                      Hồ sơ học viên <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={formData.retakeStudentProfileId}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, retakeStudentProfileId: value }))
+                      }
+                    >
+                      <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                        <SelectValue placeholder="Chọn hồ sơ học viên" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Chọn hồ sơ học viên</SelectItem>
+                        {filteredStudentProfiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.fullName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <BookOpen size={16} className="text-gray-400" />
+                      Chương trình mới <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={formData.retakeProgramId}
+                      onValueChange={(nextProgramId) =>
+                        setFormData((prev) => {
+                          const nextPlans = tuitionPlans.filter((plan) => {
+                            if (plan.isActive === false) return false;
+                            if (plan.programId !== nextProgramId) return false;
+                            if (effectiveRetakeBranchId && plan.branchId && plan.branchId !== effectiveRetakeBranchId) {
+                              return false;
+                            }
+                            return true;
+                          });
+
+                          return {
+                            ...prev,
+                            retakeProgramId: nextProgramId,
+                            retakeTuitionPlanId: nextPlans[0]?.id || "",
+                          };
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                        <SelectValue placeholder="Chọn chương trình mới" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Chọn chương trình mới</SelectItem>
+                        {filteredPrograms.map((program) => (
+                          <SelectItem key={program.id} value={program.id}>
+                            {program.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <CreditCard size={16} className="text-gray-400" />
+                      Gói học mới <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={formData.retakeTuitionPlanId}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, retakeTuitionPlanId: value }))
+                      }
+                    >
+                      <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                        <SelectValue placeholder="Chọn gói học mới" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Chọn gói học mới</SelectItem>
+                        {filteredTuitionPlans.map((plan) => (
+                          <SelectItem key={plan.id} value={plan.id}>
+                            {plan.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Test Schedule - Vertical Layout */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <div className="p-1.5 rounded-lg bg-red-100">
+                  <Clock size={16} className="text-red-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Lịch thi</h3>
               </div>
 
-              <div className="space-y-2">
-                <label htmlFor="retakeTuitionPlanId" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <User size={16} />
-                  Gói học mới *
-                </label>
-                <Select
-                  value={formData.retakeTuitionPlanId}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, retakeTuitionPlanId: value }))
-                  }
-                >
-                  <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
-                    <SelectValue placeholder="Chọn gói học mới" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Chọn gói học mới</SelectItem>
-                    {filteredTuitionPlans.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {plan.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Calendar size={16} className="text-gray-400" />
+                    Thời gian test {mode === "create" || test ? <span className="text-red-500">*</span> : "(optional)"}
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.scheduledAt}
+                    onChange={(e) => setFormData(prev => ({ ...prev, scheduledAt: e.target.value }))}
+                    required={mode === "create" || Boolean(test)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <MapPin size={16} className="text-gray-400" />
+                    Phòng test
+                  </label>
+                  <Select
+                    value={formData.room}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, room: value }))}
+                  >
+                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                      <SelectValue placeholder="Chọn phòng test" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Chọn phòng test</SelectItem>
+                      {classes.map((classroom) => (
+                        <SelectItem key={classroom.id} value={classroom.className}>
+                          {classroom.className}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <User size={16} className="text-gray-400" />
+                    Người giám sát {mode === "create" || test ? <span className="text-red-500">*</span> : "(optional)"}
+                  </label>
+                  <Select
+                    value={formData.invigilatorUserId}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, invigilatorUserId: value }))}
+                  >
+                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                      <SelectValue placeholder="Chọn người giám sát" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Chọn người giám sát</SelectItem>
+                      {invigilators.map((invigilator) => (
+                        <SelectItem key={invigilator.id} value={invigilator.id}>
+                          {invigilator.fullName} ({invigilator.role === 'Admin' ? 'Quản trị viên' : 'Nhân viên quản lý'})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </>
-          )}
-
-          {/* Scheduled Time */}
-          <div className="space-y-2">
-            <label htmlFor="scheduledAt" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <Calendar size={16} />
-              {mode === "retake" && !test ? "Thời gian test (optional)" : "Thời gian test *"}
-            </label>
-            <input
-              id="scheduledAt"
-              type="datetime-local"
-              value={formData.scheduledAt}
-              onChange={(e) => setFormData(prev => ({ ...prev, scheduledAt: e.target.value }))}
-              required={mode === "create" || Boolean(test)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
-            />
-          </div>
-
-          {/* Room */}
-          <div className="space-y-2">
-            <label htmlFor="room" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <MapPin size={16} />
-              Phòng test
-            </label>
-            <Select
-              value={formData.room}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, room: value }))}
-            >
-              <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
-                <SelectValue placeholder="Chọn phòng test" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Chọn phòng test</SelectItem>
-                {classes.map((classroom) => (
-                  <SelectItem key={classroom.id} value={classroom.className}>
-                    {classroom.className}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Invigilator */}
-          <div className="space-y-2">
-            <label htmlFor="invigilatorUserId" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <User size={16} />
-              {mode === "retake" && !test ? "Người giám sát (optional)" : "Người giám sát *"}
-            </label>
-            <Select
-              value={formData.invigilatorUserId}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, invigilatorUserId: value }))}
-            >
-              <SelectTrigger className="h-10.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-left focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200">
-                <SelectValue placeholder="Chọn người giám sát" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Chọn người giám sát</SelectItem>
-                {invigilators.map((invigilator) => (
-                  <SelectItem key={invigilator.id} value={invigilator.id}>
-                    {invigilator.fullName} ({invigilator.role === 'Admin' ? 'Quản trị viên' : 'Nhân viên quản lý'})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {!test && mode === "retake" && (
-            <div className="space-y-2">
-              <label htmlFor="retakeNote" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <User size={16} />
-                Ghi chú retake
-              </label>
-              <textarea
-                id="retakeNote"
-                value={formData.retakeNote}
-                onChange={(e) => setFormData((prev) => ({ ...prev, retakeNote: e.target.value }))}
-                placeholder="Nhập ghi chú (nếu có)"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
-              />
             </div>
-          )}
 
-          {test && (
-            <div className="space-y-2">
-              <label htmlFor="notes" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <User size={16} />
-                Ghi chú
-              </label>
-              <textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                placeholder="Nhập ghi chú"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
-              >
-              </textarea>
-            </div>
-          )}
+            {/* Notes - Vertical Layout */}
+            {(!test && mode === "retake") || test ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                  <div className="p-1.5 rounded-lg bg-red-100">
+                    <FileText size={16} className="text-red-600" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-700">Ghi chú</h3>
+                </div>
 
-          {formError && (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {formError}
-            </div>
-          )}
+                <div className="space-y-2">
+                  <textarea
+                    value={!test && mode === "retake" ? formData.retakeNote : formData.notes}
+                    onChange={(e) => {
+                      if (!test && mode === "retake") {
+                        setFormData((prev) => ({ ...prev, retakeNote: e.target.value }));
+                      } else {
+                        setFormData((prev) => ({ ...prev, notes: e.target.value }));
+                      }
+                    }}
+                    placeholder="Nhập ghi chú (nếu có)"
+                    rows={4}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                  />
+                </div>
+              </div>
+            ) : null}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-4">
+            {/* Error Message */}
+            {formError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                <span className="text-red-500">⚠️</span>
+                {formError}
+              </div>
+            )}
+          </form>
+        </div>
+
+        {/* Footer - Giống modal mẫu */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Hủy
+              Hủy bỏ
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 px-6 py-2 rounded-lg bg-linear-to-r from-pink-500 to-rose-500 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50"
-            >
-              {isSubmitting
-                ? "Đang xử lý..."
-                : test
-                ? "Cập nhật"
-                : mode === "retake"
-                ? "Tạo retake"
-                : "Tạo mới"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {test ? "Khôi phục" : "Đặt lại"}
+              </button>
+              <button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSubmitting
+                  ? "Đang xử lý..."
+                  : test
+                  ? "Cập nhật"
+                  : mode === "retake"
+                  ? "Tạo retake"
+                  : "Tạo mới"}
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
