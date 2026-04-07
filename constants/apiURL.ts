@@ -506,7 +506,7 @@ export const BACKEND_PROFILE_ENDPOINTS = {
   DELETE: (id: string) => `/profiles/${id}`,
   LINK: '/profiles/link',
   UNLINK: '/profiles/unlink',
-  REACTIVATE: (id: string) => `/profiles/${id}/reactivate-and-update`,
+  REACTIVATE: (id: string) => `/profiles/${id}/reactivate`,
 } as const;
 
 // Backend Admin Endpoints (Next.js API Routes → Backend API)

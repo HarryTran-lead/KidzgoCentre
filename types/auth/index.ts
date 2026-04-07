@@ -17,6 +17,13 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+// Update User Me Request
+export interface UpdateUserMeRequest {
+  fullName?: string;
+  email?: string;
+  phoneNumber?: string;
+}
+
 // Forget Password Request
 export interface ForgetPasswordRequest {
   email: string;
@@ -110,10 +117,12 @@ export interface UserMeResponse {
   email: string;
   userName: string;
   fullName: string;
+  phoneNumber?: string;
   role: string;
   isActive: boolean;
   branchId?: string;
   branchName?: string;
+  avatarUrl?: string;
   createdAt: string;
   updatedAt?: string;
   profiles?: UserProfile[];
@@ -134,4 +143,5 @@ export type SelectStudentApiResponse = ApiResponse<SelectStudentResponse>;
 export type ChangePinApiResponse = ApiResponse<{ message: string }>;
 export type RequestPinResetApiResponse = ApiResponse<{ message: string }>;
 export type UserMeApiResponse = ApiResponse<UserMeResponse>;
+export type UpdateUserMeApiResponse = ApiResponse<UserMeResponse>;
 export type LogoutApiResponse = ApiResponse<{ message: string }>;

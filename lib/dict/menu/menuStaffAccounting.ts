@@ -10,6 +10,7 @@ export const menuStaffAccounting = {
       financeReports: "Báo cáo tài chính",
       auditLog: "Audit Log",
       notifications: "Thông báo",
+      profile: "Hồ sơ cá nhân",
     },
   },
   en: {
@@ -22,6 +23,7 @@ export const menuStaffAccounting = {
       financeReports: "Financial Reports",
       auditLog: "Audit Log",
       notifications: "Notifications",
+      profile: "My Profile",
     },
   },
 } as const;

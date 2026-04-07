@@ -28,6 +28,8 @@ import type {
   RequestPinResetApiResponse,
   GetProfilesApiResponse,
   UserMeApiResponse,
+  UpdateUserMeRequest,
+  UpdateUserMeApiResponse,
   LogoutApiResponse,
 } from '@/types/auth';
 
@@ -107,6 +109,13 @@ export async function requestPinReset(data: RequestParentPinResetRequest): Promi
  */
 export async function getUserMe(): Promise<UserMeApiResponse> {
   return get<UserMeApiResponse>(AUTH_ENDPOINTS.ME);
+}
+
+/**
+ * Update current user information (token auto-injected)
+ */
+export async function updateUserMe(data: UpdateUserMeRequest): Promise<UpdateUserMeApiResponse> {
+  return put<UpdateUserMeApiResponse>(AUTH_ENDPOINTS.ME, data);
 }
 
 /**

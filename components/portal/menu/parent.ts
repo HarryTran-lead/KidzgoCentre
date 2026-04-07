@@ -9,6 +9,7 @@ import {
   BellRing,
   HeadphonesIcon,
   Sparkles,
+  UserCircle,
 } from "lucide-react";
 import type { MenuItem } from "./types";
 import type { Locale } from "@/lib/i18n";
@@ -83,6 +84,12 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     href: `${root}/account`,
   };
 
+  const profileItem: MenuItem = {
+    label: t.items.profile,
+    icon: UserCircle,
+    href: `${root}/profile`,
+  };
+
   return [
     scheduleItem,
     homeworkItem,
@@ -95,5 +102,6 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     leaveRequestItem,
     pauseEnrollmentItem,
     accountItem,
+    profileItem,
   ];
 }
