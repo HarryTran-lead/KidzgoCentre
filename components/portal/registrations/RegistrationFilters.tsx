@@ -24,14 +24,14 @@ const STATUS_OPTIONS: RegistrationFilterStatus[] = [
 ];
 
 const STATUS_LABELS: Record<RegistrationFilterStatus, string> = {
-  ALL: "Tat ca",
-  New: "Moi",
-  WaitingForClass: "Cho xep lop",
-  ClassAssigned: "Da xep lop",
-  Studying: "Dang hoc",
-  Completed: "Hoan thanh",
-  Paused: "Tam dung",
-  Cancelled: "Da huy",
+  ALL: "Tất cả",
+  New: "Mới",
+  WaitingForClass: "Chờ xếp lớp",
+  ClassAssigned: "Đã xếp lớp",
+  Studying: "Đang học",
+  Completed: "Hoàn thành",
+  Paused: "Tạm dừng",
+  Cancelled: "Đã hủy",
 };
 
 interface RegistrationFiltersProps {

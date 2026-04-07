@@ -9,7 +9,6 @@ import {
   assignClassToRegistration,
   createRegistrationFromPlacementTest,
   suggestClassesForRegistration,
-  upgradeRegistration,
   getRegistrations,
 } from "@/lib/api/registrationService";
 import { getAllClasses } from "@/lib/api/classService";
@@ -26,7 +25,6 @@ import type {
 import type { Program } from "@/types/admin/programs";
 import CreateRegistrationStep from "@/components/portal/placement-tests/registration-flow/CreateRegistrationStep";
 import SuggestAssignStep from "@/components/portal/placement-tests/registration-flow/SuggestAssignStep";
-import UpgradeRegistrationStep from "@/components/portal/placement-tests/registration-flow/UpgradeRegistrationStep";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
@@ -37,7 +35,7 @@ interface RegistrationFlowModalProps {
   onSuccess?: () => void;
 }
 
-type StepKey = "create" | "suggest" | "upgrade";
+type StepKey = "create" | "suggest";
 type AssignViewMode = "none" | "suggested" | "manual";
 
 type ProgramOption = {
@@ -192,6 +190,8 @@ export default function RegistrationFlowModal({
       preferredSchedule?: string;
       programId: string;
       programName: string;
+      secondaryProgramId?: string;
+      secondaryProgramName?: string;
       tuitionPlanId: string;
       tuitionPlanName: string;
       totalSessions: number;
@@ -231,7 +231,6 @@ export default function RegistrationFlowModal({
   const [isLoadingManualClasses, setIsLoadingManualClasses] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isWaiting, setIsWaiting] = useState(false);
-  const [isUpgrading, setIsUpgrading] = useState(false);
 
   const [suggestedClasses, setSuggestedClasses] =
     useState<SuggestedClassBucket | null>(null);
@@ -246,7 +245,6 @@ export default function RegistrationFlowModal({
     useState("");
   const [manualSecondarySessionPattern, setManualSecondarySessionPattern] =
     useState("");
-  const [upgradeTuitionPlanId, setUpgradeTuitionPlanId] = useState("");
 
   const pickClassItems = (payload: any): any[] => {
     if (Array.isArray(payload?.data?.items)) return payload.data.items;
@@ -315,6 +313,8 @@ export default function RegistrationFlowModal({
           id: classId,
           remainingSlots: safeRemaining,
           disabled: safeRemaining !== null && safeRemaining <= 0,
+          programId: String(cls?.programId || cls?.program?.id || ""),
+          programName: String(cls?.programName || cls?.program?.name || ""),
           label: `${className} • Còn chỗ: ${safeRemaining ?? "-"} • Lịch: ${scheduleLabel}`,
         };
       }),
@@ -413,25 +413,10 @@ export default function RegistrationFlowModal({
 
   const selectedRegistrationProgramId = selectedRegistration?.programId || "";
   const selectedRegistrationProgramName = selectedRegistration?.programName || "";
-  const selectedRegistrationTuitionPlanId =
-    selectedRegistration?.tuitionPlanId || "";
-  const selectedRegistrationTuitionPlanName =
-    selectedRegistration?.tuitionPlanName || "";
-  const selectedRegistrationTotalSessions =
-    Number(selectedRegistration?.totalSessions ?? 0) || 0;
-  const selectedRegistrationUsedSessions =
-    Number(selectedRegistration?.usedSessions ?? 0) || 0;
-  const selectedRegistrationRemainingSessions =
-    Number(selectedRegistration?.remainingSessions ?? 0) || 0;
-
-  const filteredUpgradeTuitionPlans = useMemo(() => {
-    const targetProgramId = selectedRegistrationProgramId || programId;
-    return tuitionPlans.filter((p) => {
-      if (!p.isActive) return false;
-      if (!targetProgramId) return true;
-      return p.programId === targetProgramId;
-    });
-  }, [tuitionPlans, selectedRegistrationProgramId, programId]);
+  const selectedRegistrationSecondaryProgramId =
+    selectedRegistration?.secondaryProgramId || "";
+  const selectedRegistrationSecondaryProgramName =
+    selectedRegistration?.secondaryProgramName || "";
 
   const secondaryPrograms = useMemo(() => {
     return programs.filter((program) => {
@@ -567,6 +552,8 @@ export default function RegistrationFlowModal({
             preferredSchedule: String(r.preferredSchedule || ""),
             programId: String(r.programId || ""),
             programName: String(r.programName || ""),
+            secondaryProgramId: String(r.secondaryProgramId || ""),
+            secondaryProgramName: String(r.secondaryProgramName || ""),
             tuitionPlanId: String(r.tuitionPlanId || ""),
             tuitionPlanName: String(r.tuitionPlanName || ""),
             totalSessions: Number(r.totalSessions ?? 0),
@@ -603,7 +590,6 @@ export default function RegistrationFlowModal({
         setManualSecondaryClassId("");
         setManualPrimarySessionPattern("");
         setManualSecondarySessionPattern("");
-        setUpgradeTuitionPlanId("");
         setActiveStep("create");
       } catch (error) {
         console.error("Error loading registration options:", error);
@@ -851,7 +837,7 @@ export default function RegistrationFlowModal({
     }
   };
 
-  const handleAssignClass = async () => {
+  const handleAssignClass = async (sessionSelectionPattern?: string) => {
     if (!registrationId || !selectedClassId) return;
 
     try {
@@ -860,6 +846,7 @@ export default function RegistrationFlowModal({
         classId: selectedClassId,
         entryType: "Immediate",
         track: selectedTrack,
+        sessionSelectionPattern: sessionSelectionPattern || undefined,
       });
       toast({
         title: "Thành công",
@@ -1051,35 +1038,11 @@ export default function RegistrationFlowModal({
     }
   };
 
-  const handleUpgrade = async () => {
-    if (!registrationId || !upgradeTuitionPlanId) return;
-
-    try {
-      setIsUpgrading(true);
-      await upgradeRegistration(registrationId, upgradeTuitionPlanId);
-      toast({
-        title: "Thành công",
-        description: "Đã nâng cấp học vụ/gói học cho đăng ký.",
-        variant: "success",
-      });
-      onSuccess?.();
-    } catch (error: any) {
-      showDomainErrorToast(error, "Không thể nâng cấp học vụ cho đăng ký.");
-    } finally {
-      setIsUpgrading(false);
-    }
-  };
-
-  useEffect(() => {
-    setUpgradeTuitionPlanId("");
-  }, [registrationId]);
-
   if (!isOpen) return null;
 
   const stepTabs: Array<{ key: StepKey; label: string }> = [
     { key: "create", label: "Tạo đăng ký" },
     { key: "suggest", label: "Gợi ý & xếp lớp" },
-    { key: "upgrade", label: "Học vụ phát sinh" },
   ];
 
   return (
@@ -1250,6 +1213,19 @@ export default function RegistrationFlowModal({
                   setManualPrimaryClassId={setManualPrimaryClassId}
                   manualSecondaryClassId={manualSecondaryClassId}
                   setManualSecondaryClassId={setManualSecondaryClassId}
+                  manualPrimaryProgramId={selectedRegistrationProgramId || programId}
+                  manualPrimaryProgramName={selectedRegistrationProgramName}
+                  manualSecondaryProgramId={
+                    selectedRegistrationSecondaryProgramId ||
+                    secondaryProgramId ||
+                    suggestedClasses?.secondaryProgramId ||
+                    ""
+                  }
+                  manualSecondaryProgramName={
+                    selectedRegistrationSecondaryProgramName ||
+                    suggestedClasses?.secondaryProgramName ||
+                    ""
+                  }
                   preferredSchedule={selectedRegistrationPreferredSchedule}
                   manualPrimarySessionPattern={manualPrimarySessionPattern}
                   setManualPrimarySessionPattern={setManualPrimarySessionPattern}
@@ -1259,22 +1235,6 @@ export default function RegistrationFlowModal({
                 />
               )}
 
-              {activeStep === "upgrade" && (
-                <UpgradeRegistrationStep
-                  upgradeTuitionPlanId={upgradeTuitionPlanId}
-                  setUpgradeTuitionPlanId={setUpgradeTuitionPlanId}
-                  filteredTuitionPlans={filteredUpgradeTuitionPlans}
-                  tuitionPlanId={selectedRegistrationTuitionPlanId || tuitionPlanId}
-                  handleUpgrade={handleUpgrade}
-                  registrationId={registrationId}
-                  isUpgrading={isUpgrading}
-                  selectedProgramName={selectedRegistrationProgramName}
-                  currentTuitionPlanName={selectedRegistrationTuitionPlanName}
-                  totalSessions={selectedRegistrationTotalSessions}
-                  usedSessions={selectedRegistrationUsedSessions}
-                  remainingSessions={selectedRegistrationRemainingSessions}
-                />
-              )}
             </div>
           </div>
         </div>

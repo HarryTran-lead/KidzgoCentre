@@ -126,7 +126,7 @@ interface SuggestAssignStepProps {
   activeSuggestedClasses: any[];
   activeAlternativeClasses: any[];
   formatSchedulePattern: (value?: string | null) => string;
-  handleAssignClass: () => void;
+  handleAssignClass: (sessionSelectionPattern?: string) => void;
   isAssigning: boolean;
   manualClasses: any[];
   manualClassOptions: Array<{
@@ -139,6 +139,10 @@ interface SuggestAssignStepProps {
   setManualPrimaryClassId: (value: string) => void;
   manualSecondaryClassId: string;
   setManualSecondaryClassId: (value: string) => void;
+  manualPrimaryProgramId?: string;
+  manualPrimaryProgramName?: string;
+  manualSecondaryProgramId?: string;
+  manualSecondaryProgramName?: string;
   preferredSchedule?: string | null;
   manualPrimarySessionPattern: string;
   setManualPrimarySessionPattern: (value: string) => void;
@@ -175,6 +179,10 @@ export default function SuggestAssignStep({
   setManualPrimaryClassId,
   manualSecondaryClassId,
   setManualSecondaryClassId,
+  manualPrimaryProgramId,
+  manualPrimaryProgramName,
+  manualSecondaryProgramId,
+  manualSecondaryProgramName,
   preferredSchedule,
   manualPrimarySessionPattern,
   setManualPrimarySessionPattern,
@@ -211,10 +219,88 @@ export default function SuggestAssignStep({
   const [manualPrimaryTime, setManualPrimaryTime] = useState("");
   const [manualSecondaryDays, setManualSecondaryDays] = useState<string[]>([]);
   const [manualSecondaryTime, setManualSecondaryTime] = useState("");
+  const [suggestedPrimaryDays, setSuggestedPrimaryDays] = useState<string[]>(
+    [],
+  );
+  const [suggestedPrimaryTime, setSuggestedPrimaryTime] = useState("");
+  const [suggestedSecondaryDays, setSuggestedSecondaryDays] = useState<
+    string[]
+  >([]);
+  const [suggestedSecondaryTime, setSuggestedSecondaryTime] = useState("");
 
   const preferredDays = useMemo(
     () => parsePreferredScheduleDays(preferredSchedule),
     [preferredSchedule],
+  );
+
+  const selectedSuggestedClass = useMemo(
+    () =>
+      activeSuggestedClasses.find(
+        (cls: any) => String(cls?.id || "") === String(selectedClassId || ""),
+      ),
+    [activeSuggestedClasses, selectedClassId],
+  );
+
+  const selectedSuggestedScheduleMeta = useMemo(
+    () => parseClassScheduleMeta(selectedSuggestedClass?.schedulePattern),
+    [selectedSuggestedClass],
+  );
+
+  const normalizeText = (value?: string | null) =>
+    String(value || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+
+  const filterOptionsByProgram = (
+    options: Array<{
+      id: string;
+      label: string;
+      remainingSlots: number | null;
+      disabled: boolean;
+      programId?: string;
+      programName?: string;
+    }>,
+    targetProgramId?: string,
+    targetProgramName?: string,
+  ) => {
+    const normalizedTargetProgramId = String(targetProgramId || "").trim();
+    const normalizedTargetProgramName = normalizeText(targetProgramName);
+
+    return options.filter((option) => {
+      const optionProgramId = String(option.programId || "").trim();
+      const optionProgramName = normalizeText(option.programName);
+
+      const sameProgramById = normalizedTargetProgramId
+        ? optionProgramId === normalizedTargetProgramId
+        : true;
+      const sameProgramByName =
+        !normalizedTargetProgramId && normalizedTargetProgramName
+          ? optionProgramName === normalizedTargetProgramName
+          : true;
+
+      return sameProgramById && sameProgramByName;
+    });
+  };
+
+  const primaryManualClassOptions = useMemo(
+    () =>
+      filterOptionsByProgram(
+        manualClassOptions,
+        manualPrimaryProgramId,
+        manualPrimaryProgramName,
+      ),
+    [manualClassOptions, manualPrimaryProgramId, manualPrimaryProgramName],
+  );
+
+  const secondaryManualClassOptions = useMemo(
+    () =>
+      filterOptionsByProgram(
+        manualClassOptions,
+        manualSecondaryProgramId,
+        manualSecondaryProgramName,
+      ),
+    [manualClassOptions, manualSecondaryProgramId, manualSecondaryProgramName],
   );
 
   const selectedTotalDays = useMemo(() => {
@@ -287,6 +373,97 @@ export default function SuggestAssignStep({
     setManualSecondarySessionPattern,
   ]);
 
+  useEffect(() => {
+    if (assignViewMode !== "suggested") return;
+
+    if (selectedTrack === "secondary") {
+      setSuggestedSecondaryDays((prev) => {
+        const kept = prev.filter((day) =>
+          selectedSuggestedScheduleMeta.availableDays.includes(day),
+        );
+        if (kept.length > 0) return kept;
+        return selectedSuggestedScheduleMeta.availableDays[0]
+          ? [selectedSuggestedScheduleMeta.availableDays[0]]
+          : [];
+      });
+      setSuggestedSecondaryTime(
+        (prev) => prev || selectedSuggestedScheduleMeta.defaultTime || "",
+      );
+      return;
+    }
+
+    setSuggestedPrimaryDays((prev) => {
+      const kept = prev.filter((day) =>
+        selectedSuggestedScheduleMeta.availableDays.includes(day),
+      );
+      if (kept.length > 0) return kept;
+      return selectedSuggestedScheduleMeta.availableDays[0]
+        ? [selectedSuggestedScheduleMeta.availableDays[0]]
+        : [];
+    });
+    setSuggestedPrimaryTime(
+      (prev) => prev || selectedSuggestedScheduleMeta.defaultTime || "",
+    );
+  }, [
+    assignViewMode,
+    selectedTrack,
+    selectedSuggestedScheduleMeta.availableDays,
+    selectedSuggestedScheduleMeta.defaultTime,
+  ]);
+
+  const suggestedPrimarySessionPattern = useMemo(
+    () =>
+      buildSessionSelectionPattern(suggestedPrimaryDays, suggestedPrimaryTime),
+    [suggestedPrimaryDays, suggestedPrimaryTime],
+  );
+
+  const suggestedSecondarySessionPattern = useMemo(
+    () =>
+      buildSessionSelectionPattern(
+        suggestedSecondaryDays,
+        suggestedSecondaryTime,
+      ),
+    [suggestedSecondaryDays, suggestedSecondaryTime],
+  );
+
+  useEffect(() => {
+    if (assignViewMode !== "manual") return;
+
+    const hasSelected = primaryManualClassOptions.some(
+      (option) => option.id === manualPrimaryClassId,
+    );
+    if (hasSelected) return;
+
+    setManualPrimaryClassId(primaryManualClassOptions[0]?.id || "");
+  }, [
+    assignViewMode,
+    manualPrimaryClassId,
+    primaryManualClassOptions,
+    setManualPrimaryClassId,
+  ]);
+
+  useEffect(() => {
+    if (assignViewMode !== "manual") return;
+
+    if (!hasSecondaryTrack) {
+      setManualSecondaryClassId("");
+      return;
+    }
+
+    const hasSelected = secondaryManualClassOptions.some(
+      (option) => option.id === manualSecondaryClassId,
+    );
+    if (hasSelected) return;
+
+    setManualSecondaryClassId(secondaryManualClassOptions[0]?.id || "");
+  }, [
+    assignViewMode,
+    hasSecondaryTrack,
+    manualSecondaryClassId,
+    secondaryManualClassOptions,
+    setManualSecondaryClassId,
+  ]);
+
   const toggleTrackDay = (
     value: string,
     selectedDays: string[],
@@ -299,6 +476,14 @@ export default function SuggestAssignStep({
       return;
     }
     setter([...selectedDays, value]);
+  };
+
+  const handleAssignSuggestedClass = () => {
+    const currentPattern =
+      selectedTrack === "secondary"
+        ? suggestedSecondarySessionPattern
+        : suggestedPrimarySessionPattern;
+    handleAssignClass(currentPattern || undefined);
   };
 
   const renderTrackSessionSelector = ({
@@ -323,10 +508,9 @@ export default function SuggestAssignStep({
     if (!selectedClassId) return null;
 
     return (
-      <div className="space-y-2 rounded-xl border border-red-100 bg-red-50/40 p-3">
-        <div className="text-xs font-semibold text-gray-700">{title}</div>
-
-        <div className="space-y-1">
+      <div className="space-y-3 bg-transparent w-full">
+        <div className="text-sm font-semibold text-gray-800">{title}</div>
+        <div className="space-y-1.5">
           <div className="text-[11px] text-gray-500">
             Chọn ngày học thuộc lịch của lớp đã chọn
           </div>
@@ -347,36 +531,38 @@ export default function SuggestAssignStep({
                     )
                   }
                   disabled={!available}
-                  className={`rounded-lg border px-1.5 py-1 text-center text-[11px] transition-colors ${
+                  className={`rounded-lg border px-1.5 py-1.5 text-center text-xs transition-colors ${
                     active
-                      ? "border-red-500 bg-red-100 text-red-700"
+                      ? "border-red-500 bg-red-50 text-red-700 font-medium"
                       : available
-                        ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                        ? "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                         : "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
                   }`}
                 >
-                  <div className="font-semibold leading-none">
-                    {day.shortLabel}
-                  </div>
+                  <div className="leading-none">{day.shortLabel}</div>
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <label className="text-[11px] text-gray-500">
             Giờ bắt đầu buổi học
           </label>
           <input
             type="time"
             value={selectedTime}
+            disabled
             onChange={(e) => setSelectedTime(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+            className="w-full rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-sm text-gray-700 outline-none cursor-not-allowed"
           />
           {scheduleMeta.defaultTime ? (
             <p className="text-[11px] text-gray-500">
-              Giờ học của lớp: {scheduleMeta.defaultTime}
+              Giờ học của lớp:{" "}
+              <span className="font-medium text-gray-700">
+                {scheduleMeta.defaultTime}
+              </span>
             </p>
           ) : null}
         </div>
@@ -570,9 +756,40 @@ export default function SuggestAssignStep({
                 </div>
               )}
 
+              {selectedClassId
+                ? renderTrackSessionSelector({
+                    title:
+                      selectedTrack === "secondary"
+                        ? "Secondary - chọn ngày/giờ học"
+                        : "Primary - chọn ngày/giờ học",
+                    selectedClassId,
+                    selectedDays:
+                      selectedTrack === "secondary"
+                        ? suggestedSecondaryDays
+                        : suggestedPrimaryDays,
+                    setSelectedDays:
+                      selectedTrack === "secondary"
+                        ? setSuggestedSecondaryDays
+                        : setSuggestedPrimaryDays,
+                    selectedTime:
+                      selectedTrack === "secondary"
+                        ? suggestedSecondaryTime
+                        : suggestedPrimaryTime,
+                    setSelectedTime:
+                      selectedTrack === "secondary"
+                        ? setSuggestedSecondaryTime
+                        : setSuggestedPrimaryTime,
+                    scheduleMeta: selectedSuggestedScheduleMeta,
+                    pattern:
+                      selectedTrack === "secondary"
+                        ? suggestedSecondarySessionPattern
+                        : suggestedPrimarySessionPattern,
+                  })
+                : null}
+
               <button
                 type="button"
-                onClick={handleAssignClass}
+                onClick={handleAssignSuggestedClass}
                 disabled={!selectedClassId || isAssigning}
                 className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -588,7 +805,10 @@ export default function SuggestAssignStep({
               </div>
               <div className="rounded-xl border border-red-100 bg-red-50/50 px-3 py-2 text-sm text-gray-700">
                 <div>
-                  Lịch mong muốn của học viên: <span className="font-semibold">{preferredSchedule || "Chưa có"}</span>
+                  Lịch mong muốn của học viên:{" "}
+                  <span className="font-semibold">
+                    {preferredSchedule || "Chưa có"}
+                  </span>
                 </div>
                 {/* <div className="mt-1 text-[11px] text-gray-500">
                   Tổng ngày đã chọn cho manual assign: {selectedTotalDays}
@@ -612,7 +832,7 @@ export default function SuggestAssignStep({
                       className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                     >
                       <option value="">Chọn lớp Primary</option>
-                      {manualClassOptions.map((option) => (
+                      {primaryManualClassOptions.map((option) => (
                         <option
                           key={`manual-primary-${option.id}`}
                           value={option.id}
@@ -648,7 +868,7 @@ export default function SuggestAssignStep({
                         className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                       >
                         <option value="">Chọn lớp Secondary</option>
-                        {manualClassOptions.map((option) => (
+                        {secondaryManualClassOptions.map((option) => (
                           <option
                             key={`manual-secondary-${option.id}`}
                             value={option.id}
@@ -680,7 +900,9 @@ export default function SuggestAssignStep({
                 disabled={
                   !manualPrimaryClassId ||
                   isAssigning ||
-                  manualClasses.length === 0 ||
+                  primaryManualClassOptions.length === 0 ||
+                  (hasSecondaryTrack &&
+                    secondaryManualClassOptions.length === 0) ||
                   (hasSecondaryTrack && !manualSecondaryClassId)
                 }
                 className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"

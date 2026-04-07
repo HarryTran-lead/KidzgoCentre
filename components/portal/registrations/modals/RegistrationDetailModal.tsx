@@ -132,8 +132,8 @@ export default function RegistrationDetailModal({
                   }
                 />
                 <Info
-                  label="Chu trong ki nang"
-                  value={item.secondaryProgramSkillFocus || item.secondaryEntryType || "-"}
+                  label="Chú trọng kĩ năng"
+                  value={item.secondaryProgramSkillFocus || item.secondaryEntryType || "Chưa có"}
                 />
                 <Info label="Buổi còn lại" value={String(item.remainingSessions ?? 0)} />
               </div>
@@ -144,8 +144,7 @@ export default function RegistrationDetailModal({
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Info label="Ngày dự kiến" value={toDate(item.expectedStartDate)} />
                 <Info label="Ngày bắt đầu thực tế" value={toDate(item.actualStartDate)} />
-                <Info label="ịch học mong muốn" value={item.preferredSchedule || "-"} />
-                <Info label="Ngày hết hạn" value={toDate(item.expiryDate)} />
+                <Info label="Lịch học mong muốn" value={item.preferredSchedule || "-"} />
               </div>
             </div>
 

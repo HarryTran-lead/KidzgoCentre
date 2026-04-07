@@ -63,39 +63,39 @@ export default function UpgradeRegistrationStep({
 
       <div className="rounded-xl border border-red-100 bg-white/80 p-3">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Gói học mới</label>
-          <select
-            value={upgradeTuitionPlanId}
-            onChange={(e) => setUpgradeTuitionPlanId(e.target.value)}
-            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-          >
-            <option value="">Chọn gói để gia hạn</option>
-            {filteredTuitionPlans.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.totalSessions} buổi)
-                {p.id === tuitionPlanId ? " • Gói hiện tại" : ""}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500">
-            Hiển thị các gói active của đúng chương trình học hiện tại (bao gồm cả gói hiện tại).
-          </p>
-          {filteredTuitionPlans.length === 0 && (
-            <p className="text-xs font-medium text-red-600">
-              Không có gói gia hạn phù hợp cho chương trình này.
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Gói học mới</label>
+            <select
+              value={upgradeTuitionPlanId}
+              onChange={(e) => setUpgradeTuitionPlanId(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+            >
+              <option value="">Chọn gói để gia hạn</option>
+              {filteredTuitionPlans.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.totalSessions} buổi)
+                  {p.id === tuitionPlanId ? " • Gói hiện tại" : ""}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500">
+              Hiển thị các gói active của đúng chương trình học hiện tại (bao gồm cả gói hiện tại).
             </p>
-          )}
-        </div>
+            {filteredTuitionPlans.length === 0 && (
+              <p className="text-xs font-medium text-red-600">
+                Không có gói gia hạn phù hợp cho chương trình này.
+              </p>
+            )}
+          </div>
 
-        <button
-          type="button"
-          onClick={handleUpgrade}
-          disabled={!registrationId || !upgradeTuitionPlanId || isUpgrading}
-          className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isUpgrading ? "Đang upgrade..." : "Upgrade"}
-        </button>
+          <button
+            type="button"
+            onClick={handleUpgrade}
+            disabled={!registrationId || !upgradeTuitionPlanId || isUpgrading}
+            className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isUpgrading ? "Đang upgrade..." : "Upgrade"}
+          </button>
         </div>
       </div>
     </div>
