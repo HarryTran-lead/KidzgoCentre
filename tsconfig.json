@@ -17,7 +17,6 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    /* ⚠️ Thêm 2 dòng dưới để alias và check HOA/thường */
     "baseUrl": ".",
     "forceConsistentCasingInFileNames": true,
     "plugins": [

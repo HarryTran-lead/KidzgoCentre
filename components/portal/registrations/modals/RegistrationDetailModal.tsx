@@ -134,8 +134,8 @@ export default function RegistrationDetailModal({
                   }
                 />
                 <Info
-                  label="Chú trọng kỹ năng"
-                  value={item.secondaryProgramSkillFocus || item.secondaryEntryType || "-"}
+                  label="Chú trọng kĩ năng"
+                  value={item.secondaryProgramSkillFocus || item.secondaryEntryType || "Chưa có"}
                 />
                 <Info label="Tổng số buổi" value={String(item.totalSessions ?? 0)} />
                 <Info label="Đã học" value={String(item.usedSessions ?? 0)} />
@@ -149,9 +149,6 @@ export default function RegistrationDetailModal({
                 <Info label="Ngày dự kiến" value={toDate(item.expectedStartDate)} />
                 <Info label="Ngày bắt đầu thực tế" value={toDate(item.actualStartDate)} />
                 <Info label="Lịch học mong muốn" value={item.preferredSchedule || "-"} />
-                {item.expiryDate ? (
-                  <Info label="ExpiryDate nội bộ" value={toDate(item.expiryDate)} />
-                ) : null}
               </div>
               <p className="text-xs text-gray-500">
                 `ExpiryDate` hiện chỉ là field giữ lại ở entity và chưa tham gia business logic registration.

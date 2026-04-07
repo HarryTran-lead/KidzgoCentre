@@ -2,7 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
-import UpgradeRegistrationStep from "@/components/portal/placement-tests/registration-flow/UpgradeRegistrationStep";
+import UpgradeRegistrationStep from "@/components/portal/registrations/modals/UpgradeRegistrationStep";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import type { Registration } from "@/types/registration";
 
@@ -38,11 +38,11 @@ export default function RegistrationUpgradeModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between bg-linear-to-r from-red-600 to-red-700 px-5 py-3 text-white">
-          <h3 className="text-lg font-semibold">Cập nhật gói học</h3>
+        <div className="sticky top-0 z-10 flex items-center justify-between bg-linear-to-r from-red-600 to-red-700 px-5 py-3 text-white">
+          <h3 className="text-lg font-semibold">Gia hạn gói học</h3>
           <button
             type="button"
             onClick={onClose}
@@ -53,7 +53,7 @@ export default function RegistrationUpgradeModal({
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="space-y-4 p-5">
           {isLoadingOptions ? (
             <div className="flex items-center gap-2 py-8 text-sm text-gray-600">
               <Loader2 size={16} className="animate-spin" /> Dang tai danh sach goi hoc...

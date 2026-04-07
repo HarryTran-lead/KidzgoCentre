@@ -70,7 +70,7 @@ export default function UpgradeRegistrationStep({
               onChange={(e) => setUpgradeTuitionPlanId(e.target.value)}
               className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
             >
-              <option value="">Chọn gói để cập nhật</option>
+              <option value="">Chọn gói để gia hạn</option>
               {filteredTuitionPlans.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} ({p.totalSessions} buổi)
@@ -79,13 +79,11 @@ export default function UpgradeRegistrationStep({
               ))}
             </select>
             <p className="text-xs text-gray-500">
-              Backend sẽ cập nhật trên cùng registration hiện tại, không tạo registration mới.
-              `UsedSessions` được giữ nguyên, còn `TotalSessions` và `RemainingSessions`
-              sẽ được tính lại theo gói mới.
+              Hiển thị các gói active của đúng chương trình học hiện tại (bao gồm cả gói hiện tại).
             </p>
             {filteredTuitionPlans.length === 0 && (
               <p className="text-xs font-medium text-red-600">
-                Không có gói active phù hợp cho chương trình này.
+                Không có gói gia hạn phù hợp cho chương trình này.
               </p>
             )}
           </div>
@@ -96,7 +94,7 @@ export default function UpgradeRegistrationStep({
             disabled={!registrationId || !upgradeTuitionPlanId || isUpgrading}
             className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isUpgrading ? "Đang cập nhật..." : "Cập nhật gói học"}
+                       {isUpgrading ? "Đang cập nhật..." : "Cập nhật gói học"}
           </button>
         </div>
       </div>

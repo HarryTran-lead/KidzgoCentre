@@ -378,12 +378,12 @@ export default function LeadChildrenManager({
                   )}
 
                   {/* Converted Student Profile */}
-                  {(child as any).convertedStudentProfileId && (
+                  {/* {(child as any).convertedStudentProfileId && (
                     <div className="flex items-center gap-2 text-sm text-emerald-600">
                       <CheckCircle size={14} />
                       <span>Đã chuyển đổi • ID: {(child as any).convertedStudentProfileId}</span>
                     </div>
-                  )}
+                  )} */}
 
                   {/* Metadata */}
                   <div className="flex flex-wrap gap-3 text-xs text-gray-400 pt-2 border-t border-gray-100">
