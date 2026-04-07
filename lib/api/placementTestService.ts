@@ -441,7 +441,9 @@ export async function updatePlacementTestResults(
       resultScore: results.resultScore ?? 0,
       programRecommendationId: results.programRecommendationId,
       secondaryProgramRecommendationId:
-        results.secondaryProgramRecommendation || undefined,
+        results.secondaryProgramRecommendationId || null,
+      secondaryProgramRecommendationName:
+        results.secondaryProgramRecommendationName || null,
       secondaryProgramSkillFocus: results.secondaryProgramSkillFocus || undefined,
       attachmentUrl: results.attachmentUrl || "",
     };

@@ -44,8 +44,10 @@ export default function ResultFormModal({
     speakingScore: initialData?.speakingScore?.toString() || "",
     readingScore: initialData?.readingScore?.toString() || "",
     writingScore: initialData?.writingScore?.toString() || "",
-    programRecommendation: initialData?.programRecommendation || "",
-    secondaryProgramRecommendation: initialData?.secondaryProgramRecommendation || "",
+    programRecommendationId: initialData?.programRecommendationId || "",
+    programRecommendationName: initialData?.programRecommendationName || "",
+    secondaryProgramRecommendationId: initialData?.secondaryProgramRecommendationId || "",
+    secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
     isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
     secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
     attachmentUrl: initialData?.attachmentUrl || "",
@@ -65,8 +67,10 @@ export default function ResultFormModal({
       speakingScore: initialData?.speakingScore?.toString() || "",
       readingScore: initialData?.readingScore?.toString() || "",
       writingScore: initialData?.writingScore?.toString() || "",
-      programRecommendation: initialData?.programRecommendation || "",
-      secondaryProgramRecommendation: initialData?.secondaryProgramRecommendation || "",
+      programRecommendationId: initialData?.programRecommendationId || "",
+      programRecommendationName: initialData?.programRecommendationName || "",
+      secondaryProgramRecommendationId: initialData?.secondaryProgramRecommendationId || "",
+      secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
       isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
       secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
       attachmentUrl: initialData?.attachmentUrl || "",
@@ -114,8 +118,10 @@ export default function ResultFormModal({
         speakingScore: initialData?.speakingScore?.toString() || "",
         readingScore: initialData?.readingScore?.toString() || "",
         writingScore: initialData?.writingScore?.toString() || "",
-        programRecommendation: initialData?.programRecommendation || "",
-        secondaryProgramRecommendation: initialData?.secondaryProgramRecommendation || "",
+        programRecommendationId: initialData?.programRecommendationId || "",
+        programRecommendationName: initialData?.programRecommendationName || "",
+        secondaryProgramRecommendationId: initialData?.secondaryProgramRecommendationId || "",
+        secondaryProgramRecommendationName: initialData?.secondaryProgramRecommendationName || "",
         isSecondaryProgramSupplementary: Boolean(initialData?.isSecondaryProgramSupplementary),
         secondaryProgramSkillFocus: initialData?.secondaryProgramSkillFocus || "",
         attachmentUrl: initialData?.attachmentUrl || "",
@@ -128,8 +134,10 @@ export default function ResultFormModal({
         speakingScore: "",
         readingScore: "",
         writingScore: "",
-        programRecommendation: "",
-        secondaryProgramRecommendation: "",
+        programRecommendationId: "",
+        programRecommendationName: "",
+        secondaryProgramRecommendationId: "",
+        secondaryProgramRecommendationName: "",
         isSecondaryProgramSupplementary: false,
         secondaryProgramSkillFocus: "",
         attachmentUrl: "",
@@ -270,7 +278,7 @@ export default function ResultFormModal({
     setIsSubmitting(true);
 
     try {
-      const secondaryProgramRecommendation = formData.secondaryProgramRecommendation.trim();
+      const secondaryProgramRecommendationId = formData.secondaryProgramRecommendationId.trim();
       const secondaryProgramSkillFocus = formData.secondaryProgramSkillFocus.trim();
       const submitData: Omit<PlacementTestResultRequest, "id"> = {
         listeningScore: parsedScores.listeningScore,
@@ -278,12 +286,16 @@ export default function ResultFormModal({
         readingScore: parsedScores.readingScore,
         writingScore: parsedScores.writingScore,
         resultScore: computedResultScore,
-        programRecommendation: formData.programRecommendation || "",
-        secondaryProgramRecommendation: secondaryProgramRecommendation || "",
-        isSecondaryProgramSupplementary: secondaryProgramRecommendation
+        programRecommendationId: formData.programRecommendationId || null,
+        programRecommendationName: formData.programRecommendationName || null,
+        secondaryProgramRecommendationId: secondaryProgramRecommendationId || null,
+        secondaryProgramRecommendationName: secondaryProgramRecommendationId
+          ? formData.secondaryProgramRecommendationName || null
+          : null,
+        isSecondaryProgramSupplementary: secondaryProgramRecommendationId
           ? formData.isSecondaryProgramSupplementary
           : null,
-        secondaryProgramSkillFocus: secondaryProgramRecommendation
+        secondaryProgramSkillFocus: secondaryProgramRecommendationId
           ? secondaryProgramSkillFocus || null
           : null,
         attachmentUrl: formData.attachmentUrl || "",
@@ -447,10 +459,15 @@ export default function ResultFormModal({
                   Đề xuất chương trình chính
                 </label>
                 <Select
-                  value={formData.programRecommendation}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, programRecommendation: value }))
-                  }
+                  value={formData.programRecommendationId}
+                  onValueChange={(value) => {
+                    const selected = programOptions.find((p) => p.id === value);
+                    setFormData((prev) => ({
+                      ...prev,
+                      programRecommendationId: value,
+                      programRecommendationName: selected?.name || "",
+                    }));
+                  }}
                   disabled={isLoadingPrograms || !branchId}
                 >
                   <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
@@ -467,17 +484,11 @@ export default function ResultFormModal({
                   <SelectContent>
                     <SelectItem value="">Chọn chương trình</SelectItem>
                     {programOptions.map((program) => (
-                      <SelectItem key={program.id} value={program.name}>
+                      <SelectItem key={program.id} value={program.id}>
                         {program.name}
                         {program.isSupplementary ? " • Phụ trợ" : ""}
                       </SelectItem>
                     ))}
-                    {formData.programRecommendation &&
-                    !programOptions.some((program) => program.name === formData.programRecommendation) ? (
-                      <SelectItem value={formData.programRecommendation}>
-                        {formData.programRecommendation}
-                      </SelectItem>
-                    ) : null}
                   </SelectContent>
                 </Select>
                 {programLoadError ? (
@@ -490,20 +501,20 @@ export default function ResultFormModal({
                   Đề xuất chương trình song song / secondary
                 </label>
                 <Select
-                  value={formData.secondaryProgramRecommendation}
-                  onValueChange={(value) =>
-                    setFormData((prev) => {
-                      const nextValue = value === "__none__" ? "" : value;
-                      return {
-                        ...prev,
-                        secondaryProgramRecommendation: nextValue,
-                        isSecondaryProgramSupplementary: nextValue
-                          ? prev.isSecondaryProgramSupplementary
-                          : false,
-                        secondaryProgramSkillFocus: nextValue ? prev.secondaryProgramSkillFocus : "",
-                      };
-                    })
-                  }
+                  value={formData.secondaryProgramRecommendationId}
+                  onValueChange={(value) => {
+                    const nextValue = value === "__none__" ? "" : value;
+                    const selected = nextValue ? programOptions.find((p) => p.id === nextValue) : null;
+                    setFormData((prev) => ({
+                      ...prev,
+                      secondaryProgramRecommendationId: nextValue,
+                      secondaryProgramRecommendationName: selected?.name || "",
+                      isSecondaryProgramSupplementary: nextValue
+                        ? prev.isSecondaryProgramSupplementary
+                        : false,
+                      secondaryProgramSkillFocus: nextValue ? prev.secondaryProgramSkillFocus : "",
+                    }));
+                  }}
                   disabled={isLoadingPrograms || !branchId}
                 >
                   <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
@@ -520,17 +531,11 @@ export default function ResultFormModal({
                   <SelectContent>
                     <SelectItem value="__none__">Không có secondary</SelectItem>
                     {programOptions.map((program) => (
-                      <SelectItem key={`secondary-${program.id}`} value={program.name}>
+                      <SelectItem key={`secondary-${program.id}`} value={program.id}>
                         {program.name}
                         {program.isSupplementary ? " • Phụ trợ" : ""}
                       </SelectItem>
                     ))}
-                    {formData.secondaryProgramRecommendation &&
-                    !programOptions.some((program) => program.name === formData.secondaryProgramRecommendation) ? (
-                      <SelectItem value={formData.secondaryProgramRecommendation}>
-                        {formData.secondaryProgramRecommendation}
-                      </SelectItem>
-                    ) : null}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500">
@@ -538,7 +543,7 @@ export default function ResultFormModal({
                 </p>
               </div>
 
-              {formData.secondaryProgramRecommendation ? (
+              {formData.secondaryProgramRecommendationId ? (
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     Skill focus

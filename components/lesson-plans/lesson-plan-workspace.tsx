@@ -760,7 +760,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             <button
               type="button"
               onClick={() => refreshWorkspace(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 cursor-pointer"
             >
               <RefreshCw size={16} className={cn(refreshing && "animate-spin")} />
               Làm mới
@@ -771,7 +771,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                 <button
                   type="button"
                   onClick={() => setShowImportModal(true)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
                 >
                   <Upload size={16} />
                   Import syllabus
@@ -779,7 +779,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                 <button
                   type="button"
                   onClick={() => setTemplateModal({ mode: "create" })}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg cursor-pointer"
                 >
                   <Plus size={16} />
                   Tạo template
@@ -1003,11 +1003,11 @@ function TemplateTable({
               <td className="px-4 py-4">
                 <div className="font-semibold text-gray-900">{item.title}</div>
                 <div className="mt-1 text-sm text-gray-500">Level {item.level || "-"}</div>
-              </td>
+               </td>
               <td className="px-4 py-4 text-sm text-gray-700">
                 <div>{item.programName || item.programId}</div>
                 <div className="mt-1 text-xs text-gray-500">{item.createdByName || "Không rõ người tạo"}</div>
-              </td>
+               </td>
               <td className="px-4 py-4 text-sm text-gray-700">Buổi {item.sessionIndex || "-"}</td>
               <td className="px-4 py-4 text-sm text-gray-700">
                 <div>{item.sourceFileName || "Tạo thủ công"}</div>
@@ -1015,13 +1015,13 @@ function TemplateTable({
                   <button
                     type="button"
                     onClick={() => onOpenAttachment(item.attachment)}
-                    className="mt-2 inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                    className="mt-2 inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
                   >
                     <Paperclip size={11} />
                     Mở file
                   </button>
                 ) : null}
-              </td>
+               </td>
               <td className="px-4 py-4">
                 <div className="flex flex-wrap gap-2">
                   <StatusBadge kind={getTemplateStatus(item) === "active" ? "success" : "muted"}>
@@ -1030,7 +1030,7 @@ function TemplateTable({
                   {item.attachment ? <StatusBadge kind="info">Có attachment</StatusBadge> : null}
                   {(item.usedCount || 0) > 0 ? <StatusBadge kind="warning">Dùng {item.usedCount} lần</StatusBadge> : null}
                 </div>
-              </td>
+               </td>
               <td className="px-4 py-4">
                 <div className="flex items-center gap-2">
                   <IconButton label="Xem chi tiết" onClick={() => onOpenDetail(item)}>
@@ -1040,8 +1040,8 @@ function TemplateTable({
                     <Pencil size={15} />
                   </IconButton>
                 </div>
-              </td>
-            </tr>
+               </td>
+             </tr>
           ))}
         </tbody>
       </table>
@@ -1127,7 +1127,7 @@ function SyllabusView({
                     <button
                       type="button"
                       onClick={() => onOpenTemplateDetail(session.templateId!)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                      className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
                     >
                       <FolderOpen size={15} />
                       Xem template
@@ -1137,7 +1137,7 @@ function SyllabusView({
                     <button
                       type="button"
                       onClick={() => onOpenPlanDetail(session.lessonPlanId!)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50"
+                      className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 cursor-pointer"
                     >
                       <Eye size={15} />
                       Chi tiết
@@ -1147,7 +1147,7 @@ function SyllabusView({
                     <button
                       type="button"
                       onClick={() => (session.lessonPlanId ? onEdit(session) : onCreate(session))}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg"
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
                     >
                       {session.lessonPlanId ? <Pencil size={15} /> : <FilePlus2 size={15} />}
                       {session.lessonPlanId ? "Sửa lesson plan" : "Tạo lesson plan"}
@@ -1667,6 +1667,32 @@ function TemplateFormModal({
     setUseAdvancedJson(next);
   };
 
+  const handleReset = () => {
+    setProgramId(initialProgramId);
+    setLevel(initialValue?.level || "");
+    setTitle(initialValue?.title || "");
+    setSessionIndex(initialValue?.sessionIndex || getSuggestedNextSessionIndex(existingTemplates, initialProgramId, initialValue?.id) || 1);
+    setMetadataTitle(pickStringValue(metadataSeed, ["title", "sheetTitle"]));
+    setDayLabel(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]));
+    setDurationLabel(pickStringValue(metadataSeed, ["duration"]));
+    setGeneralInformation(pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"]));
+    setTeachingMaterialsText(linesToTextarea(metadataSeed.teachingMaterials));
+    setSheetNote(pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed.note));
+    setSessionTitle(pickStringValue(contentSeed, ["title"]) || initialValue?.title || "");
+    setDateLabel(pickStringValue(contentSeed, ["dateLabel"]));
+    setTeacherName(pickStringValue(contentSeed, ["teacherName"]));
+    setNotesText(linesToTextarea(contentSeed.notes));
+    setHomeworkLabel(pickStringValue(contentSeed, ["homeworkLabel"]) || "HOMEWORK");
+    setHomeworkMaterialsText(linesToTextarea(contentSeed.homeworkMaterials));
+    setHomeworkNotesText(linesToTextarea(contentSeed.homeworkNotes));
+    setActivities(activityDraftsFromUnknown(contentSeed.activities));
+    setSourceFileName(initialValue?.sourceFileName || "");
+    setAttachment(initialValue?.attachment || "");
+    setIsActive(initialValue?.isActive ?? true);
+    setSelectedFile(null);
+    setError(null);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -1748,7 +1774,7 @@ function TemplateFormModal({
               value={programId}
               onChange={(event) => setProgramId(event.target.value)}
               disabled={isEdit}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:bg-gray-50"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:bg-gray-50"
             >
               <option value="">Chọn program</option>
               {programOptions.map((item) => (
@@ -1763,7 +1789,7 @@ function TemplateFormModal({
             <input
               value={level}
               onChange={(event) => setLevel(event.target.value)}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="Ví dụ: Flyers"
             />
           </Field>
@@ -1772,7 +1798,7 @@ function TemplateFormModal({
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="FLYERS 1 - Session 1"
             />
           </Field>
@@ -1786,27 +1812,27 @@ function TemplateFormModal({
                 setSessionIndexTouched(true);
                 setSessionIndex(Number(event.target.value) || 1);
               }}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             />
             {!isEdit && programId ? (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                <span>Goi y session tiep theo: {suggestedNextSessionIndex}</span>
+                <span>Gợi ý session tiếp theo: {suggestedNextSessionIndex}</span>
                 <button
                   type="button"
                   onClick={() => {
                     setSessionIndexTouched(true);
                     setSessionIndex(suggestedNextSessionIndex);
                   }}
-                  className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-700 hover:bg-amber-100"
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-700 hover:bg-amber-100 cursor-pointer"
                 >
-                  Dung goi y
+                  Dùng gợi ý
                 </button>
               </div>
             ) : null}
           </Field>
         </div>
 
-        <div className="rounded-2xl border border-red-100 bg-red-50/40 p-5">
+        <div className="rounded-2xl border border-gray-200 bg-red-50/40 p-5">
           <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="text-sm font-semibold text-red-700">Metadata chung của syllabus</div>
@@ -1826,9 +1852,9 @@ function TemplateFormModal({
               <button
                 type="button"
                 onClick={() => applyMetadataFromTemplate(referenceTemplate)}
-                className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100"
+                className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 cursor-pointer"
               >
-                Lay header tu session {referenceTemplate.sessionIndex}
+                Lấy header từ session {referenceTemplate.sessionIndex}
               </button>
             </div>
           ) : null}
@@ -1838,7 +1864,7 @@ function TemplateFormModal({
               <input
                 value={metadataTitle}
                 onChange={(event) => setMetadataTitle(event.target.value)}
-                className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 placeholder="Ví dụ: SYLLABUS - COURSE FOR PRE IELTS 1"
               />
             </Field>
@@ -1847,7 +1873,7 @@ function TemplateFormModal({
               <input
                 value={dayLabel}
                 onChange={(event) => setDayLabel(event.target.value)}
-                className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 placeholder="Ví dụ: Monday and Saturday"
               />
             </Field>
@@ -1856,7 +1882,7 @@ function TemplateFormModal({
               <input
                 value={durationLabel}
                 onChange={(event) => setDurationLabel(event.target.value)}
-                className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 placeholder="Ví dụ: 11/07/2022 - 2022"
               />
             </Field>
@@ -1867,7 +1893,7 @@ function TemplateFormModal({
               value={generalInformation}
               onChange={(event) => setGeneralInformation(event.target.value)}
               rows={3}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="Nhập mô tả chung của syllabus"
             />
           </Field>
@@ -1878,7 +1904,7 @@ function TemplateFormModal({
               value={teachingMaterialsText}
               onChange={(event) => setTeachingMaterialsText(event.target.value)}
               rows={4}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder={"Handbook for Reading: https://...\nB1 DESTINATION: https://..."}
             />
           </Field>
@@ -1888,13 +1914,13 @@ function TemplateFormModal({
               value={sheetNote}
               onChange={(event) => setSheetNote(event.target.value)}
               rows={3}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="Ví dụ: Course book accounts for 80% of the lesson..."
             />
           </Field>
         </div>
 
-        <div className="rounded-2xl border border-blue-100 bg-blue-50/30 p-5">
+        <div className="rounded-2xl border border-gray-200 bg-blue-50/30 p-5">
           <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="text-sm font-semibold text-blue-700">Nội dung của 1 session template</div>
@@ -1914,9 +1940,9 @@ function TemplateFormModal({
               <button
                 type="button"
                 onClick={() => applySessionPatternFromTemplate(referenceTemplate)}
-                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
               >
-                Lay khung tu session {referenceTemplate.sessionIndex}
+                Lấy khung từ session {referenceTemplate.sessionIndex}
               </button>
             </div>
           ) : null}
@@ -1926,7 +1952,7 @@ function TemplateFormModal({
               <input
                 value={sessionTitle}
                 onChange={(event) => setSessionTitle(event.target.value)}
-                className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 placeholder="Ví dụ: PRE IELTS 1 - Session 1"
               />
             </Field>
@@ -1935,7 +1961,7 @@ function TemplateFormModal({
               <input
                 value={dateLabel}
                 onChange={(event) => setDateLabel(event.target.value)}
-                className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 placeholder="Ví dụ: 12/06"
               />
             </Field>
@@ -1944,7 +1970,7 @@ function TemplateFormModal({
               <input
                 value={teacherName}
                 onChange={(event) => setTeacherName(event.target.value)}
-                className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 placeholder="Ví dụ: Ms Chloe"
               />
             </Field>
@@ -1956,12 +1982,12 @@ function TemplateFormModal({
               value={notesText}
               onChange={(event) => setNotesText(event.target.value)}
               rows={3}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder={"Assigned by teachers\nWarm up\nGood bye"}
             />
           </Field>
 
-          <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-amber-800">Homework block của cả session</div>
@@ -1977,7 +2003,7 @@ function TemplateFormModal({
                 <input
                   value={homeworkLabel}
                   onChange={(event) => setHomeworkLabel(event.target.value)}
-                  className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                  className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
                   placeholder="HOMEWORK"
                 />
               </Field>
@@ -1987,7 +2013,7 @@ function TemplateFormModal({
                   value={homeworkMaterialsText}
                   onChange={(event) => setHomeworkMaterialsText(event.target.value)}
                   rows={3}
-                  className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                  className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
                   placeholder={"Pages 80,81,82\nVideo repeat"}
                 />
               </Field>
@@ -1997,8 +2023,8 @@ function TemplateFormModal({
                   value={homeworkNotesText}
                   onChange={(event) => setHomeworkNotesText(event.target.value)}
                   rows={3}
-                  className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-100"
-                  placeholder={"1. Quay video doc bai...\n2. Chup phan bai lam..."}
+                  className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                  placeholder={"1. Quay video đọc bài...\n2. Chụp phần bài làm..."}
                 />
               </Field>
             </div>
@@ -2016,7 +2042,7 @@ function TemplateFormModal({
                     key={preset.key}
                     type="button"
                     onClick={() => addPresetActivity(preset.key)}
-                    className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                    className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100 cursor-pointer"
                   >
                     + {preset.label}
                   </button>
@@ -2024,7 +2050,7 @@ function TemplateFormModal({
                 <button
                   type="button"
                   onClick={addActivity}
-                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
                 >
                   <Plus size={14} />
                   Thêm activity trống
@@ -2116,14 +2142,14 @@ function TemplateFormModal({
                           <button
                             type="button"
                             onClick={() => duplicateActivity(index)}
-                            className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                            className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 cursor-pointer"
                           >
                             Clone
                           </button>
                           <button
                             type="button"
                             onClick={() => removeActivity(index)}
-                            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 cursor-pointer"
                           >
                             Delete
                           </button>
@@ -2148,7 +2174,7 @@ function TemplateFormModal({
             <button
               type="button"
               onClick={toggleAdvancedJson}
-              className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 cursor-pointer"
             >
               {useAdvancedJson ? "Ẩn JSON nâng cao" : "Chỉnh JSON nâng cao"}
             </button>
@@ -2161,7 +2187,7 @@ function TemplateFormModal({
                   value={advancedMetadata}
                   onChange={(event) => setAdvancedMetadata(event.target.value)}
                   rows={10}
-                  className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 />
               </Field>
 
@@ -2170,7 +2196,7 @@ function TemplateFormModal({
                   value={advancedContent}
                   onChange={(event) => setAdvancedContent(event.target.value)}
                   rows={10}
-                  className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 />
               </Field>
             </div>
@@ -2184,7 +2210,7 @@ function TemplateFormModal({
             <input
               value={sourceFileName}
               onChange={(event) => setSourceFileName(event.target.value)}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="Syllabus - XIN CHAO ENGLISH.xlsx"
             />
           </Field>
@@ -2193,7 +2219,7 @@ function TemplateFormModal({
             <input
               value={attachment}
               onChange={(event) => setAttachment(event.target.value)}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="https://..."
             />
           </Field>
@@ -2224,8 +2250,10 @@ function TemplateFormModal({
 
         <ModalActions
           onClose={onClose}
+          onReset={handleReset}
           submitting={submitting}
           submitLabel={isEdit ? "Lưu template" : "Tạo template"}
+          showReset={true}
         />
       </form>
     </ModalFrame>
@@ -2305,7 +2333,7 @@ function ImportTemplateModal({
             <select
               value={programId}
               onChange={(event) => setProgramId(event.target.value)}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
               <option value="">Để backend tự map</option>
               {programOptions.map((item) => (
@@ -2320,7 +2348,7 @@ function ImportTemplateModal({
             <input
               value={level}
               onChange={(event) => setLevel(event.target.value)}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="Ví dụ: Flyers"
             />
           </Field>
@@ -2343,7 +2371,12 @@ function ImportTemplateModal({
 
         {error ? <ErrorBox message={error} /> : null}
 
-        <ModalActions onClose={onClose} submitting={submitting} submitLabel="Import file" />
+        <ModalActions
+          onClose={onClose}
+          submitting={submitting}
+          submitLabel="Import file"
+          showReset={false}
+        />
       </form>
     </ModalFrame>
   );
@@ -2428,7 +2461,7 @@ function PlanFormModal({
             <select
               value={templateId}
               onChange={(event) => setTemplateId(event.target.value)}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
               <option value="">Để backend tự resolve theo Program + SessionIndex</option>
               {templateOptions.map((item) => (
@@ -2440,7 +2473,7 @@ function PlanFormModal({
           </Field>
         ) : (
           <Field label="Template liên kết">
-            <div className="rounded-xl border border-red-100 bg-red-50/50 px-4 py-3 text-sm text-gray-700">
+            <div className="rounded-xl border border-gray-200 bg-red-50/50 px-4 py-3 text-sm text-gray-700">
               {session.templateTitle || "Teacher không tự gọi list template; backend sẽ tự resolve nếu templateId = null."}
             </div>
           </Field>
@@ -2454,7 +2487,7 @@ function PlanFormModal({
             value={plannedContent}
             onChange={(event) => setPlannedContent(event.target.value)}
             rows={8}
-            className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             placeholder='{"sessionIndex":1,"activities":[]}'
           />
         </Field>
@@ -2465,7 +2498,7 @@ function PlanFormModal({
               value={actualContent}
               onChange={(event) => setActualContent(event.target.value)}
               rows={5}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="Nội dung dạy thực tế"
             />
           </Field>
@@ -2474,7 +2507,7 @@ function PlanFormModal({
               value={actualHomework}
               onChange={(event) => setActualHomework(event.target.value)}
               rows={5}
-              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               placeholder="Bài tập về nhà"
             />
           </Field>
@@ -2485,7 +2518,7 @@ function PlanFormModal({
             value={teacherNotes}
             onChange={(event) => setTeacherNotes(event.target.value)}
             rows={4}
-            className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             placeholder="Ghi chú giáo viên"
           />
         </Field>
@@ -2496,6 +2529,7 @@ function PlanFormModal({
           onClose={onClose}
           submitting={submitting}
           submitLabel={isEdit ? "Lưu lesson plan" : "Tạo lesson plan"}
+          showReset={false}
         />
       </form>
     </ModalFrame>
@@ -2557,14 +2591,14 @@ function DetailModal({
             <ContentPanel title="syllabusContent" value={state.item.syllabusContent} accent="text-emerald-700" />
             <ContentPanel title="sourceFileName" value={state.item.sourceFileName} accent="text-amber-700" />
 
-            <div className="rounded-2xl border border-red-100 bg-white p-5">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="text-sm font-semibold text-red-600">Attachment</div>
                 {state.item.attachment ? (
                   <button
                     type="button"
                     onClick={() => onOpenAttachment(state.item!.attachment)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
                   >
                     <Paperclip size={12} />
                     Mở file
@@ -2590,7 +2624,7 @@ function DetailModal({
               <ContentPanel title="teacherNotes" value={state.item.teacherNotes} accent="text-gray-700" />
             </div>
 
-            <div className="rounded-2xl border border-red-100 bg-white p-5">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
               <div className="mb-3 text-sm font-semibold text-red-600">Template liên kết</div>
               {state.item.templateId ? (
                 <div className="space-y-2 text-sm text-gray-700">
@@ -2611,11 +2645,11 @@ function DetailModal({
           <EmptyState title="Không có dữ liệu chi tiết" subtitle="Backend không trả về bản ghi phù hợp." />
         )}
 
-        <div className="flex items-center justify-end border-t border-red-100 pt-4">
+        <div className="flex items-center justify-end border-t border-gray-200 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg"
+            className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
           >
             Đóng
           </button>
@@ -2636,30 +2670,46 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function ModalActions({
   onClose,
+  onReset,
   submitting,
   submitLabel,
+  showReset = false,
 }: {
   onClose: () => void;
+  onReset?: () => void;
   submitting: boolean;
   submitLabel: string;
+  showReset?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-end gap-3 border-t border-red-100 pt-4">
+    <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
       <button
         type="button"
         onClick={onClose}
-        className="rounded-xl border border-red-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50"
+        className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 cursor-pointer"
       >
         Hủy
       </button>
-      <button
-        type="submit"
-        disabled={submitting}
-        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-        {submitLabel}
-      </button>
+      <div className="flex gap-3">
+        {showReset && onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            disabled={submitting}
+            className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+          >
+            Đặt lại
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={submitting}
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+        >
+          {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+          {submitLabel}
+        </button>
+      </div>
     </div>
   );
 }
@@ -2678,8 +2728,8 @@ function ToggleButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-xl border px-4 py-3 text-sm font-semibold transition-colors",
-        active ? "border-red-300 bg-red-50 text-red-700" : "border-red-200 bg-white text-gray-700"
+        "rounded-xl border px-4 py-3 text-sm font-semibold transition-colors cursor-pointer",
+        active ? "border-red-300 bg-red-50 text-red-700" : "border-gray-200 bg-white text-gray-700"
       )}
     >
       {label}
@@ -2705,7 +2755,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-xl px-4 py-2 text-sm font-semibold transition-colors",
+        "rounded-xl px-4 py-2 text-sm font-semibold transition-colors cursor-pointer",
         active ? "bg-gradient-to-r from-red-600 to-red-700 text-white" : "text-gray-600 hover:bg-red-50"
       )}
     >
@@ -2731,10 +2781,10 @@ function IconButton({
       onClick={onClick}
       title={label}
       className={cn(
-        "rounded-lg border p-2 transition-colors",
+        "rounded-lg border p-2 transition-colors cursor-pointer",
         variant === "warning"
           ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-          : "border-red-200 bg-white text-gray-600 hover:bg-red-50 hover:text-red-600"
+          : "border-gray-200 bg-white text-gray-600 hover:bg-red-50 hover:text-red-600"
       )}
     >
       {children}
@@ -2806,25 +2856,27 @@ function ModalFrame({
   widthClass?: string;
 }) {
   return (
-    <div className="fixed inset-0 z-100 flex items-start justify-center overflow-y-auto bg-gray-950/60 p-4">
-      <div className={cn("my-8 w-full rounded-3xl bg-white shadow-2xl", widthClass)}>
-        <div className="flex items-start justify-between gap-4 border-b border-red-100 px-6 py-5">
-          <div className="flex items-start gap-4">
-            <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
-              <Icon size={22} />
+    <div className="fixed inset-0 z-100 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+      <div className={cn("my-8 w-full rounded-2xl border border-gray-200 bg-white shadow-2xl", widthClass)}>
+        <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="rounded-xl bg-white/20 backdrop-blur-sm p-3 text-white shadow-lg">
+                <Icon size={22} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{title}</h2>
+                <p className="mt-1 text-sm text-red-100">{subtitle}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-              <p className="mt-1 text-sm text-gray-600">{subtitle}</p>
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-2 text-white transition hover:bg-white/20 cursor-pointer"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-red-200 bg-white p-2 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
-          >
-            <X size={18} />
-          </button>
         </div>
         {children}
       </div>
@@ -2854,7 +2906,7 @@ function InfoCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-red-100 bg-red-50/60 p-4">
+    <div className="rounded-2xl border border-gray-200 bg-red-50/60 p-4">
       <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-red-600">
         <Icon size={14} />
         {label}
@@ -2876,7 +2928,7 @@ function ContentPanel({
   accent: string;
 }) {
   return (
-    <div className="rounded-2xl border border-red-100 bg-white p-5">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5">
       <div className={cn("text-sm font-semibold", accent)}>{title}</div>
       {subtitle ? <div className="mt-1 text-xs text-gray-500">{subtitle}</div> : null}
       <div className="mt-3">
@@ -3067,7 +3119,7 @@ function SessionSheetView({ objectValue }: { objectValue: Record<string, any> })
             ) : (
               <tr>
                 <td className="border border-gray-300 px-3 py-4 text-center text-sm text-gray-400" colSpan={10}>
-                  Chua co activity.
+                  Chưa có activity.
                 </td>
               </tr>
             )}
