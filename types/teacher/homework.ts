@@ -234,7 +234,6 @@ export interface CreateHomeworkPayload {
   rewardStars?: number;
   timeLimitMinutes?: number;
   allowResubmit?: boolean;
-  missionId?: string;
   instructions?: string;
   expectedAnswer?: string;
   rubric?: string;
@@ -264,7 +263,6 @@ export interface CreateHomeworkFromBankPayload {
   rewardStars?: number;
   timeLimitMinutes?: number;
   allowResubmit?: boolean;
-  missionId?: string;
   instructions?: string;
   distribution: Array<{
     level: QuestionBankDifficulty;

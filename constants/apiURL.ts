@@ -77,6 +77,7 @@ export const STUDENT_HOMEWORK_ENDPOINTS = {
   GET_SPEAKING_ANALYSIS: (homeworkStudentId: string) =>
     `/api/students/homework/${homeworkStudentId}/speaking-analysis`,
   ANALYZE_SPEAKING: "/api/students/ai-speaking/analyze",
+  CONVERSE_SPEAKING: "/api/students/ai-speaking/converse",
   SUBMIT: "/api/students/homework/submit",
   SUBMIT_MULTIPLE_CHOICE: "/api/students/homework/multiple-choice/submit",
 } as const;
@@ -505,7 +506,7 @@ export const BACKEND_PROFILE_ENDPOINTS = {
   DELETE: (id: string) => `/profiles/${id}`,
   LINK: '/profiles/link',
   UNLINK: '/profiles/unlink',
-  REACTIVATE: (id: string) => `/profiles/${id}/reactivate-and-update`,
+  REACTIVATE: (id: string) => `/profiles/${id}/reactivate`,
 } as const;
 
 // Backend Admin Endpoints (Next.js API Routes → Backend API)
@@ -517,7 +518,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   PROGRAMS_ACTIVE: '/programs/active',
   REGISTRATIONS: '/registrations',
   PROGRAMS_BY_ID: (id: string) => `/programs/${id}`,
-  PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/programs/${id}/monthly-leave-limit`,
+  PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/admin/programs/${id}/monthly-leave-limit`,
   PROGRAMS_TOGGLE_STATUS: (id: string) => `/programs/${id}/toggle-status`,
   TUITION_PLANS: '/tuition-plans',
   TUITION_PLANS_ACTIVE: '/tuition-plans/active',

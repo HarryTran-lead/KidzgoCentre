@@ -12,6 +12,7 @@ export const menuParent = {
       LeaveRequest: "Xin nghỉ ngắn ngày",
       pauseEnrollment: "Bảo lưu học",
       account: "Tài khoản",
+      profile: "Hồ sơ cá nhân",
     },
   },
   en: {
@@ -27,6 +28,7 @@ export const menuParent = {
       LeaveRequest: "Short Leave",
       pauseEnrollment: "Enrollment Pause",
       account: "Account",
+      profile: "My Profile",
     },
   },
 } as const;

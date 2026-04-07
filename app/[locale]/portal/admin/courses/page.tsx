@@ -151,6 +151,7 @@ interface CourseFormData {
   isMakeup: boolean;
   isSupplementary: boolean;
   branchId: string;
+  maxLeavesPerMonth?: number | null;
 }
 
 const initialFormData: CourseFormData = {
@@ -160,6 +161,7 @@ const initialFormData: CourseFormData = {
   isMakeup: false,
   isSupplementary: false,
   branchId: "",
+  maxLeavesPerMonth: null,
 };
 
 function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateCourseModalProps) {
@@ -261,7 +263,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
         ref={modalRef}
         className="relative w-full max-w-5xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
@@ -409,6 +411,31 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* Row: Giới hạn nghỉ */}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600" />
+                <div>
+                  <div className="text-sm font-semibold text-amber-900">Giới hạn nghỉ ngắn ngày theo tháng</div>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Số buổi nghỉ tối đa mỗi tháng cho các lớp thuộc chương trình này. Có thể để trống và cấu hình sau.
+                  </p>
+                </div>
+              </div>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={formData.maxLeavesPerMonth ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  handleChange("maxLeavesPerMonth", v === "" ? null : Math.max(1, parseInt(v, 10) || 1));
+                }}
+                placeholder="VD: 3 (để trống nếu chưa cấu hình)"
+                className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
+              />
             </div>
 
 
@@ -648,9 +675,20 @@ export default function Page() {
         isSupplementary: data.isSupplementary,
       };
 
-      await createAdminProgram(payload);
+      const created = await createAdminProgram(payload);
 
       const warnings: string[] = [];
+
+      // Cấu hình giới hạn nghỉ nếu có
+      if (data.maxLeavesPerMonth && data.maxLeavesPerMonth > 0 && created?.id && !created.id.startsWith("PROG-")) {
+        try {
+          await updateAdminProgramMonthlyLeaveLimit(created.id, data.maxLeavesPerMonth);
+        } catch (leaveLimitError: any) {
+          console.warn("Failed to set leave limit after create:", leaveLimitError);
+          warnings.push(leaveLimitError?.message || "chưa cấu hình được giới hạn nghỉ");
+        }
+      }
+
       try {
         const branchId = getBranchQueryParam();
         const mapped = await fetchAdminPrograms({ branchId });
@@ -715,6 +753,17 @@ export default function Page() {
       await updateAdminProgram(editingProgramId, payload);
 
       const warnings: string[] = [];
+
+      // Cập nhật giới hạn nghỉ nếu thay đổi
+      if (data.maxLeavesPerMonth && data.maxLeavesPerMonth > 0) {
+        try {
+          await updateAdminProgramMonthlyLeaveLimit(editingProgramId, data.maxLeavesPerMonth);
+        } catch (leaveLimitError: any) {
+          console.warn("Failed to update leave limit:", leaveLimitError);
+          warnings.push(leaveLimitError?.message || "chưa cập nhật được giới hạn nghỉ");
+        }
+      }
+
       if (originalStatus && data.status !== originalStatus) {
         try {
           await toggleProgramStatus(editingProgramId);
@@ -780,6 +829,7 @@ export default function Page() {
           typeof detail.isSupplementary === "boolean"
             ? detail.isSupplementary
             : !!row.isSupplementary,
+        maxLeavesPerMonth: extractProgramMonthlyLeaveLimit(detail),
       };
 
       setEditingProgramId(row.id);
@@ -1294,7 +1344,7 @@ export default function Page() {
 
       {/* Detail Modal */}
       {showDetailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">

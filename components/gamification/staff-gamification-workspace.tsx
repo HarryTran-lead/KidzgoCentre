@@ -24,7 +24,6 @@ import {
 import { buildFileUrl } from "@/constants/apiURL";
 import { useToast } from "@/hooks/use-toast";
 import { isUploadSuccess, uploadFile } from "@/lib/api/fileService";
-import { fetchHomework } from "@/lib/api/homeworkService";
 import { getAllStudents } from "@/lib/api/studentService";
 import {
   addStars,
@@ -45,7 +44,6 @@ import {
   getRewardRedemption,
   getStarBalance,
   getStarTransactions,
-  linkHomeworkToMission,
   listMissions,
   listRewardRedemptions,
   listRewardStoreItems,
@@ -65,7 +63,6 @@ import type {
   RewardRedemption,
   RewardStoreItem,
 } from "@/types/gamification";
-import type { HomeworkSubmission } from "@/types/teacher/homework";
 import {
   cx,
   DialogShell,
@@ -147,13 +144,6 @@ type StudentActionState = {
 };
 
 type StudentActionErrors = Partial<Record<"starAmount" | "xpAmount", string>>;
-
-type HomeworkLinkOption = {
-  id: string;
-  title: string;
-  classTitle?: string;
-  dueAt?: string;
-};
 
 const inputClass =
   "w-full rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100";
@@ -278,10 +268,6 @@ export function StaffGamificationWorkspace({
   const [rewardDialogOpen, setRewardDialogOpen] = useState(false);
   const [progressDialog, setProgressDialog] = useState<{ mission: Mission | null; items: MissionProgress[]; open: boolean }>({ mission: null, items: [], open: false });
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const [linkForm, setLinkForm] = useState({ homeworkId: "", missionId: "" });
-  const [homeworkOptions, setHomeworkOptions] = useState<HomeworkLinkOption[]>([]);
-  const [homeworkOptionsLoading, setHomeworkOptionsLoading] = useState(false);
-  const [homeworkOptionsError, setHomeworkOptionsError] = useState<string | null>(null);
   const [redemptionDetail, setRedemptionDetail] = useState<RewardRedemption | null>(null);
   const [studentAction, setStudentAction] = useState<StudentActionState>(studentActionSeed);
   const [studentActionErrors, setStudentActionErrors] = useState<StudentActionErrors>({});
@@ -307,16 +293,6 @@ export function StaffGamificationWorkspace({
         .map((studentId) => students.find((item) => item.id === studentId) ?? null)
         .filter((item): item is StudentOption => Boolean(item)),
     [missionForm.targetGroupIds, students]
-  );
-
-  const selectedHomeworkOption = useMemo(
-    () => homeworkOptions.find((item) => item.id === linkForm.homeworkId) ?? null,
-    [homeworkOptions, linkForm.homeworkId]
-  );
-
-  const selectedMissionOption = useMemo(
-    () => missions.find((item) => item.id === linkForm.missionId) ?? null,
-    [missions, linkForm.missionId]
   );
 
   function normalizeMissionTargetGroup(value: Mission["targetGroup"]): string[] {
@@ -802,47 +778,7 @@ export function StaffGamificationWorkspace({
     setRewardDialogOpen(true);
   }
 
-  async function loadHomeworkOptions() {
-    try {
-      setHomeworkOptionsLoading(true);
-      setHomeworkOptionsError(null);
-
-      const result = await fetchHomework({ pageNumber: 1, pageSize: 200 });
-      if (!result.ok) {
-        throw new Error(result.error || "Không thể tải danh sách bài tập.");
-      }
-
-      const optionMap = new Map<string, HomeworkLinkOption>();
-
-      for (const item of result.data.data) {
-        const homework = item as HomeworkSubmission;
-        const id = String(homework.assignmentId || homework.id || "").trim();
-        if (!id || optionMap.has(id)) {
-          continue;
-        }
-
-        optionMap.set(id, {
-          id,
-          title: homework.title || `Bài tập ${id}`,
-          classTitle: homework.classTitle || undefined,
-          dueAt: homework.dueAt || undefined,
-        });
-      }
-
-      setHomeworkOptions(Array.from(optionMap.values()));
-    } catch (error) {
-      setHomeworkOptions([]);
-      setHomeworkOptionsError(normalizeProblemMessage(error));
-    } finally {
-      setHomeworkOptionsLoading(false);
-    }
-  }
-
   function openLinkHomeworkDialog() {
-    setLinkForm((current) => ({
-      homeworkId: current.homeworkId,
-      missionId: current.missionId,
-    }));
     setLinkDialogOpen(true);
   }
 
@@ -996,36 +932,6 @@ export function StaffGamificationWorkspace({
     }
   }
 
-  async function submitLinkHomework() {
-    if (!linkForm.homeworkId.trim() || !linkForm.missionId.trim()) {
-      toast({
-        title: "Thiếu thông tin liên kết",
-        description: "Vui lòng chọn bài tập và nhiệm vụ cần liên kết.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setBusyAction("link-homework");
-      await linkHomeworkToMission(
-        linkForm.homeworkId.trim(),
-        linkForm.missionId.trim()
-      );
-      toast.success({ title: "Đã liên kết bài tập với nhiệm vụ" });
-      setLinkDialogOpen(false);
-      setLinkForm({ homeworkId: "", missionId: "" });
-    } catch (error) {
-      toast({
-        title: "Không thể liên kết bài tập",
-        description: normalizeProblemMessage(error),
-        variant: "destructive",
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
   async function openRedemptionDetail(id: string) {
     try {
       setBusyAction(`redemption-${id}`);
@@ -1152,14 +1058,6 @@ export function StaffGamificationWorkspace({
     }
   }
 
-  useEffect(() => {
-    if (!linkDialogOpen) {
-      return;
-    }
-
-    void loadHomeworkOptions();
-  }, [linkDialogOpen]);
-
   return (
     <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
       {/* Title */}
@@ -1190,7 +1088,7 @@ export function StaffGamificationWorkspace({
         <Panel theme="staff">
           <SectionTitle
             title="Quản lý nhiệm vụ"
-            description="Tạo nhiệm vụ mới, cập nhật phạm vi áp dụng, xem tiến độ và liên kết bài tập vào nhiệm vụ."
+            description="Tạo nhiệm vụ mới, cập nhật phạm vi áp dụng, xem tiến độ và theo dõi các luồng backend tự cộng progress."
             theme="staff"
             action={
               <div className="flex flex-wrap gap-2">
@@ -1200,7 +1098,7 @@ export function StaffGamificationWorkspace({
                 </button>
                 <button type="button" onClick={openLinkHomeworkDialog} className={ghostButton}>
                   <Link2 className="h-4 w-4" />
-                  Liên kết bài tập
+                  Lưu ý homework
                 </button>
               </div>
             }
@@ -1920,37 +1818,29 @@ export function StaffGamificationWorkspace({
         </div>
       </DialogShell>
 
-      <DialogShell open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} title="Liên kết bài tập với nhiệm vụ" description="Dùng khi cần gắn một bài tập hiện có vào nhiệm vụ đang chạy." theme="staff">
-        <div className="grid gap-4">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Bài tập</label>
-            <select value={linkForm.homeworkId} onChange={(event) => setLinkForm((current) => ({ ...current, homeworkId: event.target.value }))} className={inputClass} disabled={homeworkOptionsLoading || homeworkOptions.length === 0}>
-              <option value="">
-                {homeworkOptionsLoading ? "Đang tải danh sách bài tập..." : homeworkOptions.length === 0 ? "Không có bài tập để chọn" : "Chọn bài tập"}
-              </option>
-              {homeworkOptions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}{item.classTitle ? ` • ${item.classTitle}` : ""}
-                </option>
-              ))}
-            </select>
-            {selectedHomeworkOption ? <p className="mt-2 text-xs text-gray-500">{selectedHomeworkOption.classTitle ? `${selectedHomeworkOption.classTitle}` : "Bài tập đã chọn"}{selectedHomeworkOption.dueAt ? ` • Hạn nộp: ${formatDateTime(selectedHomeworkOption.dueAt)}` : ""}</p> : null}
-            {homeworkOptionsError ? <p className="mt-2 text-xs text-rose-600">{homeworkOptionsError}</p> : null}
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">Nhiệm vụ</label>
-            <select value={linkForm.missionId} onChange={(event) => setLinkForm((current) => ({ ...current, missionId: event.target.value }))} className={inputClass} disabled={missions.length === 0}>
-              <option value="">{missions.length === 0 ? "Không có nhiệm vụ để chọn" : "Chọn nhiệm vụ"}</option>
-              {missions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title} • {mapMissionScopeLabel(item.scope)}
-                </option>
-              ))}
-            </select>
-            {selectedMissionOption ? <p className="mt-2 text-xs text-gray-500">{mapMissionTypeLabel(selectedMissionOption.missionType)} • {mapMissionScopeLabel(selectedMissionOption.scope)}{selectedMissionOption.startAt ? ` • Bắt đầu: ${formatDateTime(selectedMissionOption.startAt)}` : ""}</p> : null}
-          </div>
+      <DialogShell open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} title="Homework và mission" description="Backend đã đổi sang cơ chế tự tính progress cho homework, nên không còn flow public để gắn homework với mission." theme="staff">
+        <div className="space-y-3 text-sm leading-6 text-gray-600">
+          <p>
+            `missionId` không còn được expose trong request hoặc response homework public.
+          </p>
+          <p>
+            Route public link homework vào mission cũng đã được gỡ, nên staff không nên dùng flow cũ để liên kết thủ công nữa.
+          </p>
+          <p>
+            `HomeworkStreak` hiện được backend tự cộng progress cho cả `POST /api/students/homework/submit` và `POST /api/students/homework/multiple-choice/submit` khi học sinh nộp đúng hạn.
+          </p>
+          <p>
+            Với quiz, `RewardStars` và progress chỉ tính ở lần nộp đúng hạn đầu tiên, không cộng lặp khi resubmit.
+          </p>
+          <p className="text-xs text-gray-500">
+            Nếu sau này cần mở lại use case homework gắn mission, cần có backend contract mới thay vì dùng lại API public cũ.
+          </p>
         </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setLinkDialogOpen(false)} className={ghostButton}>Đóng</button><button type="button" onClick={() => void submitLinkHomework()} disabled={busyAction === "link-homework"} className={primaryButton}>{busyAction === "link-homework" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}Liên kết</button></div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={() => setLinkDialogOpen(false)} className={ghostButton}>
+            Đóng
+          </button>
+        </div>
       </DialogShell>
 
       <DialogShell open={Boolean(redemptionDetail)} onClose={() => setRedemptionDetail(null)} title={redemptionDetail?.itemName || "Chi tiết yêu cầu đổi thưởng"} description="Thông tin chi tiết của yêu cầu đổi quà để staff và người học tiện theo dõi." theme="staff">

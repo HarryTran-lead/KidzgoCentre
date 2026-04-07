@@ -312,7 +312,6 @@ function CreateAssignmentModal({
   const [pages, setPages] = useState("");
   const [skills, setSkills] = useState("");
   const [submissionType, setSubmissionType] = useState<"FILE" | "IMAGE" | "TEXT" | "LINK" | "MULTIPLE_CHOICE">("FILE");
-  const [missionId, setMissionId] = useState("");
   const [instructions, setInstructions] = useState("");
   const [expectedAnswer, setExpectedAnswer] = useState("");
   const [rubric, setRubric] = useState("");
@@ -533,7 +532,6 @@ function CreateAssignmentModal({
           sessionId: selectedSession || undefined,
           dueAt: `${dueDate}T${dueTime}:00+07:00`,
           rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
-          missionId: missionId || undefined,
           instructions: instructions || undefined,
           timeLimitMinutes: timeLimitMinutes ? parseInt(timeLimitMinutes) : undefined,
           questions: apiQuestions,
@@ -576,7 +574,6 @@ function CreateAssignmentModal({
           submissionType: submissionType as "FILE" | "IMAGE" | "TEXT" | "LINK" | undefined,
           maxScore: maxScore ? parseInt(maxScore) : undefined,
           rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
-          missionId: missionId || undefined,
           instructions: instructions || undefined,
           expectedAnswer: expectedAnswer || undefined,
           rubric: rubric || undefined,
@@ -618,7 +615,7 @@ function CreateAssignmentModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
         <div
           ref={modalRef}
           className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
@@ -1385,9 +1382,9 @@ function CreateAssignmentModal({
                   <div className="flex items-center gap-2">
                     <Tag size={16} className="text-red-600" />
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">Thiết lập nâng cao</p>
+                      <p className="text-sm font-semibold text-gray-900">Lưu ý gamification</p>
                       <p className="text-xs text-gray-500">
-                        Mission chỉ dùng khi backend đã cấu hình liên kết homework với hệ thống nhiệm vụ.
+                        Homework public API hiện để backend tự xử lý progress và reward, không còn nhận `missionId`.
                       </p>
                     </div>
                   </div>
@@ -1403,17 +1400,18 @@ function CreateAssignmentModal({
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <Tag size={16} className="text-red-600" />
-                        Liên kết nhiệm vụ (tùy chọn)
+                        Mission public API đã bị ẩn
                       </label>
                       <input
                         type="text"
-                        value={missionId}
-                        onChange={(e) => setMissionId(e.target.value)}
+                        value="missionId đã bị ẩn khỏi public API"
+                        readOnly
+                        disabled
                         className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                        placeholder="Nhập missionId nếu backend yêu cầu"
+                        placeholder=""
                       />
                       <p className="text-xs text-gray-500">
-                        Để trống trong flow giao bài tập thông thường. Trường này không bắt buộc để tạo homework.
+                        HomeworkStreak hiện được backend tự theo dõi cho cả homework thường và quiz; quiz chỉ cộng RewardStars và streak ở lần nộp đúng hạn đầu tiên.
                       </p>
                     </div>
                   </div>
@@ -1553,7 +1551,7 @@ function UpdateAssignmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
         <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
@@ -2288,7 +2286,7 @@ export default function TeacherAssignmentsPage() {
       )}
 
       {deleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => !isDeleting && setDeleteModalOpen(false)}

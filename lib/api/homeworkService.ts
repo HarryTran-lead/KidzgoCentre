@@ -457,7 +457,6 @@ export async function createMultipleChoiceHomework(
     description?: string;
     dueAt: string;
     rewardStars?: number;
-    missionId?: string;
     timeLimitMinutes?: number;
     allowResubmit?: boolean;
     instructions?: string;

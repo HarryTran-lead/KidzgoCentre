@@ -14,6 +14,7 @@ import {
   Sparkles,
   UserCog,
   Users,
+  UserCircle,
 } from "lucide-react";
 import { makeMenu, type RawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -40,6 +41,7 @@ export function staffManagerMenu(root: string, locale: Locale = "vi"): MenuItem[
     [t.studentProfiles, NotebookText, "/students"],
     [t.enrollments, BookOpen, "/enrollments"],
     [t.templates, FileText, "/templates"],
+    [t.profile, UserCircle, "/profile"],
   ];
 
   return makeMenu(root, raws);

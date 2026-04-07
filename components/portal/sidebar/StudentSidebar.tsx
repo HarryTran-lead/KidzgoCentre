@@ -175,6 +175,11 @@ export default function StudentSidebar({
       href: `${roleRoot}/ai-tutor`,
       iconSrc: "/icons/quest.png",
     },
+    {
+      label: "AI Speaking",
+      href: `${roleRoot}/ai-speaking`,
+      iconSrc: "/icons/phone.png",
+    },
     { 
       label: "Gamification", 
       href: `${roleRoot}/gamification`,

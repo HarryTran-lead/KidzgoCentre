@@ -326,9 +326,13 @@ export async function upgradeRegistration(
 export function extractRegistrationIdFromAction(response: RegistrationActionResponse | any): string {
   return String(
     response?.data?.registrationId ||
+      response?.data?.newRegistrationId ||
+      response?.data?.originalRegistrationId ||
       response?.data?.id ||
       response?.data?.registration?.id ||
       response?.registrationId ||
+      response?.newRegistrationId ||
+      response?.originalRegistrationId ||
       response?.id ||
       ""
   );

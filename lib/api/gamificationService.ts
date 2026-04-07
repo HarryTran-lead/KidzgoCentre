@@ -461,13 +461,3 @@ export async function batchDeliverRewardRedemptions(
   );
   return unwrapData<BatchDeliverResult>(response);
 }
-
-export async function linkHomeworkToMission(
-  homeworkId: string,
-  missionId: string
-): Promise<{ homeworkId: string; missionId: string; missionTitle?: string }> {
-  const response = await post<any>(`/api/homework/${homeworkId}/link-mission`, {
-    missionId,
-  });
-  return unwrapData(response);
-}

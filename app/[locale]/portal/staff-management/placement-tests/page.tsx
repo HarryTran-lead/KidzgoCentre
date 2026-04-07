@@ -938,10 +938,19 @@ export default function PlacementTestsPage() {
     if (!selectedTest) return;
 
     try {
-      // Convert form data to PlacementTestResult format
-      const resultData: PlacementTestResult = {
-        testId: selectedTest.id,
-        ...data,
+      // Build the result payload matching API expectations
+      const resultPayload = {
+        listeningScore: data.listeningScore ?? 0,
+        speakingScore: data.speakingScore ?? 0,
+        readingScore: data.readingScore ?? 0,
+        writingScore: data.writingScore ?? 0,
+        resultScore: data.resultScore ?? 0,
+        programRecommendationId: data.programRecommendationId || null,
+        programRecommendationName: data.programRecommendationName || null,
+        secondaryProgramRecommendationId: data.secondaryProgramRecommendationId || null,
+        secondaryProgramRecommendationName: data.secondaryProgramRecommendationName || null,
+        secondaryProgramSkillFocus: data.secondaryProgramSkillFocus || null,
+        attachmentUrl: data.attachmentUrl || "",
       };
 
       const token = getAccessToken();
@@ -954,7 +963,7 @@ export default function PlacementTestsPage() {
         fetch(PLACEMENT_TEST_ENDPOINTS.UPDATE_RESULTS(selectedTest.id), {
           method: "PUT",
           headers,
-          body: JSON.stringify(resultData),
+          body: JSON.stringify(resultPayload),
         }),
       ];
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useDeferredValue, useMemo, useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   Plus, Search, Users, Clock, Eye, Pencil,
@@ -874,7 +874,7 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
         ref={modalRef}
         className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
@@ -1863,7 +1863,7 @@ function CreateClassModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div 
         ref={modalRef}
         className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
@@ -2481,6 +2481,7 @@ export default function Page() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<"ALL" | ClassRow["status"]>("ALL");
   const [teacherFilter, setTeacherFilter] = useState<"ALL" | string>("ALL");
+  const [schedulePatternFilter, setSchedulePatternFilter] = useState("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -2495,6 +2496,7 @@ export default function Page() {
   const [editingCurrentEnrollmentCount, setEditingCurrentEnrollmentCount] = useState<number>(0);
   const [originalStatus, setOriginalStatus] = useState<ClassFormData["status"] | null>(null);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const deferredSchedulePatternFilter = useDeferredValue(schedulePatternFilter.trim());
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -2512,7 +2514,10 @@ export default function Page() {
         const branchId = getBranchQueryParam();
         console.log("🎓 Fetching classes for branch:", branchId || "All branches");
 
-        const mapped = await fetchAdminClasses({ branchId });
+        const mapped = await fetchAdminClasses({
+          branchId,
+          schedulePattern: deferredSchedulePatternFilter || undefined,
+        });
         setClasses(mapped);
         console.log("✅ Loaded", mapped.length, "classes");
       } catch (err) {
@@ -2526,7 +2531,7 @@ export default function Page() {
 
     fetchClasses();
     setPage(1);
-  }, [selectedBranchId, isLoaded]);
+  }, [selectedBranchId, isLoaded, deferredSchedulePatternFilter]);
 
   const stats = useMemo(() => {
     const total = classes.length;
@@ -2549,7 +2554,7 @@ export default function Page() {
     let filtered = !kw
       ? classes
       : classes.filter((c) =>
-          [c.id, c.name, c.sub, c.teacher, c.branch].some((x) =>
+          [c.id, c.name, c.sub, c.teacher, c.branch, c.schedule].some((x) =>
             x.toLowerCase().includes(kw)
           )
         );
@@ -2604,7 +2609,10 @@ export default function Page() {
 
   const reloadClassesByCurrentBranch = async () => {
     const branchId = getBranchQueryParam();
-    return fetchAdminClasses({ branchId });
+    return fetchAdminClasses({
+      branchId,
+      schedulePattern: deferredSchedulePatternFilter || undefined,
+    });
   };
 
   const handleSelectAll = () => {
@@ -2947,6 +2955,12 @@ export default function Page() {
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
+              <input
+                value={schedulePatternFilter}
+                onChange={(e) => { setSchedulePatternFilter(e.target.value); setPage(1); }}
+                placeholder="Lọc RRULE: BYDAY=MO, FREQ=WEEKLY..."
+                className="h-10 min-w-[260px] rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              />
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}

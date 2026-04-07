@@ -17,6 +17,7 @@ export const menuStaffManager = {
       studentProfiles: "Hồ sơ học sinh",
       enrollments: "Ghi danh",
       templates: "Mẫu thông báo",
+      profile: "Hồ sơ cá nhân",
     },
   },
   en: {
@@ -37,6 +38,7 @@ export const menuStaffManager = {
       studentProfiles: "Student Profiles",
       enrollments: "Enrollments",
       templates: "Message Templates",
+      profile: "My Profile",
     },
   },
 } as const;
