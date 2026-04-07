@@ -23,7 +23,6 @@ export default function HomeSections() {
       <Teacher />
       <Programs />
       <Blog />
-      {/* <CtaStrip /> */}
     </>
   );
 }

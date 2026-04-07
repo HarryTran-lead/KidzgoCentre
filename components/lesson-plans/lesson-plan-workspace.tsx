@@ -2806,7 +2806,7 @@ function ModalFrame({
   widthClass?: string;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-gray-950/60 p-4">
+    <div className="fixed inset-0 z-100 flex items-start justify-center overflow-y-auto bg-gray-950/60 p-4">
       <div className={cn("my-8 w-full rounded-3xl bg-white shadow-2xl", widthClass)}>
         <div className="flex items-start justify-between gap-4 border-b border-red-100 px-6 py-5">
           <div className="flex items-start gap-4">

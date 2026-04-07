@@ -498,7 +498,7 @@ export default function Sidebar({
           }`}
         >
           <Image
-            src={LOGO_ONLY}
+            src={LOGO}
             alt="KidzGo"
             priority
             width={48}
