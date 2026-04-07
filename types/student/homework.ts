@@ -277,3 +277,33 @@ export interface HomeworkSpeakingAnalysisResult {
   confidence?: HomeworkSpeakingConfidence;
   warnings: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Speaking Conversation (Phase 2)
+// ---------------------------------------------------------------------------
+
+export type SpeakingConversationRole = "ai" | "student";
+
+export interface SpeakingConversationTurn {
+  id: string;
+  role: SpeakingConversationRole;
+  text: string;
+  audioUrl?: string | null;
+  analysis?: HomeworkSpeakingAnalysisResult | null;
+  timestamp: number;
+}
+
+export type SpeakingTopic =
+  | "free"
+  | "introduce-yourself"
+  | "daily-routine"
+  | "describe-picture"
+  | "storytelling"
+  | "homework";
+
+export interface SpeakingTopicOption {
+  value: SpeakingTopic;
+  label: string;
+  description: string;
+  greeting: string;
+}

@@ -1220,6 +1220,67 @@ export async function analyzeStudentSpeakingPractice(
   }
 }
 
+export type SpeakingConversePracticePayload = {
+  file: File;
+  language?: string;
+  topic?: string;
+  conversationHistory?: string;
+  instructions?: string;
+  homeworkStudentId?: string;
+};
+
+export async function converseStudentSpeaking(
+  payload: SpeakingConversePracticePayload
+): Promise<StudentAiActionResponse<HomeworkSpeakingAnalysisResult>> {
+  const formData = new FormData();
+  formData.append("file", payload.file);
+
+  if (payload.homeworkStudentId) {
+    formData.append("homeworkStudentId", payload.homeworkStudentId);
+  }
+  if (payload.language) {
+    formData.append("language", payload.language);
+  }
+  if (payload.topic) {
+    formData.append("topic", payload.topic);
+  }
+  if (payload.conversationHistory) {
+    formData.append("conversationHistory", payload.conversationHistory);
+  }
+  if (payload.instructions) {
+    formData.append("instructions", payload.instructions);
+  }
+
+  try {
+    const response = await request<any>({
+      url: STUDENT_HOMEWORK_ENDPOINTS.ANALYZE_SPEAKING,
+      method: "POST",
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    const responseData = response?.data || response;
+    const aiPayload = responseData?.data ?? responseData;
+
+    return {
+      data: normalizeSpeakingAnalysisResult(aiPayload),
+      isSuccess: responseData?.isSuccess ?? true,
+      message: responseData?.message,
+    };
+  } catch (error: any) {
+    return {
+      isSuccess: false,
+      message:
+        error?.response?.data?.message ||
+        error?.response?.data?.detail ||
+        error?.message ||
+        "Khong the goi AI conversation",
+    };
+  }
+}
+
 // Submit Homework Types
 export type SubmitHomeworkPayload = {
   homeworkStudentId: string;

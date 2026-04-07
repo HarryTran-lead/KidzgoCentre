@@ -5,6 +5,7 @@ import {
   History,
   ClipboardList,
   Bot,
+  Mic,
   Upload,
   GraduationCap,
   MessageSquare,
@@ -67,6 +68,12 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     href: `${root}/ai-tutor`,
   };
 
+  const aiSpeakingItem: MenuItem = {
+    label: t.items.aiSpeaking,
+    icon: Mic,
+    href: `${root}/ai-speaking`,
+  };
+
   // 📊 Báo cáo & Kiểm tra
   const reportsTestsGroup = makeGroup(
     root,
@@ -125,6 +132,7 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     attendanceItem,
     homeworkItem,
     aiTutorItem,
+    aiSpeakingItem,
     reportsTestsGroup,
     gamificationGroup,
     mediaGroup,

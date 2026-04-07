@@ -77,6 +77,7 @@ export const STUDENT_HOMEWORK_ENDPOINTS = {
   GET_SPEAKING_ANALYSIS: (homeworkStudentId: string) =>
     `/api/students/homework/${homeworkStudentId}/speaking-analysis`,
   ANALYZE_SPEAKING: "/api/students/ai-speaking/analyze",
+  CONVERSE_SPEAKING: "/api/students/ai-speaking/converse",
   SUBMIT: "/api/students/homework/submit",
   SUBMIT_MULTIPLE_CHOICE: "/api/students/homework/multiple-choice/submit",
 } as const;
