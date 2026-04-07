@@ -35,7 +35,10 @@ export default function PlacementTestDetailModal({
   };
 
   const hasResult = test.status === 'Completed' && (
-    test.resultScore !== undefined || test.listeningScore !== undefined
+    test.resultScore !== undefined ||
+    test.listeningScore !== undefined ||
+    test.programRecommendationId !== undefined ||
+    test.programRecommendationName !== undefined
   );
 
   return (
@@ -194,23 +197,30 @@ export default function PlacementTestDetailModal({
                   )}
 
                   {/* Program Recommendation */}
-                  {test.programRecommendation && (
+                  {(test.programRecommendationName || test.programRecommendationId) && (
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3">
                       <p className="text-sm text-gray-500 mb-1 flex items-center gap-2">
                         <FileText size={14} className="text-red-500" />
                         Đề xuất chương trình
                       </p>
-                      <p className="text-lg font-semibold text-red-700">{test.programRecommendation}</p>
+                      <p className="text-lg font-semibold text-red-700">
+                        {test.programRecommendationName || test.programRecommendationId || 'N/A'}
+                      </p>
+                      {test.programRecommendationId && (
+                        <p className="text-xs text-gray-400 mt-0.5">ID: {test.programRecommendationId}</p>
+                      )}
                     </div>
                   )}
 
-                  {test.secondaryProgramRecommendation && (
+                  {(test.secondaryProgramRecommendationName || test.secondaryProgramRecommendationId) && (
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3">
                       <p className="text-sm text-gray-500 mb-1 flex items-center gap-2">
                         <BookOpen size={14} className="text-red-500" />
                         Chương trình đề xuất thứ cấp
                       </p>
-                      <p className="text-lg font-semibold text-red-700">{test.secondaryProgramRecommendation}</p>
+                      <p className="text-lg font-semibold text-red-700">
+                        {test.secondaryProgramRecommendationName || test.secondaryProgramRecommendationId || 'N/A'}
+                      </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                           test.isSecondaryProgramSupplementary
@@ -225,6 +235,9 @@ export default function PlacementTestDetailModal({
                           </span>
                         )}
                       </div>
+                      {test.secondaryProgramRecommendationId && (
+                        <p className="text-xs text-gray-400 mt-1">ID: {test.secondaryProgramRecommendationId}</p>
+                      )}
                     </div>
                   )}
 

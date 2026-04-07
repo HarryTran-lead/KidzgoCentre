@@ -23,8 +23,10 @@ export interface PlacementTest {
   speakingScore?: number;
   readingScore?: number;
   writingScore?: number;
-  programRecommendation?: string;
-  secondaryProgramRecommendation?: string;
+  programRecommendationId?: string | null;
+  programRecommendationName?: string | null;
+  secondaryProgramRecommendationId?: string | null;
+  secondaryProgramRecommendationName?: string | null;
   isSecondaryProgramSupplementary?: boolean;
   secondaryProgramSkillFocus?: string;
   attachmentUrl?: string;
@@ -42,9 +44,10 @@ export interface PlacementTestResultResponse {
   readingScore: number;
   writingScore: number;
   resultScore: number;
-  programRecommendation: string;
-  secondaryProgramRecommendation?: string | null;
-  isSecondaryProgramSupplementary?: boolean | null;
+  programRecommendationId: string | null;
+  programRecommendationName: string | null;
+  secondaryProgramRecommendationId?: string | null;
+  secondaryProgramRecommendationName?: string | null;
   secondaryProgramSkillFocus?: string | null;
   attachmentUrl: string;
   status: "Scheduled" | "Completed" | "Cancelled" | "NoShow";
@@ -58,8 +61,10 @@ export interface PlacementTestResultRequest {
   readingScore: number;
   writingScore: number;
   resultScore: number;
-  programRecommendation: string;
-  secondaryProgramRecommendation?: string | null;
+  programRecommendationId: string | null;
+  programRecommendationName: string | null;
+  secondaryProgramRecommendationId?: string | null;
+  secondaryProgramRecommendationName?: string | null;
   isSecondaryProgramSupplementary?: boolean | null;
   secondaryProgramSkillFocus?: string | null;
   attachmentUrl: string;
@@ -72,8 +77,10 @@ export interface PlacementTestResult {
   readingScore?: number;
   writingScore?: number;
   resultScore?: number;
-  programRecommendationId?: string;
-  secondaryProgramRecommendation?: string | null;
+  programRecommendationId?: string | null;
+  programRecommendationName?: string | null;
+  secondaryProgramRecommendationId?: string | null;
+  secondaryProgramRecommendationName?: string | null;
   secondaryProgramSkillFocus?: string | null;
   attachmentUrl?: string;
 }

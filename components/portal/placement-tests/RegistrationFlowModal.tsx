@@ -466,7 +466,7 @@ export default function RegistrationFlowModal({
         setTuitionPlans(planItems || []);
         setActivePrograms(activeProgramItems || []);
 
-        const normalizedRecommendation = (test?.programRecommendation || "")
+        const normalizedRecommendation = (test?.programRecommendationName || "")
           .trim()
           .toLowerCase();
         const recommendedProgram = normalizedRecommendation
@@ -487,7 +487,7 @@ export default function RegistrationFlowModal({
         );
         setTuitionPlanId(firstPlan?.id || "");
         const normalizedSecondaryRecommendation = (
-          test?.secondaryProgramRecommendation || ""
+          test?.secondaryProgramRecommendationName || ""
         )
           .trim()
           .toLowerCase();
@@ -626,8 +626,8 @@ export default function RegistrationFlowModal({
     branchId,
     childName,
     test?.id,
-    test?.programRecommendation,
-    test?.secondaryProgramRecommendation,
+    test?.programRecommendationName,
+    test?.secondaryProgramRecommendationName,
     test?.secondaryProgramSkillFocus,
     test?.scheduledAt,
     toast,

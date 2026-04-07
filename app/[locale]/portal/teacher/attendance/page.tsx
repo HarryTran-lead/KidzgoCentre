@@ -21,6 +21,9 @@ import {
   ChevronUp,
   RefreshCcw,
   MessageSquareText,
+  Filter,
+  X,
+  ChevronRight,
 } from "lucide-react";
 
 import {
@@ -71,7 +74,7 @@ type SessionCard = {
 type StudentRow = Student & {
   name: string;
   rowKey: string;
-  studentId: string; // id thật để save (nếu có)
+  studentId: string;
   studentCode?: string;
   email?: string;
   phone?: string;
@@ -244,7 +247,6 @@ function normalizeAttendanceStatus(
   return status ?? null;
 }
 
-// SortableHeader Component
 function SortableHeader<T extends string>({
   label,
   column,
@@ -321,7 +323,7 @@ function Pagination({
           disabled={currentPage === 1}
           className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          â†
+          ←
         </button>
 
         {pages.map((page) => (
@@ -343,7 +345,7 @@ function Pagination({
           disabled={currentPage === totalPages}
           className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          â†’
+          →
         </button>
       </div>
     </div>
@@ -378,7 +380,7 @@ export default function TeacherAttendancePage() {
   });
 
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(requestedSessionId);
-  const [enableDefaultSessionSelection, setEnableDefaultSessionSelection] = useState(true);
+  const [enableDefaultSessionSelection, setEnableDefaultSessionSelection] = useState(false); // Changed to false
 
   const [attendanceList, setAttendanceList] = useState<StudentRow[]>([]);
   const [attendanceSummary, setAttendanceSummary] = useState<{
@@ -410,14 +412,12 @@ export default function TeacherAttendancePage() {
   const [isEnhancingNote, setIsEnhancingNote] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [expandedStatusRows, setExpandedStatusRows] = useState<Set<string>>(new Set());
-
-  // State for multi-select checkboxes
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 
   const recordsPerPage = 8;
 
   const handleSessionSelect = useCallback((sessionId: string) => {
-    setEnableDefaultSessionSelection(true);
+    setEnableDefaultSessionSelection(false);
     setSelectedSessionId(sessionId);
     setAttendanceList([]);
     setAttendanceSummary(null);
@@ -474,36 +474,13 @@ export default function TeacherAttendancePage() {
     });
   }, [requestedDate]);
 
+  // FIXED: Only auto-select when there's a sessionId from URL (click from schedule)
   useEffect(() => {
+    // Only auto-select if there's a requestedSessionId from URL (when clicking from schedule)
     if (requestedSessionId && selectedSessionId !== requestedSessionId) {
       handleSessionSelect(requestedSessionId);
-      return;
     }
-
-    if (!sessions.length) return;
-
-    if (requestedTime && requestedClass) {
-      const matchingSession = sessions.find((session: any) => {
-        const lesson = mapSessionToLessonDetail(session);
-        const [startTime] = lesson.time.split(" - ");
-        return startTime === requestedTime && lesson.course === requestedClass;
-      });
-
-      if (matchingSession) {
-        const lesson = mapSessionToLessonDetail(matchingSession);
-        if (selectedSessionId !== lesson.id) {
-          handleSessionSelect(lesson.id);
-        }
-      }
-      return;
-    }
-
-    if (!selectedSessionId && enableDefaultSessionSelection) {
-      const firstSession = sessions[0];
-      const lesson = mapSessionToLessonDetail(firstSession);
-      handleSessionSelect(lesson.id);
-    }
-  }, [enableDefaultSessionSelection, handleSessionSelect, requestedClass, requestedSessionId, requestedTime, selectedSessionId, sessions]);
+  }, [requestedSessionId, selectedSessionId, handleSessionSelect]);
 
   const selectedSession = useMemo(() => {
     if (!selectedSessionId) return null;
@@ -566,9 +543,21 @@ export default function TeacherAttendancePage() {
     setCurrentPage(1);
   };
 
+  const clearFilters = () => {
+    setFilters({
+      date: "",
+      time: "",
+      session: "",
+      className: "",
+      status: "",
+    });
+  };
+
   const handleChooseOtherSession = useCallback(() => {
     setEnableDefaultSessionSelection(false);
     setSelectedSessionId(null);
+    setAttendanceList([]);
+    setAttendanceSummary(null);
     setAttendanceLoadingError(null);
     setExpandedStatusRows(new Set());
     setCurrentPage(1);
@@ -686,7 +675,6 @@ const loadSessionReports = async () => {
           ...s,
           id: uniqueIdForUI,
           rowKey,
-          // vẫn giữ fallback để saveAttendance không bị thiếu id
           studentId: safeStudentId || uniqueIdForUI,
           studentProfileId: safeStudentId || undefined,
           status: normalizeAttendanceStatus(s.status, s.hasMakeupCredit),
@@ -994,7 +982,6 @@ const loadSessionReports = async () => {
     return filtered;
   }, [attendanceList, filterStatus, searchQuery, sortColumn, sortDirection]);
 
-  // Checkbox handlers
   const handleToggleStudent = (rowKey: string) => {
     setSelectedStudents((prev) => {
       const next = new Set(prev);
@@ -1104,108 +1091,190 @@ const loadSessionReports = async () => {
         </div>
 
         {!selectedSessionId && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-              <div>
-                <h3 className="font-semibold text-gray-900">Buổi học theo khoảng ngày</h3>
-                <p className="text-sm text-gray-500">Chọn buổi học để điểm danh ngay.</p>
-              </div>
-              <button
-                onClick={fetchSessionData}
-                className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition cursor-pointer"
-              >
-                <RefreshCcw size={14} />
-                Làm mới
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={dateRange.from}
-                  onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
-                />
-                <span className="text-gray-400 text-sm">â†’</span>
-                <input
-                  type="date"
-                  value={dateRange.to}
-                  onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
-                />
-              </div>
-
-              <input
-                value={filters.date}
-                onChange={(e) => handleFilterChange("date", e.target.value)}
-                placeholder="Ngày"
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-              />
-              <input
-                value={filters.time}
-                onChange={(e) => handleFilterChange("time", e.target.value)}
-                placeholder="Giờ"
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-              />
-              <input
-                value={filters.session}
-                onChange={(e) => handleFilterChange("session", e.target.value)}
-                placeholder="Buổi học"
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-              />
-              <input
-                value={filters.className}
-                onChange={(e) => handleFilterChange("className", e.target.value)}
-                placeholder="Lớp"
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-              />
-              <input
-                value={filters.status}
-                onChange={(e) => handleFilterChange("status", e.target.value)}
-                placeholder="Trạng thái"
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-              />
-            </div>
-
-            {loading && <div className="text-sm text-gray-500">Đang tải danh sách buổi học...</div>}
-            {error && <div className="text-sm text-red-600">{error}</div>}
-
-            {!loading && !error && filterSessions.length === 0 && (
-              <div className="text-sm text-gray-500">Không có buổi học phù hợp bộ lọc.</div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filterSessions.map((session) => (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden mb-6">
+            {/* Header section */}
+            <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-4 border-b border-gray-200">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                    <CalendarDays size={20} className="text-red-600" />
+                    Buổi học theo khoảng ngày
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">Chọn buổi học để điểm danh ngay</p>
+                </div>
                 <button
-                  key={session.id}
-                  onClick={() => handleSessionSelect(session.id)}
-                  className={`p-4 rounded-lg border text-left transition-all cursor-pointer ${
-                    session.id === selectedSessionId
-                      ? "border-red-300 bg-gradient-to-r from-red-50 to-red-100"
-                      : "border-gray-200 hover:border-red-200 hover:bg-red-50/50"
-                  }`}
+                  onClick={fetchSessionData}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-red-300 transition-all cursor-pointer shadow-sm"
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-1.5 rounded-md bg-gradient-to-r ${session.color}`}>
-                      <CalendarDays size={14} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">{session.className}</div>
-                      <div className="text-xs text-gray-600">{session.date}</div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-500 flex items-center gap-2">
-                    <Clock size={12} />
-                    {session.time}
-                  </div>
-                  <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
-                    <MapPin size={12} />
-                    {session.room}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">{session.students} học viên</div>
+                  <RefreshCcw size={14} className="text-red-600" />
+                  Làm mới
                 </button>
-              ))}
+              </div>
+            </div>
+
+            {/* Date range picker */}
+            <div className="px-6 py-4 bg-white border-b border-gray-100">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex items-center gap-2 flex-1">
+                  <div className="relative flex-1">
+                    <CalendarDays size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="date"
+                      value={dateRange.from}
+                      onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
+                      className="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
+                    />
+                  </div>
+                  <ArrowRightLeft size={16} className="text-gray-400" />
+                  <div className="relative flex-1">
+                    <CalendarDays size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="date"
+                      value={dateRange.to}
+                      onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
+                      className="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter size={16} className="text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">Lọc nâng cao</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 flex-1">
+                  <input
+                    value={filters.date}
+                    onChange={(e) => handleFilterChange("date", e.target.value)}
+                    placeholder="Ngày"
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
+                  />
+                  <input
+                    value={filters.time}
+                    onChange={(e) => handleFilterChange("time", e.target.value)}
+                    placeholder="Giờ"
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
+                  />
+                  <input
+                    value={filters.session}
+                    onChange={(e) => handleFilterChange("session", e.target.value)}
+                    placeholder="Buổi học"
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
+                  />
+                  <input
+                    value={filters.className}
+                    onChange={(e) => handleFilterChange("className", e.target.value)}
+                    placeholder="Lớp"
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
+                  />
+                  <input
+                    value={filters.status}
+                    onChange={(e) => handleFilterChange("status", e.target.value)}
+                    placeholder="Trạng thái"
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-300"
+                  />
+                </div>
+                {(filters.date || filters.time || filters.session || filters.className || filters.status) && (
+                  <button
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
+                  >
+                    <X size={14} />
+                    Xóa lọc
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Session list */}
+            <div className="px-6 py-6">
+              {loading && (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mb-3"></div>
+                  <p className="text-gray-500">Đang tải danh sách buổi học...</p>
+                </div>
+              )}
+              
+              {error && (
+                <div className="text-center py-8">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-xl">
+                    <AlertCircle size={16} />
+                    {error}
+                  </div>
+                </div>
+              )}
+
+              {!loading && !error && filterSessions.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="inline-flex flex-col items-center gap-3">
+                    <div className="p-4 bg-gray-100 rounded-full">
+                      <CalendarDays size={32} className="text-gray-400" />
+                    </div>
+                    <p className="text-gray-500">Không có buổi học phù hợp bộ lọc</p>
+                    <button
+                      onClick={clearFilters}
+                      className="px-4 py-2 text-sm text-red-600 hover:text-red-700 font-medium"
+                    >
+                      Xóa bộ lọc
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filterSessions.map((session) => (
+                  <button
+                    key={session.id}
+                    onClick={() => handleSessionSelect(session.id)}
+                    className={`group relative p-5 rounded-xl border-2 text-left transition-all duration-300 cursor-pointer ${
+                      session.id === selectedSessionId
+                        ? "border-red-400 bg-gradient-to-r from-red-50 to-red-100/50 shadow-lg shadow-red-100/50"
+                        : "border-gray-200 hover:border-red-300 hover:shadow-md hover:bg-red-50/30"
+                    }`}
+                  >
+                    <div className="absolute top-3 right-3">
+                      <div className={`w-2 h-2 rounded-full ${session.id === selectedSessionId ? 'bg-red-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className={`p-2 rounded-lg bg-gradient-to-r ${session.color} shadow-md group-hover:scale-110 transition-transform`}>
+                        <BookOpen size={16} className="text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900 line-clamp-1">{session.className}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{session.date}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <Clock size={12} className="text-gray-400" />
+                        <span>{session.time}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <MapPin size={12} className="text-gray-400" />
+                        <span className="line-clamp-1">{session.room}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <Users size={12} className="text-gray-400" />
+                        <span>{session.students} học viên</span>
+                      </div>
+                    </div>
+
+                    {session.status && (
+                      <div className="mt-3">
+                        <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
+                          {session.status}
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -1642,6 +1711,3 @@ const loadSessionReports = async () => {
     </div>
   );
 }
-
-
-
