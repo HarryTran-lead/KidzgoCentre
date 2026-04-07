@@ -233,7 +233,7 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
   }, []);
 
   return (
-    <div className="relative overflow-hidden">
+    <div className="relative overflow-hidden z-10" >
       <div className="absolute inset-0 bg-red" />
       <div className="absolute -top-24 -left-24 h-64 w-64 rounded-full bg-red-200/40 blur-3xl" />
       <div className="absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-gray-300/40 blur-3xl" />

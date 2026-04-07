@@ -401,7 +401,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
         ref={modalRef}
         className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
@@ -814,7 +814,7 @@ function ColorPicker({
         <Palette size={12} className="text-gray-800" />
       </button>
       {showPicker && (
-        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-50 overflow-hidden w-[140px]">
+        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-100 overflow-hidden w-[140px]">
           <div className="text-[10px] font-semibold text-gray-800 mb-1.5 px-1">Chọn màu</div>
           <div className="grid grid-cols-4 gap-1.5">
             {COLOR_OPTIONS.map((color) => (
@@ -936,7 +936,7 @@ function GoToDateButton({ onSelect }: { onSelect: (date: Date) => void }) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-50 min-w-[280px]">
+        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-100 min-w-[280px]">
           <div className="text-sm font-semibold text-gray-800 mb-3">
             Chọn ngày để xem tuần
           </div>
