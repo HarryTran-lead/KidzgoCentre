@@ -156,6 +156,27 @@ function formatDateISO(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * Parse ISO datetime string thanh Date object local time (khong bi anh huong boi timezone).
+ * Trich xuat truc tiep cac thanh phan tu chuoi ISO string.
+ * Dung khi backend gui gio dia phuong (VN +07:00) ma khong co timezone suffix.
+ */
+function parseISODateTime(isoString: string | undefined): Date | null {
+  if (!isoString) return null;
+  const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+  if (match) {
+    return new Date(
+      parseInt(match[1]),
+      parseInt(match[2]) - 1,
+      parseInt(match[3]),
+      parseInt(match[4]),
+      parseInt(match[5]),
+      parseInt(match[6])
+    );
+  }
+  return null;
+}
+
 function formatHistoryDateParts(value?: string | null): { date?: string | null; startTime?: string | null } {
   if (!value) return {};
 
@@ -212,21 +233,8 @@ function mapUiStatusToApi(status: AttendanceStatus | null | undefined): number {
 function mapSessionToLesson(session: SessionApiItem): { lesson: LessonDetail; attendance: AttendanceSummaryApi } {
   const sessionLike = session as SessionLike;
   const datetimeIso: string | undefined = session?.actualDatetime ?? session?.plannedDatetime ?? undefined;
-  let startDate: Date | null = null;
-
-  if (datetimeIso) {
-    const parsedDate = new Date(datetimeIso);
-    if (!Number.isNaN(parsedDate.getTime())) {
-      startDate = new Date(
-        parsedDate.getFullYear(),
-        parsedDate.getMonth(),
-        parsedDate.getDate(),
-        parsedDate.getHours(),
-        parsedDate.getMinutes(),
-        parsedDate.getSeconds(),
-      );
-    }
-  }
+  // Su dung parseISODateTime de tranh loi chuyen doi timezone (dung voi backend gui gio VN)
+  const startDate = parseISODateTime(datetimeIso);
 
   const lesson: LessonDetail = {
     id: String(session?.id ?? session?.sessionId ?? ""),
@@ -355,11 +363,7 @@ export function getTodayRange(): { from: string; to: string } {
 }
 
 export function parseSessionDate(session: SessionApiItem): Date | null {
-  const raw = session?.actualDatetime ?? session?.plannedDatetime ?? null;
-  if (!raw) return null;
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed;
+  return parseISODateTime(session?.actualDatetime ?? session?.plannedDatetime ?? undefined);
 }
 
 export function formatSessionDisplayDate(session: SessionApiItem): string {
