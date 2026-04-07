@@ -518,7 +518,7 @@ export const BACKEND_ADMIN_ENDPOINTS = {
   PROGRAMS_ACTIVE: '/programs/active',
   REGISTRATIONS: '/registrations',
   PROGRAMS_BY_ID: (id: string) => `/programs/${id}`,
-  PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/programs/${id}/monthly-leave-limit`,
+  PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/admin/programs/${id}/monthly-leave-limit`,
   PROGRAMS_TOGGLE_STATUS: (id: string) => `/programs/${id}/toggle-status`,
   TUITION_PLANS: '/tuition-plans',
   TUITION_PLANS_ACTIVE: '/tuition-plans/active',
