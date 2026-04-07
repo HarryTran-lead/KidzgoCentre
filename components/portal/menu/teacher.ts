@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   MessageCircle,
   NotebookText,
+  Send,
   Sparkles,
   User,
   BookOpenText,
@@ -33,6 +34,7 @@ export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.attendance, CheckSquare, "/attendance"],
     [t.applications, MessageCircle, "/applications"],
     [t.feedback, FileText, "/feedback"],
+    [t.reportRequests, Send, "/report-requests"],
     [t.timesheet, Clock4, "/timesheet"],
     [t.notifications, Bell, "/notifications"],
   ];

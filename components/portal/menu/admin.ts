@@ -13,6 +13,7 @@ import {
   HelpCircle,
   Inbox,
   LayoutDashboard,
+  Send,
   Settings,
   Sparkles,
   UserCheck,
@@ -46,6 +47,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
     [t.groups.ops.documents, FileText, "/documents"],
     [t.groups.ops.teachingMaterials, Folder, "/materials"],
+    [t.groups.ops.reportRequests, Send, "/report-requests"],
   ];
   const system: RawItem[] = [
     [t.groups.system.accounts, Settings, "/accounts"],

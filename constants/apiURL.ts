@@ -586,6 +586,22 @@ export const BACKEND_SESSION_REPORT_ENDPOINTS = {
   AI_ENHANCE_FEEDBACK: '/session-reports/ai/enhance-feedback',
 } as const;
 
+// Report Request Endpoints (Client-side → Next.js API Routes)
+export const REPORT_REQUEST_ENDPOINTS = {
+  BASE: '/api/report-requests',
+  BY_ID: (id: string) => `/api/report-requests/${id}`,
+  COMPLETE: (id: string) => `/api/report-requests/${id}/complete`,
+  CANCEL: (id: string) => `/api/report-requests/${id}/cancel`,
+} as const;
+
+// Backend Report Request Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_REPORT_REQUEST_ENDPOINTS = {
+  BASE: '/report-requests',
+  BY_ID: (id: string) => `/report-requests/${id}`,
+  COMPLETE: (id: string) => `/report-requests/${id}/complete`,
+  CANCEL: (id: string) => `/report-requests/${id}/cancel`,
+} as const;
+
 // Ticket Endpoints (Client-side → Next.js API Routes)
 export const TICKET_ENDPOINTS = {
   GET_ALL: '/api/tickets',

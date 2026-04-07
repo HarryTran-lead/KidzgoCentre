@@ -27,6 +27,7 @@ export const menuAdmin = {
         extracurricular: "Ngoại khóa & Trại hè",
         documents: "Giáo án & Tài liệu",
         teachingMaterials: "Teaching Materials",
+        reportRequests: "Yêu cầu báo cáo",
       },
       finance: {
         title: "Tài chính",
@@ -75,6 +76,7 @@ export const menuAdmin = {
         extracurricular: "Extracurricular & Camps",
         documents: "Lesson Plans & Materials",
         teachingMaterials: "Teaching Materials",
+        reportRequests: "Report Requests",
       },
       finance: {
         title: "Finance",
