@@ -492,7 +492,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
-      className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${tones[tone]}`}
+      className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${tones[tone]}`}
     >
       {loading ? <Loader2 size={14} className="animate-spin" /> : null}
       {label}
@@ -514,43 +514,49 @@ function ConfirmDialog({
   if (!action) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-6 shadow-2xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-xl font-bold text-gray-900">{action.title}</div>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">
-              {action.description}
-            </p>
+    <div onClick={onClose} className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-white">{action.title}</h2>
+              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-red-100">
+                {action.description}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors text-white cursor-pointer"
+              aria-label="Đóng"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-red-200 bg-white p-2 text-gray-500 transition hover:bg-red-50/60"
-            aria-label="Đóng"
-          >
-            <X size={18} />
-          </button>
         </div>
 
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="inline-flex h-11 items-center justify-center rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:bg-red-50/60 disabled:opacity-60"
-          >
-            Đóng
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={loading}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 text-sm font-semibold text-white shadow-lg shadow-red-600/20 transition hover:shadow-xl disabled:opacity-60"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-            {action.confirmText}
-          </button>
+        {/* Footer */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex flex-wrap justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 transition cursor-pointer hover:bg-gray-50 disabled:opacity-60"
+            >
+              Đóng
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={loading}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 text-sm font-semibold text-white cursor-pointer shadow-lg hover:shadow-xl transition disabled:opacity-60"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+              {action.confirmText}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -599,233 +605,223 @@ function RequestDetailModal({
     : `Profile: ${request.studentProfileId}`;
 
   return (
-    <div className="fixed inset-0 z-[9990] bg-slate-950/55 p-4 backdrop-blur-sm">
-      <div className="mx-auto flex h-full max-w-6xl items-center justify-center">
-        <div className="w-full overflow-hidden rounded-[28px] border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-2xl">
-          <div className="border-b border-red-200 px-6 py-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r ${getRequestAccent(
-                    status
-                  )} text-base font-bold text-white shadow-lg`}
-                >
-                  {getInitials(studentLabel)}
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-gray-900">
-                    Chi tiết yêu cầu bảo lưu
-                  </div>
-                  <div className="mt-1 text-sm font-medium text-gray-700">
-                    {studentLabel}
-                  </div>
-                  <div className="mt-1 text-xs text-gray-500">{studentSubtext}</div>
-                </div>
+    <div onClick={onClose} className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-6xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm text-base font-bold text-white shadow-lg">
+                {getInitials(studentLabel)}
               </div>
-
-              <div className="flex items-center gap-3">
-                <StatusBadge status={status} />
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-xl border border-red-200 bg-white p-2 text-gray-500 transition hover:bg-red-50/60 hover:text-red-600"
-                  aria-label="Đóng"
-                >
-                  <X size={18} />
-                </button>
+              <div>
+                <h2 className="text-xl font-bold text-white">Chi tiết yêu cầu bảo lưu</h2>
+                <p className="mt-1 text-sm font-medium text-red-100">{studentLabel}</p>
+                <p className="mt-1 text-xs text-red-200">{studentSubtext}</p>
               </div>
             </div>
+
+            <div className="flex items-center gap-3">
+              <StatusBadge status={status} />
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 rounded-full hover:bg-white/20 transition-colors text-white cursor-pointer"
+                aria-label="Đóng"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
+        </div>
 
-          <div className="max-h-[calc(92vh-110px)] overflow-y-auto px-6 py-6">
-            <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-              <div className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-red-100 bg-white p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Khoảng bảo lưu
-                    </div>
-                    <div className="mt-2 text-sm font-semibold text-gray-900">
-                      {formatDate(request.pauseFrom)} - {formatDate(request.pauseTo)}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-red-100 bg-white p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Tạo lúc
-                    </div>
-                    <div className="mt-2 text-sm font-semibold text-gray-900">
-                      {formatDateTime(request.requestedAt)}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-red-100 bg-white p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Approved
-                    </div>
-                    <div className="mt-2 text-sm text-gray-700">
-                      {formatDateTime(request.approvedAt)}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-red-100 bg-white p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Outcome
-                    </div>
-                    <div className="mt-2 text-sm text-gray-700">
-                      {request.outcome ? outcomeLabels[request.outcome] : "Chưa cập nhật"}
-                    </div>
-                    {request.outcomeAt ? (
-                      <div className="mt-1 text-xs text-gray-500">
-                        Cập nhật {formatDateTime(request.outcomeAt)}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-red-100 bg-white p-4">
+        {/* Body */}
+        <div className="max-h-[calc(92vh-110px)] overflow-y-auto p-6">
+          <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
                   <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Lý do
+                    Khoảng bảo lưu
                   </div>
-                  <div className="mt-2 text-sm leading-6 text-gray-700">
-                    {request.reason?.trim() || "Không có ghi chú."}
+                  <div className="mt-2 text-sm font-semibold text-gray-900">
+                    {formatDate(request.pauseFrom)} - {formatDate(request.pauseTo)}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-red-100 bg-white p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
-                    <BookOpen size={16} className="text-red-500" />
-                    Lớp liên quan
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Tạo lúc
                   </div>
+                  <div className="mt-2 text-sm font-semibold text-gray-900">
+                    {formatDateTime(request.requestedAt)}
+                  </div>
+                </div>
 
-                  {request.classes?.length ? (
-                    <div className="space-y-3">
-                      {request.classes.map((item) => (
-                        <div
-                          key={item.id}
-                          className="rounded-2xl border border-red-100 bg-red-50/40 p-4"
-                        >
-                          <div className="font-semibold text-gray-900">
-                            {item.code ?? item.title ?? item.id}
-                          </div>
-                          <div className="mt-1 text-sm text-gray-600">
-                            {[item.programName, item.branchName]
-                              .filter(Boolean)
-                              .join(" • ") || "Chưa có thông tin chương trình"}
-                          </div>
-                          <div className="mt-1 text-xs text-gray-500">
-                            {item.startDate || item.endDate
-                              ? `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`
-                              : "Không có thời gian lớp"}
-                          </div>
-                        </div>
-                      ))}
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Duyệt lúc
+                  </div>
+                  <div className="mt-2 text-sm text-gray-700">
+                    {formatDateTime(request.approvedAt)}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Kết quả sau bảo lưu
+                  </div>
+                  <div className="mt-2 text-sm text-gray-700">
+                    {request.outcome ? outcomeLabels[request.outcome] : "Chưa cập nhật"}
+                  </div>
+                  {request.outcomeAt ? (
+                    <div className="mt-1 text-xs text-gray-500">
+                      Cập nhật {formatDateTime(request.outcomeAt)}
                     </div>
-                  ) : (
-                    <div className="text-sm text-gray-500">
-                      Chưa có danh sách lớp chi tiết trong response.
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
-              <div className="space-y-6 xl:sticky xl:top-0 xl:self-start">
-                <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm">
-                  <div className="border-b border-red-200 px-6 py-4">
-                    <div className="text-lg font-bold text-gray-900">Xử lý yêu cầu</div>
-                    <div className="mt-1 text-sm text-gray-500">
-                      Staff/Admin thao tác trực tiếp ngay trong popup này.
-                    </div>
-                  </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Lý do
+                </div>
+                <div className="mt-2 text-sm leading-6 text-gray-700">
+                  {request.reason?.trim() || "Không có ghi chú."}
+                </div>
+              </div>
 
-                  <div className="space-y-3 px-6 py-6">
-                    {isManagement && status === "Pending" ? (
-                      <>
-                        <ActionButton label="Duyệt yêu cầu" tone="primary" onClick={onApprove} />
-                        <ActionButton label="Từ chối yêu cầu" tone="danger" onClick={onReject} />
-                      </>
-                    ) : null}
-
-                    {canCancel ? (
-                      <ActionButton label="Hủy yêu cầu" tone="danger" onClick={onCancel} />
-                    ) : null}
-
-                    {!isManagement && status !== "Pending" && !canCancel ? (
-                      <div className="rounded-2xl border border-red-100 bg-white px-4 py-3 text-sm text-gray-500">
-                        Yêu cầu này không còn thao tác trực tiếp được từ phía phụ huynh.
-                      </div>
-                    ) : null}
-
-                    {isManagement && status !== "Pending" && !canEditOutcome ? (
-                      <div className="rounded-2xl border border-red-100 bg-white px-4 py-3 text-sm text-gray-500">
-                        Outcome chỉ cập nhật được khi yêu cầu đã ở trạng thái đã duyệt.
-                      </div>
-                    ) : null}
-                  </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <BookOpen size={16} className="text-red-500" />
+                  Lớp liên quan
                 </div>
 
-                {canEditOutcome ? (
-                  <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm">
-                    <div className="border-b border-red-200 px-6 py-4">
-                      <div className="text-lg font-bold text-gray-900">
-                        Cập nhật outcome
-                      </div>
-                      <div className="mt-1 text-sm text-gray-500">
-                        Ghi nhận hướng xử lý sau khi học sinh quay lại, không cần kéo xuống cuối trang nữa.
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 px-6 py-6">
-                      <label className="block">
-                        <div className="mb-2 text-sm font-semibold text-gray-700">Kết quả</div>
-                        <select
-                          value={outcomeForm.outcome}
-                          onChange={(event) =>
-                            onOutcomeChange(event.target.value as PauseEnrollmentOutcome)
-                          }
-                          className="h-12 w-full rounded-xl border border-red-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                        >
-                          {Object.entries(outcomeLabels).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="block">
-                        <div className="mb-2 text-sm font-semibold text-gray-700">Ghi chú</div>
-                        <textarea
-                          value={outcomeForm.outcomeNote}
-                          onChange={(event) => onOutcomeNoteChange(event.target.value)}
-                          rows={4}
-                          placeholder="Ví dụ: học sinh quay lại lớp cũ từ tuần 2 tháng sau..."
-                          className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                        />
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={onSaveOutcome}
-                        disabled={actionLoadingKey === `outcome:${request.id}`}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 text-sm font-semibold text-white shadow-lg shadow-red-600/20 transition hover:shadow-xl disabled:opacity-60"
+                {request.classes?.length ? (
+                  <div className="space-y-3">
+                    {request.classes.map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-2xl border border-red-100 bg-red-50/40 p-4"
                       >
-                        {actionLoadingKey === `outcome:${request.id}` ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : null}
-                        Lưu outcome
-                      </button>
-                    </div>
+                        <div className="font-semibold text-gray-900">
+                          {item.code ?? item.title ?? item.id}
+                        </div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          {[item.programName, item.branchName]
+                            .filter(Boolean)
+                            .join(" • ") || "Chưa có thông tin chương trình"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {item.startDate || item.endDate
+                            ? `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`
+                            : "Không có thời gian lớp"}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
-                    <div className="font-semibold text-gray-900">Ghi chú nghiệp vụ</div>
-                    <div className="mt-2 text-sm leading-6 text-gray-600">
-                      Modal này gom toàn bộ chi tiết và thao tác về một chỗ để staff không phải kéo xuống dưới trang. Khi yêu cầu đã duyệt, phần outcome sẽ xuất hiện ngay tại đây.
-                    </div>
+                  <div className="text-sm text-gray-500">
+                    Chưa có danh sách lớp chi tiết trong response.
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-6 xl:sticky xl:top-0 xl:self-start">
+              <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+                <div className="border-b border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+                  <div className="text-lg font-bold text-gray-900">Xử lý yêu cầu</div>
+                  <div className="mt-1 text-sm text-gray-500">
+                    Staff/Admin thao tác trực tiếp ngay trong popup này.
+                  </div>
+                </div>
+
+                <div className="space-y-3 p-6">
+                  {isManagement && status === "Pending" ? (
+                    <>
+                      <ActionButton label="Duyệt yêu cầu" tone="primary" onClick={onApprove} />
+                      <ActionButton label="Từ chối yêu cầu" tone="danger" onClick={onReject} />
+                    </>
+                  ) : null}
+
+                  {canCancel ? (
+                    <ActionButton label="Hủy yêu cầu" tone="danger" onClick={onCancel} />
+                  ) : null}
+
+                  {!isManagement && status !== "Pending" && !canCancel ? (
+                    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500">
+                      Yêu cầu này không còn thao tác trực tiếp được từ phía phụ huynh.
+                    </div>
+                  ) : null}
+
+                  {isManagement && status !== "Pending" && !canEditOutcome ? (
+                    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500">
+                      Outcome chỉ cập nhật được khi yêu cầu đã ở trạng thái đã duyệt.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {canEditOutcome ? (
+                <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+                  <div className="border-b border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+                    <div className="text-lg font-bold text-gray-900">Cập nhật kết quả sau bảo lưu</div>
+                    <div className="mt-1 text-sm text-gray-500">
+                      Ghi nhận hướng xử lý sau khi học sinh quay lại.
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 p-6">
+                    <label className="block">
+                      <div className="mb-2 text-sm font-semibold text-gray-700">Kết quả</div>
+                      <select
+                        value={outcomeForm.outcome}
+                        onChange={(event) =>
+                          onOutcomeChange(event.target.value as PauseEnrollmentOutcome)
+                        }
+                        className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                      >
+                        {Object.entries(outcomeLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <div className="mb-2 text-sm font-semibold text-gray-700">Ghi chú</div>
+                      <textarea
+                        value={outcomeForm.outcomeNote}
+                        onChange={(event) => onOutcomeNoteChange(event.target.value)}
+                        rows={4}
+                        placeholder="Ví dụ: học sinh quay lại lớp cũ từ tuần 2 tháng sau..."
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={onSaveOutcome}
+                      disabled={actionLoadingKey === `outcome:${request.id}`}
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 text-sm font-semibold cursor-pointer text-white shadow-lg hover:shadow-xl transition disabled:opacity-60"
+                    >
+                      {actionLoadingKey === `outcome:${request.id}` ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : null}
+                      Lưu kết quả
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
+                  <div className="font-semibold text-gray-900">Ghi chú nghiệp vụ</div>
+                  <div className="mt-2 text-sm leading-6 text-gray-600">
+                    Modal này gom toàn bộ chi tiết và thao tác về một chỗ để staff không phải kéo xuống dưới trang. Khi yêu cầu đã duyệt, phần outcome sẽ xuất hiện ngay tại đây.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1235,7 +1231,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               type="button"
               onClick={() => void handleReload()}
               disabled={requestsLoading}
-              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-red-50/60 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition cursor-pointer hover:bg-red-50/60 disabled:opacity-60"
             >
               {requestsLoading ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -1248,7 +1244,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               type="button"
               onClick={() => setCreateOpen(true)}
               disabled={studentOptionsLoading}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition cursor-pointer hover:shadow-lg disabled:opacity-60"
             >
               <Plus size={16} />
               Tạo yêu cầu
@@ -1425,7 +1421,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                       confirmText: "Duyệt đã chọn",
                     })
                   }
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-red-50/60 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-red-50/60 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                 >
                   <ShieldCheck size={16} className="text-emerald-600" />
                   Duyệt hàng loạt
@@ -1552,7 +1548,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                           }}
                           className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200"
                         />
-                      </td>
+                       </td>
                     ) : null}
 
                     <td className="px-6 py-4 align-top">
@@ -1575,7 +1571,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                           </div>
                         </div>
                       </div>
-                    </td>
+                     </td>
 
                     <td className="px-6 py-4 align-top text-sm text-gray-700">
                       <div className="space-y-3">
@@ -1614,7 +1610,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                           )}
                         </div>
                       </div>
-                    </td>
+                     </td>
 
                     <td className="px-6 py-4 align-top">
                       <div className="space-y-3">
@@ -1638,7 +1634,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                           </div>
                         )}
                       </div>
-                    </td>
+                     </td>
 
                     <td className="px-6 py-4 align-top">
                       <div className="flex flex-wrap gap-2">
@@ -1705,12 +1701,12 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                           />
                         ) : null}
                       </div>
-                    </td>
-                  </tr>
+                     </td>
+                     </tr>
                 );
               })}
             </tbody>
-          </table>
+           </table>
         </div>
 
         {requestsLoading ? (

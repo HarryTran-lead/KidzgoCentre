@@ -268,7 +268,7 @@ export default function Navbar() {
           duration: 0.6,
           ease: [0.32, 0.72, 0, 1],
         }}
-        className={`fixed z-50 will-change-transform transition-[transform] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        className={`fixed z-40 will-change-transform transition-[transform] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           scrolled
             ? "top-0 left-0 right-0 translate-x-0 translate-y-0 bg-white/95 backdrop-blur-xl backdrop-saturate-150 shadow-sm border-b border-white/40 rounded-none max-w-full"
             : "top-6 left-1/2 -translate-x-1/2 translate-y-0 w-[calc(100%-3rem)] max-w-7xl bg-white/90 backdrop-blur-lg backdrop-saturate-125 border border-white/50 rounded-2xl shadow-lg"

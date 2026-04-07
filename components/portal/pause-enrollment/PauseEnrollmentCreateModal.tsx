@@ -207,6 +207,18 @@ export default function PauseEnrollmentCreateModal({
     void loadClasses();
   }, [formState.studentProfileId, open]);
 
+  const handleReset = () => {
+    const nextStudentId = lockedStudentProfileId || studentOptions[0]?.id || "";
+    setFormState({
+      studentProfileId: nextStudentId,
+      pauseFrom: "",
+      pauseTo: "",
+      reason: "",
+    });
+    setActionError(null);
+    setActionMessage(null);
+  };
+
   if (!open) return null;
 
   const handleSubmit = async () => {
@@ -258,27 +270,32 @@ export default function PauseEnrollmentCreateModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-2xl">
-        <div className="border-b border-red-200 px-6 py-5 sm:px-8">
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 sm:px-8">
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-4 top-4 rounded-xl border border-red-200 bg-white p-2 text-gray-500 transition hover:bg-red-50/60 hover:text-red-600"
+            className="absolute right-4 top-4 rounded-full p-2 text-white transition hover:bg-white/20 cursor-pointer"
             aria-label="Đóng"
           >
             <X size={18} />
           </button>
 
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/20">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm text-white shadow-lg">
               <CalendarDays size={22} />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-bold text-gray-900">
-                Tạo yêu cầu bảo lưu
-              </h2>
-              <p className="max-w-2xl text-sm leading-6 text-gray-600">
+              <h2 className="text-xl font-bold text-white">Tạo yêu cầu bảo lưu</h2>
+              <p className="max-w-2xl text-sm leading-6 text-red-100">
                 Bảo lưu là luồng riêng với xin nghỉ ngắn ngày. Hệ thống sẽ tự
                 quét các lớp có buổi học nằm trong khoảng ngày bạn chọn và chỉ
                 áp dụng khi yêu cầu được duyệt.
@@ -287,21 +304,22 @@ export default function PauseEnrollmentCreateModal({
           </div>
         </div>
 
-        <div className="space-y-5 px-6 py-6 sm:px-8">
+        {/* Body */}
+        <div className="space-y-5 px-6 py-6 sm:px-8 max-h-[70vh] overflow-y-auto">
           {actionError ? <Banner kind="error" text={actionError} /> : null}
           {actionMessage ? <Banner kind="success" text={actionMessage} /> : null}
           {studentOptionsError ? <Banner kind="error" text={studentOptionsError} /> : null}
 
           <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-4">
-              <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
                 <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <User size={16} />
+                  <User size={16} className="text-red-600" />
                   Học sinh
                 </label>
 
                 {lockedStudentProfileId ? (
-                  <div className="rounded-xl border border-red-100 bg-white px-4 py-3">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold text-gray-900">
@@ -326,7 +344,7 @@ export default function PauseEnrollmentCreateModal({
                         studentProfileId: event.target.value,
                       }))
                     }
-                    className="h-12 w-full rounded-xl border border-red-200 bg-white px-4 text-sm text-gray-900 outline-none ring-0 transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                    className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
                   >
                     <option value="">
                       {studentOptionsLoading ? "Đang tải..." : "Chọn học sinh"}
@@ -349,7 +367,7 @@ export default function PauseEnrollmentCreateModal({
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-red-100 bg-white p-4">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
                   <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Từ ngày
                   </label>
@@ -363,11 +381,11 @@ export default function PauseEnrollmentCreateModal({
                       }))
                     }
                     disabled={submitting}
-                    className="h-12 w-full rounded-xl border border-red-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                    className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
                   />
                 </div>
 
-                <div className="rounded-2xl border border-red-100 bg-white p-4">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
                   <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Đến ngày
                   </label>
@@ -381,14 +399,14 @@ export default function PauseEnrollmentCreateModal({
                       }))
                     }
                     disabled={submitting}
-                    className="h-12 w-full rounded-xl border border-red-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                    className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
                   />
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-red-100 bg-white p-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
                 <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <MessageSquare size={16} />
+                  <MessageSquare size={16} className="text-red-600" />
                   Lý do bảo lưu
                 </label>
                 <textarea
@@ -402,15 +420,15 @@ export default function PauseEnrollmentCreateModal({
                   disabled={submitting}
                   rows={5}
                   placeholder="Ví dụ: nghỉ dài ngày do sức khỏe / công tác / chuyển nơi ở tạm thời..."
-                  className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
                 />
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <BookOpen size={16} className="text-red-500" />
+                  <BookOpen size={16} className="text-red-600" />
                   Lớp liên quan
                 </div>
 
@@ -426,7 +444,7 @@ export default function PauseEnrollmentCreateModal({
                     {classes.map((item) => (
                       <span
                         key={item.id}
-                        className="inline-flex rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-semibold text-red-700"
+                        className="inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"
                       >
                         {classLabel(item)}
                       </span>
@@ -440,9 +458,9 @@ export default function PauseEnrollmentCreateModal({
                 )}
               </div>
 
-              <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 text-sm leading-6 text-gray-600">
-                <div className="font-semibold text-gray-800">Lưu ý nghiệp vụ</div>
-                <ul className="mt-2 space-y-1">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                <div className="font-semibold text-amber-900">Lưu ý nghiệp vụ</div>
+                <ul className="mt-2 space-y-1 list-disc list-inside">
                   <li>Chức năng này dành cho nghỉ dài ngày, không phải nghỉ lẻ từng buổi.</li>
                   <li>Khoảng ngày sẽ được đối chiếu theo UTC date ở backend.</li>
                   <li>Chỉ khi yêu cầu được duyệt, enrollment liên quan mới được pause.</li>
@@ -450,31 +468,44 @@ export default function PauseEnrollmentCreateModal({
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="flex flex-wrap justify-end gap-3 border-t border-red-200 pt-5">
+        {/* Footer */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-5 sm:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="inline-flex h-11 items-center justify-center rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:bg-red-50/60 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-sm font-semibold cursor-pointer text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Đóng
+              Hủy
             </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting || (!lockedStudentProfileId && studentOptionsLoading)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 text-sm font-semibold text-white shadow-lg shadow-red-600/20 transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Đang tạo...
-                </>
-              ) : (
-                "Tạo yêu cầu"
-              )}
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={submitting}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-sm font-semibold cursor-pointer text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Đặt lại
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting || (!lockedStudentProfileId && studentOptionsLoading)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 text-sm font-semibold cursor-pointer text-white shadow-lg hover:shadow-xl transition disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Đang tạo...
+                  </>
+                ) : (
+                  "Tạo yêu cầu"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
