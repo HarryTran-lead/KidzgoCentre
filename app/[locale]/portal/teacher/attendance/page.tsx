@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { toast } from "@/hooks/use-toast";
 import {
   CalendarDays,
   ArrowRightLeft,
@@ -24,6 +25,7 @@ import {
   Filter,
   X,
   ChevronRight,
+  Clock1,
 } from "lucide-react";
 
 import {
@@ -176,12 +178,12 @@ function getSessionReportTimestamp(report: SessionReportItem | any): number {
 function pickSessionReportFromStudent(student: any, sessionId: string): SessionReportState {
   const directNote = String(
     student?.note ??
-      student?.feedback ??
-      student?.Feedback ??
-      student?.comment ??
-      student?.Comment ??
-      student?.sessionReportFeedback ??
-      "",
+    student?.feedback ??
+    student?.Feedback ??
+    student?.comment ??
+    student?.Comment ??
+    student?.sessionReportFeedback ??
+    "",
   ).trim();
 
   const directReportId = String(
@@ -330,11 +332,10 @@ function Pagination({
           <button
             key={page}
             onClick={() => onPageChange(page)}
-            className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${
-              currentPage === page
+            className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${currentPage === page
                 ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-transparent"
                 : "border-gray-200 hover:bg-gray-50"
-            }`}
+              }`}
           >
             {page}
           </button>
@@ -582,7 +583,7 @@ export default function TeacherAttendancePage() {
     setAttendanceLoadingError(null);
 
     try {
-const loadSessionReports = async () => {
+      const loadSessionReports = async () => {
         const collected: SessionReportItem[] = [];
 
         for (let pageNumber = 1; pageNumber <= SESSION_REPORT_MAX_PAGES; pageNumber += 1) {
@@ -602,16 +603,16 @@ const loadSessionReports = async () => {
         return collected;
       };
 
-      const [result, reports] = await Promise.all([        
-                fetchAttendance(selectedSessionId),
- loadSessionReports().catch((err) => {
-          console.warn("Fetch session reports warning:", err);    
-              return [] as SessionReportItem[];
+      const [result, reports] = await Promise.all([
+        fetchAttendance(selectedSessionId),
+        loadSessionReports().catch((err) => {
+          console.warn("Fetch session reports warning:", err);
+          return [] as SessionReportItem[];
         }),
       ]);
- const reportTimestampByStudentId: Record<string, number> = {};
+      const reportTimestampByStudentId: Record<string, number> = {};
       const reportsByStudentId = reports.reduce<Record<string, SessionReportState>>((acc, report) => {
-         const reportSessionId = String(report?.sessionId ?? "").trim();
+        const reportSessionId = String(report?.sessionId ?? "").trim();
         if (reportSessionId && reportSessionId !== selectedSessionId) {
           return acc;
         }
@@ -619,7 +620,7 @@ const loadSessionReports = async () => {
         if (!reportStudentId) {
           return acc;
         }
- const previousReport = acc[reportStudentId];
+        const previousReport = acc[reportStudentId];
         const previousTs = reportTimestampByStudentId[reportStudentId] ?? -1;
         const currentTs = getSessionReportTimestamp(report);
 
@@ -640,8 +641,8 @@ const loadSessionReports = async () => {
         const normalizedStudentId = rawStudentId.trim();
         const safeStudentId =
           normalizedStudentId &&
-          normalizedStudentId !== ZERO_GUID &&
-          GUID_REGEX.test(normalizedStudentId)
+            normalizedStudentId !== ZERO_GUID &&
+            GUID_REGEX.test(normalizedStudentId)
             ? normalizedStudentId
             : "";
 
@@ -655,8 +656,8 @@ const loadSessionReports = async () => {
         const name = String(s.name ?? s.fullName ?? s.studentName ?? "").trim();
 
         const uniqueIdForUI = safeStudentId || rowKey;
-        
- const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId);
+
+        const persistedSessionReport = pickSessionReportFromStudent(s, selectedSessionId);
         const reportFromList = safeStudentId ? reportsByStudentId[safeStudentId] : undefined;
 
         const note = (reportFromList?.feedback || persistedSessionReport.feedback || "").trim();
@@ -774,11 +775,11 @@ const loadSessionReports = async () => {
         const report = existingReportId
           ? await updateSessionReport(existingReportId, { feedback: normalizedFeedback })
           : await createSessionReport({
-              sessionId: selectedSessionId,
-              studentProfileId,
-              reportDate: new Date().toISOString().slice(0, 10),
-              feedback: normalizedFeedback,
-            });
+            sessionId: selectedSessionId,
+            studentProfileId,
+            reportDate: new Date().toISOString().slice(0, 10),
+            feedback: normalizedFeedback,
+          });
 
         reportId = String(report?.id ?? existingReportId ?? "").trim();
         reportStatus = String(report?.status ?? "").trim() || reportStatus || "DRAFT";
@@ -944,9 +945,33 @@ const loadSessionReports = async () => {
       await saveAttendance(selectedSessionId, attendanceList, !hasAnyMarked);
       await syncSessionReportsWithAttendance();
       await refreshAttendance();
+
+      toast.success({
+        title: "Lưu điểm danh thành công",
+        description: "Dữ liệu điểm danh đã được lưu lại.",
+        duration: 4000,
+      });
     } catch (err: any) {
       console.error("Save attendance error:", err);
-      setSaveError(err.message || "Không thể lưu điểm danh.");
+      const rawMsg = err?.message || "";
+
+      let displayMsg = rawMsg;
+      if (rawMsg.includes("cannot mark attendance for future session")) {
+        displayMsg = "Chưa đến ngày giờ học. Bạn chỉ có thể điểm danh khi buổi học đã diễn ra.";
+      } else if (rawMsg.toLowerCase().includes("unauthorized") || rawMsg.toLowerCase().includes("401")) {
+        displayMsg = "Bạn không có quyền thực hiện thao tác này.";
+      } else if (displayMsg) {
+        displayMsg = `Đã xảy ra lỗi: ${rawMsg}`;
+      } else {
+        displayMsg = "Không thể lưu điểm danh. Vui lòng thử lại.";
+      }
+
+      setSaveError(displayMsg);
+      toast.destructive({
+        title: "Lưu điểm danh thất bại",
+        description: displayMsg,
+        duration: 5000,
+      });
     } finally {
       setIsSaving(false);
     }
@@ -1198,7 +1223,7 @@ const loadSessionReports = async () => {
                   <p className="text-gray-500">Đang tải danh sách buổi học...</p>
                 </div>
               )}
-              
+
               {error && (
                 <div className="text-center py-8">
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-xl">
@@ -1230,16 +1255,15 @@ const loadSessionReports = async () => {
                   <button
                     key={session.id}
                     onClick={() => handleSessionSelect(session.id)}
-                    className={`group relative p-5 rounded-xl border-2 text-left transition-all duration-300 cursor-pointer ${
-                      session.id === selectedSessionId
+                    className={`group relative p-5 rounded-xl border-2 text-left transition-all duration-300 cursor-pointer ${session.id === selectedSessionId
                         ? "border-red-400 bg-gradient-to-r from-red-50 to-red-100/50 shadow-lg shadow-red-100/50"
                         : "border-gray-200 hover:border-red-300 hover:shadow-md hover:bg-red-50/30"
-                    }`}
+                      }`}
                   >
                     <div className="absolute top-3 right-3">
                       <div className={`w-2 h-2 rounded-full ${session.id === selectedSessionId ? 'bg-red-500 animate-pulse' : 'bg-gray-300'}`}></div>
                     </div>
-                    
+
                     <div className="flex items-start gap-3 mb-3">
                       <div className={`p-2 rounded-lg bg-gradient-to-r ${session.color} shadow-md group-hover:scale-110 transition-transform`}>
                         <BookOpen size={16} className="text-white" />
@@ -1249,7 +1273,7 @@ const loadSessionReports = async () => {
                         <div className="text-xs text-gray-500 mt-0.5">{session.date}</div>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2 text-xs text-gray-600">
                         <Clock size={12} className="text-gray-400" />
@@ -1282,84 +1306,85 @@ const loadSessionReports = async () => {
         {selectedSessionId && selectedLesson && (
           <>
             {/* Class Info Card */}
-            <div className={`bg-gradient-to-br from-white via-gray-50/30 to-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
-                      <BookOpen size={24} />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-1">{selectedLesson.lesson}</h2>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                        <div className="flex items-center gap-1.5">
-                          <CalendarDays size={16} className="text-red-600" />
-                          <span className="font-medium">{selectedLesson.date}</span>
-                          <span>•</span>
-                          <span>{selectedLesson.time}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <MapPin size={16} className="text-red-600" />
-                          <span>{selectedLesson.room}</span>
-                        </div>
-                      </div>
+            <div className={`relative overflow-hidden bg-gradient-to-br from-white via-red-50/20 to-white rounded-2xl border border-gray-200 shadow-sm mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+              {/* Decorative accent bar */}
 
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {selectedLesson.status && (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            {selectedLesson.status}
-                          </span>
-                        )}
-                        {selectedLesson.participationType && (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                            {selectedLesson.participationType}
-                          </span>
-                        )}
-                        {selectedLesson.branch && (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-                            {selectedLesson.branch}
-                          </span>
-                        )}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 p-6">
+                {/* Left: Icon + Info */}
+                <div className="flex items-center gap-5">
+                  <div className="relative flex-shrink-0">
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-red-600 to-red-700 text-white shadow-lg shadow-red-200">
+                      <BookOpen size={28} />
+                    </div>
+                    <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center">
+                      <span className="text-xs font-bold text-red-600">{stats?.total || 0}</span>
+                    </div>
+                  </div>
+                  <div>
+                    {/* <div className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-0.5">{selectedLesson.course}</div> */}
+                    <h2 className="text-2xl font-bold text-gray-900">{selectedLesson.lesson}</h2>
+                    <div className="flex flex-wrap items-center gap-4 mt-2">
+                      <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <div className="p-1 rounded-md bg-red-100">
+                          <CalendarDays size={14} className="text-red-600" />
+                        </div>
+                        <span className="font-medium text-gray-800">{selectedLesson.date}</span>
+                        <div className="p-1 rounded-md bg-red-100">
+                          <Clock1 size={14} className="text-red-600" />
+                        </div>
+                        <span>{selectedLesson.time}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <div className="p-1 rounded-md bg-red-100">
+                          <MapPin size={14} className="text-red-600" />
+                        </div>
+                        <span>{selectedLesson.room}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <div className="p-1 rounded-md bg-red-100">
+                          <Users size={14} className="text-red-600" />
+                        </div>
+                        <span>{selectedLesson.students || stats?.total || 0} HV</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* Right: Action buttons */}
+                <div className="flex items-center gap-3 flex-shrink-0">
                   <button
                     onClick={handleBackToSchedule}
-                    className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center gap-2 cursor-pointer"
+                    className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 transition-all flex items-center gap-2 cursor-pointer bg-white"
                   >
                     <CalendarDays size={16} />
-                    Lịch giảng dạy
+                    <span>Lịch giảng dạy</span>
                   </button>
 
                   <button
                     onClick={handleChooseOtherSession}
-                    className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center gap-2 cursor-pointer"
+                    className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 transition-all flex items-center gap-2 cursor-pointer bg-white"
                   >
                     <ChevronLeft size={16} />
-                    Buổi khác
+                    <span>Buổi khác</span>
                   </button>
 
                   <button
                     onClick={handleSaveAll}
                     disabled={isSaving}
-                    className={`px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all ${
-                      isSaving
-                        ? "bg-gray-400 text-white cursor-not-allowed"
-                        : "bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer"
-                    }`}
+                    className={`px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md ${isSaving
+                      ? "bg-gray-400 text-white cursor-not-allowed"
+                      : "bg-gradient-to-r from-red-600 to-red-700 text-white hover:scale-[1.02] cursor-pointer"
+                      }`}
                   >
                     {isSaving ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Đang lưu...
+                        <span>Đang lưu...</span>
                       </>
                     ) : (
                       <>
                         <CheckCircle size={18} />
-                        Lưu thay đổi
+                        <span>Lưu thay đổi</span>
                       </>
                     )}
                   </button>
@@ -1369,11 +1394,11 @@ const loadSessionReports = async () => {
 
             {/* Stats Cards */}
             <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 transition-all duration-700 delay-100 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-              <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+              <div className="bg-gradient-to-br from-white to-red-50/50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tổng học viên</div>
-                  <div className="p-2 rounded-lg bg-gray-100">
-                    <Users size={20} className="text-gray-600" />
+                  <div className="p-2 rounded-lg bg-red-100">
+                    <Users size={20} className="text-red-600" />
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-gray-900">{stats?.total || 0}</div>
@@ -1399,14 +1424,14 @@ const loadSessionReports = async () => {
                 <div className="text-3xl font-bold text-amber-600">{stats?.absent || 0}</div>
               </div>
 
-              <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+              <div className="bg-gradient-to-br from-white to-red-50/50 rounded-2xl border border-red-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Tỷ lệ chuyên cần</div>
-                  <div className="p-2 rounded-lg bg-gray-100">
-                    <TrendingUp size={20} className="text-gray-600" />
+                  <div className="text-sm font-semibold text-red-600 uppercase tracking-wide">Tỷ lệ chuyên cần</div>
+                  <div className="p-2 rounded-lg bg-red-100">
+                    <TrendingUp size={20} className="text-red-600" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-gray-900">
+                <div className="text-3xl font-bold text-red-600">
                   {stats && stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0}%
                 </div>
               </div>
@@ -1420,10 +1445,12 @@ const loadSessionReports = async () => {
         <div className={` transition-all duration-700 delay-200 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           {/* Student Table */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-200">
+            <div className="bg-gradient-to-br from-white to-red-50/30 rounded-xl border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <h3 className="font-bold text-gray-900">Danh sách học viên</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900">Danh sách học viên</h3>
+                  </div>
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -1432,13 +1459,13 @@ const loadSessionReports = async () => {
                         placeholder="Tìm học viên..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-full md:w-64 focus:outline-none focus:border-red-300"
+                        className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition bg-white"
                       />
                     </div>
                     <select
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value as AttendanceStatus | "ALL")}
-                      className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white outline-none"
+                      className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-red-300 cursor-pointer"
                     >
                       <option value="ALL">Tất cả trạng thái</option>
                       <option value="present">Có mặt</option>
@@ -1450,9 +1477,10 @@ const loadSessionReports = async () => {
                       type="button"
                       onClick={handleExportAttendance}
                       disabled={!filteredRecords.length}
-                      className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                      className="px-3 py-2 border border-gray-200 rounded-lg hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer flex items-center gap-2 text-sm font-medium text-gray-700"
                     >
-                      <Download size={18} className="text-gray-600" />
+                      <Download size={16} />
+                      <span className="hidden sm:inline">Xuất</span>
                     </button>
                   </div>
                 </div>
@@ -1460,7 +1488,7 @@ const loadSessionReports = async () => {
 
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-red-50 to-red-100 border-b border-gray-200">
+                  <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-12">
                         <div className="flex items-center">
@@ -1570,13 +1598,12 @@ const loadSessionReports = async () => {
                                       <button
                                         key={status}
                                         onClick={() => handleStatusChange(record.rowKey, status)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                                          isActive
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${isActive
                                             ? STATUS_STYLES[status].active
                                             : isSuggestedMakeup
                                               ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100"
                                               : `border-gray-200 text-gray-600 ${STATUS_STYLES[status].hover}`
-                                        }`}
+                                          }`}
                                       >
                                         {STATUS_BUTTON_LABELS[status]}
                                       </button>
@@ -1620,12 +1647,11 @@ const loadSessionReports = async () => {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleOpenNoteModal(record)}
-                                                            title="Thêm nhận xét buổi học"
-                                className={`px-2.5 py-1.5 rounded-lg border transition text-xs font-semibold inline-flex items-center gap-1 ${
-                                  record.note
+                                title="Thêm nhận xét buổi học"
+                                className={`px-2.5 py-1.5 rounded-lg border transition text-xs font-semibold inline-flex items-center gap-1 ${record.note
                                     ? "border-emerald-200 bg-emerald-50 text-emerald-700 cursor-pointer"
                                     : "border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
-                                }`}
+                                  }`}
                               >
                                 <MessageSquareText size={14} />
                                 Note
@@ -1648,10 +1674,22 @@ const loadSessionReports = async () => {
                 </table>
 
                 {filteredRecords.length === 0 && !loadingAttendance && (
-                  <div className="text-center py-12 text-gray-500">Không tìm thấy học viên nào</div>
+                  <div className="text-center py-12">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 mb-3">
+                      <Users size={24} className="text-red-400" />
+                    </div>
+                    <p className="text-gray-500 font-medium">Không tìm thấy học viên nào</p>
+                  </div>
                 )}
 
-                {loadingAttendance && <div className="text-center py-12 text-gray-500">Đang tải danh sách học viên...</div>}
+                {loadingAttendance && (
+                  <div className="text-center py-12">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 mb-3">
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-red-200 border-t-red-600"></div>
+                    </div>
+                    <p className="text-gray-500 font-medium">Đang tải danh sách học viên...</p>
+                  </div>
+                )}
 
                 {attendanceLoadingError && <div className="text-center py-6 text-red-600">{attendanceLoadingError}</div>}
 
@@ -1672,32 +1710,32 @@ const loadSessionReports = async () => {
             initialFeedback={
               selectedStudentForNote && selectedSessionId
                 ? sessionReports[
-                    buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
-                  ]?.feedback ??
-                  selectedStudentForNote.note ??
-                  ""
+                  buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
+                ]?.feedback ??
+                selectedStudentForNote.note ??
+                ""
                 : ""
             }
             canEdit={Boolean(
               selectedStudentForNote &&
-                selectedSessionId &&
-                sessionReports[
-                  buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
-                ]?.reportId,
+              selectedSessionId &&
+              sessionReports[
+                buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
+              ]?.reportId,
             )}
             isSubmitting={isSubmittingNote}
             isEnhancing={isEnhancingNote}
             canSubmitForReview={Boolean(
               selectedStudentForNote &&
-                selectedSessionId &&
+              selectedSessionId &&
+              sessionReports[
+                buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
+              ]?.reportId &&
+              String(
                 sessionReports[
                   buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
-                ]?.reportId &&
-                String(
-                  sessionReports[
-                    buildSessionReportKey(selectedSessionId, selectedStudentForNote.studentId, selectedStudentForNote.rowKey)
-                  ]?.status ?? "",
-                ).toUpperCase() !== "REVIEW",
+                ]?.status ?? "",
+              ).toUpperCase() !== "REVIEW",
             )}
             isSubmittingForReview={isSubmittingReview}
             error={noteModalError}

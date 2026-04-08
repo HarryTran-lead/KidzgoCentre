@@ -432,7 +432,7 @@ export default function AdminLessonDetailPage() {
                   </span>
                 )}
                 {lesson.participationType && (
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
                     {lesson.participationType}
                   </span>
                 )}
@@ -471,7 +471,7 @@ export default function AdminLessonDetailPage() {
       </div>
 
       {/* Attendance list - read-only */}
-      <div className={`bg-gradient-to-br from-white to-red-50 rounded-2xl border border-red-200 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      <div className={`bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 rounded-2xl border border-red-200 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="p-5 border-b border-red-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Danh sách học viên</h2>
@@ -495,7 +495,7 @@ export default function AdminLessonDetailPage() {
                 className="pl-10 pr-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition text-sm"
               />
             </div>
-            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold">
+            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 text-green-700 border border-green-200 text-sm font-semibold">
               <CheckCircle size={16} />
               Chế độ xem (Admin) – không chỉnh sửa điểm danh
             </span>
@@ -505,7 +505,7 @@ export default function AdminLessonDetailPage() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gradient-to-r from-red-50 to-red-100 border-b border-red-200">
+              <tr className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
                   Học viên
                 </th>

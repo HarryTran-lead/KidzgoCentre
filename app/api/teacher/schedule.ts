@@ -1,6 +1,6 @@
 /**
  * Teacher Schedule API Helper Functions
- * 
+ *
  * This file provides type-safe helper functions for teacher schedule API calls.
  */
 
@@ -17,16 +17,16 @@ import type {
 } from "@/types/teacher/schedule";
 
 /**
- * Lấy thứ (Tiếng Việt) từ Date
+ * Lay thu (Tieng Viet) tu Date
  */
 function getVietnameseDow(date: Date): string {
   const day = date.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ...
   if (day === 0) return 'Chủ nhật';
-  return `Thứ ${day + 1}`;
+  return `Thứ ${day}`;
 }
 
 /**
- * Format yyyy-mm-dd từ Date
+ * Format yyyy-mm-dd tu Date
  */
 function formatDateISO(date: Date): string {
   const y = date.getFullYear();
@@ -36,35 +36,54 @@ function formatDateISO(date: Date): string {
 }
 
 /**
- * Map dữ liệu API timetable -> Lesson + date
+ * Parse ISO datetime string thanh Date object ma khong bi anh huong boi timezone.
+ * Trich xuat truc tiep cac thanh phan tu chuoi ISO string.
+ */
+function parseISODateTime(isoString: string): Date {
+  const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+  if (match) {
+    return new Date(
+      parseInt(match[1]),
+      parseInt(match[2]) - 1,
+      parseInt(match[3]),
+      parseInt(match[4]),
+      parseInt(match[5]),
+      parseInt(match[6])
+    );
+  }
+  return new Date(isoString);
+}
+
+/**
+ * Map du lieu API timetable -> Lesson + date
  */
 function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, index: number): { date: string; lesson: Lesson } {
-  // Schema cụ thể từ API: plannedDatetime + durationMinutes
   const plannedDatetime: string | undefined = item?.plannedDatetime ?? undefined;
   const durationMinutesRaw: number | undefined = item?.durationMinutes ?? undefined;
 
   if (typeof plannedDatetime === 'string') {
-    // Convert UTC to local timezone
-    const utcDate = new Date(plannedDatetime);
-    // Get local date string (yyyy-mm-dd)
-    const year = utcDate.getFullYear();
-    const month = String(utcDate.getMonth() + 1).padStart(2, '0');
-    const day = String(utcDate.getDate()).padStart(2, '0');
+    // Parse truc tiep tu ISO string de tranh van de timezone (giong admin schedule)
+    const startDate = parseISODateTime(plannedDatetime);
+
+    // Get date string (yyyy-mm-dd)
+    const year = startDate.getFullYear();
+    const month = String(startDate.getMonth() + 1).padStart(2, '0');
+    const day = String(startDate.getDate()).padStart(2, '0');
     const date = `${year}-${month}-${day}`;
-    
-    // Get local time string (HH:mm)
-    const hours = String(utcDate.getHours()).padStart(2, '0');
-    const minutes = String(utcDate.getMinutes()).padStart(2, '0');
+
+    // Get time string (HH:mm)
+    const hours = String(startDate.getHours()).padStart(2, '0');
+    const minutes = String(startDate.getMinutes()).padStart(2, '0');
     const startTimeStr = `${hours}:${minutes}`;
-    
+
     const duration = typeof durationMinutesRaw === 'number' && durationMinutesRaw > 0 ? durationMinutesRaw : 60;
 
-    // compute end time (local timezone)
+    // Compute end time
     let endTimeStr = '00:00';
     try {
-      const endDate = new Date(utcDate.getTime() + duration * 60 * 1000);
-      const eh = String(endDate.getHours()).padStart(2, '0');
-      const em = String(endDate.getMinutes()).padStart(2, '0');
+      const endDateCalc = new Date(startDate.getTime() + duration * 60 * 1000);
+      const eh = String(endDateCalc.getHours()).padStart(2, '0');
+      const em = String(endDateCalc.getMinutes()).padStart(2, '0');
       endTimeStr = `${eh}:${em}`;
     } catch {
       endTimeStr = '00:00';
@@ -77,14 +96,14 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
       item?.className ??
       item?.courseName ??
       item?.subjectName ??
-      'Buổi học';
+      'Buoi hoc';
 
     const room: string =
       item?.plannedRoomName ??
       item?.actualRoomName ??
       item?.roomName ??
       item?.room ??
-      'Phòng';
+      'Phong';
 
     const teacher: string | undefined =
       (item?.plannedTeacherName ?? null) ||
@@ -93,7 +112,7 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
       (item?.teacherFullName ?? null) ||
       undefined;
 
-    // Track không có trong API -> cố gắng suy từ classCode/classTitle
+    // Track khong co trong API -> co gang suy tu classCode/classTitle
     const trackHint = `${item?.classCode ?? ''} ${course}`.toLowerCase();
     let track: Track = 'IELTS';
     if (trackHint.includes('toeic')) track = 'TOEIC';
@@ -123,7 +142,7 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
     return { date, lesson };
   }
 
-  // Ưu tiên lấy start/end dạng ISO datetime
+  // Uu tien lay start/end dang ISO datetime
   const rawStart: string | undefined =
     item?.startTime ??
     item?.start_time ??
@@ -164,7 +183,7 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
       ? item.time
       : '00:00 - 00:00';
 
-  // Tính duration (phút)
+  // Tinh duration (phut)
   let duration = 60;
   try {
     const [start, end] = timeRange.split(' - ');
@@ -181,12 +200,12 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
     (item?.courseName ?? null) ||
     (item?.className ?? null) ||
     (item?.subjectName ?? null) ||
-    'Buổi học';
+    'Buoi hoc';
 
   const room: string =
     (item?.roomName ?? null) ||
     (item?.room ?? null) ||
-    'Phòng';
+    'Phong';
 
   const students: number =
     item?.students ??
@@ -207,7 +226,7 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
   if (trackLower.includes('toeic')) track = 'TOEIC';
   else if (trackLower.includes('business')) track = 'Business';
 
-  // Chọn màu theo track
+  // Chon mau theo track
   const colorByTrack: Record<Track, string> = {
     IELTS: 'bg-gradient-to-r from-pink-500 to-rose-500',
     TOEIC: 'bg-gradient-to-r from-rose-500 to-pink-600',
@@ -246,7 +265,7 @@ export async function fetchTeacherTimetable(
 ): Promise<FetchTimetableResult> {
   const token = getAccessToken();
   if (!token) {
-    throw new Error('Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem lịch dạy.');
+    throw new Error('Ban chua dang nhap. Vui long dang nhap lai de xem lich day.');
   }
 
   const queryParams = new URLSearchParams({
@@ -263,14 +282,13 @@ export async function fetchTeacherTimetable(
   if (!res.ok) {
     const text = await res.text();
     console.error('Fetch timetable error:', res.status, text);
-    throw new Error('Không thể tải lịch dạy từ máy chủ.');
+    throw new Error('Khong the tai lich day tu may chu.');
   }
 
   const json: TimetableApiResponse = await res.json();
   let rawItems: TimetableApiItem[] = [];
-  
+
   if (json?.data && !Array.isArray(json.data)) {
-    // data is an object, check for sessions property
     if (Array.isArray(json.data.sessions)) {
       rawItems = json.data.sessions;
     }
@@ -280,7 +298,7 @@ export async function fetchTeacherTimetable(
     rawItems = json;
   }
 
-  console.log('📅 Fetched timetable:', {
+  console.log('Fetched timetable:', {
     totalSessions: rawItems.length,
     dateRange: `${params.from} to ${params.to}`,
     sampleSession: rawItems[0],
