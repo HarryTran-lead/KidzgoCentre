@@ -38,6 +38,7 @@ import { getAllBranches } from "@/lib/api/branchService";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 /* -------------------------- helpers -------------------------- */
 function cn(...a: Array<string | false | null | undefined>) {
@@ -305,24 +306,26 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 Chi nhánh *
               </label>
               <div className="relative">
-                <select
-                  value={formData.branchId}
-                  onChange={(e) => handleChange("branchId", e.target.value)}
+                <Select 
+                  value={formData.branchId} 
+                  onValueChange={(val) => handleChange("branchId", val)}
                   disabled={loadingBranches}
-                  className={cn(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                >
+                  <SelectTrigger className={cn(
+                    "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200",
                     errors.branchId ? "border-red-500" : "border-gray-200",
                     loadingBranches ? "opacity-50 cursor-not-allowed" : ""
-                  )}
-                >
-                  <option value="">Chọn chi nhánh</option>
-                  {branchOptions.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
+                  )}>
+                    <SelectValue placeholder="Chọn chi nhánh" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branchOptions.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.branchId && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <AlertCircle size={18} className="text-red-500" />
@@ -1071,15 +1074,19 @@ export default function Page() {
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
-                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              <Select 
+                value={statusFilter} 
+                onValueChange={(val) => { setStatusFilter(val as typeof statusFilter); setPage(1); }}
               >
-                <option value="ALL">Tất cả trạng thái</option>
-                <option value="Đang hoạt động">Đang hoạt động</option>
-                <option value="Tạm dừng">Tạm dừng</option>
-              </select>
+                <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+                  <SelectValue placeholder="Chọn trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="Đang hoạt động">Đang hoạt động</SelectItem>
+                  <SelectItem value="Tạm dừng">Tạm dừng</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -1563,9 +1570,3 @@ export default function Page() {
     </>
   );
 }
-
-
-
-
-
-

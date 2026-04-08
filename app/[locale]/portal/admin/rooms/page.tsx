@@ -17,6 +17,7 @@ import type { Session } from "@/types/admin/sessions";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 type SortDirection = "asc" | "desc";
 
@@ -348,19 +349,26 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                   Chi nhánh *
                 </label>
                 <div className="relative">
-                  <select
-                    value={formData.branchId}
-                    onChange={(e) => handleChange("branchId", e.target.value)}
+                  <Select 
+                    value={formData.branchId} 
+                    onValueChange={(val) => handleChange("branchId", val)}
                     disabled={loadingOptions}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                      errors.branchId ? "border-red-500" : "border-gray-200"
-                    }`}
                   >
-                    <option value="">{loadingOptions ? "Đang tải..." : "Chọn chi nhánh"}</option>
-                    {branchOptions.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger className={cn(
+                      "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200",
+                      errors.branchId ? "border-red-500" : "border-gray-200",
+                      loadingOptions ? "opacity-50 cursor-not-allowed" : ""
+                    )}>
+                      <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn chi nhánh"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branchOptions.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {errors.branchId && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <AlertCircle size={18} className="text-red-500" />
@@ -436,7 +444,7 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
                       key={status}
                       type="button"
                       onClick={() => handleChange("status", status)}
-                      className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                      className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-all cursor-pointer ${
                         formData.status === status
                           ? status === "active"
                             ? "bg-green-100 border-green-300 text-green-700"
@@ -508,6 +516,11 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
       </div>
     </div>
   );
+}
+
+// Helper function cn for className merging
+function cn(...inputs: (string | false | null | undefined)[]) {
+  return inputs.filter(Boolean).join(' ');
 }
 
 /* --------------------------------- Page --------------------------------- */
@@ -979,18 +992,19 @@ export default function Page() {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setCurrentPage(1); }}
-                  className="appearance-none rounded-xl bg-white border border-gray-200 pl-4 pr-10 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 cursor-pointer"
-                >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="active">Hoạt động</option>
-                  <option value="inactive">Không hoạt động</option>
-                </select>
-                <ChevronRight size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 rotate-90 pointer-events-none" />
-              </div>
+              <Select 
+                value={statusFilter} 
+                onValueChange={(val) => { setStatusFilter(val as typeof statusFilter); setCurrentPage(1); }}
+              >
+                <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+                  <SelectValue placeholder="Chọn trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="active">Hoạt động</SelectItem>
+                  <SelectItem value="inactive">Không hoạt động</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

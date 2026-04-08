@@ -31,6 +31,7 @@ import {
   updateTuitionPlan,
 } from "@/lib/api/tuitionPlanService";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -440,18 +441,22 @@ export default function TuitionPlansPage() {
               />
             </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as typeof statusFilter);
+            <Select 
+              value={statusFilter} 
+              onValueChange={(val) => {
+                setStatusFilter(val as typeof statusFilter);
                 setPage(1);
               }}
-              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="Đang hoạt động">Đang hoạt động</option>
-              <option value="Tạm dừng">Tạm dừng</option>
-            </select>
+              <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+                <SelectValue placeholder="Chọn trạng thái" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                <SelectItem value="Đang hoạt động">Đang hoạt động</SelectItem>
+                <SelectItem value="Tạm dừng">Tạm dừng</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -638,4 +643,3 @@ export default function TuitionPlansPage() {
     </>
   );
 }
- 
