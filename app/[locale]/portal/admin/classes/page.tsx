@@ -28,6 +28,7 @@ import type { SelectOption } from "@/types/admin/classFormData";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
 import { getAccessToken } from "@/lib/store/authToken";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -1962,30 +1963,29 @@ function CreateClassModal({
                   <Building2 size={16} className="text-red-600" />
                   Chi nhánh <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <select
+                <Select
+                  value={formData.branchId}
+                  onValueChange={(val) => handleChange("branchId", val)}
+                  disabled={loadingOptions}
+                >
+                  <SelectTrigger
                     data-field="branchId"
-                    value={formData.branchId}
-                    onChange={(e) => handleChange("branchId", e.target.value)}
-                    disabled={loadingOptions}
                     className={clsx(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300",
-                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                      "w-full",
                       errors.branchId ? "border-red-500" : "border-gray-200"
                     )}
                   >
-                    <option value="">{loadingOptions ? "Đang tải..." : "Chọn chi nhánh"}</option>
+                    <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn chi nhánh"} />
+                  </SelectTrigger>
+                  <SelectContent>
                     {branchOptions.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                     ))}
-                  </select>
-                  {errors.branchId && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
+                  </SelectContent>
+                </Select>
+                {errors.branchId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>
+                )}
                 {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
               </div>
 
@@ -2029,30 +2029,29 @@ function CreateClassModal({
                   <User size={16} className="text-red-600" />
                   Giáo viên chính <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <select
+                <Select
+                  value={formData.mainTeacherId}
+                  onValueChange={(val) => handleChange("mainTeacherId", val)}
+                  disabled={loadingOptions}
+                >
+                  <SelectTrigger
                     data-field="mainTeacherId"
-                    value={formData.mainTeacherId}
-                    onChange={(e) => handleChange("mainTeacherId", e.target.value)}
-                    disabled={loadingOptions}
                     className={clsx(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300",
-                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                      "w-full",
                       errors.mainTeacherId ? "border-red-500" : "border-gray-200"
                     )}
                   >
-                    <option value="">{loadingOptions ? "Đang tải..." : "Chọn giáo viên chính"}</option>
+                    <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn giáo viên chính"} />
+                  </SelectTrigger>
+                  <SelectContent>
                     {teacherOptions.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
-                  </select>
-                  {errors.mainTeacherId && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
+                  </SelectContent>
+                </Select>
+                {errors.mainTeacherId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.mainTeacherId}</p>
+                )}
                 {errors.mainTeacherId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.mainTeacherId}</p>}
               </div>
 
@@ -2061,23 +2060,26 @@ function CreateClassModal({
                   <User size={16} className="text-red-600" />
                   Giáo viên phụ
                 </label>
-                <select
-                  data-field="assistantTeacherId"
+                <Select
                   value={formData.assistantTeacherId}
-                  onChange={(e) => handleChange("assistantTeacherId", e.target.value)}
+                  onValueChange={(val) => handleChange("assistantTeacherId", val)}
                   disabled={loadingOptions}
-                  className={clsx(
-                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                    "focus:outline-none focus:ring-2 focus:ring-red-300",
-                    "disabled:opacity-50 disabled:cursor-not-allowed",
-                    errors.assistantTeacherId ? "border-red-500" : "border-gray-200"
-                  )}
                 >
-                  <option value="">{loadingOptions ? "Đang tải..." : "Chọn giáo viên phụ (tùy chọn)"}</option>
-                  {teacherOptions.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    data-field="assistantTeacherId"
+                    className={clsx(
+                      "w-full",
+                      errors.assistantTeacherId ? "border-red-500" : "border-gray-200"
+                    )}
+                  >
+                    <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn giáo viên phụ (tùy chọn)"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teacherOptions.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.assistantTeacherId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.assistantTeacherId}</p>}
               </div>
             </div>
