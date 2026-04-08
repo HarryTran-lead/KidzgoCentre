@@ -217,6 +217,12 @@ export default function RegistrationFlowModal({
       .replace(/\s+/g, " ")
       .toLowerCase();
 
+  const normalizeText = (value?: string | null) =>
+    String(value || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+
   function toDisplayDate(value?: string) {
     if (!value) return "-";
     const d = new Date(value);
@@ -461,6 +467,29 @@ export default function RegistrationFlowModal({
     });
   }, [programId, programs]);
 
+  const selectedPrimaryProgram = useMemo(
+    () => programs.find((program) => program.id === programId),
+    [programId, programs],
+  );
+  const isPrimaryMainProgram = selectedPrimaryProgram
+    ? !selectedPrimaryProgram.isMakeup && !selectedPrimaryProgram.isSupplementary
+    : true;
+
+  useEffect(() => {
+    if (isPrimaryMainProgram) return;
+    if (!isSecondaryEnabled && !secondaryProgramId && !secondaryProgramSkillFocus) {
+      return;
+    }
+    setIsSecondaryEnabled(false);
+    setSecondaryProgramId("");
+    setSecondaryProgramSkillFocus("");
+  }, [
+    isPrimaryMainProgram,
+    isSecondaryEnabled,
+    secondaryProgramId,
+    secondaryProgramSkillFocus,
+  ]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -490,13 +519,17 @@ export default function RegistrationFlowModal({
         const normalizedRecommendation = (test?.programRecommendationName || "")
           .trim()
           .toLowerCase();
-        const recommendedProgram = normalizedRecommendation
-          ? (planItems || []).find(
-              (p) =>
-                (p.programName || "").toLowerCase() ===
-                normalizedRecommendation,
-            )
-          : undefined;
+        const recommendedProgramId = String(
+          test?.programRecommendationId || "",
+        ).trim();
+        const recommendedProgram = (planItems || []).find((p) => {
+          const planProgramId = String(p.programId || "").trim();
+          if (recommendedProgramId && planProgramId === recommendedProgramId) {
+            return true;
+          }
+          if (!normalizedRecommendation) return false;
+          return (p.programName || "").trim().toLowerCase() === normalizedRecommendation;
+        });
 
         const firstProgramId =
           (planItems || []).find((p) => p.isActive)?.programId || "";
@@ -512,28 +545,38 @@ export default function RegistrationFlowModal({
         )
           .trim()
           .toLowerCase();
+        const recommendedSecondaryProgramId = String(
+          test?.secondaryProgramRecommendationId || "",
+        ).trim();
         const mainProgramIds = new Set(
           (activeProgramItems || [])
             .filter((program) => !program?.isMakeup && !program?.isSupplementary)
             .map((program) => String(program.id || ""))
             .filter(Boolean),
         );
-        const recommendedSecondaryProgram = normalizedSecondaryRecommendation
-          ? (planItems || []).find(
-              (p) =>
-                mainProgramIds.has(String(p.programId || "")) &&
-                (p.programName || "").trim().toLowerCase() ===
-                normalizedSecondaryRecommendation,
-            )
-          : undefined;
-        setIsSecondaryEnabled(false);
+        const recommendedSecondaryProgram = (planItems || []).find((p) => {
+          const planProgramId = String(p.programId || "").trim();
+          if (!mainProgramIds.has(planProgramId)) return false;
+          if (
+            recommendedSecondaryProgramId &&
+            planProgramId === recommendedSecondaryProgramId
+          ) {
+            return true;
+          }
+          if (!normalizedSecondaryRecommendation) return false;
+          return (
+            (p.programName || "").trim().toLowerCase() ===
+            normalizedSecondaryRecommendation
+          );
+        });
         const nextSecondaryProgramId =
           recommendedSecondaryProgram?.programId || "";
-        setSecondaryProgramId(
+        const resolvedSecondaryProgramId =
           nextSecondaryProgramId && nextSecondaryProgramId !== nextProgramId
             ? nextSecondaryProgramId
-            : "",
-        );
+            : "";
+        setIsSecondaryEnabled(Boolean(resolvedSecondaryProgramId));
+        setSecondaryProgramId(resolvedSecondaryProgramId);
         setSecondaryProgramSkillFocus(test?.secondaryProgramSkillFocus || "");
 
         setExpectedStartDate(toInputDateValue(test?.scheduledAt));
@@ -605,7 +648,8 @@ export default function RegistrationFlowModal({
               )
             : undefined;
           const defaultRegistration = placementLinked || sortedRegistrations[0];
-          setRegistrationId(defaultRegistration?.id || "");
+          // Keep registration unselected by default so staff can create a fresh registration.
+          setRegistrationId("");
           if (!test?.studentProfileId) {
             setResolvedStudentProfileId(
               String(defaultRegistration?.studentProfileId || ""),
@@ -648,7 +692,9 @@ export default function RegistrationFlowModal({
     branchId,
     childName,
     test?.id,
+    test?.programRecommendationId,
     test?.programRecommendationName,
+    test?.secondaryProgramRecommendationId,
     test?.secondaryProgramRecommendationName,
     test?.secondaryProgramSkillFocus,
     test?.scheduledAt,
@@ -747,6 +793,16 @@ export default function RegistrationFlowModal({
       toast({
         title: "Thiếu lịch học",
         description: "Vui lòng chọn ngày học và khung giờ học mong muốn.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isPrimaryMainProgram && isSecondaryEnabled) {
+      toast({
+        title: "Không hợp lệ",
+        description:
+          "Chương trình bù/phụ trợ phải tạo đăng ký riêng, không thể đăng ký song song trong cùng một đăng ký.",
         variant: "destructive",
       });
       return;
@@ -898,6 +954,51 @@ export default function RegistrationFlowModal({
     }
   };
 
+  const handleAssignSuggestedClasses = async (payload: {
+    primaryClassId: string;
+    primarySessionSelectionPattern?: string;
+    secondaryClassId?: string;
+    secondarySessionSelectionPattern?: string;
+  }) => {
+    if (!registrationId || !payload.primaryClassId) return;
+
+    try {
+      setIsAssigning(true);
+
+      await assignClassToRegistration(registrationId, {
+        classId: payload.primaryClassId,
+        entryType: "Immediate",
+        track: "primary",
+        sessionSelectionPattern:
+          payload.primarySessionSelectionPattern || undefined,
+      });
+
+      if (payload.secondaryClassId) {
+        await assignClassToRegistration(registrationId, {
+          classId: payload.secondaryClassId,
+          entryType: "Immediate",
+          track: "secondary",
+          sessionSelectionPattern:
+            payload.secondarySessionSelectionPattern || undefined,
+        });
+      }
+
+      toast({
+        title: "Thành công",
+        description: payload.secondaryClassId
+          ? "Đã xếp lớp gợi ý cho cả Primary và Secondary."
+          : "Đã xếp lớp gợi ý cho đăng ký.",
+        variant: "success",
+      });
+      onSuccess?.();
+      onClose();
+    } catch (error: any) {
+      showDomainErrorToast(error, "Không thể xếp lớp gợi ý.");
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
   const handleLoadManualClasses = async () => {
     if (!registrationId) {
       toast({
@@ -934,6 +1035,50 @@ export default function RegistrationFlowModal({
           return status !== "cancelled" && status !== "completed";
         });
 
+      const countClassesByProgram = (
+        targetProgramId?: string,
+        targetProgramName?: string,
+      ) => {
+        const normalizedTargetProgramId = String(targetProgramId || "").trim();
+        const normalizedTargetProgramName = normalizeText(targetProgramName);
+
+        return items.filter((item) => {
+          const itemProgramId = String(item?.programId || item?.program?.id || "").trim();
+          const itemProgramName = normalizeText(
+            String(item?.programName || item?.program?.name || ""),
+          );
+
+          if (normalizedTargetProgramId) {
+            return itemProgramId === normalizedTargetProgramId;
+          }
+
+          if (normalizedTargetProgramName) {
+            return itemProgramName === normalizedTargetProgramName;
+          }
+
+          return true;
+        }).length;
+      };
+
+      const primaryProgramFilterId = selectedRegistrationProgramId || programId;
+      const secondaryProgramFilterId =
+        selectedRegistrationSecondaryProgramId ||
+        secondaryProgramId ||
+        suggestedClasses?.secondaryProgramId ||
+        "";
+      const primaryFilteredCount = countClassesByProgram(
+        primaryProgramFilterId,
+        selectedRegistrationProgramName,
+      );
+      const secondaryFilteredCount = hasSecondaryTrack
+        ? countClassesByProgram(
+            secondaryProgramFilterId,
+            selectedRegistrationSecondaryProgramName ||
+              suggestedClasses?.secondaryProgramName ||
+              "",
+          )
+        : 0;
+
       setManualClasses(items);
 
       if (items.length > 0) {
@@ -952,7 +1097,9 @@ export default function RegistrationFlowModal({
         setManualSecondarySessionPattern("");
         toast({
           title: "Thành công",
-          description: `Đã tải ${items.length} lớp để xếp lớp thủ công.`,
+          description: hasSecondaryTrack
+            ? `Đã tải ${primaryFilteredCount} lớp Primary và ${secondaryFilteredCount} lớp Secondary để xếp lớp thủ công.`
+            : `Đã tải ${primaryFilteredCount} lớp để xếp lớp thủ công.`,
           variant: "success",
         });
       } else {
@@ -1163,10 +1310,12 @@ export default function RegistrationFlowModal({
                 <Select
                   value={registrationId}
                   onValueChange={(val) => {
-                    setRegistrationId(val);
+                    const normalizedValue =
+                      val === "__create_new__" ? "" : val;
+                    setRegistrationId(normalizedValue);
                     if (!test?.studentProfileId) {
                       const selectedRegistration = registrationOptions.find(
-                        (item) => item.id === val,
+                        (item) => item.id === normalizedValue,
                       );
                       setResolvedStudentProfileId(
                         String(selectedRegistration?.studentProfileId || ""),
@@ -1175,9 +1324,12 @@ export default function RegistrationFlowModal({
                   }}
                 >
                   <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                    <SelectValue placeholder="Chưa có đăng ký nào cho học viên này" />
+                    <SelectValue placeholder="Để trống để tạo đăng ký mới từ placement test" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__create_new__">
+                      Tạo đăng ký mới
+                    </SelectItem>
                     {registrationOptions.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.label}
@@ -1230,6 +1382,7 @@ export default function RegistrationFlowModal({
                     setTuitionPlanId={setTuitionPlanId}
                     isSecondaryEnabled={isSecondaryEnabled}
                     setIsSecondaryEnabled={setIsSecondaryEnabled}
+                    secondaryAllowed={isPrimaryMainProgram}
                     secondaryProgramId={secondaryProgramId}
                     setSecondaryProgramId={setSecondaryProgramId}
                     secondaryProgramSkillFocus={secondaryProgramSkillFocus}
@@ -1285,6 +1438,7 @@ export default function RegistrationFlowModal({
                     activeAlternativeClasses={activeAlternativeClasses}
                     formatSchedulePattern={formatSchedulePattern}
                     handleAssignClass={handleAssignClass}
+                    handleAssignSuggestedClasses={handleAssignSuggestedClasses}
                     isAssigning={isAssigning}
                     manualClasses={manualClasses}
                     manualClassOptions={manualClassOptions}
