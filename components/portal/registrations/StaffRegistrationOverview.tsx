@@ -754,7 +754,7 @@ export default function StaffRegistrationOverview({
     }
   };
 
-  const handleAssignClass = async () => {
+  const handleAssignClass = async (sessionSelectionPattern?: string) => {
     if (!selectedActionRegistration?.id || !selectedClassId) return;
 
     try {
@@ -763,6 +763,7 @@ export default function StaffRegistrationOverview({
         classId: selectedClassId,
         entryType: "Immediate",
         track: selectedTrack,
+        sessionSelectionPattern: sessionSelectionPattern || undefined,
       });
       toast({
         title: "Thành công",
@@ -775,6 +776,55 @@ export default function StaffRegistrationOverview({
       toast({
         title: "Lỗi",
         description: getErrorMessage(error, "Không thể xếp lớp đã chọn."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleAssignSuggestedClasses = async (payload: {
+    primaryClassId: string;
+    primarySessionSelectionPattern?: string;
+    secondaryClassId?: string;
+    secondarySessionSelectionPattern?: string;
+  }) => {
+    if (!selectedActionRegistration?.id || !payload.primaryClassId) return;
+
+    try {
+      setIsAssigning(true);
+
+      await assignClassToRegistration(selectedActionRegistration.id, {
+        classId: payload.primaryClassId,
+        entryType: "Immediate",
+        track: "primary",
+        sessionSelectionPattern:
+          payload.primarySessionSelectionPattern || undefined,
+      });
+
+      if (payload.secondaryClassId) {
+        await assignClassToRegistration(selectedActionRegistration.id, {
+          classId: payload.secondaryClassId,
+          entryType: "Immediate",
+          track: "secondary",
+          sessionSelectionPattern:
+            payload.secondarySessionSelectionPattern || undefined,
+        });
+      }
+
+      toast({
+        title: "Thành công",
+        description: payload.secondaryClassId
+          ? "Đã xếp lớp gợi ý cho cả Primary và Secondary."
+          : "Đã xếp lớp gợi ý cho đăng ký.",
+        variant: "success",
+      });
+      setAssignOpen(false);
+      await refreshRegistrationData();
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể xếp lớp gợi ý."),
         variant: "destructive",
       });
     } finally {
@@ -1222,6 +1272,7 @@ export default function StaffRegistrationOverview({
         activeAlternativeClasses={activeAlternativeClasses}
         formatSchedulePattern={formatSchedulePattern}
         handleAssignClass={handleAssignClass}
+        handleAssignSuggestedClasses={handleAssignSuggestedClasses}
         isAssigning={isAssigning}
         manualClasses={manualClasses}
         manualClassOptions={manualClassOptions}
