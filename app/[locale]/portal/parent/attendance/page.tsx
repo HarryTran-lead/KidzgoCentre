@@ -436,7 +436,16 @@ export default function ParentAttendancePage() {
         ? raw
         : raw?.items ?? raw?.allocations?.items ?? raw?.data ?? [];
 
-      setMakeupAllocations(Array.isArray(list) ? list : []);
+      // Deduplicate allocations by id or targetSessionId to prevent duplicate display
+      const seen = new Set<string>();
+      const deduped = (Array.isArray(list) ? list : []).filter((item) => {
+        const key = item.id ?? item.targetSessionId ?? JSON.stringify(item);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      setMakeupAllocations(deduped);
 
       try {
         const creditsResponse = await getMakeupCreditsByStudent(studentProfileId);

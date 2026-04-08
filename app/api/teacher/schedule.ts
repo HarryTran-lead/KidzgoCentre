@@ -35,22 +35,8 @@ function formatDateISO(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/**
- * Parse ISO datetime string thanh Date object ma khong bi anh huong boi timezone.
- * Trich xuat truc tiep cac thanh phan tu chuoi ISO string.
- */
+/**\n * Parse ISO datetime string thanh Date object.\n * Backend tr\u1ea3 ISO 8601 c\u00f3 offset, d\u00f9ng new Date() tr\u1ef1c ti\u1ebfp.\n */
 function parseISODateTime(isoString: string): Date {
-  const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
-  if (match) {
-    return new Date(
-      parseInt(match[1]),
-      parseInt(match[2]) - 1,
-      parseInt(match[3]),
-      parseInt(match[4]),
-      parseInt(match[5]),
-      parseInt(match[6])
-    );
-  }
   return new Date(isoString);
 }
 

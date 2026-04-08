@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/lightswind/select";
 import { getAccessToken } from "@/lib/store/authToken";
+import { todayDateOnly } from "@/lib/datetime";
 
 interface ClassOption {
   id: string;
@@ -41,7 +42,7 @@ export default function EnrollmentFormModal({
   const [classId, setClassId] = useState("");
   const [studentProfileId, setStudentProfileId] = useState("");
   const [enrollDate, setEnrollDate] = useState(
-    new Date().toISOString().split("T")[0]
+    todayDateOnly()
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -139,7 +140,7 @@ export default function EnrollmentFormModal({
     if (!isOpen) {
       setClassId("");
       setStudentProfileId("");
-      setEnrollDate(new Date().toISOString().split("T")[0]);
+      setEnrollDate(todayDateOnly());
       setClassSearchQuery("");
       setStudentSearchQuery("");
     }
@@ -148,7 +149,7 @@ export default function EnrollmentFormModal({
   const handleReset = () => {
     setClassId("");
     setStudentProfileId("");
-    setEnrollDate(new Date().toISOString().split("T")[0]);
+    setEnrollDate(todayDateOnly());
     setClassSearchQuery("");
     setStudentSearchQuery("");
   };

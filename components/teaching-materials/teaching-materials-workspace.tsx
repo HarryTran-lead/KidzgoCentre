@@ -1,14 +1,20 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { AlertCircle, Download, Eye, FileText, Folder, Info, Loader2, RefreshCw, Search, Sparkles, Upload } from "lucide-react";
+import { 
+  AlertCircle, Download, Eye, FileText, Folder, Info, Loader2, 
+  RefreshCw, Search, Sparkles, Upload, BookOpen, Filter, X,
+  ChevronLeft, ChevronRight, Clock, User, Calendar, Tag, HardDrive
+} from "lucide-react";
 import { FilterTabs } from "@/components/portal/student/FilterTabs";
 import { getActiveProgramsForDropdown } from "@/lib/api/programService";
 import { createObjectUrl, fetchTeachingMaterialDownload, fetchTeachingMaterialPreview, getTeachingMaterialById, getTeachingMaterialLessonBundle, getTeachingMaterials, pickTeachingMaterialItems, revokeObjectUrl, sortTeachingMaterialItems, triggerBrowserDownload, uploadTeachingMaterials } from "@/lib/api/teachingMaterialsService";
 import { ROLE_LABEL, type Role } from "@/lib/role";
 import { useToast } from "@/hooks/use-toast";
 import type { Program } from "@/types/admin/programs";
-import type { ProblemDetails, TeachingMaterialItem, TeachingMaterialLessonBundle } from "@/types/teachingMaterials";
+import type { TeachingMaterialItem, TeachingMaterialLessonBundle } from "@/types/teachingMaterials";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type Variant = "student" | "portal";
 type TabId = "all" | "presentation" | "audio" | "video" | "image" | "document";
@@ -31,17 +37,39 @@ const msg = (error: unknown, fallback: string) => {
 
 const previewable = (fileType?: string | null) => ["Image", "Pdf", "Audio", "Video"].includes(String(fileType ?? ""));
 const bytes = (v?: number | null) => !v && v !== 0 ? "Chưa rõ" : v < 1024 * 1024 ? `${(v / 1024).toFixed(1)} KB` : `${(v / (1024 * 1024)).toFixed(1)} MB`;
-const dateText = (v?: string | null) => v ? new Date(v).toLocaleString("vi-VN") : "Chưa rõ";
+const dateText = (v?: string | null) => v ? new Date(v).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "Chưa rõ";
 const n = (v: string) => v.trim() ? Number(v) : undefined;
+
+function cn(...a: Array<string | false | null | undefined>) {
+  return a.filter(Boolean).join(" ");
+}
+
+function StatusBadge({ type }: { type: string }) {
+  const getColor = () => {
+    if (type === "Presentation") return "bg-purple-100 text-purple-700 border-purple-200";
+    if (type === "Audio") return "bg-blue-100 text-blue-700 border-blue-200";
+    if (type === "Video") return "bg-red-100 text-red-700 border-red-200";
+    if (type === "Image") return "bg-green-100 text-green-700 border-green-200";
+    if (type === "Pdf") return "bg-orange-100 text-orange-700 border-orange-200";
+    return "bg-gray-100 text-gray-600 border-gray-200";
+  };
+  
+  return (
+    <span className={cn("px-2 py-0.5 rounded-lg text-xs font-medium border", getColor())}>
+      {type || "Other"}
+    </span>
+  );
+}
 
 export default function TeachingMaterialsWorkspace({ viewerRole, variant = "portal" }: { viewerRole: Role; variant?: Variant }) {
   const { toast } = useToast();
   const dark = variant === "student";
   const canUpload = CAN_UPLOAD.has(viewerRole);
-  const card = dark ? "rounded-3xl border border-white/10 bg-slate-950/40 backdrop-blur-xl" : "rounded-3xl border border-gray-200 bg-white";
-  const input = dark ? "rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40" : "rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900";
-  const ghost = dark ? "rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white" : "rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700";
-  const primary = dark ? "rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-500 to-violet-500 px-4 py-3 text-sm font-semibold text-slate-950" : "rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-3 text-sm font-semibold text-white";
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
 
   const [programs, setPrograms] = useState<Program[]>([]);
   const [materials, setMaterials] = useState<TeachingMaterialItem[]>([]);
@@ -157,31 +185,503 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
     try { await uploadTeachingMaterials(form); setUploadOpen(false); setRefreshTick((v) => v + 1); toast.success({ title: "Upload thành công", description: "Danh sách đã được làm mới." }); } catch (e) { toast.destructive({ title: "Upload thất bại", description: msg(e, "Không thể upload materials.") }); } finally { setUploading(false); }
   };
 
+  const stats = useMemo(() => ({
+    total: materials.length,
+    presentations: materials.filter(m => m.fileType === "Presentation").length,
+    audios: materials.filter(m => m.fileType === "Audio").length,
+    videos: materials.filter(m => m.fileType === "Video").length,
+    images: materials.filter(m => m.fileType === "Image").length,
+    documents: materials.filter(m => ["Pdf", "Document", "Spreadsheet"].includes(String(m.fileType ?? ""))).length,
+  }), [materials]);
+
   return (
-    <div className={dark ? "flex h-full min-h-0 flex-col gap-4 p-4 text-white" : "space-y-6"}>
-      <div className={`${card} p-5`}>
-        <div className={dark ? "inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-100" : "inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"}><Sparkles className="h-4 w-4" />Teaching Materials</div>
-        <h1 className={dark ? "mt-3 text-2xl font-bold text-white" : "mt-3 text-3xl font-bold text-gray-900"}>Kho tài liệu cho {ROLE_LABEL[viewerRole] || viewerRole}</h1>
-        <p className={dark ? "mt-2 text-sm text-white/65" : "mt-2 text-sm text-gray-600"}>List, lesson bundle, preview blob và download theo doc Teaching Materials API.</p>
-      </div>
-
-      <div className={`${card} p-4`}>
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_220px_140px_140px_180px_auto]">
-          <label className="relative"><Search className={dark ? "pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" : "pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"} /><input value={filters.searchTerm} onChange={(e) => setFilters((c) => ({ ...c, searchTerm: e.target.value }))} className={`${input} w-full pl-11`} placeholder="Tìm theo tên file..." /></label>
-          <select value={filters.programId} onChange={(e) => setFilters((c) => ({ ...c, programId: e.target.value }))} className={input}><option value="">Tất cả program</option>{programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-          <input value={filters.unitNumber} onChange={(e) => setFilters((c) => ({ ...c, unitNumber: e.target.value }))} className={input} placeholder="Unit" />
-          <input value={filters.lessonNumber} onChange={(e) => setFilters((c) => ({ ...c, lessonNumber: e.target.value }))} className={input} placeholder="Lesson" />
-          <select value={filters.category} onChange={(e) => setFilters((c) => ({ ...c, category: e.target.value }))} className={input}>{["", "ProgramDocument", "LessonSlide", "LessonAsset", "Supplementary", "Other"].map((v) => <option key={v || "all"} value={v}>{v || "Tất cả nhóm"}</option>)}</select>
-          <div className="flex gap-2"><button type="button" onClick={() => setRefreshTick((v) => v + 1)} className={ghost}><RefreshCw className="h-4 w-4" /></button>{canUpload ? <button type="button" onClick={() => setUploadOpen((v) => !v)} className={primary}><Upload className="mr-2 inline h-4 w-4" />Upload</button> : null}</div>
+    <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+      {/* Header */}
+      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+            <BookOpen size={28} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+              Kho tài liệu
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Quản lý tài liệu giảng dạy cho {ROLE_LABEL[viewerRole] || viewerRole}
+            </p>
+          </div>
         </div>
-        <div className="mt-4"><FilterTabs tabs={TABS.map((t) => ({ id: t.id, label: t.label, count: tabCounts[t.id], icon: t.icon }))} activeTab={activeTab} onChange={(v) => setActiveTab(v as TabId)} variant={dark ? "outline" : "pill"} size="md" /></div>
-        {uploadOpen && canUpload ? <div className={dark ? "mt-4 space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4" : "mt-4 space-y-3 rounded-3xl border border-red-100 bg-red-50/50 p-4"}><div className="flex gap-2">{(["single", "multi", "archive"] as UploadMode[]).map((m) => <button key={m} type="button" onClick={() => setUploadMode(m)} className={uploadMode === m ? primary : ghost}>{m}</button>)}</div><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3"><input value={uploadForm.programId} onChange={(e) => setUploadForm((c) => ({ ...c, programId: e.target.value }))} className={input} placeholder="programId" /><input value={uploadForm.unitNumber} onChange={(e) => setUploadForm((c) => ({ ...c, unitNumber: e.target.value }))} className={input} placeholder="unitNumber" /><input value={uploadForm.lessonNumber} onChange={(e) => setUploadForm((c) => ({ ...c, lessonNumber: e.target.value }))} className={input} placeholder="lessonNumber" /><input value={uploadForm.lessonTitle} onChange={(e) => setUploadForm((c) => ({ ...c, lessonTitle: e.target.value }))} className={input} placeholder="lessonTitle" /><input value={uploadForm.displayName} onChange={(e) => setUploadForm((c) => ({ ...c, displayName: e.target.value }))} className={input} placeholder="displayName" /><select value={uploadForm.category} onChange={(e) => setUploadForm((c) => ({ ...c, category: e.target.value }))} className={input}>{["ProgramDocument", "LessonSlide", "LessonAsset", "Supplementary", "Other"].map((v) => <option key={v} value={v}>{v}</option>)}</select></div><input type="file" accept={uploadMode === "archive" ? ".zip" : undefined} multiple={uploadMode === "multi"} onChange={onUploadFile} className={dark ? "block w-full text-sm text-white/70" : "block w-full text-sm text-gray-700"} /><div className="flex justify-end gap-2"><button type="button" onClick={() => setUploadOpen(false)} className={ghost}>Đóng</button><button type="button" onClick={doUpload} disabled={uploading} className={primary}>{uploading ? <Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> : <Upload className="mr-2 inline h-4 w-4" />}Upload</button></div></div> : null}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setRefreshTick((v) => v + 1)}
+            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            <RefreshCw size={16} /> Làm mới
+          </button>
+          {canUpload && (
+            <button
+              onClick={() => setUploadOpen(!uploadOpen)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
+            >
+              <Upload size={16} /> Tải lên
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
-        <div className={`${card} max-h-[70vh] overflow-y-auto p-4`}>{loading ? <div className="flex justify-center py-8"><Loader2 className={dark ? "h-5 w-5 animate-spin text-white/60" : "h-5 w-5 animate-spin text-gray-500"} /></div> : lessons.map((lesson) => <button key={lesson.key} type="button" onClick={() => { setSelectedLesson(lesson.key); setFilters((c) => ({ ...c, programId: lesson.programId, unitNumber: String(lesson.unitNumber || ""), lessonNumber: String(lesson.lessonNumber || "") })); }} className={selectedLesson === lesson.key ? (dark ? "mb-2 w-full rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-3 text-left text-white" : "mb-2 w-full rounded-2xl border border-red-200 bg-red-50 px-3 py-3 text-left text-red-700") : (dark ? "mb-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-left text-white/85" : "mb-2 w-full rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-700")}><div className="font-semibold">{lesson.title}</div><div className="text-xs opacity-75">{lesson.lessonTitle || `Tổng ${lesson.count} tài liệu`}</div></button>)}</div>
-        <div className={`${card} max-h-[70vh] overflow-y-auto p-4`}>{visible.map((item) => <div key={item.id} className={selectedMaterialId === item.id ? (dark ? "mb-3 rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-4" : "mb-3 rounded-2xl border border-red-200 bg-red-50 p-4") : (dark ? "mb-3 rounded-2xl border border-white/10 bg-white/5 p-4" : "mb-3 rounded-2xl border border-gray-200 bg-white p-4")}><div className="flex items-start justify-between gap-3"><button type="button" onClick={() => setSelectedMaterialId(item.id)} className="min-w-0 text-left"><div className={dark ? "text-xs text-white/55" : "text-xs text-gray-500"}>{item.fileType || "Other"} • {item.category || "Other"}</div><div className={dark ? "mt-2 text-sm font-semibold text-white" : "mt-2 text-sm font-semibold text-gray-900"}>{item.displayName || item.originalFileName || item.id}</div><div className={dark ? "mt-1 text-xs text-white/55" : "mt-1 text-xs text-gray-500"}>{bytes(item.fileSize)}</div></button><div className="flex gap-2"><button type="button" onClick={() => setSelectedMaterialId(item.id)} className={ghost}><Eye className="h-4 w-4" /></button><button type="button" onClick={() => void doDownload(item)} className={primary}><Download className="h-4 w-4" /></button></div></div></div>)}</div>
-        <div className={`${card} max-h-[70vh] overflow-y-auto p-4`}>{!selectedMaterial ? <div className={dark ? "rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-white/70" : "rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-600"}><Info className="mx-auto h-8 w-8" /><p className="mt-3 text-sm">Chọn một material để xem preview và metadata.</p></div> : <><div className={dark ? "rounded-2xl border border-white/10 bg-white/5 p-4" : "rounded-2xl border border-gray-200 bg-gray-50 p-4"}><div className={dark ? "text-xs text-white/55" : "text-xs text-gray-500"}>{selectedMaterial.fileType || "Other"}</div><div className={dark ? "mt-2 text-base font-semibold text-white" : "mt-2 text-base font-semibold text-gray-900"}>{selectedMaterial.displayName || selectedMaterial.originalFileName || selectedMaterial.id}</div><div className={dark ? "mt-1 text-xs text-white/55" : "mt-1 text-xs text-gray-500"}>{selectedMaterial.programName || selectedMaterial.programId} • {bytes(selectedMaterial.fileSize)}</div><div className="mt-3"><button type="button" onClick={() => void doDownload(selectedMaterial)} className={primary}><Download className="mr-2 inline h-4 w-4" />Download</button></div></div><div className={dark ? "mt-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4" : "mt-4 rounded-2xl border border-gray-200 bg-white p-4"}>{previewLoading ? <div className="flex min-h-[220px] items-center justify-center"><Loader2 className={dark ? "h-5 w-5 animate-spin text-white/60" : "h-5 w-5 animate-spin text-gray-500"} /></div> : previewUrl && selectedMaterial.fileType === "Image" ? <img src={previewUrl} alt="Preview" className="max-h-[320px] w-full rounded-2xl object-contain" /> : previewUrl && selectedMaterial.fileType === "Pdf" ? <iframe src={previewUrl} title="PDF preview" className="h-[360px] w-full rounded-2xl" /> : previewUrl && selectedMaterial.fileType === "Audio" ? <audio controls src={previewUrl} className="w-full" /> : previewUrl && selectedMaterial.fileType === "Video" ? <video controls src={previewUrl} className="max-h-[320px] w-full rounded-2xl" /> : <div className={dark ? "rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-white/70" : "rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-600"}><AlertCircle className="mx-auto h-8 w-8" /><p className="mt-3 text-sm">{previewable(selectedMaterial.fileType) ? "Preview đang trống hoặc lỗi." : "Loại file này nên download thay vì preview native."}</p></div>}</div><div className={dark ? "mt-4 rounded-2xl border border-white/10 bg-white/5 p-4" : "mt-4 rounded-2xl border border-gray-200 bg-white p-4"}><div className={dark ? "text-sm font-semibold text-white" : "text-sm font-semibold text-gray-900"}>Metadata</div><div className="mt-3 grid gap-3 sm:grid-cols-2">{[{ label: "Program", value: detail?.programName || selectedMaterial.programName || selectedMaterial.programId }, { label: "Lesson", value: detail?.lessonTitle || selectedMaterial.lessonTitle || "Chưa rõ" }, { label: "Uploaded by", value: detail?.uploadedByName || selectedMaterial.uploadedByName || "Chưa rõ" }, { label: "Mime type", value: detail?.mimeType || selectedMaterial.mimeType || "Chưa rõ" }, { label: "Created at", value: dateText(detail?.createdAt || selectedMaterial.createdAt) }, { label: "Updated at", value: dateText(detail?.updatedAt || selectedMaterial.updatedAt) }].map((meta) => <div key={meta.label} className={dark ? "rounded-2xl border border-white/10 bg-white/5 px-4 py-3" : "rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"}><div className={dark ? "text-[11px] uppercase tracking-wide text-white/40" : "text-[11px] uppercase tracking-wide text-gray-500"}>{meta.label}</div><div className={dark ? "mt-2 text-sm text-white" : "mt-2 text-sm text-gray-900"}>{meta.value}</div></div>)}</div></div></>}</div>
+      {/* Stats Cards */}
+      <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
+              <FileText className="text-red-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Tổng tài liệu</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-purple-100 grid place-items-center">
+              <FileText className="text-purple-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Slides</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.presentations}</div>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-blue-100 grid place-items-center">
+              <FileText className="text-blue-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Audio</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.audios}</div>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
+              <FileText className="text-red-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Video</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.videos}</div>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-green-100 grid place-items-center">
+              <FileText className="text-green-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Hình ảnh</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.images}</div>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-orange-100 grid place-items-center">
+              <FileText className="text-orange-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Tài liệu</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.documents}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="relative flex-1 min-w-[250px]">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={16} />
+            <input
+              value={filters.searchTerm}
+              onChange={(e) => setFilters((c) => ({ ...c, searchTerm: e.target.value }))}
+              placeholder="Tìm kiếm tài liệu..."
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={filters.programId} onValueChange={(val) => setFilters((c) => ({ ...c, programId: val }))}>
+              <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 min-w-[180px]">
+                <SelectValue placeholder="Chọn chương trình" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Tất cả chương trình</SelectItem>
+                {programs.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <input
+              value={filters.unitNumber}
+              onChange={(e) => setFilters((c) => ({ ...c, unitNumber: e.target.value }))}
+              className="h-10 w-24 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              placeholder="Unit"
+            />
+
+            <input
+              value={filters.lessonNumber}
+              onChange={(e) => setFilters((c) => ({ ...c, lessonNumber: e.target.value }))}
+              className="h-10 w-24 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+              placeholder="Lesson"
+            />
+
+            <Select value={filters.category} onValueChange={(val) => setFilters((c) => ({ ...c, category: val }))}>
+              <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 min-w-[160px]">
+                <SelectValue placeholder="Danh mục" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Tất cả danh mục</SelectItem>
+                <SelectItem value="ProgramDocument">Program Document</SelectItem>
+                <SelectItem value="LessonSlide">Lesson Slide</SelectItem>
+                <SelectItem value="LessonAsset">Lesson Asset</SelectItem>
+                <SelectItem value="Supplementary">Supplementary</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Active Filters Display */}
+        {(filters.searchTerm || filters.programId || filters.unitNumber || filters.lessonNumber || filters.category) && (
+          <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-red-100">
+            <span className="text-xs text-gray-500">Bộ lọc đang áp dụng:</span>
+            {filters.searchTerm && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-700 text-xs">
+                Tìm kiếm: "{filters.searchTerm}"
+                <button onClick={() => setFilters(c => ({ ...c, searchTerm: "" }))} className="ml-1 hover:text-red-900">×</button>
+              </span>
+            )}
+            {filters.programId && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-700 text-xs">
+                Chương trình: {programs.find(p => p.id === filters.programId)?.name || filters.programId}
+                <button onClick={() => setFilters(c => ({ ...c, programId: "" }))} className="ml-1 hover:text-red-900">×</button>
+              </span>
+            )}
+            {filters.unitNumber && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-700 text-xs">
+                Unit: {filters.unitNumber}
+                <button onClick={() => setFilters(c => ({ ...c, unitNumber: "" }))} className="ml-1 hover:text-red-900">×</button>
+              </span>
+            )}
+            {filters.lessonNumber && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-700 text-xs">
+                Lesson: {filters.lessonNumber}
+                <button onClick={() => setFilters(c => ({ ...c, lessonNumber: "" }))} className="ml-1 hover:text-red-900">×</button>
+              </span>
+            )}
+            {filters.category && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-700 text-xs">
+                Danh mục: {filters.category}
+                <button onClick={() => setFilters(c => ({ ...c, category: "" }))} className="ml-1 hover:text-red-900">×</button>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className={`transition-all duration-700 delay-150 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <FilterTabs 
+          tabs={TABS.map((t) => ({ id: t.id, label: t.label, count: tabCounts[t.id], icon: t.icon }))} 
+          activeTab={activeTab} 
+          onChange={(v) => setActiveTab(v as TabId)} 
+          variant="pill" 
+          size="md" 
+        />
+      </div>
+
+      {/* Upload Section */}
+      {uploadOpen && canUpload && (
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">Tải lên tài liệu mới</h3>
+            <button onClick={() => setUploadOpen(false)} className="p-1 hover:bg-red-100 rounded-lg transition-colors">
+              <X size={16} className="text-gray-500" />
+            </button>
+          </div>
+          <div className="flex gap-2 mb-4">
+            {(["single", "multi", "archive"] as UploadMode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setUploadMode(m)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                  uploadMode === m
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
+                    : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                {m === "single" ? "Single" : m === "multi" ? "Multi" : "Archive (.zip)"}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 mb-4">
+            <input
+              value={uploadForm.programId}
+              onChange={(e) => setUploadForm((c) => ({ ...c, programId: e.target.value }))}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              placeholder="Program ID *"
+            />
+            <input
+              value={uploadForm.unitNumber}
+              onChange={(e) => setUploadForm((c) => ({ ...c, unitNumber: e.target.value }))}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              placeholder="Unit Number"
+            />
+            <input
+              value={uploadForm.lessonNumber}
+              onChange={(e) => setUploadForm((c) => ({ ...c, lessonNumber: e.target.value }))}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              placeholder="Lesson Number"
+            />
+            <input
+              value={uploadForm.lessonTitle}
+              onChange={(e) => setUploadForm((c) => ({ ...c, lessonTitle: e.target.value }))}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              placeholder="Lesson Title"
+            />
+            <input
+              value={uploadForm.displayName}
+              onChange={(e) => setUploadForm((c) => ({ ...c, displayName: e.target.value }))}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              placeholder="Display Name"
+            />
+            <Select value={uploadForm.category} onValueChange={(val) => setUploadForm((c) => ({ ...c, category: val }))}>
+              <SelectTrigger className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ProgramDocument">ProgramDocument</SelectItem>
+                <SelectItem value="LessonSlide">LessonSlide</SelectItem>
+                <SelectItem value="LessonAsset">LessonAsset</SelectItem>
+                <SelectItem value="Supplementary">Supplementary</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <input
+            type="file"
+            accept={uploadMode === "archive" ? ".zip" : undefined}
+            multiple={uploadMode === "multi"}
+            onChange={onUploadFile}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 mb-4"
+          />
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setUploadOpen(false)} className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+              Hủy
+            </button>
+            <button onClick={doUpload} disabled={uploading} className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg transition-all disabled:opacity-50">
+              {uploading ? <Loader2 className="inline h-4 w-4 animate-spin mr-2" /> : <Upload className="inline h-4 w-4 mr-2" />}
+              Upload
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content - 3 Columns */}
+      <div className={`grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)_400px] gap-6 transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {/* Left Column - Lessons List */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-4 py-3">
+            <h3 className="font-semibold text-gray-900">Bài học</h3>
+          </div>
+          <div className="overflow-y-auto max-h-[calc(70vh-60px)] p-3">
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+              </div>
+            ) : (
+              lessons.map((lesson) => (
+                <button
+                  key={lesson.key}
+                  type="button"
+                  onClick={() => {
+                    setSelectedLesson(lesson.key);
+                    setFilters((c) => ({
+                      ...c,
+                      programId: lesson.programId,
+                      unitNumber: String(lesson.unitNumber || ""),
+                      lessonNumber: String(lesson.lessonNumber || ""),
+                    }));
+                  }}
+                  className={cn(
+                    "w-full text-left mb-2 p-3 rounded-xl transition-all",
+                    selectedLesson === lesson.key
+                      ? "bg-gradient-to-r from-red-50 to-red-100 border border-red-200"
+                      : "hover:bg-gray-50 border border-transparent"
+                  )}
+                >
+                  <div className="font-semibold text-gray-900 text-sm">{lesson.title}</div>
+                  <div className="text-xs text-gray-500 mt-1">{lesson.lessonTitle || `${lesson.count} tài liệu`}</div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Middle Column - Materials List */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900">Tài liệu</h3>
+            <span className="text-xs text-gray-500">{visible.length} items</span>
+          </div>
+          <div className="overflow-y-auto max-h-[calc(70vh-60px)] p-3 space-y-2">
+            {visible.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => setSelectedMaterialId(item.id)}
+                className={cn(
+                  "p-3 rounded-xl border cursor-pointer transition-all",
+                  selectedMaterialId === item.id
+                    ? "border-red-300 bg-gradient-to-r from-red-50 to-red-100"
+                    : "border-gray-200 hover:border-red-200 hover:bg-red-50/50"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <StatusBadge type={item.fileType || "Other"} />
+                      <span className="text-xs text-gray-500">{item.category || "Other"}</span>
+                    </div>
+                    <div className="font-medium text-gray-900 text-sm truncate">
+                      {item.displayName || item.originalFileName || item.id}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                      <span className="flex items-center gap-1"><HardDrive size={10} /> {bytes(item.fileSize)}</span>
+                      <span className="flex items-center gap-1"><Clock size={10} /> {dateText(item.createdAt)}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedMaterialId(item.id); }}
+                      className="p-1.5 rounded-lg hover:bg-white transition-colors"
+                      title="Xem chi tiết"
+                    >
+                      <Eye size={14} className="text-gray-500" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); void doDownload(item); }}
+                      className="p-1.5 rounded-lg hover:bg-white transition-colors"
+                      title="Tải xuống"
+                    >
+                      <Download size={14} className="text-gray-500" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {visible.length === 0 && !loading && (
+              <div className="text-center py-8 text-gray-500">Không có tài liệu nào</div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column - Preview & Details */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-4 py-3">
+            <h3 className="font-semibold text-gray-900">Xem trước & Chi tiết</h3>
+          </div>
+          <div className="overflow-y-auto max-h-[calc(70vh-60px)] p-4">
+            {!selectedMaterial ? (
+              <div className="text-center py-12">
+                <div className="inline-flex p-4 rounded-2xl bg-gray-100 mb-4">
+                  <FileText size={32} className="text-gray-400" />
+                </div>
+                <p className="text-gray-500 text-sm">Chọn một tài liệu để xem trước</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Preview */}
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  {previewLoading ? (
+                    <div className="flex min-h-[200px] items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                    </div>
+                  ) : previewUrl && selectedMaterial.fileType === "Image" ? (
+                    <img src={previewUrl} alt="Preview" className="max-h-[300px] w-full rounded-lg object-contain" />
+                  ) : previewUrl && selectedMaterial.fileType === "Pdf" ? (
+                    <iframe src={previewUrl} title="PDF preview" className="h-[400px] w-full rounded-lg" />
+                  ) : previewUrl && selectedMaterial.fileType === "Audio" ? (
+                    <audio controls src={previewUrl} className="w-full" />
+                  ) : previewUrl && selectedMaterial.fileType === "Video" ? (
+                    <video controls src={previewUrl} className="max-h-[300px] w-full rounded-lg" />
+                  ) : (
+                    <div className="text-center py-12">
+                      <AlertCircle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-500">
+                        {previewable(selectedMaterial.fileType) ? "Preview không khả dụng" : "Tải xuống để xem file này"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <h4 className="font-semibold text-gray-900 text-sm mb-3">Thông tin tài liệu</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Tên hiển thị:</span>
+                      <span className="text-gray-900 font-medium">{selectedMaterial.displayName || "—"}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Tên gốc:</span>
+                      <span className="text-gray-900 truncate max-w-[200px]">{selectedMaterial.originalFileName || "—"}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Loại file:</span>
+                      <StatusBadge type={selectedMaterial.fileType || "Other"} />
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Kích thước:</span>
+                      <span className="text-gray-900">{bytes(selectedMaterial.fileSize)}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Chương trình:</span>
+                      <span className="text-gray-900">{selectedMaterial.programName || selectedMaterial.programId || "—"}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Bài học:</span>
+                      <span className="text-gray-900">{selectedMaterial.lessonTitle || `Unit ${selectedMaterial.unitNumber} - Lesson ${selectedMaterial.lessonNumber}` || "—"}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Người tải lên:</span>
+                      <span className="text-gray-900">{detail?.uploadedByName || selectedMaterial.uploadedByName || "—"}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500">Ngày tạo:</span>
+                      <span className="text-gray-900">{dateText(detail?.createdAt || selectedMaterial.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => void doDownload(selectedMaterial)}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+                  >
+                    <Download size={16} /> Tải xuống
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

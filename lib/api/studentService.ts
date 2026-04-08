@@ -327,10 +327,10 @@ function mapToAssignmentListItem(item: any): AssignmentListItem {
     subject: item.subjectName || item.subject || "",
     className: item.classTitle || item.className || "",
     assignedDate: item.createdAt 
-      ? new Date(item.createdAt).toLocaleDateString("vi-VN")
+      ? new Date(item.createdAt).toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
       : "",
     dueDate: item.dueAt 
-      ? new Date(item.dueAt).toLocaleDateString("vi-VN")
+      ? new Date(item.dueAt).toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
       : "",
     type: "FILE_UPLOAD" as const,
     submissionCount: item.submissionCount || (item.isSubmitted ? 1 : 0),
@@ -432,7 +432,7 @@ export async function getStudentHomeworkFeedback(
 function formatToViDateTime(value?: string | null) {
   if (!value) return undefined;
   try {
-    return new Date(value).toLocaleString("vi-VN");
+    return new Date(value).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
   } catch {
     return value;
   }

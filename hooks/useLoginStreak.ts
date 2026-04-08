@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { todayDateOnly } from "@/lib/datetime";
 
 interface StreakData {
   currentStreak: number;
@@ -19,7 +20,7 @@ export function useLoginStreak() {
     // Only run on client side
     if (typeof window === "undefined") return;
 
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+    const today = todayDateOnly(); // YYYY-MM-DD format
     const storedData = localStorage.getItem(STREAK_STORAGE_KEY);
 
     if (!storedData) {

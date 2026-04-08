@@ -25,6 +25,7 @@ import {
 } from "@/lib/api/pauseEnrollmentService";
 import { getAllStudents } from "@/lib/api/studentService";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { todayDateOnly } from "@/lib/datetime";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import PauseEnrollmentCreateModal from "@/components/portal/pause-enrollment/PauseEnrollmentCreateModal";
 import type { UserProfile } from "@/types/auth";
@@ -237,7 +238,7 @@ function formatDateTime(value?: string | null) {
 }
 
 function getUtcTodayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return todayDateOnly();
 }
 
 function buildClassText(request: PauseEnrollmentRequestRecord) {
@@ -599,14 +600,14 @@ function RequestDetailModal({
 
   const status = normalizeStatus(request.status);
   const canEditOutcome = isManagement && status === "Approved";
-  const studentLabel = student?.label ?? request.studentProfileId;
+  const studentLabel = student?.label ?? "Học viên";
   const studentSubtext = student?.parentName
     ? `Phụ huynh: ${student.parentName}`
-    : `Profile: ${request.studentProfileId}`;
+    : "";
 
   return (
     <div onClick={onClose} className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-6xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+      <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-6xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -814,14 +815,7 @@ function RequestDetailModal({
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
-                  <div className="font-semibold text-gray-900">Ghi chú nghiệp vụ</div>
-                  <div className="mt-2 text-sm leading-6 text-gray-600">
-                    Modal này gom toàn bộ chi tiết và thao tác về một chỗ để staff không phải kéo xuống dưới trang. Khi yêu cầu đã duyệt, phần outcome sẽ xuất hiện ngay tại đây.
-                  </div>
-                </div>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -1558,17 +1552,17 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                             status
                           )} text-sm font-semibold text-white shadow-sm`}
                         >
-                          {getInitials(student?.label ?? item.studentProfileId)}
+                          {getInitials(student?.label ?? "HV")}
                         </div>
                         <div>
                           <div className="font-semibold text-gray-900">
-                            {student?.label ?? item.studentProfileId}
+                            {student?.label ?? "Học viên"}
                           </div>
+                          {student?.parentName ? (
                           <div className="text-xs text-gray-500">
-                            {student?.parentName
-                              ? `Phụ huynh: ${student.parentName}`
-                              : `Profile: ${item.studentProfileId}`}
+                            {`Phụ huynh: ${student.parentName}`}
                           </div>
+                          ) : null}
                         </div>
                       </div>
                      </td>

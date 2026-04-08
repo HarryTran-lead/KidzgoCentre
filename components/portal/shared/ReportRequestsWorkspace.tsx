@@ -272,7 +272,7 @@ function CreateRequestModal({
     if (reportType === "Session" && selectedSession) payload.targetSessionId = selectedSession.id;
     if (reportType === "Monthly") { payload.month = month; payload.year = year; }
     if (message.trim()) payload.message = message.trim();
-    if (dueAt) payload.dueAt = new Date(dueAt).toISOString();
+    if (dueAt) payload.dueAt = `${dueAt}${dueAt.includes("T") ? "" : "T00:00:00"}+07:00`;
 
     try {
       setSubmitting(true);

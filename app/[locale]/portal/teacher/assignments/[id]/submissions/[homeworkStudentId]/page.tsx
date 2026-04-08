@@ -21,6 +21,7 @@ import {
 
 import { get, post, put } from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
+import { nowISOVN } from "@/lib/datetime";
 import AiQuickGradeCard, {
   type HomeworkQuickGradeResult,
 } from "./components/AiQuickGradeCard";
@@ -407,28 +408,9 @@ function extractMultipleChoiceAnswers(detail?: SubmissionDetail | null): Multipl
 function formatDateTime(input?: string | null) {
   if (!input) return "-";
   try {
+    // Backend sends ISO 8601 with offset, parse directly
     const date = new Date(input);
-    // Nếu là ISO string có timezone, dùng toLocaleString với timezone
-    // Nếu là string dạng "2026-04-01T23:59:00" (không có Z), parse đúng theo giờ VN
-    const match = String(input).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/);
-    if (match) {
-      const [, year, month, day, hours, minutes] = match;
-      const vnMs = Date.UTC(
-        parseInt(year),
-        parseInt(month) - 1,
-        parseInt(day),
-        parseInt(hours) - 7,
-        parseInt(minutes)
-      );
-      return new Date(vnMs).toLocaleString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "Asia/Ho_Chi_Minh",
-      });
-    }
+    if (Number.isNaN(date.getTime())) return input;
     return date.toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
@@ -1099,7 +1081,7 @@ export default function TeacherSubmissionDetailPage() {
             updated?.teacherFeedback !== undefined
               ? updated.teacherFeedback
               : finalFeedback,
-          gradedAt: updated?.gradedAt ?? merged.gradedAt ?? new Date().toISOString(),
+          gradedAt: updated?.gradedAt ?? merged.gradedAt ?? nowISOVN(),
         };
       });
 
@@ -1150,7 +1132,7 @@ export default function TeacherSubmissionDetailPage() {
               result.score !== null && result.score !== undefined
                 ? result.score
                 : prev.score,
-            gradedAt: result.gradedAt ?? prev.gradedAt ?? new Date().toISOString(),
+            gradedAt: result.gradedAt ?? prev.gradedAt ?? nowISOVN(),
             aiFeedback: generatedFeedback || result.summary || prev.aiFeedback,
           }
         : prev
@@ -1199,7 +1181,7 @@ export default function TeacherSubmissionDetailPage() {
                   : prev.score,
               gradedAt:
                 nextStatus.toLowerCase() === "missing"
-                  ? prev.gradedAt || new Date().toISOString()
+                  ? prev.gradedAt || nowISOVN()
                   : prev.gradedAt,
               teacherFeedback:
                 nextStatus.toLowerCase() === "missing"

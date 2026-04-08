@@ -14,6 +14,7 @@ import {
   extractStudentTimetableSessions,
   getStudentTimetable,
 } from "@/lib/api/studentTimetableService";
+import { toISOStartOfDayVN, toISOEndOfDayVN } from "@/lib/datetime";
 import type { StudentTimetableSession } from "@/types/student/timetable";
 
 type TabType = "all" | "regular" | "makeup";
@@ -117,8 +118,8 @@ export default function StudentSchedulePage() {
         to.setHours(23, 59, 59, 999);
 
         const response = await getStudentTimetable({
-          from: from.toISOString(),
-          to: to.toISOString(),
+          from: toISOStartOfDayVN(from),
+          to: toISOEndOfDayVN(to),
         });
 
         if (!active) return;

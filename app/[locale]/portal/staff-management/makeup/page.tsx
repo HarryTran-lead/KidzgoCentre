@@ -34,6 +34,7 @@ import LeaveRequestCreateModal from "@/components/portal/parent/modalsLeaveReque
 
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { get } from "@/lib/axios";
+import { nowISOVN } from "@/lib/datetime";
 
 /* ===================== Types ===================== */
 
@@ -820,7 +821,7 @@ export default function Page() {
     setActionMessage(null);
 
     try {
-      await expireMakeupCredit(expireTarget.id, { expiresAt: new Date().toISOString() });
+      await expireMakeupCredit(expireTarget.id, { expiresAt: nowISOVN() });
       await fetchUsedCredits();
       setActionMessage("Đã cập nhật trạng thái hết hạn cho makeup credit.");
       setExpireTarget(null);

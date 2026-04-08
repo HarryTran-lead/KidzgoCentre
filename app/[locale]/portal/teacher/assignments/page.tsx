@@ -50,7 +50,11 @@ import {
 
 import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSessions, deleteHomework, updateHomework, createMultipleChoiceHomework } from "@/lib/api/homeworkService";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
+import { getActiveProgramsForDropdown, getAllProgramsForDropdown } from "@/lib/api/programService";
+import { dateOnlyVN } from "@/lib/datetime";
 import type { HomeworkSubmission, CreateHomeworkPayload, ClassOption, SessionOption, MultipleChoiceQuestion } from "@/types/teacher/homework";
+import type { AiGeneratedQuestionDraft } from "@/app/api/admin/question-bank";
+import AiCreatorModal from "@/components/question-bank/AiCreatorModal";
 import { ImportFromBankModal } from "./modal/ImportFromBankModal";
 import { ImportFromExcelModal } from "./modal/ImportFromExcelModal";
 
@@ -80,6 +84,88 @@ type Submission = {
   sessionId?: string;
   submissionType?: string;
 };
+
+type BuilderQuestionOption = {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+};
+
+type BuilderQuestion = {
+  id: string;
+  question: string;
+  options: BuilderQuestionOption[];
+  explanation?: string;
+  points: number;
+};
+
+function createEmptyBuilderOptions(): BuilderQuestionOption[] {
+  return [
+    { id: crypto.randomUUID(), text: "", isCorrect: false },
+    { id: crypto.randomUUID(), text: "", isCorrect: false },
+  ];
+}
+
+function normalizeCorrectOptionIndex(options: string[], correctAnswer?: string | null) {
+  const normalizedAnswer = String(correctAnswer ?? "").trim();
+
+  if (/^\d+$/.test(normalizedAnswer)) {
+    const numericIndex = Number(normalizedAnswer);
+    if (numericIndex >= 0 && numericIndex < options.length) {
+      return numericIndex;
+    }
+
+    if (numericIndex > 0 && numericIndex - 1 < options.length) {
+      return numericIndex - 1;
+    }
+  }
+
+  const normalizedLabel = normalizedAnswer.replace(/[\.\)]/g, "").trim().toUpperCase();
+  if (/^[A-Z]$/.test(normalizedLabel)) {
+    const alphaIndex = normalizedLabel.charCodeAt(0) - 65;
+    if (alphaIndex >= 0 && alphaIndex < options.length) {
+      return alphaIndex;
+    }
+  }
+
+  const matchedIndex = options.findIndex(
+    (option) => option.trim().toLowerCase() === normalizedAnswer.toLowerCase()
+  );
+
+  return matchedIndex >= 0 ? matchedIndex : 0;
+}
+
+function mapAiDraftToBuilderQuestion(
+  draft: AiGeneratedQuestionDraft
+): BuilderQuestion | null {
+  if (draft.questionType !== "MultipleChoice") {
+    return null;
+  }
+
+  const questionText = String(draft.questionText ?? "").trim();
+  const options = Array.isArray(draft.options)
+    ? draft.options.map((option) => String(option ?? "").trim()).filter(Boolean)
+    : [];
+
+  if (!questionText || options.length < 2) {
+    return null;
+  }
+
+  const correctIndex = normalizeCorrectOptionIndex(options, draft.correctAnswer);
+  const points = Number(draft.points);
+
+  return {
+    id: crypto.randomUUID(),
+    question: questionText,
+    options: options.map((option, index) => ({
+      id: crypto.randomUUID(),
+      text: option,
+      isCorrect: index === correctIndex,
+    })),
+    explanation: String(draft.explanation ?? "").trim() || undefined,
+    points: Number.isFinite(points) && points > 0 ? points : 1,
+  };
+}
 
 const STATUS_CONFIG: Record<SubmissionStatus, {
   text: string;
@@ -318,18 +404,11 @@ function CreateAssignmentModal({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   
-  const [questions, setQuestions] = useState<Array<{
-    id: string;
-    question: string;
-    options: Array<{ id: string; text: string; isCorrect: boolean }>;
-    explanation?: string;
-    points: number;
-  }>>([]);
+  const [questions, setQuestions] = useState<BuilderQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState("");
-  const [currentOptions, setCurrentOptions] = useState<Array<{ id: string; text: string; isCorrect: boolean }>>([
-    { id: crypto.randomUUID(), text: "", isCorrect: false },
-    { id: crypto.randomUUID(), text: "", isCorrect: false }
-  ]);
+  const [currentOptions, setCurrentOptions] = useState<BuilderQuestionOption[]>(
+    createEmptyBuilderOptions()
+  );
   const [currentExplanation, setCurrentExplanation] = useState("");
   const [currentPoints, setCurrentPoints] = useState("10");
   const [showQuestionForm, setShowQuestionForm] = useState(false);
@@ -337,6 +416,9 @@ function CreateAssignmentModal({
   
   const [showImportBankModal, setShowImportBankModal] = useState(false);
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
+  const [showAiCreatorModal, setShowAiCreatorModal] = useState(false);
+  const [aiCreatorCourseOptions, setAiCreatorCourseOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [isLoadingAiCreatorCourses, setIsLoadingAiCreatorCourses] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -345,6 +427,8 @@ function CreateAssignmentModal({
   const [sessions, setSessions] = useState<SessionOption[]>([]);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const hasChildModalOpen =
+    showImportBankModal || showImportExcelModal || showAiCreatorModal;
 
   useEffect(() => {
     // Dùng capture phase để bắt event TRƯỚC khi child modals (createPortal) nhận được
@@ -352,10 +436,11 @@ function CreateAssignmentModal({
     const handleClickOutside = (event: MouseEvent) => {
       // Khi child modal đang mở, stopPropagation để ngăn onClose của parent
       // Khi child modal không mở, cho phép đóng parent bình thường
-      if (showImportBankModal || showImportExcelModal) {
-        event.stopPropagation();
-        event.preventDefault();
-      } else if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+      if (hasChildModalOpen) {
+        return;
+      }
+
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
         onClose();
       }
     };
@@ -369,7 +454,7 @@ function CreateAssignmentModal({
       document.removeEventListener("mousedown", handleClickOutside, true);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose, showImportBankModal, showImportExcelModal]);
+  }, [hasChildModalOpen, isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -416,7 +501,7 @@ function CreateAssignmentModal({
     const parsedDate = new Date(sessionDateTime);
     if (Number.isNaN(parsedDate.getTime())) return;
     if (!dueDate) {
-      setDueDate(parsedDate.toISOString().split("T")[0]);
+      setDueDate(dateOnlyVN(parsedDate));
     }
   }, [selectedSession, sessions, dueDate]);
 
@@ -466,10 +551,7 @@ function CreateAssignmentModal({
     }]);
 
     setCurrentQuestion("");
-    setCurrentOptions([
-      { id: crypto.randomUUID(), text: "", isCorrect: false },
-      { id: crypto.randomUUID(), text: "", isCorrect: false }
-    ]);
+    setCurrentOptions(createEmptyBuilderOptions());
     setCurrentExplanation("");
     setCurrentPoints("10");
     setShowQuestionForm(false);
@@ -480,11 +562,59 @@ function CreateAssignmentModal({
     setQuestions(questions.filter(q => q.id !== id));
   };
   
-  const handleImportFromBank = (importedQuestions: any[]) => {
+  const loadAiCreatorCourses = async () => {
+    if (aiCreatorCourseOptions.length > 0 || isLoadingAiCreatorCourses) {
+      return;
+    }
+
+    setIsLoadingAiCreatorCourses(true);
+    try {
+      const activePrograms = await getActiveProgramsForDropdown();
+      const fallbackPrograms =
+        activePrograms.length > 0
+          ? activePrograms
+          : (await getAllProgramsForDropdown()).filter(
+              (program) => program.isActive !== false
+            );
+
+      setAiCreatorCourseOptions(
+        fallbackPrograms.map((program) => ({
+          id: program.id,
+          name: program.name || program.code || program.id,
+        }))
+      );
+    } catch (loadError) {
+      console.error("Error loading AI creator courses:", loadError);
+      setAiCreatorCourseOptions([]);
+    } finally {
+      setIsLoadingAiCreatorCourses(false);
+    }
+  };
+
+  const handleOpenAiCreatorModal = () => {
+    setShowAiCreatorModal(true);
+    void loadAiCreatorCourses();
+  };
+
+  const handleUseAiDrafts = (drafts: AiGeneratedQuestionDraft[]) => {
+    const mappedQuestions = drafts
+      .map(mapAiDraftToBuilderQuestion)
+      .filter((item): item is BuilderQuestion => Boolean(item));
+
+    if (mappedQuestions.length === 0) {
+      throw new Error("AI chưa tạo được câu hỏi trắc nghiệm hợp lệ để thêm vào bài tập.");
+    }
+
+    setQuestions((prev) => [...prev, ...mappedQuestions]);
+    setError("");
+    return mappedQuestions.length;
+  };
+
+  const handleImportFromBank = (importedQuestions: BuilderQuestion[]) => {
     setQuestions(prev => [...prev, ...importedQuestions]);
   };
   
-  const handleImportFromExcel = (importedQuestions: any[]) => {
+  const handleImportFromExcel = (importedQuestions: BuilderQuestion[]) => {
     setQuestions(prev => [...prev, ...importedQuestions]);
   };
 
@@ -1099,7 +1229,15 @@ function CreateAssignmentModal({
                         </span>
                       </div>
                       
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={handleOpenAiCreatorModal}
+                          className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-100 cursor-pointer"
+                        >
+                          <Sparkles size={16} />
+                          Tạo câu hỏi bằng AI
+                        </button>
                         <button
                           type="button"
                           onClick={() => setShowImportBankModal(true)}
@@ -1244,10 +1382,7 @@ function CreateAssignmentModal({
                           onClick={() => {
                             setShowQuestionForm(false);
                             setCurrentQuestion("");
-                            setCurrentOptions([
-                              { id: crypto.randomUUID(), text: "", isCorrect: false },
-                              { id: crypto.randomUUID(), text: "", isCorrect: false }
-                            ]);
+                            setCurrentOptions(createEmptyBuilderOptions());
                             setCurrentExplanation("");
                             setCurrentPoints("10");
                             setError("");
@@ -1349,10 +1484,7 @@ function CreateAssignmentModal({
                           onClick={() => {
                             setShowQuestionForm(false);
                             setCurrentQuestion("");
-                            setCurrentOptions([
-                              { id: crypto.randomUUID(), text: "", isCorrect: false },
-                              { id: crypto.randomUUID(), text: "", isCorrect: false }
-                            ]);
+                            setCurrentOptions(createEmptyBuilderOptions());
                             setCurrentExplanation("");
                             setCurrentPoints("10");
                           }}
@@ -1457,6 +1589,16 @@ function CreateAssignmentModal({
         onClose={() => setShowImportBankModal(false)}
         onImport={handleImportFromBank}
       />
+
+      <AiCreatorModal
+        isOpen={showAiCreatorModal}
+        onClose={() => setShowAiCreatorModal(false)}
+        courseOptions={aiCreatorCourseOptions}
+        loadingCourses={isLoadingAiCreatorCourses}
+        onUseDrafts={handleUseAiDrafts}
+        useDraftsLabel="Dùng cho bài tập này"
+        allowedQuestionTypes={["MultipleChoice"]}
+      />
       
       <ImportFromExcelModal
         isOpen={showImportExcelModal}
@@ -1490,7 +1632,7 @@ function UpdateAssignmentModal({
         dateObj = new Date(dueDateStr);
       }
       return {
-        date: dateObj.toISOString().split("T")[0],
+        date: dateOnlyVN(dateObj),
         time: `${String(dateObj.getHours()).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`
       };
     } catch {
