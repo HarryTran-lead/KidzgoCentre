@@ -202,7 +202,7 @@ function StatusBadge({ status }: { status?: string }) {
   const normalized = normalizeStatus(status);
   const cls = "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium";
   if (normalized === "REVIEW") {
-    return <span className={`${cls} bg-blue-50 text-blue-700 border-blue-200`}><Clock size={12} />REVIEW</span>;
+    return <span className={`${cls} bg-red-50 text-red-700 border-red-200`}><Clock size={12} />REVIEW</span>;
   }
   if (normalized === "APPROVED") {
     return <span className={`${cls} bg-emerald-50 text-emerald-700 border-emerald-200`}><CheckCircle2 size={12} />APPROVED</span>;
@@ -211,7 +211,7 @@ function StatusBadge({ status }: { status?: string }) {
     return <span className={`${cls} bg-rose-50 text-rose-700 border-rose-200`}><XCircle size={12} />REJECTED</span>;
   }
   if (normalized === "PUBLISHED") {
-    return <span className={`${cls} bg-purple-50 text-purple-700 border-purple-200`}><Send size={12} />PUBLISHED</span>;
+    return <span className={`${cls} bg-slate-100 text-slate-700 border-slate-300`}><Send size={12} />PUBLISHED</span>;
   }
   return <span className={`${cls} bg-slate-100 text-slate-700 border-slate-200`}>{normalized || "N/A"}</span>;
 }
@@ -419,7 +419,7 @@ export default function TeacherSessionReportsWorkspace() {
               {pagedReports.map((report) => (
                 <tr
                   key={report.id}
-                  className={`cursor-pointer hover:bg-slate-50 ${activeReport?.id === report.id ? "bg-blue-50/40" : ""}`}
+                  className={`cursor-pointer hover:bg-slate-50 ${activeReport?.id === report.id ? "bg-red-50/40" : ""}`}
                   onClick={() => void openEditor(report)}
                 >
                   <td className="px-3 py-2">
@@ -517,7 +517,7 @@ export default function TeacherSessionReportsWorkspace() {
                 <button
                   onClick={handleSubmitReview}
                   disabled={!canSubmit || saveLoading || submitLoading}
-                  className="rounded bg-indigo-600 px-3 py-2 text-sm text-white disabled:bg-slate-300"
+                  className="rounded bg-red-600 px-3 py-2 text-sm text-white disabled:bg-slate-300"
                 >
                   {submitLoading ? "Đang gửi..." : "Gửi duyệt"}
                 </button>

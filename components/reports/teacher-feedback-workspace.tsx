@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CalendarCheck, FileBarChart, GraduationCap } from "lucide-react";
 import MonthlyReportsWorkspace from "@/components/reports/monthly-reports-workspace";
 import TeacherSessionReportsWorkspace from "@/components/reports/teacher-session-reports-workspace";
@@ -8,7 +9,15 @@ import TeacherSessionReportsWorkspace from "@/components/reports/teacher-session
 type TeacherTab = "monthly" | "session";
 
 export default function TeacherFeedbackWorkspace() {
-  const [activeTab, setActiveTab] = useState<TeacherTab>("monthly");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<TeacherTab>(tabParam === "session" ? "session" : "monthly");
+
+  const initialClassId = searchParams.get("classId") || null;
+  const initialStudentId = searchParams.get("studentId") || null;
+  const initialMonth = searchParams.get("month") ? Number(searchParams.get("month")) : null;
+  const initialYear = searchParams.get("year") ? Number(searchParams.get("year")) : null;
+  const initialReportTab = searchParams.get("reportTab") || (initialStudentId ? "reports" : null);
 
   const tabs = [
     {
@@ -85,7 +94,7 @@ export default function TeacherFeedbackWorkspace() {
       </div>
 
       {activeTab === "monthly" ? (
-        <MonthlyReportsWorkspace role="teacher" />
+        <MonthlyReportsWorkspace role="teacher" initialClassId={initialClassId} initialStudentId={initialStudentId} initialMonth={initialMonth} initialYear={initialYear} initialTab={initialReportTab} />
       ) : (
         <TeacherSessionReportsWorkspace />
       )}

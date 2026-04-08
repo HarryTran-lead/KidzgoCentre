@@ -73,7 +73,7 @@ export default function OverviewTab({
               <div className="text-xs text-gray-600">Tổng lớp dạy</div>
               <div className="text-xl font-bold">{teacherClassSummary.total}</div>
             </div>
-            <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-3">
+            <div className="rounded-xl border border-red-100 bg-red-50/40 p-3">
               <div className="text-xs text-gray-600">Chưa có báo cáo</div>
               <div className="text-xl font-bold">{teacherClassSummary.noReport}</div>
             </div>
@@ -142,18 +142,18 @@ export default function OverviewTab({
               <div className="text-xl font-bold text-amber-700">{teacherTaskSummary.draftCount}</div>
             </button>
             <button
-              className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-left"
+              className="rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-left"
               onClick={() => setStatusFilter("Rejected")}
             >
               <div className="text-xs text-gray-600">Bị trả về sửa</div>
-              <div className="text-xl font-bold text-rose-700">{teacherTaskSummary.rejectedCount}</div>
+              <div className="text-xl font-bold text-red-700">{teacherTaskSummary.rejectedCount}</div>
             </button>
             <button
-              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-left"
+              className="rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-left"
               onClick={() => setStatusFilter("Tất cả")}
             >
               <div className="text-xs text-gray-600">Có góp ý từ admin/staff</div>
-              <div className="text-xl font-bold text-blue-700">{teacherTaskSummary.hasCommentCount}</div>
+              <div className="text-xl font-bold text-red-700">{teacherTaskSummary.hasCommentCount}</div>
             </button>
           </div>
           <div className="space-y-2">
@@ -202,18 +202,18 @@ export default function OverviewTab({
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <button
-              className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-left"
+              className="rounded-xl border border-red-200 bg-red-50 p-3 text-left"
               onClick={() => setStatusFilter("Submitted")}
             >
               <div className="text-xs text-gray-600">Chờ duyệt</div>
-              <div className="text-xl font-bold text-blue-700">{adminSummary.pendingReview}</div>
+              <div className="text-xl font-bold text-red-700">{adminSummary.pendingReview}</div>
             </button>
             <button
-              className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-left"
+              className="rounded-xl border border-red-200 bg-red-50 p-3 text-left"
               onClick={() => setStatusFilter("Rejected")}
             >
               <div className="text-xs text-gray-600">Đã trả teacher sửa</div>
-              <div className="text-xl font-bold text-rose-700">{adminSummary.needTeacherFix}</div>
+              <div className="text-xl font-bold text-red-700">{adminSummary.needTeacherFix}</div>
             </button>
             <button
               className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-left"
@@ -223,11 +223,11 @@ export default function OverviewTab({
               <div className="text-xl font-bold text-emerald-700">{adminSummary.readyToPublish}</div>
             </button>
             <button
-              className="rounded-xl border border-purple-200 bg-purple-50 p-3 text-left"
+              className="rounded-xl border border-slate-200 bg-slate-100 p-3 text-left"
               onClick={() => setStatusFilter("Published")}
             >
               <div className="text-xs text-gray-600">Đã publish</div>
-              <div className="text-xl font-bold text-purple-700">{adminSummary.published}</div>
+              <div className="text-xl font-bold text-slate-700">{adminSummary.published}</div>
             </button>
           </div>
 

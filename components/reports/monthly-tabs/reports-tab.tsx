@@ -216,7 +216,7 @@ export default function ReportsTab({
           <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/40 to-red-100/20 px-4 py-3 text-sm text-gray-700 flex flex-wrap items-center gap-2">
             <span className="font-medium text-gray-900">Đang lọc theo:</span>
             {selectedClassId && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-50 to-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-red-50 to-red-100 px-3 py-1.5 text-xs font-medium text-red-700 border border-red-200">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
@@ -224,7 +224,7 @@ export default function ReportsTab({
               </span>
             )}
             {selectedStudentId && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-1.5 text-xs font-medium text-emerald-700 border border-emerald-200">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-50 to-emerald-100 px-3 py-1.5 text-xs font-medium text-emerald-700 border border-emerald-200">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
@@ -264,7 +264,7 @@ export default function ReportsTab({
               <button
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
                   statusFilter === "Draft" 
-                    ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md" 
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
                     : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
                 }`}
                 onClick={() => setStatusFilter("Draft")}
@@ -274,7 +274,7 @@ export default function ReportsTab({
               <button
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
                   statusFilter === "Rejected" 
-                    ? "bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-md" 
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
                     : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
                 }`}
                 onClick={() => setStatusFilter("Rejected")}
@@ -284,7 +284,7 @@ export default function ReportsTab({
               <button
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
                   statusFilter === "Submitted" 
-                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md" 
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
                     : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
                 }`}
                 onClick={() => setStatusFilter("Submitted")}
@@ -314,7 +314,7 @@ export default function ReportsTab({
                 Bỏ chọn
               </button>
               <button
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
                 onClick={() => runBulkAction("approve", Array.from(selectedReportIds))}
               >
@@ -330,7 +330,7 @@ export default function ReportsTab({
                 )}
               </button>
               <button
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-2 text-xs font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-xs font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
                 onClick={() => runBulkAction("publish", Array.from(selectedReportIds))}
               >
@@ -421,7 +421,7 @@ export default function ReportsTab({
                         </button>
                         {isTeacher && (
                           <button
-                            className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                             onClick={() => {
                               setActiveReportId(report.id);
                               setEditModalOpen(true);
@@ -435,7 +435,7 @@ export default function ReportsTab({
                         )}
                         {isTeacher && (
                           <button
-                            className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer disabled:opacity-50"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer disabled:opacity-50"
                             disabled={actionLoading[`${report.id}:generate-draft`]}
                             onClick={() => runAction(report.id, "generate-draft")}
                             title="Tạo bằng AI"
@@ -450,7 +450,7 @@ export default function ReportsTab({
                             disabled={!canTeacherSubmit(report.status)}
                             className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
                               canTeacherSubmit(report.status) 
-                                ? "hover:bg-indigo-50 text-gray-400 hover:text-indigo-600" 
+                                ? "hover:bg-red-50 text-gray-400 hover:text-red-600" 
                                 : "text-gray-300"
                             }`}
                             onClick={() => runAction(report.id, "submit")}
@@ -463,7 +463,7 @@ export default function ReportsTab({
                         )}
                         {canManage && (
                           <button 
-                            className="p-1.5 rounded-lg hover:bg-pink-50 transition-colors text-gray-400 hover:text-pink-600 cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                             onClick={() => openCommentDialog(report.id)}
                             title="Thêm bình luận"
                           >
@@ -491,7 +491,7 @@ export default function ReportsTab({
                             disabled={!canManagementPublish(report.status)}
                             className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
                               canManagementPublish(report.status) 
-                                ? "hover:bg-sky-50 text-gray-400 hover:text-sky-600" 
+                                ? "hover:bg-red-50 text-gray-400 hover:text-red-600" 
                                 : "text-gray-300"
                             }`}
                             onClick={() => runAction(report.id, "publish")}
@@ -563,7 +563,7 @@ export default function ReportsTab({
                 <>
                   <button
                     disabled={!canTeacherSubmit(displayReport.status)}
-                    className="w-full rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() =>
                       runAction(displayReport.id, "draft", "PUT", {
                         draftContent: draftInput || "",
@@ -592,13 +592,13 @@ export default function ReportsTab({
                       className="w-full rounded-xl border border-red-200 bg-white/50 px-3 py-2 text-sm cursor-pointer hover:border-red-300 transition-colors"
                     />
                     <button
-                      className="w-full rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-indigo-100 px-4 py-2.5 text-sm font-medium text-indigo-700 hover:shadow-md transition-all cursor-pointer"
+                      className="w-full rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100 px-4 py-2.5 text-sm font-medium text-red-700 hover:shadow-md transition-all cursor-pointer"
                       onClick={() => setEditModalOpen(true)}
                     >
                       Mở popup chỉnh sửa
                     </button>
                   </div>
-                  <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
+                  <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-50 p-3">
                     <div className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-1">
                       <MessageSquare size={14} />
                       Góp ý từ Staff/Admin
@@ -660,7 +660,7 @@ export default function ReportsTab({
         {canManage && (
           <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm">
                 <TrendingUp size={18} />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Tiến độ đợt báo cáo</h3>
@@ -677,14 +677,14 @@ export default function ReportsTab({
                     </span>
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
                       job.status === "Active" 
-                        ? "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200"
+                        ? "bg-gradient-to-r from-emerald-50 to-emerald-50 text-emerald-700 border border-emerald-200"
                         : "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200"
                     }`}>
                       {job.status}
                     </span>
                   </div>
                   <button
-                    className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-2 text-xs font-semibold text-white hover:shadow-md transition-all cursor-pointer"
+                    className="w-full rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-xs font-semibold text-white hover:shadow-md transition-all cursor-pointer"
                     onClick={() => apiFetch(`/api/monthly-reports/jobs/${job.id}/aggregate`, { method: "POST" }).then(fetchData)}
                   >
                     Đồng bộ dữ liệu
@@ -704,7 +704,7 @@ export default function ReportsTab({
         <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm">
                 <MessageSquare size={18} />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Bình luận gần nhất</h3>
@@ -827,7 +827,7 @@ export default function ReportsTab({
                 Đóng
               </button>
               <button
-                className="rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!canTeacherSubmit(displayReport.status) || actionLoading[`${displayReport.id}:draft`]}
                 onClick={() =>
                   runAction(displayReport.id, "draft", "PUT", {
@@ -847,7 +847,7 @@ export default function ReportsTab({
                 )}
               </button>
               <button
-                className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={
                   !canTeacherSubmit(displayReport.status) ||
                   submitFlowLoading ||

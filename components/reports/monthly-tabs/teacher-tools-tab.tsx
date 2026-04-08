@@ -164,7 +164,7 @@ export default function TeacherToolsTab({
                     key={item.id}
                     onClick={() => setSelectedStudentId(item.id)}
                     className={`w-full rounded-lg px-2 py-2 text-left text-xs ${
-                      selectedStudentId === item.id ? "bg-indigo-600 text-white" : "bg-indigo-50 text-gray-700"
+                      selectedStudentId === item.id ? "bg-red-600 text-white" : "bg-red-50 text-gray-700"
                     }`}
                   >
                     <div className="font-medium">{item.name}</div>
@@ -208,14 +208,14 @@ export default function TeacherToolsTab({
                   onClick={() =>
                     activeReport && sessionReports.length > 0 && displayReport && runAction(displayReport.id, "generate-draft")
                   }
-                  className="w-full rounded bg-purple-600 px-3 py-2 text-xs text-white disabled:bg-slate-300"
+                  className="w-full rounded bg-red-600 px-3 py-2 text-xs text-white disabled:bg-slate-300"
                 >
                   {actionLoading[`${displayReport?.id}:generate-draft`] ? "Đang tổng hợp AI..." : "AI tổng hợp và tạo nháp báo cáo tháng"}
                 </button>
                 <button
                   disabled={!displayReport?.id}
                   onClick={() => displayReport?.id && openReportDetail(displayReport.id)}
-                  className="w-full rounded border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:bg-slate-100 disabled:text-slate-400"
+                  className="w-full rounded border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-100 disabled:bg-slate-100 disabled:text-slate-400"
                 >
                   Đi tới báo cáo để chỉnh sửa và submit
                 </button>

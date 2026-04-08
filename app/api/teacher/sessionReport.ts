@@ -128,7 +128,13 @@ export async function createSessionReport(
   if (!res.ok) {
     const text = await res.text();
     console.error("Create session report error", res.status, text, normalizedPayload);
-    throw new Error("Không thể tạo nhận xét buổi học.");
+    let msg = "Không thể tạo nhận xét buổi học.";
+    try {
+      const err = JSON.parse(text);
+      if (err?.detail) msg = err.detail;
+      else if (err?.title) msg = err.title;
+    } catch { /* ignore parse error */ }
+    throw new Error(msg);
   }
 
   const json: SessionReportApiResponse = await res.json();
@@ -155,7 +161,13 @@ export async function updateSessionReport(
   if (!res.ok) {
     const text = await res.text();
     console.error("Update session report error", res.status, text, normalizedPayload);
-    throw new Error("Không thể cập nhật nhận xét buổi học.");
+    let msg = "Không thể cập nhật nhận xét buổi học.";
+    try {
+      const err = JSON.parse(text);
+      if (err?.detail) msg = err.detail;
+      else if (err?.title) msg = err.title;
+    } catch { /* ignore parse error */ }
+    throw new Error(msg);
   }
 
   const json: SessionReportApiResponse = await res.json();
@@ -255,7 +267,13 @@ async function postSessionReportAction(url: string, body?: unknown): Promise<Ses
   if (!res.ok) {
     const text = await res.text();
     console.error("Session report action error", res.status, text, url);
-    throw new Error("Không thể xử lý session report.");
+    let msg = "Không thể xử lý session report.";
+    try {
+      const err = JSON.parse(text);
+      if (err?.detail) msg = err.detail;
+      else if (err?.title) msg = err.title;
+    } catch { /* ignore parse error */ }
+    throw new Error(msg);
   }
 
   const json: SessionReportApiResponse = await res.json();

@@ -82,7 +82,7 @@ function StatusBadge({ status }: { status?: string | null }) {
 
   if (normalized === "REVIEW") {
     return (
-      <span className={`${common} bg-gradient-to-r from-blue-50 to-sky-50 text-blue-700 border border-blue-200`}>
+      <span className={`${common} bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200`}>
         <Clock size={12} />
         Đang duyệt
       </span>
@@ -90,7 +90,7 @@ function StatusBadge({ status }: { status?: string | null }) {
   }
   if (normalized === "APPROVED") {
     return (
-      <span className={`${common} bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200`}>
+      <span className={`${common} bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 border border-emerald-200`}>
         <CheckCircle2 size={12} />
         Đã duyệt
       </span>
@@ -98,7 +98,7 @@ function StatusBadge({ status }: { status?: string | null }) {
   }
   if (normalized === "PUBLISHED") {
     return (
-      <span className={`${common} bg-gradient-to-r from-purple-50 to-violet-50 text-purple-700 border border-purple-200`}>
+      <span className={`${common} bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 border border-slate-200`}>
         <Megaphone size={12} />
         Đã xuất bản
       </span>
@@ -527,28 +527,28 @@ export default function SessionReportsReviewWorkspace() {
       title: 'Chờ duyệt',
       value: `${stats.review}`,
       icon: <Clock size={20} />,
-      color: 'from-blue-500 to-sky-500',
+      color: 'from-red-500 to-red-600',
       subtitle: 'Cần xử lý ngay'
     },
     {
       title: 'Đã duyệt',
       value: `${stats.approved}`,
       icon: <CheckCircle2 size={20} />,
-      color: 'from-emerald-500 to-teal-500',
+      color: 'from-emerald-500 to-emerald-600',
       subtitle: 'Chờ xuất bản'
     },
     {
       title: 'Đã xuất bản',
       value: `${stats.published}`,
       icon: <Megaphone size={20} />,
-      color: 'from-purple-500 to-violet-500',
+      color: 'from-slate-500 to-slate-600',
       subtitle: 'Đã công khai'
     },
     {
       title: 'Từ chối',
       value: `${stats.rejected}`,
       icon: <XCircle size={20} />,
-      color: 'from-amber-500 to-orange-500',
+      color: 'from-rose-500 to-rose-600',
       subtitle: 'Cần chỉnh sửa'
     }
   ];
@@ -865,7 +865,7 @@ export default function SessionReportsReviewWorkspace() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-xs">
+                          <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-semibold text-xs">
                             {studentNameMap[studentId]?.charAt(0) || "HS"}
                           </div>
                           <div>
@@ -931,7 +931,7 @@ export default function SessionReportsReviewWorkspace() {
                               <button
                                 disabled={!reportId || actionLoading[`${reportId}:reject`]}
                                 onClick={() => openRejectModal(report)}
-                                className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer disabled:opacity-50"
+                                className="p-1.5 rounded-lg hover:bg-rose-50 transition-colors text-gray-400 hover:text-rose-600 cursor-pointer disabled:opacity-50"
                                 title="Từ chối"
                               >
                                 <ThumbsDown size={14} />
@@ -942,7 +942,7 @@ export default function SessionReportsReviewWorkspace() {
                             <button
                               disabled={!reportId || actionLoading[`${reportId}:publish`]}
                               onClick={() => reportId && runAction(reportId, "publish")}
-                              className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-gray-400 hover:text-purple-600 cursor-pointer disabled:opacity-50"
+                              className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors text-gray-400 hover:text-slate-600 cursor-pointer disabled:opacity-50"
                               title="Xuất bản"
                             >
                               <Send size={14} />
@@ -1015,7 +1015,7 @@ export default function SessionReportsReviewWorkspace() {
             <div className="p-6 max-h-[70vh] overflow-y-auto">
               <div className="space-y-6">
                 {/* Thông tin cơ bản */}
-                <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-5 border border-red-100">
+                <div className="bg-gradient-to-r from-red-50 to-slate-50 rounded-xl p-5 border border-red-100">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <div className="w-1 h-6 bg-red-500 rounded-full"></div>
                     Thông tin cơ bản
@@ -1182,7 +1182,7 @@ export default function SessionReportsReviewWorkspace() {
                         }
                       }}
                       disabled={!detailReport.id || actionLoading[`${detailReport.id}:approve`]}
-                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:shadow-lg hover:shadow-emerald-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold hover:shadow-lg hover:shadow-emerald-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       <ThumbsUp size={16} />
                       Duyệt báo cáo
@@ -1193,7 +1193,7 @@ export default function SessionReportsReviewWorkspace() {
                         setDetailReport(null);
                       }}
                       disabled={!detailReport.id || actionLoading[`${detailReport.id}:reject`]}
-                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold hover:shadow-lg hover:shadow-amber-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       <ThumbsDown size={16} />
                       Từ chối
@@ -1210,7 +1210,7 @@ export default function SessionReportsReviewWorkspace() {
                       }
                     }}
                     disabled={!detailReport.id || actionLoading[`${detailReport.id}:publish`]}
-                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 text-white font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 text-white font-semibold hover:shadow-lg hover:shadow-slate-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     <Send size={16} />
                     Xuất bản
@@ -1228,7 +1228,7 @@ export default function SessionReportsReviewWorkspace() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-6">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -1236,7 +1236,7 @@ export default function SessionReportsReviewWorkspace() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-white">Từ chối báo cáo</h2>
-                    <p className="text-sm text-amber-100">
+                    <p className="text-sm text-red-100">
                       Vui lòng cung cấp lý do để giáo viên chỉnh sửa lại báo cáo
                     </p>
                   </div>
@@ -1254,12 +1254,12 @@ export default function SessionReportsReviewWorkspace() {
             {/* Modal Body */}
             <div className="p-6">
               {/* Thông tin báo cáo bị từ chối */}
-              <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
+              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
                 <div className="flex items-start gap-3">
-                  <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-amber-800">
+                  <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-red-800">
                     <p className="font-medium mb-1">Báo cáo của học sinh:</p>
-                    <p className="line-clamp-2 text-amber-700">
+                    <p className="line-clamp-2 text-red-700">
                       {rejectTarget.feedback || "(Không có nội dung)"}
                     </p>
                   </div>
@@ -1270,7 +1270,7 @@ export default function SessionReportsReviewWorkspace() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label htmlFor="reject-reason" className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <MessageSquare size={16} className="text-amber-600" />
+                    <MessageSquare size={16} className="text-red-600" />
                     Lý do từ chối <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -1280,7 +1280,7 @@ export default function SessionReportsReviewWorkspace() {
                       onChange={(e) => setRejectReasonInput(e.target.value)}
                       rows={5}
                       placeholder="Ví dụ: Feedback chưa đủ chi tiết về tiến bộ và phần cần cải thiện của học sinh..."
-                      className="w-full rounded-xl border border-gray-200 p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all resize-none"
+                      className="w-full rounded-xl border border-gray-200 p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all resize-none"
                       autoFocus
                     />
                     {!rejectReasonInput.trim() && (
@@ -1298,7 +1298,7 @@ export default function SessionReportsReviewWorkspace() {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-gray-200 bg-gradient-to-r from-amber-500/5 to-orange-500/5 p-6">
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={closeRejectModal}
@@ -1312,7 +1312,7 @@ export default function SessionReportsReviewWorkspace() {
                   className={cn(
                     "px-6 py-2.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center gap-2",
                     rejectReasonInput.trim() && !actionLoading[`${String(rejectTarget.id ?? "")}:reject`]
-                      ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:shadow-lg hover:shadow-amber-500/25"
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25"
                       : "bg-gray-200 text-gray-500 cursor-not-allowed"
                   )}
                 >

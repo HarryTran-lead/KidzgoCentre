@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import {
   Plus, Search, FileText, Clock, CalendarClock, User, Users,
   BookOpen, X, ChevronLeft, ChevronRight, Send,
-  CheckCircle2, Loader2,
+  CheckCircle2, Loader2, ExternalLink,
 } from "lucide-react";
 import {
   getReportRequests,
@@ -140,7 +141,8 @@ function CreateRequestModal({
     get<Record<string, unknown>>("/api/classes?pageSize=200&pageNumber=1")
       .then((res) => {
         const raw = res as Record<string, unknown>;
-        const items = (raw?.data as Record<string, unknown>)?.items as Record<string, unknown>[] ?? [];
+        const data = raw?.data as Record<string, unknown>;
+        const items = ((data?.classes as Record<string, unknown>)?.items ?? data?.items) as Record<string, unknown>[] ?? [];
         setClassList(items.map((c) => ({
           id: (c.id as string) ?? "",
           code: (c.code as string) ?? (c.classCode as string) ?? "",
@@ -158,13 +160,14 @@ function CreateRequestModal({
     if (!selectedClass) { setStudentList([]); setSessionList([]); return; }
     setLoadingStudents(true);
     setSelectedStudent(null);
-    get<Record<string, unknown>>(`/api/enrollments?classId=${selectedClass.id}&pageSize=100&status=Active`)
+    get<Record<string, unknown>>(`/api/classes/${selectedClass.id}/students?pageNumber=1&pageSize=200`)
       .then((res) => {
         const raw = res as Record<string, unknown>;
-        const items = (raw?.data as Record<string, unknown>)?.items as Record<string, unknown>[] ?? [];
+        const data = raw?.data as Record<string, unknown>;
+        const items = ((data?.students as Record<string, unknown>)?.items ?? data?.items) as Record<string, unknown>[] ?? [];
         setStudentList(items.map((e) => ({
           profileId: (e.studentProfileId as string) ?? "",
-          name: (e.studentName as string) ?? (e.studentProfileId as string) ?? "",
+          name: (e.fullName as string) ?? (e.studentProfileId as string) ?? "",
         })));
       })
       .catch(() => {})
@@ -180,7 +183,7 @@ function CreateRequestModal({
       .then((res) => {
         const raw = res as Record<string, unknown>;
         const data = raw?.data as Record<string, unknown>;
-        const items = (data?.sessions ?? data?.items) as Record<string, unknown>[] ?? [];
+        const items = ((data?.sessions as Record<string, unknown>)?.items ?? data?.items) as Record<string, unknown>[] ?? [];
         setSessionList(
           items
             .map((s) => ({
@@ -505,10 +508,33 @@ function DetailModal({
   onComplete: (id: string) => void;
   onCancel: (id: string) => void;
 }) {
+  const router = useRouter();
+  const params = useParams();
   if (!request) return null;
 
   const canComplete = request.status === "Requested" || request.status === "InProgress";
   const canCancel = isAdmin && request.status !== "Approved" && request.status !== "Cancelled";
+
+  const goToSession = () => {
+    const locale = params?.locale ?? "vi";
+    const qs = new URLSearchParams();
+    if (request.targetSessionId) qs.set("sessionId", request.targetSessionId);
+    if (request.targetSessionDate) qs.set("date", request.targetSessionDate.slice(0, 10));
+    router.push(`/${locale}/portal/teacher/attendance?${qs.toString()}`);
+    onClose();
+  };
+
+  const goToMonthly = () => {
+    const locale = params?.locale ?? "vi";
+    const qs = new URLSearchParams();
+    qs.set("tab", "monthly");
+    if (request.targetClassId) qs.set("classId", request.targetClassId);
+    if (request.targetStudentProfileId) qs.set("studentId", request.targetStudentProfileId);
+    if (request.month) qs.set("month", String(request.month));
+    if (request.year) qs.set("year", String(request.year));
+    router.push(`/${locale}/portal/teacher/feedback?${qs.toString()}`);
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -555,6 +581,28 @@ function DetailModal({
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
               Liên kết báo cáo: <code className="font-mono text-xs">{request.linkedSessionReportId || request.linkedMonthlyReportId}</code>
             </div>
+          )}
+
+          {!isAdmin && request.reportType === "Session" && request.targetSessionId && (
+            <button
+              onClick={goToSession}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold hover:shadow-lg cursor-pointer text-sm transition-all"
+            >
+              <ExternalLink size={16} />
+              Đi tới buổi học để viết báo cáo
+            </button>
+          )}
+
+          {!isAdmin && request.reportType === "Monthly" && (
+            <button
+              onClick={goToMonthly}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold hover:shadow-lg cursor-pointer text-sm transition-all"
+            >
+              <ExternalLink size={16} />
+              {request.targetStudentProfileId
+                ? `Đi tới báo cáo tháng của ${request.targetStudentName || "học sinh"}`
+                : `Đi tới báo cáo tháng lớp ${request.targetClassCode || request.targetClassTitle || ""}`}
+            </button>
           )}
         </div>
 

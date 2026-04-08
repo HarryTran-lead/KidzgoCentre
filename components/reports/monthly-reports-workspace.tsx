@@ -234,10 +234,10 @@ function StatusBadge({ status }: { status: ReportStatus }) {
   const displayStatus = STATUS_ALIAS[status] ?? status;
   const map: Record<string, string> = {
     Draft: "bg-amber-50 text-amber-700 border-amber-200",
-    Submitted: "bg-blue-50 text-blue-700 border-blue-200",
+    Submitted: "bg-red-50 text-red-700 border-red-200",
     Approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
     Rejected: "bg-rose-50 text-rose-700 border-rose-200",
-    Published: "bg-purple-50 text-purple-700 border-purple-200",
+    Published: "bg-slate-100 text-slate-700 border-slate-300",
   };
 
   const icons: Record<string, React.ReactNode> = {
@@ -281,7 +281,7 @@ function QuickStartCard({
     <button
       type="button"
       onClick={onClick}
-      className="group flex h-full items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-rose-200 hover:bg-rose-50/40"
+      className="group flex h-full items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-red-200 hover:bg-red-50/40"
     >
       <div className={`mt-0.5 rounded-2xl bg-gradient-to-r ${accentClass} p-2.5 text-white shadow-sm`}>
         {icon}
@@ -294,13 +294,13 @@ function QuickStartCard({
           </div>
         </div>
         <p className="mt-1 text-xs leading-5 text-slate-600">{description}</p>
-        <div className="mt-2 text-xs font-semibold text-rose-600 group-hover:text-rose-700">{actionLabel}</div>
+        <div className="mt-2 text-xs font-semibold text-red-600 group-hover:text-red-700">{actionLabel}</div>
       </div>
     </button>
   );
 }
 
-export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole }) {
+export default function MonthlyReportsWorkspace({ role, initialClassId, initialStudentId, initialMonth, initialYear, initialTab }: { role: MonthlyRole; initialClassId?: string | null; initialStudentId?: string | null; initialMonth?: number | null; initialYear?: number | null; initialTab?: string | null }) {
   const [jobs, setJobs] = useState<MonthlyJob[]>([]);
   const [reports, setReports] = useState<MonthlyReport[]>([]);
   const [loading, setLoading] = useState(false);
@@ -309,13 +309,13 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("Tất cả");
 
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(initialMonth ?? new Date().getMonth() + 1);
+  const [year, setYear] = useState(initialYear ?? new Date().getFullYear());
   const [branchId, setBranchId] = useState("");
   const [activeReportId, setActiveReportId] = useState<string | null>(null);
   const [classQuery, setClassQuery] = useState("");
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(initialClassId ?? null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId ?? null);
   const [draftInput, setDraftInput] = useState("");
   const [activeReportDetail, setActiveReportDetail] = useState<MonthlyReport | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -350,11 +350,13 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   const canManage = role === "management";
   const isTeacher = role === "teacher";
   const isViewer = role === "viewer";
-  const defaultTab: WorkspaceTab = isTeacher
-    ? "teacher-tools"
-    : canManage
-      ? "manage-tools"
-      : "reports";
+  const defaultTab: WorkspaceTab = initialTab === "reports" || initialTab === "teacher-tools" || initialTab === "manage-tools" || initialTab === "overview"
+    ? initialTab as WorkspaceTab
+    : isTeacher
+      ? (initialStudentId ? "reports" : "teacher-tools")
+      : canManage
+        ? "manage-tools"
+        : "reports";
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(defaultTab);
 
   const workspaceTabs = useMemo(() => {
@@ -1372,7 +1374,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
           title: "Soạn báo cáo mới",
           description: "Chọn lớp, học sinh, xem dữ liệu buổi học và tạo nháp AI ngay.",
           metric: `${teacherClassSummary.noReport} lớp chưa có báo cáo tháng`,
-          accentClass: "from-red-600 to-rose-600",
+          accentClass: "from-red-600 to-red-700",
           icon: <FileText size={18} />,
           actionLabel: "Mở công cụ giáo viên",
           onClick: openTeacherTools,
@@ -1382,7 +1384,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
           title: "Xử lý nháp chưa gửi",
           description: "Mở danh sách các báo cáo còn ở trạng thái Draft để hoàn thiện nhanh.",
           metric: `${teacherTaskSummary.draftCount} báo cáo nháp`,
-          accentClass: "from-amber-500 to-orange-500",
+          accentClass: "from-red-500 to-red-600",
           icon: <Clock size={18} />,
           actionLabel: "Mở danh sách nháp",
           onClick: openTeacherDrafts,
@@ -1392,7 +1394,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
           title: "Sửa báo cáo bị trả lại",
           description: "Đi thẳng vào các báo cáo bị reject để sửa và submit lại.",
           metric: `${teacherTaskSummary.rejectedCount} báo cáo cần sửa`,
-          accentClass: "from-rose-500 to-pink-500",
+          accentClass: "from-red-600 to-red-700",
           icon: <AlertCircle size={18} />,
           actionLabel: "Mở báo cáo bị trả",
           onClick: openTeacherRejected,
@@ -1405,7 +1407,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
             title: "Mở hàng chờ duyệt",
             description: "Xem ngay các báo cáo đang Submitted để review và phản hồi.",
             metric: `${adminSummary.pendingReview} báo cáo chờ duyệt`,
-            accentClass: "from-sky-500 to-blue-500",
+            accentClass: "from-red-600 to-red-700",
             icon: <Clock size={18} />,
             actionLabel: "Mở hàng chờ",
             onClick: openManagementQueue,
@@ -1415,7 +1417,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
             title: "Điều phối theo lớp",
             description: "Lọc theo lớp, xem tiến độ và chạy duyệt/công bố hàng loạt.",
             metric: `${managementClassProgress.length} lớp có dữ liệu trong kỳ`,
-            accentClass: "from-red-600 to-rose-600",
+            accentClass: "from-red-500 to-red-600",
             icon: <Building2 size={18} />,
             actionLabel: "Mở điều phối",
             onClick: openManagementTools,
@@ -1425,7 +1427,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
             title: "Công bố báo cáo đã duyệt",
             description: "Đi thẳng tới các báo cáo Approved đang sẵn sàng publish.",
             metric: `${adminSummary.readyToPublish} báo cáo chờ công bố`,
-            accentClass: "from-emerald-500 to-teal-500",
+            accentClass: "from-emerald-500 to-emerald-600",
             icon: <Send size={18} />,
             actionLabel: "Mở danh sách đã duyệt",
             onClick: openManagementPublishQueue,
@@ -1437,7 +1439,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
             title: "Xem báo cáo đã công bố",
             description: "Mở ngay danh sách Published trong kỳ đang chọn.",
             metric: `${stats.total} báo cáo có thể xem`,
-            accentClass: "from-purple-500 to-violet-500",
+            accentClass: "from-red-600 to-red-700",
             icon: <CheckCircle2 size={18} />,
             actionLabel: "Mở danh sách báo cáo",
             onClick: openPublishedReports,
@@ -1546,7 +1548,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
       key: "total",
       label: "Tổng báo cáo",
       value: stats.total,
-      className: "border-rose-200 bg-rose-50/70 text-rose-700",
+      className: "border-red-200 bg-red-50/70 text-red-700",
     },
     {
       key: "drafts",
@@ -1558,7 +1560,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
       key: "submitted",
       label: "Đã nộp",
       value: stats.submitted,
-      className: "border-sky-200 bg-sky-50/80 text-sky-700",
+      className: "border-red-200 bg-red-50/80 text-red-700",
     },
     {
       key: "approved",
@@ -1569,15 +1571,15 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
   ];
 
   return (
-    <div className="min-h-screen space-y-4 bg-[radial-gradient(circle_at_top_left,_rgba(254,226,226,0.9),_transparent_34%),linear-gradient(180deg,_#fff7f7_0%,_#ffffff_42%,_#fffdf8_100%)] p-4 md:p-6">
-      <div className="rounded-[28px] border border-rose-100 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] md:p-5">
+    <div className="min-h-screen space-y-4 bg-gradient-to-b from-red-50/40 to-white p-4 md:p-6">
+      <div className="rounded-[28px] border border-red-100 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-gradient-to-br from-red-700 via-rose-700 to-orange-500 p-3 text-white shadow-lg shadow-rose-200">
+            <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg shadow-red-200">
               <FileBarChart size={22} />
             </div>
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
+              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
                 <FileBarChart size={12} />
                 Monthly Reports
               </div>
@@ -1592,7 +1594,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
             </div>
             <button
               onClick={handleManualRefresh}
-              className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+              className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
             >
               <RefreshCw size={15} />
               Làm mới
@@ -1601,7 +1603,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
               <button
                 onClick={createJob}
                 disabled={jobFlowLoading}
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:from-red-700 hover:to-rose-700 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-200 transition hover:from-red-700 hover:to-red-800 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
               >
                 <FileBarChart size={15} />
                 {jobFlowLoading ? "Đang đồng bộ..." : "Khởi tạo dữ liệu"}
@@ -1623,33 +1625,6 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                 </div>
               ))}
             </div>
-
-            <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
-              <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">{quickStartTitle}</div>
-                  <div className="mt-1 text-xs leading-5 text-slate-600">{quickStartDescription}</div>
-                </div>
-                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-red-500">
-                  Ưu tiên thao tác
-                </div>
-              </div>
-
-              <div className={`mt-3 grid gap-3 ${quickStartCards.length > 1 ? "lg:grid-cols-3" : "lg:grid-cols-1"}`}>
-                {quickStartCards.map((card) => (
-                  <QuickStartCard
-                    key={card.key}
-                    title={card.title}
-                    description={card.description}
-                    metric={card.metric}
-                    accentClass={card.accentClass}
-                    icon={card.icon}
-                    actionLabel={card.actionLabel}
-                    onClick={card.onClick}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
@@ -1662,7 +1637,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                     : "Chọn tháng, năm và chi nhánh trước khi xem hoặc khởi tạo dữ liệu."}
                 </div>
               </div>
-              <div className="rounded-2xl bg-white p-2.5 text-rose-600 shadow-sm">
+              <div className="rounded-2xl bg-white p-2.5 text-red-600 shadow-sm">
                 <CalendarDays size={16} />
               </div>
             </div>
@@ -1670,11 +1645,11 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {isTeacher ? (
                 <>
-                  <div className="rounded-2xl border border-rose-100 bg-white px-4 py-3">
+                  <div className="rounded-2xl border border-red-100 bg-white px-4 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tháng</div>
                     <div className="mt-1 text-lg font-semibold text-slate-900">{month}</div>
                   </div>
-                  <div className="rounded-2xl border border-rose-100 bg-white px-4 py-3">
+                  <div className="rounded-2xl border border-red-100 bg-white px-4 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Năm</div>
                     <div className="mt-1 text-lg font-semibold text-slate-900">{year}</div>
                   </div>
@@ -1684,7 +1659,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                   <label className="space-y-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tháng</span>
                     <input
-                      className="w-full rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400"
+                      className="w-full rounded-2xl border border-red-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-red-400"
                       type="number"
                       min={1}
                       max={12}
@@ -1695,7 +1670,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                   <label className="space-y-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Năm</span>
                     <input
-                      className="w-full rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400"
+                      className="w-full rounded-2xl border border-red-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-red-400"
                       type="number"
                       value={year}
                       onChange={(e) => setYear(Number(e.target.value))}
@@ -1711,7 +1686,7 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                     Chi nhánh
                   </span>
                   <select
-                    className="w-full rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm text-slate-500 outline-none"
+                    className="w-full rounded-2xl border border-red-100 bg-white px-4 py-3 text-sm text-slate-500 outline-none"
                     value={branchId}
                     onChange={() => {}}
                     disabled
@@ -1745,8 +1720,8 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
                 onClick={() => setActiveTab(tab.id)}
                 className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
                   activeTab === tab.id
-                    ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-sm"
-                    : "border border-slate-200 bg-white text-slate-700 hover:bg-rose-50 hover:text-rose-700"
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-red-50 hover:text-red-700"
                 }`}
               >
                 {tab.label}
@@ -1884,26 +1859,28 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
       )}
 
       {detailModalOpen && displayReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold">Báo cáo chi tiết</h3>
-                <p className="text-sm text-gray-500">
-                  {displayReport.studentName || displayReport.studentProfileId} •{" "}
-                  {displayReport.className || displayReport.classId || "N/A"} •{" "}
-                  {displayReport.month}/{displayReport.year}
-                </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">Báo cáo chi tiết</h3>
+                  <p className="text-sm text-red-100">
+                    {displayReport.studentName || displayReport.studentProfileId} •{" "}
+                    {displayReport.className || displayReport.classId || "N/A"} •{" "}
+                    {displayReport.month}/{displayReport.year}
+                  </p>
+                </div>
+                <button
+                  className="rounded-full p-2 hover:bg-white/20 text-white cursor-pointer"
+                  onClick={() => setDetailModalOpen(false)}
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                className="rounded border px-3 py-1 text-sm"
-                onClick={() => setDetailModalOpen(false)}
-              >
-                Đóng
-              </button>
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="p-6 space-y-3">
               <StatusBadge status={displayReport.status} />
               <div className="rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-gray-700 whitespace-pre-line">
                 {draftInput || "Chưa có nội dung nháp."}
@@ -1914,48 +1891,53 @@ export default function MonthlyReportsWorkspace({ role }: { role: MonthlyRole })
       )}
 
       {commentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Gửi comment cho giáo viên</h3>
-              <button className="rounded border px-3 py-1 text-sm" onClick={closeCommentDialog}>
-                Đóng
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">Gửi comment cho giáo viên</h3>
+                <button className="rounded-full p-2 hover:bg-white/20 text-white cursor-pointer" onClick={closeCommentDialog}>
+                  ✕
+                </button>
+              </div>
             </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Nội dung này sẽ hiển thị ở phần bình luận của report.
-            </p>
-            <textarea
-              value={commentInput}
-              onChange={(e) => setCommentInput(e.target.value)}
-              rows={5}
-              className="mt-3 w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
-              placeholder="Nhập góp ý..."
-            />
-            <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={commentRejectAfterSend}
-                onChange={(e) => setCommentRejectAfterSend(e.target.checked)}
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-gray-500">
+                Nội dung này sẽ hiển thị ở phần bình luận của report.
+              </p>
+              <textarea
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                rows={5}
+                className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
+                placeholder="Nhập góp ý..."
               />
-              Đồng thời trả report về teacher để sửa lại (Reject)
-            </label>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                className="rounded border px-3 py-2 text-sm"
-                onClick={closeCommentDialog}
-              >
-                Hủy
-              </button>
-              <button
-                className="rounded bg-pink-600 px-3 py-2 text-sm text-white disabled:bg-slate-300"
-                disabled={!commentReportId || actionLoading[`${commentReportId}:comments`]}
-                onClick={submitComment}
-              >
-                {commentReportId && actionLoading[`${commentReportId}:comments`]
-                  ? "Đang gửi..."
-                  : "Gửi comment"}
-              </button>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={commentRejectAfterSend}
+                  onChange={(e) => setCommentRejectAfterSend(e.target.checked)}
+                  className="accent-red-600"
+                />
+                Đồng thời trả report về teacher để sửa lại (Reject)
+              </label>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                  onClick={closeCommentDialog}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer disabled:from-slate-300 disabled:to-slate-300"
+                  disabled={!commentReportId || actionLoading[`${commentReportId}:comments`]}
+                  onClick={submitComment}
+                >
+                  {commentReportId && actionLoading[`${commentReportId}:comments`]
+                    ? "Đang gửi..."
+                    : "Gửi comment"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
