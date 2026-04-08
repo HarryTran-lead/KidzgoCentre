@@ -3,7 +3,6 @@ import type { ApiResponse } from "../apiResponse";
 export type MissionScope = "Class" | "Student" | "Group";
 export type MissionType =
   | "HomeworkStreak"
-  | "ReadingStreak"
   | "NoUnexcusedAbsence"
   | "Custom";
 
@@ -52,6 +51,7 @@ export interface Mission {
   endAt?: string | null;
   rewardStars?: number | null;
   rewardExp?: number | null;
+  totalRequired?: number | null;
   createdBy?: string | null;
   createdByName?: string | null;
   createdAt?: string | null;
@@ -104,6 +104,7 @@ export interface UpsertMissionRequest {
   endAt?: string;
   rewardStars?: number;
   rewardExp?: number;
+  totalRequired?: number;
 }
 
 export interface StarTransaction {

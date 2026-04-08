@@ -25,6 +25,8 @@ import { buildFileUrl } from "@/constants/apiURL";
 import { useToast } from "@/hooks/use-toast";
 import { isUploadSuccess, uploadFile } from "@/lib/api/fileService";
 import { getAllStudents } from "@/lib/api/studentService";
+import { getTeacherClasses } from "@/lib/api/teacherService";
+import { get } from "@/lib/axios";
 import {
   addStars,
   addXp,
@@ -34,7 +36,6 @@ import {
   createMission,
   createRewardStoreItem,
   deductStars,
-  deductXp,
   deleteMission,
   deleteRewardStoreItem,
   getAttendanceStreak,
@@ -105,6 +106,7 @@ type MissionFormState = {
   endAt: string;
   rewardStars: string;
   rewardExp: string;
+  totalRequired: string;
 };
 
 type RewardFormState = {
@@ -127,7 +129,8 @@ type MissionFormErrors = Partial<
     | "startAt"
     | "endAt"
     | "rewardStars"
-    | "rewardExp",
+    | "rewardExp"
+    | "totalRequired",
     string
   >
 >;
@@ -168,6 +171,7 @@ const missionSeed: MissionFormState = {
   endAt: "",
   rewardStars: "",
   rewardExp: "",
+  totalRequired: "",
 };
 
 const rewardSeed: RewardFormState = {
@@ -269,6 +273,9 @@ export function StaffGamificationWorkspace({
   const [progressDialog, setProgressDialog] = useState<{ mission: Mission | null; items: MissionProgress[]; open: boolean }>({ mission: null, items: [], open: false });
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [redemptionDetail, setRedemptionDetail] = useState<RewardRedemption | null>(null);
+  const [cancelRedemptionId, setCancelRedemptionId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [groupClassFilter, setGroupClassFilter] = useState("");
   const [studentAction, setStudentAction] = useState<StudentActionState>(studentActionSeed);
   const [studentActionErrors, setStudentActionErrors] = useState<StudentActionErrors>({});
   const [batchYear, setBatchYear] = useState("");
@@ -475,12 +482,9 @@ export function StaffGamificationWorkspace({
       nextErrors.targetGroupIds = "Vui lòng chọn ít nhất một học sinh cho nhóm áp dụng.";
     }
 
-    if (!missionForm.startAt) {
-      nextErrors.startAt = "Vui lòng chọn ngày bắt đầu.";
-    } else if (!startDate || Number.isNaN(startDate.getTime())) {
+    // startAt is optional - if empty, mission starts immediately
+    if (missionForm.startAt && startDate && Number.isNaN(startDate.getTime())) {
       nextErrors.startAt = "Ngày bắt đầu không hợp lệ.";
-    } else if (startDate.getTime() < getCurrentMinute().getTime()) {
-      nextErrors.startAt = "Ngày bắt đầu không được ở trong quá khứ.";
     }
 
     if (!missionForm.endAt) {
@@ -536,7 +540,7 @@ export function StaffGamificationWorkspace({
     return nextErrors;
   }
 
-  function validateStudentAction(action: "addStars" | "deductStars" | "addXp" | "deductXp") {
+  function validateStudentAction(action: "addStars" | "deductStars" | "addXp") {
     const field = action.includes("Stars") ? "starAmount" : "xpAmount";
     const label = field === "starAmount" ? "số sao" : "số XP";
     const amount = parseNumericInput(
@@ -556,10 +560,43 @@ export function StaffGamificationWorkspace({
   async function loadBaseData() {
     setLoading(true);
     setPageError(null);
+
+    // Teacher: load classes from teacher API, then derive students from those classes
+    const classOptionsPromise = role === "Teacher"
+      ? getTeacherClasses({ pageNumber: 1, pageSize: 200 }).then((res) => {
+          const items = res?.data?.classes?.items ?? [];
+          return items.map((c: any) => ({ id: c.id, code: c.code, title: c.title ?? c.name, name: c.name ?? c.title })) as ClassOptionLite[];
+        }).catch(() => [] as ClassOptionLite[])
+      : getMissionClassOptions();
+
+    const studentsPromise = role === "Teacher"
+      ? getTeacherClasses({ pageNumber: 1, pageSize: 200 }).then(async (res) => {
+          const classes = res?.data?.classes?.items ?? [];
+          const allStudents: StudentOption[] = [];
+          const seenIds = new Set<string>();
+          for (const cls of classes) {
+            try {
+              const resp = await get<any>(`/api/teacher/classes/${cls.id}/students`);
+              const data = resp?.data ?? resp;
+              const items = Array.isArray(data?.students) ? data.students : Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+              for (const s of items) {
+                const id = String(s.id ?? s.profileId ?? s.studentProfileId ?? "").trim();
+                if (!id || seenIds.has(id)) continue;
+                seenIds.add(id);
+                const label = s.fullName || s.name || s.displayName || s.userName || id;
+                const classText = cls.code ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim() : (cls.title ?? cls.name ?? "");
+                allStudents.push({ id, label, studentId: s.studentId, classText, helperText: classText, dropdownLabel: classText ? `${label} • ${classText}` : label });
+              }
+            } catch { /* skip classes with errors */ }
+          }
+          return allStudents;
+        }).catch(() => [] as StudentOption[])
+      : getAllStudents({ profileType: "Student", pageNumber: 1, pageSize: 200 }).then((res) => extractStudentOptions(res));
+
     const results = await Promise.allSettled([
       listMissions({ pageNumber: 1, pageSize: 50 }),
-      getMissionClassOptions(),
-      getAllStudents({ profileType: "Student", pageNumber: 1, pageSize: 200 }),
+      classOptionsPromise,
+      studentsPromise,
       canManageStore
         ? listRewardStoreItems({ page: 1, pageSize: 50 })
         : Promise.resolve({ items: [], pageNumber: 1, totalPages: 1, totalCount: 0 }),
@@ -568,13 +605,13 @@ export function StaffGamificationWorkspace({
 
     const [missionResult, classResult, studentResult, rewardResult, redemptionResult] = results;
     if (missionResult.status === "fulfilled") setMissions(missionResult.value.items);
-    if (classResult.status === "fulfilled") setClassOptions(classResult.value);
+    if (classResult.status === "fulfilled") setClassOptions(classResult.value as ClassOptionLite[]);
     if (studentResult.status === "fulfilled") {
-      const options = extractStudentOptions(studentResult.value);
+      const options = studentResult.value as StudentOption[];
       setStudents(options);
       setSelectedStudentId((current) => current || options[0]?.id || "");
     }
-    if (rewardResult.status === "fulfilled") setRewardItems(rewardResult.value.items);
+    if (rewardResult.status === "fulfilled") setRewardItems((rewardResult.value as any).items);
     if (redemptionResult.status === "fulfilled") setRedemptions(redemptionResult.value.items);
     if (results.every((result) => result.status === "rejected")) {
       setPageError("Không thể tải dữ liệu gamification trong thời điểm này.");
@@ -630,6 +667,7 @@ export function StaffGamificationWorkspace({
       endAt: toDatetimeLocal(mission.endAt),
       rewardStars: mission.rewardStars ? String(mission.rewardStars) : "",
       rewardExp: mission.rewardExp ? String(mission.rewardExp) : "",
+      totalRequired: mission.totalRequired ? String(mission.totalRequired) : "",
     });
     setMissionDialogOpen(true);
   }
@@ -693,10 +731,11 @@ export function StaffGamificationWorkspace({
             ? missionForm.targetGroupIds
             : undefined,
         missionType: missionForm.missionType as MissionType,
-        startAt: toIsoString(missionForm.startAt),
+        startAt: missionForm.startAt ? toIsoString(missionForm.startAt) : undefined,
         endAt: toIsoString(missionForm.endAt),
         rewardStars: Number(missionForm.rewardStars),
         rewardExp: Number(missionForm.rewardExp),
+        totalRequired: missionForm.totalRequired.trim() ? Number(missionForm.totalRequired) : undefined,
       };
       if (missionForm.id) await updateMission(missionForm.id, payload);
       else await createMission(payload);
@@ -880,7 +919,7 @@ export function StaffGamificationWorkspace({
   }
 
   async function runStudentAction(
-    action: "addStars" | "deductStars" | "addXp" | "deductXp"
+    action: "addStars" | "deductStars" | "addXp"
   ) {
     if (!selectedStudentId) return;
 
@@ -916,8 +955,6 @@ export function StaffGamificationWorkspace({
         });
       if (action === "addXp")
         await addXp({ studentProfileId: selectedStudentId, amount, reason });
-      if (action === "deductXp")
-        await deductXp({ studentProfileId: selectedStudentId, amount, reason });
       toast.success({ title: "Đã cập nhật dữ liệu học sinh" });
       await loadStudentSnapshot(selectedStudentId);
       setStudentAction(studentActionSeed);
@@ -956,8 +993,10 @@ export function StaffGamificationWorkspace({
       setBusyAction(`${action}-${id}`);
       if (action === "approve") await approveRewardRedemption(id);
       if (action === "cancel") {
-        const reason = window.prompt("Nhập lý do hủy (không bắt buộc):") ?? "";
-        await cancelRewardRedemption(id, { reason: reason.trim() || undefined });
+        setCancelRedemptionId(id);
+        setCancelReason("");
+        setBusyAction(null);
+        return; // Show cancel modal instead of window.prompt
       }
       if (action === "deliver") await markRewardRedemptionDelivered(id);
       toast.success({ title: "Đã cập nhật trạng thái đổi thưởng" });
@@ -969,6 +1008,30 @@ export function StaffGamificationWorkspace({
     } catch (error) {
       toast({
         title: "Không thể cập nhật đổi thưởng",
+        description: normalizeProblemMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function confirmCancelRedemption() {
+    if (!cancelRedemptionId) return;
+    try {
+      setBusyAction(`cancel-${cancelRedemptionId}`);
+      await cancelRewardRedemption(cancelRedemptionId, { reason: cancelReason.trim() || undefined });
+      toast.success({ title: "Đã hủy đổi thưởng" });
+      setCancelRedemptionId(null);
+      setCancelReason("");
+      await loadBaseData();
+      if (redemptionDetail?.id === cancelRedemptionId) {
+        const latest = await getRewardRedemption(cancelRedemptionId);
+        setRedemptionDetail(latest);
+      }
+    } catch (error) {
+      toast({
+        title: "Không thể hủy đổi thưởng",
         description: normalizeProblemMessage(error),
         variant: "destructive",
       });
@@ -1170,9 +1233,10 @@ export function StaffGamificationWorkspace({
               {studentLoading ? <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-8 text-center text-sm text-gray-500"><Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />Đang tải snapshot học sinh...</div> : null}
               {!studentLoading && selectedStudentId ? (
                 <>
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-4">
                     <MetricCard theme="staff" icon={<Star className="h-5 w-5" />} label="Số sao hiện tại" value={formatNumber(studentBalance)} accent="from-amber-500 via-orange-500 to-red-500" />
-                    <MetricCard theme="staff" icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={`Cấp ${formatNumber(studentLevel?.level)}`} hint={`XP: ${formatNumber(studentLevel?.xp)}`} accent="from-violet-500 via-fuchsia-500 to-pink-500" />
+                    <MetricCard theme="staff" icon={<Sparkles className="h-5 w-5" />} label="XP hiện tại" value={formatNumber(studentLevel?.xp)} hint={`Cần ${formatNumber(studentLevel?.xpRequiredForNextLevel)} XP để lên cấp`} accent="from-cyan-500 via-blue-500 to-indigo-500" />
+                    <MetricCard theme="staff" icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={studentLevel?.level != null && Number.isFinite(studentLevel.level) ? `Cấp ${studentLevel.level}` : "Chưa có"} hint={`XP: ${formatNumber(studentLevel?.xp)}`} accent="from-violet-500 via-fuchsia-500 to-pink-500" />
                     <MetricCard theme="staff" icon={<CheckCheck className="h-5 w-5" />} label="Streak hiện tại" value={`${formatNumber(studentStreak?.currentStreak)} ngày`} hint={`Kỷ lục ${formatNumber(studentStreak?.maxStreak)} ngày`} accent="from-emerald-500 via-teal-500 to-cyan-500" />
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
@@ -1220,7 +1284,6 @@ export function StaffGamificationWorkspace({
                         <input value={studentAction.xpReason} onChange={(event) => setStudentAction((current) => ({ ...current, xpReason: event.target.value }))} className={inputClass} placeholder="Lý do" />
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => void runStudentAction("addXp")} disabled={busyAction === "addXp"} className={primaryButton}><Plus className="h-4 w-4" />Cộng XP</button>
-                          <button type="button" onClick={() => void runStudentAction("deductXp")} disabled={busyAction === "deductXp"} className={ghostButton}><Coins className="h-4 w-4" />Trừ XP</button>
                         </div>
                       </div>
                     </div>
@@ -1373,6 +1436,7 @@ export function StaffGamificationWorkspace({
                       <span>Học sinh: {item.studentName || item.studentProfileId}</span>
                       <span>Số lượng: {formatNumber(item.quantity)}</span>
                       <span>Chi nhánh: {item.branchName || "Chưa có"}</span>
+                      <span>Sao đã trừ: {formatNumber(item.starsDeducted)}</span>
                       <span>Tạo lúc: {formatDateTime(item.createdAt)}</span>
                     </div>
                   </div>
@@ -1463,7 +1527,6 @@ export function StaffGamificationWorkspace({
               <option value="">Chọn loại nhiệm vụ</option>
               <option value="Custom">Tùy chỉnh</option>
               <option value="HomeworkStreak">Chuỗi bài tập</option>
-              <option value="ReadingStreak">Chuỗi đọc</option>
               <option value="NoUnexcusedAbsence">Không vắng mặt không phép</option>
             </select>
             <FieldError message={missionErrors.missionType} />
@@ -1530,6 +1593,22 @@ export function StaffGamificationWorkspace({
           {missionForm.scope === "Group" ? (
             <div className="md:col-span-2">
               <FormLabel label="Nhóm áp dụng" required />
+              <div className="mb-3">
+                <label className="mb-1 block text-xs font-medium text-gray-500">Lọc theo lớp</label>
+                <select
+                  value={groupClassFilter}
+                  onChange={(event) => setGroupClassFilter(event.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">Tất cả học sinh</option>
+                  {classOptions.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.code ? `${item.code} - ` : ""}
+                      {item.title || item.name || item.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div
                 className={cx(
                   "max-h-64 space-y-2 overflow-y-auto rounded-2xl border p-3",
@@ -1538,7 +1617,14 @@ export function StaffGamificationWorkspace({
                     : "border-red-200 bg-red-50/40"
                 )}
               >
-                {students.map((student) => {
+                {students.filter((student) => {
+                  if (!groupClassFilter) return true;
+                  // Filter students by class: check classText for matching class
+                  const classOpt = classOptions.find((c) => c.id === groupClassFilter);
+                  if (!classOpt) return true;
+                  const classLabel = (classOpt.code || classOpt.title || classOpt.name || classOpt.id).toLowerCase();
+                  return (student.classText || "").toLowerCase().includes(classLabel) || (student.helperText || "").toLowerCase().includes(classLabel);
+                }).map((student) => {
                   const checked = missionForm.targetGroupIds.includes(student.id);
 
                   return (
@@ -1582,7 +1668,7 @@ export function StaffGamificationWorkspace({
           ) : null}
 
           <div>
-            <FormLabel label="Bắt đầu" required />
+            <FormLabel label="Bắt đầu" />
             <input
               type="datetime-local"
               value={missionForm.startAt}
@@ -1593,6 +1679,7 @@ export function StaffGamificationWorkspace({
               className={getFieldClass(inputClass, Boolean(missionErrors.startAt))}
             />
             <FieldError message={missionErrors.startAt} />
+            <p className="mt-1 text-xs text-gray-400">Để trống nếu muốn bắt đầu ngay lập tức.</p>
           </div>
 
           <div>
@@ -1635,6 +1722,22 @@ export function StaffGamificationWorkspace({
               className={getFieldClass(inputClass, Boolean(missionErrors.rewardExp))}
             />
             <FieldError message={missionErrors.rewardExp} />
+          </div>
+
+          <div className="md:col-span-2">
+            <FormLabel label="Mục tiêu hoàn thành (totalRequired)" />
+            <input
+              value={missionForm.totalRequired}
+              onChange={(event) => {
+                clearMissionErrors(["totalRequired"]);
+                setMissionForm((current) => ({ ...current, totalRequired: event.target.value }));
+              }}
+              inputMode="numeric"
+              className={getFieldClass(inputClass, Boolean(missionErrors.totalRequired))}
+              placeholder="Ví dụ: 5 (hoàn thành 5 lần bài tập để đạt mục tiêu)"
+            />
+            <FieldError message={missionErrors.totalRequired} />
+            <p className="mt-1 text-xs text-gray-400">Backend dùng field này để tính tiến độ cho các loại nhiệm vụ streak/số lần. Để trống nếu không cần.</p>
           </div>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -1844,7 +1947,47 @@ export function StaffGamificationWorkspace({
       </DialogShell>
 
       <DialogShell open={Boolean(redemptionDetail)} onClose={() => setRedemptionDetail(null)} title={redemptionDetail?.itemName || "Chi tiết yêu cầu đổi thưởng"} description="Thông tin chi tiết của yêu cầu đổi quà để staff và người học tiện theo dõi." theme="staff">
-        {redemptionDetail ? <div className="grid gap-3 text-sm text-gray-600"><div><span className="font-semibold text-gray-900">Trạng thái:</span> {mapRedemptionStatusLabel(redemptionDetail.status)}</div><div><span className="font-semibold text-gray-900">Học sinh:</span> {redemptionDetail.studentName || redemptionDetail.studentProfileId}</div><div><span className="font-semibold text-gray-900">Chi nhánh:</span> {redemptionDetail.branchName || "Chưa có"}</div><div><span className="font-semibold text-gray-900">Số lượng:</span> {formatNumber(redemptionDetail.quantity)}</div><div><span className="font-semibold text-gray-900">Tạo lúc:</span> {formatDateTime(redemptionDetail.createdAt)}</div><div><span className="font-semibold text-gray-900">Xử lý lúc:</span> {formatDateTime(redemptionDetail.handledAt)}</div><div><span className="font-semibold text-gray-900">Giao lúc:</span> {formatDateTime(redemptionDetail.deliveredAt)}</div><div><span className="font-semibold text-gray-900">Nhận lúc:</span> {formatDateTime(redemptionDetail.receivedAt)}</div></div> : null}
+        {redemptionDetail ? <div className="grid gap-3 text-sm text-gray-600"><div><span className="font-semibold text-gray-900">Trạng thái:</span> {mapRedemptionStatusLabel(redemptionDetail.status)}</div><div><span className="font-semibold text-gray-900">Học sinh:</span> {redemptionDetail.studentName || redemptionDetail.studentProfileId}</div><div><span className="font-semibold text-gray-900">Chi nhánh:</span> {redemptionDetail.branchName || "Chưa có"}</div><div><span className="font-semibold text-gray-900">Số lượng:</span> {formatNumber(redemptionDetail.quantity)}</div><div><span className="font-semibold text-gray-900">Sao đã trừ:</span> {formatNumber(redemptionDetail.starsDeducted)}</div><div><span className="font-semibold text-gray-900">Sao còn lại:</span> {formatNumber(redemptionDetail.remainingStars)}</div><div><span className="font-semibold text-gray-900">Tạo lúc:</span> {formatDateTime(redemptionDetail.createdAt)}</div><div><span className="font-semibold text-gray-900">Xử lý lúc:</span> {formatDateTime(redemptionDetail.handledAt)}</div><div><span className="font-semibold text-gray-900">Giao lúc:</span> {formatDateTime(redemptionDetail.deliveredAt)}</div><div><span className="font-semibold text-gray-900">Nhận lúc:</span> {formatDateTime(redemptionDetail.receivedAt)}</div></div> : null}
+      </DialogShell>
+
+      {/* Cancel Redemption Dialog */}
+      <DialogShell
+        open={Boolean(cancelRedemptionId)}
+        onClose={() => { setCancelRedemptionId(null); setCancelReason(""); }}
+        title="Hủy yêu cầu đổi thưởng"
+        description="Nhập lý do hủy (không bắt buộc). Sao sẽ được hoàn lại cho học sinh."
+        theme="staff"
+        widthClass="max-w-lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <FormLabel label="Lý do hủy" />
+            <textarea
+              value={cancelReason}
+              onChange={(event) => setCancelReason(event.target.value)}
+              className={textareaClass}
+              placeholder="Nhập lý do hủy (không bắt buộc)..."
+            />
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => { setCancelRedemptionId(null); setCancelReason(""); }}
+              className={ghostButton}
+            >
+              Quay lại
+            </button>
+            <button
+              type="button"
+              onClick={() => void confirmCancelRedemption()}
+              disabled={busyAction === `cancel-${cancelRedemptionId}`}
+              className={dangerGhostButton}
+            >
+              {busyAction === `cancel-${cancelRedemptionId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Xác nhận hủy
+            </button>
+          </div>
+        </div>
       </DialogShell>
     </div>
   );

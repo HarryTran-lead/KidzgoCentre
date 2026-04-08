@@ -121,12 +121,24 @@ function normalizeRewardRedemption(source: unknown): RewardRedemption {
 
 function normalizeStarBalance(source: unknown): StarBalance {
   const payload = unwrapData<AnyRecord>(source);
-  return payload as StarBalance;
+  const balance = Number(payload?.balance ?? 0);
+  return {
+    studentProfileId: String(payload?.studentProfileId ?? ""),
+    balance: Number.isFinite(balance) ? balance : 0,
+  };
 }
 
 function normalizeLevelInfo(source: unknown): LevelInfo {
   const payload = unwrapData<AnyRecord>(source);
-  return payload as LevelInfo;
+  const level = Number(payload?.level ?? 0);
+  const xp = Number(payload?.xp ?? 0);
+  const xpRequired = Number(payload?.xpRequiredForNextLevel ?? 0);
+  return {
+    studentProfileId: String(payload?.studentProfileId ?? ""),
+    level: Number.isFinite(level) ? level : 0,
+    xp: Number.isFinite(xp) ? xp : 0,
+    xpRequiredForNextLevel: Number.isFinite(xpRequired) ? xpRequired : 0,
+  };
 }
 
 function normalizeAttendanceStreak(source: unknown): AttendanceStreakInfo {

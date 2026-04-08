@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
+import { buildFileUrl } from "@/constants/apiURL";
 import {
   checkInAttendanceStreak,
   confirmRewardRedemptionReceived,
@@ -216,7 +217,7 @@ export function LearnerGamificationWorkspace({
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard icon={<Star className="h-5 w-5" />} label="Số sao hiện có" value={formatNumber(starBalance)} hint="Dùng để đổi quà" accent="from-purple-500 via-pink-500 to-rose-500" />
           <MetricCard icon={<TrendingUp className="h-5 w-5" />} label="XP hiện tại" value={formatNumber(levelInfo?.xp)} hint={`Còn ${formatNumber(levelInfo?.xpRequiredForNextLevel)} XP để lên cấp`} accent="from-cyan-500 via-blue-500 to-purple-600" />
-          <MetricCard icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={`Cấp ${formatNumber(levelInfo?.level)}`} hint="Tăng theo tổng XP" accent="from-violet-500 via-fuchsia-500 to-pink-500" />
+          <MetricCard icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={levelInfo?.level != null && Number.isFinite(levelInfo.level) ? `Cấp ${levelInfo.level}` : "Chưa có"} hint="Tăng theo tổng XP" accent="from-violet-500 via-fuchsia-500 to-pink-500" />
           <MetricCard icon={<Flame className="h-5 w-5" />} label="Streak hiện tại" value={`${formatNumber(streakInfo?.currentStreak)} ngày`} hint={`Kỷ lục: ${formatNumber(streakInfo?.maxStreak)} ngày`} accent="from-orange-500 via-amber-500 to-yellow-500" />
         </div>
       </div>
@@ -284,7 +285,7 @@ export function LearnerGamificationWorkspace({
           ) : null}
           {activeTab === "stars" ? <SectionTitle title="Sao hiện có" description={`Bạn đang có ${formatNumber(starBalance)} sao và đã tạo ${formatNumber(redemptions.length)} đơn đổi thưởng.`} /> : null}
           {activeTab === "xp" ? <SectionTitle title="XP hiện tại" description={`Tổng XP: ${formatNumber(levelInfo?.xp)} • Còn ${formatNumber(levelInfo?.xpRequiredForNextLevel)} XP để lên cấp.`} /> : null}
-          {activeTab === "level" ? <SectionTitle title="Cấp độ hiện tại" description={`Level hiện tại: Cấp ${formatNumber(levelInfo?.level)}.`} /> : null}
+          {activeTab === "level" ? <SectionTitle title="Cấp độ hiện tại" description={`Level hiện tại: ${levelInfo?.level != null && Number.isFinite(levelInfo.level) ? `Cấp ${levelInfo.level}` : "Chưa có"}.`} /> : null}
         </Panel>
       ) : null}
 
@@ -297,8 +298,14 @@ export function LearnerGamificationWorkspace({
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {rewards.map((item) => {
                   const disabled = item.quantity <= 0 || starBalance < item.costStars;
+                  const itemImageUrl = buildFileUrl(item.imageUrl);
                   return (
                     <div key={item.id} className="overflow-hidden rounded-3xl border border-purple-500/30 bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-sm shadow-lg">
+                      {itemImageUrl ? (
+                        <div className="aspect-[16/9] w-full overflow-hidden bg-slate-800">
+                          <img src={itemImageUrl} alt={item.title} className="h-full w-full object-cover" />
+                        </div>
+                      ) : null}
                       <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-5 py-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>

@@ -1,6 +1,7 @@
 // app/[locale]/portal/student/page.tsx
 "use client";
 
+import { useMemo } from "react";
 import {
   BellRing,
   Sparkles,
@@ -15,6 +16,9 @@ import {
   Flame,
 } from "lucide-react";
 import Image from "next/image";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
+import { resolveActiveStudentProfile } from "@/components/gamification/shared";
 
 type Notice = {
   title: string;
@@ -24,6 +28,14 @@ type Notice = {
 };
 
 export default function Page() {
+  const { user } = useCurrentUser();
+  const { selectedProfile } = useSelectedStudentProfile();
+  const activeStudent = useMemo(
+    () => resolveActiveStudentProfile(user?.profiles, selectedProfile, user?.selectedProfile),
+    [selectedProfile, user?.profiles, user?.selectedProfile]
+  );
+  const studentName = activeStudent?.displayName || user?.fullName || "Học sinh";
+
   const notices: Notice[] = [
     {
       title: "Cập nhật tài liệu",
@@ -52,7 +64,7 @@ export default function Page() {
         {/* Header với greeting */}
         <div className="mb-8 animate-fade-in">
           <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-white via-indigo-200 to-purple-200 bg-clip-text text-transparent">
-            Xin chào, Nguyễn Văn An!
+            Xin chào, {studentName}!
           </h1>
           <p className="text-indigo-200/80 mt-2 flex items-center gap-2">
             <Sparkles size={16} className="text-yellow-400" />

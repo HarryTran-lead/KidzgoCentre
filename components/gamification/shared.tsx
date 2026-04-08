@@ -30,7 +30,9 @@ export function formatDateTime(value?: string | null) {
 }
 
 export function formatNumber(value?: number | null) {
-  return Number(value ?? 0).toLocaleString("vi-VN");
+  const num = Number(value ?? 0);
+  if (Number.isNaN(num) || !Number.isFinite(num)) return "0";
+  return num.toLocaleString("vi-VN");
 }
 
 export function toDatetimeLocal(value?: string | null) {
@@ -258,8 +260,6 @@ export function mapMissionTypeLabel(type: MissionType) {
   switch (type) {
     case "HomeworkStreak":
       return "Chuỗi hoàn thành bài tập";
-    case "ReadingStreak":
-      return "Chuỗi đọc sách";
     case "NoUnexcusedAbsence":
       return "Không nghỉ học không phép";
     default:
