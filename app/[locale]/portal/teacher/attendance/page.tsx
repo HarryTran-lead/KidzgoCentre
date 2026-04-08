@@ -683,7 +683,7 @@ export default function TeacherAttendancePage() {
           email,
           phone,
           note,
-          studentCode: String(s.studentCode ?? s.code ?? safeStudentId ?? s.id ?? "").trim(),
+          studentCode: String(s.studentCode ?? s.code ?? "").trim() || undefined,
         } as StudentRow;
       });
 
@@ -800,6 +800,7 @@ export default function TeacherAttendancePage() {
         ),
       );
 
+      toast.success({ title: "Lưu nhận xét thành công", description: "Nhận xét buổi học đã được lưu.", duration: 3000 });
       handleCloseNoteModal();
     } catch (err: any) {
       console.error("Submit note error:", err);
@@ -859,6 +860,7 @@ export default function TeacherAttendancePage() {
         },
       }));
 
+      toast.success({ title: "Gửi duyệt thành công", description: "Nhận xét đã được gửi để duyệt.", duration: 3000 });
       handleCloseNoteModal();
     } catch (err: any) {
       setNoteModalError(err?.message || "Không thể gửi nhận xét để duyệt.");
@@ -1570,7 +1572,7 @@ export default function TeacherAttendancePage() {
                             </div>
                           </td>
 
-                          <td className="px-4 py-4 text-sm text-gray-900 font-medium">{record.studentCode}</td>
+                          <td className="px-4 py-4 text-sm text-gray-900 font-medium">{record.studentCode || "—"}</td>
 
                           <td className="px-4 py-4">
                             <div className="space-y-2">

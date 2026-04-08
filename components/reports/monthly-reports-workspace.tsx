@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Send,
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import type { ClassItem, Student } from "@/types/teacher/classes";
 import { fetchClassDetail, fetchTeacherClasses } from "@/app/api/teacher/classes";
 import type { SessionReportItem } from "@/types/teacher/sessionReport";
@@ -639,13 +640,14 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
       await aggregateJob(jobId);
       setMessage("Đã khởi tạo đợt báo cáo và đồng bộ dữ liệu.");
+      toast({ title: "Thành công", description: "Đã khởi tạo đợt báo cáo và đồng bộ dữ liệu.", variant: "success" });
       await fetchData();
     } catch (e: unknown) {
-      setError(
-        e instanceof Error
+      const errMsg = e instanceof Error
           ? e.message
-          : "Không thể khởi tạo đợt báo cáo và đồng bộ dữ liệu.",
-      );
+          : "Không thể khởi tạo đợt báo cáo và đồng bộ dữ liệu.";
+      setError(errMsg);
+      toast({ title: "Lỗi", description: errMsg, variant: "destructive" });
     } finally {
       setJobFlowLoading(false);
     }
@@ -667,6 +669,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
       setMessage(`Đã xử lý ${action}`);
+      toast({ title: "Thành công", description: `Đã xử lý ${action}`, variant: "success" });
       if (action === "comments" && reportId === activeReportId && result) {
         const newComment = result as MonthlyComment;
         setActiveReportDetail((prev) => {
@@ -685,6 +688,7 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : `Không thể ${action}`);
+      toast({ title: "Lỗi", description: e instanceof Error ? e.message : `Không thể ${action}`, variant: "destructive" });
     } finally {
       setActionLoading((prev) => ({ ...prev, [actionKey]: false }));
     }
@@ -1504,10 +1508,12 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
     if (failed > 0) {
       setError(`Có ${failed} báo cáo xử lý thất bại.`);
+      toast({ title: "Lỗi", description: `Có ${failed} báo cáo xử lý thất bại.`, variant: "destructive" });
     }
 
     const skippedText = skipped > 0 ? `, bỏ qua ${skipped} báo cáo không đúng trạng thái` : "";
     setMessage(`Đã ${action} ${succeeded} báo cáo${skippedText}.`);
+    toast({ title: "Thành công", description: `Đã ${action} ${succeeded} báo cáo${skippedText}.`, variant: "success" });
     setBulkLoading("");
     fetchData();
   };

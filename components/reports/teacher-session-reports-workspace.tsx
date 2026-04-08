@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock, Edit3, RefreshCcw, Send, XCircle } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 type SessionReportStatus = "DRAFT" | "REVIEW" | "APPROVED" | "REJECTED" | "PUBLISHED" | string;
 
@@ -325,6 +326,7 @@ export default function TeacherSessionReportsWorkspace() {
         body: JSON.stringify({ feedback: draftInput }),
       });
       setMessage("Đã lưu session report.");
+      toast.success({ title: "Lưu thành công", description: "Session report đã được lưu.", duration: 3000 });
       await fetchData();
       await refreshActiveReport(activeReport.id);
     } catch (e: unknown) {
@@ -353,6 +355,7 @@ export default function TeacherSessionReportsWorkspace() {
       }
       await apiFetch(`/api/session-reports/${activeReport.id}/submit`, { method: "POST" });
       setMessage("Đã gửi duyệt session report.");
+      toast.success({ title: "Gửi duyệt thành công", description: "Session report đã được gửi để duyệt.", duration: 3000 });
       await fetchData();
       await refreshActiveReport(activeReport.id);
     } catch (e: unknown) {
@@ -423,12 +426,12 @@ export default function TeacherSessionReportsWorkspace() {
                   onClick={() => void openEditor(report)}
                 >
                   <td className="px-3 py-2">
-                    <div className="font-medium text-gray-900">{report.studentName || report.studentProfileId || "N/A"}</div>
+                    <div className="font-medium text-gray-900">{report.studentName || "N/A"}</div>
                     <div className="text-xs text-gray-500">{report.reportDate || "N/A"}</div>
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-700">
-                    <div>{report.className || report.classId || "N/A"}</div>
-                    <div>{report.teacherName || report.teacherUserId || "N/A"}</div>
+                    <div>{report.className || "N/A"}</div>
+                    <div>{report.teacherName || "N/A"}</div>
                   </td>
                   <td className="px-3 py-2">
                     <StatusBadge status={report.status} />
@@ -486,8 +489,8 @@ export default function TeacherSessionReportsWorkspace() {
           {activeReport && (
             <>
               <div className="space-y-1 text-xs text-gray-600">
-                <div><span className="font-medium text-gray-900">Học sinh:</span> {activeReport.studentName || activeReport.studentProfileId || "N/A"}</div>
-                <div><span className="font-medium text-gray-900">Lớp:</span> {activeReport.className || activeReport.classId || "N/A"}</div>
+                <div><span className="font-medium text-gray-900">Học sinh:</span> {activeReport.studentName || "N/A"}</div>
+                <div><span className="font-medium text-gray-900">Lớp:</span> {activeReport.className || "N/A"}</div>
                 <div><span className="font-medium text-gray-900">Trạng thái:</span> <StatusBadge status={activeReport.status} /></div>
                 {resolveAdminComment(activeReport) ? (
                   <div className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700">

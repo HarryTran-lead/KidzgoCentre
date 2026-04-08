@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
 
@@ -40,6 +40,8 @@ export default function SessionNoteModal({
   const [feedback, setFeedback] = useState(initialFeedback);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
+  const savedFeedbackRef = useRef(initialFeedback);
 
   useEffect(() => {
     setMounted(true);
@@ -48,16 +50,34 @@ export default function SessionNoteModal({
   useEffect(() => {
     if (open) {
       setFeedback(initialFeedback ?? "");
+      savedFeedbackRef.current = initialFeedback ?? "";
       setEnhanceError(null);
+      setShowConfirmClose(false);
     }
   }, [initialFeedback, open]);
+
+  const hasUnsavedChanges = feedback.trim() !== (savedFeedbackRef.current ?? "").trim() && feedback.trim() !== "";
+
+  const handleSafeClose = () => {
+    if (isSubmitting || isSubmittingForReview) return;
+    if (hasUnsavedChanges) {
+      setShowConfirmClose(true);
+      return;
+    }
+    onClose();
+  };
+
+  const handleForceClose = () => {
+    setShowConfirmClose(false);
+    onClose();
+  };
 
   useEffect(() => {
     if (!open) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !isSubmitting && !isSubmittingForReview) {
-        onClose();
+        handleSafeClose();
       }
     };
 
@@ -69,7 +89,7 @@ export default function SessionNoteModal({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isSubmitting, isSubmittingForReview, onClose, open]);
+  }, [isSubmitting, isSubmittingForReview, open, hasUnsavedChanges]);
 
   const actionLabel = useMemo(() => (canEdit ? "Lưu chỉnh sửa" : "Lưu nhận xét"), [canEdit]);
 
@@ -96,7 +116,7 @@ export default function SessionNoteModal({
       role="presentation"
       onClick={() => {
         if (!isSubmitting && !isSubmittingForReview) {
-          onClose();
+          handleSafeClose();
         }
       }}
     >
@@ -118,7 +138,7 @@ export default function SessionNoteModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleSafeClose}
             disabled={isSubmitting || isSubmittingForReview}
             className="cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
             aria-label="Đóng"
@@ -157,7 +177,7 @@ export default function SessionNoteModal({
         <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleSafeClose}
             disabled={isSubmitting || isSubmittingForReview}
             className="cursor-pointer rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -184,6 +204,32 @@ export default function SessionNoteModal({
             </button>
           ) : null}
         </div>
+
+        {/* Confirm close dialog */}
+        {showConfirmClose && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/30">
+            <div className="mx-4 w-full max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+              <h4 className="text-sm font-semibold text-gray-900">Bạn chưa lưu nhận xét</h4>
+              <p className="mt-1 text-sm text-gray-600">Dữ liệu đang nhập sẽ bị mất nếu bạn đóng. Bạn muốn tiếp tục?</p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmClose(false)}
+                  className="cursor-pointer rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Tiếp tục viết
+                </button>
+                <button
+                  type="button"
+                  onClick={handleForceClose}
+                  className="cursor-pointer rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700"
+                >
+                  Đóng không lưu
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body,

@@ -560,8 +560,8 @@ function DetailModal({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InfoRow icon={User} label="Giáo viên" value={request.assignedTeacherName || request.assignedTeacherUserId} />
-            <InfoRow icon={User} label="Người tạo" value={request.requestedByName || request.requestedByUserId} />
+            <InfoRow icon={User} label="Giáo viên" value={request.assignedTeacherName || "—"} />
+            <InfoRow icon={User} label="Người tạo" value={request.requestedByName || "Admin"} />
             {request.targetStudentName && <InfoRow icon={Users} label="Học sinh" value={request.targetStudentName} />}
             {request.targetClassTitle && <InfoRow icon={BookOpen} label="Lớp" value={`${request.targetClassCode ?? ""} ${request.targetClassTitle}`} />}
             {request.month && <InfoRow icon={CalendarClock} label="Tháng/Năm" value={`${request.month}/${request.year}`} />}
@@ -578,8 +578,9 @@ function DetailModal({
           )}
 
           {(request.linkedSessionReportId || request.linkedMonthlyReportId) && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-              Liên kết báo cáo: <code className="font-mono text-xs">{request.linkedSessionReportId || request.linkedMonthlyReportId}</code>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 flex items-center gap-2">
+              <CheckCircle2 size={16} />
+              Báo cáo đã được liên kết
             </div>
           )}
 

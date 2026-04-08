@@ -802,10 +802,10 @@ export default function ReportsTab({
       {/* Edit Modal */}
       {isTeacher && editModalOpen && displayReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-4xl rounded-2xl bg-gradient-to-br from-white to-red-50/30 border border-red-200 shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200 px-6 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">Chỉnh sửa báo cáo tháng</h3>
-              <p className="text-sm text-gray-600 mt-1">
+          <div className="w-full max-w-4xl rounded-2xl bg-white border border-red-200 shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+              <h3 className="text-lg font-semibold text-white">Chỉnh sửa báo cáo tháng</h3>
+              <p className="text-sm text-red-100 mt-1">
                 {displayReport.studentName || displayReport.studentProfileId} •{" "}
                 {displayReport.className || displayReport.classId || "N/A"} • {displayReport.month}/{displayReport.year}
               </p>
@@ -816,57 +816,78 @@ export default function ReportsTab({
                 onChange={(e) => setDraftInput(e.target.value)}
                 rows={16}
                 placeholder="Nhập nội dung báo cáo..."
-                className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
+                className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
               />
             </div>
-            <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4 flex justify-end gap-3">
+            <div className="border-t border-red-200 bg-red-50/50 px-6 py-4 flex items-center justify-between gap-3">
               <button
-                className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
-                onClick={() => setEditModalOpen(false)}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={actionLoading[`${displayReport.id}:generate-draft`]}
+                onClick={() => runAction(displayReport.id, "generate-draft")}
               >
-                Đóng
-              </button>
-              <button
-                className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!canTeacherSubmit(displayReport.status) || actionLoading[`${displayReport.id}:draft`]}
-                onClick={() =>
-                  runAction(displayReport.id, "draft", "PUT", {
-                    draftContent: draftInput || "",
-                  })
-                }
-              >
-                {actionLoading[`${displayReport.id}:draft`] ? (
+                {actionLoading[`${displayReport.id}:generate-draft`] ? (
                   <span className="flex items-center gap-2">
                     <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Đang lưu...
+                    Đang tạo AI...
                   </span>
                 ) : (
-                  "Lưu nháp"
+                  <>
+                    <Zap size={15} />
+                    AI tạo nháp
+                  </>
                 )}
               </button>
-              <button
-                className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={
-                  !canTeacherSubmit(displayReport.status) ||
-                  submitFlowLoading ||
-                  actionLoading[`${displayReport.id}:draft`] ||
-                  actionLoading[`${displayReport.id}:submit`]
-                }
-                onClick={handleSubmitFromModal}
-              >
-                {submitFlowLoading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Đang lưu và submit...
-                  </span>
-                ) : (
-                  isRejectedReport ? "Submit lại" : "Submit"
-                )}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
+                  onClick={() => setEditModalOpen(false)}
+                >
+                  Đóng
+                </button>
+                <button
+                  className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!canTeacherSubmit(displayReport.status) || actionLoading[`${displayReport.id}:draft`]}
+                  onClick={() =>
+                    runAction(displayReport.id, "draft", "PUT", {
+                      draftContent: draftInput || "",
+                    })
+                  }
+                >
+                  {actionLoading[`${displayReport.id}:draft`] ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Đang lưu...
+                    </span>
+                  ) : (
+                    "Lưu nháp"
+                  )}
+                </button>
+                <button
+                  className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={
+                    !canTeacherSubmit(displayReport.status) ||
+                    submitFlowLoading ||
+                    actionLoading[`${displayReport.id}:draft`] ||
+                    actionLoading[`${displayReport.id}:submit`]
+                  }
+                  onClick={handleSubmitFromModal}
+                >
+                  {submitFlowLoading ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Đang lưu và submit...
+                    </span>
+                  ) : (
+                    isRejectedReport ? "Submit lại" : "Submit"
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

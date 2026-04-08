@@ -22,6 +22,7 @@ import {
   GraduationCap,
   Users
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 type SessionReportStatus = "DRAFT" | "REVIEW" | "APPROVED" | "REJECTED" | "PUBLISHED" | string;
 
@@ -605,6 +606,13 @@ export default function SessionReportsReviewWorkspace() {
         }
 
         setMessage(action === "comments" ? "Đã gửi comment cho session report." : `Đã ${action} session report.`);
+        if (action === "approve") {
+          toast.success({ title: "Duyệt thành công", description: "Báo cáo đã được duyệt.", duration: 3000 });
+        } else if (action === "reject") {
+          toast.success({ title: "Từ chối thành công", description: "Báo cáo đã bị từ chối và gửi lại cho giáo viên.", duration: 3000 });
+        } else if (action === "publish") {
+          toast.success({ title: "Xuất bản thành công", description: "Báo cáo đã được xuất bản cho phụ huynh xem.", duration: 3000 });
+        }
         await fetchData();
         try {
           const detail = await apiFetch<Record<string, unknown>>(`/api/session-reports/${reportId}`);
@@ -870,19 +878,18 @@ export default function SessionReportsReviewWorkspace() {
                           </div>
                           <div>
                             <div className="font-medium text-gray-900 text-sm">
-                              {studentNameMap[studentId] || shortId(studentId)}
+                              {studentNameMap[studentId] || "Đang tải..."}
                             </div>
-                            <div className="text-xs text-gray-500">{shortId(studentId)}</div>
                           </div>
                         </div>
                       </td>
                       <td className="py-4 px-6">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <span className="font-medium">{classNameMap[classId] || shortId(classId)}</span>
+                            <span className="font-medium">{classNameMap[classId] || "Đang tải..."}</span>
                           </div>
                           <div className="text-xs text-gray-500">
-                            GV: {teacherNameMap[teacherId] || shortId(teacherId)}
+                            GV: {teacherNameMap[teacherId] || "Đang tải..."}
                           </div>
                         </div>
                       </td>
@@ -1060,10 +1067,7 @@ export default function SessionReportsReviewWorkspace() {
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
                         <div className="font-medium">
-                          {studentNameMap[String(detailReport.studentProfileId ?? "")] || shortId(detailReport.studentProfileId)}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1 font-mono">
-                          ID: {detailReport.studentProfileId}
+                          {studentNameMap[String(detailReport.studentProfileId ?? "")] || "Đang tải..."}
                         </div>
                       </div>
                     </div>
@@ -1076,10 +1080,7 @@ export default function SessionReportsReviewWorkspace() {
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
                         <div className="font-medium">
-                          {classNameMap[String(detailReport.classId ?? "")] || shortId(detailReport.classId)}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1 font-mono">
-                          ID: {detailReport.classId}
+                          {classNameMap[String(detailReport.classId ?? "")] || "Đang tải..."}
                         </div>
                       </div>
                     </div>
@@ -1092,10 +1093,7 @@ export default function SessionReportsReviewWorkspace() {
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
                         <div className="font-medium">
-                          {teacherNameMap[String(detailReport.teacherUserId ?? "")] || shortId(detailReport.teacherUserId)}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1 font-mono">
-                          ID: {detailReport.teacherUserId}
+                          {teacherNameMap[String(detailReport.teacherUserId ?? "")] || "Đang tải..."}
                         </div>
                       </div>
                     </div>
@@ -1107,8 +1105,7 @@ export default function SessionReportsReviewWorkspace() {
                         Buổi học
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white text-gray-900">
-                        <div className="font-mono text-sm">{shortId(detailReport.sessionId)}</div>
-                        <div className="text-xs text-gray-500 mt-1">Mã phiên học</div>
+                        <div className="text-sm">{formatDateTime(detailReport.reportDate || detailReport.createdAt)}</div>
                       </div>
                     </div>
                   </div>

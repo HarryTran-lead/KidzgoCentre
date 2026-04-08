@@ -208,6 +208,27 @@ function normalizeSessionReport(raw: Record<string, unknown>): SessionReport | n
   };
 }
 
+function normalizeMonthlyReport(raw: Record<string, unknown>): MonthlyReport | null {
+  const record = unwrapRecord(raw);
+  const id = pickValue(record, "id", "Id", "reportId", "ReportId");
+  if (!id) return null;
+  return {
+    id,
+    studentProfileId: pickValue(record, "studentProfileId", "StudentProfileId", "studentProfile.id", "student.id"),
+    studentName: pickValue(record, "studentName", "StudentName", "displayName", "studentProfile.displayName", "studentProfile.fullName", "student.displayName", "student.fullName", "student.name"),
+    teacherName: pickValue(record, "teacherName", "TeacherName", "teacher.displayName", "teacher.fullName", "teacher.name", "teacherDisplayName"),
+    className: pickValue(record, "className", "ClassName", "class.name", "class.className", "course.name"),
+    status: pickValue(record, "status", "Status", "reportStatus", "ReportStatus"),
+    month: Number(pickValue(record, "month", "Month")) || undefined,
+    year: Number(pickValue(record, "year", "Year")) || undefined,
+    draftContent: pickValue(record, "draftContent", "DraftContent", "draft_content"),
+    finalContent: pickValue(record, "finalContent", "FinalContent", "final_content"),
+    pdfUrl: pickValue(record, "pdfUrl", "PdfUrl", "pdfURL"),
+    pdfGeneratedAt: pickValue(record, "pdfGeneratedAt", "PdfGeneratedAt"),
+    updatedAt: pickValue(record, "updatedAt", "UpdatedAt"),
+  };
+}
+
 const MOCK_TEST_RESULTS = [
   {
     id: "1",
@@ -679,7 +700,9 @@ export default function TestsPage() {
 
         const root = (payload?.data ?? payload) as ReportPayload;
         const buildPublishedMonthlyReports = (reportPayload: ReportPayload) =>
-          getPaginatedItems<MonthlyReport>(reportPayload, "reports")
+          getPaginatedItems<Record<string, unknown>>(reportPayload as Paginated<Record<string, unknown>>, "reports")
+          .map((raw) => normalizeMonthlyReport(raw))
+          .filter((item): item is MonthlyReport => !!item)
           .filter((item) =>
             item.studentProfileId
               ? activeStudentIdentitySet.has(String(item.studentProfileId).trim())
@@ -949,8 +972,14 @@ export default function TestsPage() {
         throw new Error(payload?.message || "Không thể tải chi tiết báo cáo.");
       }
 
-      const detail = (payload?.data ?? payload) as MonthlyReport;
-      setActiveReport({ ...report, ...detail });
+      const rawDetail = (payload?.data ?? payload) as Record<string, unknown>;
+      const detail = normalizeMonthlyReport(rawDetail) ?? rawDetail as unknown as MonthlyReport;
+      const merged = { ...report, ...detail };
+      // Preserve teacherName from list if detail doesn't provide it
+      if (!merged.teacherName && report.teacherName) {
+        merged.teacherName = report.teacherName;
+      }
+      setActiveReport(merged);
     } catch (error) {
       setDetailError(error instanceof Error ? error.message : "Không thể tải chi tiết báo cáo.");
     } finally {
@@ -1313,8 +1342,8 @@ export default function TestsPage() {
                 <CardContent className="p-3 space-y-3">
                   <div className="space-y-1 text-xs text-gray-600">
                     <div>Học viên: {report.studentName ?? selectedStudentName}</div>
-                    <div>Lớp: {report.className ?? report.classId ?? "—"}</div>
-                    <div>Giáo viên: {report.teacherName ?? report.teacherUserId ?? "—"}</div>
+                    <div>Lớp: {report.className ?? "—"}</div>
+                    <div>Giáo viên: {report.teacherName ?? "—"}</div>
                     <div>Cập nhật: {formatDateTime(report.updatedAt || report.createdAt)}</div>
                   </div>
 
@@ -1453,10 +1482,9 @@ export default function TestsPage() {
               {sessionDetailError && <div className="text-sm text-red-700">{sessionDetailError}</div>}
 
               <div className="text-xs text-gray-600 space-y-1">
-                <div>Session: {activeSessionReport?.sessionId ?? "-"}</div>
-                <div>Class: {activeSessionReport?.className ?? activeSessionReport?.classId ?? "-"}</div>
-                <div>Teacher: {activeSessionReport?.teacherName ?? activeSessionReport?.teacherUserId ?? "-"}</div>
-                <div>Updated: {formatDateTime(activeSessionReport?.updatedAt || activeSessionReport?.createdAt)}</div>
+                <div>Lớp: {activeSessionReport?.className ?? "—"}</div>
+                <div>Giáo viên: {activeSessionReport?.teacherName ?? "—"}</div>
+                <div>Cập nhật: {formatDateTime(activeSessionReport?.updatedAt || activeSessionReport?.createdAt)}</div>
               </div>
 
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
