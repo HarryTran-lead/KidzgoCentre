@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { X, BookOpen, Users, Sparkles, Calendar, Clock, CheckCircle2, AlertCircle, Loader2, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PlacementTest } from "@/types/placement-test";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
@@ -25,6 +25,13 @@ import type {
 import type { Program } from "@/types/admin/programs";
 import CreateRegistrationStep from "@/components/portal/placement-tests/registration-flow/CreateRegistrationStep";
 import SuggestAssignStep from "@/components/portal/placement-tests/registration-flow/SuggestAssignStep";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
@@ -138,6 +145,7 @@ export default function RegistrationFlowModal({
 }: RegistrationFlowModalProps) {
   const { toast } = useToast();
   const childName = (test?.studentName || test?.childName || "").trim();
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const toVietnameseError = (error: unknown, fallback: string) =>
     getDomainErrorMessage(error, fallback);
@@ -245,6 +253,33 @@ export default function RegistrationFlowModal({
     useState("");
   const [manualSecondarySessionPattern, setManualSecondarySessionPattern] =
     useState("");
+
+  // Handle click outside to close
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isOpen && modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (isOpen && event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleEscKey);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscKey);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
 
   const pickClassItems = (payload: any): any[] => {
     if (Array.isArray(payload?.data?.items)) return payload.data.items;
@@ -1040,205 +1075,269 @@ export default function RegistrationFlowModal({
 
   if (!isOpen) return null;
 
-  const stepTabs: Array<{ key: StepKey; label: string }> = [
-    { key: "create", label: "Tạo đăng ký" },
-    { key: "suggest", label: "Gợi ý & xếp lớp" },
+  const stepTabs: Array<{ key: StepKey; label: string; icon: React.ReactNode }> = [
+    { key: "create", label: "Tạo đăng ký", icon: <FilePlus2 size={16} /> },
+    { key: "suggest", label: "Gợi ý & xếp lớp", icon: <Sparkles size={16} /> },
   ];
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 px-2 py-2 md:px-4 md:py-4">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div
-        className="h-[90dvh] overflow-hidden rounded-2xl bg-white shadow-2xl flex flex-col"
-        style={{ width: "96vw", maxWidth: "1150px" }}
+        ref={modalRef}
+        className="h-[90dvh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl flex flex-col transition-all duration-200 animate-in zoom-in-95"
+        style={{ width: "96vw", maxWidth: "1050px" }}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl bg-linear-to-r from-red-700 via-red-600 to-rose-600 px-5 py-3 text-white">
-          <div>
-            <h2 className="text-xl font-bold">Đăng Ký Từ Placement Test</h2>
-            <p className="text-sm text-white/85">
-              Tên học viên: {test?.studentName || test?.childName}
-            </p>
+        {/* Header - Red gradient with icon */}
+        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 text-white">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-white/20 p-2 backdrop-blur-sm">
+              <BookOpen size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Đăng Ký Từ Placement Test</h2>
+              <p className="text-sm text-red-100">
+                Học viên: {test?.studentName || test?.childName || "Chưa có tên"}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 hover:bg-white/15"
+            className="rounded-full p-2 transition-all hover:bg-white/20 active:scale-95 cursor-pointer"
             aria-label="Đóng"
           >
-            <X size={22} />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="h-[calc(100%-76px)] p-3 text-sm">
-          <div className="flex h-full flex-col gap-3">
-            <div className="rounded-2xl border border-red-200 bg-red-50/70 p-1.5">
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                {stepTabs.map((tab) => {
-                  const isActive = tab.key === activeStep;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveStep(tab.key)}
-                      className={`rounded-xl px-3 py-2 text-center text-xs font-semibold transition-colors ${
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="space-y-4">
+            {/* Step tabs - Modern card style */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {stepTabs.map((tab, idx) => {
+                const isActive = tab.key === activeStep;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveStep(tab.key)}
+                    className={`group relative flex items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? "bg-gradient-to-r from-red-50 to-white border-2 border-red-500 shadow-md"
+                        : "border border-gray-200 bg-white hover:border-red-200 hover:shadow-sm"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
                         isActive
-                          ? "bg-linear-to-r from-red-600 to-rose-600 text-white shadow"
-                          : "border border-red-200 bg-white text-red-700 hover:bg-red-50"
+                          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                          : "bg-gray-100 text-gray-500 group-hover:bg-red-100 group-hover:text-red-600"
                       }`}
                     >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
+                      {tab.icon}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+
+                      </div>
+                      <div className="text-base font-bold text-gray-900">{tab.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {tab.key === "create" ? "Nhập thông tin đăng ký học" : "Xem lớp gợi ý và xếp lớp"}
+                      </div>
+                    </div>
+                    {isActive && <ChevronRight size={18} className="text-red-500" />}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="rounded-xl border border-red-200 bg-white px-3 py-2">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Đăng ký đang thao tác (tự lấy từ hệ thống)
-                </label>
-                <select
+            {/* Registration select - Modern card */}
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Users size={16} className="text-red-500" />
+                  <span className="text-sm font-semibold text-gray-700">Đăng ký đang thao tác</span>
+                </div>
+              </div>
+              <div className="p-4">
+                <Select
                   value={registrationId}
-                  onChange={(e) => {
-                    const nextId = e.target.value;
-                    setRegistrationId(nextId);
+                  onValueChange={(val) => {
+                    setRegistrationId(val);
                     if (!test?.studentProfileId) {
                       const selectedRegistration = registrationOptions.find(
-                        (item) => item.id === nextId,
+                        (item) => item.id === val,
                       );
                       setResolvedStudentProfileId(
                         String(selectedRegistration?.studentProfileId || ""),
                       );
                     }
                   }}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                 >
-                  <option value="">Chưa có đăng ký nào cho học viên này</option>
-                  {registrationOptions.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="mt-2 text-[11px] text-gray-500">
-                Các bước thao tác độc lập. Bạn có thể chọn bất kỳ đăng ký đã có
-                trong hệ thống.
+                  <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                    <SelectValue placeholder="Chưa có đăng ký nào cho học viên này" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {registrationOptions.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
+            {/* Warning messages - Modern alerts */}
             {!effectiveStudentProfileId && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Placement test này chưa có Student Profile. Vui lòng dùng chức
-                năng "Tạo tài khoản & Profile" trước khi tạo đăng ký.
+              <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
+                <div className="text-sm text-amber-800">
+                  Placement test này chưa có Student Profile. Vui lòng dùng chức
+                  năng "Tạo tài khoản & Profile" trước khi tạo đăng ký.
+                </div>
               </div>
             )}
 
             {!!test?.studentProfileId && !branchId && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                Không xác định được chi nhánh của tài khoản staff đang đăng
-                nhập. Vui lòng kiểm tra lại hồ sơ tài khoản.
+              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+                <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-600" />
+                <div className="text-sm text-red-700">
+                  Không xác định được chi nhánh của tài khoản staff đang đăng
+                  nhập. Vui lòng kiểm tra lại hồ sơ tài khoản.
+                </div>
               </div>
             )}
 
-            <div className="min-h-0 overflow-y-auto pr-1">
-              {activeStep === "create" && (
-                <CreateRegistrationStep
-                  isBootstrapping={isBootstrapping}
-                  effectiveStudentProfileId={effectiveStudentProfileId}
-                  programId={programId}
-                  setProgramId={setProgramId}
-                  tuitionPlanId={tuitionPlanId}
-                  setTuitionPlanId={setTuitionPlanId}
-                  isSecondaryEnabled={isSecondaryEnabled}
-                  setIsSecondaryEnabled={setIsSecondaryEnabled}
-                  secondaryProgramId={secondaryProgramId}
-                  setSecondaryProgramId={setSecondaryProgramId}
-                  secondaryProgramSkillFocus={secondaryProgramSkillFocus}
-                  setSecondaryProgramSkillFocus={setSecondaryProgramSkillFocus}
-                  expectedStartDate={expectedStartDate}
-                  setExpectedStartDate={setExpectedStartDate}
-                  sessionsPerWeek={sessionsPerWeek}
-                  handleSessionsPerWeekChange={handleSessionsPerWeekChange}
-                  selectedDays={selectedDays}
-                  toggleDay={toggleDay}
-                  selectedTimeSlot={selectedTimeSlot}
-                  setSelectedTimeSlot={setSelectedTimeSlot}
-                  useCustomTime={useCustomTime}
-                  setUseCustomTime={setUseCustomTime}
-                  startTime={startTime}
-                  setStartTime={setStartTime}
-                  endTime={endTime}
-                  setEndTime={setEndTime}
-                  note={note}
-                  setNote={setNote}
-                  handleCreateRegistration={handleCreateRegistration}
-                  canCreate={canCreate}
-                  isCreating={isCreating}
-                  registrationId={registrationId}
-                  programs={programs}
-                  filteredTuitionPlans={filteredTuitionPlans}
-                  secondaryPrograms={secondaryPrograms}
-                  sessionsPerWeekOptions={SESSIONS_PER_WEEK_OPTIONS}
-                  weekDays={WEEK_DAYS}
-                  timeSlots={TIME_SLOTS}
-                />
-              )}
+            {/* Loading state */}
+            {isBootstrapping && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 size={32} className="animate-spin text-red-500" />
+                <p className="mt-3 text-sm text-gray-500">Đang tải dữ liệu...</p>
+              </div>
+            )}
 
-              {activeStep === "suggest" && (
-                <SuggestAssignStep
-                  registrationId={registrationId}
-                  isSuggesting={isSuggesting}
-                  assignViewMode={assignViewMode}
-                  handleSuggestClasses={handleSuggestClasses}
-                  allowManualAssign={allowManualAssign}
-                  handleLoadManualClasses={handleLoadManualClasses}
-                  isLoadingManualClasses={isLoadingManualClasses}
-                  branchId={branchId}
-                  handleMoveToWaitingList={handleMoveToWaitingList}
-                  isWaiting={isWaiting}
-                  suggestedClasses={suggestedClasses}
-                  hasSecondaryTrack={hasSecondaryTrack}
-                  selectedTrack={selectedTrack}
-                  setSelectedTrack={setSelectedTrack}
-                  selectedClassId={selectedClassId}
-                  setSelectedClassId={setSelectedClassId}
-                  activeSuggestedClasses={activeSuggestedClasses}
-                  activeAlternativeClasses={activeAlternativeClasses}
-                  formatSchedulePattern={formatSchedulePattern}
-                  handleAssignClass={handleAssignClass}
-                  isAssigning={isAssigning}
-                  manualClasses={manualClasses}
-                  manualClassOptions={manualClassOptions}
-                  manualPrimaryClassId={manualPrimaryClassId}
-                  setManualPrimaryClassId={setManualPrimaryClassId}
-                  manualSecondaryClassId={manualSecondaryClassId}
-                  setManualSecondaryClassId={setManualSecondaryClassId}
-                  manualPrimaryProgramId={selectedRegistrationProgramId || programId}
-                  manualPrimaryProgramName={selectedRegistrationProgramName}
-                  manualSecondaryProgramId={
-                    selectedRegistrationSecondaryProgramId ||
-                    secondaryProgramId ||
-                    suggestedClasses?.secondaryProgramId ||
-                    ""
-                  }
-                  manualSecondaryProgramName={
-                    selectedRegistrationSecondaryProgramName ||
-                    suggestedClasses?.secondaryProgramName ||
-                    ""
-                  }
-                  preferredSchedule={selectedRegistrationPreferredSchedule}
-                  manualPrimarySessionPattern={manualPrimarySessionPattern}
-                  setManualPrimarySessionPattern={setManualPrimarySessionPattern}
-                  manualSecondarySessionPattern={manualSecondarySessionPattern}
-                  setManualSecondarySessionPattern={setManualSecondarySessionPattern}
-                  handleAssignManualClasses={handleAssignManualClasses}
-                />
-              )}
+            {/* Content area */}
+            {!isBootstrapping && (
+              <div className="min-h-0">
+                {activeStep === "create" && (
+                  <CreateRegistrationStep
+                    isBootstrapping={isBootstrapping}
+                    effectiveStudentProfileId={effectiveStudentProfileId}
+                    programId={programId}
+                    setProgramId={setProgramId}
+                    tuitionPlanId={tuitionPlanId}
+                    setTuitionPlanId={setTuitionPlanId}
+                    isSecondaryEnabled={isSecondaryEnabled}
+                    setIsSecondaryEnabled={setIsSecondaryEnabled}
+                    secondaryProgramId={secondaryProgramId}
+                    setSecondaryProgramId={setSecondaryProgramId}
+                    secondaryProgramSkillFocus={secondaryProgramSkillFocus}
+                    setSecondaryProgramSkillFocus={setSecondaryProgramSkillFocus}
+                    expectedStartDate={expectedStartDate}
+                    setExpectedStartDate={setExpectedStartDate}
+                    sessionsPerWeek={sessionsPerWeek}
+                    handleSessionsPerWeekChange={handleSessionsPerWeekChange}
+                    selectedDays={selectedDays}
+                    toggleDay={toggleDay}
+                    selectedTimeSlot={selectedTimeSlot}
+                    setSelectedTimeSlot={setSelectedTimeSlot}
+                    useCustomTime={useCustomTime}
+                    setUseCustomTime={setUseCustomTime}
+                    startTime={startTime}
+                    setStartTime={setStartTime}
+                    endTime={endTime}
+                    setEndTime={setEndTime}
+                    note={note}
+                    setNote={setNote}
+                    handleCreateRegistration={handleCreateRegistration}
+                    canCreate={canCreate}
+                    isCreating={isCreating}
+                    registrationId={registrationId}
+                    programs={programs}
+                    filteredTuitionPlans={filteredTuitionPlans}
+                    secondaryPrograms={secondaryPrograms}
+                    sessionsPerWeekOptions={SESSIONS_PER_WEEK_OPTIONS}
+                    weekDays={WEEK_DAYS}
+                    timeSlots={TIME_SLOTS}
+                  />
+                )}
 
-            </div>
+                {activeStep === "suggest" && (
+                  <SuggestAssignStep
+                    registrationId={registrationId}
+                    isSuggesting={isSuggesting}
+                    assignViewMode={assignViewMode}
+                    handleSuggestClasses={handleSuggestClasses}
+                    allowManualAssign={allowManualAssign}
+                    handleLoadManualClasses={handleLoadManualClasses}
+                    isLoadingManualClasses={isLoadingManualClasses}
+                    branchId={branchId}
+                    handleMoveToWaitingList={handleMoveToWaitingList}
+                    isWaiting={isWaiting}
+                    suggestedClasses={suggestedClasses}
+                    hasSecondaryTrack={hasSecondaryTrack}
+                    selectedTrack={selectedTrack}
+                    setSelectedTrack={setSelectedTrack}
+                    selectedClassId={selectedClassId}
+                    setSelectedClassId={setSelectedClassId}
+                    activeSuggestedClasses={activeSuggestedClasses}
+                    activeAlternativeClasses={activeAlternativeClasses}
+                    formatSchedulePattern={formatSchedulePattern}
+                    handleAssignClass={handleAssignClass}
+                    isAssigning={isAssigning}
+                    manualClasses={manualClasses}
+                    manualClassOptions={manualClassOptions}
+                    manualPrimaryClassId={manualPrimaryClassId}
+                    setManualPrimaryClassId={setManualPrimaryClassId}
+                    manualSecondaryClassId={manualSecondaryClassId}
+                    setManualSecondaryClassId={setManualSecondaryClassId}
+                    manualPrimaryProgramId={selectedRegistrationProgramId || programId}
+                    manualPrimaryProgramName={selectedRegistrationProgramName}
+                    manualSecondaryProgramId={
+                      selectedRegistrationSecondaryProgramId ||
+                      secondaryProgramId ||
+                      suggestedClasses?.secondaryProgramId ||
+                      ""
+                    }
+                    manualSecondaryProgramName={
+                      selectedRegistrationSecondaryProgramName ||
+                      suggestedClasses?.secondaryProgramName ||
+                      ""
+                    }
+                    preferredSchedule={selectedRegistrationPreferredSchedule}
+                    manualPrimarySessionPattern={manualPrimarySessionPattern}
+                    setManualPrimarySessionPattern={setManualPrimarySessionPattern}
+                    manualSecondarySessionPattern={manualSecondarySessionPattern}
+                    setManualSecondarySessionPattern={setManualSecondarySessionPattern}
+                    handleAssignManualClasses={handleAssignManualClasses}
+                  />
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+// Helper icon component
+const FilePlus2 = ({ size, className }: { size?: number; className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size || 24}
+    height={size || 24}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="12" y1="18" x2="12" y2="12" />
+    <line x1="9" y1="15" x2="15" y2="15" />
+  </svg>
+);

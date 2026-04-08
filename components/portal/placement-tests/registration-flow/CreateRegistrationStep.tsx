@@ -1,5 +1,6 @@
 import { Clock3, Loader2, School, Sparkles, CheckCircle2 } from "lucide-react";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
+import { SelectContent, Select, SelectTrigger, SelectValue, SelectItem } from "@/components/lightswind/select";
 
 type ProgramOption = {
   id: string;
@@ -142,34 +143,34 @@ export default function CreateRegistrationStep({
 
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-gray-700">Chương trình chính</label>
-                  <select
-                    value={programId}
-                    onChange={(e) => setProgramId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                  >
-                    <option value="">Chọn chương trình</option>
-                    {programs.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={programId} onValueChange={(val) => setProgramId(val)}>
+                    <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200">
+                      <SelectValue placeholder="Chọn chương trình" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programs.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-gray-700">Gói học</label>
-                  <select
-                    value={tuitionPlanId}
-                    onChange={(e) => setTuitionPlanId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                  >
-                    <option value="">Chọn gói học</option>
-                    {filteredTuitionPlans.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.totalSessions} buổi)
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={tuitionPlanId} onValueChange={(val) => setTuitionPlanId(val)}>
+                    <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200">
+                      <SelectValue placeholder="Chọn gói học" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredTuitionPlans.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} ({p.totalSessions} buổi)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1">
@@ -253,7 +254,7 @@ export default function CreateRegistrationStep({
                         key={option.value}
                         type="button"
                         onClick={() => handleSessionsPerWeekChange(option.value)}
-                        className={`flex-1 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors ${
+                        className={`flex-1 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors cursor-pointer ${
                           sessionsPerWeek === option.value
                             ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
                             : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
@@ -280,7 +281,7 @@ export default function CreateRegistrationStep({
                           type="button"
                           onClick={() => toggleDay(day.value)}
                           disabled={isDisabled}
-                          className={`rounded-xl border p-1.5 text-center transition-colors ${
+                          className={`rounded-xl border p-1.5 text-center transition-colors cursor-pointer ${
                             isSelected
                               ? "border-red-500 bg-red-100 text-red-700"
                               : isDisabled
@@ -304,7 +305,7 @@ export default function CreateRegistrationStep({
                     <button
                       type="button"
                       onClick={() => setUseCustomTime(!useCustomTime)}
-                      className="text-xs font-semibold text-red-600 hover:text-red-700"
+                      className="text-xs font-semibold text-red-600 hover:text-red-700 cursor-pointer"
                     >
                       {useCustomTime ? "Chọn khung giờ mẫu" : "Nhập giờ tùy chỉnh"}
                     </button>
@@ -317,7 +318,7 @@ export default function CreateRegistrationStep({
                           key={slot.value}
                           type="button"
                           onClick={() => setSelectedTimeSlot(slot.value)}
-                          className={`rounded-xl border px-2 py-1.5 text-center transition-colors ${
+                          className={`rounded-xl border px-2 py-1.5 text-center transition-colors cursor-pointer ${
                             selectedTimeSlot === slot.value
                               ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
                               : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
@@ -360,7 +361,7 @@ export default function CreateRegistrationStep({
               type="button"
               onClick={handleCreateRegistration}
               disabled={!canCreate || isCreating || isBootstrapping}
-              className="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-8 py-2.5 text-sm font-bold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-60 transition-all hover:opacity-90"
+              className="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-rose-600 cursor-pointer px-8 py-2.5 text-sm font-bold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-60 transition-all hover:opacity-90"
             >
               {isCreating ? <Loader2 size={16} className="animate-spin" /> : null}
               Tạo đăng ký

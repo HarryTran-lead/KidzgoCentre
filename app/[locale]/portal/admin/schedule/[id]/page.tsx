@@ -149,69 +149,71 @@ function Pagination({
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-t border-red-200 bg-white">
-      <div className="text-sm text-gray-600">
-        Hiển thị{" "}
-        <span className="font-semibold text-gray-900">{startItem}</span> -{" "}
-        <span className="font-semibold text-gray-900">{endItem}</span>{" "}
-        trong tổng số{" "}
-        <span className="font-semibold text-gray-900">{totalItems}</span> học
-        viên
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className={`p-2 rounded-lg border transition-all ${
-            currentPage === 1
-              ? "border-gray-200 text-gray-400 cursor-not-allowed"
-              : "border-red-200 text-gray-700 hover:bg-red-50 hover:border-red-300 cursor-pointer"
-          }`}
-        >
-          <ChevronLeft size={18} />
-        </button>
-
-        <div className="flex items-center gap-1">
-          {getPageNumbers().map((page, index) => {
-            if (page === "...") {
-              return (
-                <span
-                  key={`ellipsis-${index}`}
-                  className="px-2 text-gray-400"
-                >
-                  ...
-                </span>
-              );
-            }
-
-            return (
-              <button
-                key={page}
-                onClick={() => onPageChange(page as number)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                  currentPage === page
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                    : "text-gray-700 hover:bg-red-50 border border-red-200"
-                }`}
-              >
-                {page}
-              </button>
-            );
-          })}
+    <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="text-sm text-gray-600">
+          Hiển thị{" "}
+          <span className="font-semibold text-gray-900">{startItem}</span> -{" "}
+          <span className="font-semibold text-gray-900">{endItem}</span>{" "}
+          trong tổng số{" "}
+          <span className="font-semibold text-gray-900">{totalItems}</span> học
+          viên
         </div>
 
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className={`p-2 rounded-lg border transition-all ${
-            currentPage === totalPages
-              ? "border-gray-200 text-gray-400 cursor-not-allowed"
-              : "border-red-200 text-gray-700 hover:bg-red-50 hover:border-red-300 cursor-pointer"
-          }`}
-        >
-          <ChevronRight size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`p-2 rounded-lg border transition-all ${
+              currentPage === 1
+                ? "border-gray-200 text-gray-400 cursor-not-allowed"
+                : "border-red-200 text-gray-700 hover:bg-red-50 hover:border-red-300 cursor-pointer"
+            }`}
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          <div className="flex items-center gap-1">
+            {getPageNumbers().map((page, index) => {
+              if (page === "...") {
+                return (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className="px-2 text-gray-400"
+                  >
+                    ...
+                  </span>
+                );
+              }
+
+              return (
+                <button
+                  key={page}
+                  onClick={() => onPageChange(page as number)}
+                  className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                    currentPage === page
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                      : "border border-red-200 hover:bg-red-50 text-gray-700"
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`p-2 rounded-lg border transition-all ${
+              currentPage === totalPages
+                ? "border-gray-200 text-gray-400 cursor-not-allowed"
+                : "border-red-200 text-gray-700 hover:bg-red-50 hover:border-red-300 cursor-pointer"
+            }`}
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -405,7 +407,6 @@ export default function AdminLessonDetailPage() {
               <BookOpen size={22} />
             </div>
             <div>
-              <div className="text-sm text-gray-600">{lesson.course}</div>
               <h1 className="text-2xl font-bold text-gray-900">
                 {lesson.lesson}
               </h1>
@@ -426,16 +427,6 @@ export default function AdminLessonDetailPage() {
                 </span>
               </div>
               <div className="flex flex-wrap gap-2 mt-2">
-                {lesson.status && (
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    {lesson.status}
-                  </span>
-                )}
-                {lesson.participationType && (
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-                    {lesson.participationType}
-                  </span>
-                )}
                 {lesson.branch && (
                   <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
                     {lesson.branch}
@@ -471,74 +462,80 @@ export default function AdminLessonDetailPage() {
       </div>
 
       {/* Attendance list - read-only */}
-      <div className={`bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 rounded-2xl border border-red-200 overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="p-5 border-b border-red-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Danh sách học viên</h2>
-            <p className="text-sm text-gray-600">
-              {totalStudentsCount
-                ? `${checkedCount} / ${totalStudentsCount} học viên đã được điểm danh`
-                : "Chưa có dữ liệu điểm danh"}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 justify-end">
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm kiếm học viên..."
-                className="pl-10 pr-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition text-sm"
-              />
+      <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {/* Table Header */}
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Danh sách học viên</h2>
+              <p className="text-sm text-gray-600">
+                {totalStudentsCount
+                  ? `${checkedCount} / ${totalStudentsCount} học viên đã được điểm danh`
+                  : "Chưa có dữ liệu điểm danh"}
+              </p>
             </div>
-            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 text-green-700 border border-green-200 text-sm font-semibold">
-              <CheckCircle size={16} />
-              Chế độ xem (Admin) – không chỉnh sửa điểm danh
-            </span>
+
+            <div className="flex flex-wrap items-center gap-3 justify-end">
+              <div className="relative">
+                <Search
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Tìm kiếm học viên..."
+                  className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition text-sm placeholder:text-gray-400"
+                />
+              </div>
+              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 text-green-700 border border-green-200 text-sm font-semibold">
+                <CheckCircle size={16} />
+                Chế độ xem (Admin) – không chỉnh sửa điểm danh
+              </span>
+            </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead>
-              <tr className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
+              <tr>
+                <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">
                   Học viên
                 </th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                <th className="py-3 px-6 text-center text-sm font-semibold tracking-wide text-gray-700">
                   Đã vắng
                 </th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                <th className="py-3 px-6 text-center text-sm font-semibold tracking-wide text-gray-700">
                   Trạng thái
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">
                   Ghi chú
                 </th>
               </tr>
             </thead>
-            <tbody>
+
+            <tbody className="divide-y divide-gray-100">
               {paginatedStudents.length === 0 ? (
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-6 py-6 text-center text-gray-500"
+                    className="py-12 text-center"
                   >
-                    Chưa có danh sách học viên cho buổi dạy này.
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                      <Users size={24} className="text-gray-400" />
+                    </div>
+                    <div className="text-gray-600 font-medium">Chưa có danh sách học viên</div>
+                    <div className="text-sm text-gray-500 mt-1">Dữ liệu điểm danh cho buổi dạy này chưa được cập nhật.</div>
                   </td>
                 </tr>
               ) : (
-                paginatedStudents.map((student, idx) => (
+                paginatedStudents.map((student) => (
                   <tr
                     key={student.id}
-                    className={`border-b border-red-100 transition hover:bg-red-50/50 ${
-                      idx % 2 === 0 ? "bg-white" : "bg-red-50/30"
-                    }`}
+                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
-                    <td className="px-6 py-4">
+                    <td className="py-3 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-600 to-red-700 text-white flex items-center justify-center font-bold text-sm">
                           {student.studentName
@@ -549,20 +546,17 @@ export default function AdminLessonDetailPage() {
                             .join("")
                             .toUpperCase() || "HV"}
                         </div>
-                        <div>
-                          <div className="font-semibold text-gray-900">
-                            {student.studentName}
-                          </div>
-
+                        <div className="font-semibold text-gray-900">
+                          {student.studentName}
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="py-3 px-6 text-center">
                       <div className="flex items-center justify-center">
                         <AbsencePie value={student.absenceRate} />
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="py-3 px-6 text-center">
                       {student.status ? (
                         <StatusBadge status={student.status} />
                       ) : (
@@ -571,7 +565,7 @@ export default function AdminLessonDetailPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
+                    <td className="py-3 px-6 text-sm text-gray-700">
                       {student.note || (
                         <span className="text-gray-400">Không có ghi chú</span>
                       )}
@@ -597,4 +591,3 @@ export default function AdminLessonDetailPage() {
     </div>
   );
 }
-

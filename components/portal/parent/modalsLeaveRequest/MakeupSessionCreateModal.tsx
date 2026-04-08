@@ -106,6 +106,10 @@ const deriveTimeOfDay = (time: string) => {
   return "Evening";
 };
 
+function cn(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(" ");
+}
+
 function Banner({ kind, text }: { kind: "error" | "success"; text: string }) {
   const cls =
     kind === "error"
@@ -1057,51 +1061,54 @@ export default function MakeupSessionCreateModal({
   })();
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-red-200 overflow-hidden">
-        {/* header */}
-        <div className="p-6 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        {/* header - gradient đỏ */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white">
-                <Clock size={20} />
+              <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm">
+                <Clock size={20} className="text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-white">
                   {isChangeMode ? "Thay đổi lịch xếp học bù" : "Tạo lịch học bù"}
                 </h2>
-                <div className="text-sm text-gray-600">
+                <p className="text-sm text-red-100">
                   Bước {step}/3 • Chọn buổi nghỉ • Chọn buổi bù • Xác nhận
-                </div>
+                </p>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl border border-red-300 bg-white text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
               aria-label="Đóng"
             >
-              <X size={20} />
+              <X size={24} className="text-white" />
             </button>
           </div>
         </div>
 
         {/* body */}
-        <div className="p-6 space-y-6 bg-gradient-to-b from-white to-red-50/20">
+        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
           {error && <Banner kind="error" text={error} />}
 
           {step === 1 && (
             <div className="space-y-6">
               <div className="space-y-3">
-                <div className="text-sm font-semibold text-gray-800">Bước 1 • Chọn học viên</div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">1</div>
+                  <span>Chọn học viên</span>
+                </div>
                 {lockedStudentProfileId ? (
-                  <div className="flex h-11 items-center rounded-xl border border-red-300 bg-white px-4 text-sm font-medium text-gray-800">
+                  <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-medium text-gray-800">
                     {selectedStudentName || "Học viên đã chọn"}
                   </div>
                 ) : (
                   <div className="relative">
                     <select
-                      className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer"
+                      className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 cursor-pointer"
                       value={payload.studentProfileId}
                       onChange={(e) => {
                         const id = e.target.value;
@@ -1139,15 +1146,18 @@ export default function MakeupSessionCreateModal({
               </div>
 
               <div className="space-y-3">
-                <div className="text-sm font-semibold text-gray-800">Bước 1 • Chọn buổi nghỉ cần xếp học bù</div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">2</div>
+                  <span>Chọn buổi nghỉ cần xếp học bù</span>
+                </div>
                 {isChangeMode ? (
-                  <div className="rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
                     {selectedCreditLabel || "Đang tải thông tin buổi nghỉ..."}
                   </div>
                 ) : (
                 <div className="relative">
                   <select
-                    className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
+                    className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 disabled:opacity-60 cursor-pointer"
                     value={payload.makeupCreditId}
                     disabled={!payload.studentProfileId || creditsLoading}
                     onChange={(e) => {
@@ -1185,15 +1195,10 @@ export default function MakeupSessionCreateModal({
                       <ChevronDown size={16} />
                     )}
                   </div>
-                  {/*
-                      NgÃ y vÃ  giá» sáº½ tá»± cáº­p nháº­t sau khi báº¡n chá»n buá»•i há»c bÃ¹.
-                    </div>
-                  ) : null}
-                  */}
                 </div>
                 )}
 
-                <div className="p-3 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 text-sm text-gray-700">
+                <div className="p-3 rounded-xl border border-blue-200 bg-blue-50 text-sm text-gray-700">
                   {payload.makeupCreditId
                     ? selectedCreditSummary
                       ? [
@@ -1226,15 +1231,18 @@ export default function MakeupSessionCreateModal({
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <div className="text-sm font-semibold text-gray-800">Bước 2 • Chọn lớp bù</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                    <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">3</div>
+                    <span>Chọn lớp bù</span>
+                  </div>
                   {lockedTargetClassId ? (
-                    <div className="rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
                       {lockedTargetClassLabel || classOptionsToShow[0]?.label || lockedTargetClassId}
                     </div>
                   ) : (
                     <div className="relative">
                       <select
-                        className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
+                        className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 disabled:opacity-60 cursor-pointer"
                         value={payload.targetClassId}
                         disabled={!payload.makeupCreditId || isClassLoading}
                         onChange={(e) =>
@@ -1289,10 +1297,13 @@ export default function MakeupSessionCreateModal({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-sm font-semibold text-gray-800">Bước 2 • Chọn buổi bù</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                    <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">4</div>
+                    <span>Chọn buổi bù</span>
+                  </div>
                   <div className="relative">
                     <select
-                      className="h-11 w-full appearance-none rounded-xl border border-red-300 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:opacity-60 cursor-pointer"
+                      className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 disabled:opacity-60 cursor-pointer"
                       value={payload.targetSessionId}
                       disabled={!payload.targetClassId || isSessionsLoading}
                       onChange={(e) => {
@@ -1369,7 +1380,7 @@ export default function MakeupSessionCreateModal({
                     <Calendar size={16} className="text-red-600" />
                     Ngày học bù
                   </div>
-                  <div className="flex h-11 items-center rounded-xl border border-red-300 bg-gray-50 px-4 text-sm text-gray-700">
+                  <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-700">
                     {payload.date ? formatDateVN(payload.date) : "Chọn buổi bù để xem ngày học"}
                   </div>
                 </div>
@@ -1379,7 +1390,7 @@ export default function MakeupSessionCreateModal({
                     <Clock size={16} className="text-red-600" />
                     Giờ học bù
                   </div>
-                  <div className="flex h-11 items-center rounded-xl border border-red-300 bg-gray-50 px-4 text-sm text-gray-700">
+                  <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-700">
                     {payload.time || "Chọn buổi bù để xem giờ học"}
                   </div>
                 </div>
@@ -1410,28 +1421,28 @@ export default function MakeupSessionCreateModal({
 
           {step === 3 && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-red-200 bg-white p-4 space-y-2 text-sm text-gray-700">
-                <div className="font-semibold text-gray-900">Xác nhận lịch bù</div>
-                <div>
-                  Học viên: <b>{selectedStudentName || "?"}</b>
-                </div>
-                <div>
-                  Buổi nghỉ đã duyệt: <b>{selectedCreditLabel || "?"}</b>
-                </div>
-                <div>
-                  Lớp nguồn: <b>{sourceClassDisplay(sourceSession) || "?"}</b>
-                </div>
-                <div>
-                  Lớp bù: <b>{selectedTargetClassLabel || "?"}</b>
-                </div>
-                <div>
-                  Buổi bù: <b>{selectedTargetSessionLabel || "?"}</b>
-                </div>
-                <div>
-                  Ngày/Giờ:{" "}
-                  <b>
-                    {payload.date || "?"} {payload.time || ""}
-                  </b>
+              <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2 text-sm text-gray-700">
+                <div className="font-semibold text-gray-900 text-base mb-2">Xác nhận lịch bù</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-gray-500">Học viên:</div>
+                  <div className="font-medium">{selectedStudentName || "?"}</div>
+                  
+                  <div className="text-gray-500">Buổi nghỉ đã duyệt:</div>
+                  <div className="font-medium break-words">{selectedCreditLabel || "?"}</div>
+                  
+                  <div className="text-gray-500">Lớp nguồn:</div>
+                  <div className="font-medium">{sourceClassDisplay(sourceSession) || "?"}</div>
+                  
+                  <div className="text-gray-500">Lớp bù:</div>
+                  <div className="font-medium">{selectedTargetClassLabel || "?"}</div>
+                  
+                  <div className="text-gray-500">Buổi bù:</div>
+                  <div className="font-medium break-words">{selectedTargetSessionLabel || "?"}</div>
+                  
+                  <div className="text-gray-500">Ngày/Giờ:</div>
+                  <div className="font-medium">
+                    {payload.date ? formatDateVN(payload.date) : "?"} {payload.time || ""}
+                  </div>
                 </div>
               </div>
 
@@ -1439,7 +1450,7 @@ export default function MakeupSessionCreateModal({
                 <div className="text-sm font-semibold text-gray-800">Ghi chú (tuỳ chọn)</div>
                 <textarea
                   rows={3}
-                  className="w-full rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 cursor-text"
                   value={payload.note ?? ""}
                   onChange={(e) => setPayload((p) => ({ ...p, note: e.target.value }))}
                   placeholder="Nhập ghi chú..."
@@ -1449,7 +1460,7 @@ export default function MakeupSessionCreateModal({
           )}
 
           {/* footer */}
-          <div className="pt-4 border-t border-red-200 flex items-center justify-end gap-3">
+          <div className="pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
             {step > (isChangeMode ? 2 : 1) && (
               <button
                 onClick={() =>
@@ -1461,7 +1472,7 @@ export default function MakeupSessionCreateModal({
                   })
                 }
                 disabled={submitting}
-                className="px-5 py-2.5 rounded-xl border border-red-300 bg-white text-gray-700 font-medium hover:bg-red-50 transition-all disabled:opacity-60 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-all disabled:opacity-60 cursor-pointer"
               >
                 Quay lại
               </button>
@@ -1470,7 +1481,7 @@ export default function MakeupSessionCreateModal({
             <button
               onClick={onClose}
               disabled={submitting}
-              className="px-5 py-2.5 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 text-gray-700 font-medium hover:bg-red-50 transition-all disabled:opacity-60 cursor-pointer"
+              className="px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-all disabled:opacity-60 cursor-pointer"
             >
               Huỷ
             </button>
@@ -1479,7 +1490,7 @@ export default function MakeupSessionCreateModal({
               <button
                 onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as 1 | 2 | 3)))}
                 disabled={(step === 1 && !canGoStep2) || (step === 2 && !canGoStep3)}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all disabled:opacity-70 cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-70 cursor-pointer"
               >
                 Tiếp tục
               </button>
@@ -1487,7 +1498,7 @@ export default function MakeupSessionCreateModal({
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit || submitting}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all disabled:opacity-70 cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-70 cursor-pointer"
               >
                 {submitting ? (
                   <>
@@ -1505,7 +1516,7 @@ export default function MakeupSessionCreateModal({
           </div>
 
           {step === 2 && (
-            <div className="text-xs text-gray-500 p-3 rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-red-100/30">
+            <div className="text-xs text-gray-500 p-3 rounded-lg border border-blue-200 bg-blue-50">
               Chọn <b>lớp bù</b> trước, sau đó chọn <b>buổi bù</b>. Hệ thống sẽ tự điền
               <b> ngày</b> và <b>giờ</b> theo buổi bạn đã chọn.
             </div>

@@ -106,7 +106,7 @@ export default function PlacementTestFilters({
               type="date"
               value={toDate}
               onChange={(e) => onToDateChange(e.target.value)}
-              className="text-sm text-gray-700 outline-none"
+              className="text-sm text-gray-700 outline-none "
             />
           </div>
         </div>
@@ -118,7 +118,7 @@ export default function PlacementTestFilters({
             <button
               key={option.value}
               onClick={() => onStatusChange(option.value)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${
                 selectedStatus === option.value
                   ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-sm"
                   : "text-gray-700 hover:bg-gray-100"

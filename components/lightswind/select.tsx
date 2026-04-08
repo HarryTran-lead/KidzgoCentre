@@ -538,7 +538,7 @@ const SelectItem = React.forwardRef<HTMLDivElement, SelectItemProps>(
       e.preventDefault();
       e.stopPropagation();
       onValueChange(value);
-      setTimeout(() => setOpen(false), 50); // Small delay to show selection
+      setOpen(false);
     };
 
     return (
@@ -552,6 +552,10 @@ const SelectItem = React.forwardRef<HTMLDivElement, SelectItemProps>(
           disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
           className
         )}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
         onClick={handleSelect}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
