@@ -38,7 +38,7 @@ export default function UpgradeRegistrationStep({
     <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-3">
       <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
         <Rocket size={18} className="text-red-600" />
-        Học vụ phát sinh (cập nhật trên cùng đăng ký)
+        Học vụ phát sinh
       </div>
 
       <div className="mb-3 rounded-xl border border-red-100 bg-white/90 p-3">

@@ -498,7 +498,7 @@ export default function ResultFormModal({
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  Đề xuất chương trình song song / secondary
+                  Đề xuất chương trình song song (nếu có)
                 </label>
                 <Select
                   value={formData.secondaryProgramRecommendationId}
@@ -524,7 +524,7 @@ export default function ResultFormModal({
                           ? "Đang tải chương trình..."
                           : !branchId
                             ? "Không xác định chi nhánh"
-                            : "Chọn chương trình secondary"
+                            : "Chọn chương trình song song"
                       }
                     />
                   </SelectTrigger>

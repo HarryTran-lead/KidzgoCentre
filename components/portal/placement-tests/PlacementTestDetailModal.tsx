@@ -206,9 +206,6 @@ export default function PlacementTestDetailModal({
                       <p className="text-lg font-semibold text-red-700">
                         {test.programRecommendationName || test.programRecommendationId || 'N/A'}
                       </p>
-                      {test.programRecommendationId && (
-                        <p className="text-xs text-gray-400 mt-0.5">ID: {test.programRecommendationId}</p>
-                      )}
                     </div>
                   )}
 
@@ -227,7 +224,7 @@ export default function PlacementTestDetailModal({
                             ? "bg-red-100 text-red-700"
                             : "bg-gray-100 text-gray-700"
                         }`}>
-                          {test.isSecondaryProgramSupplementary ? "Bổ trợ" : "Chính"}
+                          {test.isSecondaryProgramSupplementary ? "Bổ trợ" : "Phụ trợ"}
                         </span>
                         {test.secondaryProgramSkillFocus && (
                           <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
@@ -235,9 +232,6 @@ export default function PlacementTestDetailModal({
                           </span>
                         )}
                       </div>
-                      {test.secondaryProgramRecommendationId && (
-                        <p className="text-xs text-gray-400 mt-1">ID: {test.secondaryProgramRecommendationId}</p>
-                      )}
                     </div>
                   )}
 

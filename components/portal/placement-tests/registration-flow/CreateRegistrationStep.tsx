@@ -28,6 +28,7 @@ interface CreateRegistrationStepProps {
   setTuitionPlanId: (value: string) => void;
   isSecondaryEnabled: boolean;
   setIsSecondaryEnabled: (value: boolean) => void;
+  secondaryAllowed: boolean;
   secondaryProgramId: string;
   setSecondaryProgramId: (value: string) => void;
   secondaryProgramSkillFocus: string;
@@ -69,6 +70,7 @@ export default function CreateRegistrationStep({
   setTuitionPlanId,
   isSecondaryEnabled,
   setIsSecondaryEnabled,
+  secondaryAllowed,
   secondaryProgramId,
   setSecondaryProgramId,
   secondaryProgramSkillFocus,
@@ -92,7 +94,6 @@ export default function CreateRegistrationStep({
   handleCreateRegistration,
   canCreate,
   isCreating,
-  registrationId,
   programs,
   filteredTuitionPlans,
   secondaryPrograms,
@@ -123,10 +124,9 @@ export default function CreateRegistrationStep({
             className="flex-1 overflow-y-auto pr-1 mb-4"
             style={{ 
               display: "grid", 
-              // Đã đổi thành 2 cột: Cột form (1 phần) và Cột Lịch (1.1 phần cho rộng rãi)
               gridTemplateColumns: "1fr 1.1fr", 
               gap: "16px",
-              alignItems: "start" // Đổi thành start để 2 bên không bị kéo giãn chiều cao ép bằng nhau
+              alignItems: "start"
             }}
           >
             {/* CỘT 1: Form Inputs */}
@@ -183,19 +183,21 @@ export default function CreateRegistrationStep({
                   />
                 </div>
 
-                <div className="space-y-1 mt-1">
-                  <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={isSecondaryEnabled}
-                      onChange={(e) => setIsSecondaryEnabled(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                    />
-                    Đăng ký chương trình song song
-                  </label>
-                </div>
+                {secondaryAllowed && (
+                  <div className="space-y-1 mt-1">
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={isSecondaryEnabled}
+                        onChange={(e) => setIsSecondaryEnabled(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      Đăng ký chương trình song song
+                    </label>
+                  </div>
+                )}
 
-                {isSecondaryEnabled && (
+                {secondaryAllowed && isSecondaryEnabled && (
                   <>
                     <div className="space-y-1">
                       <label className="text-sm font-medium text-gray-700">Chương trình song song</label>
