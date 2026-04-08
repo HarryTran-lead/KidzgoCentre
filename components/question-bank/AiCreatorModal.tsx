@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Brain,
   Loader2,
@@ -15,6 +16,7 @@ import {
   createAdminQuestion,
   generateAiQuestionDrafts,
   type AiGenerateQuestionResult,
+  type AiGeneratedQuestionDraft,
 } from "@/app/api/admin/question-bank";
 
 type CourseOption = {
@@ -22,22 +24,31 @@ type CourseOption = {
   name: string;
 };
 
+type QuestionType = "MultipleChoice" | "TextInput";
+type DifficultyLevel = "Easy" | "Medium" | "Hard";
+type TaskStyle = "standard" | "translation";
+
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   courseOptions: CourseOption[];
   loadingCourses: boolean;
   onSaved?: (count: number) => void;
+  onUseDrafts?: (
+    items: AiGeneratedQuestionDraft[]
+  ) => void | number | Promise<void | number>;
+  useDraftsLabel?: string;
+  allowedQuestionTypes?: QuestionType[];
 };
 
 type FormState = {
   programId: string;
   topic: string;
-  questionType: "MultipleChoice" | "TextInput";
+  questionType: QuestionType;
   questionCount: string;
-  level: "Easy" | "Medium" | "Hard";
+  level: DifficultyLevel;
   skill: string;
-  taskStyle: "standard" | "translation";
+  taskStyle: TaskStyle;
   grammarTags: string;
   vocabularyTags: string;
   instructions: string;
@@ -45,10 +56,9 @@ type FormState = {
   pointsPerQuestion: string;
 };
 
-const initialFormState: FormState = {
+const DEFAULT_FORM_STATE: Omit<FormState, "questionType"> = {
   programId: "",
   topic: "",
-  questionType: "MultipleChoice",
   questionCount: "5",
   level: "Medium",
   skill: "",
@@ -60,11 +70,59 @@ const initialFormState: FormState = {
   pointsPerQuestion: "1",
 };
 
+const DEFAULT_QUESTION_TYPES: QuestionType[] = [
+  "MultipleChoice",
+  "TextInput",
+];
+
+const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
+  MultipleChoice: "Trắc nghiệm",
+  TextInput: "Nhập văn bản",
+};
+
+const LEVEL_LABELS: Record<DifficultyLevel, string> = {
+  Easy: "Dễ",
+  Medium: "Trung bình",
+  Hard: "Khó",
+};
+
+const TASK_STYLE_LABELS: Record<TaskStyle, string> = {
+  standard: "Tiêu chuẩn",
+  translation: "Dịch thuật",
+};
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  vi: "Tiếng Việt",
+  en: "Tiếng Anh",
+};
+
+function createInitialFormState(questionType: QuestionType): FormState {
+  return {
+    ...DEFAULT_FORM_STATE,
+    questionType,
+  };
+}
+
 function parseTags(value: string) {
   return value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function mapDraftToQuestionBankPayload(
+  item: AiGeneratedQuestionDraft,
+  fallbackLevel: DifficultyLevel
+) {
+  return {
+    questionText: item.questionText,
+    questionType: item.questionType,
+    options: item.questionType === "MultipleChoice" ? item.options : [],
+    correctAnswer: item.correctAnswer,
+    points: item.points,
+    explanation: item.explanation || undefined,
+    level: item.level || fallbackLevel,
+  };
 }
 
 export default function AiCreatorModal({
@@ -73,12 +131,28 @@ export default function AiCreatorModal({
   courseOptions,
   loadingCourses,
   onSaved,
+  onUseDrafts,
+  useDraftsLabel,
+  allowedQuestionTypes,
 }: Props) {
   const modalRef = useRef<HTMLDivElement>(null);
-  const [form, setForm] = useState<FormState>(initialFormState);
+  const availableQuestionTypes = useMemo(() => {
+    const normalized = (allowedQuestionTypes || DEFAULT_QUESTION_TYPES).filter(
+      (value, index, items) =>
+        DEFAULT_QUESTION_TYPES.includes(value) && items.indexOf(value) === index
+    );
+
+    return normalized.length > 0 ? normalized : DEFAULT_QUESTION_TYPES;
+  }, [allowedQuestionTypes]);
+  const defaultQuestionType = availableQuestionTypes[0] || "MultipleChoice";
+  const isAssignmentMode = Boolean(onUseDrafts);
+
+  const [form, setForm] = useState<FormState>(() =>
+    createInitialFormState(defaultQuestionType)
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<AiGenerateQuestionResult | null>(null);
 
   useEffect(() => {
@@ -101,14 +175,18 @@ export default function AiCreatorModal({
   }, [isOpen, onClose]);
 
   useEffect(() => {
-    if (isOpen) {
-      setForm(initialFormState);
-      setErrors({});
-      setResult(null);
+    if (!isOpen) {
+      return;
     }
-  }, [isOpen]);
 
-  const canSave = useMemo(
+    setForm(createInitialFormState(defaultQuestionType));
+    setErrors({});
+    setResult(null);
+    setLoading(false);
+    setSubmitting(false);
+  }, [defaultQuestionType, isOpen]);
+
+  const canSubmitDrafts = useMemo(
     () => Boolean(form.programId && result?.items && result.items.length > 0),
     [form.programId, result]
   );
@@ -121,20 +199,26 @@ export default function AiCreatorModal({
     const nextErrors: Record<string, string> = {};
 
     if (!form.programId) {
-      nextErrors.programId = "Chon khoa hoc.";
+      nextErrors.programId = "Vui lòng chọn khóa học.";
     }
+
     if (!form.topic.trim()) {
-      nextErrors.topic = "Topic la bat buoc.";
+      nextErrors.topic = "Vui lòng nhập chủ đề.";
     }
 
     const questionCount = Number(form.questionCount);
-    if (!Number.isFinite(questionCount) || questionCount < 1 || questionCount > 10) {
-      nextErrors.questionCount = "So luong cau hoi phai trong khoang 1-10.";
+    if (
+      !Number.isFinite(questionCount) ||
+      questionCount < 1 ||
+      questionCount > 10
+    ) {
+      nextErrors.questionCount =
+        "Số lượng câu hỏi phải trong khoảng từ 1 đến 10.";
     }
 
     const pointsPerQuestion = Number(form.pointsPerQuestion);
     if (!Number.isFinite(pointsPerQuestion) || pointsPerQuestion <= 0) {
-      nextErrors.pointsPerQuestion = "Diem moi cau phai lon hon 0.";
+      nextErrors.pointsPerQuestion = "Điểm mỗi câu phải lớn hơn 0.";
     }
 
     setErrors(nextErrors);
@@ -147,6 +231,7 @@ export default function AiCreatorModal({
       if (!prev[key]) {
         return prev;
       }
+
       const next = { ...prev };
       delete next[key];
       return next;
@@ -156,8 +241,9 @@ export default function AiCreatorModal({
   const handleGenerate = async () => {
     if (!validate()) {
       toast({
-        title: "Form chua hop le",
-        description: "Kiem tra lai topic, khoa hoc va so luong cau hoi.",
+        title: "Biểu mẫu chưa hợp lệ",
+        description:
+          "Vui lòng kiểm tra lại chủ đề, khóa học và số lượng câu hỏi.",
         type: "destructive",
       });
       return;
@@ -183,17 +269,17 @@ export default function AiCreatorModal({
       setResult(response);
 
       toast({
-        title: "Da tao draft AI",
+        title: "Đã tạo bản nháp bằng AI",
         description:
           response.items.length > 0
-            ? `AI tra ve ${response.items.length} cau hoi draft.`
-            : "AI chua tra ve cau hoi hop le.",
+            ? `AI đã tạo ${response.items.length} câu hỏi nháp.`
+            : "AI chưa tạo được câu hỏi hợp lệ.",
         type: response.items.length > 0 ? "success" : "warning",
       });
     } catch (error: any) {
       toast({
-        title: "Khong the tao draft AI",
-        description: error?.message || "Vui long thu lai sau.",
+        title: "Không thể tạo bản nháp bằng AI",
+        description: error?.message || "Vui lòng thử lại sau.",
         type: "destructive",
       });
     } finally {
@@ -206,24 +292,18 @@ export default function AiCreatorModal({
       return;
     }
 
-    setSaving(true);
+    setSubmitting(true);
     try {
       await createAdminQuestion({
         programId: form.programId,
-        items: result.items.map((item) => ({
-          questionText: item.questionText,
-          questionType: item.questionType,
-          options: item.questionType === "MultipleChoice" ? item.options : [],
-          correctAnswer: item.correctAnswer,
-          points: item.points,
-          explanation: item.explanation || undefined,
-          level: item.level || form.level,
-        })),
+        items: result.items.map((item) =>
+          mapDraftToQuestionBankPayload(item, form.level)
+        ),
       });
 
       toast({
-        title: "Luu draft thanh cong",
-        description: `Da tao ${result.items.length} cau hoi tu draft AI vao question bank.`,
+        title: "Lưu bản nháp thành công",
+        description: `Đã lưu ${result.items.length} câu hỏi từ AI vào ngân hàng câu hỏi.`,
         type: "success",
       });
 
@@ -231,17 +311,69 @@ export default function AiCreatorModal({
       onClose();
     } catch (error: any) {
       toast({
-        title: "Khong the luu draft",
-        description: error?.message || "Vui long thu lai sau.",
+        title: "Không thể lưu bản nháp",
+        description: error?.message || "Vui lòng thử lại sau.",
         type: "destructive",
       });
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm px-4 py-8">
+  const handleUseDrafts = async () => {
+    if (!result || result.items.length === 0 || !onUseDrafts) {
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const appliedCount = await Promise.resolve(onUseDrafts(result.items));
+      const successCount =
+        typeof appliedCount === "number" && appliedCount >= 0
+          ? appliedCount
+          : result.items.length;
+      const skippedCount = Math.max(0, result.items.length - successCount);
+
+      toast({
+        title: "Đã thêm câu hỏi vào bài tập",
+        description:
+          skippedCount > 0
+            ? `Đã thêm ${successCount} câu hỏi hợp lệ. ${skippedCount} câu còn lại không phù hợp nên đã được bỏ qua.`
+            : `Đã thêm ${successCount} câu hỏi AI vào bài tập hiện tại.`,
+        type: "success",
+      });
+
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: "Không thể dùng bản nháp cho bài tập",
+        description: error?.message || "Vui lòng thử lại sau.",
+        type: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const headerDescription = isAssignmentMode
+    ? "Tạo bản nháp câu hỏi để dùng ngay cho bài tập trắc nghiệm."
+    : "Tạo bản nháp câu hỏi cho ngân hàng câu hỏi và lưu ngay trên hệ thống.";
+  const emptyStateDescription = isAssignmentMode
+    ? "Chọn khóa học, nhập chủ đề rồi bấm tạo bản nháp. Sau đó bạn có thể xem lại nội dung và dùng ngay cho bài tập này."
+    : "Chọn khóa học, nhập chủ đề rồi bấm tạo bản nháp. Sau đó bạn có thể xem lại nội dung và lưu ngay vào ngân hàng câu hỏi.";
+  const footerDescription = isAssignmentMode
+    ? "Công cụ này tạo bản nháp để thêm nhanh vào bài trắc nghiệm hiện tại."
+    : "Công cụ này chỉ tạo bản nháp. Nút bên phải sẽ lưu toàn bộ vào ngân hàng câu hỏi hiện tại.";
+  const primaryActionLabel = isAssignmentMode
+    ? useDraftsLabel || "Dùng cho bài tập này"
+    : "Lưu tất cả vào ngân hàng câu hỏi";
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] bg-black/50 px-4 py-8 backdrop-blur-sm">
       <div
         ref={modalRef}
         className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-red-200 bg-white shadow-2xl"
@@ -252,14 +384,14 @@ export default function AiCreatorModal({
               <Brain size={20} />
             </div>
             <div>
-              <div className="text-lg font-semibold">AI Creator</div>
-              <div className="text-sm text-white/80">
-                Sinh draft cau hoi cho question bank roi luu ngay trong FE.
-              </div>
+              <div className="text-lg font-semibold">Tạo câu hỏi bằng AI</div>
+              <div className="text-sm text-white/80">{headerDescription}</div>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Đóng"
             className="rounded-full p-2 transition hover:bg-white/10"
           >
             <X size={20} />
@@ -271,7 +403,7 @@ export default function AiCreatorModal({
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Khoa hoc
+                  Khóa học
                 </label>
                 <select
                   value={form.programId}
@@ -279,7 +411,7 @@ export default function AiCreatorModal({
                   className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
                 >
                   <option value="">
-                    {loadingCourses ? "Dang tai..." : "Chon khoa hoc"}
+                    {loadingCourses ? "Đang tải..." : "Chọn khóa học"}
                   </option>
                   {courseOptions.map((course) => (
                     <option key={course.id} value={course.id}>
@@ -294,13 +426,13 @@ export default function AiCreatorModal({
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Topic
+                  Chủ đề
                 </label>
                 <input
                   value={form.topic}
                   onChange={(event) => handleChange("topic", event.target.value)}
                   className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
-                  placeholder="Vi du: family, present simple, jobs..."
+                  placeholder="Ví dụ: gia đình, thì hiện tại đơn, nghề nghiệp..."
                 />
                 {errors.topic ? (
                   <p className="mt-1 text-xs text-red-600">{errors.topic}</p>
@@ -310,7 +442,7 @@ export default function AiCreatorModal({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Loai cau hoi
+                    Loại câu hỏi
                   </label>
                   <select
                     value={form.questionType}
@@ -320,16 +452,20 @@ export default function AiCreatorModal({
                         event.target.value as FormState["questionType"]
                       )
                     }
-                    className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
+                    disabled={availableQuestionTypes.length === 1}
+                    className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300 disabled:cursor-not-allowed disabled:bg-gray-50"
                   >
-                    <option value="MultipleChoice">MultipleChoice</option>
-                    <option value="TextInput">TextInput</option>
+                    {availableQuestionTypes.map((questionType) => (
+                      <option key={questionType} value={questionType}>
+                        {QUESTION_TYPE_LABELS[questionType]}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Do kho
+                    Độ khó
                   </label>
                   <select
                     value={form.level}
@@ -338,9 +474,9 @@ export default function AiCreatorModal({
                     }
                     className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
                   >
-                    <option value="Easy">Easy</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Hard">Hard</option>
+                    <option value="Easy">{LEVEL_LABELS.Easy}</option>
+                    <option value="Medium">{LEVEL_LABELS.Medium}</option>
+                    <option value="Hard">{LEVEL_LABELS.Hard}</option>
                   </select>
                 </div>
               </div>
@@ -348,7 +484,7 @@ export default function AiCreatorModal({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    So cau hoi
+                    Số câu hỏi
                   </label>
                   <input
                     type="number"
@@ -369,7 +505,7 @@ export default function AiCreatorModal({
 
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Diem / cau
+                    Điểm mỗi câu
                   </label>
                   <input
                     type="number"
@@ -390,20 +526,20 @@ export default function AiCreatorModal({
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Skill
+                  Kỹ năng
                 </label>
                 <input
                   value={form.skill}
                   onChange={(event) => handleChange("skill", event.target.value)}
                   className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
-                  placeholder="Grammar / Vocabulary / Reading..."
+                  placeholder="Ngữ pháp / Từ vựng / Đọc hiểu..."
                 />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Task style
+                    Kiểu bài tập
                   </label>
                   <select
                     value={form.taskStyle}
@@ -415,29 +551,31 @@ export default function AiCreatorModal({
                     }
                     className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
                   >
-                    <option value="standard">standard</option>
-                    <option value="translation">translation</option>
+                    <option value="standard">{TASK_STYLE_LABELS.standard}</option>
+                    <option value="translation">
+                      {TASK_STYLE_LABELS.translation}
+                    </option>
                   </select>
                 </div>
 
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Language
+                    Ngôn ngữ
                   </label>
                   <select
                     value={form.language}
                     onChange={(event) => handleChange("language", event.target.value)}
                     className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
                   >
-                    <option value="vi">vi</option>
-                    <option value="en">en</option>
+                    <option value="vi">{LANGUAGE_LABELS.vi}</option>
+                    <option value="en">{LANGUAGE_LABELS.en}</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Grammar tags
+                  Thẻ ngữ pháp
                 </label>
                 <input
                   value={form.grammarTags}
@@ -445,13 +583,13 @@ export default function AiCreatorModal({
                     handleChange("grammarTags", event.target.value)
                   }
                   className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
-                  placeholder="present simple, to be, possessive..."
+                  placeholder="hiện tại đơn, to be, sở hữu..."
                 />
               </div>
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Vocabulary tags
+                  Thẻ từ vựng
                 </label>
                 <input
                   value={form.vocabularyTags}
@@ -459,13 +597,13 @@ export default function AiCreatorModal({
                     handleChange("vocabularyTags", event.target.value)
                   }
                   className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
-                  placeholder="family, jobs, school..."
+                  placeholder="gia đình, nghề nghiệp, trường học..."
                 />
               </div>
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Instructions
+                  Hướng dẫn thêm
                 </label>
                 <textarea
                   rows={4}
@@ -474,11 +612,12 @@ export default function AiCreatorModal({
                     handleChange("instructions", event.target.value)
                   }
                   className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
-                  placeholder="Huong dan them cho AI neu muon ket qua sat format trung tam hon."
+                  placeholder="Thêm hướng dẫn cho AI nếu muốn kết quả sát với định dạng của trung tâm hơn."
                 />
               </div>
 
               <button
+                type="button"
                 onClick={handleGenerate}
                 disabled={loading}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-3 text-sm font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
@@ -488,7 +627,7 @@ export default function AiCreatorModal({
                 ) : (
                   <Sparkles size={16} />
                 )}
-                Tao draft bang AI
+                Tạo bản nháp bằng AI
               </button>
             </div>
           </div>
@@ -501,11 +640,10 @@ export default function AiCreatorModal({
                     <Wand2 size={28} />
                   </div>
                   <h3 className="mt-4 text-lg font-semibold text-gray-900">
-                    AI Creator dang cho input
+                    AI đang chờ thông tin
                   </h3>
                   <p className="mt-2 text-sm leading-relaxed text-gray-600">
-                    Chon khoa hoc, nhap topic va bam tao draft. Sau do ban co the
-                    review draft va luu thang vao question bank.
+                    {emptyStateDescription}
                   </p>
                 </div>
               </div>
@@ -516,7 +654,7 @@ export default function AiCreatorModal({
                     <div>
                       <div className="flex items-center gap-2 text-red-700">
                         <Sparkles size={18} />
-                        <div className="font-semibold">Ket qua AI Creator</div>
+                        <div className="font-semibold">Kết quả tạo câu hỏi</div>
                       </div>
                       {result.summary ? (
                         <p className="mt-2 text-sm leading-relaxed text-gray-700">
@@ -526,89 +664,99 @@ export default function AiCreatorModal({
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <span className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-semibold text-red-700">
-                        aiUsed = {String(result.aiUsed)}
+                        {result.aiUsed ? "Có dùng AI" : "Không dùng AI"}
                       </span>
                       <span className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-semibold text-red-700">
-                        {result.items.length} draft
+                        {result.items.length} bản nháp
                       </span>
                     </div>
                   </div>
 
-                  {result.warnings.length > 0 && (
+                  {result.warnings.length > 0 ? (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
                       <div className="mb-2 text-sm font-semibold text-amber-800">
-                        Warnings
+                        Lưu ý
                       </div>
                       <ul className="space-y-1 text-sm text-amber-700">
                         {result.warnings.map((warning, index) => (
-                          <li key={`warning-${index}`}>• {warning}</li>
+                          <li key={`warning-${index}`}>- {warning}</li>
                         ))}
                       </ul>
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 <div className="space-y-3">
-                  {result.items.map((item, index) => (
-                    <div
-                      key={`${item.questionText}-${index}`}
-                      className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">
-                            Cau {index + 1}
-                          </div>
-                          <div className="mt-2 text-sm leading-relaxed text-gray-700">
-                            {item.questionText}
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
-                            {item.questionType}
-                          </span>
-                          <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
-                            {item.level || "Medium"}
-                          </span>
-                          <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
-                            {item.points} diem
-                          </span>
-                        </div>
-                      </div>
+                  {result.items.map((item, index) => {
+                    const questionTypeLabel =
+                      QUESTION_TYPE_LABELS[item.questionType as QuestionType] ||
+                      item.questionType;
+                    const levelLabel =
+                      LEVEL_LABELS[item.level as DifficultyLevel] ||
+                      item.level ||
+                      LEVEL_LABELS.Medium;
 
-                      {item.options.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {item.options.map((option, optionIndex) => (
-                            <span
-                              key={`${option}-${optionIndex}`}
-                              className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs text-red-700"
-                            >
-                              {option}
+                    return (
+                      <div
+                        key={`${item.questionText}-${index}`}
+                        className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">
+                              Câu {index + 1}
+                            </div>
+                            <div className="mt-2 text-sm leading-relaxed text-gray-700">
+                              {item.questionText}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
+                              {questionTypeLabel}
                             </span>
-                          ))}
+                            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
+                              {levelLabel}
+                            </span>
+                            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
+                              {item.points} điểm
+                            </span>
+                          </div>
                         </div>
-                      )}
 
-                      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                          <div className="text-xs uppercase tracking-wide text-gray-500">
-                            Correct answer
+                        {item.options.length > 0 ? (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {item.options.map((option, optionIndex) => (
+                              <span
+                                key={`${option}-${optionIndex}`}
+                                className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs text-red-700"
+                              >
+                                {option}
+                              </span>
+                            ))}
                           </div>
-                          <div className="mt-2 text-sm font-medium text-gray-800">
-                            {item.correctAnswer || "—"}
+                        ) : null}
+
+                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                            <div className="text-xs uppercase tracking-wide text-gray-500">
+                              Đáp án đúng
+                            </div>
+                            <div className="mt-2 text-sm font-medium text-gray-800">
+                              {item.correctAnswer || "Chưa có"}
+                            </div>
                           </div>
-                        </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                          <div className="text-xs uppercase tracking-wide text-gray-500">
-                            Explanation
-                          </div>
-                          <div className="mt-2 text-sm text-gray-700">
-                            {item.explanation || "Khong co"}
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                            <div className="text-xs uppercase tracking-wide text-gray-500">
+                              Giải thích
+                            </div>
+                            <div className="mt-2 text-sm text-gray-700">
+                              {item.explanation || "Không có"}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -616,31 +764,32 @@ export default function AiCreatorModal({
         </div>
 
         <div className="flex items-center justify-between border-t border-red-100 bg-white px-6 py-4">
-          <div className="text-sm text-gray-500">
-            AI Creator chi tao draft. Nut ben phai se luu draft vao question bank hien tai.
-          </div>
+          <div className="text-sm text-gray-500">{footerDescription}</div>
           <div className="flex flex-wrap gap-3">
             <button
+              type="button"
               onClick={onClose}
               className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              Dong
+              Đóng
             </button>
             <button
-              onClick={handleSaveAll}
-              disabled={!canSave || saving}
+              type="button"
+              onClick={isAssignmentMode ? handleUseDrafts : handleSaveAll}
+              disabled={!canSubmitDrafts || submitting}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? (
+              {submitting ? (
                 <Loader2 size={15} className="animate-spin" />
               ) : (
                 <PlusCircle size={15} />
               )}
-              Luu tat ca vao bank
+              {primaryActionLabel}
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

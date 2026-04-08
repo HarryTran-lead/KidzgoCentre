@@ -562,8 +562,8 @@ export default function Page() {
     const { data: refreshed } = await fetchAdminQuestions({ pageNumber: 1, pageSize: 200 });
     setQuestions(refreshed);
     toast({
-      title: "Thanh cong",
-      description: `Da tao ${count} cau hoi tu AI Creator.`,
+      title: "Thành công",
+      description: `Đã tạo ${count} câu hỏi từ công cụ AI.`,
       type: "success",
     });
   };
@@ -652,7 +652,7 @@ ${rows}
       <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
         <div className={cn("flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4")}>
           <div className="flex items-center gap-3">
-            <button onClick={() => { setShowAiCreatorModal(true); if (courseOptions.length === 0) loadCourses(); }} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"><Sparkles size={18} />AI Creator</button>
+            <button onClick={() => { setShowAiCreatorModal(true); if (courseOptions.length === 0) loadCourses(); }} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"><Sparkles size={18} />Tạo câu hỏi bằng AI</button>
             <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg"><HelpCircle className="text-white" size={24} /></div>
             <div><h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Quản lý ngân hàng câu hỏi</h1><p className="text-sm text-gray-600">Quản lý câu hỏi, phân loại và độ khó</p></div>
           </div>
