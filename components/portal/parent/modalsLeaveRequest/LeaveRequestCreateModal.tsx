@@ -54,10 +54,10 @@ function cn(...values: Array<string | false | null | undefined>) {
 
 function getFieldClass(hasError: boolean, extra?: string) {
   return cn(
-    "w-full rounded-xl bg-white text-sm text-gray-800 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60",
+    "w-full rounded-xl bg-white text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all disabled:cursor-not-allowed disabled:opacity-60",
     hasError
-      ? "border border-rose-400 focus:border-rose-500 focus:ring-rose-100"
-      : "border border-red-300 focus:border-red-400 focus:ring-red-200",
+      ? "border border-red-500 focus:border-red-500 focus:ring-red-100"
+      : "border border-gray-200 focus:border-red-400 focus:ring-red-200",
     extra,
   );
 }
@@ -266,22 +266,34 @@ function formatTimeRange(session: ParentTimetableSession) {
   const raw = session.plannedDatetime ?? session.actualDatetime;
   if (!raw) return "";
 
-  const start = new Date(raw);
-  if (Number.isNaN(start.getTime())) return "";
+  // Parse ISO string directly to extract HH:mm components
+  // to avoid timezone offset issues from Date + toLocaleTimeString
+  const isoMatch = raw.match(/^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!isoMatch) {
+    // Fallback to Date for non-standard formats
+    const start = new Date(raw);
+    if (Number.isNaN(start.getTime())) return "";
+    return start.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
+  }
+
+  const startHour = isoMatch[1];
+  const startMin = isoMatch[2];
 
   const duration = Number(session.durationMinutes ?? 0);
   if (duration <= 0) {
-    return start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    return `${startHour}:${startMin}`;
   }
 
-  const end = new Date(start.getTime() + duration * 60000);
-  return `${start.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })} - ${end.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  const startMinutes = parseInt(startHour, 10) * 60 + parseInt(startMin, 10);
+  const endMinutes = startMinutes + duration;
+  const endHour = String(Math.floor(endMinutes / 60) % 24).padStart(2, "0");
+  const endMin = String(endMinutes % 60).padStart(2, "0");
+
+  return `${startHour}:${startMin} - ${endHour}:${endMin}`;
 }
 
 function formatTimezoneOffset(date: Date) {
@@ -357,8 +369,29 @@ export default function LeaveRequestCreateModal({
   const [actionError, setActionError] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const feedbackRef = useRef<HTMLDivElement | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
   const isStudentLocked = !!lockedStudentProfileId;
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (creating) return;
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [open, onClose, creating]);
 
   const handleClose = () => {
     if (!creating) onClose();
@@ -707,40 +740,46 @@ export default function LeaveRequestCreateModal({
       className={`fixed inset-0 z-[140] ${open ? "" : "pointer-events-none opacity-0"}`}
       aria-hidden={!open}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={handleClose} />
-      <div className="absolute inset-0 flex items-center justify-center overflow-y-auto p-3 sm:p-4">
-        <div className="flex max-h-[calc(100vh-24px)] w-[min(720px,calc(100vw-24px))] flex-col overflow-hidden rounded-3xl border border-red-200 bg-white shadow-2xl">
-          <div className="shrink-0 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100/30 p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-2 text-white">
-                  <CalendarDays size={20} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
+      <div className="absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
+        <div
+          ref={modalRef}
+          className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
+        >
+          {/* Modal Header - Gradient đỏ */}
+          <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                  <CalendarDays size={24} className="text-white" />
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-gray-900">Tạo đơn xin nghỉ</div>
-                  <div className="text-sm text-gray-600">
+                  <h2 className="text-2xl font-bold text-white">Tạo đơn xin nghỉ</h2>
+                  <p className="text-sm text-red-100">
                     Điền thông tin nghỉ học và chọn đúng buổi học cần xử lý.
-                  </div>
+                  </p>
                 </div>
               </div>
               <button
                 onClick={handleClose}
-                className="cursor-pointer rounded-xl border border-red-300 bg-white p-2 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label="Đóng"
                 disabled={creating}
+                className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Đóng"
               >
-                <X size={20} />
+                <X size={24} className="text-white" />
               </button>
             </div>
           </div>
 
+          {/* Modal Body */}
           <div
             ref={scrollContainerRef}
-            className="min-h-0 overflow-y-auto overscroll-contain bg-gradient-to-b from-white to-red-50/20 p-5"
+            className="p-6 max-h-[70vh] overflow-y-auto"
           >
             <div ref={feedbackRef} className="space-y-6">
-              {actionError ? <Banner kind="error" text={actionError} /> : null}
+              {actionError && <Banner kind="error" text={actionError} />}
 
+              {/* Học viên */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <User size={18} className="text-red-600" />
@@ -750,7 +789,7 @@ export default function LeaveRequestCreateModal({
                 </div>
 
                 {isStudentLocked ? (
-                  <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 p-4">
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
                     <div className="text-sm font-semibold text-gray-900">
                       {selectedStudent ? studentLabel(selectedStudent) : "Học viên đang được chọn"}
                     </div>
@@ -768,7 +807,10 @@ export default function LeaveRequestCreateModal({
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="relative">
                         <input
-                          className={getFieldClass(false, "h-11 pl-10 pr-4")}
+                          className={cn(
+                            "w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900",
+                            "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                          )}
                           placeholder="Tìm theo tên học viên"
                           value={searchTerm}
                           onChange={(event) => setSearchTerm(event.target.value)}
@@ -777,7 +819,10 @@ export default function LeaveRequestCreateModal({
                       </div>
                       <div className="relative">
                         <input
-                          className={getFieldClass(false, "h-11 pl-10 pr-4")}
+                          className={cn(
+                            "w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900",
+                            "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                          )}
                           placeholder="Tìm theo tên phụ huynh"
                           value={parentSearchTerm}
                           onChange={(event) => setParentSearchTerm(event.target.value)}
@@ -832,12 +877,15 @@ export default function LeaveRequestCreateModal({
                   </>
                 )}
 
-                {formErrors.studentProfileId ? (
-                  <div className="text-sm text-red-600">{formErrors.studentProfileId}</div>
-                ) : null}
-                {profilesError ? <div className="text-sm text-red-600">{profilesError}</div> : null}
+                {formErrors.studentProfileId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {formErrors.studentProfileId}
+                  </p>
+                )}
+                {profilesError && <p className="text-sm text-red-600">{profilesError}</p>}
               </div>
 
+              {/* Lớp */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <BookOpen size={18} className="text-red-600" />
@@ -890,10 +938,15 @@ export default function LeaveRequestCreateModal({
                 <div className="text-xs text-gray-500">
                   Dropdown chỉ hiển thị các lớp mà học viên đang theo học.
                 </div>
-                {formErrors.classId ? <div className="text-sm text-red-600">{formErrors.classId}</div> : null}
-                {classesError ? <div className="text-sm text-red-600">{classesError}</div> : null}
+                {formErrors.classId && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {formErrors.classId}
+                  </p>
+                )}
+                {classesError && <p className="text-sm text-red-600">{classesError}</p>}
               </div>
 
+              {/* Lịch */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
@@ -909,7 +962,7 @@ export default function LeaveRequestCreateModal({
                     <button
                       type="button"
                       onClick={() => setVisibleMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                      className="cursor-pointer rounded-xl border border-red-200 bg-white p-2 text-gray-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="p-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-red-50 hover:border-red-200 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={!formState.classId}
                     >
                       <ChevronLeft size={16} />
@@ -920,7 +973,7 @@ export default function LeaveRequestCreateModal({
                     <button
                       type="button"
                       onClick={() => setVisibleMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                      className="cursor-pointer rounded-xl border border-red-200 bg-white p-2 text-gray-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="p-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-red-50 hover:border-red-200 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={!formState.classId}
                     >
                       <ChevronRight size={16} />
@@ -928,7 +981,7 @@ export default function LeaveRequestCreateModal({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-red-200 bg-white p-4">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
                   {!formState.classId ? (
                     <div className="text-sm text-gray-500">
                       Chọn lớp trước để hiển thị lịch học của lớp.
@@ -973,26 +1026,21 @@ export default function LeaveRequestCreateModal({
                               }}
                               disabled={!canPick}
                               className={cn(
-                                "min-h-[72px] rounded-2xl border p-2 text-left transition",
+                                "min-h-[72px] rounded-xl p-2 text-left transition-all",
                                 isSelected
-                                  ? "border-red-500 bg-red-600 text-white shadow-md"
+                                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
                                   : canPick
-                                    ? "cursor-pointer border-red-200 bg-red-50/40 text-gray-800 hover:bg-red-100"
-                                    : "border-gray-200 bg-gray-50 text-gray-300",
+                                    ? "cursor-pointer border-2 border-red-200 bg-red-50/40 text-gray-800 hover:bg-red-100 hover:border-red-300"
+                                    : "border border-gray-200 bg-gray-50 text-gray-300",
                               )}
                             >
                               <div className="flex items-center justify-between">
                                 <span className="text-sm font-semibold">{day.getDate()}</span>
-                                {sessions.length > 0 ? (
-                                  <span
-                                    className={cn(
-                                      "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                                      isSelected ? "bg-white/20 text-white" : "bg-red-100 text-red-700",
-                                    )}
-                                  >
+                                {sessions.length > 0 && !isSelected && (
+                                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-red-100 text-red-700">
                                     {sessions.length} buổi
                                   </span>
-                                ) : null}
+                                )}
                               </div>
 
                               <div className={cn("mt-2 text-[11px]", isSelected ? "text-white/90" : "text-gray-500")}>
@@ -1011,11 +1059,11 @@ export default function LeaveRequestCreateModal({
                         })}
                       </div>
 
-                      {sessionsLoading ? <div className="mt-3 text-sm text-gray-500">Đang tải lịch học...</div> : null}
-                      {sessionsError ? <div className="mt-3 text-sm text-red-600">{sessionsError}</div> : null}
+                      {sessionsLoading && <div className="mt-3 text-sm text-gray-500">Đang tải lịch học...</div>}
+                      {sessionsError && <div className="mt-3 text-sm text-red-600">{sessionsError}</div>}
 
-                      {selectedDateSessions.length > 0 ? (
-                        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50/50 p-3">
+                      {selectedDateSessions.length > 0 && (
+                        <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
                           <div className="text-sm font-semibold text-gray-800">
                             Buổi học ngày {parseDateKey(formState.sessionDate)?.toLocaleDateString("vi-VN")}
                           </div>
@@ -1023,7 +1071,7 @@ export default function LeaveRequestCreateModal({
                             Nếu trong ngày có nhiều buổi, hãy chọn đúng session bên dưới để hệ thống xử lý chính xác.
                           </p>
 
-                          <ul className="mt-2 space-y-2 text-xs text-gray-700">
+                          <ul className="mt-3 space-y-2 text-xs text-gray-700">
                             {selectedDateSessions.map((session) => (
                               <li key={session.id}>
                                 <button
@@ -1036,10 +1084,10 @@ export default function LeaveRequestCreateModal({
                                     setActionError(null);
                                   }}
                                   className={cn(
-                                    "w-full cursor-pointer rounded-xl border px-3 py-2 text-left transition",
+                                    "w-full cursor-pointer rounded-xl border px-3 py-2 text-left transition-all",
                                     formState.sessionId === session.id
-                                      ? "border-red-500 bg-red-600 text-white"
-                                      : "border-red-100 bg-white text-gray-700 hover:bg-red-50",
+                                      ? "border-red-500 bg-gradient-to-r from-red-600 to-red-700 text-white"
+                                      : "border-gray-200 bg-white text-gray-700 hover:bg-red-50 hover:border-red-200",
                                   )}
                                 >
                                   <div className="font-medium">
@@ -1050,26 +1098,18 @@ export default function LeaveRequestCreateModal({
                                     {session.plannedTeacherName ? ` • GV: ${session.plannedTeacherName}` : ""}
                                     {session.plannedRoomName ? ` • Phòng: ${session.plannedRoomName}` : ""}
                                   </div>
-                                  {formState.sessionId === session.id ? (
-                                    <div className="mt-2 text-[11px] font-semibold">Đang chọn session này</div>
-                                  ) : null}
                                 </button>
                               </li>
                             ))}
                           </ul>
-
-                          {selectedSession ? (
-                            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                              Đang áp dụng cho session {formatTimeRange(selectedSession)}
-                            </div>
-                          ) : null}
                         </div>
-                      ) : null}
+                      )}
                     </>
                   )}
                 </div>
               </div>
 
+              {/* Ngày nghỉ */}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
@@ -1096,7 +1136,11 @@ export default function LeaveRequestCreateModal({
                       setActionError(null);
                     }}
                   />
-                  {formErrors.sessionDate ? <div className="text-sm text-red-600">{formErrors.sessionDate}</div> : null}
+                  {formErrors.sessionDate && (
+                    <p className="text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle size={14} /> {formErrors.sessionDate}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -1124,10 +1168,15 @@ export default function LeaveRequestCreateModal({
                       Nếu nghỉ một ngày, hệ thống sẽ tự hiểu là nghỉ trong ngày bắt đầu.
                     </div>
                   )}
-                  {formErrors.endDate ? <div className="text-sm text-red-600">{formErrors.endDate}</div> : null}
+                  {formErrors.endDate && (
+                    <p className="text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle size={14} /> {formErrors.endDate}
+                    </p>
+                  )}
                 </div>
               </div>
 
+              {/* Lý do */}
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-gray-800">
                   Lý do <span className="text-red-600">*</span>
@@ -1142,36 +1191,43 @@ export default function LeaveRequestCreateModal({
                     setActionError(null);
                   }}
                 />
-                {formErrors.reason ? <div className="text-sm text-red-600">{formErrors.reason}</div> : null}
+                {formErrors.reason && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} /> {formErrors.reason}
+                  </p>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-red-200 bg-white/95 px-5 py-4 backdrop-blur">
-            <button
-              onClick={handleClose}
-              className="cursor-pointer rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-5 py-2.5 font-medium text-gray-700 transition-all hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={creating}
-            >
-              Hủy
-            </button>
-            <button
-              onClick={submitLeaveRequest}
-              disabled={!canSubmit || creating}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-2.5 font-semibold text-white transition-all hover:from-red-700 hover:to-red-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {creating ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Đang gửi...
-                </>
-              ) : (
-                <>
-                  <Send size={16} />
-                  Gửi yêu cầu
-                </>
-              )}
-            </button>
+          {/* Modal Footer */}
+          <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={handleClose}
+                disabled={creating}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={submitLeaveRequest}
+                disabled={!canSubmit || creating}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {creating ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Đang gửi...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} />
+                    Gửi yêu cầu
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarCheck,
   MessageSquare,
@@ -10,6 +10,13 @@ import {
   Plus,
   AlertCircle,
   CheckCircle2,
+  X,
+  Clock,
+  Building2,
+  FileText,
+  History,
+  FileWarning,
+  CalendarDays,
 } from "lucide-react";
 
 import {
@@ -58,6 +65,8 @@ type MakeupCreditSummary = {
   available: number;
 };
 
+type TabType = "attendance" | "leaveRequests" | "makeup";
+
 /* ===================== Constants ===================== */
 
 const initialFormState: FormState = {
@@ -78,7 +87,7 @@ const statusLabels: Record<LeaveRequestStatus, string> = {
   CANCELLED: "Đã hủy",
 };
 
-// giữ màu trạng thái, nhưng “shape” + style giống trang trên
+// Cập nhật style status badges theo theme đỏ
 const statusStyles: Record<LeaveRequestStatus, string> = {
   PENDING: "border border-amber-200 bg-amber-50 text-amber-700",
   APPROVED: "border border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -107,6 +116,10 @@ const attendanceAbsenceTypeLabels: Record<string, string> = {
   NoNotice: "Không báo trước",
   LongTerm: "Nghi dai han",
 };
+
+function cn(...a: Array<string | false | null | undefined>) {
+  return a.filter(Boolean).join(" ");
+}
 
 const normalizeStatus = (value?: string | null): LeaveRequestStatus => {
   if (!value) return "PENDING";
@@ -289,9 +302,51 @@ function Banner({ kind, text }: { kind: "error" | "success"; text: string }) {
   );
 }
 
+/* ===================== Tab Component ===================== */
+
+function TabButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: (props: any) => JSX.Element;
+  label: string;
+  count?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer",
+        active
+          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+          : "text-gray-600 hover:bg-red-50 hover:text-red-600"
+      )}
+    >
+      <Icon size={18} />
+      <span>{label}</span>
+      {count !== undefined && count > 0 && (
+        <span className={cn(
+          "ml-1 px-1.5 py-0.5 rounded-full text-xs",
+          active ? "bg-white/20 text-white" : "bg-red-100 text-red-600"
+        )}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function ParentAttendancePage() {
   const { selectedProfile } = useSelectedStudentProfile();
   const isStudentLocked = !!selectedProfile?.id;
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabType>("attendance");
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -567,9 +622,9 @@ export default function ParentAttendancePage() {
 
   /* ===================== Memos ===================== */
 
-  const displayRequests = useMemo(() => requests.slice(0, 5), [requests]);
-  const displayMakeup = useMemo(() => makeupAllocations.slice(0, 5), [makeupAllocations]);
-  const displayAttendance = useMemo(() => attendanceHistory.slice(0, 5), [attendanceHistory]);
+  const displayRequests = useMemo(() => requests.slice(0, 10), [requests]);
+  const displayMakeup = useMemo(() => makeupAllocations.slice(0, 10), [makeupAllocations]);
+  const displayAttendance = useMemo(() => attendanceHistory.slice(0, 10), [attendanceHistory]);
 
   const classLabel = (c: StudentClass) => c.name ?? c.className ?? c.title ?? c.code ?? c.id;
 
@@ -587,8 +642,6 @@ export default function ParentAttendancePage() {
   /* ===================== Actions ===================== */
 
   const openCreateModal = () => {
-    setError(null);
-    setSuccessMessage(null);
     setIsModalOpen(true);
   };
 
@@ -597,8 +650,6 @@ export default function ParentAttendancePage() {
   };
 
   const openMakeupModal = (target: MakeupChangeTarget | null = null) => {
-    setError(null);
-    setSuccessMessage(null);
     setChangeMakeupTarget(target);
     setIsMakeupModalOpen(true);
   };
@@ -617,17 +668,24 @@ export default function ParentAttendancePage() {
       });
 
       await loadMakeupState(payload.studentProfileId);
-      setSuccessMessage(
-        changeMakeupTarget
-          ? "Đã thay đổi lịch xếp học bù thành công."
-          : "Đã chọn buổi học bù thành công."
-      );
+      toast.success({
+        title: changeMakeupTarget
+          ? "Thay đổi lịch học bù thành công"
+          : "Chọn buổi học bù thành công",
+        description:
+          changeMakeupTarget
+            ? "Đã thay đổi lịch xếp học bù thành công."
+            : "Đã chọn buổi học bù thành công.",
+      });
     } catch (err: any) {
       const description = resolveMakeupCreditActionError(
         err,
         changeMakeupTarget ? "change" : "create"
       );
-      throw new Error(description ?? "Không thể đặt lịch học bù.");
+      toast.destructive({
+        title: "Không thể đặt lịch học bù",
+        description,
+      });
     }
   };
 
@@ -636,8 +694,6 @@ export default function ParentAttendancePage() {
 
     const target = cancelTarget;
     setCancelSubmitting(true);
-    setError(null);
-    setSuccessMessage(null);
 
     try {
       const response = await cancelLeaveRequest(target.id);
@@ -658,7 +714,6 @@ export default function ParentAttendancePage() {
         )
       );
 
-      let refreshWarning: string | null = null;
       if (formState.studentProfileId) {
         try {
           await Promise.all([
@@ -667,31 +722,28 @@ export default function ParentAttendancePage() {
           ]);
         } catch (refreshError) {
           console.warn("Refresh after cancel leave request failed:", refreshError);
-          refreshWarning =
-            "Đơn đã được hủy, nhưng danh sách liên quan chưa làm mới kịp. Vui lòng tải lại trang nếu cần.";
+          toast.warning({
+            title: "Hủy đơn nghỉ thành công",
+            description: "Đơn đã được hủy, nhưng danh sách liên quan chưa làm mới kịp. Vui lòng tải lại trang nếu cần.",
+          });
+          setCancelTarget(null);
+          return;
         }
       }
 
-      setSuccessMessage(refreshWarning ?? "Đã hủy đơn xin nghỉ thành công.");
-      setCancelTarget(null);
-      toast({
+      toast.success({
         title: "Hủy đơn nghỉ thành công",
-        description:
-          refreshWarning ?? "Đã hủy đơn xin nghỉ thành công.",
-        variant: refreshWarning ? "warning" : "success",
+        description: "Đã hủy đơn xin nghỉ thành công.",
       });
-      scrollToMessages();
+      setCancelTarget(null);
     } catch (err: any) {
       console.error("Cancel leave request error:", err);
       const errorText = err?.message || "Không thể hủy đơn xin nghỉ. Vui lòng thử lại.";
-      setError(errorText);
-      setCancelTarget(null);
-      toast({
+      toast.destructive({
         title: "Không thể hủy đơn nghỉ",
         description: errorText,
-        variant: "destructive",
       });
-      scrollToMessages();
+      setCancelTarget(null);
     } finally {
       setCancelSubmitting(false);
     }
@@ -699,9 +751,6 @@ export default function ParentAttendancePage() {
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    setError(null);
-    setSuccessMessage(null);
-    setFormErrors({});
 
     try {
       const nextErrors: FormErrors = {};
@@ -725,7 +774,10 @@ export default function ParentAttendancePage() {
 
       if (Object.keys(nextErrors).length > 0) {
         setFormErrors(nextErrors);
-        setError("Vui lòng kiểm tra lại thông tin bắt buộc trước khi gửi đơn.");
+        toast.warning({
+          title: "Vui lòng kiểm tra lại",
+          description: "Thông tin bắt buộc chưa đầy đủ. Vui lòng điền đủ thông tin trước khi gửi đơn.",
+        });
         return;
       }
 
@@ -747,11 +799,13 @@ export default function ParentAttendancePage() {
       setFormErrors({});
 
       const responseStatus = normalizeStatus((createdRecord as LeaveRequestRecord | undefined)?.status);
-      setSuccessMessage(
-        responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
-          ? "Đã tạo đơn xin nghỉ. Đơn đã được duyệt; nếu có lượt học bù, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
-          : "Đã tạo đơn xin nghỉ."
-      );
+      toast.success({
+        title: "Tạo đơn nghỉ thành công",
+        description:
+          responseStatus === "APPROVED" || responseStatus === "AUTO_APPROVED"
+            ? "Đơn đã được duyệt tự động. Nếu có lượt học bù, vui lòng chọn buổi học bù để hoàn tất xếp lịch."
+            : "Đã tạo đơn xin nghỉ thành công.",
+      });
       closeCreateModal();
     } catch (err) {
       console.error("Create leave request error:", err);
@@ -777,45 +831,116 @@ export default function ParentAttendancePage() {
 
   /* ===================== Render ===================== */
 
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
+
+  const stats = useMemo(() => {
+    return {
+      totalRequests: requests.length,
+      pendingRequests: requests.filter(r => normalizeStatus(r.status as string | undefined) === "PENDING").length,
+      makeupCredits: makeupCreditSummary.available,
+      attendanceRate: attendanceHistory.length > 0
+        ? Math.round((attendanceHistory.filter(i => (i.attendanceStatus ?? "NotMarked") === "Present").length / attendanceHistory.length * 100))
+        : 0,
+    };
+  }, [requests, makeupCreditSummary, attendanceHistory]);
+
   const selectedStudentName =
     studentProfiles.find((p) => p.id === formState.studentProfileId)?.displayName ??
     selectedProfile?.displayName ??
     "—";
 
+  // Tab configurations
+  const tabs: Array<{ id: TabType; label: string; icon: React.ElementType; count: number }> = [
+    { id: "attendance", label: "Lịch sử điểm danh", icon: History, count: attendanceHistory.length },
+    { id: "leaveRequests", label: "Đơn nghỉ", icon: FileWarning, count: requests.filter(r => normalizeStatus(r.status as string | undefined) === "PENDING").length },
+    { id: "makeup", label: "Học bù", icon: CalendarDays, count: makeupAllocations.length },
+  ];
+
   return (
     <div className="min-h-screen space-y-6 bg-gray-50 p-4 md:p-6">
       {/* Header */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center shadow">
-                <CalendarCheck className="text-white" size={18} />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Xin nghỉ / Điểm danh</h1>
-                <p className="text-sm text-gray-600">
-                  Tạo đơn xin nghỉ cho học viên và theo dõi trạng thái duyệt.
-                </p>
-              </div>
-            </div>
+      <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
+            <CalendarCheck className="text-white" size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Xin nghỉ / Điểm danh</h1>
+            <p className="text-sm text-gray-600">
+              Tạo đơn xin nghỉ cho học viên và theo dõi trạng thái duyệt.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="text-right">
+            <div className="text-xs text-gray-500">Học viên</div>
+            <div className="text-sm font-semibold text-gray-800">{selectedStudentName}</div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-right">
-              <div className="text-xs text-gray-500">Học viên</div>
-              <div className="text-sm font-semibold text-gray-800">{selectedStudentName}</div>
-            </div>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-red-500/25 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={profilesLoading || !!profilesError}
+          >
+            <Plus size={18} />
+            Tạo đơn nghỉ
+          </button>
+        </div>
+      </div>
 
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={profilesLoading || !!profilesError}
-            >
-              <Plus size={16} />
-              Tạo đơn nghỉ
-            </button>
+      {/* Stats cards */}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
+              <CalendarCheck className="text-red-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Tổng đơn nghỉ</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.totalRequests}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-amber-100 grid place-items-center">
+              <Clock className="text-amber-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Chờ duyệt</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.pendingRequests}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-sky-100 grid place-items-center">
+              <FileText className="text-sky-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Lượt học bù khả dụng</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.makeupCredits}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-emerald-100 grid place-items-center">
+              <CheckCircle2 className="text-emerald-600" size={18} />
+            </span>
+            <div>
+              <div className="text-sm text-gray-600">Tỷ lệ có mặt</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stats.attendanceRate}%</div>
+            </div>
           </div>
         </div>
       </div>
@@ -828,297 +953,348 @@ export default function ParentAttendancePage() {
       {successMessage && <Banner kind="success" text={successMessage} />}
       {attendanceError && <Banner kind="error" text={attendanceError} />}
 
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div>
-            <div className="text-lg font-semibold text-gray-900">Lịch sử điểm danh</div>
-            {attendanceLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải...</div> : null}
-          </div>
-          <div className="text-sm text-gray-600 font-medium">{attendanceHistory.length} bản ghi</div>
-        </div>
+      {/* Tab Navigation */}
+      <div className={`flex flex-wrap gap-2 border-b border-gray-200 pb-2 transition-all duration-700 delay-150 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {tabs.map((tab) => (
+          <TabButton
+            key={tab.id}
+            active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            icon={tab.icon as (props: any) => JSX.Element}
+            label={tab.label}
+            count={tab.count}
+          />
+        ))}
+      </div>
 
-        {!displayAttendance.length && !attendanceLoading ? (
-          <div className="px-6 py-10 text-sm text-gray-600">Chưa có lịch sử điểm danh.</div>
-        ) : (
+      {/* Tab Content - Attendance History */}
+      {activeTab === "attendance" && (
+        <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Lịch sử điểm danh</h2>
+                {attendanceLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải...</div> : null}
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium">{attendanceHistory.length} bản ghi</span>
+              </div>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Buổi học</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ngày học</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ghi chú</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Buổi học</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Ngày học</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Trạng thái</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Ghi chú</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {displayAttendance.map((item) => {
-                  const status = item.attendanceStatus ?? "NotMarked";
-                  const absenceTypeLabel = getAttendanceAbsenceTypeLabel(item.absenceType);
-                  return (
-                    <tr key={`${item.sessionId}-${item.markedAt ?? item.date ?? ""}`}>
-                      <td className="py-4 px-6 text-sm text-gray-700">
-                        <div className="font-medium text-gray-900">{getAttendanceHistoryTitle(item)}</div>
-                        <div className="text-xs text-gray-500">{item.className ?? item.sessionId ?? "-"}</div>
-                      </td>
-                      <td className="py-4 px-6 text-sm text-gray-700">
-                        {toVNDateLabel(item.date)} {item.startTime ? `- ${item.startTime}` : ""}
-                      </td>
-                      <td className="py-4 px-6 text-sm">
-                        <div className="flex flex-col gap-2">
-                          <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${attendanceStyles[status]}`}>
-                            {attendanceLabels[status]}
-                          </span>
-                          {absenceTypeLabel ? <div className="text-xs text-gray-500">{absenceTypeLabel}</div> : null}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 text-sm text-gray-700">{item.note ?? "-"}</td>
-                    </tr>
-                  );
-                })}
+                {!displayAttendance.length && !attendanceLoading ? (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center">
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                        <History size={24} className="text-gray-400" />
+                      </div>
+                      <div className="text-gray-600 font-medium">Chưa có lịch sử điểm danh</div>
+                      <div className="text-sm text-gray-500 mt-1">Dữ liệu điểm danh sẽ hiển thị sau khi có buổi học.</div>
+                    </td>
+                  </tr>
+                ) : (
+                  displayAttendance.map((item) => {
+                    const status = item.attendanceStatus ?? "NotMarked";
+                    const absenceTypeLabel = getAttendanceAbsenceTypeLabel(item.absenceType);
+                    return (
+                      <tr key={`${item.sessionId}-${item.markedAt ?? item.date ?? ""}`} className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
+                        <td className="py-3 px-6">
+                          <div className="font-medium text-gray-900">{getAttendanceHistoryTitle(item)}</div>
+                          <div className="text-xs text-gray-500">{item.className ?? item.sessionId ?? "-"}</div>
+                        </td>
+                        <td className="py-3 px-6 whitespace-nowrap text-sm text-gray-700">
+                          {toVNDateLabel(item.date)} {item.startTime ? `- ${item.startTime}` : ""}
+                        </td>
+                        <td className="py-3 px-6">
+                          <div className="flex flex-col gap-1">
+                            <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${attendanceStyles[status]}`}>
+                              {attendanceLabels[status]}
+                            </span>
+                            {absenceTypeLabel ? <div className="text-xs text-gray-500">{absenceTypeLabel}</div> : null}
+                          </div>
+                        </td>
+                        <td className="py-3 px-6 text-sm text-gray-700">{item.note ?? "-"}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div>
-            <div className="text-lg font-semibold text-gray-900">Đơn nghỉ gần đây</div>
-            {requestsLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
-          </div>
-          <div className="text-sm text-gray-600 font-medium">{requests.length} đơn</div>
         </div>
+      )}
 
-        {!displayRequests.length ? (
-          <div className="px-6 py-10 text-sm text-gray-600">Chưa có đơn nào.</div>
-        ) : (
+      {/* Tab Content - Leave Requests */}
+      {activeTab === "leaveRequests" && (
+        <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Đơn nghỉ</h2>
+                {requestsLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium">{requests.length} đơn</span>
+              </div>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">
                     Thời gian nghỉ
                   </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">
                     Ngày tạo
                   </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lớp</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lý do</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Lớp</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Lý do</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">
                     Trạng thái
                   </th>
-                  <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
+                  <th className="py-3 px-6 text-right text-sm font-semibold tracking-wide text-gray-700">
                     Thao tác
                   </th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-100">
-                {displayRequests.map((r) => {
-                  const status = normalizeStatus(r.status as string | undefined);
-                  const start = (r as any).sessionDate ?? r.sessionDate;
-                  const end = (r as any).endDate ?? r.endDate;
-                  const canCancel = canCancelLeaveRequest(r);
-                  const cancelHint = getCancelActionHint(r);
+                {!displayRequests.length ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                        <FileWarning size={24} className="text-gray-400" />
+                      </div>
+                      <div className="text-gray-600 font-medium">Chưa có đơn nghỉ nào</div>
+                      <div className="text-sm text-gray-500 mt-1">Bấm "Tạo đơn nghỉ" để gửi yêu cầu nghỉ học.</div>
+                    </td>
+                  </tr>
+                ) : (
+                  displayRequests.map((r) => {
+                    const status = normalizeStatus(r.status as string | undefined);
+                    const start = (r as any).sessionDate ?? r.sessionDate;
+                    const end = (r as any).endDate ?? r.endDate;
+                    const canCancel = canCancelLeaveRequest(r);
+                    const cancelHint = getCancelActionHint(r);
 
-                  const created =
-                    (r as any).createdAt ??
-                    (r as any).submittedAt ??
-                    (r as any).requestedAt ??
-                    (r as any).requestedDate;
+                    const created =
+                      (r as any).createdAt ??
+                      (r as any).submittedAt ??
+                      (r as any).requestedAt ??
+                      (r as any).requestedDate;
 
-                  return (
-                    <tr
-                      key={(r as any).id ?? `${r.studentProfileId}-${r.classId}-${start}-${end}`}
-                      className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
-                    >
-                      <td className="py-4 px-6 whitespace-nowrap text-sm text-gray-700">
-                        {toVNDateLabel(start)}{" "}
-                        {end ? <span className="text-gray-400">→</span> : null}{" "}
-                        {end ? toVNDateLabel(end) : null}
-                      </td>
+                    return (
+                      <tr
+                        key={(r as any).id ?? `${r.studentProfileId}-${r.classId}-${start}-${end}`}
+                        className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
+                      >
+                        <td className="py-3 px-6 whitespace-nowrap text-sm text-gray-700">
+                          {toVNDateLabel(start)}{" "}
+                          {end ? <span className="text-gray-400">→</span> : null}{" "}
+                          {end ? toVNDateLabel(end) : null}
+                        </td>
 
-                      <td className="py-4 px-6 whitespace-nowrap text-sm text-gray-700">
-                        {toVNDateLabel(created) || "—"}
-                      </td>
+                        <td className="py-3 px-6 whitespace-nowrap text-sm text-gray-700">
+                          {toVNDateLabel(created) || "—"}
+                        </td>
 
-                      <td className="py-4 px-6 text-sm text-gray-700">
-                        {(r as any).className ??
-                          (r as any).classTitle ??
-                          (r as any).classCode ??
-                          classNameById(r.classId)}
-                      </td>
+                        <td className="py-3 px-6 text-sm text-gray-700">
+                          {(r as any).className ??
+                            (r as any).classTitle ??
+                            (r as any).classCode ??
+                            classNameById(r.classId)}
+                        </td>
 
-                      <td className="py-4 px-6 text-sm text-gray-700">{(r as any).reason ?? "—"}</td>
+                        <td className="py-3 px-6 text-sm text-gray-700">{(r as any).reason ?? "—"}</td>
 
-                      <td className="py-4 px-6">
-                        <span
-                          className={`inline-flex items-center rounded-xl px-2.5 py-1 text-xs font-semibold ${statusStyles[status]}`}
-                        >
-                          {statusLabels[status]}
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-6 text-right">
-                        {canCancel ? (
-                          <button
-                            type="button"
-                            onClick={() => setCancelTarget(r)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 hover:border-rose-300 cursor-pointer"
-                            title={cancelHint}
+                        <td className="py-3 px-6">
+                          <span
+                            className={`inline-flex items-center rounded-xl px-2.5 py-1 text-xs font-semibold ${statusStyles[status]}`}
                           >
-                            <XCircle size={14} />
-                            Hủy đơn
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400" title={cancelHint}>
-                            {status === "CANCELLED" ? "Đã hủy" : "Không thể hủy"}
+                            {statusLabels[status]}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+
+                        <td className="py-3 px-6 text-right">
+                          {canCancel ? (
+                            <button
+                              type="button"
+                              onClick={() => setCancelTarget(r)}
+                              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 hover:border-rose-300 cursor-pointer"
+                              title={cancelHint}
+                            >
+                              <XCircle size={14} />
+                              Hủy đơn
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400" title={cancelHint}>
+                              {status === "CANCELLED" ? "Đã hủy" : "Không thể hủy"}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
-          </div>
-        )}
-      </div>
-
-      {/* Makeup Sessions */}
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div>
-            <div className="text-lg font-semibold text-gray-900">Buổi học bù đã sắp xếp</div>
-            {makeupLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
-            {!makeupLoading && makeupCreditSummary.available > 0 ? (
-              <div className="mt-1 text-sm text-amber-700">
-                Còn {makeupCreditSummary.available}/{makeupCreditSummary.total} lượt học bù chưa đặt lịch. Buổi bù chỉ xuất hiện ở đây sau khi phụ huynh chọn lịch cho từng lượt.
-              </div>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-sm text-gray-600 font-medium">{makeupAllocations.length} buổi</div>
-            <button
-              type="button"
-              onClick={() => openMakeupModal()}
-              disabled={!formState.studentProfileId}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Plus size={16} />
-              Chọn buổi học bù
-            </button>
           </div>
         </div>
+      )}
 
-        {makeupError ? <div className="px-6 py-4 text-sm text-red-600">{makeupError}</div> : null}
-
-        {!displayMakeup.length ? (
-          <div className="px-6 py-10 text-sm text-gray-600">Chưa có buổi bù nào.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
-                <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Thời gian bù
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lớp</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Trạng thái
-                  </th>
-                  <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
-                    Thao tác
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-gray-100">
-                {displayMakeup.map((m) => {
-                  const session = m.targetSessionId
-                    ? makeupSessionsById.get(m.targetSessionId)
-                    : undefined;
-                  const sessionTime = session?.plannedDatetime ?? session?.actualDatetime ?? null;
-                  const targetClassId = m.classId ?? session?.classId ?? null;
-                  const classText =
-                    session?.classTitle ??
-                    session?.classCode ??
-                    (targetClassId ? classNameById(targetClassId) : null) ??
-                    targetClassId ??
-                    "—";
-                  const statusText = m.usedAt ? "Đã học bù" : "Đã xếp lịch";
-                  const canChangeSchedule =
-                    !!m.makeupCreditId &&
-                    !!targetClassId &&
-                    !!m.targetSessionId &&
-                    canChangeScheduledMakeup(sessionTime, m.usedAt ?? null);
-                  const changeHint = canChangeSchedule
-                    ? "Chỉ hiển thị các buổi khác trong cùng chương trình bù đã xếp."
-                    : m.usedAt
-                      ? "Buổi bù này đã được sử dụng, không thể đổi lịch."
-                      : !m.makeupCreditId
-                        ? "Không thể đổi lịch vì chưa xác định được lượt học bù."
-                        : !targetClassId
-                          ? "Không thể đổi lịch vì chưa xác định được lớp bù hiện tại."
-                          : "Không thể đổi lịch khi buổi đã tới hoặc đã qua.";
-
-                  return (
-                    <tr
-                      key={m.id ?? `${m.makeupCreditId}-${m.targetSessionId}-${m.allocatedAt}`}
-                      className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
-                    >
-                      <td className="py-4 px-6 whitespace-nowrap text-sm text-gray-700">
-                        {toVNDateTimeLabel(sessionTime) ||
-                          toVNDateTimeLabel(m.allocatedAt) ||
-                          "—"}
-                      </td>
-
-                      <td className="py-4 px-6 text-sm text-gray-700">{classText}</td>
-
-                      <td className="py-4 px-6">
-                        <span className="inline-flex items-center rounded-xl px-2.5 py-1 text-xs font-semibold border border-sky-200 bg-sky-50 text-sky-700">
-                          {statusText}
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-6 text-right">
-                        {canChangeSchedule ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openMakeupModal({
-                                makeupCreditId: m.makeupCreditId as string,
-                                classId: targetClassId as string,
-                                classLabel: classText,
-                                sessionId: m.targetSessionId ?? null,
-                                sessionTime: sessionTime ?? null,
-                              })
-                            }
-                            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 hover:border-red-300 cursor-pointer"
-                            title={changeHint}
-                          >
-                            <Plus size={14} />
-                            Thay đổi lịch xếp
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400" title={changeHint}>
-                            Không thể đổi
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {/* Tab Content - Makeup Sessions */}
+      {activeTab === "makeup" && (
+        <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div>
+              <div className="text-lg font-semibold text-gray-900">Buổi học bù đã sắp xếp</div>
+              {makeupLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải…</div> : null}
+              {!makeupLoading && makeupCreditSummary.available > 0 ? (
+                <div className="mt-1 text-sm text-amber-700">
+                  Còn {makeupCreditSummary.available}/{makeupCreditSummary.total} lượt học bù chưa đặt lịch. Buổi bù chỉ xuất hiện ở đây sau khi phụ huynh chọn lịch cho từng lượt.
+                </div>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-600 font-medium">{makeupAllocations.length} buổi</div>
+              <button
+                type="button"
+                onClick={() => openMakeupModal()}
+                disabled={!formState.studentProfileId}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Plus size={16} />
+                Chọn buổi học bù
+              </button>
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* Info */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex gap-3">
+          {makeupError ? <div className="px-6 py-4 text-sm text-red-600">{makeupError}</div> : null}
+
+          {!displayMakeup.length ? (
+            <div className="px-6 py-12 text-center">
+              <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                <CalendarDays size={24} className="text-gray-400" />
+              </div>
+              <div className="text-gray-600 font-medium">Chưa có buổi bù nào</div>
+              <div className="text-sm text-gray-500 mt-1">Khi có lượt học bù, bạn có thể chọn lịch tại đây.</div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-red-600/5 to-red-700/5 border-b border-gray-200">
+                  <tr>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Thời gian bù
+                    </th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lớp</th>
+                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                      Trạng thái
+                    </th>
+                    <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
+                      Thao tác
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-gray-100">
+                  {displayMakeup.map((m) => {
+                    const session = m.targetSessionId
+                      ? makeupSessionsById.get(m.targetSessionId)
+                      : undefined;
+                    const sessionTime = session?.plannedDatetime ?? session?.actualDatetime ?? null;
+                    const targetClassId = m.classId ?? session?.classId ?? null;
+                    const classText =
+                      session?.classTitle ??
+                      session?.classCode ??
+                      (targetClassId ? classNameById(targetClassId) : null) ??
+                      targetClassId ??
+                      "—";
+                    const statusText = m.usedAt ? "Đã học bù" : "Đã xếp lịch";
+                    const canChangeSchedule =
+                      !!m.makeupCreditId &&
+                      !!targetClassId &&
+                      !!m.targetSessionId &&
+                      canChangeScheduledMakeup(sessionTime, m.usedAt ?? null);
+                    const changeHint = canChangeSchedule
+                      ? "Chỉ hiển thị các buổi khác trong cùng chương trình bù đã xếp."
+                      : m.usedAt
+                        ? "Buổi bù này đã được sử dụng, không thể đổi lịch."
+                        : !m.makeupCreditId
+                          ? "Không thể đổi lịch vì chưa xác định được lượt học bù."
+                          : !targetClassId
+                            ? "Không thể đổi lịch vì chưa xác định được lớp bù hiện tại."
+                            : "Không thể đổi lịch khi buổi đã tới hoặc đã qua.";
+
+                    return (
+                      <tr
+                        key={m.id ?? `${m.makeupCreditId}-${m.targetSessionId}-${m.allocatedAt}`}
+                        className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
+                      >
+                        <td className="py-4 px-6 whitespace-nowrap text-sm text-gray-700">
+                          {toVNDateTimeLabel(sessionTime) ||
+                            toVNDateTimeLabel(m.allocatedAt) ||
+                            "—"}
+                        </td>
+
+                        <td className="py-4 px-6 text-sm text-gray-700">{classText}</td>
+
+                        <td className="py-4 px-6">
+                          <span className="inline-flex items-center rounded-xl px-2.5 py-1 text-xs font-semibold border border-sky-200 bg-sky-50 text-sky-700">
+                            {statusText}
+                          </span>
+                        </td>
+
+                        <td className="py-4 px-6 text-right">
+                          {canChangeSchedule ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openMakeupModal({
+                                  makeupCreditId: m.makeupCreditId as string,
+                                  classId: targetClassId as string,
+                                  classLabel: classText,
+                                  sessionId: m.targetSessionId ?? null,
+                                  sessionTime: sessionTime ?? null,
+                                })
+                              }
+                              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 hover:border-red-300 cursor-pointer"
+                              title={changeHint}
+                            >
+                              <Plus size={14} />
+                              Thay đổi lịch xếp
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400" title={changeHint}>
+                              Không thể đổi
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Info Banner */}
+      <div className={`rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex gap-3 transition-all duration-700 delay-400 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="h-9 w-9 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 flex items-center justify-center shadow">
           <MessageSquare className="text-white" size={18} />
         </div>
@@ -1127,7 +1303,7 @@ export default function ParentAttendancePage() {
         </p>
       </div>
 
-      {/* Modal */}
+      {/* Modals */}
       <LeaveRequestCreateModal
         open={isModalOpen}
         onClose={closeCreateModal}
@@ -1186,151 +1362,6 @@ export default function ParentAttendancePage() {
         variant="warning"
         isLoading={cancelSubmitting}
       />
-      {false && isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl border border-gray-200">
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-lg font-bold text-gray-900">Tạo đơn xin nghỉ</div>
-                <div className="mt-1 text-sm text-gray-600">Điền thông tin và bấm “Gửi đơn”.</div>
-              </div>
-
-              <button
-                type="button"
-                onClick={closeCreateModal}
-                className="p-2 rounded-xl hover:bg-gray-50 transition"
-                aria-label="Close"
-              >
-                <XCircle size={18} className="text-gray-600" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              {/* Student */}
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-gray-700">Học viên</label>
-                <select
-                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                  value={formState.studentProfileId}
-                  disabled={profilesLoading || !studentProfiles.length || isStudentLocked}
-                  onChange={(e) =>
-                    setFormState((prev) => ({
-                      ...prev,
-                      studentProfileId: e.target.value,
-                      classId: "",
-                    }))
-                  }
-                >
-                  {studentProfiles.length ? (
-                    studentProfiles.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.displayName ?? p.id}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">Không có học viên</option>
-                  )}
-                </select>
-
-                {formErrors.studentProfileId ? (
-                  <div className="text-xs text-red-600">{formErrors.studentProfileId}</div>
-                ) : null}
-              </div>
-
-              {/* Class */}
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-gray-700">Lớp</label>
-                <select
-                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                  value={formState.classId}
-                  disabled={classesLoading || !classes.length}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, classId: e.target.value }))}
-                >
-                  <option value="">
-                    {classesLoading ? "Đang tải lớp…" : classes.length ? "Chọn lớp" : "Không có lớp"}
-                  </option>
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {classLabel(c)}
-                    </option>
-                  ))}
-                </select>
-
-                {formErrors.classId ? (
-                  <div className="text-xs text-red-600">{formErrors.classId}</div>
-                ) : null}
-                {classesError ? <div className="text-xs text-red-600">{classesError}</div> : null}
-              </div>
-
-              {/* Dates */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-gray-700">Ngày bắt đầu nghỉ</label>
-                  <input
-                    type="date"
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                    value={formState.sessionDate}
-                    onChange={(e) =>
-                      setFormState((prev) => ({ ...prev, sessionDate: e.target.value }))
-                    }
-                  />
-                  {formErrors.sessionDate ? (
-                    <div className="text-xs text-red-600">{formErrors.sessionDate}</div>
-                  ) : null}
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-gray-700">Ngày kết thúc nghỉ</label>
-                  <input
-                    type="date"
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                    value={formState.endDate ?? ""}
-                    onChange={(e) => setFormState((prev) => ({ ...prev, endDate: e.target.value }))}
-                  />
-                  {formErrors.endDate ? (
-                    <div className="text-xs text-red-600">{formErrors.endDate}</div>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* Reason */}
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-gray-700">Lý do</label>
-                <textarea
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 min-h-[110px] focus:outline-none focus:ring-2 focus:ring-gray-200"
-                  placeholder="Nhập lý do xin nghỉ..."
-                  value={formState.reason ?? ""}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, reason: e.target.value }))}
-                />
-                {formErrors.reason ? (
-                  <div className="text-xs text-red-600">{formErrors.reason}</div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="p-5 border-t border-gray-200 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeCreateModal}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
-                disabled={submitting}
-              >
-                Huỷ
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSubmit}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition disabled:opacity-60"
-                disabled={submitting || profilesLoading}
-              >
-                <Send size={16} />
-                {submitting ? "Đang gửi…" : "Gửi đơn"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
