@@ -23,6 +23,7 @@ import {
   Users
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { nowISOVN } from "@/lib/datetime";
 
 type SessionReportStatus = "DRAFT" | "REVIEW" | "APPROVED" | "REJECTED" | "PUBLISHED" | string;
 
@@ -259,12 +260,12 @@ function buildLocalRejectedReport(reportId: string, commentText: string): Partia
         id: `local-${reportId}`,
         content: trimmed,
         comment: trimmed,
-        createdAt: new Date().toISOString(),
+        createdAt: nowISOVN(),
         authorName: "Admin",
         commenterName: "Admin",
       },
     ],
-    updatedAt: new Date().toISOString(),
+    updatedAt: nowISOVN(),
   };
 }
 
@@ -274,7 +275,7 @@ function buildLocalComment(commentText: string) {
     id: `local-comment-${Date.now()}`,
     content: trimmed,
     comment: trimmed,
-    createdAt: new Date().toISOString(),
+    createdAt: nowISOVN(),
     authorName: "Admin",
     commenterName: "Admin",
   };

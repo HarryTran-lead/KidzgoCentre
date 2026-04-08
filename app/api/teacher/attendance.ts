@@ -6,6 +6,7 @@
 
 import { getAccessToken } from "@/lib/store/authToken";
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
+import { toISOStartOfDayVN, toISOEndOfDayVN, dateOnlyVN } from "@/lib/datetime";
 import type {
   AttendanceApiResponse,
   AttendanceItemApi,
@@ -157,24 +158,13 @@ function formatDateISO(date: Date): string {
 }
 
 /**
- * Parse ISO datetime string thanh Date object local time (khong bi anh huong boi timezone).
- * Trich xuat truc tiep cac thanh phan tu chuoi ISO string.
- * Dung khi backend gui gio dia phuong (VN +07:00) ma khong co timezone suffix.
+ * Parse ISO datetime string thanh Date object.
+ * Backend now trả ISO 8601 có offset (+07:00), dùng new Date() trực tiếp.
  */
 function parseISODateTime(isoString: string | undefined): Date | null {
   if (!isoString) return null;
-  const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
-  if (match) {
-    return new Date(
-      parseInt(match[1]),
-      parseInt(match[2]) - 1,
-      parseInt(match[3]),
-      parseInt(match[4]),
-      parseInt(match[5]),
-      parseInt(match[6])
-    );
-  }
-  return null;
+  const d = new Date(isoString);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 function formatHistoryDateParts(value?: string | null): { date?: string | null; startTime?: string | null } {
@@ -187,12 +177,14 @@ function formatHistoryDateParts(value?: string | null): { date?: string | null; 
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: "Asia/Ho_Chi_Minh",
   }).format(parsed);
 
   const startTime = new Intl.DateTimeFormat("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: "Asia/Ho_Chi_Minh",
   }).format(parsed);
 
   return { date, startTime };
@@ -345,13 +337,11 @@ export async function fetchSessionDetail(
 }
 
 export function toISODateStart(date: Date): string {
-  const base = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
-  return `${formatDateISO(base)}T00:00:00+07:00`;
+  return toISOStartOfDayVN(date);
 }
 
 export function toISODateEnd(date: Date): string {
-  const base = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
-  return `${formatDateISO(base)}T23:59:59+07:00`;
+  return toISOEndOfDayVN(date);
 }
 
 export function getTodayRange(): { from: string; to: string } {

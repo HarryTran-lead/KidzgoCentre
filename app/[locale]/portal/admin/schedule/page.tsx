@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
 import { getAllBranches } from "@/lib/api/branchService";
 import { createAdminSession, fetchAdminSessions } from "@/app/api/admin/sessions";
+import { todayDateOnly, dateOnlyVN } from "@/lib/datetime";
 import { fetchAdminUsersByIds, fetchAdminClasses } from "@/app/api/admin/classes";
 import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
 import {
@@ -316,8 +317,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   useEffect(() => {
     if (!isOpen) return;
 
-    const today = new Date();
-    const formattedDate = today.toISOString().split("T")[0];
+    const formattedDate = todayDateOnly();
 
     setFormData((prev) => ({
       ...initialFormData,
@@ -745,9 +745,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 type="button"
                 onClick={() => {
                   setFormData(initialFormData);
-                  const today = new Date();
-                  const formattedDate = today.toISOString().split('T')[0];
-                  setFormData(prev => ({ ...prev, date: formattedDate }));
+                  setFormData(prev => ({ ...prev, date: todayDateOnly() }));
                   setErrors({});
                 }}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
@@ -1393,8 +1391,8 @@ export default function AdminSchedulePage() {
         const weekEnd = new Date(weekCursor);
         weekEnd.setDate(weekEnd.getDate() + 6);
 
-        const fromDate = weekStart.toISOString().split('T')[0];
-        const toDate = weekEnd.toISOString().split('T')[0];
+        const fromDate = dateOnlyVN(weekStart);
+        const toDate = dateOnlyVN(weekEnd);
 
         console.log("📅 Fetching schedule for branch:", branchId || "All branches", "class:", classFilter !== "ALL" ? classFilter : "All");
         console.log("📅 Date range:", fromDate, "to", toDate);

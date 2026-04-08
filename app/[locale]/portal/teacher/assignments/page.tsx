@@ -51,6 +51,7 @@ import {
 import { fetchHomework, mapSubmissionToUi, createHomework, fetchClasses, fetchSessions, deleteHomework, updateHomework, createMultipleChoiceHomework } from "@/lib/api/homeworkService";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
 import { getActiveProgramsForDropdown, getAllProgramsForDropdown } from "@/lib/api/programService";
+import { dateOnlyVN } from "@/lib/datetime";
 import type { HomeworkSubmission, CreateHomeworkPayload, ClassOption, SessionOption, MultipleChoiceQuestion } from "@/types/teacher/homework";
 import type { AiGeneratedQuestionDraft } from "@/app/api/admin/question-bank";
 import AiCreatorModal from "@/components/question-bank/AiCreatorModal";
@@ -500,7 +501,7 @@ function CreateAssignmentModal({
     const parsedDate = new Date(sessionDateTime);
     if (Number.isNaN(parsedDate.getTime())) return;
     if (!dueDate) {
-      setDueDate(parsedDate.toISOString().split("T")[0]);
+      setDueDate(dateOnlyVN(parsedDate));
     }
   }, [selectedSession, sessions, dueDate]);
 
@@ -1631,7 +1632,7 @@ function UpdateAssignmentModal({
         dateObj = new Date(dueDateStr);
       }
       return {
-        date: dateObj.toISOString().split("T")[0],
+        date: dateOnlyVN(dateObj),
         time: `${String(dateObj.getHours()).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`
       };
     } catch {

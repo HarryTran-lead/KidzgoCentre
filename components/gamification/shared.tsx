@@ -39,16 +39,21 @@ export function toDatetimeLocal(value?: string | null) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
+  // Format as YYYY-MM-DDTHH:mm in VN timezone for datetime-local input
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+    timeZone: "Asia/Ho_Chi_Minh", hour12: false,
+  }).format(date);
+  return parts.replace(" ", "T");
 }
 
 export function toIsoString(value?: string) {
   if (!value) return undefined;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return undefined;
-  return date.toISOString();
+  // datetime-local values represent VN time; append +07:00 offset
+  return `${value.length === 16 ? value + ":00" : value}+07:00`;
 }
 
 function collectProblemMessages(value: unknown): string[] {

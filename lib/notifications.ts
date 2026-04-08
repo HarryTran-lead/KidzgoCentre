@@ -1,6 +1,7 @@
 "use client";
 
 import { ROLES, type Role } from "@/lib/role";
+import { nowISOVN } from "@/lib/datetime";
 import type {
   AppNotification,
   NotificationAudience,
@@ -17,7 +18,7 @@ const UPDATE_EVENT = "kidzgo:notifications-updated";
 const ROLE_LIST = Object.keys(ROLES) as Role[];
 
 function nowIso() {
-  return new Date().toISOString();
+  return nowISOVN();
 }
 
 function makeId(prefix: string) {

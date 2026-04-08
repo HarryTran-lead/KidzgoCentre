@@ -11,6 +11,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { fetchAdminRooms, createAdminRoom, updateAdminRoom, fetchAdminRoomDetail, toggleRoomStatus } from "@/app/api/admin/rooms";
 import { fetchClassFormSelectData } from "@/app/api/admin/classFormData";
 import { fetchAdminSessions } from "@/app/api/admin/sessions";
+import { todayDateOnly, dateOnlyVN } from "@/lib/datetime";
 import type { Room, Status as RoomStatus, CreateRoomRequest } from "@/types/admin/rooms";
 import type { SelectOption } from "@/types/admin/classFormData";
 import type { Session } from "@/types/admin/sessions";
@@ -587,10 +588,10 @@ export default function Page() {
         });
 
         // Filter sessions for today only
-        const todayKey = today.toISOString().split('T')[0];
+        const todayKey = todayDateOnly();
         const todayOnly = sessions.filter((s: Session) => {
           const sessionDate = new Date(s.plannedDatetime);
-          const sessionKey = sessionDate.toISOString().split('T')[0];
+          const sessionKey = dateOnlyVN(sessionDate);
           return sessionKey === todayKey;
         });
 

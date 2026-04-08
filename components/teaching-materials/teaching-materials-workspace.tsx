@@ -31,7 +31,7 @@ const msg = (error: unknown, fallback: string) => {
 
 const previewable = (fileType?: string | null) => ["Image", "Pdf", "Audio", "Video"].includes(String(fileType ?? ""));
 const bytes = (v?: number | null) => !v && v !== 0 ? "Chưa rõ" : v < 1024 * 1024 ? `${(v / 1024).toFixed(1)} KB` : `${(v / (1024 * 1024)).toFixed(1)} MB`;
-const dateText = (v?: string | null) => v ? new Date(v).toLocaleString("vi-VN") : "Chưa rõ";
+const dateText = (v?: string | null) => v ? new Date(v).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "Chưa rõ";
 const n = (v: string) => v.trim() ? Number(v) : undefined;
 
 export default function TeachingMaterialsWorkspace({ viewerRole, variant = "portal" }: { viewerRole: Role; variant?: Variant }) {

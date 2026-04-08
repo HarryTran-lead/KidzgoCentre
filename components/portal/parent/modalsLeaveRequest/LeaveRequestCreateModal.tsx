@@ -266,29 +266,19 @@ function formatTimeRange(session: ParentTimetableSession) {
   const raw = session.plannedDatetime ?? session.actualDatetime;
   if (!raw) return "";
 
-  // Parse ISO string directly to extract HH:mm components
-  // to avoid timezone offset issues from Date + toLocaleTimeString
-  const isoMatch = raw.match(/^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2})(?::(\d{2}))?/);
-  if (!isoMatch) {
-    // Fallback to Date for non-standard formats
-    const start = new Date(raw);
-    if (Number.isNaN(start.getTime())) return "";
-    return start.toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-    });
-  }
+  // Always convert to local time via Date to handle UTC offsets correctly
+  const start = new Date(raw);
+  if (Number.isNaN(start.getTime())) return "";
 
-  const startHour = isoMatch[1];
-  const startMin = isoMatch[2];
+  const startHour = String(start.getHours()).padStart(2, "0");
+  const startMin = String(start.getMinutes()).padStart(2, "0");
 
   const duration = Number(session.durationMinutes ?? 0);
   if (duration <= 0) {
     return `${startHour}:${startMin}`;
   }
 
-  const startMinutes = parseInt(startHour, 10) * 60 + parseInt(startMin, 10);
+  const startMinutes = start.getHours() * 60 + start.getMinutes();
   const endMinutes = startMinutes + duration;
   const endHour = String(Math.floor(endMinutes / 60) % 24).padStart(2, "0");
   const endMin = String(endMinutes % 60).padStart(2, "0");

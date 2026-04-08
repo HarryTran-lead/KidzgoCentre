@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState, useEffect, useRef } from "react";
+import { todayDateOnly } from "@/lib/datetime";
 import { useRouter, useParams } from "next/navigation";
 import {
   Plus, Search, Users, Clock, Eye, Pencil,
@@ -806,7 +807,7 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
       const selectedStudentProfiles = students.filter(s => selectedStudents.includes(s.id));
       
       // Gọi API cho mỗi học viên
-      const enrollDate = new Date().toISOString().split('T')[0]; // Ngày hiện tại
+      const enrollDate = todayDateOnly(); // Ngày hiện tại
       let successCount = 0;
       let failedStudents: string[] = [];
       

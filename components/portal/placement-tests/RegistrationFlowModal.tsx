@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { X, BookOpen, Users, Sparkles, Calendar, Clock, CheckCircle2, AlertCircle, Loader2, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { dateOnlyVN } from "@/lib/datetime";
 import type { PlacementTest } from "@/types/placement-test";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import {
@@ -80,7 +81,7 @@ function toInputDateValue(value?: string) {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 10);
+  return dateOnlyVN(d);
 }
 
 function formatSchedulePattern(value?: string | null) {

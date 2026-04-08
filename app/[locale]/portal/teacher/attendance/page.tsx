@@ -39,6 +39,7 @@ import {
 
 import type { AttendanceStatus, LessonDetail, SessionApiItem, Student } from "@/types/teacher/attendance";
 import type { SessionReportItem } from "@/types/teacher/sessionReport";
+import { todayDateOnly } from "@/lib/datetime";
 import {
   createSessionReport,
   enhanceSessionFeedback,
@@ -777,7 +778,7 @@ export default function TeacherAttendancePage() {
           : await createSessionReport({
             sessionId: selectedSessionId,
             studentProfileId,
-            reportDate: new Date().toISOString().slice(0, 10),
+            reportDate: todayDateOnly(),
             feedback: normalizedFeedback,
           });
 
@@ -896,7 +897,7 @@ export default function TeacherAttendancePage() {
             report = await createSessionReport({
               sessionId: selectedSessionId,
               studentProfileId,
-              reportDate: new Date().toISOString().slice(0, 10),
+              reportDate: todayDateOnly(),
               feedback: note,
             });
           }
