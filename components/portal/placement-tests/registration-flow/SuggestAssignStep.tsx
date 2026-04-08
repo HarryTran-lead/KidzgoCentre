@@ -531,7 +531,7 @@ export default function SuggestAssignStep({
                     )
                   }
                   disabled={!available}
-                  className={`rounded-lg border px-1.5 py-1.5 text-center text-xs transition-colors ${
+                  className={`rounded-lg border px-1.5 py-1.5 text-center text-xs transition-colors cursor-pointer ${
                     active
                       ? "border-red-500 bg-red-50 text-red-700 font-medium"
                       : available
@@ -583,7 +583,7 @@ export default function SuggestAssignStep({
             type="button"
             onClick={handleSuggestClasses}
             disabled={!registrationId || isSuggesting}
-            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed cursor-pointer disabled:opacity-60 ${
               assignViewMode === "suggested"
                 ? "border-red-600 bg-red-600 text-white"
                 : "border-red-300 bg-white text-red-700"
@@ -606,7 +606,7 @@ export default function SuggestAssignStep({
               isLoadingManualClasses ||
               !branchId
             }
-            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm cursor-pointer font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
               assignViewMode === "manual"
                 ? "border-red-600 bg-red-600 text-white"
                 : "border-red-300 bg-white text-red-700"
@@ -624,7 +624,7 @@ export default function SuggestAssignStep({
             type="button"
             onClick={handleMoveToWaitingList}
             disabled={!registrationId || isWaiting}
-            className="w-full rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isWaiting ? "Đang xử lý..." : "Đưa vào danh sách chờ"}
           </button>
@@ -649,7 +649,7 @@ export default function SuggestAssignStep({
                           ),
                         );
                       }}
-                      className={`rounded-xl border px-3 py-1.5 text-sm font-semibold ${
+                      className={`rounded-xl border px-3 py-1.5 text-sm font-semibold cursor-pointer ${
                         selectedTrack === "primary"
                           ? "border-red-600 bg-red-600 text-white"
                           : "border-gray-300 bg-white text-gray-700"
@@ -672,7 +672,7 @@ export default function SuggestAssignStep({
                             ),
                           );
                         }}
-                        className={`rounded-xl border px-3 py-1.5 text-sm font-semibold ${
+                        className={`rounded-xl border px-3 py-1.5 text-sm font-semibold cursor-pointer ${
                           selectedTrack === "secondary"
                             ? "border-red-600 bg-red-600 text-white"
                             : "border-gray-300 bg-white text-gray-700"
@@ -713,7 +713,7 @@ export default function SuggestAssignStep({
                         key={cls.id}
                         type="button"
                         onClick={() => setSelectedClassId(String(cls.id))}
-                        className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                        className={`rounded-xl border px-4 py-3 text-left transition-colors cursor-pointer ${
                           isSelected
                             ? "border-red-500 bg-red-100"
                             : "border-red-200 bg-white hover:bg-red-50"
@@ -791,7 +791,7 @@ export default function SuggestAssignStep({
                 type="button"
                 onClick={handleAssignSuggestedClass}
                 disabled={!selectedClassId || isAssigning}
-                className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold cursor-pointer text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isAssigning ? "Đang xếp lớp..." : "Xếp vào lớp đã chọn"}
               </button>
@@ -905,7 +905,7 @@ export default function SuggestAssignStep({
                     secondaryManualClassOptions.length === 0) ||
                   (hasSecondaryTrack && !manualSecondaryClassId)
                 }
-                className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-linear-to-r from-red-600 to-rose-600 px-4 py-2 text-sm font-semibold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isAssigning
                   ? "Đang xếp lớp..."

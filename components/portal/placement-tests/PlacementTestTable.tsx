@@ -214,7 +214,7 @@ export default function PlacementTestTable({
                 <button
                   type="button"
                   onClick={() => onSort?.("childName")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                 >
                   Tên trẻ
                   <ArrowUpDown
@@ -229,7 +229,7 @@ export default function PlacementTestTable({
                 <button
                   type="button"
                   onClick={() => onSort?.("leadContactName")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                 >
                   Phụ huynh
                   <ArrowUpDown
@@ -246,7 +246,7 @@ export default function PlacementTestTable({
                 <button
                   type="button"
                   onClick={() => onSort?.("scheduledAt")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                 >
                   Thời gian
                   <ArrowUpDown
@@ -268,7 +268,7 @@ export default function PlacementTestTable({
                 <button
                   type="button"
                   onClick={() => onSort?.("status")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
                 >
                   Trạng thái
                   <ArrowUpDown
@@ -425,7 +425,7 @@ export default function PlacementTestTable({
                                                 onNoShow(test);
                                                 setOpenMenuId(null);
                                               }}
-                                              className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                              className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                             >
                                               <AlertCircle size={14} />
                                               Đánh dấu không đến
@@ -437,7 +437,7 @@ export default function PlacementTestTable({
                                                 onCancel(test);
                                                 setOpenMenuId(null);
                                               }}
-                                              className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                              className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                             >
                                               <Ban size={14} />
                                               Hủy lịch test
@@ -451,7 +451,7 @@ export default function PlacementTestTable({
                                             onAddNote(test);
                                             setOpenMenuId(null);
                                           }}
-                                          className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                          className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                         >
                                           <MessageSquare size={14} />
                                           Thêm ghi chú
@@ -465,7 +465,7 @@ export default function PlacementTestTable({
                                               onCreateAccount(test);
                                               setOpenMenuId(null);
                                             }}
-                                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                           >
                                             <UserPlus size={14} />
                                             Tạo tài khoản & Profile
@@ -478,7 +478,7 @@ export default function PlacementTestTable({
                                               onStartRegistration(test);
                                               setOpenMenuId(null);
                                             }}
-                                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                           >
                                             <School size={14} />
                                             Bắt đầu đăng ký
@@ -491,7 +491,7 @@ export default function PlacementTestTable({
                                               onRetake(test);
                                               setOpenMenuId(null);
                                             }}
-                                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                                           >
                                             <RotateCcw size={14} />
                                             Retake
