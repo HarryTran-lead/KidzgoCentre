@@ -364,7 +364,7 @@ export default function Page() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={ticketDistribution} cx="50%" cy="50%" labelLine={false} outerRadius={90} dataKey="value">
-                      {ticketDistribution.map((entry, index) => (
+                      {ticketDistribution.map((entry: { color: string }, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -373,7 +373,7 @@ export default function Page() {
                 </ResponsiveContainer>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-4">
-                {ticketDistribution.map((item, index) => (
+                {ticketDistribution.map((item: { color: string; name: string; value: number }, index: number) => (
                   <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />

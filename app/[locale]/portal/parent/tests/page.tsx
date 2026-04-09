@@ -1170,7 +1170,7 @@ export default function TestsPage() {
 
                 {/* Subjects */}
                 <div className="grid grid-cols-2 gap-2">
-                  {test.subjects.slice(0, 4).map((subject, idx) => (
+                  {test.subjects.slice(0, 4).map((subject: { name: string; score: string | number }, idx: number) => (
                     <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
                       <span className="text-xs text-gray-600 truncate mr-1">{subject.name}</span>
                       <span className="text-xs font-bold text-red-600 flex-shrink-0">{subject.score}</span>

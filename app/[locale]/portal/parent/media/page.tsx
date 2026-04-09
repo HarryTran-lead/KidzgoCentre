@@ -267,7 +267,7 @@ export default function MediaPage() {
                     {/* Tags */}
                     {album.tags && (
                       <div className="flex flex-wrap gap-2">
-                        {album.tags.map((tag, index) => (
+                        {album.tags.map((tag: string, index: number) => (
                           <span
                             key={index}
                             className="px-2 py-1 rounded-lg bg-gray-100 text-xs text-gray-600 border border-gray-200"
