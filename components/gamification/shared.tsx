@@ -691,6 +691,7 @@ export type StudentOption = {
   id: string;
   label: string;
   studentId?: string;
+  classId?: string;
   classText?: string;
   helperText?: string;
   dropdownLabel?: string;

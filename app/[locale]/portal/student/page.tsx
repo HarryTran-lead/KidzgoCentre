@@ -71,10 +71,13 @@ export default function Page() {
   }, [selectedProfile?.id]);
 
   const notices: Notice[] = Array.isArray(dashboard?.notices) ? dashboard.notices : [];
+  const pendingTasksCount = Array.isArray(dashboard?.pendingTasks)
+    ? dashboard.pendingTasks.length
+    : (typeof dashboard?.pendingTasks === "number" ? dashboard.pendingTasks : (dashboard?.tasksToDo ?? 0));
 
   const stats = [
     { label: "Buổi học hôm nay", value: String(dashboard?.todaySessions ?? dashboard?.sessionsToday ?? 0), icon: Calendar, color: "from-indigo-500 to-purple-500" },
-    { label: "Nhiệm vụ cần làm", value: String(dashboard?.pendingTasks ?? dashboard?.tasksToDo ?? 0), icon: BookOpen, color: "from-purple-500 to-pink-500" },
+    { label: "Nhiệm vụ cần làm", value: String(pendingTasksCount), icon: BookOpen, color: "from-purple-500 to-pink-500" },
     { label: "Streak hiện tại", value: `${streakDays}`, icon: Flame, color: "from-orange-500 to-red-500" },
     { label: "Số sao hiện có", value: starBalance.toLocaleString("vi-VN"), icon: Star, color: "from-yellow-500 to-amber-500" },
   ];
@@ -137,7 +140,7 @@ export default function Page() {
                       Hôm nay bạn có{" "}
                       <span className="font-bold text-indigo-300">{dashboard?.todaySessions ?? 0} buổi học</span>{" "}
                       và{" "}
-                      <span className="font-bold text-purple-300">{dashboard?.pendingTasks ?? 0} nhiệm vụ</span>{" "}
+                      <span className="font-bold text-purple-300">{pendingTasksCount} nhiệm vụ</span>{" "}
                       cần hoàn thành.{" "}
                       {levelInfo ? <span className="text-yellow-300">Cấp {levelInfo.level} • {levelInfo.xp} XP</span> : null}
                     </p>

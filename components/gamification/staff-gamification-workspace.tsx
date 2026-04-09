@@ -274,6 +274,8 @@ export function StaffGamificationWorkspace({
   const [cancelRedemptionId, setCancelRedemptionId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [groupClassFilter, setGroupClassFilter] = useState("");
+  const [studentClassFilter, setStudentClassFilter] = useState("");
+  const [missionStudentClassFilter, setMissionStudentClassFilter] = useState("");
   const [studentAction, setStudentAction] = useState<StudentActionState>(studentActionSeed);
   const [studentActionErrors, setStudentActionErrors] = useState<StudentActionErrors>({});
   const [batchYear, setBatchYear] = useState("");
@@ -334,6 +336,7 @@ export function StaffGamificationWorkspace({
   function closeMissionDialog() {
     setMissionDialogOpen(false);
     setMissionErrors({});
+    setMissionStudentClassFilter("");
   }
 
   function closeRewardDialog() {
@@ -569,27 +572,35 @@ export function StaffGamificationWorkspace({
         }).catch(() => [] as ClassOptionLite[])
       : getMissionClassOptions();
 
-    const studentsPromise = getTeacherClasses({ pageNumber: 1, pageSize: 200 }).then(async (res) => {
-          const classes = res?.data?.classes?.items ?? [];
-          const allStudents: StudentOption[] = [];
-          const seenIds = new Set<string>();
-          for (const cls of classes) {
-            try {
-              const resp = await get<any>(`/api/teacher/classes/${cls.id}/students`);
-              const data = resp?.data ?? resp;
-              const items = Array.isArray(data?.students) ? data.students : Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-              for (const s of items) {
-                const id = String(s.id ?? s.profileId ?? s.studentProfileId ?? "").trim();
-                if (!id || seenIds.has(id)) continue;
-                seenIds.add(id);
-                const label = s.fullName || s.name || s.displayName || s.userName || id;
-                const classText = cls.code ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim() : (cls.title ?? cls.name ?? "");
-                allStudents.push({ id, label, studentId: s.studentId, classText, helperText: classText, dropdownLabel: classText ? `${label} • ${classText}` : label });
-              }
-            } catch { /* skip classes with errors */ }
-          }
-          return allStudents;
-        }).catch(() => [] as StudentOption[]);
+    const studentsPromise = (async (): Promise<StudentOption[]> => {
+      try {
+        let classItems: { id: string; code?: string; title?: string; name?: string }[] = [];
+        if (role === "Teacher") {
+          const res = await getTeacherClasses({ pageNumber: 1, pageSize: 200 });
+          classItems = (res?.data?.classes?.items ?? []).map((c: any) => ({ id: c.id, code: c.code, title: c.title ?? c.name, name: c.name ?? c.title }));
+        } else {
+          const res = await get<any>("/api/classes", { params: { status: "Active", pageNumber: 1, pageSize: 200 } });
+          classItems = (res?.data?.classes?.items ?? []).map((c: any) => ({ id: c.id, code: c.code, title: c.title ?? c.name, name: c.name ?? c.title }));
+        }
+        const allStudents: StudentOption[] = [];
+        const seenIds = new Set<string>();
+        for (const cls of classItems) {
+          try {
+            const resp = await get<any>(`/api/classes/${cls.id}/students`, { params: { pageNumber: 1, pageSize: 200 } });
+            const items: any[] = resp?.data?.students?.items ?? [];
+            for (const s of items) {
+              const id = String(s.studentProfileId ?? s.id ?? s.profileId ?? "").trim();
+              if (!id || seenIds.has(id)) continue;
+              seenIds.add(id);
+              const label = s.fullName || s.name || s.displayName || s.userName || id;
+              const classText = cls.code ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim() : (cls.title ?? cls.name ?? "");
+              allStudents.push({ id, label, studentId: s.studentId, classId: cls.id, classText, helperText: classText, dropdownLabel: classText ? `${label} • ${classText}` : label });
+            }
+          } catch { /* skip classes with errors */ }
+        }
+        return allStudents;
+      } catch { return []; }
+    })();
 
     const results = await Promise.allSettled([
       listMissions({ pageNumber: 1, pageSize: 50 }),
@@ -661,11 +672,13 @@ export function StaffGamificationWorkspace({
   function openCreateMission() {
     setMissionForm(missionSeed);
     setMissionErrors({});
+    setMissionStudentClassFilter("");
     setMissionDialogOpen(true);
   }
 
   function openEditMission(mission: Mission) {
     setMissionErrors({});
+    setMissionStudentClassFilter("");
     setMissionForm({
       id: mission.id,
       title: mission.title,
@@ -1215,10 +1228,15 @@ export function StaffGamificationWorkspace({
           <SectionTitle title="Sao, XP và streak theo học sinh" description="Chọn học sinh để xem số sao, cấp độ, streak điểm danh và lịch sử giao dịch sao." theme="staff" />
           <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
             <div className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
-              <label className="mb-2 block text-sm font-semibold text-gray-700">Học sinh</label>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">Lớp</label>
+              <select value={studentClassFilter} onChange={(event) => { setStudentClassFilter(event.target.value); setSelectedStudentId(""); }} className={inputClass}>
+                <option value="">Tất cả lớp</option>
+                {classOptions.map((cls) => <option key={cls.id} value={cls.id}>{cls.code ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim() : (cls.title ?? cls.name ?? cls.id)}</option>)}
+              </select>
+              <label className="mb-2 mt-3 block text-sm font-semibold text-gray-700">Học sinh</label>
               <select value={selectedStudentId} onChange={(event) => setSelectedStudentId(event.target.value)} className={inputClass}>
                 <option value="">Chọn học sinh</option>
-                {students.map((student) => <option key={student.id} value={student.id}>{student.dropdownLabel || student.label}</option>)}
+                {(studentClassFilter ? students.filter((s) => s.classId === studentClassFilter) : students).map((student) => <option key={student.id} value={student.id}>{student.label}</option>)}
               </select>
               <button type="button" onClick={() => selectedStudentId && void loadStudentSnapshot(selectedStudentId)} className={`${ghostButton} mt-3 w-full`}>Làm mới dữ liệu</button>
               <div className="mt-5 rounded-3xl border border-white bg-white p-4">
@@ -1560,34 +1578,62 @@ export function StaffGamificationWorkspace({
           </div>
 
           {missionForm.scope === "Student" ? (
-            <div className="md:col-span-2">
-              <FormLabel label="Học sinh áp dụng" required />
-              <select
-                value={missionForm.targetStudentId}
-                onChange={(event) => {
-                  clearMissionErrors(["targetStudentId"]);
-                  setMissionForm((current) => ({
-                    ...current,
-                    targetStudentId: event.target.value,
-                  }));
-                }}
-                className={getFieldClass(inputClass, Boolean(missionErrors.targetStudentId))}
-              >
-                <option value="">Chọn học sinh</option>
-                {students.map((student) => (
-                  <option key={student.id} value={student.id}>
-                    {student.dropdownLabel || student.label}
+            <div className="md:col-span-2 space-y-3">
+              <div>
+                <FormLabel label="Lớp" required />
+                <select
+                  value={missionStudentClassFilter}
+                  onChange={(event) => {
+                    setMissionStudentClassFilter(event.target.value);
+                    clearMissionErrors(["targetStudentId"]);
+                    setMissionForm((current) => ({ ...current, targetStudentId: "" }));
+                  }}
+                  className={inputClass}
+                >
+                  <option value="">Chọn lớp</option>
+                  {classOptions.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.code ? `${item.code} - ` : ""}
+                      {item.title || item.name || item.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <FormLabel label="Học sinh áp dụng" required />
+                <select
+                  value={missionForm.targetStudentId}
+                  onChange={(event) => {
+                    clearMissionErrors(["targetStudentId"]);
+                    setMissionForm((current) => ({
+                      ...current,
+                      targetStudentId: event.target.value,
+                    }));
+                  }}
+                  className={getFieldClass(inputClass, Boolean(missionErrors.targetStudentId))}
+                  disabled={!missionStudentClassFilter}
+                >
+                  <option value="">
+                    {missionStudentClassFilter ? "Chọn học sinh" : "Chọn lớp trước"}
                   </option>
-                ))}
-              </select>
-              <FieldError message={missionErrors.targetStudentId} />
-              {selectedMissionTargetStudent ? (
-                <p className="mt-2 text-xs text-gray-500">
-                  {selectedMissionTargetStudent.helperText ||
-                    selectedMissionTargetStudent.studentId ||
-                    "Học sinh đã chọn"}
-                </p>
-              ) : null}
+                  {(missionStudentClassFilter
+                    ? students.filter((s) => s.classId === missionStudentClassFilter)
+                    : []
+                  ).map((student) => (
+                    <option key={student.id} value={student.id}>
+                      {student.dropdownLabel || student.label}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={missionErrors.targetStudentId} />
+                {selectedMissionTargetStudent ? (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {selectedMissionTargetStudent.helperText ||
+                      selectedMissionTargetStudent.studentId ||
+                      "Học sinh đã chọn"}
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : null}
 
