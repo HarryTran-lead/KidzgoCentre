@@ -117,49 +117,74 @@ function Badge({
   );
 }
 
-// Chart Data (staff-management) - Updated colors
-const leadGrowthData = [
-  { month: "T7", leads: 120, qualified: 48 },
-  { month: "T8", leads: 142, qualified: 62 },
-  { month: "T9", leads: 158, qualified: 71 },
-  { month: "T10", leads: 176, qualified: 86 },
-  { month: "T11", leads: 195, qualified: 92 },
-  { month: "T12", leads: 228, qualified: 108 },
-];
-
-const classOpsData = [
-  { day: "T2", sessions: 22, conflicts: 1 },
-  { day: "T3", sessions: 25, conflicts: 0 },
-  { day: "T4", sessions: 24, conflicts: 2 },
-  { day: "T5", sessions: 26, conflicts: 1 },
-  { day: "T6", sessions: 28, conflicts: 1 },
-  { day: "T7", sessions: 18, conflicts: 0 },
-  { day: "CN", sessions: 12, conflicts: 0 },
-];
-
-const ticketDistribution = [
-  { name: "Tư vấn học", value: 45, color: "#dc2626" },       // red-600
-  { name: "Đổi lịch", value: 28, color: "#404040" },         // gray-600
-  { name: "Báo cáo", value: 18, color: "#171717" },          // gray-900
-  { name: "Khác", value: 9, color: "#991b1b" },              // red-800
-];
-
-const reportProgressData = [
-  { month: "T7", submitted: 62, pending: 18 },
-  { month: "T8", submitted: 68, pending: 15 },
-  { month: "T9", submitted: 71, pending: 14 },
-  { month: "T10", submitted: 75, pending: 12 },
-  { month: "T11", submitted: 79, pending: 10 },
-  { month: "T12", submitted: 83, pending: 9 },
-];
+import { getStaffManagementDashboard } from "@/lib/api/staffManagementService";
 
 export default function Page() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "leads" | "schedule" | "reports">("overview");
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setIsPageLoaded(true);
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    getStaffManagementDashboard()
+      .then((res: any) => {
+        if (!alive) return;
+        const d = res?.data?.data ?? res?.data ?? {};
+        setDashboard(d);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  const leadGrowthData = dashboard?.leadGrowthData ?? [
+    { month: "T7", leads: 0, qualified: 0 },
+    { month: "T8", leads: 0, qualified: 0 },
+    { month: "T9", leads: 0, qualified: 0 },
+    { month: "T10", leads: 0, qualified: 0 },
+    { month: "T11", leads: 0, qualified: 0 },
+    { month: "T12", leads: 0, qualified: 0 },
+  ];
+
+  const classOpsData = dashboard?.classOpsData ?? [
+    { day: "T2", sessions: 0, conflicts: 0 },
+    { day: "T3", sessions: 0, conflicts: 0 },
+    { day: "T4", sessions: 0, conflicts: 0 },
+    { day: "T5", sessions: 0, conflicts: 0 },
+    { day: "T6", sessions: 0, conflicts: 0 },
+    { day: "T7", sessions: 0, conflicts: 0 },
+    { day: "CN", sessions: 0, conflicts: 0 },
+  ];
+
+  const ticketDistribution = dashboard?.ticketDistribution ?? [
+    { name: "Tư vấn học", value: 0, color: "#dc2626" },
+    { name: "Đổi lịch", value: 0, color: "#404040" },
+    { name: "Báo cáo", value: 0, color: "#171717" },
+    { name: "Khác", value: 0, color: "#991b1b" },
+  ];
+
+  const reportProgressData = dashboard?.reportProgressData ?? [
+    { month: "T7", submitted: 0, pending: 0 },
+    { month: "T8", submitted: 0, pending: 0 },
+    { month: "T9", submitted: 0, pending: 0 },
+    { month: "T10", submitted: 0, pending: 0 },
+    { month: "T11", submitted: 0, pending: 0 },
+    { month: "T12", submitted: 0, pending: 0 },
+  ];
+
+  const newLeads = dashboard?.newLeads ?? "—";
+  const qualifiedLeads = dashboard?.qualifiedLeads ?? "—";
+  const weekSessions = dashboard?.weekSessions ?? "—";
+  const reportRate = dashboard?.reportRate ?? "—";
+  const leadsTrend = dashboard?.leadsTrend ?? "";
+  const qualifiedTrend = dashboard?.qualifiedTrend ?? "";
+  const sessionsTrend = dashboard?.sessionsTrend ?? "";
+  const reportsTrend = dashboard?.reportsTrend ?? "";
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -217,8 +242,8 @@ export default function Page() {
           <StatCard
             icon={<Users size={20} />}
             label="Lead mới (tháng)"
-            value="228"
-            hint="+17% so với T11"
+            value={String(newLeads)}
+            hint={leadsTrend || "—"}
             trend="up"
             color="red"
             delay={100}
@@ -226,8 +251,8 @@ export default function Page() {
           <StatCard
             icon={<Target size={20} />}
             label="Qualified Lead"
-            value="108"
-            hint="Tỷ lệ 47%"
+            value={String(qualifiedLeads)}
+            hint={qualifiedTrend || "—"}
             trend="stable"
             color="gray"
             delay={200}
@@ -235,8 +260,8 @@ export default function Page() {
           <StatCard
             icon={<CalendarRange size={20} />}
             label="Ca học tuần này"
-            value="155"
-            hint="Xung đột: 5"
+            value={String(weekSessions)}
+            hint={sessionsTrend || "—"}
             trend="down"
             color="gray"
             delay={300}
@@ -244,8 +269,8 @@ export default function Page() {
           <StatCard
             icon={<NotebookPen size={20} />}
             label="Báo cáo tháng"
-            value="83% đã nộp"
-            hint="Còn 9 báo cáo"
+            value={String(reportRate)}
+            hint={reportsTrend || "—"}
             trend="up"
             color="red"
             delay={400}
@@ -339,7 +364,7 @@ export default function Page() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={ticketDistribution} cx="50%" cy="50%" labelLine={false} outerRadius={90} dataKey="value">
-                      {ticketDistribution.map((entry, index) => (
+                      {ticketDistribution.map((entry: { color: string }, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -348,7 +373,7 @@ export default function Page() {
                 </ResponsiveContainer>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-4">
-                {ticketDistribution.map((item, index) => (
+                {ticketDistribution.map((item: { color: string; name: string; value: number }, index: number) => (
                   <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
@@ -427,7 +452,7 @@ export default function Page() {
                 </div>
                 Lead & Qualified 6 tháng
               </h3>
-              <Badge color="red">Tổng lead: 1,019</Badge>
+              <Badge color="red">Tổng lead: {dashboard?.totalLeads ?? "—"}</Badge>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -497,7 +522,7 @@ export default function Page() {
                 </div>
                 Tiến độ báo cáo tháng
               </h3>
-              <Badge color="gray">83% đã nộp</Badge>
+              <Badge color="gray">{String(reportRate)} đã nộp</Badge>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">

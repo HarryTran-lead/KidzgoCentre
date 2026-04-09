@@ -12,43 +12,32 @@ import { Card, CardContent } from "@/components/lightswind/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/lightswind/avatar";
 import { Badge } from "@/components/lightswind/badge";
 
-type ChildOverview = {
-  id: string;
-  name: string;
-  avatar?: string;
-  className: string;
-  level: string;
-  enrollmentDate: string;
-  totalClasses: number;
-  attendanceRate: number;
-  completedHomework: number;
-  totalHomework: number;
-  currentXP: number;
-  currentLevel: number;
-  streak: number;
-  stars: number;
-};
+interface ChildOverviewCardProps {
+  data?: any;
+}
 
-// Mock data - replace with actual data from API
-const MOCK_OVERVIEW: ChildOverview = {
-  id: "1",
-  name: "Nguyễn Minh An",
-  avatar: "/image/avatar-placeholder.png",
-  className: "Class 1A - Morning",
-  level: "Level 3",
-  enrollmentDate: "15/09/2024",
-  totalClasses: 48,
-  attendanceRate: 95.8,
-  completedHomework: 42,
-  totalHomework: 45,
-  currentXP: 3450,
-  currentLevel: 8,
-  streak: 15,
-  stars: 127,
-};
+export default function ChildOverviewCard({ data }: ChildOverviewCardProps) {
+  const studentInfo = data?.studentInfo ?? data?.studentProfiles?.[0] ?? {};
+  const classInfo = data?.classInfo ?? data?.classes?.[0] ?? {};
+  const stats = data?.statistics ?? {};
 
-export default function ChildOverviewCard() {
-  const overview = MOCK_OVERVIEW;
+  const overview = {
+    name: studentInfo.displayName ?? studentInfo.name ?? "Học sinh",
+    avatar: studentInfo.avatarUrl ?? "",
+    className: classInfo.title ?? classInfo.code ?? "",
+    level: studentInfo.level ?? `Level ${data?.level ?? 0}`,
+    enrollmentDate: classInfo.startDate ? new Date(classInfo.startDate).toLocaleDateString("vi-VN") : "",
+    totalClasses: stats.totalClasses ?? 0,
+    attendanceRate: data?.attendanceRate ?? 0,
+    completedHomework: data?.homeworkCompletion ?? stats.pendingHomeworks ?? 0,
+    totalHomework: (data?.homeworkCompletion ?? 0) + (stats.pendingHomeworks ?? 0) || 0,
+    currentXP: data?.xp ?? studentInfo.xp ?? 0,
+    currentLevel: data?.level ?? studentInfo.level ?? 0,
+    streak: data?.streak ?? 0,
+    stars: data?.stars ?? studentInfo.totalStars ?? 0,
+  };
+
+  if (!data) return null;
 
   return (
     <Card className="border-pink-100 shadow-sm">
@@ -129,15 +118,15 @@ export default function ChildOverviewCard() {
         <div className="mt-6 bg-slate-50 rounded-lg p-4 border border-slate-200">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-slate-700">Tiến độ lên level tiếp theo</span>
-            <span className="text-xs font-semibold text-purple-600">68%</span>
+            <span className="text-xs font-semibold text-purple-600">{overview.currentXP} XP</span>
           </div>
           <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
             <div
               className="h-full bg-linear-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
-              style={{ width: "68%" }}
+              style={{ width: `${Math.min(100, (overview.currentXP % 1000) / 10)}%` }}
             />
           </div>
-          <p className="text-xs text-slate-500 mt-1">Còn 1,150 XP để đạt Level 9</p>
+          <p className="text-xs text-slate-500 mt-1">Level {overview.currentLevel} • {overview.stars} ⭐</p>
         </div>
       </CardContent>
     </Card>

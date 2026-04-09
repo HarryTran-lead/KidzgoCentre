@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Users,
   Plus,
@@ -21,6 +21,7 @@ import {
   MessageSquare,
   ArrowUpDown,
 } from "lucide-react";
+import { getStaffManagementStudents } from "@/lib/api/staffManagementService";
 
 type Student = {
   id: string;
@@ -34,81 +35,6 @@ type Student = {
   status?: "Active" | "Inactive" | "Graduated";
   joinDate?: string;
 };
-
-const STUDENTS: Student[] = [
-  {
-    id: "ST001",
-    name: "Nguyễn Văn A",
-    cls: "IELTS A1",
-    attendance: 92,
-    makeup: 2,
-    notes: "PH thích liên hệ Zalo",
-    email: "nguyenvana@email.com",
-    phone: "0901234567",
-    status: "Active",
-    joinDate: "01/09/2024",
-  },
-  {
-    id: "ST002",
-    name: "Trần Thị B",
-    cls: "TOEIC",
-    attendance: 85,
-    makeup: 0,
-    notes: "Cần nhắc bài tối T5",
-    email: "tranthib@email.com",
-    phone: "0902345678",
-    status: "Active",
-    joinDate: "15/08/2024",
-  },
-  {
-    id: "ST003",
-    name: "Lê Văn C",
-    cls: "Cambridge Movers B",
-    attendance: 78,
-    makeup: 3,
-    notes: "Học viên cần hỗ trợ thêm",
-    email: "levanc@email.com",
-    phone: "0903456789",
-    status: "Active",
-    joinDate: "20/09/2024",
-  },
-  {
-    id: "ST004",
-    name: "Phạm Thị D",
-    cls: "IELTS A1",
-    attendance: 95,
-    makeup: 1,
-    notes: "Xuất sắc, có thể đề xuất lớp nâng cao",
-    email: "phamthid@email.com",
-    phone: "0904567890",
-    status: "Active",
-    joinDate: "05/07/2024",
-  },
-  {
-    id: "ST005",
-    name: "Hoàng Văn E",
-    cls: "Kids Tue",
-    attendance: 88,
-    makeup: 0,
-    notes: "PH yêu cầu báo cáo hàng tuần",
-    email: "hoangvane@email.com",
-    phone: "0905678901",
-    status: "Active",
-    joinDate: "10/08/2024",
-  },
-  {
-    id: "ST006",
-    name: "Vũ Thị F",
-    cls: "TOEIC",
-    attendance: 70,
-    makeup: 5,
-    notes: "Cần theo dõi attendance",
-    email: "vuthif@email.com",
-    phone: "0906789012",
-    status: "Active",
-    joinDate: "25/09/2024",
-  },
-];
 
 function StatCard({
   title,
@@ -250,21 +176,48 @@ export default function Page() {
     "name" | "cls" | "attendance" | "makeup" | "status" | "id" | null
   >(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    getStaffManagementStudents({ pageSize: 200 })
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data?.items ?? res?.data?.data ?? res?.data ?? [];
+        const list = (Array.isArray(raw) ? raw : []).map((s: any) => ({
+          id: s.id ?? s.studentId ?? "",
+          name: s.fullName ?? s.name ?? "",
+          cls: s.className ?? s.cls ?? "",
+          attendance: Number(s.attendanceRate ?? s.attendance ?? 0),
+          makeup: Number(s.makeupSessions ?? s.makeup ?? 0),
+          notes: s.notes ?? s.parentNotes ?? "",
+          email: s.email ?? "",
+          phone: s.phone ?? s.phoneNumber ?? "",
+          status: s.status === "Inactive" ? "Inactive" as const : s.status === "Graduated" ? "Graduated" as const : "Active" as const,
+          joinDate: s.joinDate ?? s.enrollmentDate ?? "",
+        }));
+        setStudents(list);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
 
   const stats = useMemo(() => {
-    const total = STUDENTS.length;
-    const avgAttendance = Math.round(
-      STUDENTS.reduce((sum, s) => sum + s.attendance, 0) / total
-    );
-    const totalMakeup = STUDENTS.reduce((sum, s) => sum + s.makeup, 0);
-    const active = STUDENTS.filter((s) => s.status === "Active").length;
+    const total = students.length;
+    const avgAttendance = total > 0 ? Math.round(
+      students.reduce((sum, s) => sum + s.attendance, 0) / total
+    ) : 0;
+    const totalMakeup = students.reduce((sum, s) => sum + s.makeup, 0);
+    const active = students.filter((s) => s.status === "Active").length;
     return { total, avgAttendance, totalMakeup, active };
-  }, []);
+  }, [students]);
 
   const classOptions = useMemo(() => {
-    const classes = Array.from(new Set(STUDENTS.map((s) => s.cls)));
+    const classes = Array.from(new Set(students.map((s) => s.cls)));
     return ["Tất cả", ...classes];
-  }, []);
+  }, [students]);
 
   const statusOptions: ("Tất cả" | "Active" | "Inactive" | "Graduated")[] = [
     "Tất cả",
@@ -276,7 +229,7 @@ export default function Page() {
   const attendanceOptions = ["Tất cả", "≥90%", "80-89%", "70-79%", "<70%"];
 
   const filtered = useMemo(() => {
-    return STUDENTS.filter((s) => {
+    return students.filter((s) => {
       const matchesClass = classFilter === "Tất cả" || s.cls === classFilter;
       const matchesStatus = statusFilter === "Tất cả" || s.status === statusFilter;
       
@@ -299,7 +252,7 @@ export default function Page() {
 
       return matchesClass && matchesStatus && matchesAttendance && matchesSearch;
     });
-  }, [classFilter, statusFilter, attendanceFilter, searchQuery]);
+  }, [students, classFilter, statusFilter, attendanceFilter, searchQuery]);
 
   const sortedStudents = useMemo(() => {
     const copy = [...filtered];

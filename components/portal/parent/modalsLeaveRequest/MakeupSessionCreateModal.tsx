@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
+import { toISOStartOfDayVN, toISOEndOfDayVN } from "@/lib/datetime";
 import { get } from "@/lib/axios";
 
 import {
@@ -279,22 +280,11 @@ const classNameValue = (c: any) =>
 const classCodeValue = (c: any) => (pickValue(c, ["code", "classCode"]) as string | undefined) ?? "";
 
 const toISODateStart = (dateStr?: string) => {
-  const baseDate = dateStr ? new Date(dateStr) : new Date();
-  const base = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 0, 0, 0);
-  return `${toDateInputValue(base)}T00:00:00+07:00`;
+  return toISOStartOfDayVN(dateStr ? new Date(dateStr) : new Date());
 };
 
 const toISODateEnd = (dateStr?: string) => {
-  const baseDate = dateStr ? new Date(dateStr) : new Date();
-  const base = new Date(
-    baseDate.getFullYear(),
-    baseDate.getMonth(),
-    baseDate.getDate(),
-    23,
-    59,
-    59
-  );
-  return `${toDateInputValue(base)}T23:59:59+07:00`;
+  return toISOEndOfDayVN(dateStr ? new Date(dateStr) : new Date());
 };
 
 const plusDaysInputValue = (dateStr: string | undefined, days: number) => {
@@ -959,12 +949,30 @@ export default function MakeupSessionCreateModal({
 
   const filteredSessions = useMemo(() => {
     if (!payload.targetClassId) return [];
-    return suggestions.filter(
-      (s: any) =>
-        suggestionClassId(s) === payload.targetClassId &&
-        suggestionSessionId(s) !== excludedSessionId
-    );
-  }, [suggestions, payload.targetClassId, excludedSessionId]);
+
+    // Determine the source session date to filter out sessions before it
+    const sourceDate = sourceSession?.plannedDatetime
+      ? new Date(sourceSession.plannedDatetime)
+      : null;
+
+    return suggestions.filter((s: any) => {
+      if (suggestionClassId(s) !== payload.targetClassId) return false;
+      if (suggestionSessionId(s) === excludedSessionId) return false;
+
+      // Filter out sessions that are on or before the source (missed) session date
+      if (sourceDate && !Number.isNaN(sourceDate.getTime())) {
+        const planned = suggestionPlannedDatetime(s);
+        if (planned) {
+          const sessionDate = new Date(planned);
+          if (!Number.isNaN(sessionDate.getTime()) && sessionDate <= sourceDate) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [suggestions, payload.targetClassId, excludedSessionId, sourceSession]);
 
   const canSubmit = useMemo(() => {
     return (

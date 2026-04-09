@@ -33,7 +33,13 @@ type RegistrationAssignModalProps = {
   activeSuggestedClasses: any[];
   activeAlternativeClasses: any[];
   formatSchedulePattern: (value?: string | null) => string;
-  handleAssignClass: () => void;
+  handleAssignClass: (sessionSelectionPattern?: string) => void;
+  handleAssignSuggestedClasses: (payload: {
+    primaryClassId: string;
+    primarySessionSelectionPattern?: string;
+    secondaryClassId?: string;
+    secondarySessionSelectionPattern?: string;
+  }) => void;
   isAssigning: boolean;
   manualClasses: any[];
   manualClassOptions: ManualClassOption[];
@@ -70,6 +76,7 @@ export default function RegistrationAssignModal({
   activeAlternativeClasses,
   formatSchedulePattern,
   handleAssignClass,
+  handleAssignSuggestedClasses,
   isAssigning,
   manualClasses,
   manualClassOptions,
@@ -134,6 +141,7 @@ export default function RegistrationAssignModal({
             activeAlternativeClasses={activeAlternativeClasses}
             formatSchedulePattern={formatSchedulePattern}
             handleAssignClass={handleAssignClass}
+            handleAssignSuggestedClasses={handleAssignSuggestedClasses}
             isAssigning={isAssigning}
             manualClasses={manualClasses}
             manualClassOptions={manualClassOptions}

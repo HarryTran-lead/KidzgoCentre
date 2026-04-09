@@ -890,8 +890,8 @@ export default function Page() {
         const fromDate = formatDateISO(start);
         const toDate = formatDateISO(end);
 
-        const from = `${fromDate}T00:00:00.000Z`;
-        const to = `${toDate}T23:59:59.999Z`;
+        const from = `${fromDate}T00:00:00+07:00`;
+        const to = `${toDate}T23:59:59+07:00`;
 
         const result = await fetchTeacherTimetable({ from, to });
         setWeekData(result.weekData);

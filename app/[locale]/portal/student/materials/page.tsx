@@ -1,5 +1,5 @@
-import TeachingMaterialsWorkspace from "@/components/teaching-materials/teaching-materials-workspace";
+import StudentLearningView from "@/components/teaching-materials/student-learning-view";
 
 export default function StudentMaterialsPage() {
-  return <TeachingMaterialsWorkspace viewerRole="Student" variant="student" />;
+  return <StudentLearningView />;
 }

@@ -90,6 +90,112 @@ function normalizeCode(value?: string): string {
   return String(value || "").trim();
 }
 
+function normalizeMessage(value?: string): string {
+  return String(value || "").trim();
+}
+
+function translateBackendMessageToVietnamese(message?: string): string | undefined {
+  const normalized = normalizeMessage(message);
+  if (!normalized) return undefined;
+
+  const lower = normalized.toLowerCase();
+
+  const messageMatchers: Array<{ test: RegExp; vi: string }> = [
+    {
+      test: /student\s+already\s+has\s+an\s+active\s+registration/i,
+      vi: "Học viên đã có đăng ký đang hoạt động cho chương trình này.",
+    },
+    {
+      test: /secondary\s+program\s+.*duplicat|secondary\s+program\s+.*same\s+as\s+primary/i,
+      vi: "Chương trình secondary không được trùng chương trình chính.",
+    },
+    {
+      test: /tuition\s*plan\s+.*not\s+found|tuition\s*plan\s+.*invalid/i,
+      vi: "Gói học không hợp lệ. Vui lòng chọn lại gói học.",
+    },
+    {
+      test: /program\s+.*not\s+found|invalid\s+program/i,
+      vi: "Chương trình không tồn tại. Vui lòng tải lại danh sách.",
+    },
+    {
+      test: /branch\s+.*not\s+found|invalid\s+branch/i,
+      vi: "Chi nhánh không tồn tại. Vui lòng tải lại danh sách.",
+    },
+    {
+      test: /student\s+.*not\s+found|student\s+profile\s+.*not\s+found/i,
+      vi: "Không tìm thấy học viên hoặc hồ sơ không hợp lệ.",
+    },
+    {
+      test: /class\s+.*not\s+found/i,
+      vi: "Không tìm thấy lớp. Vui lòng tải lại danh sách lớp.",
+    },
+    {
+      test: /class\s+.*full|no\s+slot|no\s+vacancy/i,
+      vi: "Lớp đã hết chỗ.",
+    },
+    {
+      test: /class\s+.*not\s+matching\s+program|different\s+program/i,
+      vi: "Lớp không thuộc đúng chương trình của đăng ký.",
+    },
+    {
+      test: /class\s+.*already\s+assigned|track\s+.*already\s+assigned/i,
+      vi: "Track này đã được xếp lớp.",
+    },
+    {
+      test: /cannot\s+transfer\s+to\s+same\s+class/i,
+      vi: "Không thể chuyển sang chính lớp hiện tại.",
+    },
+    {
+      test: /no\s+active\s+registration\s+for\s+upgrade/i,
+      vi: "Đăng ký hiện tại không ở trạng thái cho phép nâng cấp.",
+    },
+    {
+      test: /session\s*selection\s*pattern\s*invalid/i,
+      vi: "Mẫu chọn buổi học không hợp lệ.",
+    },
+    {
+      test: /session\s*selection\s*pattern\s*empty/i,
+      vi: "Mẫu chọn buổi học đang rỗng.",
+    },
+    {
+      test: /session\s*selection\s*pattern\s*mismatch/i,
+      vi: "Mẫu chọn buổi học không khớp lịch lớp.",
+    },
+    {
+      test: /class\s*schedule\s*pattern\s*invalid/i,
+      vi: "Lịch lớp không hợp lệ. Vui lòng tải lại dữ liệu lớp.",
+    },
+    {
+      test: /already\s+enrolled/i,
+      vi: "Học viên đã được ghi danh.",
+    },
+    {
+      test: /not\s+authorized|forbidden|permission/i,
+      vi: "Bạn không có quyền thao tác này.",
+    },
+    {
+      test: /unauthorized|token\s+expired|session\s+expired/i,
+      vi: "Phiên đăng nhập đã hết hạn hoặc bạn không có quyền thao tác",
+    },
+    {
+      test: /not\s+found/i,
+      vi: "Không tìm thấy dữ liệu.",
+    },
+    {
+      test: /validation\s+failed|one\s+or\s+more\s+validation\s+errors\s+occurred/i,
+      vi: "Dữ liệu gửi lên chưa hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.",
+    },
+  ];
+
+  for (const matcher of messageMatchers) {
+    if (matcher.test.test(lower)) {
+      return matcher.vi;
+    }
+  }
+
+  return undefined;
+}
+
 export function extractDomainErrorCode(error: unknown): string | undefined {
   const e = (error || {}) as ErrorLike;
 
@@ -132,6 +238,26 @@ export function getDomainErrorMessage(
   const code = extractDomainErrorCode(error);
   const mapped = mapDomainErrorCodeToMessage(code);
   if (mapped) return mapped;
+
+  const responseData = (error as ErrorLike)?.response?.data;
+  const beMessageCandidates = [
+    normalizeMessage(responseData?.message),
+    normalizeMessage(responseData?.detail),
+    normalizeMessage(responseData?.title),
+    normalizeMessage(responseData?.error),
+    normalizeMessage((error as any)?.message),
+  ].filter(Boolean);
+
+  const translatedFromMessage = beMessageCandidates
+    .map((message) => translateBackendMessageToVietnamese(message))
+    .find(Boolean);
+
+  if (translatedFromMessage) return translatedFromMessage;
+
+  if (beMessageCandidates.length > 0) {
+    // Preserve backend message content when there is no known translation pattern yet.
+    return beMessageCandidates[0];
+  }
 
   const status = Number(
     (error as ErrorLike)?.response?.status ||

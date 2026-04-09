@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BookOpen,
   Target,
@@ -82,93 +82,9 @@ interface MonthlySummary {
   totalLessons: number;
 }
 
-// Sample Data
-const SAMPLE_LESSON_REPORTS: LessonReport[] = [
-  {
-    id: "1",
-    lessonTitle: "Primary Starter - Lesson 22 report",
-    unit: "Unit 6: I Like Food - Unit Opener & Vocabulary",
-    date: "31 Thg 08 2025",
-    time: "17:00 - 19:00",
-    teacher: "Jack",
-    status: "Lớp học trực tiếp",
-    progress: 14,
-    learningObjectives: {
-      en: [
-        "I can identify and name the food vocabulary: bananas, biscuits, bread, chicken, milk, noodles, orange juice, rice, water.",
-        "I can recognise and write the vocabulary related to food.",
-        "I can apply my critical thinking skills to a range of tasks.",
-      ],
-      vn: [
-        "Con có thể nhận biết và nêu tên các từ vựng về thức ăn: bananas, biscuits, bread, chicken, milk, noodles, orange juice, rice, water.",
-        "Con có thể nhận biết và viết các từ liên quan đến thức ăn.",
-        "Con có thể áp dụng kỹ năng tư duy phản biện trong các bài tập khác nhau.",
-      ],
-    },
-    audio: [
-      { title: "PRESTA - TR: 6.11", url: "#" },
-      { title: "PRESTA - WB - TR: 6.1", url: "#" },
-    ],
-    teacherComments: [
-      {
-        teacher: "Dela Cruz Melissa",
-        content:
-          "I can identify and name the food vocabulary: bananas, biscuits, bread, chicken, milk, noodles, orange juice, rice, water independently.",
-        translation:
-          "Con có thể tự nhận biết và gọi tên các từ vựng về đồ ăn: chuối, bánh quy, bánh mì, thịt gà, sữa, mì, nước cam, nước.",
-      },
-    ],
-    vocabulary: {
-      title: "Food & drink",
-      words: ["bananas", "biscuits", "bread", "chicken", "milk", "noodles", "orange", "juice", "rice", "water"],
-    },
-    skills: [{ skill: "Speaking", pages: "52-55" }],
-    homeActivities: {
-      activeHomeLearning: true,
-      workbookPages: "27",
-      digitalHomeLearning: "OLP: Unit 6, Vocabulary",
-    },
-  },
-];
-
-const SAMPLE_PROGRESS: ProgressReport = {
-  currentUnit: "Unit 6: I Like Food",
-  overallProgress: 67,
-  skills: [
-    { name: "Nghe", level: 8, progress: 80 },
-    { name: "Nói", level: 7, progress: 70 },
-    { name: "Đọc", level: 9, progress: 90 },
-    { name: "Viết", level: 7, progress: 65 },
-  ],
-  recentScores: [
-    { subject: "Vocabulary Test", score: 9.0, date: "20/12/2024" },
-    { subject: "Speaking Test", score: 8.5, date: "15/12/2024" },
-    { subject: "Writing Test", score: 7.5, date: "10/12/2024" },
-  ],
-  strengths: ["Phát âm chuẩn", "Từ vựng phong phú", "Tích cực trong lớp"],
-  improvements: ["Cần luyện viết nhiều hơn", "Cải thiện ngữ pháp"],
-};
-
-const SAMPLE_MONTHLY_SUMMARIES: MonthlySummary[] = [
-  {
-    month: "12",
-    year: 2024,
-    grade: "A",
-    attendance: 95,
-    avgScore: 8.5,
-    lessonsCompleted: 16,
-    totalLessons: 20,
-  },
-  {
-    month: "11",
-    year: 2024,
-    grade: "B+",
-    attendance: 92,
-    avgScore: 8.0,
-    lessonsCompleted: 15,
-    totalLessons: 20,
-  },
-];
+// Data fetched from API
+import { getStudentReports } from "@/lib/api/studentPortalService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 // Lesson Report Component
 function LessonReportCard({ report }: { report: LessonReport }) {
@@ -529,6 +445,33 @@ function MonthlySummaryView({ summaries }: { summaries: MonthlySummary[] }) {
 // Main Component
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<ReportTab>("lesson");
+  const { selectedProfile } = useSelectedStudentProfile();
+  const [lessonReports, setLessonReports] = useState<LessonReport[]>([]);
+  const [progress, setProgress] = useState<ProgressReport | null>(null);
+  const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    const params = studentProfileId ? { studentProfileId } : undefined;
+    Promise.all([
+      getStudentReports({ ...params, type: "lesson" } as any).catch(() => null),
+      getStudentReports({ ...params, type: "progress" } as any).catch(() => null),
+      getStudentReports({ ...params, type: "monthly" } as any).catch(() => null),
+    ]).then(([lessonRes, progressRes, monthlyRes]) => {
+      if (!alive) return;
+      const rawLesson = lessonRes?.data?.data?.items ?? lessonRes?.data?.data ?? lessonRes?.data ?? [];
+      setLessonReports(Array.isArray(rawLesson) ? rawLesson : []);
+      const rawProgress = progressRes?.data?.data ?? progressRes?.data ?? null;
+      if (rawProgress && typeof rawProgress === "object" && !Array.isArray(rawProgress)) {
+        setProgress(rawProgress);
+      }
+      const rawMonthly = monthlyRes?.data?.data?.items ?? monthlyRes?.data?.data ?? monthlyRes?.data ?? [];
+      setMonthlySummaries(Array.isArray(rawMonthly) ? rawMonthly : []);
+    }).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [selectedProfile?.id]);
 
   const tabs = [
     { id: "lesson" as ReportTab, label: "Báo cáo sau buổi học", icon: FileText },
@@ -569,15 +512,15 @@ export default function ReportsPage() {
       <div className="py-4">
         {activeTab === "lesson" && (
           <div className="space-y-4">
-            {SAMPLE_LESSON_REPORTS.map((report) => (
+            {lessonReports.map((report) => (
               <LessonReportCard key={report.id} report={report} />
             ))}
           </div>
         )}
 
-        {activeTab === "progress" && <CurrentProgressView progress={SAMPLE_PROGRESS} />}
+        {activeTab === "progress" && progress && <CurrentProgressView progress={progress} />}
 
-        {activeTab === "monthly" && <MonthlySummaryView summaries={SAMPLE_MONTHLY_SUMMARIES} />}
+        {activeTab === "monthly" && <MonthlySummaryView summaries={monthlySummaries} />}
       </div>
     </div>
   );

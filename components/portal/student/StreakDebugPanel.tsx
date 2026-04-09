@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Flame, Settings, X } from "lucide-react";
+import { todayDateOnly } from "@/lib/datetime";
 
 interface StreakData {
   currentStreak: number;
@@ -30,7 +31,7 @@ export default function StreakDebugPanel({ onShowOverlay }: StreakDebugPanelProp
   ];
 
   const handleTestStreak = (value: number) => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayDateOnly();
     const testData: StreakData = {
       currentStreak: value,
       longestStreak: Math.max(value, 100),
@@ -48,7 +49,7 @@ export default function StreakDebugPanel({ onShowOverlay }: StreakDebugPanelProp
   };
 
   const handleSetCustomStreak = () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayDateOnly();
     const customData: StreakData = {
       currentStreak: streakValue,
       longestStreak: Math.max(streakValue, 100),

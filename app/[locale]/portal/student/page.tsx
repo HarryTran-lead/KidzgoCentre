@@ -1,7 +1,7 @@
 // app/[locale]/portal/student/page.tsx
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   BellRing,
   Sparkles,
@@ -14,11 +14,16 @@ import {
   MessageSquare,
   Trophy,
   Flame,
+  Star,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { resolveActiveStudentProfile } from "@/components/gamification/shared";
+import { getStudentDashboard } from "@/lib/api/studentPortalService";
+import { getMyStarBalance, getMyAttendanceStreak, getMyLevel } from "@/lib/api/gamificationService";
 
 type Notice = {
   title: string;
@@ -30,33 +35,55 @@ type Notice = {
 export default function Page() {
   const { user } = useCurrentUser();
   const { selectedProfile } = useSelectedStudentProfile();
+  const pathname = usePathname();
+  const locale = useMemo(() => {
+    const parts = (pathname || "").split("/");
+    return parts[1] || "vi";
+  }, [pathname]);
   const activeStudent = useMemo(
     () => resolveActiveStudentProfile(user?.profiles, selectedProfile, user?.selectedProfile),
     [selectedProfile, user?.profiles, user?.selectedProfile]
   );
   const studentName = activeStudent?.displayName || user?.fullName || "Học sinh";
 
-  const notices: Notice[] = [
-    {
-      title: "Cập nhật tài liệu",
-      content: "Tải slide và bài nghe buổi 8 trong mục Tài liệu.",
-      date: "19/12/2024",
-      type: "info",
-    },
-    {
-      title: "Nộp bài tập",
-      content: "Bài viết chủ đề Giáng Sinh hạn nộp trước 22/12.",
-      date: "18/12/2024",
-      type: "warning",
-    },
-  ];
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [starBalance, setStarBalance] = useState<number>(0);
+  const [streakDays, setStreakDays] = useState<number>(0);
+  const [levelInfo, setLevelInfo] = useState<{ level: number; xp: number; xpRequiredForNextLevel: number } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    getStudentDashboard(studentProfileId ? { studentProfileId } : undefined)
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data ?? res?.data ?? {};
+        setDashboard(raw);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    // Load real gamification data
+    getMyStarBalance().then((res) => { if (alive) setStarBalance(res.balance); }).catch(() => {});
+    getMyAttendanceStreak().then((res) => { if (alive) setStreakDays(res.currentStreak); }).catch(() => {});
+    getMyLevel().then((res) => { if (alive) setLevelInfo(res); }).catch(() => {});
+    return () => { alive = false; };
+  }, [selectedProfile?.id]);
+
+  const notices: Notice[] = Array.isArray(dashboard?.notices) ? dashboard.notices : [];
+  const pendingTasksCount = Array.isArray(dashboard?.pendingTasks)
+    ? dashboard.pendingTasks.length
+    : (typeof dashboard?.pendingTasks === "number" ? dashboard.pendingTasks : (dashboard?.tasksToDo ?? 0));
 
   const stats = [
-    { label: "Buổi học hôm nay", value: "1", icon: Calendar, color: "from-indigo-500 to-purple-500" },
-    { label: "Nhiệm vụ cần làm", value: "2", icon: BookOpen, color: "from-purple-500 to-pink-500" },
-    { label: "Streak hiện tại", value: "7", icon: Flame, color: "from-orange-500 to-red-500" },
-    { label: "Điểm tích lũy", value: "1,250", icon: Trophy, color: "from-yellow-500 to-amber-500" },
+    { label: "Buổi học hôm nay", value: String(dashboard?.todaySessions ?? dashboard?.sessionsToday ?? 0), icon: Calendar, color: "from-indigo-500 to-purple-500" },
+    { label: "Nhiệm vụ cần làm", value: String(pendingTasksCount), icon: BookOpen, color: "from-purple-500 to-pink-500" },
+    { label: "Streak hiện tại", value: `${streakDays}`, icon: Flame, color: "from-orange-500 to-red-500" },
+    { label: "Số sao hiện có", value: starBalance.toLocaleString("vi-VN"), icon: Star, color: "from-yellow-500 to-amber-500" },
   ];
+
+  const nextLesson = dashboard?.nextLesson ?? dashboard?.todayLesson ?? null;
+  const teacherNote = dashboard?.teacherNote ?? null;
 
   return (
     <div className="relative h-full overflow-y-auto pb-6">
@@ -111,19 +138,23 @@ export default function Page() {
                     </h2>
                     <p className="text-white/80">
                       Hôm nay bạn có{" "}
-                      <span className="font-bold text-indigo-300">1 buổi học</span>{" "}
+                      <span className="font-bold text-indigo-300">{dashboard?.todaySessions ?? 0} buổi học</span>{" "}
                       và{" "}
-                      <span className="font-bold text-purple-300">2 nhiệm vụ</span>{" "}
-                      cần hoàn thành
+                      <span className="font-bold text-purple-300">{pendingTasksCount} nhiệm vụ</span>{" "}
+                      cần hoàn thành.{" "}
+                      {levelInfo ? <span className="text-yellow-300">Cấp {levelInfo.level} • {levelInfo.xp} XP</span> : null}
                     </p>
                   </div>
                 </div>
                 
-                <button className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl text-white font-bold hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95 group">
+                <Link
+                  href={`/${locale}/portal/student/gamification`}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl text-white font-bold hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95 group"
+                >
                   <Play size={18} fill="white" />
                   TIẾP TỤC HỌC
                   <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -139,15 +170,15 @@ export default function Page() {
                 <div className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-xl p-5 border border-white/10">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="text-xl font-bold text-white mb-1">Lớp Tiếng Anh A1</h4>
+                      <h4 className="text-xl font-bold text-white mb-1">{nextLesson?.className ?? "Chưa có buổi học"}</h4>
                       <div className="flex items-center gap-3 text-sm text-white/70">
                         <span className="flex items-center gap-1">
                           <Clock size={14} />
-                          19:00 - 21:00
+                          {nextLesson?.time ?? "—"}
                         </span>
                         <span className="flex items-center gap-1">
                           <User size={14} />
-                          Cô Phương
+                          {nextLesson?.teacher ?? "—"}
                         </span>
                       </div>
                     </div>
@@ -181,9 +212,9 @@ export default function Page() {
                     <div className="flex-1">
                       <h5 className="font-bold text-white text-sm mb-1">Ghi chú từ giáo viên</h5>
                       <p className="text-white/70 text-sm leading-relaxed">
-                        Hãy luyện phát âm các từ có âm /ð/ và /θ/ trước khi tới lớp để thuyết trình nhóm tốt hơn.
+                        {teacherNote?.content ?? "Không có ghi chú mới."}
                       </p>
-                      <p className="text-white/50 text-xs mt-2">19/12/2024</p>
+                      <p className="text-white/50 text-xs mt-2">{teacherNote?.date ?? ""}</p>
                     </div>
                   </div>
                 </div>

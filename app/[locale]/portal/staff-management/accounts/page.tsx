@@ -20,6 +20,7 @@ import {
   XCircle
 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
+import { getAllUsers } from "@/lib/api/userService";
 
 type Account = {
   id: string;
@@ -33,74 +34,14 @@ type Account = {
   avatarColor: string;
 };
 
-const ACCS: Account[] = [
-  {
-    id: "U1001",
-    name: "Nguyễn Văn A",
-    role: "STUDENT",
-    phone: "0901 234 567",
-    branch: "Quận 1",
-    status: "Active",
-    email: "vana@example.com",
-    lastLogin: "Hôm nay, 09:30",
-    avatarColor: "bg-gradient-to-r from-blue-500 to-sky-500",
-  },
-  {
-    id: "U1002",
-    name: "Trần Thị B",
-    role: "PARENT",
-    phone: "0909 888 111",
-    branch: "Quận 1",
-    status: "Active",
-    email: "thib@example.com",
-    lastLogin: "Hôm qua, 14:20",
-    avatarColor: "bg-gradient-to-r from-emerald-500 to-teal-500",
-  },
-  {
-    id: "U2001",
-    name: "Lê Minh",
-    role: "TEACHER",
-    phone: "0912 555 777",
-    branch: "Quận 7",
-    status: "Locked",
-    email: "minh@example.com",
-    lastLogin: "3 ngày trước",
-    avatarColor: "bg-gradient-to-r from-purple-500 to-indigo-500",
-  },
-  {
-    id: "U3001",
-    name: "Phạm Văn C",
-    role: "STAFF",
-    phone: "0933 444 222",
-    branch: "Quận 1",
-    status: "Active",
-    email: "vanc@example.com",
-    lastLogin: "Hôm nay, 08:15",
-    avatarColor: "bg-gradient-to-r from-pink-500 to-rose-500",
-  },
-  {
-    id: "U4001",
-    name: "Hoàng Thị D",
-    role: "ACCOUNTANT",
-    phone: "0988 777 333",
-    branch: "Quận 7",
-    status: "Active",
-    email: "thid@example.com",
-    lastLogin: "Hôm nay, 10:45",
-    avatarColor: "bg-gradient-to-r from-amber-500 to-orange-500",
-  },
-  {
-    id: "U5001",
-    name: "Vũ Văn E",
-    role: "MANAGER",
-    phone: "0977 666 444",
-    branch: "Quận 1",
-    status: "Active",
-    email: "vane@example.com",
-    lastLogin: "Hôm nay, 07:30",
-    avatarColor: "bg-gradient-to-r from-violet-500 to-purple-500",
-  },
-];
+const AVATAR_COLORS: Record<string, string> = {
+  STUDENT: "bg-gradient-to-r from-blue-500 to-sky-500",
+  PARENT: "bg-gradient-to-r from-emerald-500 to-teal-500",
+  TEACHER: "bg-gradient-to-r from-purple-500 to-indigo-500",
+  STAFF: "bg-gradient-to-r from-pink-500 to-rose-500",
+  ACCOUNTANT: "bg-gradient-to-r from-amber-500 to-orange-500",
+  MANAGER: "bg-gradient-to-r from-violet-500 to-purple-500",
+};
 
 const ROLES = [
   { value: "STUDENT", label: "Học viên", color: "bg-blue-100 text-blue-700 border-blue-200" },
@@ -153,14 +94,40 @@ export default function Page() {
     "name" | "role" | "branch" | "status" | "lastLogin" | null
   >(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setIsPageLoaded(true);
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+    getAllUsers({ pageSize: 200 })
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data?.items ?? res?.data?.data ?? res?.data ?? [];
+        const list = (Array.isArray(raw) ? raw : []).map((u: any) => ({
+          id: u.id ?? u.userId ?? "",
+          name: u.fullName ?? u.name ?? "",
+          role: (u.role ?? u.roleName ?? "").toUpperCase(),
+          phone: u.phone ?? u.phoneNumber ?? "",
+          branch: u.branchName ?? u.branch ?? "",
+          status: u.isActive === false || u.status === "Locked" ? "Locked" as const : "Active" as const,
+          email: u.email ?? "",
+          lastLogin: u.lastLogin ?? u.lastLoginAt ?? "",
+          avatarColor: AVATAR_COLORS[(u.role ?? u.roleName ?? "").toUpperCase()] ?? "bg-gradient-to-r from-gray-500 to-gray-600",
+        }));
+        setAccounts(list);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
   const filteredAccounts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return ACCS.filter((account) => {
+    return accounts.filter((account) => {
       const matchesRole = selectedRole === "Tất cả" || account.role === selectedRole;
       const matchesBranch = selectedBranch === "Tất cả" || account.branch === selectedBranch;
       const matchesSearch =
@@ -171,7 +138,7 @@ export default function Page() {
 
       return matchesRole && matchesBranch && matchesSearch;
     });
-  }, [selectedRole, selectedBranch, searchQuery]);
+  }, [accounts, selectedRole, selectedBranch, searchQuery]);
 
   const filteredAndSortedAccounts = useMemo(() => {
     const copy = [...filteredAccounts];
@@ -255,11 +222,11 @@ export default function Page() {
   };
 
   const stats = {
-    total: ACCS.length,
-    active: ACCS.filter(a => a.status === "Active").length,
-    locked: ACCS.filter(a => a.status === "Locked").length,
-    teachers: ACCS.filter(a => a.role === "TEACHER").length,
-    students: ACCS.filter(a => a.role === "STUDENT").length,
+    total: accounts.length,
+    active: accounts.filter(a => a.status === "Active").length,
+    locked: accounts.filter(a => a.status === "Locked").length,
+    teachers: accounts.filter(a => a.role === "TEACHER").length,
+    students: accounts.filter(a => a.role === "STUDENT").length,
   };
 
   const statsList = [
@@ -341,11 +308,11 @@ export default function Page() {
             {/* Role Filter */}
             <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
               {[
-                { k: 'Tất cả', label: 'Tất cả', count: ACCS.length },
+                { k: 'Tất cả', label: 'Tất cả', count: accounts.length },
                 ...ROLES.map(role => ({
                   k: role.value,
                   label: role.label,
-                  count: ACCS.filter(a => a.role === role.value).length
+                  count: accounts.filter(a => a.role === role.value).length
                 }))
               ].map((item) => (
                 <button
@@ -730,8 +697,8 @@ export default function Page() {
             <h4 className="font-semibold text-gray-900 mb-3">Phân bố vai trò</h4>
             <div className="space-y-3">
               {ROLES.map(roleItem => {
-                const count = ACCS.filter(a => a.role === roleItem.value).length;
-                const percentage = ACCS.length > 0 ? Math.round((count / ACCS.length) * 100) : 0;
+                const count = accounts.filter(a => a.role === roleItem.value).length;
+                const percentage = accounts.length > 0 ? Math.round((count / accounts.length) * 100) : 0;
                 const [fromColor, toColor] = roleItem.color.split(' ')[2].split('-')[1]; // Extract color from class
 
                 return (

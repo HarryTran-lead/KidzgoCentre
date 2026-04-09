@@ -700,6 +700,7 @@ export const PARENT_ENDPOINTS = {
   APPROVALS: "/api/parent/approvals",
   TESTS: "/api/parent/tests",
   TEST_BY_ID: (id: string) => `/api/parent/tests/${id}`,
+  ACCOUNT: "/api/parent/account",
 } as const;
 
 // Backend Parent Endpoints (Next.js API Routes -> Backend API)
@@ -714,6 +715,7 @@ export const BACKEND_PARENT_ENDPOINTS = {
   APPROVALS: "/parent/approvals",
   TESTS: "/parent/tests",
   TEST_BY_ID: (id: string) => `/parent/tests/${id}`,
+  ACCOUNT: "/parent/account",
 } as const;
 
 export const STUDENT_PORTAL_ENDPOINTS = {
@@ -772,6 +774,7 @@ export const EXTRACURRICULAR_PROGRAM_ENDPOINTS = {
 export const STAFF_PORTAL_ENDPOINTS = {
   DASHBOARD: "/api/staff/dashboard",
   ANNOUNCEMENTS: "/api/staff/announcements",
+  ANNOUNCEMENTS_HISTORY: "/api/staff/announcements/history",
   ENROLLMENTS_PENDING: "/api/staff/enrollments/pending",
   ENROLLMENT_APPROVE: (id: string) => `/api/staff/enrollments/${id}/approve`,
   ENROLLMENT_REJECT: (id: string) => `/api/staff/enrollments/${id}/reject`,
@@ -780,6 +783,7 @@ export const STAFF_PORTAL_ENDPOINTS = {
 } as const;
 
 export const STAFF_MANAGEMENT_PORTAL_ENDPOINTS = {
+  DASHBOARD: "/api/me/management-staff/overview",
   STUDENTS: "/api/staff-management/students",
   MEDIA: "/api/staff-management/media",
   MEDIA_APPROVE: (id: string) => `/api/staff-management/media/${id}/approve`,

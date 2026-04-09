@@ -3,6 +3,7 @@
 import { NOTIFICATION_ENDPOINTS } from "@/constants/apiURL";
 import { normalizeRole, type Role } from "@/lib/role";
 import { getAccessToken } from "@/lib/store/authToken";
+import { nowISOVN } from "@/lib/datetime";
 import type {
   BackendNotificationRole,
   NotificationCampaign,
@@ -156,7 +157,7 @@ export async function fetchBroadcastHistory(senderRole?: Role) {
     audience: mapBroadcastAudience(item.audience ?? item.role),
     channel: normalizeBroadcastChannel(item.channel),
     kind: normalizeBroadcastKind(item.kind),
-    createdAt: item.createdAt ?? new Date().toISOString(),
+    createdAt: item.createdAt ?? nowISOVN(),
     senderRole: normalizeSenderRole(item.senderRole),
     senderName: item.senderName ?? "KidzGo Centre",
     deliveredCount: Number(item.deliveredCount ?? item.createdCount ?? 0),

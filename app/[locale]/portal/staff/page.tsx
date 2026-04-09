@@ -1,5 +1,7 @@
 "use client";
+import { useState, useEffect } from "react";
 import { Users, DollarSign, ClipboardList } from "lucide-react";
+import { getStaffDashboard } from "@/lib/api/staffPortalService";
 
 function Stat({
   icon: Icon,
@@ -27,6 +29,26 @@ function Stat({
 }
 
 export default function StaffDashboard() {
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    getStaffDashboard()
+      .then((res: any) => {
+        if (!alive) return;
+        setDashboard(res?.data?.data ?? res?.data ?? {});
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  const activeStudents = String(dashboard?.activeStudents ?? dashboard?.totalStudents ?? 0);
+  const monthlyRevenue = dashboard?.monthlyRevenue ?? dashboard?.revenue ?? "0 đ";
+  const pendingEnrollments = String(dashboard?.pendingEnrollments ?? 0);
+  const recentActivities: string[] = Array.isArray(dashboard?.recentActivities) ? dashboard.recentActivities : [];
+
   return (
     <div className="space-y-6">
       <div>
@@ -35,17 +57,18 @@ export default function StaffDashboard() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <Stat icon={Users} label="Học viên đang hoạt động" value="312" hint="+8 so với tháng trước" />
-        <Stat icon={DollarSign} label="Thu học phí tháng này" value="245.200.000 đ" hint="+12%" />
-        <Stat icon={ClipboardList} label="Đăng ký chờ duyệt" value="14" />
+        <Stat icon={Users} label="Học viên đang hoạt động" value={activeStudents} />
+        <Stat icon={DollarSign} label="Thu học phí tháng này" value={typeof monthlyRevenue === "number" ? monthlyRevenue.toLocaleString("vi-VN") + " đ" : monthlyRevenue} />
+        <Stat icon={ClipboardList} label="Đăng ký chờ duyệt" value={pendingEnrollments} />
       </div>
 
       <div className="rounded-2xl border bg-white p-4">
         <h3 className="font-semibold mb-2">Nhật ký gần đây</h3>
         <ul className="text-sm text-slate-900 list-disc pl-5 space-y-1">
-          <li>Ghi nhận thanh toán 2,500,000 đ cho lớp Tiếng Nhật N5 (HS: Trần Gia Bảo)</li>
-          <li>Phê duyệt đăng ký lớp IELTS A1 (HS: Lê Phương Nhi)</li>
-          <li>Gửi thông báo thay đổi lịch học TOEIC Intermediate</li>
+          {recentActivities.length > 0
+            ? recentActivities.map((a: string, i: number) => <li key={i}>{a}</li>)
+            : <li>Không có hoạt động gần đây</li>
+          }
         </ul>
       </div>
     </div>

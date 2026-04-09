@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotifications } from "@/hooks/useNotifications";
+import { getMyStarBalance, getMyLevel, getMyAttendanceStreak } from "@/lib/api/gamificationService";
 
 type StudentHeaderProps = {
   userName?: string;
@@ -22,6 +23,9 @@ export default function StudentHeader({
   const { unreadCount, notificationsRoute } = useNotifications("Student");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [starBalance, setStarBalance] = useState<number | null>(null);
+  const [streakDays, setStreakDays] = useState<number | null>(null);
+  const [levelInfo, setLevelInfo] = useState<{ level: number; xp: number; xpRequiredForNextLevel: number } | null>(null);
   const pathname = usePathname();
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
@@ -52,6 +56,13 @@ export default function StudentHeader({
 
   // Close when route changes
   useEffect(() => setIsDropdownOpen(false), [pathname]);
+
+  // Load gamification data for header
+  useEffect(() => {
+    getMyStarBalance().then((res) => setStarBalance(res.balance)).catch(() => {});
+    getMyAttendanceStreak().then((res) => setStreakDays(res.currentStreak)).catch(() => {});
+    getMyLevel().then((res) => setLevelInfo(res)).catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -96,7 +107,7 @@ export default function StudentHeader({
               {/* Stars */}
               <Star className="w-8 h-8 text-yellow-400" fill="currentColor" />
               <div className="text-lg font-black text-white drop-shadow-md">
-                  3,636
+                  {starBalance != null ? starBalance.toLocaleString("vi-VN") : "—"}
                 </div>
 
               {/* Chuoi ngay */}
@@ -110,7 +121,7 @@ export default function StudentHeader({
                   />
                 </div>
                 <div className="text-lg font-black text-white drop-shadow-md">
-                  36 ngày
+                  {streakDays != null ? `${streakDays} ngày` : "— ngày"}
                 </div>
               </div>
             </div>
@@ -206,15 +217,17 @@ export default function StudentHeader({
                   {/* Experience bar thu gọn */}
                   <div className="w-full">
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[13px] font-bold text-yellow-300">Level 12</span>
+                      <span className="text-[13px] font-bold text-yellow-300">
+                        {levelInfo ? `Level ${levelInfo.level}` : "—"}
+                      </span>
                     </div>
                     <div className="relative h-2 w-[140px] bg-white/20 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-gradient-to-r from-yellow-400 via-orange-400 to-pink-500 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-                        style={{ width: '85%' }}
+                        style={{ width: levelInfo ? `${Math.min(100, Math.round((levelInfo.xp / Math.max(1, levelInfo.xp + levelInfo.xpRequiredForNextLevel)) * 100))}%` : '0%' }}
                       />
                       <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                        850 / 1000
+                        {levelInfo ? `${levelInfo.xp} / ${levelInfo.xp + levelInfo.xpRequiredForNextLevel}` : "—"}
                       </span>
                     </div>
                   </div>

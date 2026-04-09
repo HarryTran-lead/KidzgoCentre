@@ -7,6 +7,9 @@ import {
   Clock, HardDrive, Image, Film, Music, File, Archive,
   Layers, Inbox, Wand2
 } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const StudentLearningView = dynamic(() => import("./student-learning-view"), { ssr: false });
 import { FilterTabs } from "@/components/portal/student/FilterTabs";
 import { getActiveProgramsForDropdown } from "@/lib/api/programService";
 import { createObjectUrl, fetchTeachingMaterialDownload, fetchTeachingMaterialPreview, getTeachingMaterialById, getTeachingMaterialLessonBundle, getTeachingMaterials, pickTeachingMaterialItems, revokeObjectUrl, sortTeachingMaterialItems, triggerBrowserDownload, uploadTeachingMaterials } from "@/lib/api/teachingMaterialsService";
@@ -37,7 +40,7 @@ const msg = (error: unknown, fallback: string) => {
 
 const previewable = (fileType?: string | null) => ["Image", "Pdf", "Audio", "Video"].includes(String(fileType ?? ""));
 const bytes = (v?: number | null) => !v && v !== 0 ? "Chưa rõ" : v < 1024 * 1024 ? `${(v / 1024).toFixed(1)} KB` : `${(v / (1024 * 1024)).toFixed(1)} MB`;
-const dateText = (v?: string | null) => v ? new Date(v).toLocaleString("vi-VN") : "Chưa rõ";
+const dateText = (v?: string | null) => v ? new Date(v).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "Chưa rõ";
 const n = (v: string) => v.trim() ? Number(v) : undefined;
 
 function cn(...a: Array<string | false | null | undefined>) {
@@ -64,6 +67,7 @@ function StatusBadge({ type }: { type: string }) {
 export default function TeachingMaterialsWorkspace({ viewerRole, variant: _variant = "portal" }: { viewerRole: Role; variant?: Variant }) {
   const { toast } = useToast();
   const canUpload = CAN_UPLOAD.has(viewerRole);
+  const [viewMode, setViewMode] = useState<"manage" | "learn">("manage");
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   useEffect(() => {
@@ -258,6 +262,16 @@ function SkeletonList() {
           )}
         </div>
       </div>
+
+      {/* ═══ LEARN MODE: Interactive learning view ═══ */}
+      {viewMode === "learn" && (
+        <div className="rounded-2xl bg-gradient-to-br from-[#0a0a2a] via-[#1a1a3a] to-[#2a1a3a] p-6 min-h-[60vh]">
+          <StudentLearningView />
+        </div>
+      )}
+
+      {/* ═══ MANAGE MODE: Stats, filters, 3-column layout ═══ */}
+      {viewMode === "manage" && (<>
 
       {/* Stats Cards */}
       <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 transition-all duration-500 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
@@ -778,6 +792,8 @@ function SkeletonList() {
           </div>
         </div>
       </div>
+
+      </>)}
     </div>
   );
 }

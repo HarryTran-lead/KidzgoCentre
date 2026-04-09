@@ -8,6 +8,7 @@
 import { getAccessToken } from "@/lib/store/authToken";
 import { TEACHER_ENDPOINTS } from "@/constants/apiURL";
 import { get, post, del, put } from "@/lib/axios";
+import { toISOStartOfDayVN, toISOEndOfDayVN, dateOnlyVN } from "@/lib/datetime";
 import {
   FetchHomeworkParams,
   FetchHomeworkSubmissionsParams,
@@ -109,11 +110,11 @@ export async function fetchSessions(classId: string): Promise<SessionOption[]> {
     const fromDate = new Date(today.getFullYear(), today.getMonth() - 3, 1);
     const toDate = new Date(today.getFullYear(), today.getMonth() + 2, 0);
     
-    const from = fromDate.toISOString().split('T')[0];
-    const to = toDate.toISOString().split('T')[0];
+    const from = toISOStartOfDayVN(fromDate);
+    const to = toISOEndOfDayVN(toDate);
 
     // Fetch all sessions in date range
-    const res = await fetch(`${TEACHER_ENDPOINTS.TIMETABLE}?from=${from}&to=${to}&pageNumber=1&pageSize=200`, {
+    const res = await fetch(`${TEACHER_ENDPOINTS.TIMETABLE}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&pageNumber=1&pageSize=200`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -730,34 +731,13 @@ export function mapSubmissionToUi(submission: HomeworkSubmission) {
     return typeMap[ext] || "FILE";
   };
 
-  // Format date with explicit timezone handling for Vietnam (+07:00)
+  // Format date with timezone handling for Vietnam (+07:00)
   const formatDueDate = (dateStr?: string): string => {
     if (!dateStr) return "";
     try {
+      // Backend now sends ISO 8601 with offset, parse directly
       const date = new Date(dateStr);
-      // Parse ISO string to extract UTC+7 components manually
-      // Backend stores as "YYYY-MM-DDTHH:mm:ss" (treated as UTC)
-      // Vietnam is UTC+7, so we interpret the string as Vietnam time
-      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
-      if (match) {
-        const [, year, month, day, hours, minutes] = match;
-        // Create Date treating values as Vietnam time (UTC+7)
-        // Subtract 7 hours so that when displayed in any timezone,
-        // it shows the correct Vietnam time
-        const vnMs = Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours) - 7, parseInt(minutes));
-        const vnDate = new Date(vnMs);
-        return vnDate.toLocaleString("vi-VN", {
-          timeZone: "Asia/Ho_Chi_Minh",
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: false,
-        });
-      }
-      // Fallback: use toLocaleString with explicit timezone
+      if (Number.isNaN(date.getTime())) return dateStr;
       return date.toLocaleString("vi-VN", {
         timeZone: "Asia/Ho_Chi_Minh",
         day: "2-digit",

@@ -254,6 +254,7 @@ export interface RewardRedemption {
   createdAt?: string | null;
   starsDeducted?: number | null;
   remainingStars?: number | null;
+  cancellationReason?: string | null;
 }
 
 export interface RewardRedemptionListParams {

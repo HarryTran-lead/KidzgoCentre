@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   UserRound,
   Shield,
@@ -15,25 +15,47 @@ import {
   EyeOff,
   Heart,
 } from "lucide-react";
+import { getParentAccount, updateParentAccount } from "@/lib/api/parentPortalService";
 
 type TabType = "profile" | "password";
 
 export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState({
-    name: "Nguyễn Văn A",
-    phone: "0912 345 678",
-    email: "parent@email.com",
-    birthDate: "1985-01-01",
-    address: "123 Đường ABC, Quận 1, TP. HCM",
-    childrenCount: 2,
+    name: "",
+    phone: "",
+    email: "",
+    birthDate: "",
+    address: "",
+    childrenCount: 0,
   });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+
+  useEffect(() => {
+    let alive = true;
+    getParentAccount()
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data ?? res?.data ?? {};
+        setProfileData({
+          name: raw.name ?? raw.fullName ?? "",
+          phone: raw.phone ?? raw.phoneNumber ?? "",
+          email: raw.email ?? "",
+          birthDate: raw.birthDate ?? raw.dateOfBirth ?? "",
+          address: raw.address ?? "",
+          childrenCount: raw.childrenCount ?? raw.numberOfChildren ?? 0,
+        });
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
@@ -147,7 +169,9 @@ export default function AccountPage() {
                           Huỷ
                         </button>
                         <button
-                          onClick={() => setIsEditing(false)}
+                          onClick={() => {
+                            updateParentAccount(profileData).then(() => setIsEditing(false)).catch(() => {});
+                          }}
                           className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg transition-all shadow-sm flex items-center gap-2 text-sm"
                         >
                           <Save size={16} />

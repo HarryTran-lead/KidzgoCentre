@@ -4,6 +4,14 @@ import { buildQueryString, type QueryParams } from "@/lib/api/queryString";
 
 export type StaffManagementQuery = QueryParams;
 
+export async function getStaffManagementDashboard(
+  params?: StaffManagementQuery
+): Promise<any> {
+  return get<any>(
+    `${STAFF_MANAGEMENT_PORTAL_ENDPOINTS.DASHBOARD}${buildQueryString(params)}`
+  );
+}
+
 export async function getStaffManagementStudents(
   params?: StaffManagementQuery
 ): Promise<any> {

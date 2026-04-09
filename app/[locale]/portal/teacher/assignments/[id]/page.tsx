@@ -459,35 +459,8 @@ export default function HomeworkDetailPage() {
     }
   };
 
-  // DueAt từ API đôi khi bị lệch timezone; hàm này hiển thị theo giờ VN giống trang danh sách
-  const formatDueAtVn = (dateStr?: string) => {
-    if (!dateStr) return "-";
-    try {
-      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?/);
-      if (match) {
-        const [, year, month, day, hours, minutes] = match;
-        const vnMs = Date.UTC(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day),
-          parseInt(hours) - 7,
-          parseInt(minutes)
-        );
-        return new Date(vnMs).toLocaleString("vi-VN", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "Asia/Ho_Chi_Minh",
-        });
-      }
-
-      return formatDateTime(dateStr);
-    } catch {
-      return dateStr;
-    }
-  };
+  // DueAt từ API giờ đã có offset +07:00 → dùng formatDateTime trực tiếp
+  const formatDueAtVn = formatDateTime;
 
   if (isLoading) {
     return (

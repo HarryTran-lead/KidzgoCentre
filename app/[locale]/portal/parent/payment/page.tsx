@@ -1,48 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Receipt, CreditCard, Wallet, History, QrCode, ArrowRight, CheckCircle, AlertCircle, Download, Banknote, TrendingUp, Filter, Sparkles, Calendar, Users } from "lucide-react";
+import { getParentInvoices, getParentPayments } from "@/lib/api/parentPortalService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 type TabType = "invoices" | "payment" | "history";
-
-const MOCK_INVOICES = [
-  {
-    id: "INV-2024-001",
-    month: "Tháng 01/2025",
-    amount: 2500000,
-    dueDate: "15/01/2025",
-    status: "pending",
-    description: "Học phí tháng 1/2025",
-  },
-  {
-    id: "INV-2024-012",
-    month: "Tháng 12/2024",
-    amount: 2500000,
-    dueDate: "15/12/2024",
-    status: "paid",
-    paidDate: "10/12/2024",
-    description: "Học phí tháng 12/2024",
-  },
-];
-
-const MOCK_PAYMENT_HISTORY = [
-  {
-    id: "PAY-001",
-    date: "10/12/2024",
-    amount: 2500000,
-    method: "Chuyển khoản",
-    invoice: "INV-2024-012",
-    status: "success",
-  },
-  {
-    id: "PAY-002",
-    date: "08/11/2024",
-    amount: 2500000,
-    method: "QR PayOS",
-    invoice: "INV-2024-011",
-    status: "success",
-  },
-];
 
 // Badge Component
 function Badge({
@@ -68,9 +31,30 @@ function Badge({
 export default function PaymentPage() {
   const [activeTab, setActiveTab] = useState<TabType>("invoices");
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { selectedProfile } = useSelectedStudentProfile();
 
-  const totalDebt = MOCK_INVOICES.filter((inv) => inv.status === "pending").reduce(
-    (sum, inv) => sum + inv.amount,
+  useEffect(() => {
+    let alive = true;
+    const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    const params = studentProfileId ? { studentProfileId } : undefined;
+    Promise.all([
+      getParentInvoices(params).catch(() => null),
+      getParentPayments(params).catch(() => null),
+    ]).then(([invRes, payRes]) => {
+      if (!alive) return;
+      const rawInv = invRes?.data?.data?.items ?? invRes?.data?.data ?? invRes?.data ?? [];
+      setInvoices(Array.isArray(rawInv) ? rawInv : []);
+      const rawPay = payRes?.data?.data?.items ?? payRes?.data?.data ?? payRes?.data ?? [];
+      setPaymentHistory(Array.isArray(rawPay) ? rawPay : []);
+    }).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [selectedProfile?.id]);
+
+  const totalDebt = invoices.filter((inv: any) => inv.status === "pending" || inv.status === "Pending").reduce(
+    (sum: number, inv: any) => sum + (inv.amount ?? 0),
     0
   );
 
@@ -91,7 +75,7 @@ export default function PaymentPage() {
     return <CreditCard className="w-4 h-4 text-gray-700" />;
   };
 
-  const paidInvoices = MOCK_INVOICES.filter((inv) => inv.status === "paid").length;
+  const paidInvoices = invoices.filter((inv: any) => inv.status === "paid" || inv.status === "Paid").length;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
@@ -137,7 +121,7 @@ export default function PaymentPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-gray-600">Lần thanh toán</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{MOCK_PAYMENT_HISTORY.length}</div>
+              <div className="text-2xl font-bold mt-2 text-gray-900">{paymentHistory.length}</div>
             </div>
             <div className="p-3 rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 text-white shadow-lg">
               <TrendingUp size={20} />
@@ -192,7 +176,7 @@ export default function PaymentPage() {
       <div className="space-y-4">
         {activeTab === "invoices" && (
           <div className="space-y-3">
-            {MOCK_INVOICES.map((invoice) => (
+            {invoices.map((invoice: any) => (
               <div
                 key={invoice.id}
                 className={`bg-white rounded-2xl border ${
@@ -251,7 +235,7 @@ export default function PaymentPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-3">
-                  {MOCK_INVOICES.filter(inv => inv.status === "pending").map((invoice) => (
+                  {invoices.filter((inv: any) => inv.status === "pending" || inv.status === "Pending").map((invoice: any) => (
                     <button
                       key={invoice.id}
                       onClick={() => setSelectedInvoice(invoice.id)}
@@ -278,10 +262,10 @@ export default function PaymentPage() {
                         </div>
                         <div className="space-y-2">
                           <div className="text-sm font-semibold text-gray-700">
-                            {MOCK_INVOICES.find(inv => inv.id === selectedInvoice)?.month}
+                            {invoices.find((inv: any) => inv.id === selectedInvoice)?.month}
                           </div>
                           <div className="text-2xl font-bold text-gray-900">
-                            {formatCurrency(MOCK_INVOICES.find(inv => inv.id === selectedInvoice)?.amount || 0)}
+                            {formatCurrency(invoices.find((inv: any) => inv.id === selectedInvoice)?.amount || 0)}
                           </div>
                           <div className="text-xs text-gray-500">Mã: {selectedInvoice}</div>
                         </div>
@@ -321,7 +305,7 @@ export default function PaymentPage() {
             </div>
 
             <div className="space-y-3">
-              {MOCK_PAYMENT_HISTORY.map((payment) => (
+              {paymentHistory.map((payment: any) => (
                 <div
                   key={payment.id}
                   className="p-4 rounded-xl border border-gray-200 bg-white hover:shadow-sm transition-all"

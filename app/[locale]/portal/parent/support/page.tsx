@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   MessageSquare, 
   Ticket, 
@@ -23,37 +23,9 @@ import {
   Activity
 } from "lucide-react";
 import { Button } from "@/components/lightswind/button";
+import { getTickets } from "@/lib/api/ticketService";
 
 type TabType = "feedback" | "tickets" | "contact";
-
-const MOCK_TICKETS = [
-  {
-    id: "TICKET-001",
-    subject: "Thắc mắc về học phí",
-    status: "open",
-    date: "25/12/2024",
-    lastReply: "26/12/2024",
-    priority: "high",
-    category: "Tài chính"
-  },
-  {
-    id: "TICKET-002",
-    subject: "Đổi lịch học",
-    status: "resolved",
-    date: "20/12/2024",
-    resolvedDate: "21/12/2024",
-    category: "Lịch học"
-  },
-  {
-    id: "TICKET-003",
-    subject: "Cập nhật thông tin học viên",
-    status: "in_progress",
-    date: "22/12/2024",
-    lastReply: "23/12/2024",
-    priority: "medium",
-    category: "Thông tin"
-  },
-];
 
 const SUPPORT_CATEGORIES = [
   { icon: <Calendar className="w-4 h-4" />, label: "Lịch học", color: "red" as const },
@@ -135,6 +107,21 @@ function StatCard({
 export default function SupportPage() {
   const [activeTab, setActiveTab] = useState<TabType>("feedback");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    getTickets({ mine: true })
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data?.items ?? res?.data?.data ?? res?.data ?? [];
+        setTickets(Array.isArray(raw) ? raw : []);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setTicketsLoading(false); });
+    return () => { alive = false; };
+  }, []);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -182,24 +169,24 @@ export default function SupportPage() {
         <StatCard
           icon={<Clock size={20} />}
           label="Đang xử lý"
-          value="2"
-          hint="+1 so với hôm qua"
+          value={String(tickets.filter((t: any) => t.status === "open" || t.status === "in_progress" || t.status === "Open" || t.status === "InProgress").length)}
+          hint=""
           trend="up"
           color="red"
         />
         <StatCard
           icon={<CheckCircle size={20} />}
           label="Đã giải quyết"
-          value="1"
-          hint="Trong tháng 12"
+          value={String(tickets.filter((t: any) => t.status === "resolved" || t.status === "Resolved" || t.status === "Closed").length)}
+          hint=""
           trend="stable"
           color="gray"
         />
         <StatCard
           icon={<Send size={20} />}
-          label="Phản hồi trung bình"
-          value="24h"
-          hint="Nhanh hơn 2h"
+          label="Tổng ticket"
+          value={String(tickets.length)}
+          hint=""
           trend="down"
           color="black"
         />
@@ -339,7 +326,7 @@ export default function SupportPage() {
             </div>
 
             <div className="space-y-3">
-              {MOCK_TICKETS.map((ticket) => (
+              {tickets.map((ticket: any) => (
                 <div
                   key={ticket.id}
                   className="p-5 rounded-xl border border-gray-200 bg-white hover:shadow-md transition-all cursor-pointer"
