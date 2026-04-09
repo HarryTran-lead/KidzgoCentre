@@ -264,9 +264,9 @@ export function mapMissionScopeLabel(scope: MissionScope) {
 export function mapMissionTypeLabel(type: MissionType) {
   switch (type) {
     case "HomeworkStreak":
-      return "Chuỗi hoàn thành bài tập";
+      return "Chuỗi bài tập";
     case "NoUnexcusedAbsence":
-      return "Không nghỉ học không phép";
+      return "Chuỗi điểm danh";
     default:
       return "Tùy chỉnh";
   }

@@ -283,9 +283,56 @@ export function LearnerGamificationWorkspace({
               </div>
             </>
           ) : null}
-          {activeTab === "stars" ? <SectionTitle title="Sao hiện có" description={`Bạn đang có ${formatNumber(starBalance)} sao và đã tạo ${formatNumber(redemptions.length)} đơn đổi thưởng.`} /> : null}
-          {activeTab === "xp" ? <SectionTitle title="XP hiện tại" description={`Tổng XP: ${formatNumber(levelInfo?.xp)} • Còn ${formatNumber(levelInfo?.xpRequiredForNextLevel)} XP để lên cấp.`} /> : null}
-          {activeTab === "level" ? <SectionTitle title="Cấp độ hiện tại" description={`Level hiện tại: ${levelInfo?.level != null && Number.isFinite(levelInfo.level) ? `Cấp ${levelInfo.level}` : "Chưa có"}.`} /> : null}
+          {activeTab === "stars" ? (
+            <>
+              <SectionTitle title="Sao hiện có" description={`Bạn đang có ${formatNumber(starBalance)} sao và đã tạo ${formatNumber(redemptions.length)} đơn đổi thưởng.`} />
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <MetricCard icon={<Star className="h-5 w-5" />} label="Tổng sao" value={formatNumber(starBalance)} hint="Dùng sao để đổi quà trong cửa hàng" accent="from-yellow-500 via-amber-500 to-orange-500" />
+                <MetricCard icon={<ShoppingBag className="h-5 w-5" />} label="Đơn đổi thưởng" value={formatNumber(redemptions.length)} hint="Tổng số đơn bạn đã tạo" accent="from-purple-500 via-fuchsia-500 to-pink-500" />
+              </div>
+            </>
+          ) : null}
+          {activeTab === "xp" ? (
+            <>
+              <SectionTitle title="XP hiện tại" description={`Tổng XP: ${formatNumber(levelInfo?.xp)} • Còn ${formatNumber(levelInfo?.xpRequiredForNextLevel)} XP để lên cấp.`} />
+              <div className="mt-4">
+                <MetricCard icon={<TrendingUp className="h-5 w-5" />} label="XP hiện tại" value={formatNumber(levelInfo?.xp)} hint={`Cấp ${levelInfo?.level ?? 0} • Cần thêm ${formatNumber(levelInfo?.xpRequiredForNextLevel)} XP`} accent="from-cyan-500 via-blue-500 to-purple-600" />
+                {levelInfo ? (
+                  <div className="mt-4 rounded-3xl border border-purple-500/20 bg-gradient-to-b from-purple-500/10 to-slate-900/90 p-5">
+                    <p className="text-sm font-medium text-purple-300 mb-2">Tiến trình lên cấp {levelInfo.level + 1}</p>
+                    <div className="h-3 w-full rounded-full bg-purple-900/50 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 transition-all duration-500" style={{ width: `${Math.min(100, Math.round((levelInfo.xp / Math.max(1, levelInfo.xp + levelInfo.xpRequiredForNextLevel)) * 100))}%` }} />
+                    </div>
+                    <div className="flex justify-between mt-1 text-xs text-purple-400">
+                      <span>{formatNumber(levelInfo.xp)} XP</span>
+                      <span>{formatNumber(levelInfo.xp + levelInfo.xpRequiredForNextLevel)} XP</span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+          {activeTab === "level" ? (
+            <>
+              <SectionTitle title="Cấp độ hiện tại" description={`Level hiện tại: ${levelInfo?.level != null && Number.isFinite(levelInfo.level) ? `Cấp ${levelInfo.level}` : "Chưa có"}.`} />
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <MetricCard icon={<Trophy className="h-5 w-5" />} label="Cấp độ" value={levelInfo?.level != null && Number.isFinite(levelInfo.level) ? `Cấp ${levelInfo.level}` : "Chưa có"} hint={`XP hiện tại: ${formatNumber(levelInfo?.xp)}`} accent="from-violet-500 via-fuchsia-500 to-pink-500" />
+                <MetricCard icon={<TrendingUp className="h-5 w-5" />} label="Còn cần" value={formatNumber(levelInfo?.xpRequiredForNextLevel)} hint="XP để lên cấp tiếp theo" accent="from-cyan-500 via-blue-500 to-purple-600" />
+              </div>
+              {levelInfo ? (
+                <div className="mt-4 rounded-3xl border border-purple-500/20 bg-gradient-to-b from-purple-500/10 to-slate-900/90 p-5">
+                  <p className="text-sm font-medium text-purple-300 mb-2">Tiến trình đến Cấp {levelInfo.level + 1}</p>
+                  <div className="h-3 w-full rounded-full bg-purple-900/50 overflow-hidden">
+                    <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all duration-500" style={{ width: `${Math.min(100, Math.round((levelInfo.xp / Math.max(1, levelInfo.xp + levelInfo.xpRequiredForNextLevel)) * 100))}%` }} />
+                  </div>
+                  <div className="flex justify-between mt-1 text-xs text-purple-400">
+                    <span>Cấp {levelInfo.level}</span>
+                    <span>Cấp {levelInfo.level + 1}</span>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
         </Panel>
       ) : null}
 
@@ -303,7 +350,7 @@ export function LearnerGamificationWorkspace({
                     <div key={item.id} className="overflow-hidden rounded-3xl border border-purple-500/30 bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-sm shadow-lg">
                       {itemImageUrl ? (
                         <div className="aspect-[16/9] w-full overflow-hidden bg-slate-800">
-                          <img src={itemImageUrl} alt={item.title} className="h-full w-full object-cover" />
+                          <img src={itemImageUrl} alt={item.title} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                         </div>
                       ) : null}
                       <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-5 py-4">
@@ -348,6 +395,11 @@ export function LearnerGamificationWorkspace({
                   </div>
                   <StatusPill label={mapRedemptionStatusLabel(item.status)} className={getRedemptionStatusClasses(item.status)} />
                 </div>
+                {item.status === "Cancelled" && item.cancellationReason ? (
+                  <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-2">
+                    <p className="text-xs font-medium text-rose-400">Lý do hủy: {item.cancellationReason}</p>
+                  </div>
+                ) : null}
                 {item.status === "Delivered" ? (
                   <button
                     type="button"
@@ -367,18 +419,29 @@ export function LearnerGamificationWorkspace({
 
       {/* Mission Progress Dialog */}
       <DialogShell open={Boolean(selectedMission)} title={selectedMission?.title ?? "Tiến độ mission"} description="Tiến độ theo hồ sơ học sinh đang được chọn." onClose={() => { setSelectedMission(null); setMissionProgress([]); }}>
-        {missionProgress.length ? missionProgress.map((item) => (
+        {missionProgress.length ? missionProgress.map((item) => {
+          const pct = Math.min(100, Math.max(0, Number(item.progressPercentage ?? 0)));
+          return (
           <div key={item.id} className="mb-3 rounded-3xl border border-purple-500/20 bg-gradient-to-b from-purple-500/10 to-slate-900/90 p-5 last:mb-0">
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0 flex-1">
                 <h4 className="font-semibold text-white">{item.studentName || activeStudent?.displayName || "Học sinh đang chọn"}</h4>
-                <p className="mt-1 text-sm text-purple-300">Tiến độ: {formatNumber(item.progressValue)} • {formatNumber(item.progressPercentage)}%</p>
-                <p className="mt-1 text-sm text-purple-300">Hoàn tất lúc: {formatDateTime(item.completedAt)}</p>
+                <div className="mt-2">
+                  <div className="flex items-center justify-between text-xs text-purple-300 mb-1">
+                    <span>Tiến độ: {item.progressValue ?? 0}{selectedMission?.totalRequired ? ` / ${selectedMission.totalRequired}` : ""}</span>
+                    <span className="font-semibold text-white">{pct}%</span>
+                  </div>
+                  <div className="h-2.5 w-full rounded-full bg-purple-900/50 overflow-hidden">
+                    <div className={pct >= 100 ? "h-full rounded-full bg-emerald-500 transition-all duration-500" : pct > 0 ? "h-full rounded-full bg-purple-400 transition-all duration-500" : "h-full rounded-full bg-purple-800 transition-all duration-500"} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+                <p className="mt-2 text-sm text-purple-300">Hoàn tất lúc: {formatDateTime(item.completedAt)}</p>
               </div>
               <StatusPill label={mapProgressStatusLabel(item.status)} className={getMissionProgressClasses(item.status)} />
             </div>
           </div>
-        )) : <EmptyState title="Chưa có tiến độ" description="Mission này chưa có bản ghi progress cho hồ sơ đang chọn." icon={<Target className="h-5 w-5" />} />}
+          );
+        }) : <EmptyState title="Chưa có tiến độ" description="Mission này chưa có bản ghi progress cho hồ sơ đang chọn." icon={<Target className="h-5 w-5" />} />}
       </DialogShell>
 
       {/* Redeem Dialog */}

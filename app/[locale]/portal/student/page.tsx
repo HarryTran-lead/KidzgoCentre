@@ -14,12 +14,16 @@ import {
   MessageSquare,
   Trophy,
   Flame,
+  Star,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { resolveActiveStudentProfile } from "@/components/gamification/shared";
 import { getStudentDashboard } from "@/lib/api/studentPortalService";
+import { getMyStarBalance, getMyAttendanceStreak, getMyLevel } from "@/lib/api/gamificationService";
 
 type Notice = {
   title: string;
@@ -31,6 +35,11 @@ type Notice = {
 export default function Page() {
   const { user } = useCurrentUser();
   const { selectedProfile } = useSelectedStudentProfile();
+  const pathname = usePathname();
+  const locale = useMemo(() => {
+    const parts = (pathname || "").split("/");
+    return parts[1] || "vi";
+  }, [pathname]);
   const activeStudent = useMemo(
     () => resolveActiveStudentProfile(user?.profiles, selectedProfile, user?.selectedProfile),
     [selectedProfile, user?.profiles, user?.selectedProfile]
@@ -39,6 +48,9 @@ export default function Page() {
 
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [starBalance, setStarBalance] = useState<number>(0);
+  const [streakDays, setStreakDays] = useState<number>(0);
+  const [levelInfo, setLevelInfo] = useState<{ level: number; xp: number; xpRequiredForNextLevel: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -51,6 +63,10 @@ export default function Page() {
       })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });
+    // Load real gamification data
+    getMyStarBalance().then((res) => { if (alive) setStarBalance(res.balance); }).catch(() => {});
+    getMyAttendanceStreak().then((res) => { if (alive) setStreakDays(res.currentStreak); }).catch(() => {});
+    getMyLevel().then((res) => { if (alive) setLevelInfo(res); }).catch(() => {});
     return () => { alive = false; };
   }, [selectedProfile?.id]);
 
@@ -59,8 +75,8 @@ export default function Page() {
   const stats = [
     { label: "Buổi học hôm nay", value: String(dashboard?.todaySessions ?? dashboard?.sessionsToday ?? 0), icon: Calendar, color: "from-indigo-500 to-purple-500" },
     { label: "Nhiệm vụ cần làm", value: String(dashboard?.pendingTasks ?? dashboard?.tasksToDo ?? 0), icon: BookOpen, color: "from-purple-500 to-pink-500" },
-    { label: "Streak hiện tại", value: String(dashboard?.currentStreak ?? dashboard?.streak ?? 0), icon: Flame, color: "from-orange-500 to-red-500" },
-    { label: "Điểm tích lũy", value: String(dashboard?.totalPoints ?? dashboard?.xp ?? 0), icon: Trophy, color: "from-yellow-500 to-amber-500" },
+    { label: "Streak hiện tại", value: `${streakDays}`, icon: Flame, color: "from-orange-500 to-red-500" },
+    { label: "Số sao hiện có", value: starBalance.toLocaleString("vi-VN"), icon: Star, color: "from-yellow-500 to-amber-500" },
   ];
 
   const nextLesson = dashboard?.nextLesson ?? dashboard?.todayLesson ?? null;
@@ -122,16 +138,20 @@ export default function Page() {
                       <span className="font-bold text-indigo-300">{dashboard?.todaySessions ?? 0} buổi học</span>{" "}
                       và{" "}
                       <span className="font-bold text-purple-300">{dashboard?.pendingTasks ?? 0} nhiệm vụ</span>{" "}
-                      cần hoàn thành
+                      cần hoàn thành.{" "}
+                      {levelInfo ? <span className="text-yellow-300">Cấp {levelInfo.level} • {levelInfo.xp} XP</span> : null}
                     </p>
                   </div>
                 </div>
                 
-                <button className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl text-white font-bold hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95 group">
+                <Link
+                  href={`/${locale}/portal/student/gamification`}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl text-white font-bold hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95 group"
+                >
                   <Play size={18} fill="white" />
                   TIẾP TỤC HỌC
                   <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </button>
+                </Link>
               </div>
             </div>
 

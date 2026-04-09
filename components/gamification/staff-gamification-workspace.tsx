@@ -8,7 +8,6 @@ import {
   Coins,
   Gift,
   ImageIcon,
-  Link2,
   Loader2,
   Package,
   Pencil,
@@ -24,7 +23,6 @@ import {
 import { buildFileUrl } from "@/constants/apiURL";
 import { useToast } from "@/hooks/use-toast";
 import { isUploadSuccess, uploadFile } from "@/lib/api/fileService";
-import { getAllStudents } from "@/lib/api/studentService";
 import { getTeacherClasses } from "@/lib/api/teacherService";
 import { get } from "@/lib/axios";
 import {
@@ -243,11 +241,12 @@ export function StaffGamificationWorkspace({
   const { toast } = useToast();
   const canManageStore = role !== "Teacher";
   const canDeleteMission = role !== "Teacher";
+  const canViewRedemptions = role !== "Teacher";
   const tabs = [
     { id: "missions" as const, label: "Nhiệm vụ" },
     { id: "students" as const, label: "Sao / XP" },
     ...(canManageStore ? ([{ id: "rewardStore" as const, label: "Kho quà" }] as const) : []),
-    { id: "redemptions" as const, label: "Đổi thưởng" },
+    ...(canViewRedemptions ? ([{ id: "redemptions" as const, label: "Đổi thưởng" }] as const) : []),
   ];
   const [activeTab, setActiveTab] = useState<StaffTab>("missions");
   const [loading, setLoading] = useState(true);
@@ -271,7 +270,6 @@ export function StaffGamificationWorkspace({
   const [missionDialogOpen, setMissionDialogOpen] = useState(false);
   const [rewardDialogOpen, setRewardDialogOpen] = useState(false);
   const [progressDialog, setProgressDialog] = useState<{ mission: Mission | null; items: MissionProgress[]; open: boolean }>({ mission: null, items: [], open: false });
-  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [redemptionDetail, setRedemptionDetail] = useState<RewardRedemption | null>(null);
   const [cancelRedemptionId, setCancelRedemptionId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -280,6 +278,8 @@ export function StaffGamificationWorkspace({
   const [studentActionErrors, setStudentActionErrors] = useState<StudentActionErrors>({});
   const [batchYear, setBatchYear] = useState("");
   const [batchMonth, setBatchMonth] = useState("");
+  const [redemptionPage, setRedemptionPage] = useState(1);
+  const [redemptionTotalPages, setRedemptionTotalPages] = useState(1);
   const [imageUploading, setImageUploading] = useState(false);
   const rewardImageInputRef = useRef<HTMLInputElement>(null);
   const rewardImagePreviewUrl = buildFileUrl(rewardForm.imageUrl);
@@ -569,8 +569,7 @@ export function StaffGamificationWorkspace({
         }).catch(() => [] as ClassOptionLite[])
       : getMissionClassOptions();
 
-    const studentsPromise = role === "Teacher"
-      ? getTeacherClasses({ pageNumber: 1, pageSize: 200 }).then(async (res) => {
+    const studentsPromise = getTeacherClasses({ pageNumber: 1, pageSize: 200 }).then(async (res) => {
           const classes = res?.data?.classes?.items ?? [];
           const allStudents: StudentOption[] = [];
           const seenIds = new Set<string>();
@@ -590,8 +589,7 @@ export function StaffGamificationWorkspace({
             } catch { /* skip classes with errors */ }
           }
           return allStudents;
-        }).catch(() => [] as StudentOption[])
-      : getAllStudents({ profileType: "Student", pageNumber: 1, pageSize: 200 }).then((res) => extractStudentOptions(res));
+        }).catch(() => [] as StudentOption[]);
 
     const results = await Promise.allSettled([
       listMissions({ pageNumber: 1, pageSize: 50 }),
@@ -600,7 +598,7 @@ export function StaffGamificationWorkspace({
       canManageStore
         ? listRewardStoreItems({ page: 1, pageSize: 50 })
         : Promise.resolve({ items: [], pageNumber: 1, totalPages: 1, totalCount: 0 }),
-      listRewardRedemptions({ page: 1, pageSize: 50 }),
+      listRewardRedemptions({ page: redemptionPage, pageSize: 10 }),
     ]);
 
     const [missionResult, classResult, studentResult, rewardResult, redemptionResult] = results;
@@ -612,7 +610,10 @@ export function StaffGamificationWorkspace({
       setSelectedStudentId((current) => current || options[0]?.id || "");
     }
     if (rewardResult.status === "fulfilled") setRewardItems((rewardResult.value as any).items);
-    if (redemptionResult.status === "fulfilled") setRedemptions(redemptionResult.value.items);
+    if (redemptionResult.status === "fulfilled") {
+      setRedemptions(redemptionResult.value.items);
+      setRedemptionTotalPages(redemptionResult.value.totalPages);
+    }
     if (results.every((result) => result.status === "rejected")) {
       setPageError("Không thể tải dữ liệu gamification trong thời điểm này.");
     }
@@ -639,6 +640,17 @@ export function StaffGamificationWorkspace({
   useEffect(() => {
     void loadBaseData();
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      listRewardRedemptions({ page: redemptionPage, pageSize: 10 })
+        .then((result) => {
+          setRedemptions(result.items);
+          setRedemptionTotalPages(result.totalPages);
+        })
+        .catch(() => {});
+    }
+  }, [redemptionPage]);
 
   useEffect(() => {
     setStudentAction(studentActionSeed);
@@ -815,10 +827,6 @@ export function StaffGamificationWorkspace({
     setRewardForm(rewardSeed);
     setRewardErrors({});
     setRewardDialogOpen(true);
-  }
-
-  function openLinkHomeworkDialog() {
-    setLinkDialogOpen(true);
   }
 
   function openEditReward(item: RewardStoreItem) {
@@ -1154,16 +1162,10 @@ export function StaffGamificationWorkspace({
             description="Tạo nhiệm vụ mới, cập nhật phạm vi áp dụng, xem tiến độ và theo dõi các luồng backend tự cộng progress."
             theme="staff"
             action={
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={openCreateMission} className={primaryButton}>
+              <button type="button" onClick={openCreateMission} className={primaryButton}>
                   <Plus className="h-4 w-4" />
                   Tạo nhiệm vụ
                 </button>
-                <button type="button" onClick={openLinkHomeworkDialog} className={ghostButton}>
-                  <Link2 className="h-4 w-4" />
-                  Lưu ý homework
-                </button>
-              </div>
             }
           />
           <div className="space-y-4">
@@ -1181,6 +1183,7 @@ export function StaffGamificationWorkspace({
                       <span>Bắt đầu: {formatDateTime(mission.startAt)}</span>
                       <span>Kết thúc: {formatDateTime(mission.endAt)}</span>
                       <span>Thưởng: {formatNumber(mission.rewardStars)} sao • {formatNumber(mission.rewardExp)} XP</span>
+                      {mission.totalRequired ? <span>Mục tiêu: {formatNumber(mission.totalRequired)} lần</span> : null}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1354,6 +1357,7 @@ export function StaffGamificationWorkspace({
                           src={itemImageUrl}
                           alt={item.title}
                           className="h-full w-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-red-300">
@@ -1450,6 +1454,29 @@ export function StaffGamificationWorkspace({
               </div>
             ))}
             {redemptions.length === 0 ? <EmptyState title="Chưa có đơn đổi thưởng" description="Khi học sinh gửi yêu cầu đổi quà, danh sách sẽ hiển thị tại đây." icon={<Gift className="h-5 w-5" />} theme="staff" /> : null}
+            {redemptionTotalPages > 1 ? (
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRedemptionPage((p) => Math.max(1, p - 1))}
+                  disabled={redemptionPage <= 1}
+                  className={ghostButton}
+                >
+                  Trước
+                </button>
+                <span className="px-3 py-2 text-sm font-medium text-gray-700">
+                  Trang {redemptionPage} / {redemptionTotalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setRedemptionPage((p) => Math.min(redemptionTotalPages, p + 1))}
+                  disabled={redemptionPage >= redemptionTotalPages}
+                  className={ghostButton}
+                >
+                  Sau
+                </button>
+              </div>
+            ) : null}
           </div>
         </Panel>
       ) : null}
@@ -1527,7 +1554,7 @@ export function StaffGamificationWorkspace({
               <option value="">Chọn loại nhiệm vụ</option>
               <option value="Custom">Tùy chỉnh</option>
               <option value="HomeworkStreak">Chuỗi bài tập</option>
-              <option value="NoUnexcusedAbsence">Không vắng mặt không phép</option>
+              <option value="NoUnexcusedAbsence">Chuỗi điểm danh</option>
             </select>
             <FieldError message={missionErrors.missionType} />
           </div>
@@ -1916,38 +1943,70 @@ export function StaffGamificationWorkspace({
 
       <DialogShell open={progressDialog.open} onClose={() => setProgressDialog({ mission: null, items: [], open: false })} title={progressDialog.mission?.title || "Tiến độ nhiệm vụ"} description="Danh sách tiến độ hiện có theo nhiệm vụ được chọn." theme="staff">
         <div className="space-y-3">
-          {progressDialog.items.map((item) => <div key={item.id} className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-gray-900">{item.studentName || item.studentProfileId}</p><p className="mt-1 text-sm text-gray-500">Tiến độ: {formatNumber(item.progressValue)} • {formatNumber(item.progressPercentage)}%</p></div><StatusPill label={mapProgressStatusLabel(item.status)} className={getMissionProgressClasses(item.status)} /></div></div>)}
+          {progressDialog.items.map((item) => {
+            const pct = Math.min(100, Math.max(0, Number(item.progressPercentage ?? 0)));
+            return (
+              <div key={item.id} className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900">{item.studentName || item.studentProfileId}</p>
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                        <span>Tiến độ: {formatNumber(item.progressValue)}{progressDialog.mission?.totalRequired ? ` / ${formatNumber(progressDialog.mission.totalRequired)}` : ""}</span>
+                        <span className="font-semibold text-gray-700">{pct}%</span>
+                      </div>
+                      <div className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
+                        <div className={cx("h-full rounded-full transition-all duration-500", pct >= 100 ? "bg-emerald-500" : pct > 0 ? "bg-blue-500" : "bg-gray-300")} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                  <StatusPill label={mapProgressStatusLabel(item.status)} className={getMissionProgressClasses(item.status)} />
+                </div>
+              </div>
+            );
+          })}
           {progressDialog.items.length === 0 ? <EmptyState title="Chưa có tiến độ nhiệm vụ" description="Nhiệm vụ này chưa phát sinh tiến độ hoặc backend chưa ghi nhận dữ liệu." icon={<Target className="h-5 w-5" />} theme="staff" /> : null}
         </div>
       </DialogShell>
 
-      <DialogShell open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} title="Homework và mission" description="Backend đã đổi sang cơ chế tự tính progress cho homework, nên không còn flow public để gắn homework với mission." theme="staff">
-        <div className="space-y-3 text-sm leading-6 text-gray-600">
-          <p>
-            `missionId` không còn được expose trong request hoặc response homework public.
-          </p>
-          <p>
-            Route public link homework vào mission cũng đã được gỡ, nên staff không nên dùng flow cũ để liên kết thủ công nữa.
-          </p>
-          <p>
-            `HomeworkStreak` hiện được backend tự cộng progress cho cả `POST /api/students/homework/submit` và `POST /api/students/homework/multiple-choice/submit` khi học sinh nộp đúng hạn.
-          </p>
-          <p>
-            Với quiz, `RewardStars` và progress chỉ tính ở lần nộp đúng hạn đầu tiên, không cộng lặp khi resubmit.
-          </p>
-          <p className="text-xs text-gray-500">
-            Nếu sau này cần mở lại use case homework gắn mission, cần có backend contract mới thay vì dùng lại API public cũ.
-          </p>
-        </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <button type="button" onClick={() => setLinkDialogOpen(false)} className={ghostButton}>
-            Đóng
-          </button>
-        </div>
-      </DialogShell>
-
       <DialogShell open={Boolean(redemptionDetail)} onClose={() => setRedemptionDetail(null)} title={redemptionDetail?.itemName || "Chi tiết yêu cầu đổi thưởng"} description="Thông tin chi tiết của yêu cầu đổi quà để staff và người học tiện theo dõi." theme="staff">
-        {redemptionDetail ? <div className="grid gap-3 text-sm text-gray-600"><div><span className="font-semibold text-gray-900">Trạng thái:</span> {mapRedemptionStatusLabel(redemptionDetail.status)}</div><div><span className="font-semibold text-gray-900">Học sinh:</span> {redemptionDetail.studentName || redemptionDetail.studentProfileId}</div><div><span className="font-semibold text-gray-900">Chi nhánh:</span> {redemptionDetail.branchName || "Chưa có"}</div><div><span className="font-semibold text-gray-900">Số lượng:</span> {formatNumber(redemptionDetail.quantity)}</div><div><span className="font-semibold text-gray-900">Sao đã trừ:</span> {formatNumber(redemptionDetail.starsDeducted)}</div><div><span className="font-semibold text-gray-900">Sao còn lại:</span> {formatNumber(redemptionDetail.remainingStars)}</div><div><span className="font-semibold text-gray-900">Tạo lúc:</span> {formatDateTime(redemptionDetail.createdAt)}</div><div><span className="font-semibold text-gray-900">Xử lý lúc:</span> {formatDateTime(redemptionDetail.handledAt)}</div><div><span className="font-semibold text-gray-900">Giao lúc:</span> {formatDateTime(redemptionDetail.deliveredAt)}</div><div><span className="font-semibold text-gray-900">Nhận lúc:</span> {formatDateTime(redemptionDetail.receivedAt)}</div></div> : null}
+        {redemptionDetail ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <StatusPill label={mapRedemptionStatusLabel(redemptionDetail.status)} className={getRedemptionStatusClasses(redemptionDetail.status)} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-red-200 bg-white p-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Học sinh</p>
+                <p className="mt-1 font-semibold text-gray-900">{redemptionDetail.studentName || redemptionDetail.studentProfileId}</p>
+              </div>
+              <div className="rounded-2xl border border-red-200 bg-white p-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Chi nhánh</p>
+                <p className="mt-1 font-semibold text-gray-900">{redemptionDetail.branchName || "Chưa có"}</p>
+              </div>
+              <div className="rounded-2xl border border-red-200 bg-white p-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Số lượng</p>
+                <p className="mt-1 font-semibold text-gray-900">{formatNumber(redemptionDetail.quantity)}</p>
+              </div>
+              <div className="rounded-2xl border border-red-200 bg-white p-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Sao đã trừ</p>
+                <p className="mt-1 font-semibold text-gray-900">{formatNumber(redemptionDetail.starsDeducted)}</p>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 space-y-2 text-sm text-gray-600">
+              <div className="flex justify-between"><span className="text-gray-500">Tạo lúc</span><span className="font-medium text-gray-900">{formatDateTime(redemptionDetail.createdAt)}</span></div>
+              {redemptionDetail.handledAt ? <div className="flex justify-between"><span className="text-gray-500">Xử lý lúc</span><span className="font-medium text-gray-900">{formatDateTime(redemptionDetail.handledAt)}</span></div> : null}
+              {redemptionDetail.deliveredAt ? <div className="flex justify-between"><span className="text-gray-500">Giao lúc</span><span className="font-medium text-gray-900">{formatDateTime(redemptionDetail.deliveredAt)}</span></div> : null}
+              {redemptionDetail.receivedAt ? <div className="flex justify-between"><span className="text-gray-500">Nhận lúc</span><span className="font-medium text-gray-900">{formatDateTime(redemptionDetail.receivedAt)}</span></div> : null}
+            </div>
+            {redemptionDetail.status === "Cancelled" && redemptionDetail.cancellationReason ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <p className="text-xs font-medium text-rose-500 uppercase tracking-wide">Lý do hủy</p>
+                <p className="mt-1 text-sm text-rose-700">{redemptionDetail.cancellationReason}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </DialogShell>
 
       {/* Cancel Redemption Dialog */}

@@ -433,7 +433,7 @@ export default function PortalHeader({
               )}
             </div>
 
-            <UserMenu />
+            <UserMenu mockUser={userName ? { fullname: userName, email: "", role: role as Role } : undefined} />
           </div>
         </div>
       </header>
