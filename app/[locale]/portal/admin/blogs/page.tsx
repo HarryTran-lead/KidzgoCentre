@@ -164,9 +164,6 @@ export default function BlogManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  // Selection
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
-
   // Modals
   const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -373,22 +370,6 @@ export default function BlogManagementPage() {
   const endIndex = startIndex + itemsPerPage;
   const currentRows = list.slice(startIndex, endIndex);
 
-  const toggleSelectRow = (id: string) => {
-    setSelectedRows(prev =>
-      prev.includes(id)
-        ? prev.filter(rowId => rowId !== id)
-        : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedRows.length === currentRows.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(currentRows.map(row => row.id));
-    }
-  };
-
   const SortHeader = ({
     label,
     sortKey,
@@ -573,11 +554,6 @@ export default function BlogManagementPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-semibold text-gray-900">Danh sách bài viết</h2>
-              {selectedRows.length > 0 && (
-                <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                  {selectedRows.length} đã chọn
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-medium">{list.length} bài viết</span>
@@ -590,14 +566,6 @@ export default function BlogManagementPage() {
           <table className="w-full">
             <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
               <tr>
-                <th className="py-3 px-4 text-center">
-                  <input
-                    type="checkbox"
-                    checked={currentRows.length > 0 && selectedRows.length === currentRows.length}
-                    onChange={toggleSelectAll}
-                    className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                  />
-                </th>
                 <th className="py-3 px-6 text-left">
                   <SortHeader label="Tiêu đề" sortKey="title" />
                 </th>
@@ -625,14 +593,6 @@ export default function BlogManagementPage() {
                     key={blog.id}
                     className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                   >
-                    <td className="py-4 px-4 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.includes(blog.id)}
-                        onChange={() => toggleSelectRow(blog.id)}
-                        className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                      />
-                    </td>
                     <td className="py-4 px-6">
                       <div className="max-w-md">
                         <div className="font-medium text-gray-900 line-clamp-2">{blog.title}</div>
@@ -718,7 +678,7 @@ export default function BlogManagementPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center">
+                  <td colSpan={6} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                       <Search size={24} className="text-red-400" />
                     </div>
@@ -738,11 +698,6 @@ export default function BlogManagementPage() {
               <div className="text-sm text-gray-600">
                 Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, list.length)}</span> trong tổng số{" "}
                 <span className="font-semibold text-gray-900">{list.length}</span> bài viết
-                {selectedRows.length > 0 && (
-                  <span className="ml-3 text-red-600 font-medium">
-                    • Đã chọn {selectedRows.length}
-                  </span>
-                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -785,7 +740,8 @@ export default function BlogManagementPage() {
               </div>
             </div>
           </div>
-        )}        </div>
+        )}
+      </div>
 
       {/* Modals */}
       <BlogFormModal

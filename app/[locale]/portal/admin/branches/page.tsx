@@ -188,7 +188,6 @@ export default function BranchesPage() {
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
-  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -533,23 +532,6 @@ export default function BranchesPage() {
     setCurrentPage(1);
   };
 
-  // Handle checkbox selection
-  const handleSelectAll = () => {
-    if (selectedBranches.length === sortedBranches.length) {
-      setSelectedBranches([]);
-    } else {
-      setSelectedBranches(sortedBranches.map(b => b.id));
-    }
-  };
-
-  const handleSelectBranch = (branchId: string) => {
-    setSelectedBranches(prev => 
-      prev.includes(branchId)
-        ? prev.filter(id => id !== branchId)
-        : [...prev, branchId]
-    );
-  };
-
   const stats = useMemo(() => {
     const total = branches.length;
     const active = branches.filter(b => b.isActive).length;
@@ -665,11 +647,6 @@ export default function BranchesPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-gray-900">Danh sách chi nhánh</h2>
-                {selectedBranches.length > 0 && (
-                  <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                    {selectedBranches.length} đã chọn
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-medium">{filteredBranches.length} chi nhánh</span>
@@ -682,14 +659,6 @@ export default function BranchesPage() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr>
-                  <th className="py-3 px-4 text-center">
-                    <input
-                      type="checkbox"
-                      checked={sortedBranches.length > 0 && selectedBranches.length === sortedBranches.length}
-                      onChange={handleSelectAll}
-                      className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                    />
-                  </th>
                   <SortableHeader
                     field="code"
                     currentField={sortField}
@@ -753,14 +722,6 @@ export default function BranchesPage() {
                       key={branch.id}
                       className="group hover:bg-red-50/50 transition-colors"
                     >
-                      <td className="py-4 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedBranches.includes(branch.id)}
-                          onChange={() => handleSelectBranch(branch.id)}
-                          className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                        />
-                      </td>
                       <td className="py-4 px-6">
                         <span className="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full border border-red-200">
                           {branch.code}
@@ -791,25 +752,25 @@ export default function BranchesPage() {
                             <span className="text-xs text-gray-400">Chưa có</span>
                           )}
                         </div>
-                      </td>
+                       </td>
                       <td className="py-4 px-6 text-center">
                         <div className="flex flex-col items-center">
                           <span className="text-lg text-gray-900">{branch.totalStudents || 0}</span>
                         </div>
-                      </td>
+                       </td>
                       <td className="py-4 px-6 text-center">
                         <div className="flex flex-col items-center">
                           <span className="text-lg text-gray-900">{branch.totalClasses || 0}</span>
                         </div>
-                      </td>
+                       </td>
                       <td className="py-4 px-6 text-center">
                         <div className="flex flex-col items-center">
                           <span className="text-lg text-gray-900">{branch.totalTeachers || 0}</span>
                         </div>
-                      </td>
+                       </td>
                       <td className="py-4 px-6 text-center">
                         <StatusIndicator isActive={branch.isActive} />
-                      </td>
+                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -853,12 +814,12 @@ export default function BranchesPage() {
                             </button>
                           )}
                         </div> 
-                      </td>
-                    </tr>
+                       </td>
+                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={10} className="py-12 text-center">
+                    <td colSpan={9} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                         <Building2 size={24} className="text-red-400" />
                       </div>
@@ -901,7 +862,6 @@ export default function BranchesPage() {
           )}
         </div>
       )}
-
 
       {/* Modal: View Detail */}
       <BranchDetailModal 
@@ -967,5 +927,3 @@ export default function BranchesPage() {
     </div>
   );
 }
-
-/* ==================== Modal Components ==================== */

@@ -17,7 +17,7 @@ import {
 import { getProfiles } from "@/lib/api/authService";
 import {
   approvePauseEnrollmentRequest,
-  approvePauseEnrollmentRequestsBulk,
+
   cancelPauseEnrollmentRequest,
   getPauseEnrollmentRequestsWithParams,
   rejectPauseEnrollmentRequest,
@@ -29,7 +29,7 @@ import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import PauseEnrollmentCreateModal from "@/components/portal/pause-enrollment/PauseEnrollmentCreateModal";
 import type { UserProfile } from "@/types/auth";
 import type {
-  PauseEnrollmentBulkApproveResult,
+
   PauseEnrollmentOutcome,
   PauseEnrollmentRequestRecord,
   PauseEnrollmentRequestStatus,
@@ -61,13 +61,6 @@ type ConfirmAction =
   | {
       kind: "cancel";
       requestId: string;
-      title: string;
-      description: string;
-      confirmText: string;
-    }
-  | {
-      kind: "bulkApprove";
-      ids: string[];
       title: string;
       description: string;
       confirmText: string;
@@ -156,35 +149,6 @@ function extractPauseRequestItems(payload: unknown): PauseEnrollmentRequestRecor
   if (Array.isArray(data)) return data;
 
   return [];
-}
-
-function extractBulkApproveResult(payload: unknown): PauseEnrollmentBulkApproveResult {
-  if (!payload || typeof payload !== "object") {
-    return { approvedIds: [], errors: [] };
-  }
-
-  const root = payload as {
-    data?: PauseEnrollmentBulkApproveResult;
-    approvedIds?: string[];
-    errors?: PauseEnrollmentBulkApproveResult["errors"];
-  };
-
-  const data = root.data;
-  if (Array.isArray(root.approvedIds) || Array.isArray(root.errors)) {
-    return {
-      approvedIds: Array.isArray(root.approvedIds) ? root.approvedIds : [],
-      errors: Array.isArray(root.errors) ? root.errors : [],
-    };
-  }
-
-  if (data) {
-    return {
-      approvedIds: Array.isArray(data.approvedIds) ? data.approvedIds : [],
-      errors: Array.isArray(data.errors) ? data.errors : [],
-    };
-  }
-
-  return { approvedIds: [], errors: [] };
 }
 
 function ensureApiSuccess(payload: any, fallbackMessage: string) {
@@ -853,7 +817,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
@@ -937,17 +901,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
     });
   }, [requests, searchQuery, studentMap]);
 
-  const pendingVisibleIds = useMemo(
-    () =>
-      filteredRequests
-        .filter((item) => normalizeStatus(item.status) === "Pending")
-        .map((item) => item.id),
-    [filteredRequests]
-  );
 
-  const allVisiblePendingSelected =
-    pendingVisibleIds.length > 0 &&
-    pendingVisibleIds.every((id) => selectedIds.includes(id));
 
   const loadStudentOptions = useCallback(async () => {
     setStudentOptionsLoading(true);
@@ -1058,21 +1012,6 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   }, [isManagement, isStudentLocked, lockedStudentOption?.id, studentOptions]);
 
   useEffect(() => {
-    if (requests.length === 0) {
-      setSelectedIds([]);
-      return;
-    }
-
-    setSelectedIds((prev) =>
-      prev.filter((id) =>
-        requests.some(
-          (item) => item.id === id && normalizeStatus(item.status) === "Pending"
-        )
-      )
-    );
-  }, [requests]);
-
-  useEffect(() => {
     if (!selectedRequestId) return;
     if (filteredRequests.some((item) => item.id === selectedRequestId)) return;
     setSelectedRequestId(null);
@@ -1141,29 +1080,6 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ensureApiSuccess(response, "Không thể hủy yêu cầu bảo lưu.");
         setRequestMessage("Đã hủy yêu cầu bảo lưu.");
         await loadRequests(confirmAction.requestId);
-      }
-
-      if (confirmAction.kind === "bulkApprove") {
-        const response = await approvePauseEnrollmentRequestsBulk({
-          ids: confirmAction.ids,
-        });
-        ensureApiSuccess(response, "Không thể duyệt hàng loạt.");
-
-        const result = extractBulkApproveResult(response);
-        const summary = [
-          result.approvedIds.length
-            ? `Đã duyệt ${result.approvedIds.length} yêu cầu.`
-            : "",
-          result.errors.length
-            ? `${result.errors.length} yêu cầu không duyệt được.`
-            : "",
-        ]
-          .filter(Boolean)
-          .join("\n");
-
-        setRequestMessage(summary || "Đã hoàn tất duyệt hàng loạt.");
-        setSelectedIds([]);
-        await loadRequests(selectedRequestId ?? undefined);
       }
 
       setConfirmAction(null);
@@ -1305,7 +1221,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         }`}
       >
         <div className="border-b border-red-200 px-6 py-4">
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_1fr_auto]">
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_1fr]">
             {isManagement ? (
               <label className="block">
                 <div className="mb-2 text-sm font-semibold text-gray-700">Tìm kiếm</div>
@@ -1407,34 +1323,14 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               </select>
             </label>
 
-            {isManagement ? (
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  disabled={!selectedIds.length}
-                  onClick={() =>
-                    setConfirmAction({
-                      kind: "bulkApprove",
-                      ids: selectedIds,
-                      title: "Duyệt hàng loạt",
-                      description: `Bạn sắp duyệt ${selectedIds.length} yêu cầu bảo lưu đang chờ xử lý.`,
-                      confirmText: "Duyệt đã chọn",
-                    })
-                  }
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-red-50/60 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                >
-                  <ShieldCheck size={16} className="text-emerald-600" />
-                  Duyệt hàng loạt
-                </button>
-              </div>
-            ) : (
+            {!isManagement ? (
               <div className="rounded-2xl border border-red-100 bg-white/90 px-4 py-3 text-sm text-gray-600">
                 <div className="font-semibold text-gray-800">Điểm khác với xin nghỉ</div>
                 <div className="mt-1">
                   Yêu cầu bảo lưu có duyệt, hủy và outcome riêng sau khi học sinh quay lại.
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -1454,9 +1350,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               <span className="font-medium text-gray-900">
                 {filteredRequests.length} yêu cầu
               </span>
-              {isManagement && selectedIds.length ? (
-                <span>{` • Đã chọn ${selectedIds.length}`}</span>
-              ) : null}
+
             </div>
           </div>
         </div>
@@ -1465,27 +1359,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
           <table className="w-full min-w-[760px]">
             <thead className="border-b border-red-200 bg-gradient-to-r from-red-600/5 to-red-700/5">
               <tr className="text-left text-sm font-semibold text-gray-700">
-                {isManagement ? (
-                  <th className="px-6 py-4">
-                    <input
-                      type="checkbox"
-                      checked={allVisiblePendingSelected}
-                      onChange={(event) => {
-                        if (event.target.checked) {
-                          setSelectedIds((prev) =>
-                            Array.from(new Set([...prev, ...pendingVisibleIds]))
-                          );
-                          return;
-                        }
 
-                        setSelectedIds((prev) =>
-                          prev.filter((id) => !pendingVisibleIds.includes(id))
-                        );
-                      }}
-                      className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200"
-                    />
-                  </th>
-                ) : null}
                 <th className="px-6 py-4">Học sinh</th>
                 <th className="px-6 py-4">Tổng quan</th>
                 <th className="px-6 py-4">Trạng thái</th>
@@ -1497,7 +1371,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               {!filteredRequests.length && !requestsLoading ? (
                 <tr>
                   <td
-                    colSpan={isManagement ? 5 : 4}
+                    colSpan={4}
                     className="px-6 py-12 text-center"
                   >
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-400">
@@ -1532,24 +1406,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                         : "hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white"
                     }`}
                   >
-                    {isManagement ? (
-                      <td className="px-6 py-4">
-                        <input
-                          type="checkbox"
-                          disabled={!isPending}
-                          checked={selectedIds.includes(item.id)}
-                          onChange={(event) => {
-                            if (event.target.checked) {
-                              setSelectedIds((prev) => [...prev, item.id]);
-                              return;
-                            }
 
-                            setSelectedIds((prev) => prev.filter((id) => id !== item.id));
-                          }}
-                          className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200"
-                        />
-                       </td>
-                    ) : null}
 
                     <td className="px-6 py-4 align-top">
                       <div className="flex items-start gap-3">

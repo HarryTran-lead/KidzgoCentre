@@ -335,7 +335,6 @@ export default function AccountsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState<Account>>({ key: "createdAt", direction: "desc" });
   
   // API State
@@ -1056,28 +1055,6 @@ export default function AccountsPage() {
     currentPendingProfiles.length > 0 &&
     currentPendingProfiles.every((p) => selectedProfileRows.includes(p.id));
 
-  const toggleSelectRow = (id: string) => {
-    setSelectedRows(prev =>
-      prev.includes(id)
-        ? prev.filter(rowId => rowId !== id)
-        : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedRows.length === currentRows.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(currentRows.map(row => row.id));
-    }
-  };
-
-  const toggleSelectProfileRow = (id: string) => {
-    setSelectedProfileRows((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
   const toggleSelectAllPendingProfiles = () => {
     if (currentPendingProfiles.length === 0) return;
 
@@ -1346,14 +1323,6 @@ export default function AccountsPage() {
             <h2 className="text-lg font-semibold text-gray-900">Danh sách tài khoản</h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-medium">{list.length} tài khoản</span>
-              {selectedRows.length > 0 && (
-                <>
-                  <span className="mx-2">•</span>
-                  <span className="text-red-600 font-medium">
-                    Đã chọn {selectedRows.length} tài khoản
-                  </span>
-                </>
-              )}
             </div>
           </div>
         </div>
@@ -1364,15 +1333,7 @@ export default function AccountsPage() {
             <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
               <tr>
                 <th className="py-3 px-6 text-left">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.length === currentRows.length && currentRows.length > 0}
-                      onChange={toggleSelectAll}
-                      className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                    />
-                    <SortHeader label="Người dùng" sortKey="name" />
-                  </div>
+                  <SortHeader label="Người dùng" sortKey="name" />
                 </th>
                 <th className="py-3 px-6 text-left">
                   <SortHeader label="Thông tin liên hệ" sortKey="email" />
@@ -1403,21 +1364,13 @@ export default function AccountsPage() {
                   >
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(acc.id)}
-                          onChange={() => toggleSelectRow(acc.id)}
-                          className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                        />
-                        <div className="flex items-center gap-3">
-                          <Avatar name={acc.name} color={acc.avatarColor} />
-                          <div>
-                            <div className="font-medium text-gray-900">{acc.name}</div>
-                            <div className="text-xs text-gray-500">{acc.id}</div>
-                            {acc.department && (
-                              <div className="text-xs text-gray-400">{acc.department}</div>
-                            )}
-                          </div>
+                        <Avatar name={acc.name} color={acc.avatarColor} />
+                        <div>
+                          <div className="font-medium text-gray-900">{acc.name}</div>
+                          <div className="text-xs text-gray-500">{acc.id}</div>
+                          {acc.department && (
+                            <div className="text-xs text-gray-400">{acc.department}</div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -1560,11 +1513,6 @@ export default function AccountsPage() {
               <div className="text-sm text-gray-600">
                 Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, list.length)}</span> trong tổng số{" "}
                 <span className="font-semibold text-gray-900">{list.length}</span> tài khoản
-                {selectedRows.length > 0 && (
-                  <span className="ml-3 text-red-600 font-medium">
-                    • Đã chọn {selectedRows.length}
-                  </span>
-                )}
               </div>
 
               {/* Right: Pagination Buttons */}
@@ -1814,7 +1762,13 @@ export default function AccountsPage() {
                             type="checkbox"
                             checked={selectedProfileRows.includes(profile.id)}
                             disabled={profile.isApproved !== false}
-                            onChange={() => toggleSelectProfileRow(profile.id)}
+                            onChange={() => {
+                              setSelectedProfileRows(prev =>
+                                prev.includes(profile.id)
+                                  ? prev.filter(id => id !== profile.id)
+                                  : [...prev, profile.id]
+                              );
+                            }}
                             className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                             title={profile.isApproved === false ? "Chọn profile này" : "Profile đã duyệt"}
                           />

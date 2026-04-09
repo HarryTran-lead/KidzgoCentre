@@ -1982,9 +1982,6 @@ function CreateClassModal({
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.branchId && (
-                  <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>
-                )}
                 {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
               </div>
 
@@ -2048,9 +2045,6 @@ function CreateClassModal({
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.mainTeacherId && (
-                  <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.mainTeacherId}</p>
-                )}
                 {errors.mainTeacherId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.mainTeacherId}</p>}
               </div>
 
@@ -2497,7 +2491,6 @@ export default function Page() {
   const [editingInitialData, setEditingInitialData] = useState<ClassFormData | null>(null);
   const [editingCurrentEnrollmentCount, setEditingCurrentEnrollmentCount] = useState<number>(0);
   const [originalStatus, setOriginalStatus] = useState<ClassFormData["status"] | null>(null);
-  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const deferredSchedulePatternFilter = useDeferredValue(schedulePatternFilter.trim());
 
   useEffect(() => {
@@ -2615,22 +2608,6 @@ export default function Page() {
       branchId,
       schedulePattern: deferredSchedulePatternFilter || undefined,
     });
-  };
-
-  const handleSelectAll = () => {
-    if (pagedRows.length === 0) return;
-
-    setSelectedClasses((prev) =>
-      prev.length === pagedRows.length ? [] : pagedRows.map((row) => row.id)
-    );
-  };
-
-  const handleSelectClass = (classId: string) => {
-    setSelectedClasses((prev) =>
-      prev.includes(classId)
-        ? prev.filter((id) => id !== classId)
-        : [...prev, classId]
-    );
   };
 
   const goPage = (nextPage: number) => {
@@ -2994,11 +2971,6 @@ export default function Page() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-gray-900">Danh sách lớp học</h2>
-                {selectedClasses.length > 0 && (
-                  <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                    {selectedClasses.length} đã chọn
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-medium">{rows.length} lớp học</span>
@@ -3011,14 +2983,6 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
-                  <th className="py-3 px-4 text-center">
-                    <input
-                      type="checkbox"
-                      checked={pagedRows.length > 0 && selectedClasses.length === pagedRows.length}
-                      onChange={handleSelectAll}
-                      className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                    />
-                  </th>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên lớp</SortableHeader>
                   <SortableHeader field="program" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chương trình</SortableHeader>
                   <SortableHeader field="teacher" currentField={sortField} direction={sortDirection} onSort={handleSort}>Giáo viên</SortableHeader>
@@ -3036,14 +3000,6 @@ export default function Page() {
                       key={c.id}
                       className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                     >
-                      <td className="py-4 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedClasses.includes(c.id)}
-                          onChange={() => handleSelectClass(c.id)}
-                          className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                        />
-                      </td>
                       <td className="py-4 px-6">
                         <div className="text-sm text-gray-900 font-medium truncate">{c.name}</div>
                         <div className="text-xs text-gray-500 truncate">{c.code || c.id}</div>
@@ -3149,7 +3105,7 @@ export default function Page() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center">
+                    <td colSpan={8} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
