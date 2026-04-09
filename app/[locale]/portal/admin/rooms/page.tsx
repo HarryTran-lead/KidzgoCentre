@@ -550,7 +550,6 @@ export default function Page() {
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [originalRoomStatus, setOriginalRoomStatus] = useState<Status | null>(null);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
 
   useEffect(() => {
     setIsPageLoaded(true);
@@ -850,20 +849,6 @@ export default function Page() {
     setShowToggleStatusModal(true);
   };
 
-  const toggleSelectAll = () => {
-    if (selectedRows.length === currentRows.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(currentRows.map(row => row.id));
-    }
-  };
-
-  const toggleSelectRow = (id: string) => {
-    setSelectedRows(prev => 
-      prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
-    );
-  };
-
   const confirmToggleStatus = async () => {
     if (!selectedRoom) return;
 
@@ -1019,11 +1004,6 @@ export default function Page() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-semibold text-gray-900">Danh sách phòng học</h2>
-                  {selectedRows.length > 0 && (
-                    <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                      {selectedRows.length} đã chọn
-                    </span>
-                  )}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span className="font-medium">{filteredRooms.length} phòng học</span>
@@ -1036,14 +1016,6 @@ export default function Page() {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                   <tr>
-                    <th className="py-3 px-4 text-center">
-                      <input
-                        type="checkbox"
-                        checked={currentRows.length > 0 && selectedRows.length === currentRows.length}
-                        onChange={toggleSelectAll}
-                        className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                      />
-                    </th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Phòng học" sortKey="id" /></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Chi nhánh" sortKey="branch" /></th>
                     <th className="py-3 px-6 text-left"><SortHeader label="Sức chứa" sortKey="capacity" /></th>
@@ -1057,16 +1029,8 @@ export default function Page() {
                     currentRows.map((room) => (
                       <tr
                         key={room.id}
-                        className={`group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 ${selectedRows.includes(room.id) ? 'bg-red-50/50' : ''}`}
+                        className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                       >
-                        <td className="py-4 px-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedRows.includes(room.id)}
-                            onChange={() => toggleSelectRow(room.id)}
-                            className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                          />
-                        </td>
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center">
@@ -1154,7 +1118,7 @@ export default function Page() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center">
+                      <td colSpan={6} className="py-12 text-center">
                         <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                           <Search size={24} className="text-gray-400" />
                         </div>
@@ -1487,8 +1451,6 @@ export default function Page() {
                       )}
                     </div>
                   </div>
-
-
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-500">

@@ -1,5 +1,7 @@
 "use client";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+
 type ManagementClass = { id: string; name: string; reportCount: number };
 type ManagementStudent = { id: string; name: string; reportCount: number };
 type ClassProgress = {
@@ -14,8 +16,6 @@ type ClassProgress = {
 type ReportLite = { id: string; classId?: string };
 
 type Props = {
-  month: number;
-  year: number;
   classQuery: string;
   setClassQuery: (value: string) => void;
   selectedClassId: string | null;
@@ -31,8 +31,6 @@ type Props = {
 };
 
 export default function ManageToolsTab({
-  month,
-  year,
   classQuery,
   setClassQuery,
   selectedClassId,
@@ -46,313 +44,402 @@ export default function ManageToolsTab({
   syncScopeToReports,
   runBulkAction,
 }: Props) {
+  // Tính tổng thể
+  const totalStats = managementClassProgress.reduce(
+    (acc, item) => ({
+      total: acc.total + item.total,
+      published: acc.published + item.published,
+      approved: acc.approved + item.approved,
+      pending: acc.pending + item.pending,
+    }),
+    { total: 0, published: 0, approved: 0, pending: 0 }
+  );
+
+  const overallPercentage = totalStats.total > 0 ? (totalStats.published / totalStats.total) * 100 : 0;
+
   return (
-    <div className="space-y-6">
-      {/* Hướng dẫn cho quản lý */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Hướng dẫn cho quản lý</h3>
-        </div>
-        <p className="text-sm text-gray-600 mb-4">
-          1) Xem báo cáo đã nộp → 2) Bình luận nếu cần chỉnh sửa → 3) Duyệt khi đạt yêu cầu → 4) Công bố.
-        </p>
-        <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/40 to-red-100/20 p-4 text-sm text-gray-700">
-          <div className="flex items-start gap-2">
-            <svg className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>Nếu cần góp ý: dùng nút Comment để gửi phản hồi. Chỉ công bố sau khi đã duyệt.</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Lọc theo lớp/học viên */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Lọc theo lớp/học viên</h3>
-        </div>
-        
-        <div className="grid gap-4 md:grid-cols-2 mb-5">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">Tìm lớp</label>
-            <div className="relative">
-              <input
-                value={classQuery}
-                onChange={(e) => setClassQuery(e.target.value)}
-                placeholder="Nhập tên lớp..."
-                className="w-full rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
-              />
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <div className="rounded-xl bg-gradient-to-r from-red-50 to-red-100/50 px-4 py-2.5 text-sm text-gray-700">
-              Đang xem thời gian: <span className="font-semibold text-red-600">{month}/{year}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Danh sách lớp */}
-          <div className="rounded-xl border border-red-200 bg-white/50 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-semibold text-gray-900">
-                Danh sách lớp
+    <div className="space-y-4">
+      {/* Progress Section - Creative & Beautiful Design */}
+      <div className="rounded-xl bg-gradient-to-br from-white to-red-50 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40 border border-red-100 p-5">
+        {/* Header với tổng quan */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-500 to-red-500 blur-lg opacity-30"></div>
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-red-500 text-white shadow-md">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
               </div>
-              <span className="inline-flex items-center rounded-full bg-gradient-to-r from-red-50 to-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700 border border-red-200">
-                {managementClasses.length}
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Tiến độ báo cáo</h3>
+                <p className="text-xs text-gray-500">Tổng quan tình hình các lớp</p>
+              </div>
+            </div>
+            <div className="rounded-lg bg-gradient-to-r from-amber-100 to-red-100 px-3 py-1.5 shadow-inner">
+              <span className="text-xs font-semibold text-gray-700">
+                Hoàn thành: <span className="text-emerald-600">{Math.round(overallPercentage)}%</span>
               </span>
             </div>
-            <div className="max-h-48 space-y-2 overflow-auto">
-              {managementClasses.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => syncScopeToReports(item.id, null, false)}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-all duration-200 ${
-                    selectedClassId === item.id 
-                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
-                      : "bg-gradient-to-r from-red-50 to-red-100/50 text-gray-700 hover:bg-red-100"
-                  }`}
-                >
-                  <div className="font-medium">{item.name}</div>
-                  <div className={`text-xs mt-1 ${selectedClassId === item.id ? "text-red-100" : "text-gray-500"}`}>
-                    {item.reportCount} báo cáo
-                  </div>
-                </button>
-              ))}
-              {!managementClasses.length && (
-                <p className="text-center text-sm text-gray-500 py-4">Chưa có lớp phù hợp.</p>
-              )}
-            </div>
           </div>
 
-          {/* Danh sách học sinh */}
-          <div className="rounded-xl border border-red-200 bg-white/50 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-semibold text-gray-900">
-                Danh sách học sinh
+          {/* Overall Progress Ring */}
+          <div className="mb-5 flex items-center justify-center gap-6">
+            <div className="relative">
+              <svg className="h-20 w-20 transform -rotate-90">
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="32"
+                  fill="none"
+                  stroke="#f3f4f6"
+                  strokeWidth="6"
+                />
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="32"
+                  fill="none"
+                  stroke="url(#gradient)"
+                  strokeWidth="6"
+                  strokeDasharray={`${2 * Math.PI * 32}`}
+                  strokeDashoffset={`${2 * Math.PI * 32 * (1 - overallPercentage / 100)}`}
+                  strokeLinecap="round"
+                  className="transition-all duration-1000 ease-out"
+                />
+                <defs>
+                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#f59e0b" />
+                    <stop offset="100%" stopColor="#ef4444" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl font-bold text-gray-800">{Math.round(overallPercentage)}%</span>
               </div>
-              {selectedClassId && (
-                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-red-50 to-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700 border border-red-200">
-                  {managementStudents.length}
-                </span>
-              )}
             </div>
-            <div className="max-h-48 space-y-2 overflow-auto">
-              {managementStudents.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => syncScopeToReports(selectedClassId, item.id)}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-all duration-200 ${
-                    selectedStudentId === item.id 
-                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
-                      : "bg-gradient-to-r from-red-50 to-red-100/50 text-gray-700 hover:bg-red-100"
-                  }`}
-                >
-                  <div className="font-medium">{item.name}</div>
-                  <div className={`text-xs mt-1 ${selectedStudentId === item.id ? "text-red-100" : "text-gray-500"}`}>
-                    {item.reportCount} báo cáo
-                  </div>
-                </button>
-              ))}
-              {selectedClassId && !managementStudents.length && (
-                <p className="text-center text-sm text-gray-500 py-4">Lớp này chưa có báo cáo.</p>
-              )}
-              {!selectedClassId && (
-                <p className="text-center text-sm text-gray-500 py-4">Vui lòng chọn lớp trước.</p>
-              )}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                <span className="text-xs text-gray-600">Đã công bố: <strong className="text-emerald-700">{totalStats.published}</strong></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                <span className="text-xs text-gray-600">Đã duyệt: <strong className="text-red-700">{totalStats.approved}</strong></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-amber-500"></div>
+                <span className="text-xs text-gray-600">Chờ xử lý: <strong className="text-amber-700">{totalStats.pending}</strong></span>
+              </div>
             </div>
           </div>
         </div>
-        
-        <div className="flex justify-end mt-4">
-          <button
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => setActiveTab("reports")}
-            disabled={!selectedClassId && !selectedStudentId}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            Xem danh sách báo cáo theo bộ lọc đã chọn
-          </button>
-        </div>
-      </div>
 
-      {/* Hành động nhanh theo lớp */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Hành động nhanh theo lớp</h3>
-        </div>
-        
-        <div className="flex flex-wrap gap-3 mb-3">
-          <button
-            disabled={!selectedClassId || bulkLoading !== ""}
-            onClick={() => {
-              const classIds = reports.filter((report) => report.classId === selectedClassId).map((report) => report.id);
-              runBulkAction("approve", classIds);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkLoading === "approve" ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Đang duyệt lớp...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Duyệt lớp
-              </>
-            )}
-          </button>
-          <button
-            disabled={!selectedClassId || bulkLoading !== ""}
-            onClick={() => {
-              const classIds = reports.filter((report) => report.classId === selectedClassId).map((report) => report.id);
-              runBulkAction("publish", classIds);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkLoading === "publish" ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Đang công bố lớp...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                </svg>
-                Công bố lớp
-              </>
-            )}
-          </button>
-        </div>
-        <p className="text-sm text-gray-600 flex items-center gap-1">
-          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Chọn lớp ở trên để duyệt/công bố toàn bộ báo cáo của lớp đó.
-        </p>
-      </div>
-
-      {/* Tiến độ báo cáo theo lớp */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Tiến độ báo cáo theo lớp</h3>
-        </div>
-        
-        <p className="text-sm text-gray-600 mb-4 flex items-center gap-1">
-          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Tổng hợp theo báo cáo tháng {month}/{year}. Hoàn thành khi tất cả báo cáo trong lớp đã Publish.
-        </p>
-        
-        <div className="max-h-64 space-y-3 overflow-auto">
-          {managementClassProgress.map((item) => {
+        {/* Class Cards Grid */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 max-h-[400px] overflow-auto pr-1">
+          {managementClassProgress.map((item, idx) => {
             const completed = item.total > 0 && item.published === item.total;
             const percentage = item.total > 0 ? (item.published / item.total) * 100 : 0;
-            
+            const progressColor = completed ? "from-emerald-400 to-emerald-600" : "from-amber-400 to-red-500";
+
             return (
-              <div key={item.id} className="rounded-xl border border-red-200 bg-white/50 p-4 hover:shadow-md transition-all duration-200">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="font-semibold text-gray-900">{item.name}</div>
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
-                      completed 
-                        ? "bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 border border-emerald-200" 
-                        : "bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 border border-amber-200"
-                    }`}
-                  >
-                    {completed ? (
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    )}
-                    <span>{completed ? "Đã hoàn thành" : "Chưa hoàn thành"}</span>
-                  </span>
-                </div>
-                
-                {/* Progress Bar */}
-                <div className="mb-3">
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
-                    <span>Tiến độ</span>
-                    <span>{Math.round(percentage)}%</span>
+              <div
+                key={item.id}
+                onClick={() => {
+                  syncScopeToReports(item.id, null, false);
+                  setActiveTab("reports");
+                }}
+                className="group relative overflow-hidden rounded-xl bg-white border border-gray-100 p-4 transition-all duration-300 hover:shadow-lg hover:border-red-200 hover:-translate-y-0.5 cursor-pointer"
+                style={{ animationDelay: `${idx * 50}ms` }}
+              >
+                {/* Decorative background */}
+                <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br from-red-100 to-amber-100 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+
+                <div className="relative">
+                  {/* Header */}
+                  <div className="mb-3 flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`h-2 w-2 rounded-full ${completed ? "bg-emerald-500" : "bg-amber-500"} animate-pulse`}></div>
+                        <h4 className="font-semibold text-gray-800 truncate">{item.name}</h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${completed
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                          }`}>
+                          {completed ? (
+                            <>
+                              <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Hoàn thành
+                            </>
+                          ) : (
+                            <>
+                              <svg className="h-2.5 w-2.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Đang thực hiện
+                            </>
+                          )}
+                        </span>
+                        <span className="text-[10px] text-gray-400">{item.total} báo cáo</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-gray-800">{Math.round(percentage)}%</div>
+                      <div className="text-[9px] text-gray-400">tiến độ</div>
+                      <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <span className="inline-flex items-center gap-1 text-[9px] text-red-500 font-medium">
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          Xem
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${
-                        completed ? "from-emerald-500 to-emerald-600" : "from-amber-500 to-amber-600"
-                      }`}
-                      style={{ width: `${percentage}%` }}
-                    ></div>
+
+                  {/* Progress Bar với animation */}
+                  <div className="mb-3">
+                    <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className={`absolute left-0 top-0 h-full rounded-full bg-gradient-to-r ${progressColor} transition-all duration-1000 ease-out`}
+                        style={{ width: `${percentage}%` }}
+                      >
+                        <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-4 gap-2 text-xs">
-                  <div className="text-center">
-                    <div className="font-semibold text-gray-900">{item.total}</div>
-                    <div className="text-gray-500">Tổng</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-semibold text-emerald-600">{item.published}</div>
-                    <div className="text-gray-500">Published</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-semibold text-red-600">{item.approved}</div>
-                    <div className="text-gray-500">Approved</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-semibold text-amber-600">{item.pending}</div>
-                    <div className="text-gray-500">Chờ xử lý</div>
+
+                  {/* Stats Grid với icons */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-lg bg-emerald-50/50 p-1.5 text-center transition-all hover:bg-emerald-50">
+                      <div className="flex items-center justify-center gap-1 mb-0.5">
+                        <svg className="h-3 w-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs font-bold text-emerald-700">{item.published}</span>
+                      </div>
+                      <div className="text-[9px] text-emerald-600">Đã CB</div>
+                    </div>
+                    <div className="rounded-lg bg-red-50/50 p-1.5 text-center transition-all hover:bg-red-50">
+                      <div className="flex items-center justify-center gap-1 mb-0.5">
+                        <svg className="h-3 w-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs font-bold text-red-700">{item.approved}</span>
+                      </div>
+                      <div className="text-[9px] text-red-600">Đã DV</div>
+                    </div>
+                    <div className="rounded-lg bg-amber-50/50 p-1.5 text-center transition-all hover:bg-amber-50">
+                      <div className="flex items-center justify-center gap-1 mb-0.5">
+                        <svg className="h-3 w-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs font-bold text-amber-700">{item.pending}</span>
+                      </div>
+                      <div className="text-[9px] text-amber-600">Chờ</div>
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })}
           {!managementClassProgress.length && (
-            <div className="text-center py-8">
-              <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p className="text-sm text-gray-500">Chưa có dữ liệu báo cáo trong tháng này.</p>
+            <div className="col-span-full py-12 text-center">
+              <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-gray-100 to-gray-200">
+                <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-gray-500">Chưa có dữ liệu</p>
+              <p className="text-xs text-gray-400">Không có báo cáo nào trong tháng này</p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 2-Column Layout for Filter & Quick Actions */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Filter Section */}
+        <div className="rounded-xl border border-red-100 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-red-600 text-white">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">Lọc báo cáo</h3>
+            </div>
+            <button
+              onClick={() => setActiveTab("reports")}
+              disabled={!selectedClassId && !selectedStudentId}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-3 py-1.5 text-xs font-semibold cursor-pointer text-white transition-all hover:shadow-md disabled:opacity-50"
+            >
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Xem báo cáo
+            </button>
+          </div>
+
+          <div className="relative mb-3">
+            <input
+              value={classQuery}
+              onChange={(e) => setClassQuery(e.target.value)}
+              placeholder="Tìm lớp học..."
+              className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 pl-8 text-sm text-gray-700 placeholder:text-gray-400 focus:border-red-300 focus:bg-white focus:outline-none focus:ring-1 focus:ring-red-200"
+            />
+            <svg className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* Class Select - Using lightswind Select */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-600">Lớp học</span>
+                <span className="text-xs text-red-600">{managementClasses.length}</span>
+              </div>
+              <Select
+                value={selectedClassId || ""}
+                onValueChange={(val) => syncScopeToReports(val || null, null, false)}
+              >
+                <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white text-sm text-gray-700 focus:ring-2 focus:ring-red-200">
+                  <SelectValue placeholder="Chọn lớp học" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">-- Chọn lớp học --</SelectItem>
+                  {managementClasses.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <span className="truncate">{item.name}</span>
+                        <span className="ml-2 text-xs text-gray-400">({item.reportCount})</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Student Select - Using lightswind Select */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-600">Học viên</span>
+                {selectedClassId && (
+                  <span className="text-xs text-red-600">{managementStudents.length}</span>
+                )}
+              </div>
+              <Select
+                value={selectedStudentId || ""}
+                onValueChange={(val) => syncScopeToReports(selectedClassId, val || null, false)}
+                disabled={!selectedClassId}
+              >
+                <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white text-sm text-gray-700 focus:ring-2 focus:ring-red-200 disabled:bg-gray-100 disabled:cursor-not-allowed">
+                  <SelectValue placeholder={selectedClassId ? "Chọn học viên" : "Chọn lớp trước"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">-- Tất cả học viên --</SelectItem>
+                  {managementStudents.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <span className="truncate">{item.name}</span>
+                        <span className="ml-2 text-xs text-gray-400">({item.reportCount})</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!selectedClassId && (
+                <p className="text-[10px] text-gray-400 mt-1">* Chọn lớp trước khi chọn học viên</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions - Compact */}
+        <div className="rounded-xl border border-red-100 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900">Hành động nhanh</h3>
+          </div>
+
+          <div className="mb-3 rounded-lg bg-gradient-to-r from-amber-50 to-red-50 p-2.5 border border-amber-200">
+            <div className="flex items-center gap-2 text-xs text-amber-800">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200">
+                <svg className="h-3 w-3 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span>Đang chọn lớp: <strong className="font-semibold">{selectedClassId ? managementClasses.find(c => c.id === selectedClassId)?.name || "Đã chọn" : "Chưa có"}</strong></span>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              disabled={!selectedClassId || bulkLoading !== ""}
+              onClick={() => {
+                const classIds = reports.filter((report) => report.classId === selectedClassId).map((report) => report.id);
+                runBulkAction("approve", classIds);
+              }}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 px-3 py-2 cursor-pointer text-xs font-semibold text-white transition-all hover:shadow-md disabled:opacity-50"
+            >
+              {bulkLoading === "approve" ? (
+                <>
+                  <svg className="h-3 w-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Đang xử lý
+                </>
+              ) : (
+                <>
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Duyệt tất cả
+                </>
+              )}
+            </button>
+            <button
+              disabled={!selectedClassId || bulkLoading !== ""}
+              onClick={() => {
+                const classIds = reports.filter((report) => report.classId === selectedClassId).map((report) => report.id);
+                runBulkAction("publish", classIds);
+              }}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 cursor-pointer text-xs font-semibold text-white transition-all hover:shadow-md disabled:opacity-50"
+            >
+              {bulkLoading === "publish" ? (
+                <>
+                  <svg className="h-3 w-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Đang xử lý
+                </>
+              ) : (
+                <>
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                  </svg>
+                  Công bố tất cả
+                </>
+              )}
+            </button>
+          </div>
+          <p className="mt-2 text-center text-[10px] text-gray-400">
+            Áp dụng cho toàn bộ {reports.filter(r => r.classId === selectedClassId).length} báo cáo trong lớp
+          </p>
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+
 export const menuStaffManager = {
   vi: {
     items: {
@@ -10,7 +11,9 @@ export const menuStaffManager = {
       lessonPlans: "Giáo án & chất lượng",
       materials: "Tài liệu giảng dạy",
       gamification: "Gamification",
-      monthlyReport: "Báo cáo tháng",
+      reports: "Báo cáo",
+      monthlyReport: "Báo cáo theo tháng",
+      sessionReport: "Báo cáo theo buổi",
       tickets: "Ticket hỗ trợ",
       notifications: "Thông báo",
       media: "Media & Album",
@@ -31,7 +34,9 @@ export const menuStaffManager = {
       lessonPlans: "Lesson Plans & Quality",
       materials: "Teaching Materials",
       gamification: "Gamification",
+      reports: "Reports",
       monthlyReport: "Monthly Report",
+      sessionReport: "Session Report",
       tickets: "Support Tickets",
       notifications: "Broadcast Notifications",
       media: "Media & Albums",

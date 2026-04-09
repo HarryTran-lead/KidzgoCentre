@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertCircle,
   Building2,
@@ -9,8 +10,10 @@ import {
   Clock,
   FileBarChart,
   FileText,
+  MessageSquare,
   RefreshCw,
   Send,
+  X,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import type { ClassItem, Student } from "@/types/teacher/classes";
@@ -20,6 +23,7 @@ import OverviewTab from "@/components/reports/monthly-tabs/overview-tab";
 import TeacherToolsTab from "@/components/reports/monthly-tabs/teacher-tools-tab";
 import ManageToolsTab from "@/components/reports/monthly-tabs/manage-tools-tab";
 import ReportsTab from "@/components/reports/monthly-tabs/reports-tab";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 type MonthlyRole = "teacher" | "management" | "viewer";
 type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "Published" | string;
@@ -251,53 +255,12 @@ function StatusBadge({ status }: { status: ReportStatus }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium ${
-        map[displayStatus] || "bg-slate-100 text-slate-700 border-slate-200"
-      }`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${map[displayStatus] || "bg-slate-100 text-slate-700 border-slate-200"
+        }`}
     >
       {icons[displayStatus] || <FileText size={12} />}
       {displayStatus}
     </span>
-  );
-}
-
-function QuickStartCard({
-  title,
-  description,
-  metric,
-  accentClass,
-  icon,
-  actionLabel,
-  onClick,
-}: {
-  title: string;
-  description: string;
-  metric: string;
-  accentClass: string;
-  icon: ReactNode;
-  actionLabel: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex h-full items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-red-200 hover:bg-red-50/40"
-    >
-      <div className={`mt-0.5 rounded-2xl bg-gradient-to-r ${accentClass} p-2.5 text-white shadow-sm`}>
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-sm font-semibold text-slate-900">{title}</div>
-          <div className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-            {metric}
-          </div>
-        </div>
-        <p className="mt-1 text-xs leading-5 text-slate-600">{description}</p>
-        <div className="mt-2 text-xs font-semibold text-red-600 group-hover:text-red-700">{actionLabel}</div>
-      </div>
-    </button>
   );
 }
 
@@ -363,23 +326,23 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
   const workspaceTabs = useMemo(() => {
     if (isTeacher) {
       return [
-        { id: "teacher-tools" as const, label: "Bắt đầu soạn" },
-        { id: "reports" as const, label: "Danh sách báo cáo" },
-        { id: "overview" as const, label: "Tổng quan" },
+        { id: "teacher-tools" as const, label: "Soạn báo cáo", icon: FileText },
+        { id: "reports" as const, label: "Danh sách", icon: FileBarChart },
+        { id: "overview" as const, label: "Tổng quan", icon: CalendarDays },
       ];
     }
 
     if (canManage) {
       return [
-        { id: "manage-tools" as const, label: "Hàng chờ xử lý" },
-        { id: "reports" as const, label: "Danh sách báo cáo" },
-        { id: "overview" as const, label: "Tổng quan" },
+        { id: "manage-tools" as const, label: "Hàng chờ", icon: Clock },
+        { id: "reports" as const, label: "Danh sách", icon: FileBarChart },
+        { id: "overview" as const, label: "Tổng quan", icon: CalendarDays },
       ];
     }
 
     return [
-      { id: "reports" as const, label: "Báo cáo đã công bố" },
-      { id: "overview" as const, label: "Tổng quan" },
+      { id: "reports" as const, label: "Báo cáo", icon: FileBarChart },
+      { id: "overview" as const, label: "Tổng quan", icon: CalendarDays },
     ];
   }, [canManage, isTeacher]);
 
@@ -475,8 +438,8 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
       const [jobResult, reportResult] = await Promise.all([
         canManage
           ? apiFetch<JobPayload>(
-              `/api/monthly-reports/jobs?${jobsQuery.toString()}`,
-            )
+            `/api/monthly-reports/jobs?${jobsQuery.toString()}`,
+          )
           : Promise.resolve({ items: [] } as JobPayload),
         fetchAllReports(),
       ]);
@@ -486,10 +449,10 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
       const scopedReports =
         canManage && branchId
           ? (() => {
-              const jobIdSet = new Set(jobItems.map((job) => job.id));
-              if (!jobIdSet.size) return [];
-              return reportItems.filter((report) => report.jobId && jobIdSet.has(report.jobId));
-            })()
+            const jobIdSet = new Set(jobItems.map((job) => job.id));
+            if (!jobIdSet.size) return [];
+            return reportItems.filter((report) => report.jobId && jobIdSet.has(report.jobId));
+          })()
           : reportItems;
 
       setJobs(jobItems);
@@ -644,8 +607,8 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
       await fetchData();
     } catch (e: unknown) {
       const errMsg = e instanceof Error
-          ? e.message
-          : "Không thể khởi tạo đợt báo cáo và đồng bộ dữ liệu.";
+        ? e.message
+        : "Không thể khởi tạo đợt báo cáo và đồng bộ dữ liệu.";
       setError(errMsg);
       toast({ title: "Lỗi", description: errMsg, variant: "destructive" });
     } finally {
@@ -1359,97 +1322,6 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     setActiveTab("reports");
   }, []);
 
-  const quickStartTitle = isTeacher
-    ? "Bắt đầu theo việc của giáo viên"
-    : canManage
-      ? "Bắt đầu theo việc của staff/admin"
-      : "Bắt đầu xem báo cáo";
-
-  const quickStartDescription = isTeacher
-    ? "Ưu tiên mở đúng luồng soạn, sửa hoặc gửi lại báo cáo thay vì phải dò từng tab."
-    : canManage
-      ? "Ưu tiên vào đúng hàng chờ cần xử lý ngay: duyệt, điều phối theo lớp, hoặc công bố."
-      : "Mở nhanh danh sách báo cáo đã công bố và lọc theo phạm vi bạn cần xem.";
-
-  const quickStartCards = isTeacher
-    ? [
-        {
-          key: "teacher-compose",
-          title: "Soạn báo cáo mới",
-          description: "Chọn lớp, học sinh, xem dữ liệu buổi học và tạo nháp AI ngay.",
-          metric: `${teacherClassSummary.noReport} lớp chưa có báo cáo tháng`,
-          accentClass: "from-red-600 to-red-700",
-          icon: <FileText size={18} />,
-          actionLabel: "Mở công cụ giáo viên",
-          onClick: openTeacherTools,
-        },
-        {
-          key: "teacher-draft",
-          title: "Xử lý nháp chưa gửi",
-          description: "Mở danh sách các báo cáo còn ở trạng thái Draft để hoàn thiện nhanh.",
-          metric: `${teacherTaskSummary.draftCount} báo cáo nháp`,
-          accentClass: "from-red-500 to-red-600",
-          icon: <Clock size={18} />,
-          actionLabel: "Mở danh sách nháp",
-          onClick: openTeacherDrafts,
-        },
-        {
-          key: "teacher-rejected",
-          title: "Sửa báo cáo bị trả lại",
-          description: "Đi thẳng vào các báo cáo bị reject để sửa và submit lại.",
-          metric: `${teacherTaskSummary.rejectedCount} báo cáo cần sửa`,
-          accentClass: "from-red-600 to-red-700",
-          icon: <AlertCircle size={18} />,
-          actionLabel: "Mở báo cáo bị trả",
-          onClick: openTeacherRejected,
-        },
-      ]
-    : canManage
-      ? [
-          {
-            key: "manage-review",
-            title: "Mở hàng chờ duyệt",
-            description: "Xem ngay các báo cáo đang Submitted để review và phản hồi.",
-            metric: `${adminSummary.pendingReview} báo cáo chờ duyệt`,
-            accentClass: "from-red-600 to-red-700",
-            icon: <Clock size={18} />,
-            actionLabel: "Mở hàng chờ",
-            onClick: openManagementQueue,
-          },
-          {
-            key: "manage-tools",
-            title: "Điều phối theo lớp",
-            description: "Lọc theo lớp, xem tiến độ và chạy duyệt/công bố hàng loạt.",
-            metric: `${managementClassProgress.length} lớp có dữ liệu trong kỳ`,
-            accentClass: "from-red-500 to-red-600",
-            icon: <Building2 size={18} />,
-            actionLabel: "Mở điều phối",
-            onClick: openManagementTools,
-          },
-          {
-            key: "manage-publish",
-            title: "Công bố báo cáo đã duyệt",
-            description: "Đi thẳng tới các báo cáo Approved đang sẵn sàng publish.",
-            metric: `${adminSummary.readyToPublish} báo cáo chờ công bố`,
-            accentClass: "from-emerald-500 to-emerald-600",
-            icon: <Send size={18} />,
-            actionLabel: "Mở danh sách đã duyệt",
-            onClick: openManagementPublishQueue,
-          },
-        ]
-      : [
-          {
-            key: "viewer-published",
-            title: "Xem báo cáo đã công bố",
-            description: "Mở ngay danh sách Published trong kỳ đang chọn.",
-            metric: `${stats.total} báo cáo có thể xem`,
-            accentClass: "from-red-600 to-red-700",
-            icon: <CheckCircle2 size={18} />,
-            actionLabel: "Mở danh sách báo cáo",
-            onClick: openPublishedReports,
-          },
-        ];
-
   const visibleReportIds = useMemo(
     () => filteredReports.map((report) => report.id),
     [filteredReports],
@@ -1521,8 +1393,8 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
   const roleLabel = isTeacher
     ? "Giáo viên"
     : canManage
-      ? "Staff / Admin"
-      : "Phụ huynh / Học viên";
+      ? "Quản lý"
+      : "Người xem";
 
   const workspaceHeading = isTeacher
     ? "Soạn và gửi báo cáo tháng"
@@ -1554,190 +1426,172 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
       key: "total",
       label: "Tổng báo cáo",
       value: stats.total,
-      className: "border-red-200 bg-red-50/70 text-red-700",
+      color: "from-red-500 to-red-600",
     },
     {
       key: "drafts",
       label: "Bản nháp",
       value: stats.drafts,
-      className: "border-amber-200 bg-amber-50/80 text-amber-700",
+      color: "from-amber-500 to-amber-600",
     },
     {
       key: "submitted",
       label: "Đã nộp",
       value: stats.submitted,
-      className: "border-red-200 bg-red-50/80 text-red-700",
+      color: "from-red-500 to-red-600",
     },
     {
       key: "approved",
       label: "Đã duyệt",
       value: stats.approved,
-      className: "border-emerald-200 bg-emerald-50/80 text-emerald-700",
+      color: "from-emerald-500 to-emerald-600",
     },
   ];
 
   return (
-    <div className="min-h-screen space-y-4 bg-gradient-to-b from-red-50/40 to-white p-4 md:p-6">
-      <div className="rounded-[28px] border border-red-100 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg shadow-red-200">
-              <FileBarChart size={22} />
-            </div>
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
-                <FileBarChart size={12} />
-                Monthly Reports
+    <div className="space-y-6 bg-gray-50 rounded-3xl">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {summaryCards.map((card) => (
+          <div
+            key={card.key}
+            className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  {card.label}
+                </p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{card.value}</p>
               </div>
-              <h1 className="mt-2 text-xl font-bold text-slate-900 md:text-2xl">{workspaceHeading}</h1>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{workspaceDescription}</p>
+              <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${card.color} flex items-center justify-center shadow-md`}>
+                {card.key === "total" && <FileBarChart size={18} className="text-white" />}
+                {card.key === "drafts" && <FileText size={18} className="text-white" />}
+                {card.key === "submitted" && <Clock size={18} className="text-white" />}
+                {card.key === "approved" && <CheckCircle2 size={18} className="text-white" />}
+              </div>
             </div>
           </div>
+        ))}
+      </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-slate-700">
-              Vai trò: {roleLabel}
-            </div>
+      {/* Period Settings */}
+      <div className="rounded-xl border border-red-100 bg-gradient-to-br from-white to-red-50 p-5  transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarDays size={18} className="text-red-600" />
+          <h3 className="text-sm font-semibold text-gray-900">Thiết lập kỳ báo cáo</h3>
+          <div className="ml-auto flex items-center gap-2">
             <button
               onClick={handleManualRefresh}
-              className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 transition-all hover:bg-red-50 hover:shadow-sm cursor-pointer"
             >
-              <RefreshCw size={15} />
+              <RefreshCw size={14} />
               Làm mới
             </button>
             {canManage && (
               <button
                 onClick={createJob}
                 disabled={jobFlowLoading}
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-200 transition hover:from-red-700 hover:to-red-800 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-3 py-1.5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg hover:shadow-red-500/25 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <FileBarChart size={15} />
+                <FileBarChart size={14} />
                 {jobFlowLoading ? "Đang đồng bộ..." : "Khởi tạo dữ liệu"}
               </button>
             )}
           </div>
         </div>
-
-        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {summaryCards.map((card) => (
-                <div
-                  key={card.key}
-                  className={`min-w-[132px] rounded-2xl border px-3.5 py-3 ${card.className}`}
-                >
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em]">{card.label}</div>
-                  <div className="mt-1 text-2xl font-bold text-slate-900">{card.value}</div>
-                </div>
-              ))}
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Tháng</label>
+            <input
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+              type="number"
+              min={1}
+              max={12}
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
+              disabled={isTeacher}
+            />
           </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-slate-900">Thiết lập kỳ báo cáo</div>
-                <div className="mt-1 text-xs leading-5 text-slate-500">
-                  {isTeacher
-                    ? "Giáo viên xem nhanh kỳ hiện tại trước khi đi thẳng vào công cụ soạn báo cáo."
-                    : "Chọn tháng, năm và chi nhánh trước khi xem hoặc khởi tạo dữ liệu."}
-                </div>
-              </div>
-              <div className="rounded-2xl bg-white p-2.5 text-red-600 shadow-sm">
-                <CalendarDays size={16} />
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {isTeacher ? (
-                <>
-                  <div className="rounded-2xl border border-red-100 bg-white px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tháng</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">{month}</div>
-                  </div>
-                  <div className="rounded-2xl border border-red-100 bg-white px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Năm</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">{year}</div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <label className="space-y-2">
-                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tháng</span>
-                    <input
-                      className="w-full rounded-2xl border border-red-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-red-400"
-                      type="number"
-                      min={1}
-                      max={12}
-                      value={month}
-                      onChange={(e) => setMonth(Number(e.target.value))}
-                    />
-                  </label>
-                  <label className="space-y-2">
-                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Năm</span>
-                    <input
-                      className="w-full rounded-2xl border border-red-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-red-400"
-                      type="number"
-                      value={year}
-                      onChange={(e) => setYear(Number(e.target.value))}
-                    />
-                  </label>
-                </>
-              )}
-
-              {canManage && (
-                <label className={`space-y-2 ${!isTeacher ? "sm:col-span-2" : ""}`}>
-                  <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    <Building2 size={13} />
-                    Chi nhánh
-                  </span>
-                  <select
-                    className="w-full rounded-2xl border border-red-100 bg-white px-4 py-3 text-sm text-slate-500 outline-none"
-                    value={branchId}
-                    onChange={() => {}}
-                    disabled
-                    title="Chi nhánh đồng bộ theo bộ lọc ở sidebar"
-                  >
-                    <option value="">
-                      {branchesLoading ? "Đang tải chi nhánh..." : "Chọn chi nhánh"}
-                    </option>
-                    {branchOptions.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name || branch.code || branch.id}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
-
-            {error && <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-            {message && (
-              <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p>
-            )}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Năm</label>
+            <input
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+              type="number"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              disabled={isTeacher}
+            />
           </div>
+          {canManage && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                <Building2 size={12} className="inline mr-1" />
+                Chi nhánh
+              </label>
+              <Select
+                value={branchId || ""}
+                onValueChange={(val) => {
+                  if (val === "all") {
+                    setBranchId("");
+                  } else {
+                    setBranchId(val);
+                  }
+                }}
+                disabled={branchesLoading}
+              >
+                <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white text-sm text-gray-700 focus:ring-2 focus:ring-red-200">
+                  <SelectValue placeholder={branchesLoading ? "Đang tải..." : "Chọn chi nhánh"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả chi nhánh</SelectItem>
+                  {branchOptions.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name || item.code || item.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+        {message && (
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+            {message}
+          </div>
+        )}
+      </div>
 
-        <div className="mt-4 border-t border-slate-100 pt-4">
-          <div className="flex flex-wrap gap-2">
-            {workspaceTabs.map((tab) => (
+      {/* Tabs */}
+      <div className="mt-2">
+        <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+          {workspaceTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
-                  activeTab === tab.id
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
-                    : "border border-slate-200 bg-white text-slate-700 hover:bg-red-50 hover:text-red-700"
-                }`}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all cursor-pointer ${isActive
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                    : "text-gray-600 hover:bg-red-50 hover:text-red-600"
+                  }`}
               >
+                <Icon size={16} />
                 {tab.label}
               </button>
-            ))}
-          </div>
-          <p className="px-1 pt-3 text-sm text-slate-500">{activeTabDescription}</p>
+            );
+          })}
         </div>
+        <p className="mt-3 text-sm text-gray-500">{activeTabDescription}</p>
       </div>
 
+      {/* Content Sections */}
       {activeTab === "overview" && (
         <OverviewTab
           isTeacher={isTeacher}
@@ -1795,8 +1649,6 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
 
       {activeTab === "manage-tools" && canManage && showManageTools && (
         <ManageToolsTab
-          month={month}
-          year={year}
           classQuery={classQuery}
           setClassQuery={setClassQuery}
           selectedClassId={selectedClassId}
@@ -1864,92 +1716,252 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
         />
       )}
 
-      {detailModalOpen && displayReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-white">Báo cáo chi tiết</h3>
-                  <p className="text-sm text-red-100">
-                    {displayReport.studentName || displayReport.studentProfileId} •{" "}
-                    {displayReport.className || displayReport.classId || "N/A"} •{" "}
-                    {displayReport.month}/{displayReport.year}
-                  </p>
+      {/* Detail Modal — portal */}
+      {detailModalOpen && displayReport && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <FileText size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Chi tiết báo cáo</h2>
+                    <p className="text-sm text-red-100">Thông tin chi tiết báo cáo tháng</p>
+                  </div>
                 </div>
                 <button
-                  className="rounded-full p-2 hover:bg-white/20 text-white cursor-pointer"
                   onClick={() => setDetailModalOpen(false)}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                  aria-label="Đóng"
                 >
-                  ✕
+                  <X size={24} className="text-white" />
                 </button>
               </div>
             </div>
 
-            <div className="p-6 space-y-3">
-              <StatusBadge status={displayReport.status} />
-              <div className="rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-gray-700 whitespace-pre-line">
-                {draftInput || "Chưa có nội dung nháp."}
+            {/* Content Body */}
+            <div className="p-6 max-h-[75vh] overflow-y-auto">
+              {/* Stats Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="rounded-2xl bg-gradient-to-br from-red-50 to-red-100 border border-red-200 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 rounded-lg bg-white/60">
+                      <FileText size={14} className="text-red-600" />
+                    </div>
+                    <span className="text-xs font-medium text-red-600">Học sinh</span>
+                  </div>
+                  <p className="text-base font-bold text-gray-900 leading-tight">{displayReport.studentName || displayReport.studentProfileId || "N/A"}</p>
+                </div>
+                <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 rounded-lg bg-white/60">
+                      <Building2 size={14} className="text-amber-600" />
+                    </div>
+                    <span className="text-xs font-medium text-amber-600">Lớp</span>
+                  </div>
+                  <p className="text-base font-bold text-gray-900 leading-tight">{displayReport.className || displayReport.classId || "N/A"}</p>
+                </div>
+                <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 rounded-lg bg-white/60">
+                      <CalendarDays size={14} className="text-blue-600" />
+                    </div>
+                    <span className="text-xs font-medium text-blue-600">Tháng/Năm</span>
+                  </div>
+                  <p className="text-base font-bold text-gray-900 leading-tight">{displayReport.month}/{displayReport.year}</p>
+                </div>
+                <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 rounded-lg bg-white/60">
+                      <Clock size={14} className="text-emerald-600" />
+                    </div>
+                    <span className="text-xs font-medium text-emerald-600">Trạng thái</span>
+                  </div>
+                  <div className="mt-1"><StatusBadge status={displayReport.status} /></div>
+                </div>
+              </div>
+
+              {/* Main Content Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* Nội dung báo cáo - chiếm 3/5 */}
+                <div className="lg:col-span-3 space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                    <div className="p-1.5 rounded-lg bg-red-100">
+                      <FileBarChart size={16} className="text-red-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-700">Nội dung báo cáo</h3>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-gray-50 to-white border border-gray-200 shadow-sm">
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-gray-700 whitespace-pre-line leading-relaxed">{draftInput || "Chưa có nội dung nháp."}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sidebar - chiếm 2/5 */}
+                <div className="lg:col-span-2 space-y-4">
+                  {/* Thông tin giáo viên */}
+                  <div className="rounded-2xl bg-gradient-to-br from-white to-red-50 border border-red-200 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 rounded-lg bg-red-100">
+                        <Send size={16} className="text-red-600" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-700">Giáo viên</h3>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-sm">
+                        {displayReport.teacherName ? displayReport.teacherName.charAt(0).toUpperCase() : "?"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm truncate">{displayReport.teacherName || "N/A"}</p>
+                        <p className="text-xs text-gray-500">Giáo viên phụ trách</p>
+                      </div>
+                    </div>
+                    {displayReport.pdfUrl && (
+                      <a
+                        href={displayReport.pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                      >
+                        <div className="p-2 rounded-lg bg-red-100">
+                          <FileBarChart size={16} className="text-red-600" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">File PDF đính kèm</p>
+                          <p className="text-sm font-medium text-red-600 hover:text-red-700">Xem chi tiết →</p>
+                        </div>
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Góp ý từ Staff/Admin */}
+                  {displayReport.comments && displayReport.comments.length > 0 && (
+                    <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-white border border-amber-200 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-amber-100">
+                            <MessageSquare size={16} className="text-amber-600" />
+                          </div>
+                          <h3 className="text-sm font-semibold text-gray-700">Góp ý từ Staff</h3>
+                        </div>
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                          {displayReport.comments.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {displayReport.comments.slice().reverse().map((c) => (
+                          <div key={c.id} className="p-3 rounded-xl bg-white border border-amber-100 shadow-sm">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-5 h-5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 flex items-center justify-center text-white text-[10px] font-bold">
+                                {c.authorName ? c.authorName.charAt(0).toUpperCase() : "S"}
+                              </div>
+                              <span className="font-medium text-gray-900 text-xs">{c.authorName || c.commenterName || "Staff/Admin"}</span>
+                              {c.createdAt && (
+                                <span className="text-[10px] text-gray-400 ml-auto">{formatDateTime(c.createdAt)}</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-600 leading-relaxed pl-7">{c.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={() => setDetailModalOpen(false)}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                >
+                  Đóng
+                </button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {commentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-5">
+      {/* Comment Modal — portal */}
+      {commentModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">Gửi comment cho giáo viên</h3>
-                <button className="rounded-full p-2 hover:bg-white/20 text-white cursor-pointer" onClick={closeCommentDialog}>
-                  ✕
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <MessageSquare size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Gửi góp ý cho giáo viên</h2>
+                    <p className="text-sm text-red-100">Nội dung sẽ hiển thị trong báo cáo</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeCommentDialog}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <X size={24} className="text-white" />
                 </button>
               </div>
             </div>
-            <div className="p-5 space-y-4">
-              <p className="text-xs text-gray-500">
-                Nội dung này sẽ hiển thị ở phần bình luận của report.
-              </p>
-              <textarea
-                value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
-                rows={5}
-                className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
-                placeholder="Nhập góp ý..."
-              />
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={commentRejectAfterSend}
-                  onChange={(e) => setCommentRejectAfterSend(e.target.checked)}
-                  className="accent-red-600"
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3">
+                <textarea
+                  value={commentInput}
+                  onChange={(e) => setCommentInput(e.target.value)}
+                  rows={5}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  placeholder="Nhập góp ý cho giáo viên..."
                 />
-                Đồng thời trả report về teacher để sửa lại (Reject)
-              </label>
-              <div className="flex justify-end gap-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={commentRejectAfterSend}
+                    onChange={(e) => setCommentRejectAfterSend(e.target.checked)}
+                    className="w-4 h-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                  />
+                  Đồng thời trả report về teacher để sửa lại (Reject)
+                </label>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+              <div className="flex items-center justify-end gap-3">
                 <button
-                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                  className="px-5 py-2 rounded-xl border border-gray-300 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={closeCommentDialog}
                 >
                   Hủy
                 </button>
                 <button
-                  className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer disabled:from-slate-300 disabled:to-slate-300"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={!commentReportId || actionLoading[`${commentReportId}:comments`]}
                   onClick={submitComment}
                 >
                   {commentReportId && actionLoading[`${commentReportId}:comments`]
                     ? "Đang gửi..."
-                    : "Gửi comment"}
+                    : "Gửi góp ý"}
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
 }
-
-
