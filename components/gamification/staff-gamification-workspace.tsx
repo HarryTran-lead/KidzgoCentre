@@ -1540,6 +1540,7 @@ export function StaffGamificationWorkspace({
               value={missionForm.scope}
               onChange={(event) => {
                 clearMissionErrors(["targetClassId", "targetStudentId", "targetGroupIds"]);
+                setMissionStudentClassFilter("");
                 setMissionForm((current) => ({
                   ...current,
                   scope: event.target.value as MissionScope,

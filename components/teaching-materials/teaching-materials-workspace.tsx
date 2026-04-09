@@ -4,8 +4,12 @@ import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent } from
 import { 
   AlertCircle, Download, Eye, FileText, Folder, Info, Loader2, 
   RefreshCw, Search, Sparkles, Upload, BookOpen, Filter, X,
-  ChevronLeft, ChevronRight, Clock, User, Calendar, Tag, HardDrive
+  ChevronLeft, ChevronRight, Clock, User, Calendar, Tag, HardDrive,
+  GraduationCap, Settings2,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const StudentLearningView = dynamic(() => import("./student-learning-view"), { ssr: false });
 import { FilterTabs } from "@/components/portal/student/FilterTabs";
 import { getActiveProgramsForDropdown } from "@/lib/api/programService";
 import { createObjectUrl, fetchTeachingMaterialDownload, fetchTeachingMaterialPreview, getTeachingMaterialById, getTeachingMaterialLessonBundle, getTeachingMaterials, pickTeachingMaterialItems, revokeObjectUrl, sortTeachingMaterialItems, triggerBrowserDownload, uploadTeachingMaterials } from "@/lib/api/teachingMaterialsService";
@@ -65,6 +69,7 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
   const { toast } = useToast();
   const dark = variant === "student";
   const canUpload = CAN_UPLOAD.has(viewerRole);
+  const [viewMode, setViewMode] = useState<"manage" | "learn">("manage");
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   useEffect(() => {
@@ -212,6 +217,32 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* View mode toggle */}
+          <div className="inline-flex rounded-xl border border-red-200 bg-white overflow-hidden">
+            <button
+              onClick={() => setViewMode("manage")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors",
+                viewMode === "manage"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
+                  : "text-gray-600 hover:bg-red-50",
+              )}
+            >
+              <Settings2 size={15} /> Quản lý
+            </button>
+            <button
+              onClick={() => setViewMode("learn")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors",
+                viewMode === "learn"
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white"
+                  : "text-gray-600 hover:bg-red-50",
+              )}
+            >
+              <GraduationCap size={15} /> Xem bài học
+            </button>
+          </div>
+
           <button
             onClick={() => setRefreshTick((v) => v + 1)}
             className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer"
@@ -228,6 +259,16 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
           )}
         </div>
       </div>
+
+      {/* ═══ LEARN MODE: Interactive learning view ═══ */}
+      {viewMode === "learn" && (
+        <div className="rounded-2xl bg-gradient-to-br from-[#0a0a2a] via-[#1a1a3a] to-[#2a1a3a] p-6 min-h-[60vh]">
+          <StudentLearningView />
+        </div>
+      )}
+
+      {/* ═══ MANAGE MODE: Stats, filters, 3-column layout ═══ */}
+      {viewMode === "manage" && (<>
 
       {/* Stats Cards */}
       <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
@@ -683,6 +724,8 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
           </div>
         </div>
       </div>
+
+      </>)}
     </div>
   );
 }
