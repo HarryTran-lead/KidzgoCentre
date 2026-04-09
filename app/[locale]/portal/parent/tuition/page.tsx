@@ -1,6 +1,35 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { CreditCard, Receipt, ShieldCheck } from "lucide-react";
+import { getParentInvoices } from "@/lib/api/parentPortalService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 export default function ParentTuitionPage() {
+  const [tuitionData, setTuitionData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const { selectedProfile } = useSelectedStudentProfile();
+
+  useEffect(() => {
+    let alive = true;
+    const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    getParentInvoices(studentProfileId ? { studentProfileId } : undefined)
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data ?? res?.data ?? null;
+        setTuitionData(raw);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [selectedProfile?.id]);
+
+  const items = Array.isArray(tuitionData?.items) ? tuitionData.items : Array.isArray(tuitionData) ? tuitionData : [];
+  const pendingItems = items.filter((inv: any) => inv.status === "pending" || inv.status === "Pending");
+  const remainingAmount = pendingItems.reduce((sum: number, inv: any) => sum + (inv.amount ?? 0), 0);
+  const dueDate = pendingItems[0]?.dueDate ?? "—";
+  const formatCurrency = (amount: number) => amount.toLocaleString("vi-VN") + " ₫";
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
       <div className="flex items-center gap-3">
@@ -14,8 +43,8 @@ export default function ParentTuitionPage() {
       </div>
       <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/60 flex items-center justify-between">
         <div>
-          <div className="font-semibold text-slate-900">Còn lại: 500.000 ₫</div>
-          <div className="text-sm text-slate-600">Hạn thanh toán 15/01/2025</div>
+          <div className="font-semibold text-slate-900">Còn lại: {loading ? "..." : formatCurrency(remainingAmount)}</div>
+          <div className="text-sm text-slate-600">Hạn thanh toán {dueDate}</div>
         </div>
         <button className="inline-flex items-center gap-1 text-sm font-semibold text-amber-700">
           Thanh toán ngay <ShieldCheck size={16} />

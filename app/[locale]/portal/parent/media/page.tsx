@@ -1,84 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Image as ImageIcon, Video, FileText, Download, Eye, Play, Folder, Grid3x3, List, Filter, Calendar, File, Image, Film, Search, ChevronRight, MoreVertical, Share2, Sparkles, TrendingUp, AlertCircle, Users } from "lucide-react";
+import { getParentMedia } from "@/lib/api/parentPortalService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 type TabType = "photos" | "videos" | "documents";
-
-const MOCK_MEDIA = {
-  photos: [
-    {
-      id: "1",
-      title: "Hoạt động ngoại khóa - Tháng 12",
-      date: "20/12/2024",
-      count: 15,
-      thumbnail: "/image/placeholder.jpg",
-      tags: ["Hoạt động", "Ngoại khóa"],
-      featured: true
-    },
-    {
-      id: "2",
-      title: "Lớp học Speaking",
-      date: "15/12/2024",
-      count: 8,
-      thumbnail: "/image/placeholder.jpg",
-      tags: ["Lớp học", "Speaking"],
-    },
-    {
-      id: "3",
-      title: "Christmas Party 2024",
-      date: "24/12/2024",
-      count: 25,
-      thumbnail: "/image/placeholder.jpg",
-      tags: ["Sự kiện", "Lễ hội"],
-      featured: true
-    },
-  ],
-  videos: [
-    {
-      id: "1",
-      title: "Bài thuyết trình của con",
-      date: "18/12/2024",
-      duration: "5:32",
-      thumbnail: "/image/placeholder.jpg",
-      views: 45,
-    },
-    {
-      id: "2",
-      title: "Phỏng vấn với giáo viên",
-      date: "12/12/2024",
-      duration: "8:15",
-      thumbnail: "/image/placeholder.jpg",
-      views: 32,
-    },
-  ],
-  documents: [
-    {
-      id: "1",
-      title: "Giáo trình Level 3",
-      date: "01/12/2024",
-      size: "2.5 MB",
-      type: "PDF",
-      subject: "Tiếng Anh",
-    },
-    {
-      id: "2",
-      title: "Bảng từ vựng Unit 5",
-      date: "10/12/2024",
-      size: "1.2 MB",
-      type: "PDF",
-      subject: "Từ vựng",
-    },
-    {
-      id: "3",
-      title: "Bài tập về nhà tuần 4",
-      date: "22/12/2024",
-      size: "3.1 MB",
-      type: "DOCX",
-      subject: "Bài tập",
-    },
-  ],
-};
 
 // Badge Component
 function Badge({
@@ -105,6 +32,27 @@ export default function MediaPage() {
   const [activeTab, setActiveTab] = useState<TabType>("photos");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
+  const [media, setMedia] = useState<{ photos: any[]; videos: any[]; documents: any[] }>({ photos: [], videos: [], documents: [] });
+  const [loading, setLoading] = useState(true);
+  const { selectedProfile } = useSelectedStudentProfile();
+
+  useEffect(() => {
+    let alive = true;
+    const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    getParentMedia(studentProfileId ? { studentProfileId } : undefined)
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data ?? res?.data ?? {};
+        setMedia({
+          photos: Array.isArray(raw.photos) ? raw.photos : [],
+          videos: Array.isArray(raw.videos) ? raw.videos : [],
+          documents: Array.isArray(raw.documents) ? raw.documents : [],
+        });
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [selectedProfile?.id]);
 
   const getFileIcon = (type: string) => {
     if (type === "PDF") return <FileText className="w-5 h-5 text-red-600" />;
@@ -116,10 +64,10 @@ export default function MediaPage() {
     return size.replace("MB", " MB");
   };
 
-  const totalPhotos = MOCK_MEDIA.photos.reduce((sum, album) => sum + album.count, 0);
-  const totalVideos = MOCK_MEDIA.videos.length;
-  const totalDocuments = MOCK_MEDIA.documents.length;
-  const totalDuration = MOCK_MEDIA.videos.reduce((sum, video) => sum + parseInt(video.duration), 0);
+  const totalPhotos = media.photos.reduce((sum: number, album: any) => sum + (album.count ?? 0), 0);
+  const totalVideos = media.videos.length;
+  const totalDocuments = media.documents.length;
+  const totalDuration = media.videos.reduce((sum: number, video: any) => sum + parseInt(video.duration || "0"), 0);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
@@ -151,7 +99,7 @@ export default function MediaPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-gray-600">Album ảnh</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{MOCK_MEDIA.photos.length}</div>
+              <div className="text-2xl font-bold mt-2 text-gray-900">{media.photos.length}</div>
             </div>
             <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
               <Image size={20} />
@@ -243,9 +191,9 @@ export default function MediaPage() {
         {/* Tabs */}
         <div className="mt-4 flex flex-wrap gap-2">
           {[
-            { key: "photos" as TabType, label: "Ảnh", icon: ImageIcon, count: MOCK_MEDIA.photos.length },
-            { key: "videos" as TabType, label: "Video", icon: Video, count: MOCK_MEDIA.videos.length },
-            { key: "documents" as TabType, label: "Tài liệu", icon: FileText, count: MOCK_MEDIA.documents.length },
+            { key: "photos" as TabType, label: "Ảnh", icon: ImageIcon, count: media.photos.length },
+            { key: "videos" as TabType, label: "Video", icon: Video, count: media.videos.length },
+            { key: "documents" as TabType, label: "Tài liệu", icon: FileText, count: media.documents.length },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -272,7 +220,7 @@ export default function MediaPage() {
       <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-4"}>
         {activeTab === "photos" && (
           <>
-            {MOCK_MEDIA.photos.map((album) => (
+            {media.photos.map((album: any) => (
               <div
                 key={album.id}
                 className={`group relative bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300 ${
@@ -349,7 +297,7 @@ export default function MediaPage() {
 
         {activeTab === "videos" && (
           <>
-            {MOCK_MEDIA.videos.map((video) => (
+            {media.videos.map((video: any) => (
               <div
                 key={video.id}
                 className="group relative bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300"
@@ -404,7 +352,7 @@ export default function MediaPage() {
 
         {activeTab === "documents" && (
           <>
-            {MOCK_MEDIA.documents.map((doc) => (
+            {media.documents.map((doc: any) => (
               <div
                 key={doc.id}
                 className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md transition-all"

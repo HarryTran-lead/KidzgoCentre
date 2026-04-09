@@ -1,5 +1,5 @@
 import { PARENT_ENDPOINTS } from "@/constants/apiURL";
-import { get } from "@/lib/axios";
+import { get, put } from "@/lib/axios";
 import { buildQueryString, type QueryParams } from "@/lib/api/queryString";
 
 export type ParentPortalQuery = QueryParams;
@@ -38,4 +38,12 @@ export async function getParentTests(params?: ParentPortalQuery): Promise<any> {
 
 export async function getParentTestById(id: string): Promise<any> {
   return get<any>(PARENT_ENDPOINTS.TEST_BY_ID(id));
+}
+
+export async function getParentAccount(): Promise<any> {
+  return get<any>(PARENT_ENDPOINTS.ACCOUNT);
+}
+
+export async function updateParentAccount(payload: Record<string, unknown>): Promise<any> {
+  return put<any>(PARENT_ENDPOINTS.ACCOUNT, payload);
 }

@@ -27,6 +27,7 @@ import { Button } from "@/components/lightswind/button";
 import { getProfiles, selectStudent } from "@/lib/api/authService";
 import { setAccessToken } from "@/lib/store/authToken";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
+import { getParentTests } from "@/lib/api/parentPortalService";
 import type { UserProfile } from "@/types/auth";
 
 type TabType = "placement" | "periodic" | "monthly" | "session" | "history";
@@ -229,60 +230,8 @@ function normalizeMonthlyReport(raw: Record<string, unknown>): MonthlyReport | n
   };
 }
 
-const MOCK_TEST_RESULTS = [
-  {
-    id: "1",
-    name: "Mid-term Test - December",
-    date: "15/12/2024",
-    score: 85,
-    maxScore: 100,
-    grade: "A",
-    subjects: [
-      { name: "Reading", score: 90, max: 100 },
-      { name: "Writing", score: 80, max: 100 },
-      { name: "Listening", score: 85, max: 100 },
-      { name: "Speaking", score: 85, max: 100 },
-    ],
-  },
-  {
-    id: "2",
-    name: "Progress Test Unit 5",
-    date: "08/12/2024",
-    score: 42,
-    maxScore: 50,
-    grade: "B+",
-    subjects: [
-      { name: "Grammar", score: 45, max: 50 },
-      { name: "Vocabulary", score: 40, max: 50 },
-    ],
-  },
-  {
-    id: "3",
-    name: "Speaking Assessment",
-    date: "05/12/2024",
-    score: 88,
-    maxScore: 100,
-    grade: "A",
-    subjects: [
-      { name: "Fluency", score: 90, max: 100 },
-      { name: "Pronunciation", score: 85, max: 100 },
-      { name: "Vocabulary", score: 88, max: 100 },
-    ],
-  },
-  {
-    id: "4",
-    name: "Writing Test",
-    date: "01/12/2024",
-    score: 78,
-    maxScore: 100,
-    grade: "B",
-    subjects: [
-      { name: "Grammar", score: 75, max: 100 },
-      { name: "Structure", score: 80, max: 100 },
-      { name: "Content", score: 78, max: 100 },
-    ],
-  },
-];
+// Test results loaded from API
+const EMPTY_TEST_RESULTS: any[] = [];
 
 // Badge Component
 function Badge({
@@ -401,6 +350,8 @@ function StatCard({
 export default function TestsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("periodic");
   const [studentProfiles, setStudentProfiles] = useState<UserProfile[]>([]);
+  const [testResults, setTestResults] = useState<any[]>([]);
+  const [testsLoading, setTestsLoading] = useState(false);
   const [publishedReports, setPublishedReports] = useState<MonthlyReport[]>([]);
   const [publishedSessionReports, setPublishedSessionReports] = useState<SessionReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
@@ -499,6 +450,43 @@ export default function TestsPage() {
       alive = false;
     };
   }, [selectedProfile, setSelectedProfile]);
+
+  // Fetch test results from API
+  useEffect(() => {
+    if (!activeStudent?.id && !activeStudent?.studentId) return;
+    let alive = true;
+    setTestsLoading(true);
+    const studentProfileId = activeStudent?.studentId ?? activeStudent?.id;
+    getParentTests(studentProfileId ? { studentProfileId } : undefined)
+      .then((res) => {
+        if (!alive) return;
+        const raw = res?.data?.data ?? res?.data ?? [];
+        const items = Array.isArray(raw) ? raw : raw?.items ?? [];
+        setTestResults(items.map((item: any) => ({
+          id: item.id,
+          name: item.title ?? item.name ?? "Bài kiểm tra",
+          date: item.testDate ? new Date(item.testDate).toLocaleDateString("vi-VN") : "",
+          score: item.score ?? 0,
+          maxScore: item.maxScore ?? 100,
+          grade: item.percentage != null
+            ? (item.percentage >= 85 ? "A" : item.percentage >= 70 ? "B+" : item.percentage >= 55 ? "B" : "C")
+            : "",
+          subjects: [],
+          status: item.status,
+          type: item.type,
+          subject: item.subject,
+          className: item.className,
+        })));
+      })
+      .catch(() => {
+        if (!alive) return;
+        setTestResults([]);
+      })
+      .finally(() => {
+        if (alive) setTestsLoading(false);
+      });
+    return () => { alive = false; };
+  }, [activeStudent?.id, activeStudent?.studentId]);
 
   useEffect(() => {
     const handleProfileSelectionChanged = () => {
@@ -1029,9 +1017,9 @@ export default function TestsPage() {
   };
 
   // Calculate stats
-  const totalTests = MOCK_TEST_RESULTS.length;
-  const averageScore = (MOCK_TEST_RESULTS.reduce((acc, test) => acc + (test.score / test.maxScore * 100), 0) / totalTests).toFixed(1);
-  const bestScore = Math.max(...MOCK_TEST_RESULTS.map(test => (test.score / test.maxScore * 100)));
+  const totalTests = testResults.length;
+  const averageScore = totalTests > 0 ? (testResults.reduce((acc, test) => acc + (test.score / test.maxScore * 100), 0) / totalTests).toFixed(1) : "0";
+  const bestScore = totalTests > 0 ? Math.max(...testResults.map(test => (test.score / test.maxScore * 100))) : 0;
   const totalReports = publishedReports.length;
   const totalSessionReports = publishedSessionReports.length;
 
@@ -1147,7 +1135,7 @@ export default function TestsPage() {
 
       {activeTab === "periodic" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {MOCK_TEST_RESULTS.map((test) => (
+          {testResults.map((test) => (
             <Card key={test.id} className="border-gray-200 shadow-sm overflow-hidden">
               {/* Header */}
               <div className="p-3 border-b border-gray-200 bg-gray-50/50">

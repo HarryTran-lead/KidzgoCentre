@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   FileText,
   Plus,
@@ -27,6 +27,7 @@ import {
   FileBarChart,
   TrendingUp,
 } from "lucide-react";
+import { fetchNotificationTemplates, createNotificationTemplate } from "@/lib/api/notificationService";
 
 type TemplateStatus = "Active" | "Draft";
 type Channel = "Zalo OA" | "Email";
@@ -42,69 +43,6 @@ type Template = {
   createdAt?: string;
   usageCount?: number;
 };
-
-const INIT: Template[] = [
-  {
-    id: "TMP-01",
-    title: "Nhắc lịch học",
-    channel: "Zalo OA",
-    category: "Lịch học",
-    body: "Chào PH, lớp {class} của {student} vào {time} {date}. Vui lòng có mặt đúng giờ.",
-    status: "Active",
-    createdAt: "01/09/2024",
-    usageCount: 45,
-  },
-  {
-    id: "TMP-02",
-    title: "Nhắc hạn nộp bài",
-    channel: "Zalo OA",
-    category: "Bài tập",
-    body: "Chào {student}, bài tập {assignment} hạn {date}. Cố gắng hoàn thành nhé!",
-    status: "Active",
-    createdAt: "05/09/2024",
-    usageCount: 32,
-  },
-  {
-    id: "TMP-03",
-    title: "Biên lai học phí",
-    channel: "Email",
-    category: "Tài chính",
-    body: "Kính gửi PH {parent}. Trung tâm xác nhận đã nhận học phí {amount} cho {student}.",
-    status: "Draft",
-    createdAt: "10/09/2024",
-    usageCount: 0,
-  },
-  {
-    id: "TMP-04",
-    title: "Báo cáo tháng đã sẵn sàng",
-    channel: "Email",
-    category: "Báo cáo",
-    body: "Kính gửi PH {parent}, báo cáo tháng của {student} đã sẵn sàng. Vui lòng kiểm tra email.",
-    status: "Active",
-    createdAt: "15/09/2024",
-    usageCount: 28,
-  },
-  {
-    id: "TMP-05",
-    title: "Thông báo nghỉ học",
-    channel: "Zalo OA",
-    category: "Lịch học",
-    body: "Chào PH, lớp {class} của {student} sẽ nghỉ vào {date}. Lịch học bù sẽ được thông báo sau.",
-    status: "Active",
-    createdAt: "20/09/2024",
-    usageCount: 15,
-  },
-  {
-    id: "TMP-06",
-    title: "Nhắc đóng học phí",
-    channel: "Zalo OA",
-    category: "Tài chính",
-    body: "Chào PH, học phí tháng {month} của {student} là {amount}. Vui lòng thanh toán trước {date}.",
-    status: "Draft",
-    createdAt: "25/09/2024",
-    usageCount: 0,
-  },
-];
 
 const variables = [
   { key: "{parent}", label: "Tên phụ huynh", icon: User },
@@ -240,7 +178,8 @@ function CategoryBadge({ category }: { category: Category }) {
 }
 
 export default function Page() {
-  const [items, setItems] = useState(INIT);
+  const [items, setItems] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [channel, setChannel] = useState<Channel>("Zalo OA");
@@ -249,6 +188,28 @@ export default function Page() {
   const [channelFilter, setChannelFilter] = useState<string>("Tất cả");
   const [categoryFilter, setCategoryFilter] = useState<string>("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    fetchNotificationTemplates()
+      .then((raw: any) => {
+        if (!alive) return;
+        const list = (Array.isArray(raw) ? raw : []).map((t: any) => ({
+          id: t.id ?? "",
+          title: t.title ?? t.name ?? "",
+          channel: t.channel ?? "Zalo OA",
+          category: t.category ?? "Lịch học",
+          body: t.body ?? t.content ?? "",
+          status: t.status === "Draft" ? "Draft" as const : "Active" as const,
+          createdAt: t.createdAt ?? "",
+          usageCount: Number(t.usageCount ?? 0),
+        }));
+        setItems(list);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
 
   const stats = useMemo(() => {
     const total = items.length;

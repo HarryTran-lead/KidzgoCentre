@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from "react";
 import { 
   Image as ImageIcon, 
   Video, 
@@ -14,9 +15,10 @@ import {
   List,
   Filter
 } from "lucide-react";
-import { useState } from "react";
 import Image from "next/image";
 import { FilterTabs, TabOption } from "@/components/portal/student/FilterTabs";
+import { getStudentMedia } from "@/lib/api/studentPortalService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 // --- Types ---
 interface MediaItem {
@@ -236,143 +238,23 @@ export default function MediaPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { selectedProfile } = useSelectedStudentProfile();
 
-  // Mock Data
-  const albums: Album[] = [
-    {
-      id: '1',
-      title: 'LVV - Starter - 0058',
-      className: 'STARTER-0058',
-      date: '21 Thg 11 2023',
-      coverImage: '/image/Club1.JPG',
-      mediaCount: 24,
-      type: 'class',
-      media: [
-        {
-          id: 'm1',
-          type: 'image',
-          url: '/image/Club4.JPG',
-          thumbnail: '/image/Club4.JPG',
-          title: 'Hoạt động nhóm',
-          date: '21/11/2023',
-          likes: 15,
-          isLiked: false
-        },
-        {
-          id: 'm2',
-          type: 'image',
-          url: '/image/Club5.JPG',
-          thumbnail: '/image/Club5.JPG',
-          title: 'Giờ học trên lớp',
-          date: '21/11/2023',
-          likes: 12,
-          isLiked: false
-        },
-        {
-          id: 'm3',
-          type: 'image',
-          url: '/image/Club6.JPG',
-          thumbnail: '/image/Club6.JPG',
-          title: 'Hoạt động lớp',
-          date: '21/11/2023',
-          likes: 20,
-          isLiked: true
-        },
-        {
-          id: 'm4',
-          type: 'image',
-          url: '/image/Club7.JPG',
-          thumbnail: '/image/Club7.JPG',
-          title: 'Thảo luận nhóm',
-          date: '21/11/2023',
-          likes: 10,
-          isLiked: false
-        }
-      ]
-    },
-    {
-      id: '2',
-      title: 'Ngày hội thể thao 2023',
-      className: 'STARTER-0058',
-      date: '15 Thg 10 2023',
-      coverImage: '/image/Club8.JPG',
-      mediaCount: 18,
-      type: 'class',
-      media: [
-        {
-          id: 'm5',
-          type: 'image',
-          url: '/image/Club9.JPG',
-          thumbnail: '/image/Club9.JPG',
-          title: 'Thi chạy tiếp sức',
-          date: '15/10/2023',
-          likes: 25,
-          isLiked: true
-        },
-        {
-          id: 'm6',
-          type: 'image',
-          url: '/image/Club10.JPG',
-          thumbnail: '/image/Club10.JPG',
-          title: 'Những khoảnh khắc đẹp',
-          date: '15/10/2023',
-          likes: 30,
-          isLiked: false
-        }
-      ]
-    },
-    {
-      id: '3',
-      title: 'Album của bé',
-      className: 'Cá nhân',
-      date: '5 Thg 12 2023',
-      coverImage: '/image/Club12.JPG',
-      mediaCount: 12,
-      type: 'personal',
-      media: [
-        {
-          id: 'm7',
-          type: 'image',
-          url: '/image/Club13.JPG',
-          thumbnail: '/image/Club13.JPG',
-          title: 'Bài vẽ của bé',
-          date: '5/12/2023',
-          likes: 8,
-          isLiked: false
-        },
-        {
-          id: 'm8',
-          type: 'image',
-          url: '/image/Club15.JPG',
-          thumbnail: '/image/Club15.JPG',
-          title: 'Thuyết trình trước lớp',
-          date: '5/12/2023',
-          likes: 10,
-          isLiked: true
-        }
-      ]
-    },
-    {
-      id: '4',
-      title: 'Hoạt động ngoại khóa',
-      className: 'STARTER-0058',
-      date: '20 Thg 9 2023',
-      coverImage: '/image/Banner3.JPG',
-      mediaCount: 30,
-      type: 'class',
-      media: []
-    },
-    {
-      id: '5',
-      title: 'Thành tích của bé',
-      className: 'Cá nhân',
-      date: '10 Thg 11 2023',
-      coverImage: '/image/Banner4.JPG',
-      mediaCount: 8,
-      type: 'personal',
-      media: []
-    }
-  ];
+  useEffect(() => {
+    let alive = true;
+    const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    getStudentMedia(studentProfileId ? { studentProfileId } : undefined)
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data?.items ?? res?.data?.data ?? res?.data ?? [];
+        setAlbums(Array.isArray(raw) ? raw : []);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [selectedProfile?.id]);
 
   const filteredAlbums = albums.filter(album => {
     if (activeTab === 'all') return true;

@@ -21,6 +21,7 @@ import {
   Palette,
 } from "lucide-react";
 import { useEffect } from "react";
+import { getAllSessions } from "@/lib/api/sessionService";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
 
@@ -37,15 +38,6 @@ type Slot = {
   conflict?: boolean;
   branch?: string;
 };
-
-const SLOTS: Slot[] = [
-  { id: "EVT-01", title: "IELTS A1", type: "CLASS", teacher: "Minh", room: "P301", time: "08:00 - 09:30", date: "02/12/2024", color: "bg-gradient-to-r from-red-600 to-red-700", branch: "Quận 1", note: "Lớp chính" },
-  { id: "EVT-02", title: "TOEIC", type: "CLASS", teacher: "Hoa", room: "P205", time: "14:00 - 15:30", date: "03/12/2024", color: "bg-gradient-to-r from-blue-500 to-sky-500", branch: "Quận 7", conflict: true, note: "Trùng phòng" },
-  { id: "EVT-03", title: "IELTS Speaking Club", type: "EVENT", teacher: "Academic", room: "Hội trường", time: "20:15 - 21:15", date: "04/12/2024", color: "bg-gradient-to-r from-amber-500 to-orange-500", branch: "Quận 1" },
-  { id: "EVT-04", title: "TOEFL Junior A", type: "CLASS", teacher: "Tín", room: "P202", time: "17:30 - 19:00", date: "05/12/2024", color: "bg-gradient-to-r from-emerald-500 to-teal-500", branch: "Quận 1" },
-  { id: "EVT-05", title: "TOEIC Intermediate", type: "MAKEUP", teacher: "Minh", room: "P205", time: "16:00 - 18:00", date: "06/12/2024", color: "bg-gradient-to-r from-gray-600 to-gray-700", branch: "Quận 7", note: "Bù cho 03/12" },
-  { id: "EVT-06", title: "Kids English F1", type: "CLASS", teacher: "Vi", room: "P102", time: "18:30 - 20:00", date: "06/12/2024", color: "bg-gradient-to-r from-indigo-500 to-blue-500", branch: "Quận 1" },
-];
 
 const TYPE_META: Record<
   SlotType,
@@ -463,13 +455,57 @@ function WeekTimetable({
 
 export default function Page() {
   const [filter, setFilter] = useState<SlotType | "ALL">("ALL");
-  const [slots, setSlots] = useState<Slot[]>(SLOTS);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [loading, setLoading] = useState(true);
   const baseDate = slots.length ? parseVNDate(slots[0].date) : new Date();
   const [weekCursor, setWeekCursor] = useState<Date>(startOfWeek(baseDate));
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   useEffect(() => {
     setIsPageLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    getAllSessions({ pageSize: 200 })
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data?.sessions ?? res?.data?.data?.items ?? res?.data?.data ?? res?.data ?? [];
+        const list = (Array.isArray(raw) ? raw : []).map((s: any) => {
+          const typeMap: Record<string, SlotType> = { makeup: "MAKEUP", event: "EVENT" };
+          const typeVal = (s.type ?? s.sessionType ?? "CLASS").toLowerCase();
+          const planned = s.plannedDatetime ?? s.startTime ?? "";
+          let time = s.time ?? "";
+          let date = s.date ?? "";
+          if (planned && !time) {
+            const dt = new Date(planned);
+            const dur = s.durationMinutes ?? 90;
+            const endDt = new Date(dt.getTime() + dur * 60000);
+            time = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")} - ${String(endDt.getHours()).padStart(2, "0")}:${String(endDt.getMinutes()).padStart(2, "0")}`;
+            date = `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}/${dt.getFullYear()}`;
+          }
+          return {
+            id: s.id ?? "",
+            title: s.classTitle ?? s.classCode ?? s.title ?? "",
+            type: typeMap[typeVal] ?? "CLASS" as SlotType,
+            teacher: s.teacherName ?? s.teacher ?? "",
+            room: s.room ?? s.roomName ?? "",
+            time,
+            date,
+            note: s.note ?? "",
+            color: s.color ?? TYPE_META[typeMap[typeVal] ?? "CLASS"]?.defaultColor,
+            conflict: s.conflict ?? false,
+            branch: s.branchName ?? s.branch ?? "",
+          } as Slot;
+        });
+        setSlots(list);
+        if (list.length) {
+          setWeekCursor(startOfWeek(parseVNDate(list[0].date)));
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
   }, []);
 
   const list = useMemo(() => {

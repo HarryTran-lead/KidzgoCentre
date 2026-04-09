@@ -1,11 +1,29 @@
-import { ShieldCheck, FileText, CheckCircle2 } from "lucide-react";
+"use client";
 
-const approvals = [
-  { title: "Xác nhận học phí kỳ 1", desc: "500.000 ₫ còn lại • Hạn 15/01/2025" },
-  { title: "Duyệt báo cáo tuần 12", desc: "Xác nhận đã xem phản hồi của giáo viên" },
-];
+import { useState, useEffect } from "react";
+import { ShieldCheck, FileText, CheckCircle2 } from "lucide-react";
+import { getParentApprovals } from "@/lib/api/parentPortalService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 export default function ParentApprovalsPage() {
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { selectedProfile } = useSelectedStudentProfile();
+
+  useEffect(() => {
+    let alive = true;
+    const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    getParentApprovals(studentProfileId ? { studentProfileId } : undefined)
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data?.items ?? res?.data?.data ?? res?.data ?? [];
+        setApprovals(Array.isArray(raw) ? raw : []);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [selectedProfile?.id]);
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
       <div className="flex items-center gap-3">
@@ -18,12 +36,12 @@ export default function ParentApprovalsPage() {
         </div>
       </div>
       <div className="space-y-3">
-        {approvals.map((item, idx) => (
-          <div key={idx} className="rounded-xl border border-slate-200 p-4 bg-slate-50/60 flex items-start gap-3">
+        {approvals.map((item: any, idx: number) => (
+          <div key={item.id ?? idx} className="rounded-xl border border-slate-200 p-4 bg-slate-50/60 flex items-start gap-3">
             <FileText className="text-amber-600 mt-1" size={18} />
             <div className="flex-1">
               <div className="font-semibold text-slate-900">{item.title}</div>
-              <div className="text-sm text-slate-600">{item.desc}</div>
+              <div className="text-sm text-slate-600">{item.desc ?? item.description ?? ""}</div>
               <button className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-amber-700">
                 Xác nhận <CheckCircle2 size={16} />
               </button>

@@ -35,6 +35,7 @@ import {
   ExternalLink,
   BellRing
 } from "lucide-react";
+import { getTeacherDashboard } from "@/lib/api/teacherPortalService";
 
 // Custom Components
 function StatCard({
@@ -676,121 +677,32 @@ export default function Page() {
   const locale = params.locale as string;
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<"today" | "upcoming">("today");
+  const [dashboardData, setDashboardData] = useState<any>(null);
 
-  const [upcomingClasses] = useState([
-    {
-      id: "L1",
-      name: "IELTS Foundation - A1",
-      time: "08:00 - 10:00",
-      room: "Phòng 301",
-      day: "Hôm nay",
-      students: 18,
-      color: "from-red-600 to-red-700",
-      type: "online",
-      meetUrl: "https://meet.google.com/ielts-a1",
-      progress: 65,
-      attendance: 92
-    },
-    {
-      id: "L2",
-      name: "TOEIC Intermediate",
-      time: "14:00 - 16:00",
-      room: "Phòng 205",
-      day: "Hôm nay",
-      students: 15,
-      color: "from-gray-600 to-gray-700",
-      type: "offline",
-      progress: 45,
-      attendance: 88
-    },
-    {
-      id: "L3",
-      name: "Business English",
-      time: "09:00 - 11:00",
-      room: "Phòng 102",
-      day: "Thứ 6, 10/10",
-      students: 12,
-      color: "from-red-600 to-red-700",
-      type: "online",
-      meetUrl: "https://meet.google.com/business-en",
-      progress: 80,
-      attendance: 95
-    },
-    {
-      id: "L4",
-      name: "Academic Writing",
-      time: "19:00 - 21:00",
-      room: "Phòng 305",
-      day: "Thứ 7, 11/10",
-      students: 10,
-      color: "from-gray-800 to-gray-900",
-      type: "hybrid",
-      progress: 30,
-      attendance: 85
-    },
-    {
-      id: "L5",
-      name: "Conversation Practice",
-      time: "10:00 - 11:30",
-      room: "Phòng 108",
-      day: "Thứ 2, 14/10",
-      students: 8,
-      color: "from-red-600 to-red-700",
-      type: "online",
-      progress: 55,
-      attendance: 90
-    }
-  ]);
+  const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [classProgress, setClassProgress] = useState<any[]>([]);
+  const [weeklyPerformance, setWeeklyPerformance] = useState({ labels: ["T2", "T3", "T4", "T5", "T6", "T7", "CN"], data: [0, 0, 0, 0, 0, 0, 0] });
+  const [classSizeData, setClassSizeData] = useState({ labels: [] as string[], data: [] as number[] });
+  const [monthlyHours, setMonthlyHours] = useState({ labels: ["Tuần 1", "Tuần 2", "Tuần 3", "Tuần 4"], data: [0, 0, 0, 0] });
 
-  const [notifications] = useState([
-    {
-      title: "Lịch dạy được cập nhật",
-      message: "Lớp IELTS Foundation - A1 chuyển sang phòng 301 từ ngày 12/10",
-      type: "info",
-      time: "2 giờ trước",
-      read: false,
-      icon: CalendarDays
-    },
-    {
-      title: "Nhắc nhở điểm danh",
-      message: "Chưa điểm danh buổi 08/10 cho lớp TOEIC Intermediate",
-      type: "warning",
-      time: "1 ngày trước",
-      read: false,
-      icon: AlertCircle
-    },
-    {
-      title: "Tài liệu mới đã tải lên",
-      message: "Đề thi giữa kỳ môn Business English đã được tải lên hệ thống",
-      type: "success",
-      time: "2 ngày trước",
-      read: true,
-      icon: FileText
-    }
-  ]);
-
-  const [classProgress] = useState([
-    { name: "IELTS Foundation", progress: 65, attendance: 92, color: "red" },
-    { name: "TOEIC Intermediate", progress: 45, attendance: 88, color: "gray" },
-    { name: "Business English", progress: 80, attendance: 95, color: "red" },
-    { name: "Academic Writing", progress: 30, attendance: 85, color: "black" }
-  ]);
-
-  // Chart data
-  const [weeklyPerformance] = useState({
-    labels: ["T2", "T3", "T4", "T5", "T6", "T7", "CN"],
-    data: [78, 82, 85, 90, 88, 92, 87]
-  });
-
-  const [classSizeData] = useState({
-    labels: ["IELTS", "TOEIC", "Business", "Writing"],
-    data: [18, 15, 12, 10]
-  });
-
-  const [monthlyHours] = useState({
-    labels: ["Tuần 1", "Tuần 2", "Tuần 3", "Tuần 4"],
-    data: [15, 18, 20, 15]
-  });
+  useEffect(() => {
+    let alive = true;
+    getTeacherDashboard()
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data ?? res?.data ?? {};
+        setDashboardData(raw);
+        if (Array.isArray(raw.upcomingClasses)) setUpcomingClasses(raw.upcomingClasses);
+        if (Array.isArray(raw.notifications)) setNotifications(raw.notifications);
+        if (Array.isArray(raw.classProgress)) setClassProgress(raw.classProgress);
+        if (raw.weeklyPerformance) setWeeklyPerformance(raw.weeklyPerformance);
+        if (raw.classSizeData) setClassSizeData(raw.classSizeData);
+        if (raw.monthlyHours) setMonthlyHours(raw.monthlyHours);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const todayClasses = upcomingClasses.filter(cls => cls.day.includes("Hôm nay"));
   const upcomingFutureClasses = upcomingClasses.filter(cls => !cls.day.includes("Hôm nay"));
@@ -833,8 +745,8 @@ export default function Page() {
           <StatCard
             icon={<BookOpen size={20} />}
             label="Lớp đang dạy"
-            value="4"
-            hint="Ổn định"
+            value={String(dashboardData?.totalClasses ?? upcomingClasses.length ?? 0)}
+            hint=""
             trend="stable"
             color="red"
             delay={100}
@@ -842,8 +754,8 @@ export default function Page() {
           <StatCard
             icon={<CalendarClock size={20} />}
             label="Buổi/tuần"
-            value="12"
-            hint="+2 so với tuần trước"
+            value={String(dashboardData?.sessionsPerWeek ?? 0)}
+            hint=""
             trend="up"
             color="gray"
             delay={200}
@@ -851,8 +763,8 @@ export default function Page() {
           <StatCard
             icon={<Users size={20} />}
             label="Tổng học viên"
-            value="55"
-            hint="+3 mới"
+            value={String(dashboardData?.totalStudents ?? 0)}
+            hint=""
             trend="up"
             color="black"
             delay={300}
@@ -860,8 +772,8 @@ export default function Page() {
           <StatCard
             icon={<TrendingUp size={20} />}
             label="Hiệu suất TB"
-            value="89%"
-            hint="+5%"
+            value={dashboardData?.averagePerformance ? `${dashboardData.averagePerformance}%` : "—"}
+            hint=""
             trend="up"
             color="red"
             delay={400}

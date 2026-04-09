@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Image,
   Upload,
@@ -17,6 +17,7 @@ import {
   AlertCircle,
   ArrowUpDown,
 } from "lucide-react";
+import { getStaffManagementMedia } from "@/lib/api/staffManagementService";
 
 type MediaStatus = "Chờ duyệt" | "Đã publish" | "Đã từ chối";
 
@@ -32,49 +33,6 @@ type MediaItem = {
   uploader?: string;
   uploadDate?: string;
 };
-
-const ITEMS: MediaItem[] = [
-  {
-    id: "MD-01",
-    title: "Hoạt động lớp Starters",
-    className: "Starters B",
-    month: "10/2024",
-    status: "Chờ duyệt",
-    type: "Album",
-    uploader: "Cô Hoa",
-    uploadDate: "10/10 14:30",
-  },
-  {
-    id: "MD-02",
-    title: "Video luyện nói",
-    className: "IELTS A1",
-    month: "10/2024",
-    status: "Đã publish",
-    type: "Video",
-    uploader: "Thầy Minh",
-    uploadDate: "09/10 16:20",
-  },
-  {
-    id: "MD-03",
-    title: "Bài tập Speaking",
-    className: "TOEIC Intermediate",
-    month: "10/2024",
-    status: "Chờ duyệt",
-    type: "Image",
-    uploader: "Cô Lan",
-    uploadDate: "11/10 09:15",
-  },
-  {
-    id: "MD-04",
-    title: "Hoạt động ngoại khóa",
-    className: "Kids English F1",
-    month: "10/2024",
-    status: "Đã publish",
-    type: "Album",
-    uploader: "Cô Vi",
-    uploadDate: "08/10 18:45",
-  },
-];
 
 function StatCard({
   title,
@@ -157,14 +115,46 @@ export default function Page() {
     "title" | "className" | "month" | "uploader" | "status" | "uploadDate" | "id" | null
   >(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [items, setItems] = useState<MediaItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    getStaffManagementMedia()
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data?.items ?? res?.data?.data ?? res?.data ?? [];
+        const list = (Array.isArray(raw) ? raw : []).map((m: any) => {
+          const statusMap: Record<string, MediaStatus> = {
+            pending: "Chờ duyệt",
+            published: "Đã publish",
+            rejected: "Đã từ chối",
+          };
+          return {
+            id: m.id ?? "",
+            title: m.title ?? m.name ?? "",
+            className: m.className ?? m.class ?? "",
+            month: m.month ?? "",
+            status: statusMap[m.status?.toLowerCase?.()] ?? m.status ?? "Chờ duyệt",
+            type: m.type ?? m.mediaType ?? "Image",
+            uploader: m.uploader ?? m.uploadedBy ?? "",
+            uploadDate: m.uploadDate ?? m.createdAt ?? "",
+          } as MediaItem;
+        });
+        setItems(list);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
 
   const stats = useMemo(() => {
-    const total = ITEMS.length;
-    const pending = ITEMS.filter((i) => i.status === "Chờ duyệt").length;
-    const published = ITEMS.filter((i) => i.status === "Đã publish").length;
-    const albums = ITEMS.filter((i) => i.type === "Album").length;
+    const total = items.length;
+    const pending = items.filter((i) => i.status === "Chờ duyệt").length;
+    const published = items.filter((i) => i.status === "Đã publish").length;
+    const albums = items.filter((i) => i.type === "Album").length;
     return { total, pending, published, albums };
-  }, []);
+  }, [items]);
 
   const statusOptions: (MediaStatus | "Tất cả")[] = [
     "Tất cả",
@@ -181,7 +171,7 @@ export default function Page() {
   ];
 
   const filtered = useMemo(() => {
-    return ITEMS.filter((item) => {
+    return items.filter((item) => {
       const matchesStatus = statusFilter === "Tất cả" || item.status === statusFilter;
       const matchesType = typeFilter === "Tất cả" || item.type === typeFilter;
       const q = searchQuery.trim().toLowerCase();
@@ -193,7 +183,7 @@ export default function Page() {
         item.uploader?.toLowerCase().includes(q);
       return matchesStatus && matchesType && matchesSearch;
     });
-  }, [statusFilter, typeFilter, searchQuery]);
+  }, [items, statusFilter, typeFilter, searchQuery]);
 
   const sortedItems = useMemo(() => {
     const copy = [...filtered];

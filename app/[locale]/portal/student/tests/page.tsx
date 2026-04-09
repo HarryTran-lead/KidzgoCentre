@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   Filter,
@@ -111,100 +111,45 @@ function StatsCard({
 }
 
 // Sample Data
-const SAMPLE_TESTS: TestListItem[] = [
-  {
-    id: "1",
-    title: "Kiểm tra giữa kỳ - Unit 1-5",
-    type: "MIDTERM",
-    subject: "Tiếng Anh",
-    className: "Lớp A1",
-    testDate: "15/12/2024",
-    duration: 90,
-    status: "COMPLETED",
-    score: 8.5,
-    maxScore: 10,
-    percentage: 85,
-    averageScore: 7.2,
-    rank: 3,
-    totalStudents: 25,
-  },
-  {
-    id: "2",
-    title: "Quiz Vocabulary Unit 5",
-    type: "QUIZ",
-    subject: "Tiếng Anh",
-    className: "Lớp A1",
-    testDate: "20/12/2024",
-    duration: 20,
-    status: "COMPLETED",
-    score: 9.0,
-    maxScore: 10,
-    percentage: 90,
-    averageScore: 7.5,
-    rank: 2,
-    totalStudents: 25,
-  },
-  {
-    id: "3",
-    title: "Speaking Test - Unit 6",
-    type: "SPEAKING",
-    subject: "Tiếng Anh",
-    className: "Lớp A1",
-    testDate: "25/12/2024",
-    duration: 15,
-    status: "SCHEDULED",
-    maxScore: 10,
-    totalStudents: 25,
-  },
-  {
-    id: "4",
-    title: "Listening Practice Test",
-    type: "LISTENING",
-    subject: "Tiếng Anh",
-    className: "Lớp A1",
-    testDate: "18/12/2024",
-    duration: 30,
-    status: "COMPLETED",
-    score: 7.5,
-    maxScore: 10,
-    percentage: 75,
-    averageScore: 6.8,
-    rank: 5,
-    totalStudents: 25,
-  },
-  {
-    id: "5",
-    title: "Writing Test - Essay",
-    type: "WRITING",
-    subject: "Tiếng Anh",
-    className: "Lớp A1",
-    testDate: "10/12/2024",
-    duration: 60,
-    status: "MISSED",
-    maxScore: 10,
-    totalStudents: 25,
-  },
-];
+import { getStudentTests } from "@/lib/api/studentPortalService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 export default function TestsPage() {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
+  const { selectedProfile } = useSelectedStudentProfile();
   
+  const [tests, setTests] = useState<TestListItem[]>([]);
+  const [testsLoading, setTestsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<TestStatus[]>([]);
   const [typeFilter, setTypeFilter] = useState<TestType[]>([]);
   const [sortBy, setSortBy] = useState<TestSortOption>("DATE_DESC");
   const [showFilters, setShowFilters] = useState(false);
 
+  useEffect(() => {
+    let alive = true;
+    const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    getStudentTests(studentProfileId ? { studentProfileId } : undefined)
+      .then((res: any) => {
+        if (!alive) return;
+        const raw = res?.data?.data?.items ?? res?.data?.data ?? res?.data ?? [];
+        setTests(Array.isArray(raw) ? raw : []);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setTestsLoading(false); });
+    return () => { alive = false; };
+  }, [selectedProfile?.id]);
+
   // Calculate stats
   const stats: TestStats = useMemo(() => {
-    const total = SAMPLE_TESTS.length;
-    const completed = SAMPLE_TESTS.filter(t => t.status === "COMPLETED").length;
-    const scheduled = SAMPLE_TESTS.filter(t => t.status === "SCHEDULED").length;
-    const missed = SAMPLE_TESTS.filter(t => t.status === "MISSED").length;
+    const total = tests.length;
+    const completed = tests.filter(t => t.status === "COMPLETED").length;
+    const scheduled = tests.filter(t => t.status === "SCHEDULED").length;
+    const missed = tests.filter(t => t.status === "MISSED").length;
     
-    const completedTests = SAMPLE_TESTS.filter(t => t.status === "COMPLETED" && t.score !== undefined);
+    const completedTests = tests.filter(t => t.status === "COMPLETED" && t.score !== undefined);
     const averageScore = completedTests.length > 0
       ? completedTests.reduce((sum, t) => sum + (t.percentage || 0), 0) / completedTests.length
       : undefined;
@@ -213,12 +158,12 @@ export default function TestsPage() {
       ? Math.max(...completedTests.map(t => t.percentage || 0))
       : undefined;
 
-    return { total, completed, scheduled, missed, averageScore, highestScore, improvementRate: 12 };
-  }, []);
+    return { total, completed, scheduled, missed, averageScore, highestScore, improvementRate: 0 };
+  }, [tests]);
 
   // Filter and sort
   const filteredTests = useMemo(() => {
-    let result = [...SAMPLE_TESTS];
+    let result = [...tests];
 
     // Search
     if (searchQuery) {

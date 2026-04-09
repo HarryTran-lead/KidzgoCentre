@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Clock, CheckCircle2, AlertCircle, Calendar, Upload, FileText, BookOpen, TrendingUp, CheckSquare, XCircle, Filter, Search, ChevronRight, MoreVertical, Eye, Download, Sparkles, Users, Target } from "lucide-react";
+import { getParentHomework } from "@/lib/api/parentPortalService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 type TabType = "all" | "pending" | "submitted" | "late";
 
@@ -18,63 +20,6 @@ type Assignment = {
   priority?: "high" | "medium" | "low";
   attachmentCount?: number;
 };
-
-const MOCK_ASSIGNMENTS: Assignment[] = [
-  {
-    id: "1",
-    subject: "Tiếng Anh",
-    title: "Viết đoạn văn về gia đình",
-    description: "Hoàn thành đoạn văn 200 từ giới thiệu về gia đình bằng tiếng Anh. Cần sử dụng đúng cấu trúc và từ vựng đã học.",
-    deadline: "30/12/2024 21:00",
-    status: "PENDING",
-    priority: "high",
-    attachmentCount: 2,
-  },
-  {
-    id: "2",
-    subject: "Tiếng Anh",
-    title: "Bài tập ngữ pháp Unit 5",
-    description: "Làm trọn bộ bài tập Unit 5 trong giáo trình Present Perfect Tense, bao gồm 30 câu bài tập.",
-    deadline: "28/12/2024 20:00",
-    status: "SUBMITTED",
-    submittedAt: "27/12/2024 19:10",
-    score: 9,
-    feedback: "Làm tốt! Cần chú ý thêm về thì hiện tại hoàn thành trong trường hợp diễn tả hành động đã xảy ra nhưng không rõ thời gian.",
-    priority: "medium",
-    attachmentCount: 1,
-  },
-  {
-    id: "3",
-    subject: "Tiếng Anh",
-    title: "Speaking Practice - Video",
-    description: "Quay video giới thiệu bản thân 3-5 phút với đầy đủ các phần: Greeting, Personal Information, Hobbies và Future Plans.",
-    deadline: "25/12/2024 23:59",
-    status: "LATE",
-    priority: "high",
-  },
-  {
-    id: "4",
-    subject: "Tiếng Anh",
-    title: "Reading Comprehension",
-    description: "Đọc bài đọc về Climate Change và trả lời 10 câu hỏi trắc nghiệm.",
-    deadline: "01/01/2025 18:00",
-    status: "PENDING",
-    priority: "medium",
-    attachmentCount: 1,
-  },
-  {
-    id: "5",
-    subject: "Tiếng Anh",
-    title: "Vocabulary Test",
-    description: "Học thuộc 50 từ vựng mới về chủ đề Technology và làm bài kiểm tra.",
-    deadline: "29/12/2024 16:00",
-    status: "SUBMITTED",
-    submittedAt: "28/12/2024 15:30",
-    score: 8.5,
-    feedback: "Cố gắng hơn với phần phát âm và sử dụng từ trong ngữ cảnh.",
-    priority: "low",
-  },
-];
 
 // Badge Component
 function Badge({
@@ -100,8 +45,45 @@ function Badge({
 export default function HomeworkPage() {
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { selectedProfile } = useSelectedStudentProfile();
 
-  const filteredAssignments = MOCK_ASSIGNMENTS.filter((assignment) => {
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+    getParentHomework(studentProfileId ? { studentProfileId } : undefined)
+      .then((res) => {
+        if (!alive) return;
+        const raw = res?.data?.data ?? res?.data ?? {};
+        const items = Array.isArray(raw) ? raw : raw?.items ?? [];
+        setAssignments(items.map((item: any) => {
+          const status = (item.status ?? "").toUpperCase();
+          const mappedStatus = status === "ASSIGNED" || status === "MISSING" ? "PENDING"
+            : status === "SUBMITTED" || status === "GRADED" ? "SUBMITTED"
+            : status === "LATE" ? "LATE" : "PENDING";
+          return {
+            id: item.id,
+            subject: item.subject ?? "Tiếng Anh",
+            title: item.title ?? "",
+            description: item.description ?? "",
+            deadline: item.dueDate ? new Date(item.dueDate).toLocaleString("vi-VN") : "",
+            status: mappedStatus as Assignment["status"],
+            submittedAt: item.submittedAt ? new Date(item.submittedAt).toLocaleString("vi-VN") : undefined,
+            score: item.score,
+            feedback: item.feedback,
+            priority: item.priority?.toLowerCase() as Assignment["priority"],
+            attachmentCount: item.attachmentCount,
+          };
+        }));
+      })
+      .catch(() => { if (alive) setAssignments([]); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [selectedProfile?.id, selectedProfile?.studentId]);
+
+  const filteredAssignments = assignments.filter((assignment) => {
     const matchesTab = 
       activeTab === "all" ? true :
       activeTab === "pending" ? assignment.status === "PENDING" :
@@ -117,10 +99,10 @@ export default function HomeworkPage() {
   });
 
   const stats = {
-    total: MOCK_ASSIGNMENTS.length,
-    pending: MOCK_ASSIGNMENTS.filter((a) => a.status === "PENDING").length,
-    submitted: MOCK_ASSIGNMENTS.filter((a) => a.status === "SUBMITTED").length,
-    late: MOCK_ASSIGNMENTS.filter((a) => a.status === "LATE").length,
+    total: assignments.length,
+    pending: assignments.filter((a) => a.status === "PENDING").length,
+    submitted: assignments.filter((a) => a.status === "SUBMITTED").length,
+    late: assignments.filter((a) => a.status === "LATE").length,
   };
 
   const getStatusColor = (status: Assignment["status"]) => {

@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { 
   CreditCard, 
   ShieldCheck, 
@@ -16,6 +19,8 @@ import {
   MapPin
 } from "lucide-react";
 import ChildOverviewCard from "@/components/portal/parent/ChildOverviewCard";
+import { getParentOverview } from "@/lib/api/parentPortalService";
+import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
 // Badge Component
 function Badge({
@@ -87,17 +92,42 @@ function StatCard({
   );
 }
 
-const weeklySchedule = [
-  { day: "Thứ 2", time: "19:00 - 21:00", room: "P201", topic: "Reading & Vocabulary" },
-  { day: "Thứ 5", time: "19:00 - 21:00", room: "P301", topic: "Speaking practice" },
-];
 
-const approvals = [
-  { title: "Xác nhận học phí kỳ 1", detail: "500.000 ₫ còn lại • Hạn 15/01/2025" },
-  { title: "Phản hồi cuối kỳ", detail: "Báo cáo tuần 12 đã sẵn sàng để xem" },
-];
 
 export default function ParentPage() {
+  const { selectedProfile } = useSelectedStudentProfile();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await getParentOverview(
+          selectedProfile?.id ? { studentProfileId: selectedProfile.id } : undefined
+        );
+        setData(res?.data?.data ?? res?.data ?? null);
+      } catch (err) {
+        console.error("[ParentDashboard] Failed to load overview", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [selectedProfile?.id]);
+
+  const stats = data?.statistics ?? {};
+  const upcomingSessions = data?.upcomingSessions ?? [];
+  const pendingApprovalItems = data?.pendingApprovals ?? data?.openTickets ?? [];
+  const nextSession = upcomingSessions[0];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 bg-gray-50 p-4 md:p-6">
       {/* Header */}
@@ -120,31 +150,31 @@ export default function ParentPage() {
         <StatCard
           icon={<BookOpen size={20} />}
           label="Tiến độ học tập"
-          value="82%"
-          hint="Hoàn thành mục tiêu tuần"
+          value={data?.homeworkCompletion != null ? `${data.homeworkCompletion}%` : `${stats.pendingHomeworks ?? 0} bài`}
+          hint="Bài tập & tiến độ"
           trend="up"
           color="red"
         />
         <StatCard
           icon={<Clock size={20} />}
           label="Buổi học tiếp theo"
-          value="19:00"
-          hint="Hôm nay • Phòng 201"
+          value={nextSession ? new Date(nextSession.plannedDatetime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
+          hint={nextSession ? `${nextSession.classCode}` : "Không có lịch"}
           trend="stable"
           color="gray"
         />
         <StatCard
           icon={<CreditCard size={20} />}
-          label="Học phí còn lại"
-          value="500K"
-          hint="Hạn thanh toán 15/01"
+          label="Học phí chờ thanh toán"
+          value={`${stats.pendingInvoices ?? 0}`}
+          hint={data?.tuitionDue != null ? `${Number(data.tuitionDue).toLocaleString("vi-VN")} ₫` : "Không có"}
           trend="down"
           color="black"
         />
         <StatCard
           icon={<Bell size={20} />}
           label="Thông báo mới"
-          value="3"
+          value={`${data?.unreadNotifications ?? 0}`}
           hint="Chưa đọc"
           trend="up"
           color="red"
@@ -152,7 +182,7 @@ export default function ParentPage() {
       </div>
 
       {/* Child Overview */}
-      <ChildOverviewCard />
+      <ChildOverviewCard data={data} />
 
       {/* Main Grid */}
       <div className="grid md:grid-cols-2 gap-4">
@@ -255,15 +285,18 @@ export default function ParentPage() {
         <div className="bg-white rounded-2xl border border-gray-200">
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Thông báo & phê duyệt</h3>
-            <Badge color="red">{approvals.length}</Badge>
+            <Badge color="red">{pendingApprovalItems.length}</Badge>
           </div>
           <div className="p-4 space-y-3">
-            {approvals.map((item, idx) => (
+            {pendingApprovalItems.length === 0 && (
+              <p className="text-xs text-gray-500">Không có mục nào cần phê duyệt</p>
+            )}
+            {pendingApprovalItems.map((item: any, idx: number) => (
               <div key={idx} className="p-3 border border-gray-200 rounded-xl bg-gray-50/50 flex gap-2">
                 <ShieldCheck className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">{item.title}</div>
-                  <div className="text-xs text-gray-600 mt-0.5">{item.detail}</div>
+                  <div className="text-xs text-gray-600 mt-0.5">{item.description ?? item.detail ?? item.status}</div>
                   <button className="mt-2 text-xs text-red-600 font-medium inline-flex items-center gap-0.5">
                     Xem và xác nhận <ArrowRight size={12} />
                   </button>
@@ -285,21 +318,29 @@ export default function ParentPage() {
             </button>
           </div>
           <div className="p-4 space-y-3">
-            {weeklySchedule.map((item, idx) => (
-              <div key={idx} className="p-3 border border-gray-200 rounded-xl bg-gray-50/50 flex items-center justify-between">
+            {upcomingSessions.length === 0 && (
+              <p className="text-xs text-gray-500">Không có lịch học tuần này</p>
+            )}
+            {upcomingSessions.slice(0, 5).map((item: any, idx: number) => {
+              const d = new Date(item.plannedDatetime);
+              const dayStr = d.toLocaleDateString("vi-VN", { weekday: "long" });
+              const timeStr = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+              return (
+              <div key={item.id ?? idx} className="p-3 border border-gray-200 rounded-xl bg-gray-50/50 flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-gray-900">{item.day}</div>
-                  <div className="text-xs text-gray-600 mt-0.5">{item.topic}</div>
+                  <div className="text-sm font-medium text-gray-900">{dayStr}</div>
+                  <div className="text-xs text-gray-600 mt-0.5">{item.classCode}</div>
                   <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> {item.room}
+                    <MapPin className="w-3 h-3" /> {item.status}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
                   <Clock className="w-3.5 h-3.5 text-gray-500" />
-                  {item.time}
+                  {timeStr}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

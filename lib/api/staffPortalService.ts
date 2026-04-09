@@ -10,7 +10,7 @@ export async function getStaffDashboard(params?: StaffPortalQuery): Promise<any>
 
 export async function getStaffAnnouncements(params?: StaffPortalQuery): Promise<any> {
   return get<any>(
-    `${STAFF_PORTAL_ENDPOINTS.ANNOUNCEMENTS}${buildQueryString(params)}`
+    `${STAFF_PORTAL_ENDPOINTS.ANNOUNCEMENTS_HISTORY}${buildQueryString(params)}`
   );
 }
 
