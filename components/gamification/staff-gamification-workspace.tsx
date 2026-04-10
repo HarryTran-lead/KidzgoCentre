@@ -583,15 +583,17 @@ export function StaffGamificationWorkspace({
           classItems = (res?.data?.classes?.items ?? []).map((c: any) => ({ id: c.id, code: c.code, title: c.title ?? c.name, name: c.name ?? c.title }));
         }
         const allStudents: StudentOption[] = [];
-        const seenIds = new Set<string>();
+        const seenKeys = new Set<string>();
         for (const cls of classItems) {
           try {
             const resp = await get<any>(`/api/classes/${cls.id}/students`, { params: { pageNumber: 1, pageSize: 200 } });
             const items: any[] = resp?.data?.students?.items ?? [];
             for (const s of items) {
               const id = String(s.studentProfileId ?? s.id ?? s.profileId ?? "").trim();
-              if (!id || seenIds.has(id)) continue;
-              seenIds.add(id);
+              if (!id) continue;
+              const compositeKey = `${id}::${cls.id}`;
+              if (seenKeys.has(compositeKey)) continue;
+              seenKeys.add(compositeKey);
               const label = s.fullName || s.name || s.displayName || s.userName || id;
               const classText = cls.code ? `${cls.code} - ${cls.title ?? cls.name ?? ""}`.trim() : (cls.title ?? cls.name ?? "");
               allStudents.push({ id, label, studentId: s.studentId, classId: cls.id, classText, helperText: classText, dropdownLabel: classText ? `${label} • ${classText}` : label });
@@ -1190,13 +1192,19 @@ export function StaffGamificationWorkspace({
                     <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
                       <StatusPill label={mapMissionTypeLabel(mission.missionType)} className="border-red-200 bg-white text-gray-700" />
                       <StatusPill label={mapMissionScopeLabel(mission.scope)} className="border-amber-200 bg-amber-50 text-amber-700" />
+                      {mission.scope === "Class" && (mission.targetClassCode || mission.targetClassTitle) ? (
+                        <StatusPill
+                          label={mission.targetClassCode ? `${mission.targetClassCode}${mission.targetClassTitle ? ` - ${mission.targetClassTitle}` : ""}` : (mission.targetClassTitle ?? "")}
+                          className="border-blue-200 bg-blue-50 text-blue-700"
+                        />
+                      ) : null}
                     </div>
                     {mission.description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">{mission.description}</p> : null}
                     <div className="mt-4 flex flex-wrap gap-5 text-sm text-gray-500">
                       <span>Bắt đầu: {formatDateTime(mission.startAt)}</span>
                       <span>Kết thúc: {formatDateTime(mission.endAt)}</span>
                       <span>Thưởng: {formatNumber(mission.rewardStars)} sao • {formatNumber(mission.rewardExp)} XP</span>
-                      {mission.totalRequired ? <span>Mục tiêu: {formatNumber(mission.totalRequired)} lần</span> : null}
+                      <span>Mục tiêu: {mission.totalRequired ? `${formatNumber(mission.totalRequired)} lần` : "Chưa đặt"}</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">

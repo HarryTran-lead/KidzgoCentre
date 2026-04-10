@@ -128,14 +128,22 @@ function normalizeStarBalance(source: unknown): StarBalance {
   };
 }
 
+function parseLevelNumber(raw: unknown): number {
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+  if (typeof raw === "string") {
+    const n = parseInt(raw.replace(/\D/g, ""), 10);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
 function normalizeLevelInfo(source: unknown): LevelInfo {
   const payload = unwrapData<AnyRecord>(source);
-  const level = Number(payload?.level ?? 0);
   const xp = Number(payload?.xp ?? 0);
   const xpRequired = Number(payload?.xpRequiredForNextLevel ?? 0);
   return {
     studentProfileId: String(payload?.studentProfileId ?? ""),
-    level: Number.isFinite(level) ? level : 0,
+    level: parseLevelNumber(payload?.level),
     xp: Number.isFinite(xp) ? xp : 0,
     xpRequiredForNextLevel: Number.isFinite(xpRequired) ? xpRequired : 0,
   };
