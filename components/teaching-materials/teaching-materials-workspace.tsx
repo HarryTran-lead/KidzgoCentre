@@ -3,16 +3,17 @@
 import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { 
   AlertCircle, Download, Eye, FileText, Folder, Info, Loader2, 
-  RefreshCw, Search, Sparkles, Upload, BookOpen, Filter, X,
+  Maximize2, RefreshCw, Search, Sparkles, Upload, BookOpen, Filter, X,
   ChevronLeft, ChevronRight, Clock, User, Calendar, Tag, HardDrive,
   GraduationCap, Settings2,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const StudentLearningView = dynamic(() => import("./student-learning-view"), { ssr: false });
+const SlideshowViewer = dynamic(() => import("./slideshow-viewer"), { ssr: false });
 import { FilterTabs } from "@/components/portal/student/FilterTabs";
 import { getActiveProgramsForDropdown } from "@/lib/api/programService";
-import { createObjectUrl, fetchTeachingMaterialDownload, fetchTeachingMaterialPreview, getTeachingMaterialById, getTeachingMaterialLessonBundle, getTeachingMaterials, pickTeachingMaterialItems, revokeObjectUrl, sortTeachingMaterialItems, triggerBrowserDownload, uploadTeachingMaterials } from "@/lib/api/teachingMaterialsService";
+import { createObjectUrl, fetchTeachingMaterialDownload, fetchTeachingMaterialPreview, fetchTeachingMaterialPreviewPdf, getTeachingMaterialById, getTeachingMaterialLessonBundle, getTeachingMaterials, pickTeachingMaterialItems, revokeObjectUrl, sortTeachingMaterialItems, triggerBrowserDownload, uploadTeachingMaterials } from "@/lib/api/teachingMaterialsService";
 import { ROLE_LABEL, type Role } from "@/lib/role";
 import { useToast } from "@/hooks/use-toast";
 import type { Program } from "@/types/admin/programs";
@@ -25,6 +26,20 @@ type TabId = "all" | "presentation" | "audio" | "video" | "image" | "document";
 type UploadMode = "single" | "multi" | "archive";
 
 const CAN_UPLOAD = new Set<Role>(["Admin", "Teacher", "Staff_Manager"]);
+
+const LESSON_REGEX = /UNIT\s*(\d+)\s*-\s*L(\d+)\s*-\s*(.+)/i;
+
+/** Validate a relativePath against the BE naming convention */
+function validateRelativePath(p: string): { ok: boolean; program?: string; unit?: string; lesson?: string; title?: string; warning?: string } {
+  const parts = p.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.length < 2) return { ok: false, warning: "Thiếu folder chương trình" };
+  const program = parts[0];
+  // Find the segment matching UNIT x-Ly-Title
+  const lessonSeg = parts.find((seg) => LESSON_REGEX.test(seg));
+  if (!lessonSeg) return { ok: false, program, warning: "Không tìm thấy folder UNIT x-Ly-Title" };
+  const m = LESSON_REGEX.exec(lessonSeg)!;
+  return { ok: true, program, unit: m[1], lesson: m[2], title: m[3] };
+}
 const TABS = [
   { id: "all", label: "Tất cả", icon: <Folder className="h-4 w-4" /> },
   { id: "presentation", label: "Slides", icon: <FileText className="h-4 w-4" /> },
@@ -96,6 +111,8 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
   const [filters, setFilters] = useState({ programId: "", unitNumber: "", lessonNumber: "", fileType: "", category: "", searchTerm: "" });
   const [uploadForm, setUploadForm] = useState({ programId: "", unitNumber: "", lessonNumber: "", lessonTitle: "", displayName: "", category: "LessonSlide" });
   const search = useDeferredValue(filters.searchTerm);
+  const [slideshowMaterial, setSlideshowMaterial] = useState<TeachingMaterialItem | null>(null);
+  const [fullscreenPreview, setFullscreenPreview] = useState(false);
 
   useEffect(() => { getActiveProgramsForDropdown().then(setPrograms).catch(() => setPrograms([])); }, []);
 
@@ -136,23 +153,59 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
 
   const selectedMaterial = useMemo(() => visible.find((m) => m.id === selectedMaterialId) ?? bundleMaterials.find((m) => m.id === selectedMaterialId) ?? materials.find((m) => m.id === selectedMaterialId) ?? null, [bundleMaterials, materials, selectedMaterialId, visible]);
 
+  const officePreviewable = (ft?: string | null) => ["Presentation", "Document", "Spreadsheet"].includes(String(ft ?? ""));
+
   useEffect(() => {
-    if (!selectedMaterialId) return;
+    if (!selectedMaterialId) { setPreviewUrl((prev) => { revokeObjectUrl(prev); return null; }); return; }
     let off = false;
     getTeachingMaterialById(selectedMaterialId).then((r) => !off && setDetail(r.data ?? null)).catch(() => !off && setDetail(null));
-    if (!selectedMaterial?.previewUrl || !previewable(selectedMaterial.fileType)) { revokeObjectUrl(previewUrl); setPreviewUrl(null); return () => { off = true; }; }
-    setPreviewLoading(true);
-    revokeObjectUrl(previewUrl);
-    fetchTeachingMaterialPreview(selectedMaterial.previewUrl).then((r) => !off && setPreviewUrl(createObjectUrl(r.blob))).catch((e) => !off && toast.warning({ title: "Preview lỗi", description: msg(e, "Không thể preview file.") })).finally(() => !off && setPreviewLoading(false));
-    return () => { off = true; };
-  }, [previewUrl, selectedMaterial, selectedMaterialId, toast]);
 
-  useEffect(() => () => revokeObjectUrl(previewUrl), [previewUrl]);
+    // Office files → try preview-pdf, fallback to regular preview
+    if (officePreviewable(selectedMaterial?.fileType)) {
+      setPreviewLoading(true);
+      setPreviewUrl((prev) => { revokeObjectUrl(prev); return null; });
+
+      fetchTeachingMaterialPreviewPdf(selectedMaterialId)
+        .then((r) => { if (!off) setPreviewUrl(createObjectUrl(r.blob)); })
+        .catch(() => {
+          // preview-pdf failed → fallback to regular preview endpoint
+          if (off || !selectedMaterial?.previewUrl) { if (!off) setPreviewUrl(null); return; }
+          return fetchTeachingMaterialPreview(selectedMaterial.previewUrl)
+            .then((r) => { if (!off) setPreviewUrl(createObjectUrl(r.blob)); })
+            .catch(() => { if (!off) setPreviewUrl(null); });
+        })
+        .finally(() => { if (!off) setPreviewLoading(false); });
+      return () => { off = true; };
+    }
+
+    if (!selectedMaterial?.previewUrl || !previewable(selectedMaterial.fileType)) { setPreviewUrl((prev) => { revokeObjectUrl(prev); return null; }); return () => { off = true; }; }
+    setPreviewLoading(true);
+    setPreviewUrl((prev) => { revokeObjectUrl(prev); return null; });
+    fetchTeachingMaterialPreview(selectedMaterial.previewUrl)
+      .then((r) => { if (!off) setPreviewUrl(createObjectUrl(r.blob)); })
+      .catch((e) => { if (!off) toast.warning({ title: "Preview lỗi", description: msg(e, "Không thể preview file.") }); })
+      .finally(() => { if (!off) setPreviewLoading(false); });
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMaterialId]);
 
   const onUploadFile = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     if (uploadMode === "single") setSingleFile(files[0] ?? null);
-    if (uploadMode === "multi") setMultiFiles(files);
+    if (uploadMode === "multi") {
+      setMultiFiles(files);
+      // Validate folder structure
+      const warns: string[] = [];
+      const programs = new Set<string>();
+      for (const f of files) {
+        const rp = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+        const v = validateRelativePath(rp);
+        if (v.program) programs.add(v.program);
+        if (!v.ok) warns.push(`${rp}: ${v.warning}`);
+      }
+      if (programs.size > 1) warns.unshift(`Cảnh báo: ${programs.size} program roots (${[...programs].join(", ")}). Nên chỉ chọn 1 program.`);
+      if (warns.length) toast.warning({ title: `${warns.length} cảnh báo cấu trúc folder`, description: warns.slice(0, 3).join("\n") + (warns.length > 3 ? `\n...và ${warns.length - 3} cảnh báo khác` : "") });
+    }
     if (uploadMode === "archive") setArchiveFile(files[0] ?? null);
   };
 
@@ -176,18 +229,45 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
 
   const doUpload = async () => {
     const form = new FormData();
-    if (!uploadForm.programId.trim()) { toast.warning({ title: "Thiếu programId", description: "Hãy nhập programId trước khi upload." }); return; }
-    form.append("programId", uploadForm.programId.trim());
-    if (uploadForm.unitNumber.trim()) form.append("unitNumber", uploadForm.unitNumber.trim());
-    if (uploadForm.lessonNumber.trim()) form.append("lessonNumber", uploadForm.lessonNumber.trim());
-    if (uploadForm.lessonTitle.trim()) form.append("lessonTitle", uploadForm.lessonTitle.trim());
-    if (uploadForm.displayName.trim()) form.append("displayName", uploadForm.displayName.trim());
-    form.append("category", uploadForm.category);
-    if (uploadMode === "single" && singleFile) form.append("file", singleFile);
-    if (uploadMode === "multi") multiFiles.forEach((f) => form.append("files", f));
-    if (uploadMode === "archive" && archiveFile) form.append("archive", archiveFile);
+
+    if (uploadMode === "single") {
+      // Single file: send metadata fields
+      if (!uploadForm.programId.trim()) { toast.warning({ title: "Thiếu chương trình", description: "Hãy chọn chương trình trước khi upload." }); return; }
+      if (!singleFile) { toast.warning({ title: "Thiếu file", description: "Hãy chọn file để upload." }); return; }
+      form.append("programId", uploadForm.programId.trim());
+      if (uploadForm.unitNumber.trim()) form.append("unitNumber", uploadForm.unitNumber.trim());
+      if (uploadForm.lessonNumber.trim()) form.append("lessonNumber", uploadForm.lessonNumber.trim());
+      if (uploadForm.lessonTitle.trim()) form.append("lessonTitle", uploadForm.lessonTitle.trim());
+      if (uploadForm.displayName.trim()) form.append("displayName", uploadForm.displayName.trim());
+      form.append("category", uploadForm.category);
+      form.append("file", singleFile);
+    } else if (uploadMode === "multi") {
+      // Multi files (folder upload): send files[] + relativePaths[]
+      if (multiFiles.length === 0) { toast.warning({ title: "Thiếu files", description: "Hãy chọn folder để upload." }); return; }
+      for (const f of multiFiles) {
+        const rp = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+        form.append("files", f);
+        form.append("relativePaths", rp);
+      }
+    } else {
+      // Archive (.zip)
+      if (!archiveFile) { toast.warning({ title: "Thiếu file", description: "Hãy chọn file .zip để upload." }); return; }
+      form.append("archive", archiveFile);
+    }
+
     setUploading(true);
-    try { await uploadTeachingMaterials(form); setUploadOpen(false); setRefreshTick((v) => v + 1); toast.success({ title: "Upload thành công", description: "Danh sách đã được làm mới." }); } catch (e) { toast.destructive({ title: "Upload thất bại", description: msg(e, "Không thể upload materials.") }); } finally { setUploading(false); }
+    try {
+      await uploadTeachingMaterials(form);
+      setUploadOpen(false);
+      setSingleFile(null); setMultiFiles([]); setArchiveFile(null);
+      setUploadForm((c) => ({ ...c, unitNumber: "", lessonNumber: "", lessonTitle: "", displayName: "" }));
+      setRefreshTick((v) => v + 1);
+      toast.success({ title: "Upload thành công", description: "Danh sách đã được làm mới." });
+    } catch (e) {
+      toast.destructive({ title: "Upload thất bại", description: msg(e, "Không thể upload materials.") });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const stats = useMemo(() => ({
@@ -459,7 +539,7 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
               <button
                 key={m}
                 type="button"
-                onClick={() => setUploadMode(m)}
+                onClick={() => { setUploadMode(m); setSingleFile(null); setMultiFiles([]); setArchiveFile(null); }}
                 className={cn(
                   "px-4 py-2 rounded-xl text-sm font-medium transition-all",
                   uploadMode === m
@@ -467,61 +547,142 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
                     : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                 )}
               >
-                {m === "single" ? "Single" : m === "multi" ? "Multi" : "Archive (.zip)"}
+                {m === "single" ? "Một file" : m === "multi" ? "Chọn folder" : "Archive (.zip)"}
               </button>
             ))}
           </div>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 mb-4">
-            <input
-              value={uploadForm.programId}
-              onChange={(e) => setUploadForm((c) => ({ ...c, programId: e.target.value }))}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Program ID *"
-            />
-            <input
-              value={uploadForm.unitNumber}
-              onChange={(e) => setUploadForm((c) => ({ ...c, unitNumber: e.target.value }))}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Unit Number"
-            />
-            <input
-              value={uploadForm.lessonNumber}
-              onChange={(e) => setUploadForm((c) => ({ ...c, lessonNumber: e.target.value }))}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Lesson Number"
-            />
-            <input
-              value={uploadForm.lessonTitle}
-              onChange={(e) => setUploadForm((c) => ({ ...c, lessonTitle: e.target.value }))}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Lesson Title"
-            />
-            <input
-              value={uploadForm.displayName}
-              onChange={(e) => setUploadForm((c) => ({ ...c, displayName: e.target.value }))}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="Display Name"
-            />
-            <Select value={uploadForm.category} onValueChange={(val) => setUploadForm((c) => ({ ...c, category: val }))}>
-              <SelectTrigger className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ProgramDocument">ProgramDocument</SelectItem>
-                <SelectItem value="LessonSlide">LessonSlide</SelectItem>
-                <SelectItem value="LessonAsset">LessonAsset</SelectItem>
-                <SelectItem value="Supplementary">Supplementary</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <input
-            type="file"
-            accept={uploadMode === "archive" ? ".zip" : undefined}
-            multiple={uploadMode === "multi"}
-            onChange={onUploadFile}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 mb-4"
-          />
+
+          {/* ── Single mode: metadata form ── */}
+          {uploadMode === "single" && (
+            <>
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 mb-4">
+                <Select value={uploadForm.programId} onValueChange={(val) => setUploadForm((c) => ({ ...c, programId: val }))}>
+                  <SelectTrigger className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200">
+                    <SelectValue placeholder="Chọn chương trình *" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {programs.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input
+                  value={uploadForm.unitNumber}
+                  onChange={(e) => setUploadForm((c) => ({ ...c, unitNumber: e.target.value }))}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Unit Number"
+                />
+                <input
+                  value={uploadForm.lessonNumber}
+                  onChange={(e) => setUploadForm((c) => ({ ...c, lessonNumber: e.target.value }))}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Lesson Number"
+                />
+                <input
+                  value={uploadForm.lessonTitle}
+                  onChange={(e) => setUploadForm((c) => ({ ...c, lessonTitle: e.target.value }))}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Lesson Title"
+                />
+                <input
+                  value={uploadForm.displayName}
+                  onChange={(e) => setUploadForm((c) => ({ ...c, displayName: e.target.value }))}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Display Name"
+                />
+                <Select value={uploadForm.category} onValueChange={(val) => setUploadForm((c) => ({ ...c, category: val }))}>
+                  <SelectTrigger className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ProgramDocument">ProgramDocument</SelectItem>
+                    <SelectItem value="LessonSlide">LessonSlide</SelectItem>
+                    <SelectItem value="LessonAsset">LessonAsset</SelectItem>
+                    <SelectItem value="Supplementary">Supplementary</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <input
+                type="file"
+                onChange={onUploadFile}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 mb-4"
+              />
+              {singleFile && (
+                <div className="mb-3 rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700">
+                  <span className="font-medium">{singleFile.name}</span>
+                  <span className="text-gray-400 ml-2">({(singleFile.size / 1024 / 1024).toFixed(1)} MB)</span>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Multi mode: folder upload ── */}
+          {uploadMode === "multi" && (
+            <>
+              <div className="mb-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                <Info size={14} className="inline mr-1.5 -mt-0.5" />
+                <strong>Chọn folder</strong> có cấu trúc: <code className="bg-amber-100 px-1.5 py-0.5 rounded text-xs">ProgramName/UNIT x-Ly-Title/files</code>
+                <br />
+                <span className="text-xs text-amber-600 mt-1 block">VD: Movers/UNIT 1-L2-READING WRITING/UNIT 1-L2-READING WRITING.pptx</span>
+              </div>
+              {/* @ts-expect-error webkitdirectory is non-standard but widely supported */}
+              <input
+                type="file"
+                webkitdirectory=""
+                onChange={onUploadFile}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 mb-4"
+              />
+              {multiFiles.length > 0 && (
+                <div className="mb-3 rounded-xl border border-gray-200 bg-white max-h-48 overflow-y-auto">
+                  <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 rounded-t-xl flex justify-between text-xs text-gray-500">
+                    <span>{multiFiles.length} files</span>
+                    <span>{(multiFiles.reduce((s, f) => s + f.size, 0) / 1024 / 1024).toFixed(1)} MB tổng</span>
+                  </div>
+                  {multiFiles.slice(0, 50).map((f, i) => {
+                    const rp = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+                    const v = validateRelativePath(rp);
+                    return (
+                      <div key={i} className={cn("flex items-center gap-2 px-3 py-1.5 text-xs border-b border-gray-50", !v.ok && "bg-red-50")}>
+                        <span className={cn("flex-1 truncate", v.ok ? "text-gray-700" : "text-red-600")}>{rp}</span>
+                        {v.ok ? (
+                          <span className="text-green-600 text-[10px] shrink-0">U{v.unit}-L{v.lesson}</span>
+                        ) : (
+                          <span className="text-red-500 text-[10px] shrink-0" title={v.warning}>⚠</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {multiFiles.length > 50 && (
+                    <div className="px-3 py-2 text-xs text-gray-400 text-center">...và {multiFiles.length - 50} files khác</div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Archive mode: zip upload ── */}
+          {uploadMode === "archive" && (
+            <>
+              <div className="mb-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                <Info size={14} className="inline mr-1.5 -mt-0.5" />
+                <strong>File .zip</strong> phải chứa cấu trúc: <code className="bg-amber-100 px-1.5 py-0.5 rounded text-xs">ProgramName/UNIT x-Ly-Title/files</code>
+              </div>
+              <input
+                type="file"
+                accept=".zip"
+                onChange={onUploadFile}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 mb-4"
+              />
+              {archiveFile && (
+                <div className="mb-3 rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700">
+                  <span className="font-medium">{archiveFile.name}</span>
+                  <span className="text-gray-400 ml-2">({(archiveFile.size / 1024 / 1024).toFixed(1)} MB)</span>
+                </div>
+              )}
+            </>
+          )}
+
           <div className="flex justify-end gap-2">
             <button onClick={() => setUploadOpen(false)} className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
               Hủy
@@ -648,7 +809,16 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
             ) : (
               <div className="space-y-4">
                 {/* Preview */}
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="relative rounded-xl border border-gray-200 bg-gray-50 p-4 group">
+                  {previewUrl && !previewLoading && (
+                    <button
+                      onClick={() => setFullscreenPreview(true)}
+                      className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                      title="Phóng to"
+                    >
+                      <Maximize2 size={14} />
+                    </button>
+                  )}
                   {previewLoading ? (
                     <div className="flex min-h-[200px] items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
@@ -657,6 +827,18 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
                     <img src={previewUrl} alt="Preview" className="max-h-[300px] w-full rounded-lg object-contain" />
                   ) : previewUrl && selectedMaterial.fileType === "Pdf" ? (
                     <iframe src={previewUrl} title="PDF preview" className="h-[400px] w-full rounded-lg" />
+                  ) : previewUrl && officePreviewable(selectedMaterial.fileType) ? (
+                    <div>
+                      <iframe src={previewUrl} title="PDF preview" className="h-[400px] w-full rounded-lg" />
+                      {selectedMaterial.fileType === "Presentation" && (
+                        <button
+                          onClick={() => setSlideshowMaterial(selectedMaterial)}
+                          className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+                        >
+                          <Eye size={16} /> Xem từng slide
+                        </button>
+                      )}
+                    </div>
                   ) : previewUrl && selectedMaterial.fileType === "Audio" ? (
                     <audio controls src={previewUrl} className="w-full" />
                   ) : previewUrl && selectedMaterial.fileType === "Video" ? (
@@ -665,8 +847,16 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
                     <div className="text-center py-12">
                       <AlertCircle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                       <p className="text-sm text-gray-500">
-                        {previewable(selectedMaterial.fileType) ? "Preview không khả dụng" : "Tải xuống để xem file này"}
+                        {previewable(selectedMaterial.fileType) || officePreviewable(selectedMaterial.fileType) ? "Preview không khả dụng" : "Tải xuống để xem file này"}
                       </p>
+                      {selectedMaterial.fileType === "Presentation" && (
+                        <button
+                          onClick={() => setSlideshowMaterial(selectedMaterial)}
+                          className="mt-3 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
+                        >
+                          <Eye size={16} /> Xem từng slide
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -726,6 +916,57 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant = "port
       </div>
 
       </>)}
+
+      {slideshowMaterial && (
+        <SlideshowViewer
+          material={slideshowMaterial}
+          onClose={() => setSlideshowMaterial(null)}
+          theme="light"
+        />
+      )}
+
+      {/* Fullscreen preview modal */}
+      {fullscreenPreview && previewUrl && selectedMaterial && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/90" onClick={() => setFullscreenPreview(false)}>
+          <div className="flex items-center justify-between px-4 py-3 bg-black/60 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 min-w-0">
+              <StatusBadge type={selectedMaterial.fileType || "Other"} />
+              <span className="text-white text-sm font-medium truncate">
+                {selectedMaterial.displayName || selectedMaterial.originalFileName || "Tài liệu"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => void doDownload(selectedMaterial)}
+                className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                title="Tải xuống"
+              >
+                <Download size={18} />
+              </button>
+              <button
+                onClick={() => setFullscreenPreview(false)}
+                className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                title="Đóng"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4 overflow-auto" onClick={(e) => e.stopPropagation()}>
+            {selectedMaterial.fileType === "Image" ? (
+              <img src={previewUrl} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg" />
+            ) : selectedMaterial.fileType === "Pdf" || officePreviewable(selectedMaterial.fileType) ? (
+              <iframe src={previewUrl} title="Preview" className="w-full h-full rounded-lg bg-white" />
+            ) : selectedMaterial.fileType === "Audio" ? (
+              <div className="bg-white rounded-2xl p-8 max-w-lg w-full">
+                <audio controls src={previewUrl} className="w-full" />
+              </div>
+            ) : selectedMaterial.fileType === "Video" ? (
+              <video controls src={previewUrl} className="max-w-full max-h-full rounded-lg" />
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

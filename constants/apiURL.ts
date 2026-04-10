@@ -639,7 +639,19 @@ export const TEACHING_MATERIALS_ENDPOINTS = {
   LESSON_BUNDLE: "/api/teaching-materials/lesson-bundle",
   UPLOAD: "/api/teaching-materials/upload",
   PREVIEW: (id: string) => `/api/teaching-materials/${id}/preview`,
+  PREVIEW_PDF: (id: string) => `/api/teaching-materials/${id}/preview-pdf`,
   DOWNLOAD: (id: string) => `/api/teaching-materials/${id}/download`,
+  SLIDES: (id: string) => `/api/teaching-materials/${id}/slides`,
+  SLIDE_PREVIEW: (id: string, n: number) => `/api/teaching-materials/${id}/slides/${n}/preview`,
+  SLIDE_THUMBNAIL: (id: string, n: number) => `/api/teaching-materials/${id}/slides/${n}/thumbnail`,
+  SLIDE_NOTES: (id: string, n: number) => `/api/teaching-materials/${id}/slides/${n}/notes`,
+  VIEW_PROGRESS: (id: string) => `/api/teaching-materials/${id}/view-progress`,
+  VIEW_PROGRESS_SUMMARY: (id: string) => `/api/teaching-materials/${id}/view-progress/summary`,
+  LESSON_PROGRESS: "/api/teaching-materials/lesson-progress",
+  BOOKMARK: (id: string) => `/api/teaching-materials/${id}/bookmark`,
+  BOOKMARKS: "/api/teaching-materials/bookmarks",
+  ANNOTATIONS: (id: string) => `/api/teaching-materials/${id}/annotations`,
+  ANNOTATION_BY_ID: (id: string) => `/api/teaching-materials/annotations/${id}`,
 } as const;
 
 // Backend File Endpoints (Next.js API Routes → Backend API)
@@ -655,7 +667,19 @@ export const BACKEND_TEACHING_MATERIALS_ENDPOINTS = {
   LESSON_BUNDLE: "/teaching-materials/lesson-bundle",
   UPLOAD: "/teaching-materials/upload",
   PREVIEW: (id: string) => `/teaching-materials/${id}/preview`,
+  PREVIEW_PDF: (id: string) => `/teaching-materials/${id}/preview-pdf`,
   DOWNLOAD: (id: string) => `/teaching-materials/${id}/download`,
+  SLIDES: (id: string) => `/teaching-materials/${id}/slides`,
+  SLIDE_PREVIEW: (id: string, n: number) => `/teaching-materials/${id}/slides/${n}/preview`,
+  SLIDE_THUMBNAIL: (id: string, n: number) => `/teaching-materials/${id}/slides/${n}/thumbnail`,
+  SLIDE_NOTES: (id: string, n: number) => `/teaching-materials/${id}/slides/${n}/notes`,
+  VIEW_PROGRESS: (id: string) => `/teaching-materials/${id}/view-progress`,
+  VIEW_PROGRESS_SUMMARY: (id: string) => `/teaching-materials/${id}/view-progress/summary`,
+  LESSON_PROGRESS: "/teaching-materials/lesson-progress",
+  BOOKMARK: (id: string) => `/teaching-materials/${id}/bookmark`,
+  BOOKMARKS: "/teaching-materials/bookmarks",
+  ANNOTATIONS: (id: string) => `/teaching-materials/${id}/annotations`,
+  ANNOTATION_BY_ID: (id: string) => `/teaching-materials/annotations/${id}`,
 } as const;
 
 // Dashboard Overview Endpoints (Client-side → Next.js API Routes)

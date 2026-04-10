@@ -1,5 +1,5 @@
 import { TEACHING_MATERIALS_ENDPOINTS } from "@/constants/apiURL";
-import { get } from "@/lib/axios";
+import { get, post, put, del } from "@/lib/axios";
 import { getAccessToken } from "@/lib/store/authToken";
 import type {
   ProblemDetails,
@@ -12,6 +12,18 @@ import type {
   TeachingMaterialListQuery,
   TeachingMaterialListResponse,
   TeachingMaterialUploadResponse,
+  TeachingMaterialSlidesResponse,
+  TeachingMaterialSlideNotesResponse,
+  TeachingMaterialViewProgressResponse,
+  TeachingMaterialViewProgressUpdate,
+  TeachingMaterialViewProgressSummaryResponse,
+  TeachingMaterialBookmarksResponse,
+  TeachingMaterialBookmarkResponse,
+  TeachingMaterialBookmarkCreate,
+  TeachingMaterialAnnotationsResponse,
+  TeachingMaterialAnnotationResponse,
+  TeachingMaterialAnnotationCreate,
+  TeachingMaterialAnnotationUpdate,
 } from "@/types/teachingMaterials";
 
 function buildQueryString(params?: { [key: string]: string | number | undefined | null }) {
@@ -189,4 +201,88 @@ export function sortTeachingMaterialItems(items: TeachingMaterialItem[]) {
       "vi"
     );
   });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Preview PDF (Office → PDF conversion)
+   ═══════════════════════════════════════════════════════════ */
+
+export async function fetchTeachingMaterialPreviewPdf(id: string) {
+  return fetchTeachingMaterialBinary(TEACHING_MATERIALS_ENDPOINTS.PREVIEW_PDF(id));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Slides
+   ═══════════════════════════════════════════════════════════ */
+
+export async function getTeachingMaterialSlides(id: string): Promise<TeachingMaterialSlidesResponse> {
+  return get<TeachingMaterialSlidesResponse>(TEACHING_MATERIALS_ENDPOINTS.SLIDES(id));
+}
+
+export async function fetchTeachingMaterialSlidePreview(id: string, slideNumber: number) {
+  return fetchTeachingMaterialBinary(TEACHING_MATERIALS_ENDPOINTS.SLIDE_PREVIEW(id, slideNumber));
+}
+
+export async function fetchTeachingMaterialSlideThumbnail(id: string, slideNumber: number) {
+  return fetchTeachingMaterialBinary(TEACHING_MATERIALS_ENDPOINTS.SLIDE_THUMBNAIL(id, slideNumber));
+}
+
+export async function getTeachingMaterialSlideNotes(id: string, slideNumber: number): Promise<TeachingMaterialSlideNotesResponse> {
+  return get<TeachingMaterialSlideNotesResponse>(TEACHING_MATERIALS_ENDPOINTS.SLIDE_NOTES(id, slideNumber));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   View Progress
+   ═══════════════════════════════════════════════════════════ */
+
+export async function updateViewProgress(id: string, data: TeachingMaterialViewProgressUpdate): Promise<TeachingMaterialViewProgressResponse> {
+  return post<TeachingMaterialViewProgressResponse>(TEACHING_MATERIALS_ENDPOINTS.VIEW_PROGRESS(id), data);
+}
+
+export async function getViewProgress(id: string): Promise<TeachingMaterialViewProgressResponse> {
+  return get<TeachingMaterialViewProgressResponse>(TEACHING_MATERIALS_ENDPOINTS.VIEW_PROGRESS(id));
+}
+
+export async function getViewProgressSummary(id: string): Promise<TeachingMaterialViewProgressSummaryResponse> {
+  return get<TeachingMaterialViewProgressSummaryResponse>(TEACHING_MATERIALS_ENDPOINTS.VIEW_PROGRESS_SUMMARY(id));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Bookmarks
+   ═══════════════════════════════════════════════════════════ */
+
+export async function createBookmark(id: string, data?: TeachingMaterialBookmarkCreate): Promise<TeachingMaterialBookmarkResponse> {
+  return post<TeachingMaterialBookmarkResponse>(TEACHING_MATERIALS_ENDPOINTS.BOOKMARK(id), data ?? {});
+}
+
+export async function deleteBookmark(id: string): Promise<void> {
+  return del(TEACHING_MATERIALS_ENDPOINTS.BOOKMARK(id));
+}
+
+export async function getBookmarks(params?: { pageNumber?: number; pageSize?: number }): Promise<TeachingMaterialBookmarksResponse> {
+  const qs = buildQueryString(params as { [key: string]: string | number | undefined | null } | undefined);
+  const endpoint = qs ? `${TEACHING_MATERIALS_ENDPOINTS.BOOKMARKS}?${qs}` : TEACHING_MATERIALS_ENDPOINTS.BOOKMARKS;
+  return get<TeachingMaterialBookmarksResponse>(endpoint);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Annotations
+   ═══════════════════════════════════════════════════════════ */
+
+export async function getAnnotations(id: string, params?: { slideNumber?: number; visibility?: string }): Promise<TeachingMaterialAnnotationsResponse> {
+  const qs = buildQueryString(params as { [key: string]: string | number | undefined | null } | undefined);
+  const endpoint = qs ? `${TEACHING_MATERIALS_ENDPOINTS.ANNOTATIONS(id)}?${qs}` : TEACHING_MATERIALS_ENDPOINTS.ANNOTATIONS(id);
+  return get<TeachingMaterialAnnotationsResponse>(endpoint);
+}
+
+export async function createAnnotation(id: string, data: TeachingMaterialAnnotationCreate): Promise<TeachingMaterialAnnotationResponse> {
+  return post<TeachingMaterialAnnotationResponse>(TEACHING_MATERIALS_ENDPOINTS.ANNOTATIONS(id), data);
+}
+
+export async function updateAnnotation(annotationId: string, data: TeachingMaterialAnnotationUpdate): Promise<TeachingMaterialAnnotationResponse> {
+  return put<TeachingMaterialAnnotationResponse>(TEACHING_MATERIALS_ENDPOINTS.ANNOTATION_BY_ID(annotationId), data);
+}
+
+export async function deleteAnnotation(annotationId: string): Promise<void> {
+  return del(TEACHING_MATERIALS_ENDPOINTS.ANNOTATION_BY_ID(annotationId));
 }

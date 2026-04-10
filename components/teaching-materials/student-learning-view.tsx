@@ -6,16 +6,20 @@ import {
   Headphones, Image as ImageIcon, Loader2, Monitor, Play, Video,
   Maximize2, Minimize2, X, Layers,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { FilterTabs } from "@/components/portal/student/FilterTabs";
 import { getActiveProgramsForDropdown } from "@/lib/api/programService";
 import {
   createObjectUrl, fetchTeachingMaterialDownload, fetchTeachingMaterialPreview,
+  fetchTeachingMaterialPreviewPdf,
   getTeachingMaterialLessonBundle, getTeachingMaterials, pickTeachingMaterialItems,
   revokeObjectUrl, sortTeachingMaterialItems, triggerBrowserDownload,
 } from "@/lib/api/teachingMaterialsService";
 import { useToast } from "@/hooks/use-toast";
 import type { Program } from "@/types/admin/programs";
 import type { TeachingMaterialItem, TeachingMaterialLessonBundle } from "@/types/teachingMaterials";
+
+const SlideshowViewer = dynamic(() => import("./slideshow-viewer"), { ssr: false });
 
 /* ── helpers ─────────────────────────────────────────────── */
 function cn(...a: Array<string | false | null | undefined>) { return a.filter(Boolean).join(" "); }
@@ -90,6 +94,9 @@ export default function StudentLearningView() {
   const [viewerLoading, setViewerLoading] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
+
+  /* ── slideshow state ──────────────────────────────────── */
+  const [slideshowMaterial, setSlideshowMaterial] = useState<TeachingMaterialItem | null>(null);
 
   /* ── load programs ────────────────────────────────────── */
   useEffect(() => {
@@ -221,17 +228,57 @@ export default function StudentLearningView() {
   const imageItems = useMemo(() => bundleMaterials.filter((m) => m.fileType === "Image"), [bundleMaterials]);
 
   /* ── viewer open / close ──────────────────────────────── */
+  /* ── open slideshow for presentations ───────────────────── */
+  const openSlideshow = useCallback((item: TeachingMaterialItem) => {
+    setSlideshowMaterial(item);
+  }, []);
+
+  const closeSlideshow = useCallback(() => {
+    setSlideshowMaterial(null);
+  }, []);
+
+  const officePreviewable = (ft?: string | null) => ["Presentation", "Document", "Spreadsheet"].includes(String(ft ?? ""));
+
+  /* ── viewer open / close ──────────────────────────────── */
   const openViewer = useCallback(async (item: TeachingMaterialItem) => {
-    if (!item.previewUrl || !previewable(item.fileType)) {
-      // cannot preview → download
-      if (item.downloadUrl) {
-        try {
-          const result = await fetchTeachingMaterialDownload(item.downloadUrl);
-          triggerBrowserDownload(result.blob, result.fileName || item.originalFileName || item.displayName || "file");
-        } catch (e) {
-          toast.destructive({ title: "Tải thất bại", description: msg(e, "Không thể tải file.") });
+    // Presentations → open slideshow viewer
+    if (item.fileType === "Presentation") {
+      setSlideshowMaterial(item);
+      return;
+    }
+
+    // Office files (Document, Spreadsheet) → try PDF preview, fallback to regular preview
+    if (officePreviewable(item.fileType)) {
+      setViewingMaterial(item);
+      setViewerLoading(true);
+      revokeObjectUrl(viewerUrl);
+      try {
+        const res = await fetchTeachingMaterialPreviewPdf(item.id);
+        setViewerUrl(createObjectUrl(res.blob));
+      } catch {
+        // preview-pdf failed → try regular preview endpoint
+        if (item.previewUrl) {
+          try {
+            const res = await fetchTeachingMaterialPreview(item.previewUrl);
+            setViewerUrl(createObjectUrl(res.blob));
+          } catch {
+            // both failed → show error, keep viewer open with no content
+            toast.warning({ title: "Không thể xem trước", description: "File này chưa hỗ trợ xem trực tiếp." });
+          }
+        } else {
+          toast.warning({ title: "Không thể xem trước", description: "File này chưa hỗ trợ xem trực tiếp." });
         }
+      } finally {
+        setViewerLoading(false);
       }
+      return;
+    }
+
+    if (!item.previewUrl || !previewable(item.fileType)) {
+      // cannot preview → show viewer with no content (user can download manually)
+      setViewingMaterial(item);
+      setViewerLoading(false);
+      toast.warning({ title: "Không thể xem trước", description: "File này chưa hỗ trợ xem trực tiếp." });
       return;
     }
     setViewingMaterial(item);
@@ -542,7 +589,7 @@ export default function StudentLearningView() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {bundleMaterials.filter((m) => m.fileType === "Presentation").map((item) => (
-                        <MaterialCard key={item.id} item={item} onOpen={() => doDownload(item)} onDownload={() => doDownload(item)} isDownloadOnly />
+                        <MaterialCard key={item.id} item={item} onOpen={() => openSlideshow(item)} onDownload={() => doDownload(item)} />
                       ))}
                     </div>
                   </div>
@@ -642,6 +689,8 @@ export default function StudentLearningView() {
                 </>
               ) : viewerUrl && viewingMaterial.fileType === "Pdf" ? (
                 <iframe src={viewerUrl} title="PDF" className="w-full h-full rounded-lg" style={{ minHeight: 500 }} />
+              ) : viewerUrl && (viewingMaterial.fileType === "Document" || viewingMaterial.fileType === "Spreadsheet") ? (
+                <iframe src={viewerUrl} title="PDF Preview" className="w-full h-full rounded-lg" style={{ minHeight: 500 }} />
               ) : viewerUrl && viewingMaterial.fileType === "Audio" ? (
                 <div className="w-full max-w-lg space-y-4 text-center">
                   <div className="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center animate-pulse">
@@ -658,6 +707,15 @@ export default function StudentLearningView() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ═══ Slideshow Viewer for Presentations ═══════════ */}
+      {slideshowMaterial && (
+        <SlideshowViewer
+          material={slideshowMaterial}
+          onClose={closeSlideshow}
+          theme="dark"
+        />
       )}
     </div>
   );

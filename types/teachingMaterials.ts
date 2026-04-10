@@ -131,7 +131,143 @@ export interface TeachingMaterialBinaryResult {
   fileName?: string;
 }
 
+/* ── Slides ──────────────────────────────────────────────── */
+
+export interface TeachingMaterialSlide {
+  slideNumber: number;
+  width?: number;
+  height?: number;
+  previewUrl: string;
+  thumbnailUrl: string;
+  hasNotes?: boolean;
+}
+
+export interface TeachingMaterialSlidesPayload {
+  materialId: string;
+  displayName?: string | null;
+  totalSlides: number;
+  slides: TeachingMaterialSlide[];
+}
+
+export interface TeachingMaterialSlideNotesPayload {
+  slideNumber: number;
+  notes?: string | null;
+}
+
+/* ── View Progress ───────────────────────────────────────── */
+
+export interface TeachingMaterialViewProgress {
+  materialId: string;
+  userId: string;
+  progressPercent: number;
+  lastSlideViewed?: number | null;
+  totalTimeSeconds: number;
+  firstViewedAt: string;
+  lastViewedAt: string;
+  viewCount: number;
+  completed: boolean;
+}
+
+export interface TeachingMaterialViewProgressUpdate {
+  progressPercent: number;
+  lastSlideViewed?: number | null;
+  totalTimeSeconds: number;
+}
+
+export interface TeachingMaterialViewProgressViewer {
+  userId: string;
+  userName?: string | null;
+  avatarUrl?: string | null;
+  progressPercent: number;
+  lastSlideViewed?: number | null;
+  totalTimeSeconds: number;
+  viewCount: number;
+  completed: boolean;
+  lastViewedAt: string;
+}
+
+export interface TeachingMaterialViewProgressSummary {
+  materialId: string;
+  totalViewers: number;
+  completedCount: number;
+  averageProgressPercent: number;
+  averageTimeSeconds: number;
+  viewers: TeachingMaterialViewProgressViewer[];
+}
+
+/* ── Bookmarks ───────────────────────────────────────────── */
+
+export interface TeachingMaterialBookmark {
+  bookmarkId: string;
+  materialId: string;
+  displayName?: string | null;
+  fileType?: string | null;
+  programName?: string | null;
+  unitNumber?: number | null;
+  lessonNumber?: number | null;
+  note?: string | null;
+  createdAt: string;
+}
+
+export interface TeachingMaterialBookmarkCreate {
+  note?: string | null;
+}
+
+export interface TeachingMaterialBookmarksPayload {
+  items: TeachingMaterialBookmark[];
+  totalCount: number;
+}
+
+/* ── Annotations ─────────────────────────────────────────── */
+
+export type AnnotationType = "Note" | "Highlight" | "Pin";
+export type AnnotationVisibility = "Private" | "Class" | "Public";
+
+export interface TeachingMaterialAnnotation {
+  id: string;
+  slideNumber?: number | null;
+  content: string;
+  color?: string | null;
+  positionX?: number | null;
+  positionY?: number | null;
+  type: AnnotationType;
+  visibility: AnnotationVisibility;
+  createdByUserId: string;
+  createdByName?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeachingMaterialAnnotationCreate {
+  slideNumber?: number | null;
+  content: string;
+  color?: string | null;
+  positionX?: number | null;
+  positionY?: number | null;
+  type?: AnnotationType;
+  visibility?: AnnotationVisibility;
+}
+
+export interface TeachingMaterialAnnotationUpdate {
+  content?: string;
+  color?: string | null;
+  positionX?: number | null;
+  positionY?: number | null;
+  type?: AnnotationType;
+  visibility?: AnnotationVisibility;
+}
+
+/* ── Response aliases ────────────────────────────────────── */
+
 export type TeachingMaterialListResponse = ApiResponse<TeachingMaterialListPayload>;
 export type TeachingMaterialDetailResponse = ApiResponse<TeachingMaterialItem>;
 export type TeachingMaterialLessonBundleResponse = ApiResponse<TeachingMaterialLessonBundle>;
 export type TeachingMaterialUploadResponse = ApiResponse<TeachingMaterialUploadPayload>;
+export type TeachingMaterialSlidesResponse = ApiResponse<TeachingMaterialSlidesPayload>;
+export type TeachingMaterialSlideNotesResponse = ApiResponse<TeachingMaterialSlideNotesPayload>;
+export type TeachingMaterialViewProgressResponse = ApiResponse<TeachingMaterialViewProgress>;
+export type TeachingMaterialViewProgressSummaryResponse = ApiResponse<TeachingMaterialViewProgressSummary>;
+export type TeachingMaterialBookmarksResponse = ApiResponse<TeachingMaterialBookmarksPayload>;
+export type TeachingMaterialBookmarkResponse = ApiResponse<TeachingMaterialBookmark>;
+export type TeachingMaterialAnnotationsResponse = ApiResponse<TeachingMaterialAnnotation[]>;
+export type TeachingMaterialAnnotationResponse = ApiResponse<TeachingMaterialAnnotation>;
