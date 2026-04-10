@@ -16,7 +16,7 @@ import {
   Users,
   UserCircle,
 } from "lucide-react";
-import { makeMenu, type RawItem } from "./utils";
+import { makeMenu, type MixedRawItem } from "./utils";
 import type { MenuItem } from "./types";
 import type { Locale } from "@/lib/i18n";
 import { getMessages } from "@/lib/dict";
@@ -24,7 +24,7 @@ import { getMessages } from "@/lib/dict";
 export function staffManagerMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const t = getMessages(locale).menuStaffManager.items;
 
-  const raws: RawItem[] = [
+  const raws: MixedRawItem[] = [
     [t.dashboard, LayoutDashboard, ""],
     [t.accounts, UserCog, "/accounts"],
     [t.crm, Users, "/leads"],
@@ -34,7 +34,15 @@ export function staffManagerMenu(root: string, locale: Locale = "vi"): MenuItem[
     [t.lessonPlans, BookOpenCheck, "/lesson-plans"],
     [t.materials, Folder, "/materials"],
     [t.gamification, Sparkles, "/gamification"],
-    [t.monthlyReport, FileText, "/monthly-report"],
+    {
+      group: t.reports,
+      icon: FileText,
+      defaultOpen: true,
+      items: [
+        [t.monthlyReport, FileText, "/monthly-report"],
+        [t.sessionReport, CalendarRange, "/session-report"],
+      ],
+    },
     [t.tickets, MessageSquare, "/tickets"],
     [t.notifications, Megaphone, "/notifications"],
     [t.media, Image, "/media"],

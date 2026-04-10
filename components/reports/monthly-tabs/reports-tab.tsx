@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Eye, FileCheck, Filter, MessageSquare, Search, TrendingUp, User, Users, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, Eye, FileCheck, MessageSquare, Search, TrendingUp, User, Zap } from "lucide-react";
 import type { ReactNode } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 
 type ReportItem = {
   id: string;
@@ -129,6 +136,18 @@ export default function ReportsTab({
 }: Props) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [submitFlowLoading, setSubmitFlowLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 5;
+
+  const totalPages = Math.ceil(filteredReports.length / PAGE_SIZE);
+  const paginatedReports = filteredReports.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredReports.length]);
 
   const normalizeStatus = (value?: string) => {
     const normalized = String(value ?? "").trim();
@@ -168,192 +187,186 @@ export default function ReportsTab({
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        {/* Filter Section */}
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
-          <div className="relative w-full md:max-w-xl mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo học sinh, giáo viên, mã report..."
-              className="w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
-            />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <select
-              value={selectedClassId || ""}
-              onChange={(e) => {
-                const classId = e.target.value || null;
-                setSelectedClassId(classId);
-                setSelectedStudentId(null);
-              }}
-              className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all"
-            >
-              <option value="">Tất cả lớp</option>
-              {classFilterOptions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
+        {/* Timeline Steps */}
+        <div className="group relative overflow-hidden rounded-2xl border border-red-200/50 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
+          <div className="relative">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-gray-800">Hướng dẫn quy trình</span>
+              </div>
+              <div className="rounded-full bg-gradient-to-r from-red-500 to-amber-500 px-3 py-1 text-xs font-bold text-white shadow-md shadow-red-500/30">
+                {month}/{year}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {[
+                { step: 1, label: "Xem báo cáo", desc: "Bước 1" },
+                { step: 2, label: "Bình luận", desc: "Bước 2" },
+                { step: 3, label: "Duyệt", desc: "Bước 3" },
+                { step: 4, label: "Công bố", desc: "Bước 4" },
+              ].map((item, idx) => (
+                <>
+                  <div
+                    key={item.step}
+                    className="group/step flex flex-1 min-w-[100px] items-center gap-2 rounded-xl border border-white/60 bg-white/70 backdrop-blur-md px-3 py-2.5 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:bg-white/90 hover:shadow-lg hover:shadow-red-500/10 hover:border-red-200/50"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-rose-600 text-white font-bold text-xs shadow-lg shadow-red-500/40 ring-2 ring-red-200">
+                      {item.step}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-medium text-red-400">{item.desc}</span>
+                      <span className="text-xs font-bold text-gray-800">{item.label}</span>
+                    </div>
+                  </div>
+                  {idx < 3 && (
+                    <svg key={`arrow-${item.step}`} className="h-4 w-4 flex-shrink-0 text-amber-400 hidden sm:block drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                  )}
+                </>
               ))}
-            </select>
-            <div className="relative">
-              <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition-all appearance-none"
-              >
-                {["Tất cả", "Draft", "Submitted", "Approved", "Rejected", "Published", "Review"].map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
             </div>
           </div>
         </div>
 
-        {/* Active Filters */}
-        {(selectedClassId || selectedStudentId) && (
-          <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/40 to-red-100/20 px-4 py-3 text-sm text-gray-700 flex flex-wrap items-center gap-2">
-            <span className="font-medium text-gray-900">Đang lọc theo:</span>
-            {selectedClassId && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-red-50 to-red-100 px-3 py-1.5 text-xs font-medium text-red-700 border border-red-200">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                Lớp: {selectedClassName}
-              </span>
-            )}
-            {selectedStudentId && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-50 to-emerald-100 px-3 py-1.5 text-xs font-medium text-emerald-700 border border-emerald-200">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Học viên: {selectedStudentName}
-              </span>
-            )}
-            <button
-              className="ml-auto inline-flex items-center gap-1 rounded-full bg-white border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 transition-all cursor-pointer"
-              onClick={clearScopeFilter}
+        {/* Filter Bar */}
+        <div className="rounded-2xl border border-red-200/50 bg-gradient-to-br from-white to-red-50 p-3 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
+          <div className="flex items-center gap-2">
+            {/* Search */}
+            <div className="relative min-w-48 flex-1 max-w-70">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm học sinh..."
+                className="w-full rounded-lg border border-red-200 bg-white pl-8 pr-3 py-1.5 text-xs text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-1 focus:ring-red-200 transition-all"
+              />
+            </div>
+            {/* Class filter */}
+            <Select
+              value={selectedClassId || "all"}
+              onValueChange={(val) => {
+                const classId = val === "all" ? null : val;
+                setSelectedClassId(classId);
+                setSelectedStudentId(null);
+              }}
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Xóa lọc lớp/học viên
-            </button>
-          </div>
-        )}
-
-        {/* Teacher Shortcuts */}
-        {isTeacher && (
-          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
-            <div className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Zap size={16} className="text-red-600" />
-              Lối tắt cho giáo viên
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
-                  statusFilter === "Tất cả" 
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
-                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
-                }`}
-                onClick={() => setStatusFilter("Tất cả")}
-              >
-                Tất cả
-              </button>
-              <button
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
-                  statusFilter === "Draft" 
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
-                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
-                }`}
-                onClick={() => setStatusFilter("Draft")}
-              >
-                Cần submit
-              </button>
-              <button
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
-                  statusFilter === "Rejected" 
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
-                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
-                }`}
-                onClick={() => setStatusFilter("Rejected")}
-              >
-                Cần sửa lại
-              </button>
-              <button
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
-                  statusFilter === "Submitted" 
-                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" 
-                    : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
-                }`}
-                onClick={() => setStatusFilter("Submitted")}
-              >
-                Đang chờ duyệt
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Bulk Actions */}
-        {canManage && (
-          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium text-gray-700">Đã chọn: <span className="font-bold text-red-600">{selectedReportIds.size}</span></span>
-              <button 
-                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={selectAllVisible} 
-                disabled={!filteredReports.length}
-              >
-                Chọn tất cả
-              </button>
-              <button 
-                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
-                onClick={clearSelection}
-              >
-                Bỏ chọn
-              </button>
-              <button
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
-                onClick={() => runBulkAction("approve", Array.from(selectedReportIds))}
-              >
-                {bulkLoading === "approve" ? (
-                  <>
-                    <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <SelectTrigger className="h-7 rounded-lg border border-red-200 bg-white px-2 text-xs text-gray-700 focus:ring-1 focus:ring-red-200 transition-all w-32 flex-shrink-0">
+                <SelectValue placeholder="Tất cả lớp" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả lớp</SelectItem>
+                {classFilterOptions.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Status filter */}
+            <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
+              <SelectTrigger className="h-7 rounded-lg border border-red-200 bg-white px-2 text-xs text-gray-700 focus:ring-1 focus:ring-red-200 transition-all w-32 flex-shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {["Tất cả", "Draft", "Submitted", "Approved", "Rejected", "Published", "Review"].map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Active scope filters */}
+            {(selectedClassId || selectedStudentId) && (
+              <>
+                {selectedClassId && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-red-50 to-red-100 px-2 py-1 text-xs font-medium text-red-700 border border-red-200">
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
-                    Đang duyệt...
-                  </>
-                ) : (
-                  "Duyệt mục đã chọn"
+                    {selectedClassName}
+                  </span>
                 )}
-              </button>
-              <button
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-xs font-semibold text-white hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={selectedReportIds.size === 0 || bulkLoading !== ""}
-                onClick={() => runBulkAction("publish", Array.from(selectedReportIds))}
-              >
-                {bulkLoading === "publish" ? (
-                  <>
-                    <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                {selectedStudentId && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-50 to-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 border border-emerald-200">
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    Đang công bố...
-                  </>
-                ) : (
-                  "Công bố mục đã chọn"
+                    {selectedStudentName}
+                  </span>
                 )}
-              </button>
-            </div>
+                <button
+                  className="inline-flex items-center gap-1 rounded-full bg-white border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 transition-all cursor-pointer"
+                  onClick={clearScopeFilter}
+                >
+                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </>
+            )}
+            {/* Teacher shortcuts */}
+            {isTeacher && (
+              <>
+                <div className="h-4 w-px bg-red-200 mx-1" />
+                {[
+                  { label: "Tất cả", value: "Tất cả" },
+                  { label: "Cần submit", value: "Draft" },
+                  { label: "Cần sửa", value: "Rejected" },
+                  { label: "Chờ duyệt", value: "Submitted" },
+                ].map((s) => (
+                  <button
+                    key={s.value}
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
+                      statusFilter === s.value
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                        : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
+                    }`}
+                    onClick={() => setStatusFilter(s.value)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
-        )}
+        </div>
+
+
 
         {/* Reports Table */}
         <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
           <div className="border-b border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Danh sách báo cáo</h3>
+              {canManage && selectedReportIds.size > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-gray-500">{selectedReportIds.size} đã chọn</span>
+                  <button
+                    className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
+                    disabled={bulkLoading !== ""}
+                    onClick={() => runBulkAction("approve", Array.from(selectedReportIds))}
+                  >
+                    {bulkLoading === "approve" ? (
+                      <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    ) : "Duyệt"}
+                  </button>
+                  <button
+                    className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
+                    disabled={bulkLoading !== ""}
+                    onClick={() => runBulkAction("publish", Array.from(selectedReportIds))}
+                  >
+                    {bulkLoading === "publish" ? (
+                      <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    ) : "Công bố"}
+                  </button>
+                </div>
+              )}
               {loading && (
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,7 +381,24 @@ export default function ReportsTab({
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr className="text-left">
-                  {canManage && <th className="px-6 py-3 text-xs font-semibold text-gray-700 w-12">Chọn</th>}
+                  {canManage && (
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-700 w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedReportIds.size > 0 && selectedReportIds.size === filteredReports.length}
+                        onChange={() => {
+                          if (selectedReportIds.size > 0) {
+                            clearSelection();
+                          } else {
+                            selectAllVisible();
+                          }
+                        }}
+                        disabled={!filteredReports.length}
+                        title="Chọn tất cả báo cáo đang lọc"
+                        className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                      />
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-xs font-semibold text-gray-700">Báo cáo</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-700">Giáo viên</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-700">Trạng thái</th>
@@ -376,7 +406,7 @@ export default function ReportsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-100">
-                {filteredReports.map((report) => (
+                {paginatedReports.map((report) => (
                   <tr
                     key={report.id}
                     className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 cursor-pointer"
@@ -508,7 +538,7 @@ export default function ReportsTab({
                 ))}
               </tbody>
             </table>
-            {filteredReports.length === 0 && (
+            {paginatedReports.length === 0 && (
               <div className="py-12 text-center">
                 <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                   <Search size={24} className="text-red-400" />
@@ -518,12 +548,53 @@ export default function ReportsTab({
               </div>
             )}
           </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-gray-500">
+                Hiển thị {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredReports.length)} / {filteredReports.length} báo cáo
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg border border-red-200 bg-white text-gray-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`min-w-[2rem] h-8 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      page === currentPage
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+                        : "border border-red-200 bg-white text-gray-600 hover:bg-red-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg border border-red-200 bg-white text-gray-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="space-y-6">
         {/* Report Detail Section */}
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
+        <div className="rounded-2xl border border-red-200/50 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm">
               <FileCheck size={18} />
@@ -658,7 +729,7 @@ export default function ReportsTab({
 
         {/* Job Progress */}
         {canManage && (
-          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
+          <div className="rounded-2xl border border-red-200/50 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm">
                 <TrendingUp size={18} />
@@ -701,7 +772,7 @@ export default function ReportsTab({
         )}
 
         {/* Recent Comments */}
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
+        <div className="rounded-2xl border border-red-200/50 bg-gradient-to-br from-white to-red-50 p-5 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm">
@@ -788,7 +859,7 @@ export default function ReportsTab({
         </div>
 
         {/* Info Footer */}
-        <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/40 to-red-100/20 p-4 text-sm text-gray-700 flex items-center gap-2">
+        {/* <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50/40 to-red-100/20 p-4 text-sm text-gray-700 flex items-center gap-2">
           <Zap size={14} className="text-red-600 flex-shrink-0" />
           <span>Luồng đã tối ưu theo vai trò: Giáo viên / Quản lý / Phụ huynh-Học viên.</span>
         </div>
@@ -796,7 +867,7 @@ export default function ReportsTab({
         <div className="text-xs text-gray-500 flex items-center gap-2">
           <Users size={12} />
           Phụ huynh/học viên chỉ xem các báo cáo đã công bố.
-        </div>
+        </div> */}
       </div>
 
       {/* Edit Modal */}

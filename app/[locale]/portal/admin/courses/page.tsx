@@ -514,7 +514,6 @@ export default function Page() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [leaveLimitDraft, setLeaveLimitDraft] = useState("");
   const [isSavingLeaveLimit, setIsSavingLeaveLimit] = useState(false);
-  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
 
   const closeDetailModal = () => {
     setShowDetailModal(false);
@@ -628,23 +627,6 @@ export default function Page() {
       setSortDirection("asc");
     }
     setPage(1);
-  };
-
-  // Handle checkbox selection
-  const handleSelectAll = () => {
-    if (selectedCourses.length === pagedRows.length) {
-      setSelectedCourses([]);
-    } else {
-      setSelectedCourses(pagedRows.map(c => c.id));
-    }
-  };
-
-  const handleSelectCourse = (courseId: string) => {
-    setSelectedCourses(prev =>
-      prev.includes(courseId)
-        ? prev.filter(id => id !== courseId)
-        : [...prev, courseId]
-    );
   };
 
   const goPage = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
@@ -1098,11 +1080,6 @@ export default function Page() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-gray-900">Danh sách khóa học</h2>
-                {selectedCourses.length > 0 && (
-                  <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                    {selectedCourses.length} đã chọn
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-medium">{rows.length} khóa học</span>
@@ -1115,14 +1092,6 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
-                  <th className="py-3 px-4 text-center">
-                    <input
-                      type="checkbox"
-                      checked={pagedRows.length > 0 && selectedCourses.length === pagedRows.length}
-                      onChange={handleSelectAll}
-                      className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                    />
-                  </th>
                   <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên khóa học</SortableHeader>
                   <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời lượng</SortableHeader>
                   <SortableHeader field="fee" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
@@ -1139,14 +1108,6 @@ export default function Page() {
                       key={c.id}
                       className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
                     >
-                      <td className="py-3 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedCourses.includes(c.id)}
-                          onChange={() => handleSelectCourse(c.id)}
-                          className="w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-200 cursor-pointer"
-                        />
-                      </td>
                       <td className="py-3 px-6">
                         <div className="flex flex-wrap items-center gap-2">
                           <div className="text-sm text-gray-900 truncate">{c.name}</div>
@@ -1216,7 +1177,7 @@ export default function Page() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center">
+                    <td colSpan={7} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
