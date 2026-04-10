@@ -1,11 +1,10 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { 
-  AlertCircle, Download, Eye, FileText, Folder, Info, Loader2, 
-  Maximize2, RefreshCw, Search, Sparkles, Upload, BookOpen, Filter, X,
-  ChevronLeft, ChevronRight, Clock, User, Calendar, Tag, HardDrive,
-  GraduationCap, Settings2,
+import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent, type InputHTMLAttributes } from "react";
+import {
+  AlertCircle, BookOpen, Clock, Download, Eye, FileIcon, FileText, Film,
+  Folder, HardDrive, ImageIcon, Info, Inbox, Layers, Loader2,
+  Maximize2, Music, RefreshCw, Search, Upload, Wand2, X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -49,6 +48,7 @@ const TABS = [
 ] as const;
 
 const msg = (error: unknown, fallback: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const source = error as any;
   return source?.detail ?? source?.response?.data?.detail ?? source?.response?.data?.message ?? source?.message ?? fallback;
 };
@@ -79,10 +79,22 @@ function StatusBadge({ type }: { type: string }) {
   );
 }
 
-export default function TeachingMaterialsWorkspace({ viewerRole, variant: _variant = "portal" }: { viewerRole: Role; variant?: Variant }) {
+function SkeletonList() {
+  return (
+    <div className="space-y-2">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="animate-pulse">
+          <div className="h-20 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 rounded-xl" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole: Role; variant?: Variant }) {
   const { toast } = useToast();
   const canUpload = CAN_UPLOAD.has(viewerRole);
-  const [viewMode, setViewMode] = useState<"manage" | "learn">("manage");
+  const [viewMode] = useState<"manage" | "learn">("manage");
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   useEffect(() => {
@@ -277,26 +289,6 @@ export default function TeachingMaterialsWorkspace({ viewerRole, variant: _varia
     documents: materials.filter(m => ["Pdf", "Document", "Spreadsheet"].includes(String(m.fileType ?? ""))).length,
   }), [materials]);
 
-function SkeletonCard() {
-  return (
-    <div className="animate-pulse">
-      <div className="h-16 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 rounded-xl" />
-    </div>
-  );
-}
-
-function SkeletonList() {
-  return (
-    <div className="space-y-2">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="animate-pulse">
-          <div className="h-20 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 rounded-xl" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
   return (
     <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
       {/* Header */}
@@ -417,7 +409,7 @@ function SkeletonList() {
           <div className="relative flex items-center gap-3">
             <div className="relative">
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200/50 flex items-center justify-center shadow-sm">
-                <Image className="text-emerald-600" size={18} />
+                <ImageIcon className="text-emerald-600" size={18} />
               </div>
             </div>
             <div>
@@ -431,7 +423,7 @@ function SkeletonList() {
           <div className="relative flex items-center gap-3">
             <div className="relative">
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-100 to-orange-200/50 flex items-center justify-center shadow-sm">
-                <File className="text-orange-600" size={18} />
+                <FileIcon className="text-orange-600" size={18} />
               </div>
             </div>
             <div>
@@ -506,7 +498,7 @@ function SkeletonList() {
             </span>
             {filters.searchTerm && (
               <button onClick={() => setFilters(c => ({ ...c, searchTerm: "" }))} className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50/80 text-red-600 text-xs font-medium border border-red-100/50 hover:bg-red-100/80 transition-colors">
-                "{filters.searchTerm}"
+                &ldquo;{filters.searchTerm}&rdquo;
                 <X size={11} className="opacity-60 group-hover:opacity-100 transition-opacity" />
               </button>
             )}
@@ -655,10 +647,9 @@ function SkeletonList() {
                 <br />
                 <span className="text-xs text-amber-600 mt-1 block">VD: Movers/UNIT 1-L2-READING WRITING/UNIT 1-L2-READING WRITING.pptx</span>
               </div>
-              {/* @ts-expect-error webkitdirectory is non-standard but widely supported */}
               <input
                 type="file"
-                webkitdirectory=""
+                {...({ webkitdirectory: "" } as InputHTMLAttributes<HTMLInputElement>)}
                 onChange={onUploadFile}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 mb-4"
               />
@@ -871,6 +862,7 @@ function SkeletonList() {
                       <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                     </div>
                   ) : previewUrl && selectedMaterial.fileType === "Image" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={previewUrl} alt="Preview" className="max-h-[280px] w-full rounded-lg object-contain ring-1 ring-gray-200/50" />
                   ) : previewUrl && selectedMaterial.fileType === "Pdf" ? (
                     <iframe src={previewUrl} title="PDF preview" className="h-[400px] w-full rounded-lg" />
@@ -1007,6 +999,7 @@ function SkeletonList() {
           </div>
           <div className="flex-1 flex items-center justify-center p-4 overflow-auto" onClick={(e) => e.stopPropagation()}>
             {selectedMaterial.fileType === "Image" ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={previewUrl} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg" />
             ) : selectedMaterial.fileType === "Pdf" || officePreviewable(selectedMaterial.fileType) ? (
               <iframe src={previewUrl} title="Preview" className="w-full h-full rounded-lg bg-white" />
