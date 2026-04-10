@@ -199,7 +199,7 @@ function Flyout({
         style={{ top: pos.arrowTop }}
       />
 
-      <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+      <div className="px-2 py-1.5 text-xs font-semibold tracking-wide text-slate-500 flex items-center gap-2">
         {Icon ? <Icon size={14} className="text-slate-400" /> : null}
         {title}
       </div>
@@ -267,7 +267,7 @@ function Group({
         onMouseLeave={() => {
           if (collapsed) onCollapsedLeave?.();
         }}
-        className={`relative w-full flex items-center justify-between px-3 py-2.5 rounded-r-lg text-[11px] font-semibold uppercase tracking-wider transition-all duration-300 ease-out group ${
+        className={`relative w-full flex items-center justify-between px-4 py-2.5 rounded-r-lg text-sm font-semibold tracking-wide transition-all duration-300 ease-out group ${
           collapsed ? "justify-center" : ""
         } ${
           open && !collapsed

@@ -13,8 +13,9 @@ import {
   Sparkles,
   User,
   BookOpenText,
+  CalendarRange,
 } from "lucide-react";
-import { makeMenu, type RawItem } from "./utils";
+import { makeMenu, type RawItem, type MixedRawItem } from "./utils";
 import type { MenuItem } from "./types";
 import type { Locale } from "@/lib/i18n";
 import { getMessages } from "@/lib/dict";
@@ -22,7 +23,7 @@ import { getMessages } from "@/lib/dict";
 export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   const t = getMessages(locale).menuTeacher.items;
 
-  const raws: RawItem[] = [
+  const raws: MixedRawItem[] = [
     [t.dashboard, LayoutDashboard, ""],
     [t.profile, User, "/profile"],
     [t.myClasses, NotebookText, "/classes"],
@@ -33,7 +34,15 @@ export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.gamification, Sparkles, "/gamification"],
     [t.attendance, CheckSquare, "/attendance"],
     [t.applications, MessageCircle, "/applications"],
-    [t.feedback, FileText, "/feedback"],
+    {
+      group: t.feedbackGroup,
+      icon: FileText,
+      defaultOpen: false,
+      items: [
+        [t.feedbackMonthly, FileText, "/feedback/monthly-report"],
+        [t.feedbackSession, CalendarRange, "/feedback/session-report"],
+      ] as RawItem[],
+    },
     [t.reportRequests, Send, "/report-requests"],
     [t.timesheet, Clock4, "/timesheet"],
     [t.notifications, Bell, "/notifications"],

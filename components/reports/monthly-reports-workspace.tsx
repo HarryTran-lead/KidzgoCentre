@@ -845,6 +845,47 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
     return Array.from(map.values());
   }, [reports]);
 
+  const teacherClassProgress = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        total: number;
+        submitted: number;
+        approved: number;
+        pending: number;
+        draft: number;
+      }
+    >();
+
+    teacherWorkflowReports.forEach((report) => {
+      if (!report.classId) return;
+      const status = normalizeStatus(report.status);
+      const current =
+        map.get(report.classId) ??
+        {
+          id: report.classId,
+          name: report.className || `Lớp ${report.classId.slice(0, 8)}`,
+          total: 0,
+          submitted: 0,
+          approved: 0,
+          pending: 0,
+          draft: 0,
+        };
+
+      current.total += 1;
+      if (status === "Draft") current.draft += 1;
+      else if (status === "Submitted") current.submitted += 1;
+      else if (status === "Approved") current.approved += 1;
+      else if (status === "Published") { current.submitted += 1; current.approved += 1; }
+      else current.pending += 1;
+
+      map.set(report.classId, current);
+    });
+
+    return Array.from(map.values());
+  }, [teacherWorkflowReports]);
 
   const activeReportSource = isTeacher ? teacherWorkflowReports : filteredReports;
 
@@ -1644,6 +1685,10 @@ export default function MonthlyReportsWorkspace({ role, initialClassId, initialS
           actionLoading={actionLoading}
           runAction={(reportId, action) => runAction(reportId, action)}
           openReportDetail={openReportDetail}
+          teacherClassProgress={teacherClassProgress}
+          teacherReports={reports}
+          setActiveTab={setActiveTab}
+          clearScopeFilter={clearScopeFilter}
         />
       )}
 
