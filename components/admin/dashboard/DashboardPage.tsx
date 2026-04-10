@@ -361,24 +361,24 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
               <FunnelChart data={leadsBreakdown} />
             </ChartCard> 
             <ChartCard title="Trạng thái điểm danh  " rightContent={`Tỷ lệ: ${formatPercent(attendance?.attendanceRate)}`}>
-              <DashboardLineChart data={attendanceLine} height={220} strokeColor="#0ea5e9" />
+              <DashboardLineChart data={attendanceLine} height={220} strokeColor="#dc2626" />
               <Legend data={attendanceLine} />
             </ChartCard>
 
             <ChartCard title="Trạng thái ghi danh  " rightContent={`Đang hoạt động: ${formatNumber(activeEnrollments)}`}>
-              <DashboardLineChart data={enrollmentLine} height={220} strokeColor="#6366f1" />
+              <DashboardLineChart data={enrollmentLine} height={220} strokeColor="#dc2626" />
               <Legend data={enrollmentLine} />
             </ChartCard>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <ChartCard title="Placement test theo trạng thái  ">
-              <DashboardLineChart data={placementLine} height={240} strokeColor="#10b981" />
+              <DashboardLineChart data={placementLine} height={240} strokeColor="#dc2626" />
               <Legend data={placementLine} />
             </ChartCard>
 
             <ChartCard title="Leads theo trạng thái  ">
-              <DashboardLineChart data={leadsLine} height={240} strokeColor="#2563eb" />
+              <DashboardLineChart data={leadsLine} height={240} strokeColor="#dc2626" />
               <Legend data={leadsLine} />
             </ChartCard>
           </section>
@@ -403,12 +403,12 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
             </ChartCard>
 
             <ChartCard title="Trạng thái lead  ">
-              <DashboardLineChart data={leadsLine} height={220} strokeColor="#2563eb" />
+              <DashboardLineChart data={leadsLine} height={220} strokeColor="#dc2626" />
               <Legend data={leadsLine} />
             </ChartCard>
 
             <ChartCard title="Placement test theo trạng thái  ">
-              <DashboardLineChart data={placementLine} height={220} strokeColor="#10b981" />
+              <DashboardLineChart data={placementLine} height={220} strokeColor="#dc2626" />
               <Legend data={placementLine} />
             </ChartCard>
           </section>
@@ -429,7 +429,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             <ChartCard title="Điểm danh  ">
-              <DashboardLineChart data={attendanceLine} height={220} strokeColor="#0ea5e9" />
+              <DashboardLineChart data={attendanceLine} height={220} strokeColor="#dc2626" />
               <Legend data={attendanceLine} />
             </ChartCard>
 
@@ -438,12 +438,12 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
             </ChartCard>
 
             <ChartCard title="Nghỉ phép theo trạng thái  ">
-              <DashboardLineChart data={leaveLine} height={220} strokeColor="#8b5cf6" />
+              <DashboardLineChart data={leaveLine} height={220} strokeColor="#dc2626" />
               <Legend data={leaveLine} />
             </ChartCard>
 
             <ChartCard title="Tín chỉ bù theo trạng thái  ">
-              <DashboardLineChart data={makeupLine} height={220} strokeColor="#f59e0b" />
+              <DashboardLineChart data={makeupLine} height={220} strokeColor="#dc2626" />
               <Legend data={makeupLine} />
             </ChartCard>
 

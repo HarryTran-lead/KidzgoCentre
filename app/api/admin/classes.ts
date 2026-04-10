@@ -473,6 +473,8 @@ export async function fetchAdminClassStudents(
       Authorization: `Bearer ${token}`,
     },
   });
+  console.log({res});
+  
 
   if (!res.ok) {
     const text = await res.text();
