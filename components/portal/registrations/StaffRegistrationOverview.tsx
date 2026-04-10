@@ -580,6 +580,11 @@ export default function StaffRegistrationOverview({
     );
   };
 
+  const getErrorTitle = (error: any) =>
+    error?.response?.data?.title === "Enrollment.StudentScheduleConflict"
+      ? "Trùng lịch học"
+      : "Lỗi";
+
   const refreshRegistrationData = async () => {
     await Promise.all([fetchRows(), fetchSummary()]);
   };
@@ -774,7 +779,7 @@ export default function StaffRegistrationOverview({
       await refreshRegistrationData();
     } catch (error: any) {
       toast({
-        title: "Lỗi",
+        title: getErrorTitle(error),
         description: getErrorMessage(error, "Không thể xếp lớp đã chọn."),
         variant: "destructive",
       });
@@ -823,7 +828,7 @@ export default function StaffRegistrationOverview({
       await refreshRegistrationData();
     } catch (error: any) {
       toast({
-        title: "Lỗi",
+        title: getErrorTitle(error),
         description: getErrorMessage(error, "Không thể xếp lớp gợi ý."),
         variant: "destructive",
       });
@@ -898,7 +903,7 @@ export default function StaffRegistrationOverview({
       await refreshRegistrationData();
     } catch (error: any) {
       toast({
-        title: "Lỗi",
+        title: getErrorTitle(error),
         description: getErrorMessage(error, "Không thể xếp lớp thủ công."),
         variant: "destructive",
       });
@@ -1009,7 +1014,7 @@ export default function StaffRegistrationOverview({
       await refreshRegistrationData();
     } catch (error: any) {
       toast({
-        title: "Lỗi",
+        title: getErrorTitle(error),
         description: getErrorMessage(error, "Không thể chuyển lớp."),
         variant: "destructive",
       });

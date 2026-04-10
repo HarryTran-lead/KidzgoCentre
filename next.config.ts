@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        // Proxy backend static files (images, uploads) through HTTPS to avoid mixed-content block.
+        // Must be listed BEFORE the general /api/:path* rule so it takes priority.
+        source: "/api/files/serve/:path*",
+        destination: "http://103.146.22.206:5000/:path*",
+      },
+      {
         source: "/api/:path*",
         destination: "http://103.146.22.206:5000/api/:path*",
       },

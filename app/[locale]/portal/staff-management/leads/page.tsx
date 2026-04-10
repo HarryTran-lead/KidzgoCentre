@@ -1590,10 +1590,17 @@ export default function Page() {
         throw new Error(response?.message || "Thao tác thất bại");
       }
     } catch (error: any) {
+      const isScheduleConflict =
+        error?.response?.data?.title === "Enrollment.StudentScheduleConflict";
+      const msg =
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        error?.message ||
+        "Không thể thực hiện thao tác";
       toast({
         variant: "destructive",
-        title: "Lỗi",
-        description: error.message || "Không thể thực hiện thao tác",
+        title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
+        description: msg,
       });
     } finally {
       setIsEnrollConfirmModalOpen(false);
