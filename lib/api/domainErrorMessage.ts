@@ -53,6 +53,9 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
 
   // Lead - Conflict
   "Lead.DuplicateLead": "Lead đã tồn tại (trùng SĐT/email/Zalo)",
+  "Lead.PhoneAlreadyExists": "Số điện thoại đã tồn tại trong hệ thống lead.",
+  "Lead.EmailAlreadyExists": "Email đã tồn tại trong hệ thống lead.",
+  "Lead.ZaloAlreadyExists": "Zalo đã tồn tại trong hệ thống lead.",
 
   // Registration - Create/Update/Common
   "Registration.StudentNotFound": "Không tìm thấy học viên hoặc hồ sơ không hợp lệ.",
@@ -84,6 +87,13 @@ const CODE_TO_VIETNAMESE_MESSAGE: Record<string, string> = {
   "Enrollment.SessionSelectionPatternEmpty": "Mẫu chọn buổi học đang rỗng.",
   "Enrollment.SessionSelectionPatternMismatch": "Mẫu chọn buổi học không khớp lịch lớp.",
   "Enrollment.ClassSchedulePatternInvalid": "Lịch lớp không hợp lệ. Vui lòng tải lại dữ liệu lớp.",
+  "Enrollment.NotFound": "Không tìm thấy ghi danh.",
+  "Enrollment.ClassNotFound": "Không tìm thấy lớp học cho ghi danh.",
+  "Enrollment.StudentNotFound": "Không tìm thấy hồ sơ học viên cho ghi danh.",
+  "Enrollment.InvalidStatusTransition": "Không thể chuyển trạng thái ghi danh theo yêu cầu.",
+  "Enrollment.CannotPause": "Không thể bảo lưu ghi danh ở trạng thái hiện tại.",
+  "Enrollment.CannotDrop": "Không thể cho nghỉ ghi danh ở trạng thái hiện tại.",
+  "Enrollment.CannotReactivate": "Không thể kích hoạt lại ghi danh ở trạng thái hiện tại.",
 };
 
 function normalizeCode(value?: string): string {
@@ -101,6 +111,42 @@ function translateBackendMessageToVietnamese(message?: string): string | undefin
   const lower = normalized.toLowerCase();
 
   const messageMatchers: Array<{ test: RegExp; vi: string }> = [
+    {
+      test: /failed\s+to\s+create\s+lead/i,
+      vi: "Không thể tạo lead. Vui lòng kiểm tra dữ liệu nhập hoặc dữ liệu bị trùng.",
+    },
+    {
+      test: /failed\s+to\s+update\s+lead/i,
+      vi: "Không thể cập nhật lead. Vui lòng kiểm tra lại dữ liệu.",
+    },
+    {
+      test: /duplicate\s+lead|lead\s+already\s+exists|duplicate.*(phone|email|zalo)/i,
+      vi: "Lead đã tồn tại (trùng SĐT/email/Zalo).",
+    },
+    {
+      test: /failed\s+to\s+create\s+placement\s*test/i,
+      vi: "Không thể tạo bài test đầu vào. Vui lòng kiểm tra lại dữ liệu.",
+    },
+    {
+      test: /failed\s+to\s+create\s+registration/i,
+      vi: "Không thể tạo đăng ký. Vui lòng kiểm tra lại dữ liệu.",
+    },
+    {
+      test: /failed\s+to\s+create\s+enroll/i,
+      vi: "Không thể tạo ghi danh. Vui lòng kiểm tra lại dữ liệu.",
+    },
+    {
+      test: /contact\s*name.*required|name.*required/i,
+      vi: "Vui lòng nhập họ và tên người liên hệ.",
+    },
+    {
+      test: /phone.*required|invalid\s+phone/i,
+      vi: "Số điện thoại chưa hợp lệ hoặc còn thiếu.",
+    },
+    {
+      test: /email.*invalid|invalid\s+email/i,
+      vi: "Email chưa đúng định dạng.",
+    },
     {
       test: /student\s+already\s+has\s+an\s+active\s+registration/i,
       vi: "Học viên đã có đăng ký đang hoạt động cho chương trình này.",
@@ -196,6 +242,30 @@ function translateBackendMessageToVietnamese(message?: string): string | undefin
   return undefined;
 }
 
+function collectBackendErrorMessages(value: unknown): string[] {
+  if (!value) return [];
+
+  if (typeof value === "string") {
+    const normalized = normalizeMessage(value);
+    return normalized ? [normalized] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectBackendErrorMessages(item));
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = ["message", "detail", "title", "error", "description", "reason"];
+    const fromKnownKeys = keys.flatMap((key) => collectBackendErrorMessages(record[key]));
+    const fromValues = Object.values(record).flatMap((item) => collectBackendErrorMessages(item));
+    return [...fromKnownKeys, ...fromValues];
+  }
+
+  const normalized = normalizeMessage(String(value));
+  return normalized ? [normalized] : [];
+}
+
 export function extractDomainErrorCode(error: unknown): string | undefined {
   const e = (error || {}) as ErrorLike;
 
@@ -240,6 +310,19 @@ export function getDomainErrorMessage(
   if (mapped) return mapped;
 
   const responseData = (error as ErrorLike)?.response?.data;
+
+  const detailedFromErrors = collectBackendErrorMessages([
+    responseData?.errors,
+    (error as ErrorLike)?.raw?.errors,
+  ])
+    .map((message) => translateBackendMessageToVietnamese(message) || message)
+    .filter(Boolean);
+
+  if (detailedFromErrors.length > 0) {
+    const uniqueMessages = Array.from(new Set(detailedFromErrors));
+    return uniqueMessages.slice(0, 2).join("; ");
+  }
+
   const beMessageCandidates = [
     normalizeMessage(responseData?.message),
     normalizeMessage(responseData?.detail),

@@ -383,7 +383,6 @@ export const LEAD_ENDPOINTS = {
   UPDATE_STATUS: (id: string) => `/api/leads/${id}/status`,
   ADD_NOTE: (id: string) => `/api/leads/${id}/notes`,
   GET_ACTIVITIES: (id: string) => `/api/leads/${id}/activities`,
-  GET_SLA: (id: string) => `/api/leads/${id}/sla`,
 
   // Children endpoints
   GET_CHILDREN: (leadId: string) => `/api/leads/${leadId}/children`,
@@ -404,7 +403,6 @@ export const BACKEND_LEAD_ENDPOINTS = {
   UPDATE_STATUS: (id: string) => `/leads/${id}/status`,
   ADD_NOTE: (id: string) => `/leads/${id}/notes`,
   GET_ACTIVITIES: (id: string) => `/leads/${id}/activities`,
-  GET_SLA: (id: string) => `/leads/${id}/sla`,
 
   // Children endpoints
   GET_CHILDREN: (leadId: string) => `/leads/${leadId}/children`,

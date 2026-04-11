@@ -135,7 +135,24 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
     try {
       if (lead?.id) {
         // Update existing lead
-        await updateLead(lead.id, formData);
+        const response = await updateLead(lead.id, formData);
+        const isSuccess =
+          typeof (response as any)?.success === "boolean"
+            ? (response as any).success
+            : typeof (response as any)?.isSuccess === "boolean"
+              ? (response as any).isSuccess
+              : true;
+
+        if (!isSuccess) {
+          throw {
+            response: {
+              status: (response as any)?.status,
+              data: response,
+            },
+            message: (response as any)?.message || "Không thể cập nhật lead",
+          };
+        }
+
         toast({
           title: "Thành công",
           description: "Đã cập nhật lead thành công",
@@ -143,7 +160,24 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
         });
       } else {
         // Create new lead
-        await createLead(formData);
+        const response = await createLead(formData);
+        const isSuccess =
+          typeof (response as any)?.success === "boolean"
+            ? (response as any).success
+            : typeof (response as any)?.isSuccess === "boolean"
+              ? (response as any).isSuccess
+              : true;
+
+        if (!isSuccess) {
+          throw {
+            response: {
+              status: (response as any)?.status,
+              data: response,
+            },
+            message: (response as any)?.message || "Không thể tạo lead",
+          };
+        }
+
         toast({
           title: "Thành công",
           description: "Đã tạo lead mới thành công",
@@ -171,7 +205,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
     <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
         {/* Header - Gradient đỏ như modal mẫu */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+        <div className="bg-linear-to-r from-red-600 to-red-700 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -208,7 +242,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 </div>
                 <h3 className="text-sm font-semibold text-gray-700">Thông tin cơ bản</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -397,7 +431,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -450,7 +484,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 type="submit"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                className="px-6 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isSubmitting ? "Đang lưu..." : (lead ? "Cập nhật" : "Tạo mới")}
               </button>

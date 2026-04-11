@@ -13,6 +13,28 @@ import type {
   UpdateRegistrationRequest,
 } from "@/types/registration";
 
+function ensureRegistrationActionSuccess(response: RegistrationActionResponse, fallbackMessage: string) {
+  const isSuccess =
+    typeof response?.isSuccess === "boolean"
+      ? response.isSuccess
+      : typeof response?.success === "boolean"
+        ? response.success
+        : true;
+
+  if (isSuccess) return response;
+
+  const error = new Error(response?.message || fallbackMessage) as Error & {
+    response?: { status?: number; data?: unknown };
+    raw?: unknown;
+  };
+  error.response = {
+    status: (response as any)?.status,
+    data: response,
+  };
+  error.raw = response;
+  throw error;
+}
+
 function pickItems(payload: any): any[] {
   if (Array.isArray(payload?.data?.page?.items)) return payload.data.page.items;
   if (Array.isArray(payload?.data?.registrations?.items)) return payload.data.registrations.items;
@@ -181,14 +203,16 @@ export async function getRegistrationById(id: string): Promise<Registration> {
 }
 
 export async function createRegistration(payload: RegistrationRequest): Promise<RegistrationActionResponse> {
-  return await post<RegistrationActionResponse>(REGISTRATION_ENDPOINTS.CREATE, payload);
+  const response = await post<RegistrationActionResponse>(REGISTRATION_ENDPOINTS.CREATE, payload);
+  return ensureRegistrationActionSuccess(response, "Không thể tạo đăng ký");
 }
 
 export async function updateRegistration(
   id: string,
   payload: UpdateRegistrationRequest
 ): Promise<RegistrationActionResponse> {
-  return await put<RegistrationActionResponse>(REGISTRATION_ENDPOINTS.UPDATE(id), payload);
+  const response = await put<RegistrationActionResponse>(REGISTRATION_ENDPOINTS.UPDATE(id), payload);
+  return ensureRegistrationActionSuccess(response, "Không thể cập nhật đăng ký");
 }
 
 export async function cancelRegistration(
@@ -198,7 +222,8 @@ export async function cancelRegistration(
   const url = reason
     ? `${REGISTRATION_ENDPOINTS.CANCEL(id)}?reason=${encodeURIComponent(reason)}`
     : REGISTRATION_ENDPOINTS.CANCEL(id);
-  return await patch<RegistrationActionResponse>(url);
+  const response = await patch<RegistrationActionResponse>(url);
+  return ensureRegistrationActionSuccess(response, "Không thể hủy đăng ký");
 }
 
 export async function suggestClassesForRegistration(id: string): Promise<SuggestedClassBucket> {
@@ -253,7 +278,8 @@ export async function assignClassToRegistration(
   id: string,
   payload: AssignClassRequest
 ): Promise<RegistrationActionResponse> {
-  return await post<RegistrationActionResponse>(REGISTRATION_ENDPOINTS.ASSIGN_CLASS(id), payload);
+  const response = await post<RegistrationActionResponse>(REGISTRATION_ENDPOINTS.ASSIGN_CLASS(id), payload);
+  return ensureRegistrationActionSuccess(response, "Không thể xếp lớp cho đăng ký");
 }
 
 export async function getWaitingListRegistrations(params?: {
@@ -309,18 +335,20 @@ export async function transferRegistrationClass(
     queryParams.append("sessionSelectionPattern", options.sessionSelectionPattern.trim());
   }
 
-  return await post<RegistrationActionResponse>(
+  const response = await post<RegistrationActionResponse>(
     `${REGISTRATION_ENDPOINTS.TRANSFER_CLASS(id)}?${queryParams.toString()}`
   );
+  return ensureRegistrationActionSuccess(response, "Không thể chuyển lớp cho đăng ký");
 }
 
 export async function upgradeRegistration(
   id: string,
   newTuitionPlanId: string
 ): Promise<RegistrationActionResponse> {
-  return await post<RegistrationActionResponse>(
+  const response = await post<RegistrationActionResponse>(
     `${REGISTRATION_ENDPOINTS.UPGRADE(id)}?newTuitionPlanId=${encodeURIComponent(newTuitionPlanId)}`
   );
+  return ensureRegistrationActionSuccess(response, "Không thể nâng cấp đăng ký");
 }
 
 export function extractRegistrationIdFromAction(response: RegistrationActionResponse | any): string {

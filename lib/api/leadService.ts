@@ -25,7 +25,6 @@ import type {
   AddLeadNoteRequest,
   AddLeadNoteApiResponse,
   GetLeadActivitiesApiResponse,
-  GetLeadSLAApiResponse,
   // Children types
   GetLeadChildrenApiResponse,
   CreateLeadChildRequest,
@@ -125,13 +124,6 @@ export async function addLeadNote(id: string, data: AddLeadNoteRequest): Promise
  */
 export async function getLeadActivities(id: string): Promise<GetLeadActivitiesApiResponse> {
   return get<GetLeadActivitiesApiResponse>(LEAD_ENDPOINTS.GET_ACTIVITIES(id));
-}
-
-/**
- * Get lead SLA information
- */
-export async function getLeadSLA(id: string): Promise<GetLeadSLAApiResponse> {
-  return get<GetLeadSLAApiResponse>(LEAD_ENDPOINTS.GET_SLA(id));
 }
 
 // ==================== Children Management ====================

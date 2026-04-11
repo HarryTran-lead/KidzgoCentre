@@ -1270,7 +1270,7 @@ export default function RegistrationFlowModal({
                     onClick={() => setActiveStep(tab.key)}
                     className={`group relative flex items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 cursor-pointer ${
                       isActive
-                        ? "bg-gradient-to-r from-red-50 to-white border-2 border-red-500 shadow-md"
+                        ? "  from-red-50 to-white border-2 border-red-500 shadow-md"
                         : "border border-gray-200 bg-white hover:border-red-200 hover:shadow-sm"
                     }`}
                   >
