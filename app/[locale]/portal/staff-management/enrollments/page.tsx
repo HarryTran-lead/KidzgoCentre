@@ -174,11 +174,18 @@ export default function EnrollmentsPage() {
         });
       }
     } catch (error: any) {
+      const isScheduleConflict =
+        error?.response?.data?.title === "Enrollment.StudentScheduleConflict";
       const msg =
+        error?.response?.data?.detail ||
         error?.response?.data?.message ||
         error?.message ||
         "Không thể tạo ghi danh";
-      toast({ title: "Lỗi", description: msg, variant: "destructive" });
+      toast({
+        title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
+        description: msg,
+        variant: "destructive",
+      });
     }
   };
 
@@ -243,11 +250,18 @@ export default function EnrollmentsPage() {
         });
       }
     } catch (error: any) {
+      const isScheduleConflict =
+        error?.response?.data?.title === "Enrollment.StudentScheduleConflict";
       const msg =
+        error?.response?.data?.detail ||
         error?.response?.data?.message ||
         error?.message ||
         "Đã xảy ra lỗi";
-      toast({ title: "Lỗi", description: msg, variant: "destructive" });
+      toast({
+        title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
+        description: msg,
+        variant: "destructive",
+      });
     } finally {
       setIsConfirmModalOpen(false);
       setSelectedEnrollment(null);

@@ -1625,6 +1625,13 @@ export default function Page() {
         throwApiFailure(response, "Không thể thực hiện thao tác ghi danh");
       }
     } catch (error: any) {
+      const isScheduleConflict =
+        error?.response?.data?.title === "Enrollment.StudentScheduleConflict";
+      const msg =
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        error?.message ||
+        "Không thể thực hiện thao tác";
       toast({
         variant: "destructive",
         title: "Lỗi",

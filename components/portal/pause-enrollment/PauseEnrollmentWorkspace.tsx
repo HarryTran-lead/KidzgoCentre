@@ -1106,7 +1106,8 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       await loadRequests(selectedRequest.id);
     } catch (error: any) {
       setRequestError(
-        error?.response?.data?.message ??
+        error?.response?.data?.detail ??
+          error?.response?.data?.message ??
           error?.message ??
           "Không thể cập nhật outcome."
       );

@@ -29,12 +29,22 @@ export const buildFileUrl = (value?: string | null): string => {
     return "";
   }
 
-  if (/^(?:https?:)?\/\//i.test(url) || /^(?:data|blob):/i.test(url)) {
-    return url;
+  // Already an absolute URL (https/http/data/blob) — return as-is.
+  // Exception: if the backend is HTTP and we're running in a browser on HTTPS
+  // we must proxy it to avoid mixed-content blocks.
+  if (/^(?:data|blob):/i.test(url)) return url;
+
+  if (/^(?:https?:)?\/\//i.test(url)) {
+    // If it's already HTTPS (or protocol-relative), safe to use directly
+    if (/^https:\/\//i.test(url) || url.startsWith("//")) return url;
+    // HTTP absolute URL → rewrite to proxy path to keep HTTPS
+    const withoutOrigin = url.replace(/^https?:\/\/[^/]+/i, "");
+    const normalizedSegment = withoutOrigin.startsWith("/") ? withoutOrigin : `/${withoutOrigin}`;
+    return `/api/files/serve${normalizedSegment}`;
   }
 
   const normalizedPath = url.startsWith("/") ? url : `/${url}`;
-  return ROOT_BASE_URL ? `${ROOT_BASE_URL}${normalizedPath}` : normalizedPath;
+  return `/api/files/serve${normalizedPath}`;
 };
 
 // Authentication Endpoints (Client-side → Next.js API Routes)
