@@ -280,7 +280,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
 
   if (loading) {
     return (
-      <div className={cn("fixed inset-0 z-50 flex items-center justify-center", dark ? "bg-black/90" : "bg-black/60")}>
+      <div className={cn("fixed inset-0 z-[9999] flex items-center justify-center", dark ? "bg-black/90" : "bg-black/60")}>
         <div className={cn("rounded-2xl p-8 text-center", bg, `border ${border}`)}>
           <Loader2 className={cn("h-8 w-8 animate-spin mx-auto mb-3", dark ? "text-indigo-400" : "text-red-500")} />
           <p className={textSecondary}>Đang tải slides...</p>
@@ -293,7 +293,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
     // PDF fallback: show embedded PDF viewer instead of just a download prompt
     if (pdfFallbackLoading) {
       return (
-        <div className={cn("fixed inset-0 z-50 flex items-center justify-center", dark ? "bg-black/90" : "bg-black/60")}>
+        <div className={cn("fixed inset-0 z-[9999] flex items-center justify-center", dark ? "bg-black/90" : "bg-black/60")}>
           <div className={cn("rounded-2xl p-8 text-center", bg, `border ${border}`)}>
             <Loader2 className={cn("h-8 w-8 animate-spin mx-auto mb-3", dark ? "text-indigo-400" : "text-red-500")} />
             <p className={textSecondary}>Đang tải bản xem trước...</p>
@@ -303,10 +303,10 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
     }
     if (pdfFallbackUrl) {
       return (
-        <div className={cn("fixed inset-0 z-50 flex flex-col", dark ? "bg-[#0a0a1a]" : "bg-gray-100", "p-2 md:p-4")}>
+        <div className={cn("fixed inset-0 z-[9999] flex flex-col", dark ? "bg-[#0a0a1a]" : "bg-gray-100", "p-2 md:p-4")}>
           <div className={cn("flex items-center justify-between px-4 py-2.5 flex-shrink-0 rounded-t-2xl", bg, `border-b ${border}`)}>
             <div className="flex items-center gap-3 min-w-0">
-              <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500">
+              <div className={cn("p-1.5 rounded-lg bg-gradient-to-br", dark ? "from-purple-500 to-pink-500" : "from-red-500 to-orange-500")}>
                 <FileText size={14} className="text-white" />
               </div>
               <p className={cn("text-sm font-semibold truncate", textPrimary)}>
@@ -314,10 +314,10 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
               </p>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={doDownload} className={cn("p-2 rounded-lg transition-colors", textSecondary, hoverBg)} title="Tải xuống">
+              <button onClick={doDownload} className={cn("p-2 rounded-lg transition-colors cursor-pointer", textSecondary, hoverBg)} title="Tải xuống">
                 <Download size={16} />
               </button>
-              <button onClick={() => { revokeObjectUrl(pdfFallbackUrl); onClose(); }} className={cn("p-2 rounded-lg transition-colors", textSecondary, hoverBg)} title="Đóng">
+              <button onClick={() => { revokeObjectUrl(pdfFallbackUrl); onClose(); }} className={cn("p-2 rounded-lg transition-colors cursor-pointer", textSecondary, hoverBg)} title="Đóng">
                 <X size={16} />
               </button>
             </div>
@@ -328,16 +328,16 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
     }
     // No slides and no PDF — show download prompt
     return (
-      <div className={cn("fixed inset-0 z-50 flex items-center justify-center", dark ? "bg-black/90" : "bg-black/60")}>
+      <div className={cn("fixed inset-0 z-[9999] flex items-center justify-center", dark ? "bg-black/90" : "bg-black/60")}>
         <div className={cn("rounded-2xl p-8 text-center max-w-sm", bg, `border ${border}`)}>
           <FileText size={40} className={cn("mx-auto mb-3", textMuted)} />
           <h3 className={cn("text-lg font-bold mb-1", textPrimary)}>Không thể xem slides</h3>
           <p className={cn("text-sm mb-4", textSecondary)}>File này chưa được convert sang slides. Hãy tải về để xem.</p>
           <div className="flex gap-2 justify-center">
-            <button onClick={doDownload} className={cn("px-4 py-2 rounded-xl text-sm font-medium", btnPrimary)}>
+            <button onClick={doDownload} className={cn("px-4 py-2 rounded-xl text-sm font-medium cursor-pointer", btnPrimary)}>
               <Download size={14} className="inline mr-1.5" /> Tải xuống
             </button>
-            <button onClick={onClose} className={cn("px-4 py-2 rounded-xl text-sm", textSecondary, hoverBg)}>Đóng</button>
+            <button onClick={onClose} className={cn("px-4 py-2 rounded-xl text-sm cursor-pointer", textSecondary, hoverBg)}>Đóng</button>
           </div>
         </div>
       </div>
@@ -348,7 +348,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
     <div
       ref={containerRef}
       className={cn(
-        "fixed inset-0 z-50 flex flex-col",
+        "fixed inset-0 z-[9999] flex flex-col",
         dark ? "bg-[#0a0a1a]" : "bg-gray-100",
         fullscreen ? "" : "p-2 md:p-4",
       )}
@@ -360,7 +360,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
         fullscreen ? "" : "rounded-t-2xl",
       )}>
         <div className="flex items-center gap-3 min-w-0">
-          <div className={cn("p-1.5 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500")}>
+          <div className={cn("p-1.5 rounded-lg bg-gradient-to-br", dark ? "from-purple-500 to-pink-500" : "from-red-500 to-orange-500")}>
             <FileText size={14} className="text-white" />
           </div>
           <div className="min-w-0">
@@ -377,7 +377,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
           {/* Auto-play */}
           <button
             onClick={() => setAutoPlay(!autoPlay)}
-            className={cn("p-2 rounded-lg transition-colors", textSecondary, hoverBg)}
+            className={cn("p-2 rounded-lg transition-colors cursor-pointer", textSecondary, hoverBg)}
             title={autoPlay ? "Dừng tự động" : "Tự động chuyển slide"}
           >
             {autoPlay ? <Pause size={16} /> : <Play size={16} />}
@@ -386,7 +386,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
           {/* Thumbnails toggle */}
           <button
             onClick={() => setShowThumbnails(!showThumbnails)}
-            className={cn("p-2 rounded-lg transition-colors", showThumbnails ? btnPrimary : textSecondary, hoverBg)}
+            className={cn("p-2 rounded-lg transition-colors cursor-pointer", showThumbnails ? btnPrimary : textSecondary, hoverBg)}
             title="Thumbnail"
           >
             <Grid3X3 size={16} />
@@ -395,7 +395,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
           {/* Notes toggle */}
           <button
             onClick={() => setShowNotes(!showNotes)}
-            className={cn("p-2 rounded-lg transition-colors", showNotes ? btnPrimary : textSecondary, hoverBg)}
+            className={cn("p-2 rounded-lg transition-colors cursor-pointer", showNotes ? btnPrimary : textSecondary, hoverBg)}
             title="Ghi chú giảng viên"
           >
             <StickyNote size={16} />
@@ -404,7 +404,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
           {/* Annotation form toggle */}
           <button
             onClick={() => setShowAnnotationForm(!showAnnotationForm)}
-            className={cn("p-2 rounded-lg transition-colors", showAnnotationForm ? btnPrimary : textSecondary, hoverBg)}
+            className={cn("p-2 rounded-lg transition-colors cursor-pointer", showAnnotationForm ? btnPrimary : textSecondary, hoverBg)}
             title="Thêm ghi chú"
           >
             <MessageSquarePlus size={16} />
@@ -413,24 +413,24 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
           {/* Bookmark */}
           <button
             onClick={toggleBookmark}
-            className={cn("p-2 rounded-lg transition-colors", bookmarked ? "text-yellow-400" : textSecondary, hoverBg)}
+            className={cn("p-2 rounded-lg transition-colors cursor-pointer", bookmarked ? "text-yellow-400" : textSecondary, hoverBg)}
             title={bookmarked ? "Bỏ bookmark" : "Bookmark"}
           >
             {bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
           </button>
 
           {/* Download */}
-          <button onClick={doDownload} className={cn("p-2 rounded-lg transition-colors", textSecondary, hoverBg)} title="Tải xuống">
+          <button onClick={doDownload} className={cn("p-2 rounded-lg transition-colors cursor-pointer", textSecondary, hoverBg)} title="Tải xuống">
             <Download size={16} />
           </button>
 
           {/* Fullscreen */}
-          <button onClick={() => setFullscreen(!fullscreen)} className={cn("p-2 rounded-lg transition-colors", textSecondary, hoverBg)} title="Toàn màn hình">
+          <button onClick={() => setFullscreen(!fullscreen)} className={cn("p-2 rounded-lg transition-colors cursor-pointer", textSecondary, hoverBg)} title="Toàn màn hình">
             {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
 
           {/* Close */}
-          <button onClick={onClose} className={cn("p-2 rounded-lg transition-colors", textSecondary, hoverBg)} title="Đóng">
+          <button onClick={onClose} className={cn("p-2 rounded-lg transition-colors cursor-pointer", textSecondary, hoverBg)} title="Đóng">
             <X size={16} />
           </button>
         </div>
@@ -535,7 +535,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
 
           {/* Bottom: slide nav bar */}
           <div className={cn("flex items-center justify-center gap-3 px-4 py-2 border-t", bg, border)}>
-            <button onClick={() => goSlide(-1)} disabled={currentSlide <= 1} className={cn("p-1.5 rounded-lg transition-colors disabled:opacity-30", textSecondary, hoverBg)}>
+            <button onClick={() => goSlide(-1)} disabled={currentSlide <= 1} className={cn("p-1.5 rounded-lg transition-colors disabled:opacity-30 cursor-pointer", textSecondary, hoverBg)}>
               <ChevronLeft size={18} />
             </button>
 
@@ -558,7 +558,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
               <span className={cn("text-sm", textMuted)}>/ {totalSlides}</span>
             </div>
 
-            <button onClick={() => goSlide(1)} disabled={currentSlide >= totalSlides} className={cn("p-1.5 rounded-lg transition-colors disabled:opacity-30", textSecondary, hoverBg)}>
+            <button onClick={() => goSlide(1)} disabled={currentSlide >= totalSlides} className={cn("p-1.5 rounded-lg transition-colors disabled:opacity-30 cursor-pointer", textSecondary, hoverBg)}>
               <ChevronRight size={18} />
             </button>
 
@@ -607,7 +607,7 @@ export default function SlideshowViewer({ material, onClose, theme = "dark" }: S
                   onClick={submitAnnotation}
                   disabled={!annotationInput.trim()}
                   className={cn(
-                    "mt-2 w-full py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40",
+                    "mt-2 w-full py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40 cursor-pointer",
                     dark ? "bg-indigo-500 text-white hover:bg-indigo-600" : "bg-red-600 text-white hover:bg-red-700",
                   )}
                 >

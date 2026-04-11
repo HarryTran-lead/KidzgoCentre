@@ -365,26 +365,27 @@ export default function StudentLearningView() {
   return (
     <div className="relative min-h-full">
       {/* ── Header ─────────────────────────────────────── */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl">
-            <BookOpen size={22} className="text-white" />
+      <div className="mb-8 rounded-2xl bg-linear-to-br from-indigo-600/20 via-purple-600/15 to-transparent backdrop-blur-xl border border-white/10 p-6 shadow-lg">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="p-3.5 rounded-2xl bg-linear-to-br from-indigo-500 via-purple-500 to-indigo-600 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+            <BookOpen size={24} className="text-white" />
           </div>
-          <div>
-            <h1 className="text-2xl font-extrabold bg-gradient-to-r from-white via-indigo-200 to-purple-200 bg-clip-text text-transparent">
+          <div className="flex-1">
+            <h1 className="text-3xl md:text-4xl font-black bg-linear-to-r from-white via-indigo-100 to-purple-100 bg-clip-text text-transparent mb-1">
               Tài liệu học tập
             </h1>
-            <p className="text-sm text-white/50">Chọn bài học để xem slides, audio, video và tài liệu</p>
+            <p className="text-sm text-white/60 font-medium">Chọn bài học để xem slides, audio, video và tài liệu</p>
           </div>
         </div>
 
         {/* Program selector */}
         {programs.length > 1 && (
-          <div className="mt-3">
+          <div className="pt-4 border-t border-white/10">
+            <label className="block text-xs font-semibold text-white/70 mb-2">📚 Chọn chương trình</label>
             <select
               value={selectedProgramId}
               onChange={(e) => { setSelectedProgramId(e.target.value); setSelectedLesson(""); }}
-              className="h-9 rounded-xl bg-white/10 border border-white/20 px-3 text-sm text-white/90 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+              className="w-full md:w-64 h-10 rounded-xl bg-white/10 border border-white/20 px-4 text-sm text-white/90 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-indigo-400/30 hover:border-white/30 transition-all cursor-pointer"
             >
               <option value="" className="text-gray-900">Tất cả chương trình</option>
               {programs.map((p) => (
@@ -407,43 +408,45 @@ export default function StudentLearningView() {
           <p className="text-sm text-white/40 max-w-xs">Giáo viên chưa upload tài liệu cho chương trình này.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6">
           {/* ═══ LEFT: Unit/Lesson Sidebar ═══════════════════ */}
-          <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col max-h-[calc(100vh-220px)]">
-            <div className="px-4 py-3 border-b border-white/10 bg-gradient-to-r from-indigo-500/10 to-purple-500/10">
-              <h3 className="text-sm font-bold text-white/90 flex items-center gap-2">
-                <Layers size={14} className="text-indigo-400" />
+          <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col max-h-[calc(100vh-220px)] shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300">
+            <div className="px-5 py-4 border-b border-white/10 bg-linear-to-r from-indigo-500/15 to-purple-500/10">
+              <h3 className="text-sm font-bold text-white/95 flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-indigo-500/20">
+                  <Layers size={14} className="text-indigo-300" />
+                </div>
                 Nội dung bài học
               </h3>
               {currentLesson && (
-                <p className="text-xs text-white/40 mt-0.5">{currentLesson.programName}</p>
+                <p className="text-xs text-white/50 mt-2 font-medium">{currentLesson.programName}</p>
               )}
             </div>
-            <div className="overflow-y-auto flex-1 p-2">
+            <div className="overflow-y-auto flex-1 p-3 space-y-1">
               {units.map((unit) => (
-                <div key={unit.unitNumber} className="mb-1">
+                <div key={unit.unitNumber} className="mb-2">
                   <button
                     type="button"
                     onClick={() => toggleUnit(unit.unitNumber)}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left hover:bg-white/5 transition-colors group"
+                    className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left hover:bg-white/10 transition-all duration-200 group"
                   >
                     <ChevronDown
                       size={14}
                       className={cn(
-                        "text-white/40 transition-transform duration-200",
+                        "text-indigo-400/60 group-hover:text-indigo-300 transition-all duration-300",
                         !expandedUnits.has(unit.unitNumber) && "-rotate-90",
                       )}
                     />
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-bold text-white/80 group-hover:text-white">
+                      <span className="text-sm font-bold text-white/85 group-hover:text-white transition-colors">
                         Unit {unit.unitNumber}
                       </span>
-                      <span className="ml-2 text-xs text-white/30">{unit.lessons.length} bài</span>
+                      <span className="ml-2 text-xs text-white/35">{unit.lessons.length} bài</span>
                     </div>
                   </button>
 
                   {expandedUnits.has(unit.unitNumber) && (
-                    <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5 mb-2">
+                    <div className="ml-2 pl-3 border-l-2 border-indigo-500/30 space-y-1 mb-1">
                       {unit.lessons.map((lesson) => {
                         const isActive = lesson.key === selectedLesson;
                         return (
@@ -452,17 +455,17 @@ export default function StudentLearningView() {
                             type="button"
                             onClick={() => { setSelectedLesson(lesson.key); setActiveTab("all"); }}
                             className={cn(
-                              "w-full text-left px-3 py-2 rounded-xl transition-all text-sm",
+                              "w-full text-left px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium",
                               isActive
-                                ? "bg-gradient-to-r from-indigo-500/30 to-purple-500/20 text-white border border-indigo-400/30"
-                                : "text-white/60 hover:text-white/90 hover:bg-white/5",
+                                ? "bg-linear-to-r from-indigo-500/40 to-purple-500/25 text-white border border-indigo-400/40 shadow-lg shadow-indigo-500/20"
+                                : "text-white/65 hover:text-white/90 hover:bg-white/8 border border-transparent",
                             )}
                           >
-                            <div className="font-medium">Lesson {lesson.lessonNumber}</div>
+                            <div>📖 Lesson {lesson.lessonNumber}</div>
                             {lesson.lessonTitle && (
-                              <div className="text-xs mt-0.5 opacity-60 truncate">{lesson.lessonTitle}</div>
+                              <div className="text-xs mt-1 opacity-70 truncate">{lesson.lessonTitle}</div>
                             )}
-                            <div className="text-[10px] mt-0.5 opacity-40">{lesson.count} tài liệu</div>
+                            <div className="text-[10px] mt-1 opacity-50 font-normal">{lesson.count} tài liệu</div>
                           </button>
                         );
                       })}
@@ -477,7 +480,7 @@ export default function StudentLearningView() {
           <div className="space-y-4">
             {/* Lesson header + nav */}
             {currentLesson && (
-              <div className="rounded-2xl bg-gradient-to-br from-indigo-600/20 via-purple-600/20 to-pink-600/20 backdrop-blur-xl border border-white/15 p-5">
+              <div className="rounded-2xl bg-linear-to-br from-indigo-600/20 via-purple-600/20 to-pink-600/20 backdrop-blur-xl border border-white/15 p-5">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <div>
                     <p className="text-xs text-indigo-300 font-medium mb-1">
@@ -497,7 +500,7 @@ export default function StudentLearningView() {
                     >
                       <ChevronLeft size={16} />
                     </button>
-                    <span className="text-xs text-white/40 min-w-[60px] text-center">
+                    <span className="text-xs text-white/40 min-w-15 text-center">
                       {currentLessonIdx + 1} / {allLessons.length}
                     </span>
                     <button
@@ -628,9 +631,9 @@ export default function StudentLearningView() {
             fullscreen ? "w-full h-full rounded-none" : "w-full max-w-5xl max-h-[90vh]",
           )}>
             {/* Top bar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5 flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
-                <div className={cn("p-1.5 rounded-lg bg-gradient-to-br", fileTypeColor(viewingMaterial.fileType))}>
+                <div className={cn("p-1.5 rounded-lg bg-linear-to-br", fileTypeColor(viewingMaterial.fileType))}>
                   <FileTypeIcon type={viewingMaterial.fileType} size={14} />
                 </div>
                 <div className="min-w-0">
@@ -693,7 +696,7 @@ export default function StudentLearningView() {
                 <iframe src={viewerUrl} title="PDF Preview" className="w-full h-full rounded-lg" style={{ minHeight: 500 }} />
               ) : viewerUrl && viewingMaterial.fileType === "Audio" ? (
                 <div className="w-full max-w-lg space-y-4 text-center">
-                  <div className="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center animate-pulse">
+                  <div className="mx-auto w-24 h-24 rounded-full bg-linear-to-br from-blue-500 to-cyan-500 flex items-center justify-center animate-pulse">
                     <Headphones size={36} className="text-white" />
                   </div>
                   <p className="text-white font-medium">{viewingMaterial.displayName || viewingMaterial.originalFileName}</p>
@@ -759,7 +762,7 @@ function ImageThumbnail({ item, onOpen }: { item: TeachingMaterialItem; onOpen: 
           <ImageIcon size={24} className="text-white/20" />
         </div>
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
         <div className="absolute bottom-2 left-2 right-2">
           <p className="text-[11px] text-white font-medium truncate">{item.displayName || item.originalFileName}</p>
         </div>
@@ -795,7 +798,7 @@ function InlineAudioPlayer({ item, onDownload }: { item: TeachingMaterialItem; o
 
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:border-blue-400/30 transition-colors">
-      <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0">
+      <div className="p-2 rounded-lg bg-linear-to-br from-blue-500 to-cyan-500 shrink-0">
         <Headphones size={16} className="text-white" />
       </div>
       <div className="flex-1 min-w-0">
@@ -814,7 +817,7 @@ function InlineAudioPlayer({ item, onDownload }: { item: TeachingMaterialItem; o
           </button>
         )}
       </div>
-      <button onClick={onDownload} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors flex-shrink-0" title="Tải xuống">
+      <button onClick={onDownload} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors shrink-0" title="Tải xuống">
         <Download size={14} />
       </button>
     </div>
@@ -830,7 +833,7 @@ function MaterialCard({ item, onOpen, onDownload, isDownloadOnly }: {
 }) {
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors group">
-      <div className={cn("p-2.5 rounded-xl bg-gradient-to-br flex-shrink-0", fileTypeColor(item.fileType))}>
+      <div className={cn("p-2.5 rounded-xl bg-linear-to-br shrink-0", fileTypeColor(item.fileType))}>
         <FileTypeIcon type={item.fileType} size={18} />
       </div>
       <div className="flex-1 min-w-0">
@@ -840,7 +843,7 @@ function MaterialCard({ item, onOpen, onDownload, isDownloadOnly }: {
           {bytes(item.fileSize) && <span className="text-[10px] text-white/30">&bull; {bytes(item.fileSize)}</span>}
         </div>
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         <button
           onClick={onOpen}
           className={cn(

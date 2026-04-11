@@ -290,46 +290,35 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
   }), [materials]);
 
   return (
-    <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className={`flex flex-wrap items-center justify-between gap-6 transition-all duration-500 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3'}`}>
+      <div className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="p-3.5 bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-2xl shadow-lg shadow-red-500/20 ring-4 ring-red-100">
-              <BookOpen size={24} className="text-white" />
-            </div>
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
+          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+            <BookOpen size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
-              Kho tài liệu giảng dạy
+            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+              Quản lý Tài liệu giảng dạy
             </h1>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-xs font-medium border border-red-100">
-                <Layers size={11} /> {ROLE_LABEL[viewerRole] || viewerRole}
-              </span>
-              <span className="text-sm text-gray-400">•</span>
-              <span className="text-sm text-gray-500">
-                {stats.total} tài liệu
-              </span>
-            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              Quản lý, tải lên và phân phối tài liệu giảng dạy cho các khóa học
+            </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setRefreshTick((v) => v + 1)}
-            className="group inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer"
           >
-            <RefreshCw size={15} className="group-hover:rotate-45 transition-transform duration-500" />
-            <span className="hidden sm:inline">Làm mới</span>
+            <RefreshCw size={16} /> Làm mới
           </button>
           {canUpload && (
             <button
               onClick={() => setUploadOpen(!uploadOpen)}
-              className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:from-red-600 hover:to-red-700 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-200 cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
             >
-              <Upload size={15} className="group-hover:translate-y-[-1px] transition-transform duration-200" />
-              <span className="hidden sm:inline">Tải lên</span>
+              <Upload size={16} /> Tải lên
             </button>
           )}
         </div>
@@ -532,49 +521,76 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
           )}
         </div>
 
-        {/* Tabs */}
-        <div className={`transition-all duration-500 delay-150 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
-          <FilterTabs
-            tabs={TABS.map((t) => ({ id: t.id, label: t.label, count: tabCounts[t.id], icon: t.icon }))}
-            activeTab={activeTab}
-            onChange={(v) => setActiveTab(v as TabId)}
-            variant="pill"
-            size="md"
-          />
+        {/* Tab Navigation */}
+        <div className={`bg-white rounded-2xl border border-red-200 p-1 inline-flex gap-1 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+                  : "text-gray-600 hover:bg-red-50"
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                activeTab === tab.id ? "bg-white/20" : "bg-gray-100"
+              }`}>
+                {tabCounts[tab.id]}
+              </span>
+            </button>
+          ))}
         </div>
 
-        {/* Upload Section */}
+        {/* Upload Modal */}
         {uploadOpen && canUpload && (
-          <div className="rounded-2xl border border-gray-200/80 bg-white/90 backdrop-blur-md shadow-lg shadow-red-500/5 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-red-50">
-                  <Upload size={16} className="text-red-600" />
+          <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm min-h-screen w-screen" onClick={() => setUploadOpen(false)}>
+            <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-white/20 rounded-xl">
+                      <Upload size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Tải lên tài liệu</h2>
+                      <p className="text-sm text-white/80 mt-0.5">Quản lý và phân phối tài liệu giảng dạy</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setUploadOpen(false)}
+                    className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+                    aria-label="Đóng"
+                  >
+                    <X size={24} className="text-white" />
+                  </button>
                 </div>
-                <h3 className="font-semibold text-gray-900">Tải lên tài liệu mới</h3>
               </div>
-              <button onClick={() => setUploadOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                <X size={16} className="text-gray-400" />
-              </button>
-            </div>
-            <div className="flex gap-2 mb-4">
-              {(["single", "multi", "archive"] as UploadMode[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => { setUploadMode(m); setSingleFile(null); setMultiFiles([]); setArchiveFile(null); }}
-                  className={cn(
-                    "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200",
-                    uploadMode === m
-                      ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm shadow-red-500/20"
-                      : "border border-gray-200/80 bg-white/80 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
-                  )}
-                >
-                  {m === "single" ? "Một file" : m === "multi" ? "Chọn folder" : "Archive (.zip)"}
-                </button>
-              ))}
-            </div>
 
+              {/* Modal Body */}
+              <div className="p-6 max-h-[70vh] overflow-y-auto">
+                <div className="border-b border-gray-100 mb-5 pb-5">
+                <div className="flex gap-2 mb-4">
+                  {(["single", "multi", "archive"] as UploadMode[]).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setUploadMode(m); setSingleFile(null); setMultiFiles([]); setArchiveFile(null); }}
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer",
+                        uploadMode === m
+                          ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm"
+                          : "border border-gray-200 bg-gray-50 text-gray-700 hover:bg-white hover:border-gray-300"
+                      )}
+                    >
+                      {m === "single" ? "Một file" : m === "multi" ? "Chọn folder" : "Archive (.zip)"}
+                    </button>
+                  ))}
+                </div>
+              </div>
             {/* ── Single mode: metadata form ── */}
             {uploadMode === "single" && (
               <>
@@ -705,14 +721,27 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
               </>
             )}
 
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setUploadOpen(false)} className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-                Hủy
-              </button>
-              <button onClick={doUpload} disabled={uploading} className="group px-5 py-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-700 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-200 disabled:opacity-50 text-sm flex items-center gap-2">
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload size={14} className="group-hover:translate-y-[-1px] transition-transform" />}
-                Upload
-              </button>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setUploadOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={doUpload}
+                    disabled={uploading}
+                    className="group inline-flex items-center gap-2 rounded-xl px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload size={14} />}
+                    Upload
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -720,19 +749,26 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
         {/* Main Content - 3 Columns */}
         <div className={`grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_380px] gap-5 transition-all duration-500 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
           {/* Left Column - Lessons List */}
-          <div className="rounded-2xl border border-gray-200/80 bg-white/80 backdrop-blur-sm shadow-sm overflow-hidden flex flex-col">
-            <div className="px-4 py-3.5 border-b border-gray-100/80 bg-gradient-to-r from-gray-50/80 to-transparent">
-              <h3 className="font-semibold text-gray-900 text-sm">Bài học</h3>
+          <div className="rounded-xl bg-gradient-to-br from-white to-red-50 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40 border border-red-100">
+            <div className="px-5 py-4 border-b border-red-100/40 bg-gradient-to-r from-red-50/60 to-transparent">
+              <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-8 h-8 rounded-lg bg-red-100/80 flex items-center justify-center">
+                  <Layers size={16} className="text-red-600" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-sm">Bài học</h3>
+                <p className="text-xs text-gray-400 ml-10">{lessons.length} bài</p>
+              </div>
+              
             </div>
-            <div className="overflow-y-auto max-h-[calc(70vh-60px)] p-3 space-y-1.5">
+            <div className="overflow-y-auto max-h-[calc(70vh-60px)] p-3 space-y-1.5 flex-1">
               {loading ? (
                 <SkeletonList />
               ) : lessons.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="inline-flex p-3 rounded-2xl bg-gray-100 mb-3">
-                    <BookOpen size={24} className="text-gray-400" />
+                <div className="text-center py-10 flex flex-col items-center justify-center h-full">
+                  <div className="inline-flex p-4 rounded-2xl bg-red-50/50 mb-3">
+                    <BookOpen size={24} className="text-red-300" />
                   </div>
-                  <p className="text-sm text-gray-500">Chưa có bài học nào</p>
+                  <p className="text-sm text-gray-500 font-medium">Chưa có bài học</p>
                 </div>
               ) : (
                 lessons.map((lesson) => (
@@ -749,15 +785,16 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
                       }));
                     }}
                     className={cn(
-                      "w-full text-left p-3 rounded-xl transition-all duration-200 group",
+                      "w-full text-left p-3.5 rounded-xl transition-all duration-200 group cursor-pointer border-2",
                       selectedLesson === lesson.key
-                        ? "bg-gradient-to-r from-red-50/80 to-red-100/60 border border-red-200/60 shadow-sm"
-                        : "hover:bg-gray-50/80 border border-transparent hover:border-gray-200/60"
+                        ? "border-red-300 bg-red-50 shadow-sm"
+                        : "border-transparent hover:border-red-200/60 hover:bg-red-50/40"
                     )}
                   >
-                    <div className="font-medium text-gray-900 text-sm group-hover:text-red-700 transition-colors">{lesson.title}</div>
-                    <div className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
-                      <Inbox size={11} />{lesson.lessonTitle || `${lesson.count} tài liệu`}
+                    <div className="font-semibold text-gray-900 text-sm group-hover:text-red-700 transition-colors">{lesson.title}</div>
+                    <div className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                      <Inbox size={11} className="shrink-0" />
+                      <span>{lesson.lessonTitle || `${lesson.count} tài liệu`}</span>
                     </div>
                   </button>
                 ))
@@ -766,20 +803,26 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
           </div>
 
           {/* Middle Column - Materials List */}
-          <div className="rounded-2xl border border-gray-200/80 bg-white/80 backdrop-blur-sm shadow-sm overflow-hidden flex flex-col">
-            <div className="px-4 py-3.5 border-b border-gray-100/80 bg-gradient-to-r from-gray-50/80 to-transparent flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900 text-sm">Tài liệu</h3>
-              <span className="text-xs text-gray-400 font-medium tabular-nums">{visible.length} items</span>
+          <div className="rounded-xl bg-gradient-to-br from-white to-red-50 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40 border border-red-100">
+            <div className="px-5 py-4 border-b border-red-100/40 bg-gradient-to-r from-red-50/60 to-transparent">
+              <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-8 h-8 rounded-lg bg-red-100/80 flex items-center justify-center">
+                  <FileText size={16} className="text-red-600" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-sm">Tài liệu</h3>
+                <p className="text-xs text-gray-400 ml-10">{visible.length} items</p>
+              </div>
+              
             </div>
-            <div className="overflow-y-auto max-h-[calc(70vh-60px)] p-3 space-y-2">
+            <div className="overflow-y-auto max-h-[calc(70vh-60px)] p-3 space-y-2 flex-1">
               {loading ? (
                 <SkeletonList />
               ) : visible.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="inline-flex p-3 rounded-2xl bg-gray-100 mb-3">
-                    <FileText size={24} className="text-gray-400" />
+                <div className="text-center py-10 flex flex-col items-center justify-center h-full">
+                  <div className="inline-flex p-4 rounded-2xl bg-red-50/50 mb-3">
+                    <FileText size={24} className="text-red-300" />
                   </div>
-                  <p className="text-sm text-gray-500">Không có tài liệu nào</p>
+                  <p className="text-sm text-gray-500 font-medium">Không có tài liệu</p>
                 </div>
               ) : (
                 visible.map((item) => (
@@ -787,40 +830,40 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
                     key={item.id}
                     onClick={() => setSelectedMaterialId(item.id)}
                     className={cn(
-                      "group p-3 rounded-xl border cursor-pointer transition-all duration-200",
+                      "group p-3 rounded-xl border-2 cursor-pointer transition-all duration-200",
                       selectedMaterialId === item.id
-                        ? "border-red-300/70 bg-gradient-to-r from-red-50/80 to-red-100/60 shadow-sm shadow-red-500/10"
-                        : "border-gray-200/60 hover:border-red-200/50 hover:bg-red-50/30"
+                        ? "border-red-300 bg-red-50/70 shadow-sm"
+                        : "border-transparent hover:border-red-200/60 hover:bg-red-50/40"
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
                           <StatusBadge type={item.fileType || "Other"} />
-                          <span className="text-xs text-gray-400/80">{item.category || "Other"}</span>
+                          <span className="text-xs text-gray-400/70 font-medium">{item.category || "Other"}</span>
                         </div>
-                        <div className="font-medium text-gray-900 text-sm truncate group-hover:text-red-700 transition-colors">
+                        <div className="font-semibold text-gray-900 text-sm truncate group-hover:text-red-700 transition-colors">
                           {item.displayName || item.originalFileName || item.id}
                         </div>
-                        <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
+                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
                           <span className="flex items-center gap-1"><HardDrive size={10} /> {bytes(item.fileSize)}</span>
                           <span className="flex items-center gap-1"><Clock size={10} /> {dateText(item.createdAt)}</span>
                         </div>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         <button
                           onClick={(e) => { e.stopPropagation(); setSelectedMaterialId(item.id); }}
-                          className="p-1.5 rounded-lg bg-white border border-gray-200/60 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm"
+                          className="p-2 rounded-lg bg-white border border-red-100/50 hover:border-red-300 hover:shadow-sm transition-all cursor-pointer"
                           title="Xem chi tiết"
                         >
-                          <Eye size={14} className="text-gray-500" />
+                          <Eye size={13} className="text-red-600" />
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); void doDownload(item); }}
-                          className="p-1.5 rounded-lg bg-white border border-gray-200/60 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors shadow-sm"
+                          className="p-2 rounded-lg bg-white border border-red-100/50 hover:border-red-300 hover:shadow-sm transition-all cursor-pointer"
                           title="Tải xuống"
                         >
-                          <Download size={14} className="text-gray-500" />
+                          <Download size={13} className="text-red-600" />
                         </button>
                       </div>
                     </div>
@@ -831,131 +874,136 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
           </div>
 
           {/* Right Column - Preview & Details */}
-          <div className="rounded-2xl border border-gray-200/80 bg-white/80 backdrop-blur-sm shadow-sm overflow-hidden flex flex-col">
-            <div className="px-4 py-3.5 border-b border-gray-100/80 bg-gradient-to-r from-gray-50/80 to-transparent">
-              <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
-                <Eye size={14} className="text-gray-400" />
-                Xem trước & Chi tiết
-              </h3>
+          <div className="rounded-xl bg-gradient-to-br from-white to-red-50 transition-all duration-500 hover:shadow-xl hover:shadow-red-200/40 border border-red-100">
+            <div className="px-5 py-4 border-b border-red-100/40 bg-gradient-to-r from-red-50/60 to-transparent flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-red-100/80 flex items-center justify-center">
+                  <Eye size={16} className="text-red-600" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-sm">Chi tiết</h3>
+              </div>
+              {selectedMaterial && (
+                <StatusBadge type={selectedMaterial.fileType || "Other"} />
+              )}
             </div>
-            <div className="overflow-y-auto max-h-[calc(70vh-60px)] p-4 space-y-4">
+            <div className="overflow-y-auto max-h-[calc(70vh-60px)] p-4 space-y-4 flex-1">
               {!selectedMaterial ? (
-                <div className="text-center py-16">
-                  <div className="inline-flex p-4 rounded-2xl bg-gray-100 mb-4">
-                    <FileText size={28} className="text-gray-300" />
+                <div className="text-center py-12 flex flex-col items-center justify-center h-full">
+                  <div className="relative inline-flex mb-5">
+                    <div className="p-5 rounded-2xl bg-red-50/60">
+                      <FileText size={28} className="text-red-200" />
+                    </div>
+                    <div className="absolute -bottom-2 -right-2 p-2 rounded-full bg-red-100/80">
+                      <Eye size={14} className="text-red-600" />
+                    </div>
                   </div>
-                  <p className="text-gray-400 text-sm">Chọn một tài liệu để xem trước</p>
+                  <p className="text-gray-500 text-sm font-medium">Chọn tài liệu để xem</p>
+                  <p className="text-gray-400 text-xs mt-1">Danh sách tài liệu ở cột giữa</p>
                 </div>
               ) : (
                 <>
                   {/* Preview */}
-                  <div className="relative rounded-xl border border-gray-200 bg-gray-50 p-4 group">
+                  <div className="relative rounded-xl overflow-hidden bg-gray-900/5 border border-gray-200/80 group">
+                    <div className="min-h-[180px] flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100/50">
+                      {previewLoading ? (
+                        <div className="flex flex-col items-center gap-3">
+                          <Loader2 className="h-7 w-7 animate-spin text-gray-400" />
+                          <span className="text-xs text-gray-400">Đang tải preview...</span>
+                        </div>
+                      ) : previewUrl && selectedMaterial.fileType === "Image" ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={previewUrl} alt="Preview" className="max-h-[220px] w-full object-contain" />
+                      ) : previewUrl && selectedMaterial.fileType === "Pdf" ? (
+                        <iframe src={previewUrl} title="PDF preview" className="h-[320px] w-full" />
+                      ) : previewUrl && officePreviewable(selectedMaterial.fileType) ? (
+                        <iframe src={previewUrl} title="PDF preview" className="h-[320px] w-full" />
+                      ) : previewUrl && selectedMaterial.fileType === "Audio" ? (
+                        <div className="w-full px-4 py-4">
+                          <audio controls src={previewUrl} className="w-full h-10 [&::-webkit-media-controls-panel]:bg-red-50" />
+                        </div>
+                      ) : previewUrl && selectedMaterial.fileType === "Video" ? (
+                        <video controls src={previewUrl} className="max-h-[220px] w-full" />
+                      ) : (
+                        <div className="text-center py-10 px-4">
+                          <div className="inline-flex p-3 rounded-xl bg-gray-100 mb-3">
+                            <AlertCircle className="h-7 w-7 text-gray-400" />
+                          </div>
+                          <p className="text-sm text-gray-500 font-medium">
+                            {previewable(selectedMaterial.fileType) || officePreviewable(selectedMaterial.fileType) ? "Preview không khả dụng" : "Tải xuống để xem file này"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    {/* Expand button */}
                     {previewUrl && !previewLoading && (
                       <button
                         onClick={() => setFullscreenPreview(true)}
-                        className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                        className="absolute top-2 right-2 z-100 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/60 text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black/80 cursor-pointer"
                         title="Phóng to"
                       >
-                        <Maximize2 size={14} />
+                        <Maximize2 size={12} />
+                        <span>Phóng to</span>
                       </button>
-                    )}
-                    {previewLoading ? (
-                      <div className="flex min-h-[200px] items-center justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                      </div>
-                    ) : previewUrl && selectedMaterial.fileType === "Image" ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={previewUrl} alt="Preview" className="max-h-[280px] w-full rounded-lg object-contain ring-1 ring-gray-200/50" />
-                    ) : previewUrl && selectedMaterial.fileType === "Pdf" ? (
-                      <iframe src={previewUrl} title="PDF preview" className="h-[400px] w-full rounded-lg" />
-                    ) : previewUrl && officePreviewable(selectedMaterial.fileType) ? (
-                      <div>
-                        <iframe src={previewUrl} title="PDF preview" className="h-[400px] w-full rounded-lg" />
-                        {selectedMaterial.fileType === "Presentation" && (
-                          <button
-                            onClick={() => setSlideshowMaterial(selectedMaterial)}
-                            className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
-                          >
-                            <Eye size={16} /> Xem từng slide
-                          </button>
-                        )}
-                      </div>
-                    ) : previewUrl && selectedMaterial.fileType === "Audio" ? (
-                      <div className="bg-white rounded-lg p-3 shadow-sm">
-                        <audio controls src={previewUrl} className="w-full h-10 [&::-webkit-media-controls-panel]:bg-red-50" />
-                      </div>
-                    ) : previewUrl && selectedMaterial.fileType === "Video" ? (
-                      <video controls src={previewUrl} className="max-h-[280px] w-full rounded-lg ring-1 ring-gray-200/50" />
-                    ) : (
-                      <div className="text-center py-12">
-                        <AlertCircle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-500">
-                          {previewable(selectedMaterial.fileType) || officePreviewable(selectedMaterial.fileType) ? "Preview không khả dụng" : "Tải xuống để xem file này"}
-                        </p>
-                        {selectedMaterial.fileType === "Presentation" && (
-                          <button
-                            onClick={() => setSlideshowMaterial(selectedMaterial)}
-                            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all"
-                          >
-                            <Eye size={16} /> Xem từng slide
-                          </button>
-                        )}
-                      </div>
                     )}
                   </div>
 
-                  {/* Info */}
-                  <div className="rounded-xl border border-gray-200/60 bg-white/60 p-4 space-y-0">
-                    <h4 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
+                  {/* Slide show button for presentations */}
+                  {selectedMaterial.fileType === "Presentation" && (
+                    <button
+                      onClick={() => setSlideshowMaterial(selectedMaterial)}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 border-2 border-red-300 px-4 py-2.5 text-sm font-semibold text-red-600 hover:shadow-lg hover:shadow-red-200/50 transition-all duration-200 cursor-pointer"
+                    >
+                      <Eye size={15} />
+                      Xem từng slide
+                    </button>
+                  )}
+
+                  {/* Info Card */}
+                  <div className="rounded-xl border border-gray-200/80 bg-gray-50/60 p-4">
+                    <h4 className="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
                       <Wand2 size={13} className="text-gray-400" />
-                      Thông tin tài liệu
+                      Thông tin
                     </h4>
-                    <div className="divide-y divide-gray-100/80 text-sm">
-                      <div className="flex justify-between py-2.5">
-                        <span className="text-gray-400 text-xs">Tên hiển thị</span>
-                        <span className="text-gray-900 font-medium text-xs">{selectedMaterial.displayName || "—"}</span>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      <div className="py-2 border-b border-gray-100/80">
+                        <span className="text-xs text-gray-400 block mb-0.5">Tên hiển thị</span>
+                        <span className="text-gray-800 text-xs font-medium leading-tight">{selectedMaterial.displayName || "—"}</span>
                       </div>
-                      <div className="flex justify-between py-2.5">
-                        <span className="text-gray-400 text-xs">Tên gốc</span>
-                        <span className="text-gray-900 truncate max-w-[180px] text-xs">{selectedMaterial.originalFileName || "—"}</span>
+                      <div className="py-2 border-b border-gray-100/80">
+                        <span className="text-xs text-gray-400 block mb-0.5">Tên gốc</span>
+                        <span className="text-gray-800 text-xs font-medium leading-tight truncate block max-w-[140px]">{selectedMaterial.originalFileName || "—"}</span>
                       </div>
-                      <div className="flex justify-between py-2.5 items-center">
-                        <span className="text-gray-400 text-xs">Loại file</span>
-                        <StatusBadge type={selectedMaterial.fileType || "Other"} />
+                      <div className="py-2 border-b border-gray-100/80">
+                        <span className="text-xs text-gray-400 block mb-0.5">Kích thước</span>
+                        <span className="text-gray-800 text-xs font-medium leading-tight">{bytes(selectedMaterial.fileSize)}</span>
                       </div>
-                      <div className="flex justify-between py-2.5">
-                        <span className="text-gray-400 text-xs">Kích thước</span>
-                        <span className="text-gray-900 text-xs">{bytes(selectedMaterial.fileSize)}</span>
+                      <div className="py-2 border-b border-gray-100/80">
+                        <span className="text-xs text-gray-400 block mb-0.5">Chương trình</span>
+                        <span className="text-gray-800 text-xs font-medium leading-tight truncate block max-w-[140px]">{selectedMaterial.programName || selectedMaterial.programId || "—"}</span>
                       </div>
-                      <div className="flex justify-between py-2.5">
-                        <span className="text-gray-400 text-xs">Chương trình</span>
-                        <span className="text-gray-900 text-xs">{selectedMaterial.programName || selectedMaterial.programId || "—"}</span>
+                      <div className="py-2 border-b border-gray-100/80">
+                        <span className="text-xs text-gray-400 block mb-0.5">Bài học</span>
+                        <span className="text-gray-800 text-xs font-medium leading-tight">{selectedMaterial.lessonTitle || `Unit ${selectedMaterial.unitNumber} - L${selectedMaterial.lessonNumber}` || "—"}</span>
                       </div>
-                      <div className="flex justify-between py-2.5">
-                        <span className="text-gray-400 text-xs">Bài học</span>
-                        <span className="text-gray-900 text-xs">{selectedMaterial.lessonTitle || `Unit ${selectedMaterial.unitNumber} - Lesson ${selectedMaterial.lessonNumber}` || "—"}</span>
+                      <div className="py-2 border-b border-gray-100/80">
+                        <span className="text-xs text-gray-400 block mb-0.5">Người tải lên</span>
+                        <span className="text-gray-800 text-xs font-medium leading-tight truncate block max-w-[140px]">{detail?.uploadedByName || selectedMaterial.uploadedByName || "—"}</span>
                       </div>
-                      <div className="flex justify-between py-2.5">
-                        <span className="text-gray-400 text-xs">Người tải lên</span>
-                        <span className="text-gray-900 text-xs">{detail?.uploadedByName || selectedMaterial.uploadedByName || "—"}</span>
-                      </div>
-                      <div className="flex justify-between py-2.5">
-                        <span className="text-gray-400 text-xs">Ngày tạo</span>
-                        <span className="text-gray-900 text-xs">{dateText(detail?.createdAt || selectedMaterial.createdAt)}</span>
+                      <div className="py-2 border-b border-gray-100/80 col-span-2">
+                        <span className="text-xs text-gray-400 block mb-0.5">Ngày tạo</span>
+                        <span className="text-gray-800 text-xs font-medium leading-tight">{dateText(detail?.createdAt || selectedMaterial.createdAt)}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => void doDownload(selectedMaterial)}
-                      className="group flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:from-red-600 hover:to-red-700 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-200"
-                    >
-                      <Download size={15} className="group-hover:translate-y-[1px] transition-transform" />
-                      Tải xuống
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => void doDownload(selectedMaterial)}
+                    className="group w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:from-red-600 hover:to-red-700 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-200 cursor-pointer"
+                  >
+                    <Download size={15} className="group-hover:translate-y-[1px] transition-transform duration-200" />
+                    Tải xuống
+                  </button>
                 </>
               )}
             </div>
@@ -974,7 +1022,7 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
 
       {/* Fullscreen preview modal */}
       {fullscreenPreview && previewUrl && selectedMaterial && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black/90" onClick={() => setFullscreenPreview(false)}>
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-black/90" onClick={() => setFullscreenPreview(false)}>
           <div className="flex items-center justify-between px-4 py-3 bg-black/60 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 min-w-0">
               <StatusBadge type={selectedMaterial.fileType || "Other"} />
@@ -985,14 +1033,14 @@ export default function TeachingMaterialsWorkspace({ viewerRole }: { viewerRole:
             <div className="flex items-center gap-2">
               <button
                 onClick={() => void doDownload(selectedMaterial)}
-                className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 title="Tải xuống"
               >
                 <Download size={18} />
               </button>
               <button
                 onClick={() => setFullscreenPreview(false)}
-                className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 title="Đóng"
               >
                 <X size={18} />
