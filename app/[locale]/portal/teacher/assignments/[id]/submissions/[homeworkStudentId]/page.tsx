@@ -1041,10 +1041,11 @@ export default function TeacherSubmissionDetailPage() {
     const finalScore = isOverdueSubmission ? 0 : (editingScore !== "" ? parseFloat(editingScore) : null);
     const finalFeedback = isOverdueSubmission ? overdueFeedback : editingFeedback;
 
-    // For multiple choice, we only save feedback, not score
+    // For multiple choice, send calculated quiz score so BE doesn't reset to 0
     const payload = isMultipleChoiceSubmission
       ? {
           homeworkStudentId,
+          score: teacherQuizSummary.earnedPoints,
           teacherFeedback: finalFeedback,
         }
       : {
@@ -1081,7 +1082,7 @@ export default function TeacherSubmissionDetailPage() {
           status: updated?.status ?? merged.status ?? "Graded",
           score:
             isMultipleChoiceSubmission
-              ? (prev?.score ?? merged.score)
+              ? teacherQuizSummary.earnedPoints
               : updated?.score !== undefined
                 ? updated.score
                 : (finalScore as number | null),
@@ -1101,7 +1102,7 @@ export default function TeacherSubmissionDetailPage() {
     } finally {
       setIsGrading(false);
     }
-  }, [homeworkStudentId, editingScore, editingFeedback, isMultipleChoiceSubmission, data]);
+  }, [homeworkStudentId, editingScore, editingFeedback, isMultipleChoiceSubmission, data, teacherQuizSummary]);
 
   const handleGenerateAIFeedback = useCallback(async () => {
     if (!homeworkStudentId) return;
@@ -1300,9 +1301,11 @@ export default function TeacherSubmissionDetailPage() {
           <div className="rounded-xl border border-gray-200 p-4">
             <div className="flex items-center gap-2 text-gray-500 mb-1"><FileText size={15} /> Điểm</div>
             <div className="font-bold text-emerald-600 text-lg">
-              {data.score !== null && data.score !== undefined ? data.score : (data.isOverdue ? 0 : "Chưa chấm")}
+              {isMultipleChoiceSubmission && teacherQuizSummary.totalPoints > 0
+                ? teacherQuizSummary.earnedPoints
+                : data.score !== null && data.score !== undefined ? data.score : (data.isOverdue ? 0 : "Chưa chấm")}
             </div>
-            <div className="text-xs text-gray-500">Tối đa: {data.maxScore ?? "-"}</div>
+            <div className="text-xs text-gray-500">Tối đa: {isMultipleChoiceSubmission && teacherQuizSummary.totalPoints > 0 ? teacherQuizSummary.totalPoints : (data.maxScore ?? "-")}</div>
           </div>
         </div>
       </div>
