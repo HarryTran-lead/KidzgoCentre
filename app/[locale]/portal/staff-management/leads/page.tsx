@@ -114,6 +114,19 @@ function resolveUserBranchId(user: any): string {
   return String(user?.branchId || user?.branch?.id || "");
 }
 
+function throwApiFailure(response: any, fallbackMessage: string): never {
+  const error = new Error(response?.message || fallbackMessage) as Error & {
+    response?: { status?: number; data?: unknown };
+    raw?: unknown;
+  };
+  error.response = {
+    status: response?.status,
+    data: response,
+  };
+  error.raw = response;
+  throw error;
+}
+
 export default function Page() {
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
@@ -1246,19 +1259,24 @@ export default function Page() {
 
   const handleTestFormSubmit = async (payload: PlacementTestFormSubmitPayload) => {
     try {
+      let response: any = null;
       if (payload.action === "update") {
         if (!selectedTest) {
           throw new Error("Không tìm thấy placement test để cập nhật");
         }
-        await updatePlacementTest(selectedTest.id, payload.data);
+        response = await updatePlacementTest(selectedTest.id, payload.data);
       }
 
       if (payload.action === "create") {
-        await createPlacementTest(payload.data);
+        response = await createPlacementTest(payload.data);
       }
 
       if (payload.action === "retake") {
-        await createPlacementTestRetake(payload.originalPlacementTestId, payload.data);
+        response = await createPlacementTestRetake(payload.originalPlacementTestId, payload.data);
+      }
+
+      if (response && (response.isSuccess === false || response.success === false)) {
+        throwApiFailure(response, "Không thể lưu placement test");
       }
 
       toast({
@@ -1452,7 +1470,21 @@ export default function Page() {
         body: JSON.stringify({}),
       });
 
-      if (!response.ok) throw new Error("Failed to perform action");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw {
+          response: {
+            status: response.status,
+            data: errorData,
+          },
+          message: errorData?.message || "Không thể thực hiện thao tác placement test",
+        };
+      }
+
+      const responseData = await response.json().catch(() => null);
+      if (responseData && (responseData.isSuccess === false || responseData.success === false)) {
+        throwApiFailure(responseData, "Không thể thực hiện thao tác placement test");
+      }
 
       toast({
         title: "Thành công",
@@ -1468,7 +1500,10 @@ export default function Page() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: "Không thể thực hiện thao tác",
+        description: getPlacementTestErrorMessage(
+          error,
+          "Không thể thực hiện thao tác placement test",
+        ),
       });
     }
   };
@@ -1516,13 +1551,13 @@ export default function Page() {
         fetchInitialEnrollmentData();
         setIsEnrollFormModalOpen(false);
       } else {
-        throw new Error(response.message || "Không thể tạo ghi danh");
+        throwApiFailure(response, "Không thể tạo ghi danh");
       }
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: error.message || "Không thể tạo ghi danh",
+        description: getDomainErrorMessage(error, "Không thể tạo ghi danh"),
       });
       throw error;
     }
@@ -1587,13 +1622,16 @@ export default function Page() {
         fetchEnrollments();
         fetchInitialEnrollmentData();
       } else {
-        throw new Error(response?.message || "Thao tác thất bại");
+        throwApiFailure(response, "Không thể thực hiện thao tác ghi danh");
       }
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: error.message || "Không thể thực hiện thao tác",
+        description: getDomainErrorMessage(
+          error,
+          "Không thể thực hiện thao tác ghi danh",
+        ),
       });
     } finally {
       setIsEnrollConfirmModalOpen(false);
@@ -2027,6 +2065,11 @@ export default function Page() {
         lead={selectedLead}
         onClose={() => setIsDetailModalOpen(false)}
         onEdit={handleEditLead}
+        onLeadUpdated={(updatedLead) => {
+          setSelectedLead(updatedLead);
+          setLeads((prev) => prev.map((item) => (item.id === updatedLead.id ? { ...item, ...updatedLead } : item)));
+          setAllLeads((prev) => prev.map((item) => (item.id === updatedLead.id ? { ...item, ...updatedLead } : item)));
+        }}
       />
 
       <SelfAssignModal

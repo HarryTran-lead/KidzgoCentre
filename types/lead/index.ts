@@ -3,6 +3,23 @@
  * Defines types for lead management system
  */
 
+export enum ActivityType {
+  Call = 'Call',
+  Zalo = 'Zalo',
+  Sms = 'Sms',
+  Email = 'Email',
+  Note = 'Note',
+}
+
+export enum LeadStatus {
+  New = 'New',
+  Contacted = 'Contacted',
+  BookedTest = 'BookedTest',
+  TestDone = 'TestDone',
+  Enrolled = 'Enrolled',
+  Lost = 'Lost',
+}
+
 export interface Lead {
   id: string;
   source: string;
@@ -17,7 +34,7 @@ export interface Lead {
   branchPreferenceName?: string;
   programInterest?: string;
   notes?: string;
-  status?: 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
+  status?: LeadStatus;
   ownerStaffId?: string;
   ownerStaffName?: string;
   firstResponseAt?: string;
@@ -29,20 +46,32 @@ export interface Lead {
   updatedAt?: string;
 }
 
-export interface LeadNote {
-  activityId: string;
-  leadId: string;
+export interface CreateNotePayload {
   content: string;
-  activityType: string;
-  nextActionAt?: string;
-  createdAt?: string;
+  activityType?: ActivityType; // Khuyên dùng mặc định là Note nếu user không chọn
+  nextActionAt?: string;       // Chuỗi ISO 8601 (VD: 2026-04-11T15:00:00+07:00)
+  clearNextAction?: boolean;   // Truyền true nếu muốn xoá lịch hẹn cũ (không đi kèm nextActionAt)
 }
 
-export interface LeadActivity {
-  id: string;
+export interface NoteCreatedData {
+  activityId: string;
   leadId: string;
-  type: string;
-  description: string;
+  activityType: ActivityType;
+  content: string;
+  leadStatus: LeadStatus;      // Nhờ field này, FE biết ngay BE đã auto đổi status chưa
+  firstResponseAt: string | null;
+  nextActionAt: string | null; // Của activity này
+  leadNextActionAt: string | null; // Của toàn bộ lead (dùng để update UI)
+  createdAt: string;
+}
+
+export interface ActivityItem {
+  id: string;
+  activityType: ActivityType;
+  content: string;
+  nextActionAt: string | null;
+  createdBy: string | null;
+  createdByName: string | null;
   createdAt: string;
 }
 
@@ -72,7 +101,7 @@ export interface CreateLeadRequest extends CreateLeadPublicRequest {
   status?: string;
   source?: string;
   ownerStaffId?: string;
-  assignedTo?: string; // Legacy alias retained for older callers.
+  assignedTo?: string; 
   children?: CreateLeadChildRequest[];
 }
 
@@ -101,8 +130,9 @@ export interface AssignLeadRequest {
 
 export interface AddLeadNoteRequest {
   content: string;
-  activityType: string;
+  activityType?: ActivityType;
   nextActionAt?: string;
+  clearNextAction?: boolean;
 }
 // Child Request Types
 export interface CreateLeadChildRequest {
@@ -186,34 +216,21 @@ export interface AssignLeadApiResponse {
 
 export interface AddLeadNoteApiResponse {
   success: boolean;
-  data: LeadNote;
+  data: NoteCreatedData;
   message?: string;
 }
 
 export interface GetLeadActivitiesApiResponse {
-  success: boolean;
-  data: LeadActivity[];
-  message?: string;
-}
-
-export interface GetLeadSLAApiResponse {
   success?: boolean;
   isSuccess?: boolean;
-  data: {
-    leadId: string;
-    createdAt?: string;
-    firstResponseAt?: string | null;
-    timeToFirstResponse?: string | number | null;
-    slaTargetHours?: number | null;
-    isSLACompliant?: boolean | null;
-    isSLAOverdue?: boolean | null;
-    responseTime?: number;
-    resolutionTime?: number;
-    slaStatus?: string;
-  };
+  data: ActivitiesResponseData;
   message?: string;
 }
 
+export interface ActivitiesResponseData {
+  leadId: string;
+  activities: ActivityItem[];
+}
 // Child Response Types
 export interface GetLeadChildrenApiResponse {
   isSuccess: boolean;
