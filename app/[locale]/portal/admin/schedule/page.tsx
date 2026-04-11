@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
 import { getAllBranches } from "@/lib/api/branchService";
 import { createAdminSession, fetchAdminSessions } from "@/app/api/admin/sessions";
-import { todayDateOnly, dateOnlyVN } from "@/lib/datetime";
 import { fetchAdminUsersByIds, fetchAdminClasses } from "@/app/api/admin/classes";
 import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
 import {
@@ -317,7 +316,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
   useEffect(() => {
     if (!isOpen) return;
 
-    const formattedDate = todayDateOnly();
+    const today = new Date();
+    const formattedDate = today.toISOString().split("T")[0];
 
     setFormData((prev) => ({
       ...initialFormData,
@@ -448,9 +448,8 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   <select
                     value={formData.branchId}
                     onChange={(e) => handleChange("branchId", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${
-                      errors.branchId ? "border-red-500" : "border-gray-200"
-                    }`}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.branchId ? "border-red-500" : "border-gray-200"
+                      }`}
                   >
                     <option value="">Chọn chi nhánh</option>
                     {branchOptions.map((b) => (
@@ -745,7 +744,9 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                 type="button"
                 onClick={() => {
                   setFormData(initialFormData);
-                  setFormData(prev => ({ ...prev, date: todayDateOnly() }));
+                  const today = new Date();
+                  const formattedDate = today.toISOString().split('T')[0];
+                  setFormData(prev => ({ ...prev, date: formattedDate }));
                   setErrors({});
                 }}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
@@ -886,7 +887,7 @@ function GoToDateButton({ onSelect }: { onSelect: (date: Date) => void }) {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        dropdownRef.current && 
+        dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
         buttonRef.current &&
         !buttonRef.current.contains(event.target as Node)
@@ -1130,7 +1131,7 @@ function WeekTimetable({
                               <span className={`h-2 w-2 rounded-full ${modeDot(s.room)}`} />
                               <span className="font-semibold text-gray-900 truncate">{s.title}</span>
                             </div>
-                            
+
                             <div className="text-[11px] text-gray-700 mb-1">{s.time}</div>
                             <div className="text-[11px] text-gray-600 flex items-center gap-1">
                               <MapPin size={10} />
@@ -1247,7 +1248,7 @@ export default function AdminSchedulePage() {
     }
     return startOfWeek(new Date());
   };
-  
+
   const [weekCursor, setWeekCursor] = useState<Date>(getInitialWeekCursor);
 
   useEffect(() => {
@@ -1337,7 +1338,7 @@ export default function AdminSchedulePage() {
   const formatTimeRangeFromISO = (plannedDatetimeISO: string, durationMinutes: number) => {
     // Parse trực tiếp từ ISO string để tránh vấn đề timezone
     const start = parseISODate(plannedDatetimeISO);
-    
+
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
     const sh = String(start.getHours()).padStart(2, "0");
     const sm = String(start.getMinutes()).padStart(2, "0");
@@ -1391,8 +1392,8 @@ export default function AdminSchedulePage() {
         const weekEnd = new Date(weekCursor);
         weekEnd.setDate(weekEnd.getDate() + 6);
 
-        const fromDate = dateOnlyVN(weekStart);
-        const toDate = dateOnlyVN(weekEnd);
+        const fromDate = weekStart.toISOString().split('T')[0];
+        const toDate = weekEnd.toISOString().split('T')[0];
 
         console.log("📅 Fetching schedule for branch:", branchId || "All branches", "class:", classFilter !== "ALL" ? classFilter : "All");
         console.log("📅 Date range:", fromDate, "to", toDate);
@@ -1433,11 +1434,11 @@ export default function AdminSchedulePage() {
             typeof s.durationMinutes === "number" && s.durationMinutes > 0
               ? s.durationMinutes
               : 60;
-          
+
           // Get teacher name: prioritize API response, then fetched map, then empty
           let teacherName = (s.plannedTeacherName ?? s.teacherName ?? "").trim();
           const teacherId = s.plannedTeacherId ?? s.actualTeacherId;
-          
+
           // If no teacher name from API, try to get from fetched map
           if (!teacherName && teacherId) {
             const fetchedName = teacherNameMap.get(String(teacherId));
@@ -1445,7 +1446,7 @@ export default function AdminSchedulePage() {
               teacherName = fetchedName.trim();
             }
           }
-          
+
           // Debug log for missing teacher names
           if (!teacherName && teacherId) {
             console.warn(`Missing teacher name for session ${s.id}, teacherId: ${teacherId}`);
@@ -1581,14 +1582,14 @@ export default function AdminSchedulePage() {
 
         {/* Thời khoá biểu theo tuần */}
         <div className={`transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <WeekTimetable
-          items={sortedList}
-          weekCursor={weekCursor}
-          setWeekCursor={setWeekCursor}
-          onColorChange={handleColorChange}
-          onCellClick={handleCellClick}
-          onSlotClick={handleSlotClick}
-        />
+          <WeekTimetable
+            items={sortedList}
+            weekCursor={weekCursor}
+            setWeekCursor={setWeekCursor}
+            onColorChange={handleColorChange}
+            onCellClick={handleCellClick}
+            onSlotClick={handleSlotClick}
+          />
         </div>
 
         {/* Footer note

@@ -20,9 +20,15 @@ import type {
  * Lay thu (Tieng Viet) tu Date
  */
 function getVietnameseDow(date: Date): string {
-  const day = date.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ...
+  const day = date.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ..., 6 = Thứ 7
   if (day === 0) return 'Chủ nhật';
-  return `Thứ ${day}`;
+  if (day === 1) return 'Thứ 2';
+  if (day === 2) return 'Thứ 3';
+  if (day === 3) return 'Thứ 4';
+  if (day === 4) return 'Thứ 5';
+  if (day === 5) return 'Thứ 6';
+  if (day === 6) return 'Thứ 7';
+  return 'Chủ nhật';
 }
 
 /**
