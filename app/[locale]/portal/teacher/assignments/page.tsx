@@ -293,17 +293,9 @@ function FileTypeBadge({ type }: { type: string }) {
   );
 }
 
-function SubmissionRow({ item, onDelete, onViewDetail, onUpdate, isSelected, onSelect }: { item: Submission; onDelete: (id: string) => void; onViewDetail: (item: Submission) => void; onUpdate: (item: Submission) => void; isSelected: boolean; onSelect: (id: string) => void }) {
+function SubmissionRow({ item, onDelete, onViewDetail, onUpdate }: { item: Submission; onDelete: (id: string) => void; onViewDetail: (item: Submission) => void; onUpdate: (item: Submission) => void }) {
   return (
     <tr className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 border-b border-red-100">
-      <td className="py-4 px-6">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => onSelect(item.id)}
-          className="w-5 h-5 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-        />
-      </td>
       <td className="py-4 px-6">
         <div className="text-sm font-medium text-gray-900">{item.assignmentTitle}</div>
       </td>
@@ -895,18 +887,7 @@ function CreateAssignmentModal({
                       placeholder="10"
                     />
                   </div>
-                ) : (
-                  <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-amber-50 p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <Award size={16} className="text-red-600" />
-                      Tổng điểm bài trắc nghiệm
-                    </div>
-                    <p className="mt-2 text-2xl font-bold text-gray-900">{totalQuestionPoints || 0}</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Tự tính từ tổng điểm các câu hỏi, không cần teacher nhập tay.
-                    </p>
-                  </div>
-                )}
+                ) : null}
 
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -922,7 +903,26 @@ function CreateAssignmentModal({
                     placeholder="0"
                   />
                 </div>
+
+                {isMultipleChoice && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Clock size={16} className="text-red-600" />
+                      Thời gian làm bài (phút)
+                    </label>
+                    <input
+                      type="number"
+                      value={timeLimitMinutes}
+                      onChange={(e) => setTimeLimitMinutes(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                      min="0"
+                      placeholder="0 - không giới hạn"
+                    />
+                  </div>
+                )}
               </div>
+
+              
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -951,7 +951,20 @@ function CreateAssignmentModal({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4">
+              {isMultipleChoice && (
+                <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-amber-50 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Award size={16} className="text-red-600" />
+                    Tổng điểm bài trắc nghiệm
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">{totalQuestionPoints || 0}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Tự tính từ tổng điểm các câu hỏi, không cần teacher nhập tay.
+                  </p>
+                </div>
+              )}
+
+              {/* <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4">
                 <div className="flex items-start gap-3">
                   <Sparkles size={18} className="mt-0.5 text-amber-600" />
                   <div className="space-y-1 text-sm text-gray-700">
@@ -961,7 +974,7 @@ function CreateAssignmentModal({
                     <p>3. Hạn nộp sẽ tự gợi ý theo ngày buổi học nếu chưa nhập trước.</p>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -1270,24 +1283,6 @@ function CreateAssignmentModal({
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
                       placeholder="Hướng dẫn học viên làm bài trắc nghiệm..."
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <Clock size={16} className="text-red-600" />
-                      Thời gian làm bài (phút)
-                    </label>
-                    <input
-                      type="number"
-                      value={timeLimitMinutes}
-                      onChange={(e) => setTimeLimitMinutes(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                      min="0"
-                      placeholder="0 - không giới hạn thời gian"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Đặt thời gian làm bài cho bài trắc nghiệm. Để trống hoặc 0 để không giới hạn thời gian.
-                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -2197,24 +2192,6 @@ export default function TeacherAssignmentsPage() {
             <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
               <tr>
                 <th className="py-3 px-6 text-left">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      onChange={(e) => {
-                        submissions.forEach(sub => {
-                          if (e.target.checked && !selectedItems.includes(sub.id)) {
-                            setSelectedItems(prev => [...prev, sub.id]);
-                          } else if (!e.target.checked) {
-                            setSelectedItems([]);
-                          }
-                        });
-                      }}
-                      checked={selectedItems.length > 0 && selectedItems.length === submissions.length}
-                      className="w-5 h-5 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                    />
-                  </div>
-                </th>
-                <th className="py-3 px-6 text-left">
                   <SortableHeader
                     label="Tên bài tập"
                     column="assignment"
@@ -2264,8 +2241,6 @@ export default function TeacherAssignmentsPage() {
                     onDelete={handleDeleteHomework} 
                     onViewDetail={handleViewDetail} 
                     onUpdate={handleUpdateHomework} 
-                    isSelected={selectedItems.includes(item.id)} 
-                    onSelect={handleSelect} 
                   />
                 ))
               ) : (
