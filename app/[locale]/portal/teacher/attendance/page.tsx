@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -26,11 +27,17 @@ import {
   X,
   ChevronRight,
   Clock1,
+  ClipboardPen,
+  Loader2,
+  Plus,
+  Trash2,
+  Copy,
 } from "lucide-react";
 
 import {
   fetchSessions,
   fetchAttendance,
+  fetchSessionDetail,
   saveAttendance,
   toISODateStart,
   toISODateEnd,
@@ -48,6 +55,13 @@ import {
   updateSessionReport,
 } from "@/app/api/teacher/sessionReport";
 import SessionNoteModal from "@/components/teacher/attendance/SessionNoteModal";
+import {
+  createLessonPlan,
+  getClassLessonPlanSyllabus,
+  getLessonPlanById,
+  updateLessonPlan,
+} from "@/lib/api/lessonPlanService";
+import type { ClassLessonPlanSyllabusSession, LessonPlan } from "@/lib/api/lessonPlanService";
 
 type FilterField = {
   date: string;
@@ -354,6 +368,68 @@ function Pagination({
   );
 }
 
+// --- Teaching report activity helpers ---
+type TeachingActivityDraft = {
+  time: string;
+  book: string;
+  skills: string;
+  classwork: string;
+  requiredMaterials: string;
+  homeworkRequiredMaterials: string;
+  extra: string;
+};
+
+function createEmptyTeachingActivity(): TeachingActivityDraft {
+  return { time: "", book: "", skills: "", classwork: "", requiredMaterials: "", homeworkRequiredMaterials: "", extra: "" };
+}
+
+function parseTeachingJson(value?: string | null): Record<string, any> | null {
+  if (!value || !value.trim()) return null;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+function teachingActivityDraftsFromUnknown(value: unknown): TeachingActivityDraft[] {
+  if (!Array.isArray(value) || !value.length) return [createEmptyTeachingActivity()];
+  return value.map((item) => {
+    const src = item && typeof item === "object" && !Array.isArray(item) ? (item as Record<string, any>) : {};
+    const str = (obj: Record<string, any>, keys: string[]) => {
+      for (const k of keys) { const v = obj[k]; if (typeof v === "string" && v.trim()) return v; }
+      return "";
+    };
+    return {
+      time: str(src, ["time"]),
+      book: str(src, ["book"]),
+      skills: str(src, ["skills"]),
+      classwork: str(src, ["classwork"]),
+      requiredMaterials: str(src, ["requiredMaterials"]),
+      homeworkRequiredMaterials: str(src, ["homeworkRequiredMaterials"]),
+      extra: str(src, ["extra"]),
+    };
+  });
+}
+
+function activitiesToContentJson(activities: TeachingActivityDraft[], homework: string, notes: string): string {
+  const cleanActivities = activities
+    .filter((a) => Object.values(a).some((v) => v.trim()))
+    .map((a) => {
+      const obj: Record<string, string> = {};
+      if (a.time.trim()) obj.time = a.time.trim();
+      if (a.book.trim()) obj.book = a.book.trim();
+      if (a.skills.trim()) obj.skills = a.skills.trim();
+      if (a.classwork.trim()) obj.classwork = a.classwork.trim();
+      if (a.requiredMaterials.trim()) obj.requiredMaterials = a.requiredMaterials.trim();
+      if (a.homeworkRequiredMaterials.trim()) obj.homeworkRequiredMaterials = a.homeworkRequiredMaterials.trim();
+      if (a.extra.trim()) obj.extra = a.extra.trim();
+      return obj;
+    });
+
+  const result: Record<string, any> = {};
+  if (cleanActivities.length) result.activities = cleanActivities;
+  if (homework.trim()) result.homeworkNotes = homework.trim().split(/\r?\n/).filter(Boolean);
+  if (notes.trim()) result.teacherNotes = notes.trim();
+  return JSON.stringify(result);
+}
+
 export default function TeacherAttendancePage() {
   const router = useRouter();
   const params = useParams();
@@ -414,6 +490,18 @@ export default function TeacherAttendancePage() {
   const [isEnhancingNote, setIsEnhancingNote] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [expandedStatusRows, setExpandedStatusRows] = useState<Set<string>>(new Set());
+
+  // Teaching report modal state
+  const [teachingReportOpen, setTeachingReportOpen] = useState(false);
+  const [teachingReportLoading, setTeachingReportLoading] = useState(false);
+  const [teachingReportSubmitting, setTeachingReportSubmitting] = useState(false);
+  const [teachingReportError, setTeachingReportError] = useState<string | null>(null);
+  const [teachingReportPlan, setTeachingReportPlan] = useState<LessonPlan | null>(null);
+  const [teachingReportSession, setTeachingReportSession] = useState<ClassLessonPlanSyllabusSession | null>(null);
+  const [teachingActualContent, setTeachingActualContent] = useState("");
+  const [teachingActualHomework, setTeachingActualHomework] = useState("");
+  const [teachingTeacherNotes, setTeachingTeacherNotes] = useState("");
+  const [teachingActivityDrafts, setTeachingActivityDrafts] = useState<TeachingActivityDraft[]>([createEmptyTeachingActivity()]);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 
   const recordsPerPage = 8;
@@ -1052,6 +1140,211 @@ export default function TeacherAttendancePage() {
     setCurrentPage(1);
   }, [filterStatus, searchQuery, sortColumn, sortDirection]);
 
+  // --- Teaching Report handlers ---
+  const handleOpenTeachingReport = useCallback(async () => {
+    if (!selectedSessionId || !selectedSession) return;
+
+    setTeachingReportOpen(true);
+    setTeachingReportLoading(true);
+    setTeachingReportError(null);
+    setTeachingReportPlan(null);
+    setTeachingReportSession(null);
+    setTeachingActualContent("");
+    setTeachingActualHomework("");
+    setTeachingTeacherNotes("");
+    setTeachingActivityDrafts([createEmptyTeachingActivity()]);
+
+    try {
+      // Try to get classId from session data (multiple fallback keys)
+      let classId = String(
+        (selectedSession as any)?.classId ??
+        (selectedSession as any)?.ClassId ??
+        (selectedSession as any)?.class_id ??
+        (selectedSession as any)?.class?.id ??
+        (selectedSession as any)?.classInfo?.id ??
+        ""
+      ).trim();
+
+      // Fallback: fetch session detail to get classId
+      if (!classId) {
+        try {
+          const detailResp = await fetchSessionDetail(selectedSessionId);
+          const detailSession = (detailResp as any)?.session ?? detailResp;
+          classId = String(
+            detailSession?.classId ?? detailSession?.ClassId ?? detailSession?.class_id ?? ""
+          ).trim();
+        } catch { /* ignore detail fetch error */ }
+      }
+
+      if (!classId) {
+        setTeachingReportError(
+          "Không tìm thấy thông tin lớp học (classId) cho buổi này. Backend cần trả classId trong session data."
+        );
+        setTeachingReportLoading(false);
+        return;
+      }
+
+      // Load syllabus to find matching session
+      const syllabusResp = await getClassLessonPlanSyllabus(classId);
+      if (!syllabusResp.isSuccess || !syllabusResp.data) {
+        setTeachingReportError("Không thể tải syllabus của lớp. Vui lòng thử lại.");
+        setTeachingReportLoading(false);
+        return;
+      }
+
+      const sessionId = selectedSessionId;
+      const matchedSession = syllabusResp.data.sessions.find(
+        (s) => s.sessionId === sessionId
+      );
+
+      if (!matchedSession) {
+        setTeachingReportError(
+          "Không tìm thấy session này trong syllabus của lớp. Vui lòng liên hệ Admin kiểm tra."
+        );
+        setTeachingReportLoading(false);
+        return;
+      }
+
+      setTeachingReportSession(matchedSession);
+
+      // Initialize activity drafts from existing data
+      const initDraftsFromContent = (content: string | null | undefined): TeachingActivityDraft[] => {
+        const parsed = parseTeachingJson(content);
+        if (parsed && Array.isArray(parsed.activities) && parsed.activities.length) {
+          return teachingActivityDraftsFromUnknown(parsed.activities);
+        }
+        return [createEmptyTeachingActivity()];
+      };
+
+      const initHomeworkFromContent = (content: string | null | undefined): string => {
+        const parsed = parseTeachingJson(content);
+        if (parsed) {
+          const hw = parsed.homeworkNotes ?? parsed.homeworkLabel ?? "";
+          if (Array.isArray(hw)) return hw.join("\n");
+          return typeof hw === "string" ? hw : "";
+        }
+        return "";
+      };
+
+      const initNotesFromContent = (content: string | null | undefined): string => {
+        const parsed = parseTeachingJson(content);
+        if (parsed) {
+          const n = parsed.teacherNotes ?? parsed.notes ?? "";
+          if (Array.isArray(n)) return n.join("\n");
+          return typeof n === "string" ? n : "";
+        }
+        return "";
+      };
+
+      // If lesson plan already exists, load it
+      if (matchedSession.lessonPlanId) {
+        const planResp = await getLessonPlanById(matchedSession.lessonPlanId);
+        if (planResp.isSuccess && planResp.data) {
+          setTeachingReportPlan(planResp.data);
+          const ac = planResp.data.actualContent || matchedSession.actualContent || "";
+          setTeachingActualContent(ac);
+          setTeachingActualHomework(planResp.data.actualHomework || matchedSession.actualHomework || "");
+          setTeachingTeacherNotes(planResp.data.teacherNotes || matchedSession.teacherNotes || "");
+
+          // Init activity drafts: prefer actual content, then planned content, then template
+          if (ac) {
+            setTeachingActivityDrafts(initDraftsFromContent(ac));
+            setTeachingActualHomework((prev) => prev || initHomeworkFromContent(ac));
+            setTeachingTeacherNotes((prev) => prev || initNotesFromContent(ac));
+          } else if (matchedSession.plannedContent) {
+            setTeachingActivityDrafts(initDraftsFromContent(matchedSession.plannedContent));
+            setTeachingActualHomework((prev) => prev || initHomeworkFromContent(matchedSession.plannedContent));
+          } else if (matchedSession.templateSyllabusContent) {
+            setTeachingActivityDrafts(initDraftsFromContent(matchedSession.templateSyllabusContent));
+            setTeachingActualHomework((prev) => prev || initHomeworkFromContent(matchedSession.templateSyllabusContent));
+          }
+        }
+      } else {
+        // Create lesson plan automatically
+        const createResp = await createLessonPlan({
+          classId,
+          sessionId,
+          templateId: matchedSession.templateId || null,
+          plannedContent: null,
+          actualContent: null,
+          actualHomework: null,
+          teacherNotes: null,
+        });
+        if (createResp.isSuccess && createResp.data) {
+          setTeachingReportPlan(createResp.data);
+          // Pre-fill from planned content or template
+          if (matchedSession.plannedContent) {
+            setTeachingActivityDrafts(initDraftsFromContent(matchedSession.plannedContent));
+            setTeachingActualHomework(initHomeworkFromContent(matchedSession.plannedContent));
+          } else if (matchedSession.templateSyllabusContent) {
+            setTeachingActivityDrafts(initDraftsFromContent(matchedSession.templateSyllabusContent));
+            setTeachingActualHomework(initHomeworkFromContent(matchedSession.templateSyllabusContent));
+          }
+        } else {
+          setTeachingReportError(
+            "Không thể tạo lesson plan cho buổi này. " + (createResp.message || "")
+          );
+        }
+      }
+    } catch (err: any) {
+      setTeachingReportError(err?.message || "Đã xảy ra lỗi khi tải thông tin giáo án.");
+    } finally {
+      setTeachingReportLoading(false);
+    }
+  }, [selectedSessionId, selectedSession]);
+
+  const handleSubmitTeachingReport = useCallback(async () => {
+    if (!teachingReportPlan?.id) return;
+
+    // Check if at least one activity has content
+    const hasActivities = teachingActivityDrafts.some((a) =>
+      Object.values(a).some((v) => v.trim())
+    );
+    if (!hasActivities) {
+      setTeachingReportError("Vui lòng nhập ít nhất 1 activity nội dung dạy thực tế.");
+      return;
+    }
+
+    setTeachingReportSubmitting(true);
+    setTeachingReportError(null);
+
+    try {
+      const actualContentJson = activitiesToContentJson(
+        teachingActivityDrafts,
+        teachingActualHomework,
+        teachingTeacherNotes,
+      );
+
+      const resp = await updateLessonPlan(teachingReportPlan.id, {
+        actualContent: actualContentJson || null,
+        actualHomework: teachingActualHomework.trim() || null,
+        teacherNotes: teachingTeacherNotes.trim() || null,
+      });
+
+      if (!resp.isSuccess) {
+        setTeachingReportError(resp.message || resp.detail || "Không thể lưu báo cáo buổi dạy.");
+        return;
+      }
+
+      toast({
+        title: "Đã lưu giáo án buổi dạy",
+        description: "Nội dung giảng dạy, bài tập và ghi chú đã được cập nhật thành công.",
+        variant: "success",
+      });
+
+      setTeachingReportOpen(false);
+    } catch (err: any) {
+      setTeachingReportError(err?.message || "Không thể lưu báo cáo buổi dạy.");
+    } finally {
+      setTeachingReportSubmitting(false);
+    }
+  }, [teachingReportPlan, teachingActivityDrafts, teachingActualHomework, teachingTeacherNotes]);
+
+  const handleCloseTeachingReport = useCallback(() => {
+    setTeachingReportOpen(false);
+    setTeachingReportError(null);
+  }, []);
+
   const stats = useMemo(() => {
     if (attendanceList.length > 0) {
       const total = attendanceList.length;
@@ -1369,6 +1662,14 @@ export default function TeacherAttendancePage() {
                   >
                     <ChevronLeft size={16} />
                     <span>Buổi khác</span>
+                  </button>
+
+                  <button
+                    onClick={handleOpenTeachingReport}
+                    className="px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:scale-[1.02] cursor-pointer"
+                  >
+                    <ClipboardPen size={16} />
+                    <span>Điền giáo án buổi dạy</span>
                   </button>
 
                   <button
@@ -1747,6 +2048,369 @@ export default function TeacherAttendancePage() {
             onEnhance={handleEnhanceStudentNote}
             onSubmitForReview={handleSubmitStudentNoteForReview}
           />
+
+          {/* Teaching Report Modal */}
+          {teachingReportOpen && createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCloseTeachingReport} />
+              <div className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-2xl">
+                {/* Header */}
+                <div className="sticky top-0 z-10 bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-5 rounded-t-2xl">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="rounded-xl bg-white/20 backdrop-blur-sm p-3 text-white shadow-lg">
+                        <ClipboardPen size={22} />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">Điền giáo án buổi dạy</h2>
+                        <p className="mt-1 text-sm text-emerald-100">
+                          Cập nhật nội dung giảng dạy thực tế để Admin theo dõi
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCloseTeachingReport}
+                      className="rounded-full p-2 text-white transition hover:bg-white/20 cursor-pointer"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                {teachingReportLoading ? (
+                  <div className="flex items-center justify-center py-16 text-gray-600">
+                    <Loader2 size={20} className="mr-3 animate-spin text-emerald-600" />
+                    Đang tải thông tin giáo án...
+                  </div>
+                ) : (
+                  <div className="space-y-5 p-6">
+                    {/* Session Info - compact inline */}
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-gray-600">
+                      <span><strong className="text-gray-900">{selectedLesson?.lesson || "-"}</strong></span>
+                      <span>{selectedLesson?.date || "-"}</span>
+                      <span>{selectedLesson?.time || "-"}</span>
+                    </div>
+
+                    {/* Syllabus & Planned Reference - collapsible */}
+                    {(teachingReportSession?.templateSyllabusContent || teachingReportSession?.plannedContent) && (
+                      <details className="rounded-xl border border-gray-200 bg-gray-50/50">
+                        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-900">
+                          Xem nội dung syllabus / giáo án dự kiến (tham khảo)
+                        </summary>
+                        <div className="space-y-4 border-t border-gray-200 p-4">
+                          {/* Syllabus Reference */}
+                          {(() => {
+                            const syllabusObj = parseTeachingJson(teachingReportSession?.templateSyllabusContent);
+                            const syllabusActivities = syllabusObj && Array.isArray(syllabusObj.activities) ? syllabusObj.activities : [];
+                            if (!syllabusActivities.length && !teachingReportSession?.templateSyllabusContent) return null;
+                            return (
+                              <div>
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">Syllabus chuẩn</div>
+                                {syllabusActivities.length > 0 ? (
+                                  <div className="overflow-x-auto rounded-lg border border-blue-200">
+                                    <table className="min-w-[800px] border-collapse text-xs">
+                                      <thead>
+                                        <tr className="bg-blue-50 text-gray-700">
+                                          <th className="border border-blue-200 px-2 py-1.5 text-left font-semibold">#</th>
+                                          <th className="border border-blue-200 px-2 py-1.5 text-left font-semibold">Time</th>
+                                          <th className="border border-blue-200 px-2 py-1.5 text-left font-semibold">Book</th>
+                                          <th className="border border-blue-200 px-2 py-1.5 text-left font-semibold">Skills</th>
+                                          <th className="border border-blue-200 px-2 py-1.5 text-left font-semibold">Classwork</th>
+                                          <th className="border border-blue-200 px-2 py-1.5 text-left font-semibold">Materials</th>
+                                          <th className="border border-blue-200 px-2 py-1.5 text-left font-semibold">HW</th>
+                                          <th className="border border-blue-200 px-2 py-1.5 text-left font-semibold">Extra</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {syllabusActivities.map((a: any, i: number) => (
+                                          <tr key={i} className="bg-white align-top">
+                                            <td className="border border-blue-200 px-2 py-1.5 text-gray-500">{i + 1}</td>
+                                            <td className="border border-blue-200 px-2 py-1.5 whitespace-pre-wrap">{a.time || "-"}</td>
+                                            <td className="border border-blue-200 px-2 py-1.5 whitespace-pre-wrap">{a.book || "-"}</td>
+                                            <td className="border border-blue-200 px-2 py-1.5 whitespace-pre-wrap">{a.skills || "-"}</td>
+                                            <td className="border border-blue-200 px-2 py-1.5 whitespace-pre-wrap">{a.classwork || "-"}</td>
+                                            <td className="border border-blue-200 px-2 py-1.5 whitespace-pre-wrap">{a.requiredMaterials || "-"}</td>
+                                            <td className="border border-blue-200 px-2 py-1.5 whitespace-pre-wrap">{a.homeworkRequiredMaterials || "-"}</td>
+                                            <td className="border border-blue-200 px-2 py-1.5 whitespace-pre-wrap">{a.extra || "-"}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-gray-500 whitespace-pre-wrap">{teachingReportSession?.templateSyllabusContent}</div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          {/* Planned Content */}
+                          {(() => {
+                            const plannedObj = parseTeachingJson(teachingReportSession?.plannedContent);
+                            const plannedActivities = plannedObj && Array.isArray(plannedObj.activities) ? plannedObj.activities : [];
+                            if (!plannedActivities.length && !teachingReportSession?.plannedContent) return null;
+                            return (
+                              <div>
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700">Giáo án dự kiến</div>
+                                {plannedActivities.length > 0 ? (
+                                  <div className="overflow-x-auto rounded-lg border border-amber-200">
+                                    <table className="min-w-[800px] border-collapse text-xs">
+                                      <thead>
+                                        <tr className="bg-amber-50 text-gray-700">
+                                          <th className="border border-amber-200 px-2 py-1.5 text-left font-semibold">#</th>
+                                          <th className="border border-amber-200 px-2 py-1.5 text-left font-semibold">Time</th>
+                                          <th className="border border-amber-200 px-2 py-1.5 text-left font-semibold">Book</th>
+                                          <th className="border border-amber-200 px-2 py-1.5 text-left font-semibold">Skills</th>
+                                          <th className="border border-amber-200 px-2 py-1.5 text-left font-semibold">Classwork</th>
+                                          <th className="border border-amber-200 px-2 py-1.5 text-left font-semibold">Materials</th>
+                                          <th className="border border-amber-200 px-2 py-1.5 text-left font-semibold">HW</th>
+                                          <th className="border border-amber-200 px-2 py-1.5 text-left font-semibold">Extra</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {plannedActivities.map((a: any, i: number) => (
+                                          <tr key={i} className="bg-white align-top">
+                                            <td className="border border-amber-200 px-2 py-1.5 text-gray-500">{i + 1}</td>
+                                            <td className="border border-amber-200 px-2 py-1.5 whitespace-pre-wrap">{a.time || "-"}</td>
+                                            <td className="border border-amber-200 px-2 py-1.5 whitespace-pre-wrap">{a.book || "-"}</td>
+                                            <td className="border border-amber-200 px-2 py-1.5 whitespace-pre-wrap">{a.skills || "-"}</td>
+                                            <td className="border border-amber-200 px-2 py-1.5 whitespace-pre-wrap">{a.classwork || "-"}</td>
+                                            <td className="border border-amber-200 px-2 py-1.5 whitespace-pre-wrap">{a.requiredMaterials || "-"}</td>
+                                            <td className="border border-amber-200 px-2 py-1.5 whitespace-pre-wrap">{a.homeworkRequiredMaterials || "-"}</td>
+                                            <td className="border border-amber-200 px-2 py-1.5 whitespace-pre-wrap">{a.extra || "-"}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-gray-500 whitespace-pre-wrap">{teachingReportSession?.plannedContent}</div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Editable Activity Table */}
+                    <div>
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <label className="text-sm font-medium text-gray-700">
+                          Nội dung dạy thực tế <span className="text-red-500">*</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setTeachingActivityDrafts((prev) => [...prev, createEmptyTeachingActivity()])}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <Plus size={14} />
+                          Thêm dòng
+                        </button>
+                      </div>
+
+                      <div className="overflow-x-auto rounded-xl border border-gray-200">
+                        <table className="min-w-[1000px] border-collapse text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 text-gray-700">
+                              <th className="border border-gray-200 px-3 py-2 text-left font-semibold w-10">#</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Time</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Book</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Skills</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Classwork</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Required materials</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left font-semibold">HW materials</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left font-semibold">Extra</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left font-semibold w-20"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {teachingActivityDrafts.map((activity, idx) => (
+                              <tr key={idx} className="align-top">
+                                <td className="border border-gray-200 px-3 py-3 font-semibold text-gray-500">{idx + 1}</td>
+                                <td className="border border-gray-200 p-1.5">
+                                  <input
+                                    value={activity.time}
+                                    onChange={(e) => {
+                                      const updated = [...teachingActivityDrafts];
+                                      updated[idx] = { ...updated[idx], time: e.target.value };
+                                      setTeachingActivityDrafts(updated);
+                                    }}
+                                    className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                    placeholder="5 mins"
+                                  />
+                                </td>
+                                <td className="border border-gray-200 p-1.5">
+                                  <input
+                                    value={activity.book}
+                                    onChange={(e) => {
+                                      const updated = [...teachingActivityDrafts];
+                                      updated[idx] = { ...updated[idx], book: e.target.value };
+                                      setTeachingActivityDrafts(updated);
+                                    }}
+                                    className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                    placeholder="B1 DESTINATION"
+                                  />
+                                </td>
+                                <td className="border border-gray-200 p-1.5">
+                                  <input
+                                    value={activity.skills}
+                                    onChange={(e) => {
+                                      const updated = [...teachingActivityDrafts];
+                                      updated[idx] = { ...updated[idx], skills: e.target.value };
+                                      setTeachingActivityDrafts(updated);
+                                    }}
+                                    className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                    placeholder="Speaking & Reading"
+                                  />
+                                </td>
+                                <td className="border border-gray-200 p-1.5">
+                                  <textarea
+                                    value={activity.classwork}
+                                    onChange={(e) => {
+                                      const updated = [...teachingActivityDrafts];
+                                      updated[idx] = { ...updated[idx], classwork: e.target.value };
+                                      setTeachingActivityDrafts(updated);
+                                    }}
+                                    rows={2}
+                                    className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                    placeholder={"WARM UP\nHomework Correction"}
+                                  />
+                                </td>
+                                <td className="border border-gray-200 p-1.5">
+                                  <textarea
+                                    value={activity.requiredMaterials}
+                                    onChange={(e) => {
+                                      const updated = [...teachingActivityDrafts];
+                                      updated[idx] = { ...updated[idx], requiredMaterials: e.target.value };
+                                      setTeachingActivityDrafts(updated);
+                                    }}
+                                    rows={2}
+                                    className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                    placeholder="page 101, 102"
+                                  />
+                                </td>
+                                <td className="border border-gray-200 p-1.5">
+                                  <textarea
+                                    value={activity.homeworkRequiredMaterials}
+                                    onChange={(e) => {
+                                      const updated = [...teachingActivityDrafts];
+                                      updated[idx] = { ...updated[idx], homeworkRequiredMaterials: e.target.value };
+                                      setTeachingActivityDrafts(updated);
+                                    }}
+                                    rows={2}
+                                    className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                    placeholder="HOMEWORK"
+                                  />
+                                </td>
+                                <td className="border border-gray-200 p-1.5">
+                                  <textarea
+                                    value={activity.extra}
+                                    onChange={(e) => {
+                                      const updated = [...teachingActivityDrafts];
+                                      updated[idx] = { ...updated[idx], extra: e.target.value };
+                                      setTeachingActivityDrafts(updated);
+                                    }}
+                                    rows={2}
+                                    className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm text-gray-700 focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                    placeholder="Handbook 88, 89"
+                                  />
+                                </td>
+                                <td className="border border-gray-200 px-2 py-2">
+                                  <div className="flex flex-col gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = [...teachingActivityDrafts];
+                                        updated.splice(idx + 1, 0, { ...activity });
+                                        setTeachingActivityDrafts(updated);
+                                      }}
+                                      className="rounded-lg border border-blue-200 bg-white p-1.5 text-blue-700 hover:bg-blue-50 cursor-pointer"
+                                      title="Clone"
+                                    >
+                                      <Copy size={13} />
+                                    </button>
+                                    {teachingActivityDrafts.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setTeachingActivityDrafts((prev) =>
+                                            prev.filter((_, i) => i !== idx)
+                                          );
+                                        }}
+                                        className="rounded-lg border border-red-200 bg-white p-1.5 text-red-700 hover:bg-red-50 cursor-pointer"
+                                        title="Xóa"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Homework Input */}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Bài tập về nhà</label>
+                      <textarea
+                        value={teachingActualHomework}
+                        onChange={(e) => setTeachingActualHomework(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+                        placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
+                      />
+                    </div>
+
+                    {/* Teacher Notes */}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Ghi chú thêm</label>
+                      <textarea
+                        value={teachingTeacherNotes}
+                        onChange={(e) => setTeachingTeacherNotes(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+                        placeholder="VD: Bé An vắng, cần gửi bài bù. Lớp tiến bộ tốt..."
+                      />
+                    </div>
+
+                    {/* Error */}
+                    {teachingReportError ? (
+                      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {teachingReportError}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Footer Actions - sticky bottom */}
+                {!teachingReportLoading && (
+                  <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-4">
+                    <button
+                      type="button"
+                      onClick={handleCloseTeachingReport}
+                      className="cursor-pointer rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSubmitTeachingReport}
+                      disabled={teachingReportSubmitting || !teachingReportPlan}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {teachingReportSubmitting ? <Loader2 size={14} className="animate-spin" /> : null}
+                      Lưu giáo án buổi dạy
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>,
+          document.body)}
         </div>
       ) : null}
     </div>

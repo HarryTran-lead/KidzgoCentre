@@ -76,6 +76,7 @@ export type StudentAttendanceHistoryItem = {
 export type SessionApiItem = {
   id?: string | null;
   sessionId?: string | null;
+  classId?: string | null;
   actualDatetime?: string | null;
   plannedDatetime?: string | null;
   durationMinutes?: number | null;

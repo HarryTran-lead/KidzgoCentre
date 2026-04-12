@@ -369,3 +369,47 @@ Frontend phải xử lý case này riêng.
   - mở chi tiết lesson plan,
   - cập nhật lesson plan thực tế.
 - Frontend phải xử lý đầy đủ `400/401/403/404/409` và parse `syllabusContent` như JSON có cấu trúc.
+
+## 13. Báo cáo buổi dạy (Teaching Report)
+
+### 13.1. Mục tiêu
+
+- Giáo viên sau mỗi buổi dạy bấm nút "Báo cáo buổi dạy" để cập nhật nội dung dạy thực tế.
+- Admin/Staff có thể xem lại báo cáo đó ngay trên màn hình syllabus.
+
+### 13.2. Flow của Teacher
+
+1. Teacher mở syllabus của lớp (`GET /api/lesson-plans/classes/{classId}/syllabus`).
+2. Tại mỗi session có `canEdit = true`, hiển thị nút **"Báo cáo buổi dạy"**.
+3. Khi bấm:
+   - Nếu session chưa có lesson plan (`lessonPlanId = null`), frontend tự động tạo lesson plan bằng `POST /api/lesson-plans` rồi mở modal báo cáo.
+   - Nếu session đã có lesson plan, frontend load chi tiết bằng `GET /api/lesson-plans/{id}` rồi mở modal báo cáo.
+4. Modal báo cáo cho phép nhập:
+   - **Nội dung dạy thực tế** (`actualContent`) — bắt buộc.
+   - **Bài tập về nhà** (`actualHomework`) — tùy chọn.
+   - **Ghi chú thêm** (`teacherNotes`) — tùy chọn.
+5. Khi lưu, frontend gọi `PUT /api/lesson-plans/{id}` với `actualContent`, `actualHomework`, `teacherNotes`.
+
+### 13.3. Flow của Admin/Staff
+
+1. Admin/Staff mở syllabus của lớp bất kỳ.
+2. Mỗi session hiển thị badge **"Đã báo cáo"** hoặc **"Chưa báo cáo"**.
+3. Session đã có báo cáo sẽ có viền xanh lá, panel "Báo cáo nội dung dạy thực tế" hiện nổi bật.
+4. Bộ lọc hỗ trợ: **"Đã báo cáo buổi dạy"** / **"Chưa báo cáo buổi dạy"**.
+5. Thống kê hiển thị số session đã được báo cáo.
+
+### 13.4. API sử dụng
+
+- `POST /api/lesson-plans` — tạo lesson plan nếu chưa có.
+- `PUT /api/lesson-plans/{id}` — cập nhật `actualContent`, `actualHomework`, `teacherNotes`.
+- `GET /api/lesson-plans/classes/{classId}/syllabus` — load danh sách session kèm trạng thái báo cáo.
+
+### 13.5. Template Excel chuẩn cho import syllabus
+
+File `xlsx` khi import cần tuân thủ:
+- Header chứa `Period / Date / Teacher`.
+- Các cột chính: `Time`, `Book`, `Skills`, `Classwork`, `Required Materials`, `Homework Required Materials`.
+- Backend gom nhiều dòng cùng `Period` thành một session.
+- Mỗi sheet map theo `ProgramId + SessionIndex`.
+- Hỗ trợ nhiều sheet trong một file.
+- Upsert theo `ProgramId + SessionIndex`, có tùy chọn `overwriteExisting`.
