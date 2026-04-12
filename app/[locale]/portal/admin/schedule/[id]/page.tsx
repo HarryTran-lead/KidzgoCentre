@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -14,10 +14,17 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Edit3,
+  Save,
+  X,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import {
   fetchSessionDetail,
   fetchAttendance,
+  saveAttendance,
+  updateAttendance,
 } from "@/app/api/teacher/attendance";
 import type {
   AttendanceStatus,
@@ -234,6 +241,10 @@ export default function AdminLessonDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedStudents, setEditedStudents] = useState<Student[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -308,7 +319,56 @@ export default function AdminLessonDetailPage() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedStudents = filtered.slice(startIndex, endIndex);
+  const paginatedStudents = isEditing
+    ? editedStudents.slice(startIndex, endIndex)
+    : filtered.slice(startIndex, endIndex);
+
+  const handleStartEdit = useCallback(() => {
+    setEditedStudents([...list]);
+    setIsEditing(true);
+    setSaveMsg(null);
+  }, [list]);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditedStudents([]);
+    setSaveMsg(null);
+  }, []);
+
+  const handleStatusChange = useCallback((studentId: string, newStatus: AttendanceStatus) => {
+    setEditedStudents((prev) =>
+      prev.map((s) => (s.id === studentId ? { ...s, status: newStatus } : s))
+    );
+  }, []);
+
+  const handleNoteChange = useCallback((studentId: string, note: string) => {
+    setEditedStudents((prev) =>
+      prev.map((s) => (s.id === studentId ? { ...s, note } : s))
+    );
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!lessonId) return;
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      // Check if any student has been marked already (update vs create)
+      const anyMarked = list.some((s) => s.status && s.status !== "notMarked");
+      await saveAttendance(lessonId, editedStudents, !anyMarked);
+      // Refresh data
+      const attendance = await fetchAttendance(lessonId);
+      setList(attendance.students);
+      setAttendanceSummary(attendance.attendanceSummary);
+      setIsEditing(false);
+      setEditedStudents([]);
+      setSaveMsg({ type: "success", text: "Đã lưu điểm danh thành công" });
+    } catch (err: any) {
+      const msg = err?.message ?? "Có lỗi xảy ra khi lưu điểm danh";
+      setSaveMsg({ type: "error", text: msg });
+    } finally {
+      setSaving(false);
+    }
+  }, [lessonId, editedStudents, list]);
 
   const totalStudentsCount = attendanceSummary?.totalStudents ?? list.length;
   const checkedCount =
@@ -490,13 +550,50 @@ export default function AdminLessonDetailPage() {
               </div>
               <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 text-green-700 border border-green-200 text-sm font-semibold">
                 <CheckCircle size={16} />
-                Chế độ xem (Admin) – không chỉnh sửa điểm danh
+                Admin – có thể chỉnh sửa sau 24 giờ
               </span>
+              {!isEditing ? (
+                <button
+                  onClick={handleStartEdit}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition flex items-center gap-2 text-sm cursor-pointer"
+                >
+                  <Edit3 size={16} /> Chỉnh sửa điểm danh
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    className="px-4 py-2 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition text-sm cursor-pointer disabled:opacity-50"
+                  >
+                    <X size={16} className="inline mr-1" /> Hủy
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg transition flex items-center gap-2 text-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Lưu điểm danh
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
+          {/* Save message */}
+          {saveMsg && (
+            <div className={`mx-6 mt-4 p-3 rounded-xl text-sm flex items-center gap-2 ${
+              saveMsg.type === "success"
+                ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                : "bg-rose-50 border border-rose-200 text-rose-700"
+            }`}>
+              {saveMsg.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+              {saveMsg.text}
+            </div>
+          )}
           <table className="w-full">
             <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
               <tr>
@@ -557,7 +654,18 @@ export default function AdminLessonDetailPage() {
                       </div>
                     </td>
                     <td className="py-3 px-6 text-center">
-                      {student.status ? (
+                      {isEditing ? (
+                        <select
+                          value={student.status ?? "notMarked"}
+                          onChange={(e) => handleStatusChange(student.id, e.target.value as AttendanceStatus)}
+                          className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm bg-white outline-none focus:ring-2 focus:ring-red-300 cursor-pointer"
+                        >
+                          <option value="notMarked">Chưa điểm danh</option>
+                          <option value="present">Có mặt</option>
+                          <option value="absent">Vắng</option>
+                          <option value="makeup">Học bù</option>
+                        </select>
+                      ) : student.status ? (
                         <StatusBadge status={student.status} />
                       ) : (
                         <span className="text-xs text-gray-500">
@@ -566,8 +674,18 @@ export default function AdminLessonDetailPage() {
                       )}
                     </td>
                     <td className="py-3 px-6 text-sm text-gray-700">
-                      {student.note || (
-                        <span className="text-gray-400">Không có ghi chú</span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={student.note ?? ""}
+                          onChange={(e) => handleNoteChange(student.id, e.target.value)}
+                          placeholder="Ghi chú..."
+                          className="w-full px-3 py-1.5 rounded-lg border border-gray-300 text-sm bg-white outline-none focus:ring-2 focus:ring-red-300"
+                        />
+                      ) : (
+                        student.note || (
+                          <span className="text-gray-400">Không có ghi chú</span>
+                        )
                       )}
                     </td>
                   </tr>

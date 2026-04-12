@@ -14,6 +14,8 @@ export type ParentTimetableSession = {
   durationMinutes?: number | null;
   participationType?: string | null;
   status?: string | null;
+  color?: string | null;
+  programName?: string | null;
   plannedRoomName?: string | null;
   actualRoomName?: string | null;
   plannedTeacherName?: string | null;

@@ -26,6 +26,12 @@ import type {
   ChangePinApiResponse,
   RequestParentPinResetRequest,
   RequestPinResetApiResponse,
+  RequestPinResetZaloOtpRequest,
+  RequestPinResetZaloOtpApiResponse,
+  VerifyPinResetZaloOtpRequest,
+  VerifyPinResetZaloOtpApiResponse,
+  ResetPinRequest,
+  ResetPinApiResponse,
   GetProfilesApiResponse,
   UserMeApiResponse,
   UpdateUserMeRequest,
@@ -102,6 +108,27 @@ export async function changePin(data: ChangeUserPinRequest): Promise<ChangePinAp
  */
 export async function requestPinReset(data: RequestParentPinResetRequest): Promise<RequestPinResetApiResponse> {
   return post<RequestPinResetApiResponse>(AUTH_ENDPOINTS.REQUEST_PIN_RESET, data);
+}
+
+/**
+ * Request PIN reset via Zalo OTP (token auto-injected)
+ */
+export async function requestPinResetZaloOtp(data: RequestPinResetZaloOtpRequest): Promise<RequestPinResetZaloOtpApiResponse> {
+  return post<RequestPinResetZaloOtpApiResponse>(AUTH_ENDPOINTS.REQUEST_PIN_RESET_ZALO_OTP, data);
+}
+
+/**
+ * Verify Zalo OTP for PIN reset (public)
+ */
+export async function verifyPinResetZaloOtp(data: VerifyPinResetZaloOtpRequest): Promise<VerifyPinResetZaloOtpApiResponse> {
+  return post<VerifyPinResetZaloOtpApiResponse>(AUTH_ENDPOINTS.VERIFY_PIN_RESET_ZALO_OTP, data);
+}
+
+/**
+ * Reset PIN with token (public)
+ */
+export async function resetPin(data: ResetPinRequest): Promise<ResetPinApiResponse> {
+  return post<ResetPinApiResponse>(AUTH_ENDPOINTS.RESET_PIN, data);
 }
 
 /**

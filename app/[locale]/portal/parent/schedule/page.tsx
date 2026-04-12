@@ -17,6 +17,8 @@ interface ClassEvent {
   type: "class" | "makeup" | "event";
   teacher?: string;
   description?: string;
+  color?: string | null;
+  programName?: string | null;
 }
 
 interface DaySchedule {
@@ -148,7 +150,47 @@ export default function SchedulePage() {
     setCurrentWeekStart(getWeekStart(new Date()));
   };
 
-  const getEventColor = (type: string) => {
+  // Program-based color palette for consistent session coloring
+  const PROGRAM_COLOR_PALETTE = [
+    { bg: "bg-gradient-to-r from-red-600 to-red-700", light: "bg-gradient-to-br from-red-50 to-red-100" },
+    { bg: "bg-gradient-to-r from-blue-600 to-blue-700", light: "bg-gradient-to-br from-blue-50 to-blue-100" },
+    { bg: "bg-gradient-to-r from-emerald-600 to-emerald-700", light: "bg-gradient-to-br from-emerald-50 to-emerald-100" },
+    { bg: "bg-gradient-to-r from-purple-600 to-purple-700", light: "bg-gradient-to-br from-purple-50 to-purple-100" },
+    { bg: "bg-gradient-to-r from-amber-500 to-orange-500", light: "bg-gradient-to-br from-amber-50 to-amber-100" },
+    { bg: "bg-gradient-to-r from-sky-500 to-blue-500", light: "bg-gradient-to-br from-sky-50 to-sky-100" },
+    { bg: "bg-gradient-to-r from-indigo-500 to-indigo-600", light: "bg-gradient-to-br from-indigo-50 to-indigo-100" },
+    { bg: "bg-gradient-to-r from-pink-500 to-rose-500", light: "bg-gradient-to-br from-pink-50 to-pink-100" },
+  ];
+
+  // Build a stable program → color index map from current sessions
+  const programColorMap = useMemo(() => {
+    const map = new Map<string, number>();
+    let idx = 0;
+    sessions.forEach((s) => {
+      const key = s.programName ?? s.classTitle ?? s.classCode ?? "";
+      if (key && !map.has(key)) {
+        map.set(key, idx % PROGRAM_COLOR_PALETTE.length);
+        idx++;
+      }
+    });
+    return map;
+  }, [sessions]);
+
+  const getEventColor = (type: string, event?: ClassEvent) => {
+    // Use backend color if available (from session.color)
+    if (event?.color) {
+      // Backend color might be a hex or tailwind class
+      if (event.color.startsWith("#") || event.color.startsWith("rgb")) {
+        return ""; // handled via inline style
+      }
+      return `bg-gradient-to-r ${event.color}`;
+    }
+    // Program-based color mapping
+    const key = event?.programName ?? event?.title ?? "";
+    if (key && programColorMap.has(key)) {
+      return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].bg;
+    }
+    // Fallback by type
     switch (type) {
       case "class":
         return "bg-gradient-to-r from-red-600 to-red-700";
@@ -161,7 +203,11 @@ export default function SchedulePage() {
     }
   };
 
-  const getLightColor = (type: string) => {
+  const getLightColor = (type: string, event?: ClassEvent) => {
+    const key = event?.programName ?? event?.title ?? "";
+    if (key && programColorMap.has(key)) {
+      return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].light;
+    }
     switch (type) {
       case "class":
         return "bg-gradient-to-br from-red-50 to-red-100";
@@ -226,6 +272,8 @@ export default function SchedulePage() {
         type: isMakeup(s.participationType) ? "makeup" : "class",
         teacher: s.plannedTeacherName ?? s.actualTeacherName ?? undefined,
         description: s.lessonPlanLink ? `Giáo án: ${s.lessonPlanLink}` : undefined,
+        color: s.color ?? null,
+        programName: s.programName ?? null,
       };
 
       const slot = toSlot(start);
@@ -371,7 +419,7 @@ export default function SchedulePage() {
                     >
                       <div className="space-y-2">
                         {filteredEvents.map((event) => {
-                          const lightColor = getLightColor(event.type);
+                          const lightColor = getLightColor(event.type, event);
                           return (
                             <button
                               key={event.id}
@@ -428,7 +476,7 @@ export default function SchedulePage() {
           >
             <div className="sticky top-0 bg-gradient-to-r from-red-100 to-red-100 border-b border-red-200 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${getEventColor(selectedClass.type)} text-white shadow-md`}>
+                <div className={`p-2 rounded-xl ${getEventColor(selectedClass.type, selectedClass)} text-white shadow-md`}>
                   <CalendarDays size={18} />
                 </div>
                 <div>

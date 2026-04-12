@@ -12,7 +12,6 @@ import {
   ChevronRight, 
   Sparkles, 
   BookOpen, 
-  Palette, 
   CheckCircle,
   CalendarArrowDown,
   Building2,
@@ -163,18 +162,6 @@ function groupOverlappingLessons(lessons: Lesson[]): Map<string, { groupIndex: n
   return result;
 }
 
-// Color options matching admin schedule
-const COLOR_OPTIONS = [
-  { name: 'Đỏ đậm', value: 'bg-gradient-to-r from-red-600 to-red-700' },
-  { name: 'Đỏ nhạt', value: 'bg-gradient-to-r from-red-500 to-red-600' },
-  { name: 'Đỏ tươi', value: 'bg-gradient-to-r from-red-600 to-red-700' },
-  { name: 'Xám đậm', value: 'bg-gradient-to-r from-gray-600 to-gray-700' },
-  { name: 'Xám nhạt', value: 'bg-gradient-to-r from-gray-500 to-gray-600' },
-  { name: 'Đen', value: 'bg-gradient-to-r from-gray-700 to-gray-800' },
-  { name: 'Trắng-xám', value: 'bg-gradient-to-r from-gray-200 to-gray-300' },
-  { name: 'Đỏ xám', value: 'bg-gradient-to-r from-red-600 to-gray-600' },
-];
-
 // GoToDateButton Component
 function GoToDateButton({ onSelect }: { onSelect: (date: Date) => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -270,9 +257,8 @@ function GoToDateButton({ onSelect }: { onSelect: (date: Date) => void }) {
 }
 
 // Timeline Lesson Component
-function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = false, layoutInfo, data }: { lesson: Lesson; compact?: boolean; onColorChange?: (lessonId: string, color: string) => void; hasConflict?: boolean; layoutInfo?: { groupIndex: number; positionInGroup: number; totalInGroup: number }; data?: DaySchedule }) {
+function TimelineLesson({ lesson, compact = false, hasConflict = false, layoutInfo, data }: { lesson: Lesson; compact?: boolean; hasConflict?: boolean; layoutInfo?: { groupIndex: number; positionInGroup: number; totalInGroup: number }; data?: DaySchedule }) {
   const [isHovered, setIsHovered] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
@@ -307,7 +293,7 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
 
   return (
     <div
-      className={`absolute rounded-xl shadow-lg transition-all duration-300 border border-gray-200 ${isHovered ? 'shadow-gray-200 -translate-y-0.5 z-10' : 'shadow-gray-100'} ${lightColor} p-4 text-gray-900 ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}
+      className={`absolute rounded-xl shadow-lg transition-all duration-300 border border-gray-200 overflow-hidden ${isHovered ? 'shadow-gray-200 -translate-y-0.5 z-10' : 'shadow-gray-100'} ${lightColor} text-gray-900 ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}
       style={{
         left: typeof left === 'number' ? `${left}px` : left,
         top: `${startPosition}px`,
@@ -318,7 +304,8 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
       onMouseLeave={() => setIsHovered(false)}
       title={hasConflict ? '⚠️ Cảnh báo: Buổi học này trùng giờ với buổi học khác trong ngày' : ''}
     >
-      <div className="h-full flex flex-col justify-between">
+      <div className={`h-1.5 w-full ${lesson.color}`} />
+      <div className="h-full flex flex-col justify-between p-4">
         <div>
           <div className="font-bold text-sm">{lesson.course}</div>
           {!compact && (
@@ -339,38 +326,6 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {onColorChange && (
-                <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowColorPicker(!showColorPicker);
-                    }}
-                    className="text-xs bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer flex items-center gap-1 border border-gray-200"
-                  >
-                    <Palette size={12} className="text-gray-700" />
-                  </button>
-                  {showColorPicker && (
-                    <div className="absolute right-0 bottom-full mb-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-50 overflow-hidden w-[140px]">
-                      <div className="text-[10px] font-semibold text-gray-800 mb-1.5 px-1">Chọn màu</div>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {COLOR_OPTIONS.map((color) => (
-                          <button
-                            key={color.value}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onColorChange(lesson.id, color.value);
-                              setShowColorPicker(false);
-                            }}
-                            className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-red-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
-                            title={color.name}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
               <button
                 onClick={() => {
                   const lessonDate = data?.date || formatDateISO(new Date());
@@ -389,7 +344,7 @@ function TimelineLesson({ lesson, compact = false, onColorChange, hasConflict = 
 }
 
 // Day Timeline View
-function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; hours?: number; onColorChange?: (lessonId: string, color: string) => void }) {
+function DayTimeline({ data, hours = 12 }: { data: DaySchedule; hours?: number }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const timeSlots = Array.from({ length: hours }, (_, i) => i + 7);
 
@@ -505,7 +460,6 @@ function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; h
               <TimelineLesson
                 key={lesson.id}
                 lesson={lesson}
-                onColorChange={onColorChange}
                 hasConflict={false}
                 layoutInfo={layoutInfo}
                 data={data}
@@ -521,7 +475,6 @@ function DayTimeline({ data, hours = 12, onColorChange }: { data: DaySchedule; h
 // Week Calendar View
 function WeekCalendarView({
   weekData,
-  onColorChange,
   weekOffset,
   onPrevWeek,
   onNextWeek,
@@ -529,7 +482,6 @@ function WeekCalendarView({
   onSetWeek,
 }: {
   weekData: DaySchedule[];
-  onColorChange?: (lessonId: string, color: string) => void;
   weekOffset: number;
   onPrevWeek: () => void;
   onNextWeek: () => void;
@@ -542,7 +494,6 @@ function WeekCalendarView({
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const currentHour = now.getHours() + now.getMinutes() / 60;
-  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const timeShifts = [
     { label: 'Sáng', start: 7, end: 12 },
@@ -705,12 +656,14 @@ function WeekCalendarView({
                         <div key={lesson.id} className="relative group">
                           <div
                             onClick={() => router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${day.date}`)}
-                            className={`rounded-xl p-2.5 text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-gray-200 bg-gradient-to-br from-red-50 to-red-100`}
+                            className={`rounded-xl overflow-hidden text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-gray-200 ${lightColor}`}
                           >
+                            <div className={`h-1.5 w-full ${lesson.color}`} />
+                            <div className="p-2.5">
                             <div className="flex items-start gap-2">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 mb-1">
-                                  <span className="h-2 w-2 rounded-full bg-gray-700" />
+                                  <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${lesson.color}`} />
                                   <span className="font-semibold text-gray-900 truncate">{lesson.course}</span>
                                 </div>
                                 <div className="text-[11px] text-gray-700 mb-1">{lesson.time}</div>
@@ -719,39 +672,7 @@ function WeekCalendarView({
                                   <span className="truncate">{lesson.room}</span>
                                 </div>
                               </div>
-                              {onColorChange && (
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setShowColorPicker(!showColorPicker);
-                                    }}
-                                    className="text-xs bg-white/80 hover:bg-white backdrop-blur-sm rounded-lg px-2 py-1 transition-colors cursor-pointer flex items-center gap-1 border border-gray-200"
-                                    title="Đổi màu"
-                                  >
-                                    <Palette size={12} className="text-gray-800" />
-                                  </button>
-                                  {showColorPicker && (
-                                    <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-50 overflow-hidden w-[140px]">
-                                      <div className="text-[10px] font-semibold text-gray-800 mb-1.5 px-1">Chọn màu</div>
-                                      <div className="grid grid-cols-4 gap-1.5">
-                                        {COLOR_OPTIONS.map((color) => (
-                                          <button
-                                            key={color.value}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              onColorChange(lesson.id, color.value);
-                                              setShowColorPicker(false);
-                                            }}
-                                            className={`w-6 h-6 rounded-md ${color.value} border-2 ${lesson.color === color.value ? 'border-white ring-1 ring-red-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
-                                            title={color.name}
-                                          />
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                            </div>
                             </div>
                           </div>
                         </div>
@@ -841,30 +762,6 @@ export default function Page() {
     });
     setClassOptions(Array.from(classNames).map(name => ({ id: name, name })));
   }, [weekData]);
-
-  const handleColorChange = (lessonId: string, newColor: string) => {
-    setWeekData((prev) => {
-      let selectedLesson: Lesson | null = null;
-      for (const day of prev) {
-        const lesson = day.lessons.find(l => l.id === lessonId);
-        if (lesson) {
-          selectedLesson = lesson;
-          break;
-        }
-      }
-
-      if (!selectedLesson) return prev;
-
-      return prev.map(day => ({
-        ...day,
-        lessons: day.lessons.map(lesson =>
-          lesson.course === selectedLesson!.course
-            ? { ...lesson, color: newColor }
-            : lesson
-        )
-      }));
-    });
-  };
 
   const totalLessons = useMemo(() => {
     return filteredWeekData.reduce((sum, day) => sum + day.lessons.length, 0);
@@ -1087,14 +984,13 @@ export default function Page() {
             </div>
 
             {/* Selected Day Timeline */}
-            {selectedDay && <DayTimeline data={selectedDay} onColorChange={handleColorChange} />}
+            {selectedDay && <DayTimeline data={selectedDay} />}
           </div>
         )}
 
         {tab === 'week' && (
           <WeekCalendarView
             weekData={filteredWeekData}
-            onColorChange={handleColorChange}
             weekOffset={currentWeek}
             onPrevWeek={() => setCurrentWeek((w) => w - 1)}
             onNextWeek={() => setCurrentWeek((w) => w + 1)}

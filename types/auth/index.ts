@@ -58,6 +58,23 @@ export interface RequestParentPinResetRequest {
   profileId: string;
 }
 
+// Request PIN Reset via Zalo OTP
+export interface RequestPinResetZaloOtpRequest {
+  profileId: string;
+}
+
+// Verify PIN Reset Zalo OTP
+export interface VerifyPinResetZaloOtpRequest {
+  challengeId: string;
+  otp: string;
+}
+
+// Reset PIN with token
+export interface ResetPinRequest {
+  token: string;
+  newPin: string;
+}
+
 // ==================== Response Interfaces ====================
 
 export interface UserProfile {
@@ -103,6 +120,18 @@ export interface VerifyParentPinResponse {
   message?: string;
 }
 
+// Request PIN Reset Zalo OTP Response
+export interface RequestPinResetZaloOtpResponse {
+  challengeId: string;
+  otpExpiresAt: string;
+}
+
+// Verify PIN Reset Zalo OTP Response
+export interface VerifyPinResetZaloOtpResponse {
+  resetToken: string;
+  expiresAt: string;
+}
+
 // Select Student Response
 export interface SelectStudentResponse {
   success: boolean;
@@ -142,6 +171,9 @@ export type VerifyParentPinApiResponse = ApiResponse<VerifyParentPinResponse>;
 export type SelectStudentApiResponse = ApiResponse<SelectStudentResponse>;
 export type ChangePinApiResponse = ApiResponse<{ message: string }>;
 export type RequestPinResetApiResponse = ApiResponse<{ message: string }>;
+export type RequestPinResetZaloOtpApiResponse = ApiResponse<RequestPinResetZaloOtpResponse>;
+export type VerifyPinResetZaloOtpApiResponse = ApiResponse<VerifyPinResetZaloOtpResponse>;
+export type ResetPinApiResponse = ApiResponse<{ message: string }>;
 export type UserMeApiResponse = ApiResponse<UserMeResponse>;
 export type UpdateUserMeApiResponse = ApiResponse<UserMeResponse>;
 export type LogoutApiResponse = ApiResponse<{ message: string }>;

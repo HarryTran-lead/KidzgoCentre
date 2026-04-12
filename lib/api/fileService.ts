@@ -40,9 +40,6 @@ export interface DeleteFileResponse {
 
 /**
  * Upload a file to the server.
- * @param file - The file to upload
- * @param folder - Destination folder (default: "uploads")
- * @param resourceType - Resource type (default: "auto")
  */
 export async function uploadFile(
   file: File,
@@ -60,17 +57,47 @@ export async function uploadFile(
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
-    // Do NOT set Content-Type - browser sets it with the correct boundary for multipart
   });
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    return (
-      data as UploadFileError
-    )
+    return data as UploadFileError;
   }
 
+  return data as UploadFileSuccess;
+}
+
+/**
+ * Upload avatar image via dedicated avatar endpoint.
+ * Validates file type and size (max 10MB) before upload.
+ */
+export async function uploadAvatar(file: File): Promise<UploadFileResponse> {
+  const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"];
+  const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return { error: "Định dạng ảnh không hợp lệ. Chấp nhận: jpg, png, gif, webp, bmp, svg" };
+  }
+  if (file.size > MAX_SIZE) {
+    return { error: "Ảnh vượt quá dung lượng cho phép (10MB)" };
+  }
+
+  const token = getAccessToken();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(FILE_ENDPOINTS.AVATAR, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return data as UploadFileError;
+  }
   return data as UploadFileSuccess;
 }
 

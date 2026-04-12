@@ -30,6 +30,7 @@ export interface Session {
   actualTeacherId?: string | null;
   participationType?: string | null;
   status?: string | null;
+  color?: string | null;
 }
 
 export interface CreateSessionResponse {

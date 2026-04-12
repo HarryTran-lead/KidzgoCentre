@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
 import { getAllBranches } from "@/lib/api/branchService";
-import { createAdminSession, fetchAdminSessions } from "@/app/api/admin/sessions";
+import { createAdminSession, fetchAdminSessions, updateSessionColor } from "@/app/api/admin/sessions";
 import { fetchAdminUsersByIds, fetchAdminClasses } from "@/app/api/admin/classes";
 import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
 import {
@@ -59,6 +59,8 @@ const PERIOD_TIME_RANGES: Record<Period, string> = {
 // Ban đầu để rỗng, sau đó sẽ được lấp bởi dữ liệu lấy từ API (/api/sessions, /api/teacher/timetable, ...)
 const SLOTS: Slot[] = [];
 
+const DEFAULT_SESSION_COLOR = "#FEE2E2";
+
 /* =================== MÀU RÕ RÀNG THEME ĐỎ TRẮNG ĐEN =================== */
 const TYPE_META: Record<
   SlotType,
@@ -69,35 +71,123 @@ const TYPE_META: Record<
     badge: "bg-red-600 text-white",
     chip: "bg-red-50 text-red-700 border border-red-200",
     bar: "border-l-4 border-red-500",
-    defaultColor: "bg-gradient-to-r from-red-600 to-red-700"
+    defaultColor: "#FEE2E2"
   },
   MAKEUP: {
     text: "Buổi bù",
     badge: "bg-gray-700 text-white",
     chip: "bg-gray-100 text-gray-700 border border-gray-200",
     bar: "border-l-4 border-gray-500",
-    defaultColor: "bg-gradient-to-r from-gray-600 to-gray-700"
+    defaultColor: "#E5E7EB"
   },
   EVENT: {
     text: "Sự kiện",
     badge: "bg-black/10 text-gray-800 border border-gray-200",
     chip: "bg-gray-100 text-gray-800 border border-gray-200",
     bar: "border-l-4 border-gray-400",
-    defaultColor: "bg-gradient-to-r from-gray-600 to-gray-700"
+    defaultColor: "#E5E7EB"
   },
 };
 
 /* =================== COLOR OPTIONS - Theme Đỏ Đen Trắng =================== */
 const COLOR_OPTIONS = [
-  { name: 'Đỏ đậm', value: 'bg-gradient-to-r from-red-600 to-red-700' },
-  { name: 'Đỏ nhạt', value: 'bg-gradient-to-r from-red-500 to-red-600' },
-  { name: 'Đỏ tươi', value: 'bg-gradient-to-r from-red-600 to-red-700' },
-  { name: 'Xám đậm', value: 'bg-gradient-to-r from-gray-600 to-gray-700' },
-  { name: 'Xám nhạt', value: 'bg-gradient-to-r from-gray-500 to-gray-600' },
-  { name: 'Đen', value: 'bg-gradient-to-r from-gray-700 to-gray-800' },
-  { name: 'Trắng-xám', value: 'bg-gradient-to-r from-gray-200 to-gray-300' },
-  { name: 'Đỏ xám', value: 'bg-gradient-to-r from-red-600 to-gray-600' },
+  { name: 'Đỏ nhạt', value: '#FEE2E2' },
+  { name: 'Xanh nhạt', value: '#DCEBFF' },
+  { name: 'Hồng nhạt', value: '#FDE2FF' },
+  { name: 'Xanh lá nhạt', value: '#EEF7B9' },
+  { name: 'Tím nhạt', value: '#E6D9FF' },
+  { name: 'Tím pastel', value: '#E9D5FF' },
+  { name: 'Cam nhạt', value: '#FFE8CC' },
+  { name: 'Vàng nhạt', value: '#FFF7CC' },
+  { name: 'Xanh mint', value: '#D1FAE5' },
+  { name: 'Xanh cyan', value: '#CFFAFE' },
+  { name: 'Lam pastel', value: '#DBEAFE' },
+  { name: 'Tím oải hương', value: '#EDE9FE' },
+  { name: 'Hồng đào', value: '#FBCFE8' },
+  { name: 'Kem chanh', value: '#ECFCCB' },
+  { name: 'Cam đào', value: '#FED7AA' },
+  { name: 'Xám bạc', value: '#E5E7EB' },
+  { name: 'Be sáng', value: '#FAE8D4' },
+  { name: 'Xanh ngọc nhạt', value: '#CCFBF1' },
+  { name: 'Xanh trời nhạt', value: '#E0F2FE' },
+  { name: 'Hồng phấn', value: '#FCE7F3' },
 ];
+
+const AUTO_CLASS_COLORS = COLOR_OPTIONS.map((item) => item.value);
+
+const LEGACY_COLOR_TO_HEX: Record<string, string> = {
+  "bg-gradient-to-r from-red-600 to-red-700": "#FEE2E2",
+  "bg-gradient-to-r from-red-500 to-red-600": "#FEE2E2",
+  "bg-gradient-to-r from-gray-600 to-gray-700": "#E5E7EB",
+  "bg-gradient-to-r from-gray-500 to-gray-600": "#E5E7EB",
+  "bg-gradient-to-r from-gray-700 to-gray-800": "#D1D5DB",
+  "bg-gradient-to-r from-gray-200 to-gray-300": "#F3F4F6",
+  "bg-gradient-to-r from-red-600 to-gray-600": "#FECACA",
+  "bg-gradient-to-r from-blue-500 to-sky-500": "#DCEBFF",
+};
+
+function normalizeSessionColor(color?: string | null): string {
+  if (!color) return DEFAULT_SESSION_COLOR;
+  const parsed = parseCustomColorInput(color);
+  return parsed ?? DEFAULT_SESSION_COLOR;
+}
+
+function parseCustomColorInput(input?: string | null): string | null {
+  const raw = (input ?? "").trim();
+  if (!raw) return null;
+
+  const legacy = LEGACY_COLOR_TO_HEX[raw];
+  if (legacy) return legacy;
+
+  const hexMatch = raw.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (hexMatch) {
+    if (hexMatch[1].length === 3) {
+      const [r, g, b] = hexMatch[1].split("");
+      return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+    }
+    return raw.toUpperCase();
+  }
+
+  const rgbMatch = raw.match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i);
+  if (rgbMatch) {
+    const r = Math.max(0, Math.min(255, Number(rgbMatch[1])));
+    const g = Math.max(0, Math.min(255, Number(rgbMatch[2])));
+    const b = Math.max(0, Math.min(255, Number(rgbMatch[3])));
+    const toHex = (n: number) => n.toString(16).padStart(2, "0").toUpperCase();
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  }
+
+  return null;
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getAutoClassColor(classId?: string | null): string {
+  const key = (classId ?? "").trim();
+  if (!key) return DEFAULT_SESSION_COLOR;
+  return AUTO_CLASS_COLORS[hashString(key) % AUTO_CLASS_COLORS.length];
+}
+
+function resolveSlotColor(color: string | null | undefined, classId: string | null | undefined, type: SlotType): string {
+  if (color && color.trim()) {
+    return normalizeSessionColor(color);
+  }
+  if (type === "CLASS") {
+    return getAutoClassColor(classId);
+  }
+  return TYPE_META[type].defaultColor;
+}
+
+function isSameColor(a?: string | null, b?: string | null): boolean {
+  return normalizeSessionColor(a) === normalizeSessionColor(b);
+}
 
 /* ===== Components ===== */
 function TypeBadge({ type }: { type: SlotType }) {
@@ -140,7 +230,7 @@ const initialFormData: ScheduleFormData = {
   date: "",
   time: "",
   period: "EVENING",
-  color: "bg-gradient-to-r from-red-600 to-red-700",
+  color: DEFAULT_SESSION_COLOR,
   note: "",
   sendNotification: true,
   participationType: "OFFLINE",
@@ -380,7 +470,7 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
           title: findLabel(classOptions, formData.classId) || "Buổi học",
           room: findLabel(roomOptions, formData.roomId) || "Phòng",
           teacher: findLabel(teacherOptions, formData.teacherId) || "Giáo viên",
-          color: formData.color,
+          color: normalizeSessionColor(formData.color),
         }
       );
       onClose();
@@ -679,12 +769,33 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
                   <button
                     key={color.value}
                     type="button"
-                    onClick={() => handleChange("color", color.value)}
-                    className={`h-8 w-8 rounded-lg cursor-pointer ${color.value} border-2 ${formData.color === color.value ? 'border-white ring-2 ring-red-500' : 'border-transparent'
+                    onClick={() => handleChange("color", normalizeSessionColor(color.value))}
+                    className={`h-8 w-8 rounded-lg cursor-pointer border-2 ${isSameColor(formData.color, color.value) ? 'border-white ring-2 ring-red-500' : 'border-gray-300'
                       } hover:scale-110 transition-all`}
+                    style={{ backgroundColor: color.value }}
                     title={color.name}
                   />
                 ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <input
+                  type="color"
+                  value={normalizeSessionColor(formData.color)}
+                  onChange={(e) => handleChange("color", normalizeSessionColor(e.target.value))}
+                  className="h-9 w-14 rounded-lg border border-gray-300 bg-white cursor-pointer"
+                  title="Tự chọn màu"
+                />
+                <input
+                  type="text"
+                  value={formData.color}
+                  onChange={(e) => handleChange("color", e.target.value)}
+                  onBlur={() => {
+                    const parsed = parseCustomColorInput(formData.color);
+                    if (parsed) handleChange("color", parsed);
+                  }}
+                  className="h-9 min-w-[170px] flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800"
+                  placeholder="#AABBCC hoặc rgb(170, 187, 204)"
+                />
               </div>
             </div>
 
@@ -782,7 +893,12 @@ function ColorPicker({
   onColorChange: (lessonId: string, color: string) => void;
 }) {
   const [showPicker, setShowPicker] = useState(false);
+  const [customColor, setCustomColor] = useState(normalizeSessionColor(currentColor));
   const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCustomColor(normalizeSessionColor(currentColor));
+  }, [currentColor]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -813,7 +929,7 @@ function ColorPicker({
         <Palette size={12} className="text-gray-800" />
       </button>
       {showPicker && (
-        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-100 overflow-hidden w-[140px]">
+        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-2 z-100 overflow-hidden w-[230px]">
           <div className="text-[10px] font-semibold text-gray-800 mb-1.5 px-1">Chọn màu</div>
           <div className="grid grid-cols-4 gap-1.5">
             {COLOR_OPTIONS.map((color) => (
@@ -821,13 +937,51 @@ function ColorPicker({
                 key={color.value}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onColorChange(lessonId, color.value);
+                  onColorChange(lessonId, normalizeSessionColor(color.value));
                   setShowPicker(false);
                 }}
-                className={`w-6 h-6 rounded-md ${color.value} border-2 ${currentColor === color.value ? 'border-white ring-1 ring-red-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
+                className={`w-6 h-6 rounded-md border-2 ${isSameColor(currentColor, color.value) ? 'border-white ring-1 ring-red-500' : 'border-gray-300'} hover:scale-110 transition-all cursor-pointer`}
+                style={{ backgroundColor: color.value }}
                 title={color.name}
               />
             ))}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="color"
+              value={normalizeSessionColor(customColor)}
+              onChange={(e) => {
+                const picked = normalizeSessionColor(e.target.value);
+                setCustomColor(picked);
+                onColorChange(lessonId, picked);
+              }}
+              className="h-8 w-12 rounded border border-gray-300 bg-white cursor-pointer"
+              title="Tự chọn màu"
+            />
+            <input
+              type="text"
+              value={customColor}
+              onChange={(e) => setCustomColor(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const parsed = parseCustomColorInput(customColor);
+                  if (parsed) {
+                    setCustomColor(parsed);
+                    onColorChange(lessonId, parsed);
+                  }
+                }
+              }}
+              onBlur={() => {
+                const parsed = parseCustomColorInput(customColor);
+                if (parsed) {
+                  setCustomColor(parsed);
+                  onColorChange(lessonId, parsed);
+                }
+              }}
+              className="h-8 flex-1 rounded border border-gray-300 px-2 text-[11px]"
+              placeholder="#AABBCC hoặc rgb(1,2,3)"
+            />
           </div>
         </div>
       )}
@@ -1005,19 +1159,14 @@ function WeekTimetable({
   const rangeText = `${days[0].toLocaleDateString("vi-VN")} – ${days[6].toLocaleDateString("vi-VN")}`;
   const todayKey = keyYMD(new Date());
 
-  const getLightColor = (colorClass: string | undefined) => {
-    const defaultLight = "bg-gradient-to-br from-red-50 to-red-100";
-    if (!colorClass) return defaultLight;
-
-    return colorClass
-      .replace('bg-gradient-to-r', 'bg-gradient-to-br')
-      .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
-      .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
-      .replace('from-gray-600 to-gray-700', 'from-gray-100 to-gray-200')
-      .replace('from-gray-500 to-gray-600', 'from-gray-100 to-gray-200')
-      .replace('from-gray-700 to-gray-800', 'from-gray-200 to-gray-300')
-      .replace('from-gray-200 to-gray-300', 'from-gray-100 to-gray-200')
-      .replace('from-red-600 to-gray-600', 'from-red-50 to-gray-100');
+  const getLightColor = (colorValue: string | undefined) => {
+    if (!colorValue) return "#FEF2F2";
+    if (colorValue.startsWith("#")) {
+      // Hex alpha suffix for a soft background while keeping the selected hue
+      return `${colorValue}33`;
+    }
+    // Backward compatibility for legacy Tailwind class values
+    return "#FEF2F2";
   };
 
   const modeDot = (room: string) =>
@@ -1115,20 +1264,24 @@ function WeekTimetable({
               >
                 <div className="space-y-2">
                   {evts.map((s) => {
-                    const lightColor = getLightColor(s.color);
+                    const slotColor = resolveSlotColor(s.color, s.classId, s.type);
+                    const lightColor = getLightColor(slotColor);
                     return (
                       <div
                         key={s.id}
-                        className={`rounded-xl p-2.5 text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-gray-200 ${lightColor}`}
+                        className="rounded-xl overflow-hidden text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-gray-200"
+                        style={{ backgroundColor: lightColor }}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onSlotClick) onSlotClick(s.id);
                         }}
                       >
+                        <div className="h-1.5 w-full" style={{ backgroundColor: slotColor }} />
+                        <div className="p-2.5">
                         <div className="flex items-start gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-1">
-                              <span className={`h-2 w-2 rounded-full ${modeDot(s.room)}`} />
+                              <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: slotColor }} />
                               <span className="font-semibold text-gray-900 truncate">{s.title}</span>
                             </div>
 
@@ -1148,11 +1301,12 @@ function WeekTimetable({
                             <div onClick={(e) => e.stopPropagation()}>
                               <ColorPicker
                                 lessonId={s.id}
-                                currentColor={s.color || TYPE_META[s.type].defaultColor}
+                                currentColor={slotColor}
                                 onColorChange={onColorChange}
                               />
                             </div>
                           )}
+                        </div>
                         </div>
                       </div>
                     );
@@ -1193,22 +1347,6 @@ export default function AdminSchedulePage() {
 
   // Branch filter hook
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
-
-  // Helper function to convert color to light version
-  const getLightColor = (colorClass: string | undefined) => {
-    const defaultLight = "bg-gradient-to-br from-red-50 to-red-100";
-    if (!colorClass) return defaultLight;
-
-    return colorClass
-      .replace('bg-gradient-to-r', 'bg-gradient-to-br')
-      .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
-      .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
-      .replace('from-gray-600 to-gray-700', 'from-gray-100 to-gray-200')
-      .replace('from-gray-500 to-gray-600', 'from-gray-100 to-gray-200')
-      .replace('from-gray-700 to-gray-800', 'from-gray-200 to-gray-300')
-      .replace('from-gray-200 to-gray-300', 'from-gray-100 to-gray-200')
-      .replace('from-red-600 to-gray-600', 'from-red-50 to-gray-100');
-  };
 
   const [filter, setFilter] = useState<SlotType | "ALL">("ALL");
   const [classFilter, setClassFilter] = useState<string>("ALL");
@@ -1292,12 +1430,35 @@ export default function AdminSchedulePage() {
     });
   }, [list]);
 
-  const handleColorChange = (lessonId: string, newColor: string) => {
+  const handleColorChange = async (lessonId: string, newColor: string) => {
+    // Find the classId of the changed slot
+    const targetSlot = slots.find(s => s.id === lessonId);
+    if (!targetSlot) return;
+    const targetClassId = targetSlot.classId;
+
+    // Collect all session IDs with the same classId
+    const sameClassIds: string[] = [];
+    slots.forEach(slot => {
+      if ((slot.classId === targetClassId && targetClassId) || slot.id === lessonId) {
+        if (!sameClassIds.includes(slot.id)) sameClassIds.push(slot.id);
+      }
+    });
+
+    // Update UI immediately for ALL slots with the same classId
     setSlots(prev => prev.map(slot =>
-      slot.id === lessonId
+      sameClassIds.includes(slot.id)
         ? { ...slot, color: newColor }
         : slot
     ));
+
+    // Persist to backend sequentially to avoid overloading
+    for (const sid of sameClassIds) {
+      try {
+        await updateSessionColor(sid, newColor);
+      } catch (err) {
+        console.error("Lỗi lưu màu session:", sid, err);
+      }
+    }
   };
 
   const handleCellClick = (date: Date, period: Period) => {
@@ -1377,6 +1538,13 @@ export default function AdminSchedulePage() {
     setIsCreateModalOpen(false);
     setSelectedDate(null);
     setSelectedPeriod(null);
+
+    // Persist the chosen color to backend
+    if (created.id && display.color) {
+      updateSessionColor(created.id, display.color).catch(err =>
+        console.error("Lỗi lưu màu session mới:", err)
+      );
+    }
   };
 
   // Load lịch dạy thực tế từ API sessions khi mở trang (admin xem lịch giáo viên)
@@ -1462,7 +1630,7 @@ export default function AdminSchedulePage() {
             date: formatVNDate(planned),
             time: formatTimeRangeFromISO(s.plannedDatetime, durationMinutes),
             note: s.participationType ?? "",
-            color: TYPE_META.CLASS.defaultColor,
+            color: resolveSlotColor(s.color, String(s.classId ?? ""), "CLASS"),
           };
         }).filter((slot) => slot.id);
 

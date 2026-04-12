@@ -598,7 +598,7 @@ export default function TeacherAttendancePage() {
         participationType: lesson.participationType,
         branch: lesson.branch ?? null,
         students: lesson.students,
-        color: SESSION_COLOR_POOL[index % SESSION_COLOR_POOL.length],
+        color: session.color ?? SESSION_COLOR_POOL[index % SESSION_COLOR_POOL.length],
         raw: session,
       } satisfies SessionCard;
     });

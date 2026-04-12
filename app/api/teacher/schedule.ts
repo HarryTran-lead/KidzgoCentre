@@ -126,7 +126,7 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
       room,
       students: 0,
       track,
-      color: colorByTrack[track],
+      color: item?.color || item?.Color || colorByTrack[track],
       duration,
       teacher,
     };
@@ -240,7 +240,7 @@ function mapApiLessonToLesson(item: TimetableApiItem, fallbackDate: string, inde
     room,
     students,
     track,
-    color: colorByTrack[track],
+    color: item?.color || item?.Color || colorByTrack[track],
     duration,
     teacher,
   };
