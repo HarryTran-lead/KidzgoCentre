@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   UserRound,
   Mail,
@@ -17,8 +17,10 @@ import {
   Sparkles,
   KeyRound,
   User,
+  Camera,
 } from "lucide-react";
 import { getUserMe, updateUserMe, changePassword } from "@/lib/api/authService";
+import { uploadAvatar, isUploadSuccess, type UploadFileError } from "@/lib/api/fileService";
 import type { UserMeResponse } from "@/types/auth";
 import { toast } from "@/hooks/use-toast";
 
@@ -38,6 +40,11 @@ export default function UserProfileWorkspace() {
   const [user, setUser] = useState<UserMeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  // Avatar state
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Edit info state
   const [fullName, setFullName] = useState("");
@@ -63,6 +70,7 @@ export default function UserProfileWorkspace() {
           setFullName(res.data.fullName ?? "");
           setEmail(res.data.email ?? "");
           setPhoneNumber(res.data.phoneNumber ?? "");
+          if (res.data.avatarUrl) setAvatarUrl(res.data.avatarUrl);
         } else {
           toast({ title: "Lỗi", description: res.message || "Không thể tải thông tin", variant: "destructive" });
         }
@@ -75,6 +83,27 @@ export default function UserProfileWorkspace() {
     };
     fetchUser();
   }, []);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    try {
+      const result = await uploadAvatar(file);
+      if (isUploadSuccess(result)) {
+        setAvatarUrl(result.url);
+        toast({ title: "Thành công", description: "Đã cập nhật ảnh đại diện", variant: "success" });
+      } else {
+        const msg = (result as UploadFileError).detail ?? (result as UploadFileError).error ?? "Không thể tải ảnh lên";
+        toast({ title: "Lỗi", description: msg, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Lỗi", description: "Có lỗi xảy ra khi tải ảnh", variant: "destructive" });
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
 
   const handleSaveInfo = async () => {
     if (!fullName.trim()) {
@@ -171,8 +200,37 @@ export default function UserProfileWorkspace() {
             <div className="px-6 pb-6">
               {/* Avatar */}
               <div className="flex items-end gap-4 -mt-10 mb-4">
-                <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-lg bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white text-3xl font-bold select-none shrink-0">
-                  {avatarLetter}
+                <div className="relative w-20 h-20 shrink-0 group">
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatarUrl}
+                      alt="Avatar"
+                      className="w-20 h-20 rounded-2xl border-4 border-white shadow-lg object-cover"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-lg bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white text-3xl font-bold select-none">
+                      {avatarLetter}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
+                    title="Đổi ảnh đại diện"
+                  >
+                    {avatarUploading
+                      ? <Loader2 size={20} className="text-white animate-spin" />
+                      : <Camera size={20} className="text-white" />}
+                  </button>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.svg"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
                 </div>
               </div>
               <h2 className="text-xl font-bold text-gray-900 leading-tight mb-0.5">
