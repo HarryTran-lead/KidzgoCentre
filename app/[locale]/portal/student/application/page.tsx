@@ -182,6 +182,7 @@ export default function ApplicationPage() {
     { id: 'Finance', name: 'Finance', nameVi: 'Học phí' },
     { id: 'Schedule', name: 'Schedule', nameVi: 'Lịch học' },
     { id: 'Tech', name: 'Tech', nameVi: 'Kỹ thuật' },
+    { id: 'Other', name: 'Other', nameVi: 'Khác' },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
