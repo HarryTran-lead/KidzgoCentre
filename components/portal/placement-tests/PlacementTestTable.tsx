@@ -189,7 +189,7 @@ export default function PlacementTestTable({
       <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">
-            Danh sách Placement Test
+            Danh sách kiểm tra đầu vào
           </h3>
           <div className="flex items-center gap-3">
             {onRefresh && (

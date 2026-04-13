@@ -192,7 +192,7 @@ export default function PlacementTestsPage() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: "Không thể tải danh sách placement test",
+        description: "Không thể tải danh sách kiểm tra xếp lớp",
       });
     } finally {
       setIsLoading(false);
@@ -886,7 +886,7 @@ export default function PlacementTestsPage() {
     setConfirmAction({
       action: "convert",
       title: "Chuyển thành học viên",
-      message: "Chuyển đổi placement test này thành học viên chính thức?",
+      message: "Chuyển đổi bài kiểm tra xếp lớp này thành học viên chính thức?",
     });
     setIsConfirmModalOpen(true);
   };
@@ -895,7 +895,7 @@ export default function PlacementTestsPage() {
     try {
       if (payload.action === "update") {
         if (!selectedTest) {
-          throw new Error("Không tìm thấy placement test để cập nhật");
+          throw new Error("Không tìm thấy bài kiểm tra xếp lớp để cập nhật");
         }
         await updatePlacementTest(selectedTest.id, payload.data);
       }
@@ -912,10 +912,10 @@ export default function PlacementTestsPage() {
         title: "Thành công",
         description:
           payload.action === "update"
-            ? "Đã cập nhật placement test"
+            ? "Đã cập nhật bài kiểm tra xếp lớp"
             : payload.action === "retake"
-              ? "Đã tạo placement test retake"
-              : "Đã tạo placement test mới",
+              ? "Đã tạo bài kiểm tra xếp lớp kiểm tra lại"
+              : "Đã tạo bài kiểm tra xếp lớp mới",
               variant: "success",
       });
 
@@ -928,7 +928,7 @@ export default function PlacementTestsPage() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: getPlacementTestErrorMessage(error, "Không thể lưu placement test"),
+        description: getPlacementTestErrorMessage(error, "Không thể lưu bài kiểm tra xếp lớp"),
       });
       throw error;
     }
@@ -983,7 +983,7 @@ export default function PlacementTestsPage() {
 
       toast({
         title: "Thành công",
-        description: note ? "Đã lưu kết quả và ghi chú placement test" : "Đã lưu kết quả placement test",
+        description: note ? "Đã lưu kết quả và ghi chú kiểm tra xếp lớp" : "Đã lưu kết quả kiểm tra xếp lớp",
       });
 
       fetchPlacementTests();
@@ -1055,7 +1055,7 @@ export default function PlacementTestsPage() {
                 <div className="w-12 h-12 rounded-xl bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center shadow-lg">
                   <FileText className="text-white" size={24} />
                 </div>
-                Placement Tests
+                Kiểm tra xếp lớp
               </h1>
               <p className="text-slate-600 mt-1">
                 Quản lý lịch test và kết quả đánh giá trình độ
@@ -1071,7 +1071,7 @@ export default function PlacementTestsPage() {
               ) : (
                 <Plus size={20} className="mr-2" />
               )}
-              {isLoadingDropdownData ? "Đang tải..." : "Tạo Test mới"}
+              {isLoadingDropdownData ? "Đang tải..." : "Tạo bài kiểm tra mới"}
             </Button>
           </div>
 

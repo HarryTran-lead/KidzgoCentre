@@ -4,7 +4,7 @@ export const menuStaffManager = {
     items: {
       dashboard: "Dashboard",
       accounts: "Quản lý tài khoản",
-      crm: "Lead / CRM",
+      crm: "Tuyển sinh",
       allocation: "Điều phối lịch/lớp/phòng",
       makeup: "Nghỉ ngắn ngày & bù",
       pauseEnrollments: "Bảo lưu học",

@@ -28,7 +28,7 @@ const RRULE_TO_DAY: Record<string, string> = {
 function parseClassScheduleMeta(pattern?: string | null) {
   const raw = String(pattern || "").trim();
   if (!raw) {
-    return { availableDays: [] as string[], defaultTime: "" };
+    return { availableDays: [] as string[], defaultTime: "", duration: "" };
   }
 
   const normalized = raw.replace(/^RRULE:/i, "");
@@ -63,13 +63,15 @@ function parseClassScheduleMeta(pattern?: string | null) {
     Number.isFinite(hour) && Number.isFinite(minute)
       ? `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
       : "";
+  const duration = String(map.get("DURATION") || "").trim();
 
-  return { availableDays, defaultTime };
+  return { availableDays, defaultTime, duration };
 }
 
 function buildSessionSelectionPattern(
   days: string[],
   startTime: string,
+  duration?: string,
 ): string {
   if (!startTime || days.length === 0) return "";
 
@@ -87,7 +89,8 @@ function buildSessionSelectionPattern(
   const minute = Number(minuteRaw);
   if (Number.isNaN(hour) || Number.isNaN(minute)) return "";
 
-  return `FREQ=WEEKLY;BYDAY=${byDay};BYHOUR=${hour};BYMINUTE=${minute}`;
+  const durationToken = duration ? `;DURATION=${duration}` : "";
+  return `FREQ=WEEKLY;BYDAY=${byDay};BYHOUR=${hour};BYMINUTE=${minute}${durationToken}`;
 }
 
 function parsePreferredScheduleDays(schedule?: string | null): string[] {
@@ -107,6 +110,7 @@ function parsePreferredScheduleDays(schedule?: string | null): string[] {
 }
 
 interface SuggestAssignStepProps {
+  mode?: "full" | "suggested-only" | "manual-wait-only";
   registrationId: string;
   isSuggesting: boolean;
   assignViewMode: "none" | "suggested" | "manual";
@@ -158,6 +162,7 @@ interface SuggestAssignStepProps {
 }
 
 export default function SuggestAssignStep({
+  mode = "full",
   registrationId,
   isSuggesting,
   assignViewMode,
@@ -197,6 +202,10 @@ export default function SuggestAssignStep({
   setManualSecondarySessionPattern,
   handleAssignManualClasses,
 }: SuggestAssignStepProps) {
+  const showSuggestedActions = mode !== "manual-wait-only";
+  const showManualActions = mode !== "suggested-only";
+  const isSuggestedMode = assignViewMode === "suggested";
+  const isManualMode = assignViewMode === "manual";
   const classMap = useMemo(
     () =>
       new Map<string, any>(
@@ -395,9 +404,18 @@ export default function SuggestAssignStep({
 
   useEffect(() => {
     setManualPrimarySessionPattern(
-      buildSessionSelectionPattern(manualPrimaryDays, manualPrimaryTime),
+      buildSessionSelectionPattern(
+        manualPrimaryDays,
+        manualPrimaryTime,
+        primaryScheduleMeta.duration,
+      ),
     );
-  }, [manualPrimaryDays, manualPrimaryTime, setManualPrimarySessionPattern]);
+  }, [
+    manualPrimaryDays,
+    manualPrimaryTime,
+    primaryScheduleMeta.duration,
+    setManualPrimarySessionPattern,
+  ]);
 
   useEffect(() => {
     if (!hasSecondaryTrack) {
@@ -406,12 +424,17 @@ export default function SuggestAssignStep({
     }
 
     setManualSecondarySessionPattern(
-      buildSessionSelectionPattern(manualSecondaryDays, manualSecondaryTime),
+      buildSessionSelectionPattern(
+        manualSecondaryDays,
+        manualSecondaryTime,
+        secondaryScheduleMeta.duration,
+      ),
     );
   }, [
     hasSecondaryTrack,
     manualSecondaryDays,
     manualSecondaryTime,
+    secondaryScheduleMeta.duration,
     setManualSecondarySessionPattern,
   ]);
 
@@ -578,13 +601,29 @@ export default function SuggestAssignStep({
   };
 
   const handleAssignSuggestedClass = () => {
+    const fallbackPrimaryPattern = buildSessionSelectionPattern(
+      suggestedPrimaryDays.length > 0
+        ? suggestedPrimaryDays
+        : selectedPrimarySuggestedScheduleMeta.availableDays.slice(0, 1),
+      suggestedPrimaryTime || selectedPrimarySuggestedScheduleMeta.defaultTime,
+      selectedPrimarySuggestedScheduleMeta.duration,
+    );
+    const fallbackSecondaryPattern = buildSessionSelectionPattern(
+      suggestedSecondaryDays.length > 0
+        ? suggestedSecondaryDays
+        : selectedSecondarySuggestedScheduleMeta.availableDays.slice(0, 1),
+      suggestedSecondaryTime || selectedSecondarySuggestedScheduleMeta.defaultTime,
+      selectedSecondarySuggestedScheduleMeta.duration,
+    );
+
     if (hasSecondaryTrack) {
       handleAssignSuggestedClasses({
         primaryClassId: selectedPrimarySuggestedClassId,
-        primarySessionSelectionPattern: suggestedPrimarySessionPattern || undefined,
+        primarySessionSelectionPattern:
+          suggestedPrimarySessionPattern || fallbackPrimaryPattern || undefined,
         secondaryClassId: selectedSecondarySuggestedClassId || undefined,
         secondarySessionSelectionPattern:
-          suggestedSecondarySessionPattern || undefined,
+          suggestedSecondarySessionPattern || fallbackSecondaryPattern || undefined,
       });
       return;
     }
@@ -593,7 +632,11 @@ export default function SuggestAssignStep({
       selectedTrack === "secondary"
         ? suggestedSecondarySessionPattern
         : suggestedPrimarySessionPattern;
-    handleAssignClass(currentPattern || undefined);
+    const currentFallbackPattern =
+      selectedTrack === "secondary"
+        ? fallbackSecondaryPattern
+        : fallbackPrimaryPattern;
+    handleAssignClass(currentPattern || currentFallbackPattern || undefined);
   };
 
   const renderTrackSessionSelector = ({
@@ -676,17 +719,18 @@ export default function SuggestAssignStep({
     <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
       <div className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
         <ArrowRight size={18} className="text-red-600" />
-        Gợi ý lớp phù hợp và xếp lớp
+        {mode === "suggested-only" ? "Gợi ý lớp phù hợp" : "Gợi ý lớp phù hợp và xếp lớp"}
       </div>
 
       <div className="space-y-3">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-          <button
+        <div className={`grid grid-cols-1 gap-2 ${showSuggestedActions && showManualActions ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+          {showSuggestedActions && (
+            <button
             type="button"
             onClick={handleSuggestClasses}
             disabled={!registrationId || isSuggesting}
             className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed cursor-pointer disabled:opacity-60 ${
-              assignViewMode === "suggested"
+              isSuggestedMode
                 ? "border-red-600 bg-red-600 text-white"
                 : "border-red-300 bg-white text-red-700"
             }`}
@@ -697,9 +741,11 @@ export default function SuggestAssignStep({
               <School size={14} />
             )}
             Gợi ý lớp phù hợp
-          </button>
+            </button>
+          )}
 
-          <button
+          {showManualActions && (
+            <button
             type="button"
             onClick={handleLoadManualClasses}
             disabled={
@@ -720,20 +766,23 @@ export default function SuggestAssignStep({
               <School size={14} />
             )}
             Xếp lớp thủ công
-          </button>
+            </button>
+          )}
 
-          <button
+          {showManualActions && (
+            <button
             type="button"
             onClick={handleMoveToWaitingList}
             disabled={!registrationId || isWaiting}
             className="w-full rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isWaiting ? "Đang xử lý..." : "Đưa vào danh sách chờ"}
-          </button>
+            </button>
+          )}
         </div>
 
         <div className="rounded-xl border border-red-100 bg-white/80 p-3">
-          {assignViewMode === "suggested" && suggestedClasses && (
+          {showSuggestedActions && isSuggestedMode && suggestedClasses && (
             <div className="space-y-3">
               
 
@@ -983,7 +1032,7 @@ export default function SuggestAssignStep({
             </div>
           )}
 
-          {allowManualAssign && assignViewMode === "manual" && (
+          {showManualActions && allowManualAssign && isManualMode && (
             <div className="space-y-3 rounded-xl border border-red-200 bg-white p-3">
               <div className="text-sm font-semibold text-gray-900">
                 Xếp lớp thủ công theo chương trình
@@ -1108,8 +1157,9 @@ export default function SuggestAssignStep({
 
           {assignViewMode === "none" && (
             <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-sm text-gray-500">
-              Chọn "Gợi ý lớp phù hợp" hoặc "Xếp lớp thủ công" để bắt đầu thao
-              tác xếp lớp.
+              {mode === "suggested-only"
+                ? "Nhấn 'Gợi ý lớp phù hợp' để xem danh sách lớp phù hợp ngay tại bước tạo đăng ký."
+                : "Chọn 'Xếp lớp thủ công' để bắt đầu thao tác xếp lớp."}
             </div>
           )}
         </div>

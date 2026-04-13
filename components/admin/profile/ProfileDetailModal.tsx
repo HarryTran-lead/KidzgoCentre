@@ -132,22 +132,6 @@ export default function ProfileDetailModal({
                     />
                   )}
 
-                  {/* User ID */}
-                  <InfoRow 
-                    icon={<User size={18} />}
-                    label="User ID"
-                    value={profile.userId}
-                    mono
-                  />
-
-                  {/* Profile ID */}
-                  <InfoRow 
-                    icon={<User size={18} />}
-                    label="Profile ID"
-                    value={profile.id}
-                    mono
-                  />
-
                   {/* Status */}
                   <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                     <div className="text-gray-600 mt-0.5">
@@ -200,7 +184,7 @@ export default function ProfileDetailModal({
               {profile.profileType === "Student" && (
                 <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
                   <p className="text-sm text-blue-800">
-                    <strong>Lưu ý:</strong> Profile Student sử dụng User ID của Parent để quản lý. 
+                    <strong>Lưu ý:</strong> Profile Student được quản lý thông qua tài khoản Parent liên kết. 
                     Student không có tài khoản đăng nhập riêng.
                   </p>
                 </div>

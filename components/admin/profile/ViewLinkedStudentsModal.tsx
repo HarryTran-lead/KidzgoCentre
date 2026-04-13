@@ -153,7 +153,7 @@ export default function ViewLinkedStudentsModal({
           <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
             <p className="text-sm text-blue-800">
               <strong>Thông tin:</strong> Danh sách các học sinh đã được liên kết với tài khoản Parent này. 
-              Học sinh sử dụng cùng User ID với Parent để truy cập hệ thống.
+              Học sinh sử dụng cùng tài khoản Parent để truy cập hệ thống.
             </p>
           </div>
 
@@ -167,7 +167,7 @@ export default function ViewLinkedStudentsModal({
               <UserCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 font-medium">Chưa có học sinh nào</p>
               <p className="text-sm text-gray-400 mt-2">
-                Các Student profile với cùng User ID sẽ hiển thị ở đây
+                Các Student profile đã liên kết sẽ hiển thị ở đây
               </p>
             </div>
           ) : (
@@ -200,9 +200,7 @@ export default function ViewLinkedStudentsModal({
                         <Mail size={14} />
                         {student.userEmail || 'N/A'}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        ID: {student.id.substring(0, 8)}... • Tạo ngày: {formatDate(student.createdAt)}
-                      </div>
+                      <div className="text-xs text-gray-500 mt-1">Tạo ngày: {formatDate(student.createdAt)}</div>
                     </div>
                   </div>
                   
@@ -244,7 +242,7 @@ export default function ViewLinkedStudentsModal({
                 <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-amber-800">
                   <strong>Lưu ý:</strong> Hủy liên kết sẽ ngừng quyền truy cập của học sinh qua tài khoản Parent này. 
-                  Student profile vẫn tồn tại và có thể được liên kết lại bằng cách tạo mới với cùng User ID.
+                  Student profile vẫn tồn tại và có thể được liên kết lại bằng cách tạo mới.
                 </p>
               </div>
             </div>

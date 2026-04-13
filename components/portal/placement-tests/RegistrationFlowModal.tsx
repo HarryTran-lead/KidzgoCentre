@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { X, BookOpen, Users, Sparkles, Calendar, Clock, CheckCircle2, AlertCircle, Loader2, ChevronRight } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { dateOnlyVN } from "@/lib/datetime";
 import type { PlacementTest } from "@/types/placement-test";
@@ -26,13 +26,9 @@ import type {
 import type { Program } from "@/types/admin/programs";
 import CreateRegistrationStep from "@/components/portal/placement-tests/registration-flow/CreateRegistrationStep";
 import SuggestAssignStep from "@/components/portal/placement-tests/registration-flow/SuggestAssignStep";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/lightswind/select";
+import RegistrationFlowHeader from "@/components/portal/placement-tests/registration-flow/RegistrationFlowHeader";
+import RegistrationFlowStepTabs from "@/components/portal/placement-tests/registration-flow/RegistrationFlowStepTabs";
+import RegistrationSelectorCard from "@/components/portal/placement-tests/registration-flow/RegistrationSelectorCard";
 
 interface RegistrationFlowModalProps {
   isOpen: boolean;
@@ -43,8 +39,9 @@ interface RegistrationFlowModalProps {
   onSuccess?: () => void;
 }
 
-type StepKey = "create" | "suggest";
 type AssignViewMode = "none" | "suggested" | "manual";
+type ScheduleMode = "single" | "manual";
+type StepKey = "create" | "assign";
 
 type ProgramOption = {
   id: string;
@@ -52,11 +49,6 @@ type ProgramOption = {
   isMakeup?: boolean | null;
   isSupplementary?: boolean | null;
 };
-
-const SESSIONS_PER_WEEK_OPTIONS = [
-  { value: 2, label: "2 buổi/tuần" },
-  { value: 3, label: "3 buổi/tuần" },
-];
 
 const WEEK_DAYS = [
   { value: "2", shortLabel: "T2", label: "Thứ 2" },
@@ -145,8 +137,9 @@ export default function RegistrationFlowModal({
   onSuccess,
 }: RegistrationFlowModalProps) {
   const { toast } = useToast();
-  const childName = (test?.studentName || test?.childName || "").trim();
+  const studentName = (test?.studentName || "").trim();
   const modalRef = useRef<HTMLDivElement>(null);
+  const lastAutoSuggestRegistrationIdRef = useRef<string>("");
 
   const toVietnameseError = (error: unknown, fallback: string) =>
     getDomainErrorMessage(error, fallback);
@@ -173,7 +166,6 @@ export default function RegistrationFlowModal({
   const [activePrograms, setActivePrograms] = useState<Program[]>([]);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [activeStep, setActiveStep] = useState<StepKey>("create");
-
   const [programId, setProgramId] = useState("");
   const [tuitionPlanId, setTuitionPlanId] = useState("");
   const [isSecondaryEnabled, setIsSecondaryEnabled] = useState(false);
@@ -182,7 +174,9 @@ export default function RegistrationFlowModal({
     useState("");
   const [expectedStartDate, setExpectedStartDate] = useState("");
   const [preferredSchedule, setPreferredSchedule] = useState("");
-  const [sessionsPerWeek, setSessionsPerWeek] = useState(2);
+  const [sessionsPerWeek, setSessionsPerWeek] = useState(1);
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("single");
+  const [manualSessionsInput, setManualSessionsInput] = useState("1");
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
   const [useCustomTime, setUseCustomTime] = useState(false);
@@ -403,8 +397,60 @@ export default function RegistrationFlowModal({
 
   const handleSessionsPerWeekChange = (value: number) => {
     setSessionsPerWeek(value);
+    setManualSessionsInput(String(value));
     if (selectedDays.length > value) {
       setSelectedDays((prev) => prev.slice(0, value));
+    }
+  };
+
+  const handleScheduleModeChange = (mode: ScheduleMode) => {
+    setScheduleMode(mode);
+    if (mode === "single") {
+      setSessionsPerWeek(1);
+      setManualSessionsInput("1");
+      if (selectedDays.length > 1) {
+        setSelectedDays((prev) => prev.slice(0, 1));
+      }
+      return;
+    }
+
+    if (sessionsPerWeek < 2) {
+      setSessionsPerWeek(2);
+      setManualSessionsInput("2");
+    }
+  };
+
+  const handleManualSessionsInputChange = (value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    setManualSessionsInput(value);
+
+    if (!value) return;
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return;
+    const normalized = Math.max(1, Math.min(7, parsed));
+    setSessionsPerWeek(normalized);
+    if (selectedDays.length > normalized) {
+      setSelectedDays((prev) => prev.slice(0, normalized));
+    }
+  };
+
+  const handleManualSessionsInputBlur = () => {
+    if (!manualSessionsInput) {
+      setManualSessionsInput(String(sessionsPerWeek));
+      return;
+    }
+
+    const parsed = Number(manualSessionsInput);
+    if (Number.isNaN(parsed)) {
+      setManualSessionsInput(String(sessionsPerWeek));
+      return;
+    }
+
+    const normalized = Math.max(1, Math.min(7, parsed));
+    setSessionsPerWeek(normalized);
+    setManualSessionsInput(String(normalized));
+    if (selectedDays.length > normalized) {
+      setSelectedDays((prev) => prev.slice(0, normalized));
     }
   };
 
@@ -581,23 +627,25 @@ export default function RegistrationFlowModal({
 
         setExpectedStartDate(toInputDateValue(test?.scheduledAt));
         setPreferredSchedule("");
-        setSessionsPerWeek(2);
+        setSessionsPerWeek(1);
+        setScheduleMode("single");
+        setManualSessionsInput("1");
         setSelectedDays([]);
         setSelectedTimeSlot("");
         setUseCustomTime(false);
         setStartTime("18:00");
         setEndTime("20:00");
-        setNote(childName);
+        setNote(studentName);
         setResolvedStudentProfileId("");
 
-        if (test?.studentProfileId || childName) {
+        if (test?.studentProfileId || studentName) {
           const registrationsResponse = await getRegistrations({
             branchId,
             pageNumber: 1,
             pageSize: 500,
           });
 
-          const normalizedChildName = normalizeName(childName);
+          const normalizedStudentName = normalizeName(studentName);
           const filteredRegistrations = (
             registrationsResponse.items || []
           ).filter((r) => {
@@ -607,10 +655,10 @@ export default function RegistrationFlowModal({
                 String(test.studentProfileId)
               );
             }
-            if (!normalizedChildName) {
+            if (!normalizedStudentName) {
               return false;
             }
-            return normalizeName(r.studentName) === normalizedChildName;
+            return normalizeName(r.studentName) === normalizedStudentName;
           });
 
           const sortedRegistrations = [...filteredRegistrations].sort(
@@ -690,7 +738,7 @@ export default function RegistrationFlowModal({
   }, [
     isOpen,
     branchId,
-    childName,
+    studentName,
     test?.id,
     test?.programRecommendationId,
     test?.programRecommendationName,
@@ -773,7 +821,7 @@ export default function RegistrationFlowModal({
     if (!test?.id) {
       toast({
         title: "Thiếu dữ liệu",
-        description: "Không tìm thấy placement test để tạo đăng ký.",
+        description: "Không tìm thấy bài kiểm tra xếp lớp để tạo đăng ký.",
         variant: "destructive",
       });
       return;
@@ -837,6 +885,7 @@ export default function RegistrationFlowModal({
           {
             id: createdId,
             studentProfileId: effectiveStudentProfileId,
+            preferredSchedule: preferredSchedule || "",
             programId,
             programName:
               tuitionPlans.find((p) => p.programId === programId)?.programName ||
@@ -849,11 +898,15 @@ export default function RegistrationFlowModal({
             usedSessions: 0,
             remainingSessions:
               tuitionPlans.find((p) => p.id === tuitionPlanId)?.totalSessions || 0,
-            label: `${childName || "Học viên"} • Mới • ${toDisplayDate(new Date().toISOString())}`,
+            label: `${studentName || "Học viên"} • Mới • ${toDisplayDate(new Date().toISOString())}`,
           },
           ...prev,
         ];
       });
+      setAssignViewMode("suggested");
+      setActiveStep("create");
+      lastAutoSuggestRegistrationIdRef.current = createdId;
+      await handleSuggestClasses(createdId);
       toast({
         title: "Thành công",
         description: "Đã tạo đăng ký học viên.",
@@ -878,13 +931,14 @@ export default function RegistrationFlowModal({
     }
   };
 
-  const handleSuggestClasses = async () => {
-    if (!registrationId) return;
+  const handleSuggestClasses = async (targetRegistrationId?: string) => {
+    const registrationIdToSuggest = targetRegistrationId || registrationId;
+    if (!registrationIdToSuggest) return;
 
     try {
       setIsSuggesting(true);
       setAssignViewMode("suggested");
-      const suggestions = await suggestClassesForRegistration(registrationId);
+      const suggestions = await suggestClassesForRegistration(registrationIdToSuggest);
       setSuggestedClasses(suggestions);
       const primaryCount = suggestions?.suggestedClasses?.length ?? 0;
       const secondaryCount =
@@ -1221,12 +1275,16 @@ export default function RegistrationFlowModal({
     }
   };
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!registrationId || !preferredSchedule.trim()) return;
+    if (assignViewMode !== "none") return;
+    if (lastAutoSuggestRegistrationIdRef.current === registrationId) return;
 
-  const stepTabs: Array<{ key: StepKey; label: string; icon: React.ReactNode }> = [
-    { key: "create", label: "Tạo đăng ký", icon: <FilePlus2 size={16} /> },
-    { key: "suggest", label: "Gợi ý & xếp lớp", icon: <Sparkles size={16} /> },
-  ];
+    lastAutoSuggestRegistrationIdRef.current = registrationId;
+    void handleSuggestClasses(registrationId);
+  }, [registrationId, preferredSchedule, assignViewMode]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -1235,110 +1293,40 @@ export default function RegistrationFlowModal({
         className="h-[90dvh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl flex flex-col transition-all duration-200 animate-in zoom-in-95"
         style={{ width: "96vw", maxWidth: "1050px" }}
       >
-        {/* Header - Red gradient with icon */}
-        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 text-white">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-white/20 p-2 backdrop-blur-sm">
-              <BookOpen size={20} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold">Đăng Ký Từ Placement Test</h2>
-              <p className="text-sm text-red-100">
-                Học viên: {test?.studentName || test?.childName || "Chưa có tên"}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-2 transition-all hover:bg-white/20 active:scale-95 cursor-pointer"
-            aria-label="Đóng"
-          >
-            <X size={20} />
-          </button>
-        </div>
+        <RegistrationFlowHeader
+          studentName={test?.studentName || ""}
+          onClose={onClose}
+        />
 
         <div className="flex-1 overflow-y-auto p-5">
           <div className="space-y-4">
-            {/* Step tabs - Modern card style */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {stepTabs.map((tab, idx) => {
-                const isActive = tab.key === activeStep;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveStep(tab.key)}
-                    className={`group relative flex items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 cursor-pointer ${
-                      isActive
-                        ? "  from-red-50 to-white border-2 border-red-500 shadow-md"
-                        : "border border-gray-200 bg-white hover:border-red-200 hover:shadow-sm"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-                        isActive
-                          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                          : "bg-gray-100 text-gray-500 group-hover:bg-red-100 group-hover:text-red-600"
-                      }`}
-                    >
-                      {tab.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+            <RegistrationFlowStepTabs
+              activeStep={activeStep}
+              onChangeStep={setActiveStep}
+            />
 
-                      </div>
-                      <div className="text-base font-bold text-gray-900">{tab.label}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {tab.key === "create" ? "Nhập thông tin đăng ký học" : "Xem lớp gợi ý và xếp lớp"}
-                      </div>
-                    </div>
-                    {isActive && <ChevronRight size={18} className="text-red-500" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Registration select - Modern card */}
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Users size={16} className="text-red-500" />
-                  <span className="text-sm font-semibold text-gray-700">Đăng ký đang thao tác</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <Select
-                  value={registrationId}
-                  onValueChange={(val) => {
-                    const normalizedValue =
-                      val === "__create_new__" ? "" : val;
-                    setRegistrationId(normalizedValue);
-                    if (!test?.studentProfileId) {
-                      const selectedRegistration = registrationOptions.find(
-                        (item) => item.id === normalizedValue,
-                      );
-                      setResolvedStudentProfileId(
-                        String(selectedRegistration?.studentProfileId || ""),
-                      );
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                    <SelectValue placeholder="Để trống để tạo đăng ký mới từ placement test" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__create_new__">
-                      Tạo đăng ký mới
-                    </SelectItem>
-                    {registrationOptions.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <RegistrationSelectorCard
+              registrationId={registrationId}
+              registrationOptions={registrationOptions}
+              onValueChange={(val) => {
+                const normalizedValue = val === "__create_new__" ? "" : val;
+                setRegistrationId(normalizedValue);
+                setAssignViewMode("none");
+                setSuggestedClasses(null);
+                setSelectedClassId("");
+                if (normalizedValue) {
+                  lastAutoSuggestRegistrationIdRef.current = "";
+                }
+                if (!test?.studentProfileId) {
+                  const selectedRegistration = registrationOptions.find(
+                    (item) => item.id === normalizedValue,
+                  );
+                  setResolvedStudentProfileId(
+                    String(selectedRegistration?.studentProfileId || ""),
+                  );
+                }
+              }}
+            />
 
             {/* Warning messages - Modern alerts */}
             {!effectiveStudentProfileId && (
@@ -1372,10 +1360,11 @@ export default function RegistrationFlowModal({
             {/* Content area */}
             {!isBootstrapping && (
               <div className="min-h-0">
-                {activeStep === "create" && (
+                {activeStep === "create" ? (
                   <CreateRegistrationStep
                     isBootstrapping={isBootstrapping}
                     effectiveStudentProfileId={effectiveStudentProfileId}
+                    studentName={studentName}
                     programId={programId}
                     setProgramId={setProgramId}
                     tuitionPlanId={tuitionPlanId}
@@ -1391,6 +1380,11 @@ export default function RegistrationFlowModal({
                     setExpectedStartDate={setExpectedStartDate}
                     sessionsPerWeek={sessionsPerWeek}
                     handleSessionsPerWeekChange={handleSessionsPerWeekChange}
+                    scheduleMode={scheduleMode}
+                    onScheduleModeChange={handleScheduleModeChange}
+                    manualSessionsInput={manualSessionsInput}
+                    onManualSessionsInputChange={handleManualSessionsInputChange}
+                    onManualSessionsInputBlur={handleManualSessionsInputBlur}
                     selectedDays={selectedDays}
                     toggleDay={toggleDay}
                     selectedTimeSlot={selectedTimeSlot}
@@ -1410,14 +1404,64 @@ export default function RegistrationFlowModal({
                     programs={programs}
                     filteredTuitionPlans={filteredTuitionPlans}
                     secondaryPrograms={secondaryPrograms}
-                    sessionsPerWeekOptions={SESSIONS_PER_WEEK_OPTIONS}
                     weekDays={WEEK_DAYS}
                     timeSlots={TIME_SLOTS}
+                    suggestedPanel={(
+                      <SuggestAssignStep
+                        mode="suggested-only"
+                        registrationId={registrationId}
+                        isSuggesting={isSuggesting}
+                        assignViewMode={assignViewMode}
+                        handleSuggestClasses={handleSuggestClasses}
+                        allowManualAssign={allowManualAssign}
+                        handleLoadManualClasses={handleLoadManualClasses}
+                        isLoadingManualClasses={isLoadingManualClasses}
+                        branchId={branchId}
+                        handleMoveToWaitingList={handleMoveToWaitingList}
+                        isWaiting={isWaiting}
+                        suggestedClasses={suggestedClasses}
+                        hasSecondaryTrack={hasSecondaryTrack}
+                        selectedTrack={selectedTrack}
+                        setSelectedTrack={setSelectedTrack}
+                        selectedClassId={selectedClassId}
+                        setSelectedClassId={setSelectedClassId}
+                        activeSuggestedClasses={activeSuggestedClasses}
+                        activeAlternativeClasses={activeAlternativeClasses}
+                        formatSchedulePattern={formatSchedulePattern}
+                        handleAssignClass={handleAssignClass}
+                        handleAssignSuggestedClasses={handleAssignSuggestedClasses}
+                        isAssigning={isAssigning}
+                        manualClasses={manualClasses}
+                        manualClassOptions={manualClassOptions}
+                        manualPrimaryClassId={manualPrimaryClassId}
+                        setManualPrimaryClassId={setManualPrimaryClassId}
+                        manualSecondaryClassId={manualSecondaryClassId}
+                        setManualSecondaryClassId={setManualSecondaryClassId}
+                        manualPrimaryProgramId={selectedRegistrationProgramId || programId}
+                        manualPrimaryProgramName={selectedRegistrationProgramName}
+                        manualSecondaryProgramId={
+                          selectedRegistrationSecondaryProgramId ||
+                          secondaryProgramId ||
+                          suggestedClasses?.secondaryProgramId ||
+                          ""
+                        }
+                        manualSecondaryProgramName={
+                          selectedRegistrationSecondaryProgramName ||
+                          suggestedClasses?.secondaryProgramName ||
+                          ""
+                        }
+                        preferredSchedule={selectedRegistrationPreferredSchedule}
+                        manualPrimarySessionPattern={manualPrimarySessionPattern}
+                        setManualPrimarySessionPattern={setManualPrimarySessionPattern}
+                        manualSecondarySessionPattern={manualSecondarySessionPattern}
+                        setManualSecondarySessionPattern={setManualSecondarySessionPattern}
+                        handleAssignManualClasses={handleAssignManualClasses}
+                      />
+                    )}
                   />
-                )}
-
-                {activeStep === "suggest" && (
+                ) : (
                   <SuggestAssignStep
+                    mode="manual-wait-only"
                     registrationId={registrationId}
                     isSuggesting={isSuggesting}
                     assignViewMode={assignViewMode}
@@ -1475,24 +1519,3 @@ export default function RegistrationFlowModal({
     </div>
   );
 }
-
-// Helper icon component
-const FilePlus2 = ({ size, className }: { size?: number; className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size || 24}
-    height={size || 24}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="12" y1="18" x2="12" y2="12" />
-    <line x1="9" y1="15" x2="15" y2="15" />
-  </svg>
-);

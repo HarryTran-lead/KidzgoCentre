@@ -2,7 +2,7 @@ import type { ApiResponse } from "@/types/apiResponse";
 import type { ListData } from "@/types/apiResponse";
 
 export type TicketStatus = "Open" | "InProgress" | "Resolved" | "Closed";
-export type TicketCategory = "Homework" | "Finance" | "Schedule" | "Tech";
+export type TicketCategory = "Homework" | "Finance" | "Schedule" | "Tech" | "Other";
 
 export interface CreateTicket {
   openedByProfileId?: string;

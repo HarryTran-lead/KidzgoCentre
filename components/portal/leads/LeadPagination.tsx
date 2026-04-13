@@ -20,7 +20,7 @@ export default function LeadPagination({
   totalCount,
   onPageChange,
   onPageSizeChange,
-  itemLabel = "lead",
+  itemLabel = "khách tiềm năng",
   showPageSizeSelector = false,
 }: LeadPaginationProps) {
   const startIndex = (currentPage - 1) * pageSize + 1;

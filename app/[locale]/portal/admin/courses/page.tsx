@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { usePageI18n } from "@/hooks/usePageI18n";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
 /* -------------------------- helpers -------------------------- */
 function cn(...a: Array<string | false | null | undefined>) {
