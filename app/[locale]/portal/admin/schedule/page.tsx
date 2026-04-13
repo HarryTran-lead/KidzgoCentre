@@ -34,6 +34,7 @@ import {
   BookOpen
 } from "lucide-react";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
 type Slot = {
@@ -439,37 +440,15 @@ function CreateScheduleModal({ isOpen, onClose, onSave, prefillDate, prefillTime
 
             {/* Row 0: Chi nhánh */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Building2 size={16} className="text-red-600" />
-                  Chi nhánh *
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.branchId}
-                    onChange={(e) => handleChange("branchId", e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all ${errors.branchId ? "border-red-500" : "border-gray-200"
-                      }`}
-                  >
-                    <option value="">Chọn chi nhánh</option>
-                    {branchOptions.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.branchId && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.branchId && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle size={14} /> {errors.branchId}
-                  </p>
-                )}
-              </div>
+              <AdminBranchSelectField
+                isOpen={isOpen}
+                value={formData.branchId}
+                options={branchOptions.map((branch) => ({ id: branch.id, label: branch.label }))}
+                onValueChange={(value) => handleChange("branchId", value)}
+                error={errors.branchId}
+                placeholder="Vui lòng chọn chi nhánh"
+                dataField="branchId"
+              />
             </div>
 
             {/* Row 1: Lớp học & Loại */}

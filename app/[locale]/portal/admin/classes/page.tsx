@@ -29,6 +29,7 @@ import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { useToast } from "@/hooks/use-toast";
 import { getAccessToken } from "@/lib/store/authToken";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
 /* ----------------------------- UI HELPERS ------------------------------ */
 function StatusBadge({ value }: { value: ClassRow["status"] }) {
@@ -1958,33 +1959,17 @@ function CreateClassModal({
 
             {/* Row 2: Chi nhánh & Chương trình */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Building2 size={16} className="text-red-600" />
-                  Chi nhánh <span className="text-red-500">*</span>
-                </label>
-                <Select
-                  value={formData.branchId}
-                  onValueChange={(val) => handleChange("branchId", val)}
-                  disabled={loadingOptions}
-                >
-                  <SelectTrigger
-                    data-field="branchId"
-                    className={clsx(
-                      "w-full",
-                      errors.branchId ? "border-red-500" : "border-gray-200"
-                    )}
-                  >
-                    <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn chi nhánh"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branchOptions.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
-              </div>
+              <AdminBranchSelectField
+                isOpen={isOpen}
+                mode={mode}
+                value={formData.branchId}
+                options={branchOptions.map((branch) => ({ id: branch.id, label: branch.name }))}
+                onValueChange={(value) => handleChange("branchId", value)}
+                error={errors.branchId}
+                disabled={loadingOptions}
+                placeholder={loadingOptions ? "Đang tải chi nhánh..." : "Vui lòng chọn chi nhánh"}
+                dataField="branchId"
+              />
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
