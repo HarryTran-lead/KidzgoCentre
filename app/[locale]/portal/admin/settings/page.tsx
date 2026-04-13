@@ -341,7 +341,7 @@ export default function SettingsPage() {
       {/* Footer Note */}
       <div className={`mt-6 text-center transition-all duration-700 delay-300 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <p className="text-sm text-gray-500">
-          <span className="text-red-600 font-medium">KidzGo System v2.5</span> • Tất cả thay đổi sẽ được áp dụng sau 5 phút
+          <span className="text-red-600 font-medium">Rex System v2.5</span> • Tất cả thay đổi sẽ được áp dụng sau 5 phút
         </p>
       </div>
     </div>

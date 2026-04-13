@@ -119,7 +119,7 @@ export default function BranchFormModal({
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              placeholder="VD: KidzGo Quận 1"
+              placeholder="VD: Rex Quận 1"
             />
           </div>
 

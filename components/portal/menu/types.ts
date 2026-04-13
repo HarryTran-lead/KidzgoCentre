@@ -9,6 +9,7 @@ export type FlatItem = {
   icon: IconType;
   href: string; // path tuyệt đối (đã prefix root)
   badge?: number; // badge hiển thị số thông báo
+  variant?: 'default' | 'special'; // special: border đỏ, chữ đỏ, nền hồng
 };
 
 /** Nhóm mục (collapsible) */

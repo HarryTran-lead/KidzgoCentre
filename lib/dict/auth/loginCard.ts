@@ -1,7 +1,7 @@
 // lib/dict/home/loginCard.ts
 export const loginCard = {
   vi: {
-    badge: "Nền tảng giáo dục KidzGo",
+    badge: "Nền tảng giáo dục Rex",
     hero: {
       welcome: "Chào mừng",
       back: "trở lại",
@@ -15,7 +15,7 @@ export const loginCard = {
     },
     form: {
       title: "Đăng nhập",
-      subtitle: "Kết nối ngay để quản lý và theo dõi lộ trình học tại KidzGo.",
+      subtitle: "Kết nối ngay để quản lý và theo dõi lộ trình học tại Rex.",
       emailLabel: "Email của bạn",
       emailPlaceholder: "name@example.com",
       passwordLabel: "Mật khẩu",
@@ -28,7 +28,7 @@ export const loginCard = {
       terms: "Điều khoản sử dụng",
       and: "và",
       privacy: "Chính sách bảo mật",
-      consentSuffix: "của KidzGo.",
+      consentSuffix: "của Rex.",
     },
     features: {
       progressTitle: "Theo dõi tiến bộ",
@@ -41,7 +41,7 @@ export const loginCard = {
   },
 
   en: {
-    badge: "KidzGo Education Platform",
+    badge: "Rex Education Platform",
     hero: {
       welcome: "Welcome",
       back: "back",
@@ -56,7 +56,7 @@ export const loginCard = {
     form: {
       title: "Log in",
       subtitle:
-        "Connect now to manage and track your learning journey at KidzGo.",
+        "Connect now to manage and track your learning journey at Rex.",
       emailLabel: "Your email",
       emailPlaceholder: "name@example.com",
       passwordLabel: "Password",
@@ -69,7 +69,7 @@ export const loginCard = {
       terms: "Terms of Use",
       and: "and",
       privacy: "Privacy Policy",
-      consentSuffix: "of KidzGo.",
+      consentSuffix: "of Rex.",
     },
     features: {
       progressTitle: "Track progress",

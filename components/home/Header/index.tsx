@@ -294,7 +294,7 @@ export default function Navbar() {
             >
               <Image
                 src={LOGO}
-                alt="KidzGo logo"
+                alt="Rex logo"
                 width={200}
                 height={70}
                 priority
@@ -499,7 +499,7 @@ export default function Navbar() {
             <div className="flex items-center gap-3">
             <Image
               src={LOGO}
-              alt="KidzGo logo"
+              alt="Rex logo"
                 width={140}
                 height={42}
                 className="h-10 w-auto"
