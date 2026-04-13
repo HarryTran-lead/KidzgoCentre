@@ -65,7 +65,7 @@ type MakeupCreditSummary = {
   available: number;
 };
 
-type TabType = "attendance" | "leaveRequests" | "makeup";
+type TabType = "leaveRequests" | "makeup";
 
 /* ===================== Constants ===================== */
 
@@ -346,7 +346,7 @@ export default function ParentAttendancePage() {
   const isStudentLocked = !!selectedProfile?.id;
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<TabType>("attendance");
+  const [activeTab, setActiveTab] = useState<TabType>("leaveRequests");
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -864,7 +864,6 @@ export default function ParentAttendancePage() {
 
   // Tab configurations
   const tabs: Array<{ id: TabType; label: string; icon: React.ElementType; count: number }> = [
-    { id: "attendance", label: "Lịch sử điểm danh", icon: History, count: attendanceHistory.length },
     { id: "leaveRequests", label: "Đơn nghỉ", icon: FileWarning, count: requests.filter(r => normalizeStatus(r.status as string | undefined) === "PENDING").length },
     { id: "makeup", label: "Học bù", icon: CalendarDays, count: makeupAllocations.length },
   ];
@@ -975,74 +974,6 @@ export default function ParentAttendancePage() {
           />
         ))}
       </div>
-
-      {/* Tab Content - Attendance History */}
-      {activeTab === "attendance" && (
-        <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all duration-700 delay-200 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Lịch sử điểm danh</h2>
-                {attendanceLoading ? <div className="text-sm text-gray-500 mt-1">Đang tải...</div> : null}
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">{attendanceHistory.length} bản ghi</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
-                <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Buổi học</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Ngày học</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Trạng thái</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold tracking-wide text-gray-700">Ghi chú</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {!displayAttendance.length && !attendanceLoading ? (
-                  <tr>
-                    <td colSpan={4} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
-                        <History size={24} className="text-gray-400" />
-                      </div>
-                      <div className="text-gray-600 font-medium">Chưa có lịch sử điểm danh</div>
-                      <div className="text-sm text-gray-500 mt-1">Dữ liệu điểm danh sẽ hiển thị sau khi có buổi học.</div>
-                    </td>
-                  </tr>
-                ) : (
-                  displayAttendance.map((item) => {
-                    const status = item.attendanceStatus ?? "NotMarked";
-                    const absenceTypeLabel = getAttendanceAbsenceTypeLabel(item.absenceType);
-                    return (
-                      <tr key={`${item.sessionId}-${item.markedAt ?? item.date ?? ""}`} className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
-                        <td className="py-3 px-6">
-                          <div className="font-medium text-gray-900">{getAttendanceHistoryTitle(item)}</div>
-                          <div className="text-xs text-gray-500">{item.className ?? item.sessionId ?? "-"}</div>
-                        </td>
-                        <td className="py-3 px-6 whitespace-nowrap text-sm text-gray-700">
-                          {toVNDateLabel(item.date)} {item.startTime ? `- ${item.startTime}` : ""}
-                        </td>
-                        <td className="py-3 px-6">
-                          <div className="flex flex-col gap-1">
-                            <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${attendanceStyles[status]}`}>
-                              {attendanceLabels[status]}
-                            </span>
-                            {absenceTypeLabel ? <div className="text-xs text-gray-500">{absenceTypeLabel}</div> : null}
-                          </div>
-                        </td>
-                        <td className="py-3 px-6 text-sm text-gray-700">{item.note ?? "-"}</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Tab Content - Leave Requests */}
       {activeTab === "leaveRequests" && (

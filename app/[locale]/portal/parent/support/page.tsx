@@ -223,7 +223,7 @@ export default function SupportPage() {
                 <MessageSquare className="w-6 h-6 text-gray-700" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Gửi phản hồi cho Kidzgo</h3>
+                <h3 className="text-lg font-bold text-gray-900">Gửi phản hồi cho Rex</h3>
                 <p className="text-sm text-gray-600">Ý kiến của bạn giúp chúng tôi cải thiện dịch vụ</p>
               </div>
             </div>
@@ -405,7 +405,7 @@ export default function SupportPage() {
                   </div>
                   <div>
                     <div className="text-sm text-gray-500">Email hỗ trợ</div>
-                    <div className="text-lg font-bold text-gray-900">support@kidzgo.vn</div>
+                    <div className="text-lg font-bold text-gray-900">support@rex.vn</div>
                   </div>
                 </div>
 

@@ -11,7 +11,7 @@ import {
 } from "@/lib/api/enrollmentService";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import type { Enrollment, CreateEnrollmentRequest, EnrollmentStatus } from "@/types/enrollment";
+import type { Enrollment, CreateEnrollmentRequest } from "@/types/enrollment";
 import {
   EnrollmentStats,
   EnrollmentFilters,
@@ -20,12 +20,6 @@ import {
   EnrollmentDetailModal,
 } from "@/components/portal/enrollments";
 import ConfirmModal from "@/components/ConfirmModal";
-
-const STATUS_MAPPING: Record<EnrollmentStatus, string> = {
-  Active: "Đang học",
-  Paused: "Tạm nghỉ",
-  Dropped: "Đã nghỉ",
-};
 
 export default function EnrollmentsPage() {
   const { toast } = useToast();
@@ -68,9 +62,13 @@ export default function EnrollmentsPage() {
 
   useEffect(() => {
     setIsPageLoaded(true);
+  }, []);
+
+  useEffect(() => {
     if (currentUser && !isLoadingUser) {
       fetchInitialData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, isLoadingUser]);
 
   // Debounce search query (500ms)
@@ -86,7 +84,8 @@ export default function EnrollmentsPage() {
     if (currentUser && !isLoadingUser) {
       fetchEnrollments();
     }
-  }, [currentPage, pageSize, selectedStatus, debouncedSearchQuery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, pageSize, selectedStatus, debouncedSearchQuery, currentUser, isLoadingUser]);
 
   // ========== Data fetching ==========
 
@@ -118,7 +117,7 @@ export default function EnrollmentsPage() {
     try {
       setIsLoading(true);
 
-      const params: Record<string, any> = {
+      const params: Record<string, string | number> = {
         pageNumber: currentPage,
         pageSize,
       };
@@ -151,7 +150,7 @@ export default function EnrollmentsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, pageSize, selectedStatus, debouncedSearchQuery]);
+  }, [currentPage, pageSize, selectedStatus, debouncedSearchQuery, toast]);
 
   // ========== Handlers ==========
 
@@ -173,13 +172,14 @@ export default function EnrollmentsPage() {
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Record<string, unknown>;
       const isScheduleConflict =
-        error?.response?.data?.title === "Enrollment.StudentScheduleConflict";
+        (err?.response as Record<string, unknown>)?.data?.title === "Enrollment.StudentScheduleConflict";
       const msg =
-        error?.response?.data?.detail ||
-        error?.response?.data?.message ||
-        error?.message ||
+        ((err?.response as Record<string, unknown>)?.data?.detail as string) ||
+        ((err?.response as Record<string, unknown>)?.data?.message as string) ||
+        (err?.message as string) ||
         "Không thể tạo ghi danh";
       toast({
         title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
@@ -249,13 +249,14 @@ export default function EnrollmentsPage() {
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Record<string, unknown>;
       const isScheduleConflict =
-        error?.response?.data?.title === "Enrollment.StudentScheduleConflict";
+        (err?.response as Record<string, unknown>)?.data?.title === "Enrollment.StudentScheduleConflict";
       const msg =
-        error?.response?.data?.detail ||
-        error?.response?.data?.message ||
-        error?.message ||
+        ((err?.response as Record<string, unknown>)?.data?.detail as string) ||
+        ((err?.response as Record<string, unknown>)?.data?.message as string) ||
+        (err?.message as string) ||
         "Đã xảy ra lỗi";
       toast({
         title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
@@ -297,8 +298,8 @@ export default function EnrollmentsPage() {
 
   const sortedEnrollments = [...enrollments].sort((a, b) => {
     if (!sortKey) return 0;
-    const aVal = (a as any)[sortKey] || "";
-    const bVal = (b as any)[sortKey] || "";
+    const aVal = (a as Record<string, unknown>)[sortKey] || "";
+    const bVal = (b as Record<string, unknown>)[sortKey] || "";
     const cmp = String(aVal).localeCompare(String(bVal), "vi");
     return sortDir === "asc" ? cmp : -cmp;
   });
@@ -309,7 +310,7 @@ export default function EnrollmentsPage() {
         isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
       }`}
     >
-      <div className="space-y-6 max-w-[1400px] mx-auto">
+      <div className="space-y-6 px-6">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -325,14 +326,14 @@ export default function EnrollmentsPage() {
                 fetchEnrollments();
                 fetchInitialData();
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-pink-200 text-gray-700 hover:bg-pink-50 transition-colors text-sm"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-gray-700 hover:bg-red-50 transition-colors text-sm"
             >
               <RefreshCw size={16} />
               Làm mới
             </button>
             <button
               onClick={() => setIsFormModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-linear-to-r from-pink-500 to-rose-500 text-white hover:shadow-lg transition-all text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm font-medium"
             >
               <Plus size={16} />
               Tạo ghi danh

@@ -82,8 +82,8 @@ export default function BannerBlog() {
             {/* Subtitle */}
             <p className="text-sm sm:text-base md:text-[15px] text-white leading-relaxed max-w-xl font-medium">
               {locale === "vi" 
-                ? "Cập nhật tin tức, mẹo học tập và thông tin hữu ích từ KidzGo"
-                : "Stay updated with news, learning tips and useful information from KidzGo"
+                ? "Cập nhật tin tức, mẹo học tập và thông tin hữu ích từ Rex"
+                : "Stay updated with news, learning tips and useful information from Rex"
               }
             </p>
 

@@ -54,6 +54,7 @@ function NavLink({
   active,
   depth = 0,
   collapsed,
+  variant = 'default',
 }: {
   href: string;
   label: string;
@@ -61,15 +62,20 @@ function NavLink({
   active: boolean;
   depth?: number;
   collapsed?: boolean;
+  variant?: 'default' | 'special';
 }) {
+  const isSpecial = variant === 'special';
+  
   const core = (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
       className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out ${
-        active
-          ? "bg-linear-to-r from-red-50 via-transparent to-red-50 text-red-700 shadow-sm rounded-l-none"
-          : "text-slate-600 hover:bg-gray-100 hover:text-slate-900"
+        isSpecial
+          ? "border-2 border-red-500 bg-red-50 text-red-600 hover:bg-red-100"
+          : active
+            ? "bg-linear-to-r from-red-50 via-transparent to-red-50 text-red-700 shadow-sm rounded-l-none"
+            : "text-slate-600 hover:bg-gray-100 hover:text-slate-900"
       }`}
       style={{
         paddingLeft: collapsed ? 12 : 12 + depth * 16,
@@ -79,7 +85,7 @@ function NavLink({
     >
       <span
         className={`absolute left-0 top-1/2 -translate-y-1/2 h-full w-0.5 bg-linear-to-b from-red-400 via-red-600 to-red-700 transition-all duration-300 ease-out ${
-          active ? "opacity-100 scale-100" : "opacity-0 scale-y-50"
+          isSpecial ? "opacity-0" : active ? "opacity-100 scale-100" : "opacity-0 scale-y-50"
         }`}
       />
 
@@ -87,18 +93,22 @@ function NavLink({
         <Icon
           size={18}
           className={`shrink-0 transition-all duration-300 ease-out ${
-            active
-              ? "text-red-600 scale-110"
-              : "text-slate-400 group-hover:text-red-600 group-hover:scale-105"
+            isSpecial
+              ? "text-red-600"
+              : active
+                ? "text-red-600 scale-110"
+                : "text-slate-400 group-hover:text-red-600 group-hover:scale-105"
           }`}
-          strokeWidth={active ? 2.5 : 2}
+          strokeWidth={isSpecial || active ? 2.5 : 2}
         />
       ) : (
         <span
           className={`h-1.5 w-1.5 rounded-full shrink-0 transition-all duration-300 ease-out ${
-            active
-              ? "bg-red-600 scale-125"
-              : "bg-slate-300 group-hover:bg-red-600 group-hover:scale-110"
+            isSpecial
+              ? "bg-red-600"
+              : active
+                ? "bg-red-600 scale-125"
+                : "bg-slate-300 group-hover:bg-red-600 group-hover:scale-110"
           }`}
         />
       )}
@@ -106,7 +116,11 @@ function NavLink({
       {!collapsed && (
         <span
           className={`truncate transition-all duration-300 ease-out ${
-            active ? "font-semibold translate-x-0.5" : "font-medium"
+            isSpecial
+              ? "font-semibold text-red-600"
+              : active
+                ? "font-semibold translate-x-0.5"
+                : "font-medium"
           }`}
         >
           {label}
@@ -212,6 +226,7 @@ function Flyout({
             label={it.label}
             Icon={it.icon}
             active={isActive(it.href)}
+            variant={it.variant}
           />
         ))}
       </div>
@@ -561,7 +576,9 @@ export default function Sidebar({
         }
       >
         <div className={collapsed ? "space-y-1" : "space-y-0.5"}>
-          {items.map((it, idx) =>
+          {items
+            .filter((it) => !isGroup(it) ? !(it as FlatItem).variant || (it as FlatItem).variant === 'default' : true)
+            .map((it, idx) =>
             isGroup(it) ? (
               <Group
                 key={`g-${idx}`}
@@ -592,6 +609,7 @@ export default function Sidebar({
                     active={isActive(sub.href)}
                     depth={1}
                     collapsed={collapsed}
+                    variant={sub.variant}
                   />
                 ))}
               </Group>
@@ -611,6 +629,7 @@ export default function Sidebar({
                     Icon={(it as FlatItem).icon}
                     active={isActive((it as FlatItem).href)}
                     collapsed={collapsed}
+                    variant={(it as FlatItem).variant}
                   />
                 </span>
               </Tooltip>
@@ -618,6 +637,33 @@ export default function Sidebar({
           )}
         </div>
       </nav>
+
+      {/* Special items at bottom */}
+      <div className={`px-3 py-3 border-t border-slate-200 space-y-2 ${collapsed ? "flex flex-col items-center" : ""}`}>
+        {items
+          .filter((it) => !isGroup(it) && (it as FlatItem).variant === 'special')
+          .map((it) => (
+            <Tooltip
+              key={(it as FlatItem).href}
+              title={(it as FlatItem).label}
+              placement="right"
+              arrow
+              enterDelay={150}
+              disableHoverListener={!collapsed}
+            >
+              <span className="block">
+                <NavLink
+                  href={withLocale((it as FlatItem).href)}
+                  label={(it as FlatItem).label}
+                  Icon={(it as FlatItem).icon}
+                  active={isActive((it as FlatItem).href)}
+                  collapsed={collapsed}
+                  variant={(it as FlatItem).variant}
+                />
+              </span>
+            </Tooltip>
+          ))}
+      </div>
 
       <div
         className={`border-t border-slate-200 transition-all duration-500 ${

@@ -233,7 +233,7 @@ export default function Gallery() {
                 >
                   <motion.img
                     src={src}
-                    alt={`KidzGo gallery ${i + 1}`}
+                    alt={`Rex gallery ${i + 1}`}
                     className="w-full h-full object-cover"
                     loading="lazy"
                     initial={{ scale: 1 }}

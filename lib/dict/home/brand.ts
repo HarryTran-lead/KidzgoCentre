@@ -1,4 +1,4 @@
 export const brand = {
-  vi: { name: "KidzGo" },
-  en: { name: "KidzGo" },
+  vi: { name: "Rex" },
+  en: { name: "Rex" },
 };

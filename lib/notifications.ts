@@ -143,7 +143,7 @@ function createSeedStore(): NotificationStore {
         kind: "report",
         createdAt: nowIso(),
         senderRole: "Admin",
-        senderName: "Hệ thống KidzGo",
+        senderName: "Hệ thống Rex",
         deliveredCount: 2,
       },
     ],

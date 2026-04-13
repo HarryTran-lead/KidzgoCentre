@@ -217,13 +217,13 @@ export default function ActivateProfileClient() {
         {/* Header */}
         <div className="bg-linear-to-r from-red-600 to-red-700 px-8 py-6 flex flex-col items-center gap-3">
           {LOGO ? (
-            <Image src={LOGO} alt="KidzGo" width={48} height={48} className="rounded-xl" />
+            <Image src={LOGO} alt="Rex" width={48} height={48} className="rounded-xl" />
           ) : (
             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-white font-bold text-lg">
               K
             </div>
           )}
-          <h1 className="text-white text-xl font-bold tracking-wide">KidzGo</h1>
+          <h1 className="text-white text-xl font-bold tracking-wide">Rex</h1>
           <p className="text-red-100 text-sm">Xác minh hồ sơ học viên</p>
         </div>
 

@@ -559,7 +559,7 @@ export default function BranchesPage() {
               Quản lý chi nhánh
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Theo dõi và quản lý toàn bộ chi nhánh của hệ thống KidzGo
+              Theo dõi và quản lý toàn bộ chi nhánh của hệ thống Rex
             </p>
           </div>
         </div>
