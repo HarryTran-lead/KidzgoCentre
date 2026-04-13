@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { getAllUsers, updateUserStatus, createUser, updateUser, deleteUser, getUserById } from "@/lib/api/userService";
 import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
 import AccountDetailModal from "@/components/admin/accounts/AccountDetailModal";
@@ -395,6 +396,13 @@ const getActivityDisplay = (account: Account) => {
 };
 
 export default function AccountsPage() {
+  const pathname = usePathname() || "";
+  const isStaffAccountsPage = pathname.includes("/portal/staff-management/accounts");
+  const canApproveProfiles = !isStaffAccountsPage;
+  const allowedRoles: Role[] = isStaffAccountsPage
+    ? ["Parent", "Teacher"]
+    : ["Admin", "Teacher", "Parent", "ManagementStaff"];
+
   // Tab state
   const [activeTab, setActiveTab] = useState<"accounts" | "profiles">("accounts");
   
@@ -463,18 +471,51 @@ export default function AccountsPage() {
     isApproved?: boolean;
   } | null>(null);
 
-  const refreshAccountsTable = async () => {
-    const usersResponse = await getAllUsers({
-      pageNumber: 1,
-      pageSize: 1000,
-    });
+  const fetchAccountUsers = async (): Promise<User[]> => {
+    if (!isStaffAccountsPage) {
+      const usersResponse = await getAllUsers({
+        pageNumber: 1,
+        pageSize: 1000,
+      });
 
-    const isSuccessful = usersResponse.success || usersResponse.isSuccess;
-    if (!isSuccessful || !usersResponse.data) {
-      throw new Error(usersResponse.message || 'Không thể tải danh sách người dùng');
+      const isSuccessful = usersResponse.success || usersResponse.isSuccess;
+      if (!isSuccessful || !usersResponse.data) {
+        throw new Error(usersResponse.message || "Không thể tải danh sách người dùng");
+      }
+
+      return usersResponse.data.items || [];
     }
 
-    const transformedAccounts = transformUsersToAccounts(usersResponse.data.items);
+    const scopedRoles: UserRole[] = ["Parent", "Teacher"];
+    const scopedResponses = await Promise.all(
+      scopedRoles.map((role) =>
+        getAllUsers({
+          pageNumber: 1,
+          pageSize: 1000,
+          role,
+        })
+      )
+    );
+
+    const usersById = new Map<string, User>();
+
+    for (const response of scopedResponses) {
+      const isSuccessful = response.success || response.isSuccess;
+      if (!isSuccessful || !response.data) {
+        throw new Error(response.message || "Không thể tải danh sách người dùng");
+      }
+
+      (response.data.items || []).forEach((user) => {
+        usersById.set(user.id, user);
+      });
+    }
+
+    return Array.from(usersById.values());
+  };
+
+  const refreshAccountsTable = async () => {
+    const fetchedUsers = await fetchAccountUsers();
+    const transformedAccounts = transformUsersToAccounts(fetchedUsers);
     setAccounts(transformedAccounts);
     setTotalCount(transformedAccounts.length);
     setFixedCounts(getAccountCounts(transformedAccounts));
@@ -487,26 +528,17 @@ export default function AccountsPage() {
       setError(null);
 
       // Fetch both accounts and profiles in parallel
-      const [usersResponse, profilesResponse] = await Promise.all([
-        getAllUsers({
-          pageNumber: 1,
-          pageSize: 1000,
-        }),
+      const [fetchedUsers, profilesResponse] = await Promise.all([
+        fetchAccountUsers(),
         getAllStudents({
           pageSize: 100,
         })
       ]);
 
-      const isSuccessful = usersResponse.success || usersResponse.isSuccess;
-
-      if (isSuccessful && usersResponse.data) {
-        const transformedAccounts = transformUsersToAccounts(usersResponse.data.items);
-        setAccounts(transformedAccounts);
-        setTotalCount(transformedAccounts.length);
-        setFixedCounts(getAccountCounts(transformedAccounts));
-      } else {
-        setError(usersResponse.message || 'Không thể tải danh sách người dùng');
-      }
+      const transformedAccounts = transformUsersToAccounts(fetchedUsers);
+      setAccounts(transformedAccounts);
+      setTotalCount(transformedAccounts.length);
+      setFixedCounts(getAccountCounts(transformedAccounts));
 
       if (profilesResponse.data?.items) {
         setProfiles(profilesResponse.data.items);
@@ -526,6 +558,12 @@ export default function AccountsPage() {
   useEffect(() => {
     fetchUsersAndProfiles();
   }, []); // Only fetch once on mount
+
+  useEffect(() => {
+    if (role !== "ALL" && !allowedRoles.includes(role)) {
+      setRole("ALL");
+    }
+  }, [allowedRoles, role]);
 
   // Debounce search
   useEffect(() => {
@@ -750,10 +788,12 @@ export default function AccountsPage() {
     }
 
     // Filter by approval status
-    if (profileApprovalFilter === "pending") {
-      filtered = filtered.filter((p) => p.isApproved === false);
-    } else if (profileApprovalFilter === "approved") {
-      filtered = filtered.filter((p) => p.isApproved !== false);
+    if (canApproveProfiles) {
+      if (profileApprovalFilter === "pending") {
+        filtered = filtered.filter((p) => p.isApproved === false);
+      } else if (profileApprovalFilter === "approved") {
+        filtered = filtered.filter((p) => p.isApproved !== false);
+      }
     }
 
     // Filter by search term
@@ -783,7 +823,7 @@ export default function AccountsPage() {
     setFilteredProfiles(filtered);
     setSelectedProfileRows([]);
     setProfileCurrentPage(1); // Reset to page 1 when filters change
-  }, [profiles, profileFilterType, profileApprovalFilter, profileSearchTerm]);
+  }, [profiles, profileFilterType, profileApprovalFilter, profileSearchTerm, canApproveProfiles]);
 
   // Handle create parent profile
   const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
@@ -863,6 +903,7 @@ export default function AccountsPage() {
   };
 
   const handleOpenApproveProfileModal = (profile: any) => {
+    if (!canApproveProfiles) return;
     setSelectedProfileRows([]);
     setSelectedProfileForAction({
       id: profile.id,
@@ -874,12 +915,14 @@ export default function AccountsPage() {
   };
 
   const handleOpenBulkApproveModal = () => {
+    if (!canApproveProfiles) return;
     if (selectedProfileRows.length === 0) return;
     setSelectedProfileForAction(null);
     setShowProfileApproveModal(true);
   };
 
   const handleConfirmApproveProfile = async () => {
+    if (!canApproveProfiles) return;
     const idsToApprove = selectedProfileRows.length > 0
       ? selectedProfileRows
       : selectedProfileForAction
@@ -1119,6 +1162,20 @@ export default function AccountsPage() {
     return result;
   }, [accounts, role, status, debouncedSearch, sort.key, sort.direction]);
 
+  const roleFilterItems: Array<{ k: Role | "ALL"; label: string; count: number }> = isStaffAccountsPage
+    ? [
+        { k: "ALL", label: "Tất cả", count: fixedCounts.total },
+        { k: "Teacher", label: "Giáo viên", count: fixedCounts.teacher },
+        { k: "Parent", label: "Phụ huynh", count: fixedCounts.parent },
+      ]
+    : [
+        { k: "ALL", label: "Tất cả", count: fixedCounts.total },
+        { k: "Admin", label: "Quản trị", count: fixedCounts.admin },
+        { k: "Teacher", label: "Giáo viên", count: fixedCounts.teacher },
+        { k: "Parent", label: "Phụ huynh", count: fixedCounts.parent },
+        { k: "ManagementStaff", label: "Nhân viên", count: fixedCounts.managementStaff },
+      ];
+
   // Client-side pagination
   const totalPages = Math.ceil(list.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -1129,7 +1186,9 @@ export default function AccountsPage() {
   const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
   const profileEndIndex = profileStartIndex + profileItemsPerPage;
   const currentProfiles = filteredProfiles.slice(profileStartIndex, profileEndIndex);
-  const currentPendingProfiles = currentProfiles.filter((p) => p.isApproved === false);
+  const currentPendingProfiles = canApproveProfiles
+    ? currentProfiles.filter((p) => p.isApproved === false)
+    : [];
 
   const isAllCurrentPendingSelected =
     currentPendingProfiles.length > 0 &&
@@ -1325,16 +1384,10 @@ export default function AccountsPage() {
           <div className="flex flex-wrap items-center gap-3">
             {/* Role Filter */}
             <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
-              {[
-                { k: 'ALL', label: 'Tất cả', count: fixedCounts.total },
-                { k: 'Admin', label: 'Quản trị', count: fixedCounts.admin },
-                { k: 'Teacher', label: 'Giáo viên', count: fixedCounts.teacher },
-                { k: 'Parent', label: 'Phụ huynh', count: fixedCounts.parent },
-                { k: 'ManagementStaff', label: 'Nhân viên', count: fixedCounts.managementStaff },
-              ].map((item) => (
+              {roleFilterItems.map((item) => (
                 <button
                   key={item.k}
-                  onClick={() => setRole(item.k as typeof role)}
+                  onClick={() => setRole(item.k)}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${role === item.k
                     ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
                     : 'text-gray-700 hover:bg-red-50'
@@ -1677,12 +1730,14 @@ export default function AccountsPage() {
           </div>
 
           <div className={`grid gap-4 md:grid-cols-2 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="rounded-2xl border border-amber-200 bg-linear-to-br from-white to-amber-50 p-4">
-              <div className="text-sm text-gray-600">Profile chờ duyệt</div>
-              <div className="mt-1 text-2xl font-bold text-amber-700">
-                {profiles.filter(p => p.isApproved === false).length}
+            {canApproveProfiles && (
+              <div className="rounded-2xl border border-amber-200 bg-linear-to-br from-white to-amber-50 p-4">
+                <div className="text-sm text-gray-600">Profile chờ duyệt</div>
+                <div className="mt-1 text-2xl font-bold text-amber-700">
+                  {profiles.filter(p => p.isApproved === false).length}
+                </div>
               </div>
-            </div>
+            )}
             <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
               <div className="text-sm text-gray-600">Profile đang khóa</div>
               <div className="mt-1 text-2xl font-bold text-red-700">
@@ -1721,20 +1776,22 @@ export default function AccountsPage() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Filter size={16} className="text-gray-500" />
-                  <select
-                    value={profileApprovalFilter}
-                    onChange={(e) => setProfileApprovalFilter(e.target.value as typeof profileApprovalFilter)}
-                    className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                  >
-                    <option value="all">Tất cả duyệt</option>
-                    <option value="pending">Chờ duyệt</option>
-                    <option value="approved">Đã duyệt</option>
-                  </select>
-                </div>
+                {canApproveProfiles && (
+                  <div className="flex items-center gap-2">
+                    <Filter size={16} className="text-gray-500" />
+                    <select
+                      value={profileApprovalFilter}
+                      onChange={(e) => setProfileApprovalFilter(e.target.value as typeof profileApprovalFilter)}
+                      className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                    >
+                      <option value="all">Tất cả duyệt</option>
+                      <option value="pending">Chờ duyệt</option>
+                      <option value="approved">Đã duyệt</option>
+                    </select>
+                  </div>
+                )}
 
-                {selectedProfileRows.length > 0 && (
+                {canApproveProfiles && selectedProfileRows.length > 0 && (
                   <button
                     onClick={handleOpenBulkApproveModal}
                     className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
@@ -1792,15 +1849,17 @@ export default function AccountsPage() {
                   <table className="w-full">
                     <thead className="bg-linear-to-r from-red-100 to-red-200">
                       <tr className="border-b border-red-200">
-                        <th className="px-4 py-4 text-left">
-                          <input
-                            type="checkbox"
-                            checked={isAllCurrentPendingSelected}
-                            onChange={toggleSelectAllPendingProfiles}
-                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                            title="Chọn tất cả profile chờ duyệt trong trang"
-                          />
-                        </th>
+                        {canApproveProfiles && (
+                          <th className="px-4 py-4 text-left">
+                            <input
+                              type="checkbox"
+                              checked={isAllCurrentPendingSelected}
+                              onChange={toggleSelectAllPendingProfiles}
+                              className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                              title="Chọn tất cả profile chờ duyệt trong trang"
+                            />
+                          </th>
+                        )}
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
@@ -1812,22 +1871,24 @@ export default function AccountsPage() {
                     <tbody className="divide-y divide-red-100">
                       {currentProfiles.map((profile: any) => (
                       <tr key={profile.id} className="hover:bg-linear-to-r hover:from-red-50/50 hover:to-transparent transition-all duration-200">
-                        <td className="px-4 py-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedProfileRows.includes(profile.id)}
-                            disabled={profile.isApproved !== false}
-                            onChange={() => {
-                              setSelectedProfileRows(prev =>
-                                prev.includes(profile.id)
-                                  ? prev.filter(id => id !== profile.id)
-                                  : [...prev, profile.id]
-                              );
-                            }}
-                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                            title={profile.isApproved === false ? "Chọn profile này" : "Profile đã duyệt"}
-                          />
-                        </td>
+                        {canApproveProfiles && (
+                          <td className="px-4 py-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedProfileRows.includes(profile.id)}
+                              disabled={profile.isApproved !== false}
+                              onChange={() => {
+                                setSelectedProfileRows(prev =>
+                                  prev.includes(profile.id)
+                                    ? prev.filter(id => id !== profile.id)
+                                    : [...prev, profile.id]
+                                );
+                              }}
+                              className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                              title={profile.isApproved === false ? "Chọn profile này" : "Profile đã duyệt"}
+                            />
+                          </td>
+                        )}
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
                             profile.profileType === "Parent"
@@ -1861,17 +1922,17 @@ export default function AccountsPage() {
                               </span>
                             )}
 
-                            {profile.isApproved === false ? (
+                            {canApproveProfiles && profile.isApproved === false ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-amber-50 to-yellow-50 text-amber-700 border border-amber-200 rounded-full text-xs font-medium">
                                 <AlertCircle size={12} />
                                 Chờ duyệt
                               </span>
-                            ) : (
+                            ) : canApproveProfiles ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
                                 <CheckCircle size={12} />
                                 Đã duyệt
                               </span>
-                            )}
+                            ) : null}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -1898,7 +1959,7 @@ export default function AccountsPage() {
                                 <Users size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
                             )}
-                            {profile.isApproved === false && (
+                            {canApproveProfiles && profile.isApproved === false && (
                               <button
                                 onClick={() => handleOpenApproveProfileModal(profile)}
                                 className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors group cursor-pointer"
@@ -1938,7 +1999,7 @@ export default function AccountsPage() {
                       <div className="text-sm text-gray-600">
                         Hiển thị <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span> trong tổng số{" "}
                         <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> profiles
-                        {selectedProfileRows.length > 0 && (
+                        {canApproveProfiles && selectedProfileRows.length > 0 && (
                           <span className="ml-2 text-emerald-700 font-medium">• Đã chọn {selectedProfileRows.length}</span>
                         )}
                       </div>
@@ -2053,23 +2114,25 @@ export default function AccountsPage() {
             variant="danger"
           />
 
-          <ConfirmModal
-            isOpen={showProfileApproveModal}
-            onClose={() => {
-              if (isProfileApproveSubmitting) return;
-              setShowProfileApproveModal(false);
-              setSelectedProfileForAction(null);
-            }}
-            onConfirm={handleConfirmApproveProfile}
-            title="Xác nhận duyệt profile"
-            message={selectedProfileRows.length > 0
-              ? `Bạn có chắc chắn muốn duyệt ${selectedProfileRows.length} profile đã chọn?`
-              : `Bạn có chắc chắn muốn duyệt profile "${selectedProfileForAction?.name}"?`}
-            confirmText="Duyệt profile"
-            cancelText="Hủy"
-            variant="success"
-            isLoading={isProfileApproveSubmitting}
-          />
+          {canApproveProfiles && (
+            <ConfirmModal
+              isOpen={showProfileApproveModal}
+              onClose={() => {
+                if (isProfileApproveSubmitting) return;
+                setShowProfileApproveModal(false);
+                setSelectedProfileForAction(null);
+              }}
+              onConfirm={handleConfirmApproveProfile}
+              title="Xác nhận duyệt profile"
+              message={selectedProfileRows.length > 0
+                ? `Bạn có chắc chắn muốn duyệt ${selectedProfileRows.length} profile đã chọn?`
+                : `Bạn có chắc chắn muốn duyệt profile "${selectedProfileForAction?.name}"?`}
+              confirmText="Duyệt profile"
+              cancelText="Hủy"
+              variant="success"
+              isLoading={isProfileApproveSubmitting}
+            />
+          )}
 
           <ConfirmModal
             isOpen={showProfileReactivateModal}

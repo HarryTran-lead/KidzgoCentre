@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { X, Mail, User as UserIcon, Lock, Shield, Loader2, Phone } from "lucide-react";
 import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
 import type { Branch } from "@/types/branch";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface AccountFormModalProps {
   isOpen: boolean;
@@ -16,6 +18,11 @@ interface AccountFormModalProps {
 }
 
 export default function AccountFormModal({ isOpen, onClose, onSubmit, account, mode }: AccountFormModalProps) {
+  const pathname = usePathname() || "";
+  const isStaffAccountsPage = pathname.includes("/portal/staff-management/accounts");
+  const { user: currentUser } = useCurrentUser();
+  const fixedStaffBranchId = isStaffAccountsPage ? (currentUser?.branchId || "") : "";
+
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [errors, setErrors] = useState<{ branchId?: string }>({});
@@ -28,6 +35,23 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     branchId: '',
     phoneNumber: '',
   });
+
+  const roleOptions: Array<{ value: UserRole; label: string }> = isStaffAccountsPage
+    ? [
+        { value: "Teacher", label: "Giáo viên" },
+        { value: "Parent", label: "Phụ huynh" },
+      ]
+    : [
+        { value: "Admin", label: "Quản trị" },
+        { value: "ManagementStaff", label: "Nhân viên quản lý" },
+        { value: "Teacher", label: "Giáo viên" },
+        { value: "Parent", label: "Phụ huynh" },
+      ];
+
+  const branchOptions =
+    isStaffAccountsPage && fixedStaffBranchId
+      ? branches.filter((branch) => branch.id === fixedStaffBranchId)
+      : branches;
 
   // Fetch branches on component mount
   useEffect(() => {
@@ -67,18 +91,31 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
         username: '',
         password: '',
         role: 'Parent',
-        branchId: '',
+        branchId: isStaffAccountsPage ? fixedStaffBranchId : '',
         phoneNumber: '',
       });
     }
     setErrors({});
-  }, [mode, account, isOpen]);
+  }, [mode, account, isOpen, isStaffAccountsPage, fixedStaffBranchId]);
+
+  useEffect(() => {
+    if (!isOpen || mode !== "create" || !isStaffAccountsPage || !fixedStaffBranchId) {
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      branchId: fixedStaffBranchId,
+      role: prev.role === "Admin" || prev.role === "ManagementStaff" ? "Parent" : prev.role,
+    }));
+    setErrors({});
+  }, [fixedStaffBranchId, isOpen, isStaffAccountsPage, mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (mode === 'create' && !formData.branchId) {
-      setErrors({ branchId: 'Chi nhánh là bắt buộc' });
+      setErrors({ branchId: isStaffAccountsPage ? 'Không xác định được chi nhánh của tài khoản staff' : 'Chi nhánh là bắt buộc' });
       return;
     }
 
@@ -118,7 +155,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl max-h-[100vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-rose-500 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">
             {mode === 'create' ? 'Tạo tài khoản mới' : 'Cập nhật tài khoản'}
           </h2>
@@ -247,10 +284,11 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
               onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
               className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
             >
-              <option value="Admin">Quản trị</option>
-              <option value="ManagementStaff">Nhân viên quản lý</option>
-              <option value="Teacher">Giáo viên</option>
-              <option value="Parent">Phụ huynh</option>
+              {roleOptions.map((roleOption) => (
+                <option key={roleOption.value} value={roleOption.value}>
+                  {roleOption.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -258,7 +296,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             isOpen={isOpen}
             mode={mode}
             value={formData.branchId}
-            options={branches.map((branch) => ({ id: branch.id, label: branch.name }))}
+            options={branchOptions.map((branch) => ({ id: branch.id, label: branch.name }))}
             onValueChange={(value) => {
               setFormData((prev) => ({ ...prev, branchId: value }));
               if (errors.branchId) {
@@ -267,6 +305,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             }}
             error={errors.branchId}
             required={mode === 'create'}
+            disabled={isStaffAccountsPage && mode === "create"}
             placeholder="Vui lòng chọn chi nhánh"
             dataField="branchId"
           />
@@ -284,7 +323,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             <button
               type="submit"
               disabled={loading || (mode === 'create' && !formData.branchId)}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
               {mode === 'create' ? 'Tạo tài khoản' : 'Cập nhật'}
