@@ -135,11 +135,11 @@ export default function AccountPage() {
                           {profileData.name}
                         </h2>
                         <div className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs md:text-sm font-medium rounded-full">
-                          Phụ huynh Kidzgo
+                          Phụ huynh Rex
                         </div>
                       </div>
                       <p className="text-sm md:text-base text-gray-700">
-                        Đồng hành cùng con trong hành trình học tập tại Kidzgo Centre.
+                        Đồng hành cùng con trong hành trình học tập tại Rex Centre.
                       </p>
                     </div>
 

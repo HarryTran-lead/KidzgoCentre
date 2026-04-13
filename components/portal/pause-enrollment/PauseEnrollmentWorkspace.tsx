@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 import { getProfiles } from "@/lib/api/authService";
 import {
@@ -332,15 +333,15 @@ function Banner({
 }) {
   const mapping = {
     error: {
-      cls: "border-red-200 bg-gradient-to-r from-red-50 to-red-100 text-red-700",
+      cls: "border-red-200 bg-linear-to-r from-red-50 to-red-100 text-red-700",
       icon: AlertCircle,
     },
     success: {
-      cls: "border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700",
+      cls: "border-emerald-200 bg-linear-to-r from-emerald-50 to-emerald-100 text-emerald-700",
       icon: CheckCircle2,
     },
     info: {
-      cls: "border-sky-200 bg-gradient-to-r from-sky-50 to-slate-50 text-sky-700",
+      cls: "border-sky-200 bg-linear-to-r from-sky-50 to-slate-50 text-sky-700",
       icon: ShieldCheck,
     },
   } as const;
@@ -397,13 +398,13 @@ function MiniMetric({
   const Icon = tones[tone].icon;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
       <div
         className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl ${tones[tone].glow}`}
       />
       <div className="relative flex items-center gap-3">
         <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-r ${tones[tone].panel} text-white shadow-sm`}
+          className={`flex h-11 w-11 items-center justify-center rounded-xl bg-linear-to-r ${tones[tone].panel} text-white shadow-sm`}
         >
           <Icon size={18} />
         </div>
@@ -446,9 +447,9 @@ function ActionButton({
 }) {
   const tones = {
     primary:
-      "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 hover:from-emerald-100 hover:to-teal-100",
+      "border-emerald-200 bg-linear-to-r from-emerald-50 to-teal-50 text-emerald-700 hover:from-emerald-100 hover:to-teal-100",
     danger:
-      "border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 hover:from-rose-100 hover:to-pink-100",
+      "border-rose-200 bg-linear-to-r from-rose-50 to-pink-50 text-rose-700 hover:from-rose-100 hover:to-pink-100",
     muted: "border-red-200 bg-white text-gray-700 hover:bg-red-50/60",
   } as const;
 
@@ -502,7 +503,7 @@ function ConfirmDialog({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+        <div className="border-t border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 p-6">
           <div className="flex flex-wrap justify-end gap-3">
             <button
               type="button"
@@ -516,7 +517,7 @@ function ConfirmDialog({
               type="button"
               onClick={onConfirm}
               disabled={loading}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 text-sm font-semibold text-white cursor-pointer shadow-lg hover:shadow-xl transition disabled:opacity-60"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-5 text-sm font-semibold text-white cursor-pointer shadow-lg hover:shadow-xl transition disabled:opacity-60"
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : null}
               {action.confirmText}
@@ -694,8 +695,8 @@ function RequestDetailModal({
             </div>
 
             <div className="space-y-6 xl:sticky xl:top-0 xl:self-start">
-              <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
-                <div className="border-b border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+              <div className="rounded-2xl border border-gray-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+                <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
                   <div className="text-lg font-bold text-gray-900">Xử lý yêu cầu</div>
                   <div className="mt-1 text-sm text-gray-500">
                     Staff/Admin thao tác trực tiếp ngay trong popup này.
@@ -729,8 +730,8 @@ function RequestDetailModal({
               </div>
 
               {canEditOutcome ? (
-                <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
-                  <div className="border-b border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+                <div className="rounded-2xl border border-gray-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+                  <div className="border-b border-gray-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
                     <div className="text-lg font-bold text-gray-900">Cập nhật kết quả sau bảo lưu</div>
                     <div className="mt-1 text-sm text-gray-500">
                       Ghi nhận hướng xử lý sau khi học sinh quay lại.
@@ -770,7 +771,7 @@ function RequestDetailModal({
                       type="button"
                       onClick={onSaveOutcome}
                       disabled={actionLoadingKey === `outcome:${request.id}`}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 text-sm font-semibold cursor-pointer text-white shadow-lg hover:shadow-xl transition disabled:opacity-60"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-5 text-sm font-semibold cursor-pointer text-white shadow-lg hover:shadow-xl transition disabled:opacity-60"
                     >
                       {actionLoadingKey === `outcome:${request.id}` ? (
                         <Loader2 size={16} className="animate-spin" />
@@ -1117,14 +1118,14 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
   };
 
   return (
-    <div className="min-h-screen space-y-6 bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen space-y-6 bg-linear-to-b from-red-50/30 to-white p-4 md:p-6">
       <div
         className={`flex flex-wrap items-center justify-between gap-4 transition-all duration-700 ${
           isPageLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
         }`}
       >
           <div className="flex items-start gap-4">
-            <div className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
+            <div className="rounded-xl bg-linear-to-r from-red-600 to-red-700 p-3 text-white shadow-lg">
               <Clock3 size={26} />
             </div>
             <div className="space-y-1">
@@ -1155,7 +1156,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
               type="button"
               onClick={() => setCreateOpen(true)}
               disabled={studentOptionsLoading}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition cursor-pointer hover:shadow-lg disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white transition cursor-pointer hover:shadow-lg disabled:opacity-60"
             >
               <Plus size={16} />
               Tạo yêu cầu
@@ -1210,126 +1211,58 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
       {requestMessage ? <Banner kind="success" text={requestMessage} /> : null}
       {studentOptionsError ? <Banner kind="error" text={studentOptionsError} /> : null}
 
+      {/* Filter Card */}
       <div
-        className={`overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm transition-all duration-700 delay-150 ${
+        className={`rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-4 transition-all duration-700 delay-150 ${
           isPageLoaded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
         }`}
       >
-        <div className="border-b border-red-200 px-6 py-4">
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_1fr]">
-            {isManagement ? (
-              <label className="block">
-                <div className="mb-2 text-sm font-semibold text-gray-700">Tìm kiếm</div>
-                <div className="relative">
-                  <Search
-                    size={16}
-                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                  />
-                  <input
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Học sinh, phụ huynh, lớp, lý do..."
-                    className="h-12 w-full rounded-xl border border-red-200 bg-white pl-11 pr-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                  />
-                </div>
-              </label>
-            ) : (
-              <label className="block">
-                <div className="mb-2 text-sm font-semibold text-gray-700">Học sinh</div>
-                {isStudentLocked ? (
-                  <div className="rounded-2xl border border-red-100 bg-white/90 px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">
-                          {activeLockedStudent?.label ?? "Đang đồng bộ học sinh"}
-                        </div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          Trang này đang khóa theo học sinh đã chọn trên thanh bên.
-                        </div>
-                      </div>
-                      <span className="inline-flex rounded-full border border-red-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-600">
-                        Cố định
-                      </span>
-                    </div>
-                    {activeLockedStudent?.classText ? (
-                      <div className="mt-3 text-xs text-gray-500">
-                        Lớp hiện tại: {activeLockedStudent.classText}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <select
-                    value={selectedStudentId}
-                    disabled={studentOptionsLoading}
-                    onChange={(event) => setSelectedStudentId(event.target.value)}
-                    className="h-12 w-full rounded-xl border border-red-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                  >
-                    {studentOptions.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </label>
-            )}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="relative flex-1 min-w-[250px]">
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={16}
+            />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={
+                isManagement
+                  ? "Tìm kiếm học sinh, phụ huynh, lớp, lý do..."
+                  : "Tìm kiếm yêu cầu bảo lưu..."
+              }
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-red-200 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+            />
+          </div>
 
-            {isManagement ? (
-              <label className="block">
-                <div className="mb-2 text-sm font-semibold text-gray-700">Học sinh</div>
-                <select
-                  value={selectedStudentId}
-                  onChange={(event) => setSelectedStudentId(event.target.value)}
-                  className="h-12 w-full rounded-xl border border-red-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                >
-                  <option value="">Tất cả học sinh</option>
-                  {studentOptions.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.parentName
-                        ? `${item.label} - PH: ${item.parentName}`
-                        : item.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <div className="rounded-2xl border border-red-100 bg-white/90 px-4 py-3 text-sm text-gray-600">
-                <div className="font-semibold text-gray-800">Phạm vi</div>
-                <div className="mt-1">
-                  {activeLockedStudent?.label
-                    ? `Đang hiển thị yêu cầu của ${activeLockedStudent.label} theo học sinh đã chọn trong portal.`
-                    : "Yêu cầu được hiển thị theo học sinh đang chọn trong portal."}
-                </div>
-              </div>
-            )}
-
-            <label className="block">
-              <div className="mb-2 text-sm font-semibold text-gray-700">Trạng thái</div>
-              <select
-                value={selectedStatus}
-                onChange={(event) => setSelectedStatus(event.target.value)}
-                className="h-12 w-full rounded-xl border border-red-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
-              >
-                <option value={ALL_STATUS}>Tất cả</option>
-                <option value="Pending">{statusLabels.Pending}</option>
-                <option value="Approved">{statusLabels.Approved}</option>
-                <option value="Rejected">{statusLabels.Rejected}</option>
-                <option value="Cancelled">{statusLabels.Cancelled}</option>
-              </select>
-            </label>
-
-            {!isManagement ? (
-              <div className="rounded-2xl border border-red-100 bg-white/90 px-4 py-3 text-sm text-gray-600">
-                <div className="font-semibold text-gray-800">Điểm khác với xin nghỉ</div>
-                <div className="mt-1">
-                  Yêu cầu bảo lưu có duyệt, hủy và outcome riêng sau khi học sinh quay lại.
-                </div>
-              </div>
-            ) : null}
+          <div className="flex items-center gap-3">
+            <Select
+              value={selectedStatus}
+              onValueChange={(val) => setSelectedStatus(val)}
+            >
+              <SelectTrigger className="h-10 rounded-xl border border-red-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+                <SelectValue placeholder="Chọn trạng thái" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_STATUS}>Tất cả trạng thái</SelectItem>
+                <SelectItem value="Pending">{statusLabels.Pending}</SelectItem>
+                <SelectItem value="Approved">{statusLabels.Approved}</SelectItem>
+                <SelectItem value="Rejected">{statusLabels.Rejected}</SelectItem>
+                <SelectItem value="Cancelled">{statusLabels.Cancelled}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
+      </div>
 
-        <div className="border-b border-red-200 bg-gradient-to-r from-red-500/10 to-red-700/10 px-6 py-4">
+      {/* Data Table */}
+      <div
+        className={`overflow-hidden rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm transition-all duration-700 delay-150 ${
+          isPageLoaded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+        }`}
+      >
+
+        <div className="border-b border-red-200 bg-linear-to-r from-red-500/10 to-red-700/10 px-6 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
@@ -1398,7 +1331,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                     className={`transition-all duration-200 ${
                       isSelected
                         ? "bg-red-50/60"
-                        : "hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white"
+                        : "hover:bg-linear-to-r hover:from-red-50/50 hover:to-white"
                     }`}
                   >
 
@@ -1406,7 +1339,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
                     <td className="px-6 py-4 align-top">
                       <div className="flex items-start gap-3">
                         <div
-                          className={`mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-r ${getRequestAccent(
+                          className={`mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-linear-to-r ${getRequestAccent(
                             status
                           )} text-sm font-semibold text-white shadow-sm`}
                         >

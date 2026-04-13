@@ -7,6 +7,7 @@
  */
 
 import { AUTH_ENDPOINTS } from '@/constants/apiURL';
+import { FILE_ENDPOINTS } from '@/constants/apiURL';
 import { get, post, put } from '@/lib/axios';
 import type {
   LoginRequest,
@@ -123,4 +124,17 @@ export async function updateUserMe(data: UpdateUserMeRequest): Promise<UpdateUse
  */
 export async function logout(): Promise<LogoutApiResponse> {
   return post<LogoutApiResponse>(AUTH_ENDPOINTS.LOGOUT);
+}
+
+/**
+ * Upload user avatar
+ */
+export async function uploadAvatar(file: File): Promise<any> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return post<any>(FILE_ENDPOINTS.UPLOAD, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 }

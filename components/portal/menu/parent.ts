@@ -8,8 +8,9 @@ import {
   ImageIcon,
   BellRing,
   HeadphonesIcon,
-  Sparkles,
   UserCircle,
+  History,
+  Users,
 } from "lucide-react";
 import type { MenuItem } from "./types";
 import type { Locale } from "@/lib/i18n";
@@ -30,6 +31,12 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     href: `${root}/attendance`,
   };
 
+  const attendanceHistoryItem: MenuItem = {
+    label: "Lịch sử điểm danh",
+    icon: History,
+    href: `${root}/attendance-history`,
+  };
+
   const pauseEnrollmentItem: MenuItem = {
     label: t.items.pauseEnrollment,
     icon: CalendarRange,
@@ -40,12 +47,6 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     label: t.items.homework,
     icon: BookOpen,
     href: `${root}/homework`,
-  };
-
-  const gamificationItem: MenuItem = {
-    label: t.items.gamification,
-    icon: Sparkles,
-    href: `${root}/gamification`,
   };
 
   const testsReportsItem: MenuItem = {
@@ -90,18 +91,25 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     href: `${root}/profile`,
   };
 
+  const accountChooserItem: MenuItem = {
+    label: "Chuyển tài khoản",
+    icon: Users,
+    href: root.replace(/\/parent$/, ""),
+    variant: 'special',
+  };
+
   return [
     scheduleItem,
     homeworkItem,
-    gamificationItem,
     testsReportsItem,
     paymentItem,
     mediaItem,
     notificationsItem,
     supportItem,
     leaveRequestItem,
+    attendanceHistoryItem,
     pauseEnrollmentItem,
-    accountItem,
     profileItem,
+    accountChooserItem,
   ];
 }

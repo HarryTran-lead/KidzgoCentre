@@ -1,7 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, Edit3, RefreshCcw, Send, XCircle } from "lucide-react";
+import { 
+  CheckCircle2, 
+  Clock, 
+  Edit3, 
+  RefreshCcw, 
+  Send, 
+  XCircle,
+  FileText,
+  AlertCircle,
+  Search,
+  ArrowUpDown,
+  X,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  Eye,
+  Users,
+  Building2,
+  GraduationCap
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type SessionReportStatus = "DRAFT" | "REVIEW" | "APPROVED" | "REJECTED" | "PUBLISHED" | string;
@@ -201,20 +220,53 @@ function formatDateTime(value?: string) {
 
 function StatusBadge({ status }: { status?: string }) {
   const normalized = normalizeStatus(status);
-  const cls = "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium";
+  const cls = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium";
+  
   if (normalized === "REVIEW") {
-    return <span className={`${cls} bg-red-50 text-red-700 border-red-200`}><Clock size={12} />REVIEW</span>;
+    return (
+      <span className={`${cls} bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200`}>
+        <Clock size={12} />
+        Đang duyệt
+      </span>
+    );
   }
   if (normalized === "APPROVED") {
-    return <span className={`${cls} bg-emerald-50 text-emerald-700 border-emerald-200`}><CheckCircle2 size={12} />APPROVED</span>;
+    return (
+      <span className={`${cls} bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 border border-emerald-200`}>
+        <CheckCircle2 size={12} />
+        Đã duyệt
+      </span>
+    );
   }
   if (normalized === "REJECTED") {
-    return <span className={`${cls} bg-rose-50 text-rose-700 border-rose-200`}><XCircle size={12} />REJECTED</span>;
+    return (
+      <span className={`${cls} bg-gradient-to-r from-rose-50 to-red-50 text-rose-700 border border-rose-200`}>
+        <XCircle size={12} />
+        Từ chối
+      </span>
+    );
   }
   if (normalized === "PUBLISHED") {
-    return <span className={`${cls} bg-slate-100 text-slate-700 border-slate-300`}><Send size={12} />PUBLISHED</span>;
+    return (
+      <span className={`${cls} bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 border border-slate-200`}>
+        <Send size={12} />
+        Đã xuất bản
+      </span>
+    );
   }
-  return <span className={`${cls} bg-slate-100 text-slate-700 border-slate-200`}>{normalized || "N/A"}</span>;
+  if (normalized === "DRAFT") {
+    return (
+      <span className={`${cls} bg-gradient-to-r from-gray-50 to-slate-100 text-gray-700 border border-gray-200`}>
+        <Edit3 size={12} />
+        Nháp
+      </span>
+    );
+  }
+  return <span className={`${cls} bg-gradient-to-r from-gray-50 to-slate-100 text-gray-700 border border-gray-200`}>{normalized || "N/A"}</span>;
+}
+
+function cn(...classes: (string | boolean | undefined | null)[]) {
+  return classes.filter(Boolean).join(' ');
 }
 
 export default function TeacherSessionReportsWorkspace() {
@@ -230,6 +282,25 @@ export default function TeacherSessionReportsWorkspace() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const pageSize = 10;
+
+  // Stats
+  const stats = {
+    total: reports.length,
+    draft: reports.filter(r => normalizeStatus(r.status) === "DRAFT").length,
+    review: reports.filter(r => normalizeStatus(r.status) === "REVIEW").length,
+    approved: reports.filter(r => normalizeStatus(r.status) === "APPROVED").length,
+    published: reports.filter(r => normalizeStatus(r.status) === "PUBLISHED").length,
+    rejected: reports.filter(r => normalizeStatus(r.status) === "REJECTED").length,
+  };
+
+  const statsList = [
+    { title: 'Tổng số báo cáo', value: `${stats.total}`, icon: <FileText size={20} />, color: 'from-red-600 to-red-700', subtitle: 'Toàn hệ thống' },
+    { title: 'Bản nháp', value: `${stats.draft}`, icon: <Edit3 size={20} />, color: 'from-gray-500 to-gray-600', subtitle: 'Chưa gửi duyệt' },
+    { title: 'Chờ duyệt', value: `${stats.review}`, icon: <Clock size={20} />, color: 'from-red-500 to-red-600', subtitle: 'Đang xử lý' },
+    { title: 'Đã duyệt', value: `${stats.approved}`, icon: <CheckCircle2 size={20} />, color: 'from-emerald-500 to-emerald-600', subtitle: 'Chờ xuất bản' },
+    { title: 'Đã xuất bản', value: `${stats.published}`, icon: <Send size={20} />, color: 'from-slate-500 to-slate-600', subtitle: 'Đã công khai' },
+    { title: 'Từ chối', value: `${stats.rejected}`, icon: <XCircle size={20} />, color: 'from-rose-500 to-rose-600', subtitle: 'Cần chỉnh sửa' },
+  ];
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -365,173 +436,372 @@ export default function TeacherSessionReportsWorkspace() {
     }
   };
 
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Session Reports Của Giáo Viên</h2>
-          <p className="text-sm text-gray-600">Theo dõi report bị từ chối, chỉnh sửa và gửi duyệt lại.</p>
+  if (loading && reports.length === 0) {
+    return (
+      <div className="min-h-[400px] bg-gradient-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải báo cáo...</p>
         </div>
-        <button
-          onClick={fetchData}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50"
-        >
-          <RefreshCcw size={14} />
-          Làm mới
-        </button>
       </div>
+    );
+  }
 
-      <div className="flex flex-col gap-2 md:flex-row md:items-center">
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Tìm theo học sinh/lớp/nội dung feedback..."
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm md:max-w-xl"
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-        >
-          <option value="ALL">TẤT CẢ</option>
-          <option value="REJECTED">REJECTED</option>
-          <option value="DRAFT">DRAFT</option>
-          <option value="REVIEW">REVIEW</option>
-          <option value="APPROVED">APPROVED</option>
-          <option value="PUBLISHED">PUBLISHED</option>
-        </select>
-      </div>
-
-      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
-      {message && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</div>}
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 rounded-xl border border-slate-200">
-          <div className="max-h-[70vh] overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-gray-600">
-              <tr>
-                <th className="px-3 py-2">Học sinh</th>
-                <th className="px-3 py-2">Lớp</th>
-                <th className="px-3 py-2">Trạng thái</th>
-                <th className="px-3 py-2">Cập nhật</th>
-                <th className="px-3 py-2">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {pagedReports.map((report) => (
-                <tr
-                  key={report.id}
-                  className={`cursor-pointer hover:bg-slate-50 ${activeReport?.id === report.id ? "bg-red-50/40" : ""}`}
-                  onClick={() => void openEditor(report)}
-                >
-                  <td className="px-3 py-2">
-                    <div className="font-medium text-gray-900">{report.studentName || "N/A"}</div>
-                    <div className="text-xs text-gray-500">{report.reportDate || "N/A"}</div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
-                    <div>{report.className || "N/A"}</div>
-                    <div>{report.teacherName || "N/A"}</div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <StatusBadge status={report.status} />
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-500">{formatDateTime(report.updatedAt || report.createdAt)}</td>
-                  <td className="px-3 py-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void openEditor(report);
-                      }}
-                      className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-50"
-                    >
-                      <Edit3 size={12} />
-                      Mở
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white space-y-6">
+      {/* Stats Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {statsList.map((stat, idx) => (
+          <div key={idx} className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${stat.color}`}></div>
+            <div className="relative flex items-center justify-between gap-3">
+              <div className={`p-2 rounded-xl bg-gradient-to-r ${stat.color} text-white shadow-sm flex-shrink-0`}>
+                {stat.icon}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium text-gray-600 truncate">{stat.title}</div>
+                <div className="text-xl font-bold text-gray-900 leading-tight">{stat.value}</div>
+                {stat.subtitle && <div className="text-[11px] text-gray-500 truncate">{stat.subtitle}</div>}
+              </div>
+            </div>
           </div>
+        ))}
+      </div>
+
+      {/* Filter Bar */}
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Status Filter */}
+            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
+              {[
+                { k: 'ALL', label: 'Tất cả', count: stats.total },
+                { k: 'DRAFT', label: 'Nháp', count: stats.draft },
+                { k: 'REJECTED', label: 'Từ chối', count: stats.rejected },
+                { k: 'REVIEW', label: 'Chờ duyệt', count: stats.review },
+                { k: 'APPROVED', label: 'Đã duyệt', count: stats.approved },
+                { k: 'PUBLISHED', label: 'Đã xuất bản', count: stats.published }
+              ].map((item) => (
+                <button
+                  key={item.k}
+                  onClick={() => setStatusFilter(item.k)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${statusFilter === item.k
+                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
+                    : 'text-gray-700 hover:bg-red-50'
+                    }`}
+                >
+                  {item.label}
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === item.k ? 'bg-white/20' : 'bg-gray-100'
+                    }`}>
+                    {item.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative w-full sm:w-auto">
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm theo học sinh, lớp, giáo viên..."
+                className="h-10 w-full sm:w-80 rounded-xl border border-red-200 bg-white pl-9 pr-9 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+              />
+              {searchQuery.trim() !== "" && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+                  title="Xóa"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="mt-1 text-[11px] text-gray-500">
+              {filteredReports.length} kết quả
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Error/Message Display */}
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-center gap-2">
+          <AlertCircle size={16} />
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-2">
+          <CheckCircle2 size={16} />
+          {message}
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Reports Table */}
+        <div className="lg:col-span-2 rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+          {/* Table Header */}
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Danh sách báo cáo buổi học</h2>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium">{filteredReports.length} báo cáo</span>
+                <button
+                  onClick={fetchData}
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm hover:bg-red-50 transition-colors cursor-pointer"
+                >
+                  <RefreshCcw size={14} />
+                  Làm mới
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200 sticky top-0 bg-white z-10">
+                <tr>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Học sinh</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Lớp / Giáo viên</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Cập nhật</th>
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-red-100">
+                {pagedReports.map((report) => (
+                  <tr
+                    key={report.id}
+                    className={`group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200 cursor-pointer ${activeReport?.id === report.id ? "bg-red-50/60" : ""
+                      }`}
+                    onClick={() => void openEditor(report)}
+                  >
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-semibold text-xs">
+                          {report.studentName?.charAt(0) || "HS"}
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">{report.studentName || "N/A"}</div>
+                          <div className="text-xs text-gray-500">{report.reportDate ? formatDateTime(report.reportDate) : "N/A"}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm text-gray-700">
+                          <Building2 size={14} className="text-gray-400" />
+                          <span className="font-medium">{report.className || "N/A"}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <Users size={12} className="text-gray-400" />
+                          <span>GV: {report.teacherName || "N/A"}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <StatusBadge status={report.status} />
+                    </td>
+                    <td className="py-4 px-6 text-xs text-gray-500">
+                      {formatDateTime(report.updatedAt || report.createdAt)}
+                    </td>
+                    <td className="py-4 px-6">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void openEditor(report);
+                        }}
+                        className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
+                      >
+                        <Edit3 size={14} />
+                        Chỉnh sửa
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Table Footer */}
           {!loading && filteredReports.length === 0 && (
-            <div className="p-6 text-center text-sm text-gray-500">Không có session report phù hợp.</div>
+            <div className="p-12 text-center">
+              <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                <FileText size={24} className="text-red-400" />
+              </div>
+              <div className="text-gray-600 font-medium">Không tìm thấy báo cáo</div>
+              <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc đợi báo cáo mới</div>
+            </div>
           )}
-          {loading && <div className="p-6 text-center text-sm text-gray-500">Đang tải...</div>}
+
           {!loading && filteredReports.length > 0 && (
-            <div className="flex items-center justify-between border-t border-slate-200 px-3 py-2 text-xs text-gray-600">
-              <span>
-                Trang {pageNumber}/{totalPages} - {filteredReports.length} bản ghi
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPageNumber((prev) => Math.max(1, prev - 1))}
-                  disabled={pageNumber <= 1}
-                  className="rounded border border-slate-300 px-2 py-1 disabled:opacity-50"
-                >
-                  Trước
-                </button>
-                <button
-                  onClick={() => setPageNumber((prev) => Math.min(totalPages, prev + 1))}
-                  disabled={pageNumber >= totalPages}
-                  className="rounded border border-slate-300 px-2 py-1 disabled:opacity-50"
-                >
-                  Sau
-                </button>
+            <div className="border-t border-red-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-gray-600">
+                  Hiển thị <span className="font-semibold text-gray-900">{(pageNumber - 1) * pageSize + 1}-{Math.min(pageNumber * pageSize, filteredReports.length)}</span>
+                  {" "}trong tổng số <span className="font-semibold text-gray-900">{filteredReports.length}</span> báo cáo
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPageNumber((prev) => Math.max(1, prev - 1))}
+                    disabled={pageNumber <= 1}
+                    className="px-4 py-2 rounded-lg border border-red-200 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Trước
+                  </button>
+                  <span className="px-4 py-2 text-sm text-gray-600">
+                    Trang {pageNumber}/{totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPageNumber((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={pageNumber >= totalPages}
+                    className="px-4 py-2 rounded-lg border border-red-200 text-sm font-medium text-gray-700 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Sau
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-          <h3 className="font-semibold text-gray-900">Chỉnh sửa Report</h3>
-          {!activeReport && <p className="text-sm text-gray-500">Chọn một report trong danh sách để xem/chỉnh sửa.</p>}
-          {activeReport && (
-            <>
-              <div className="space-y-1 text-xs text-gray-600">
-                <div><span className="font-medium text-gray-900">Học sinh:</span> {activeReport.studentName || "N/A"}</div>
-                <div><span className="font-medium text-gray-900">Lớp:</span> {activeReport.className || "N/A"}</div>
-                <div><span className="font-medium text-gray-900">Trạng thái:</span> <StatusBadge status={activeReport.status} /></div>
-                {resolveAdminComment(activeReport) ? (
-                  <div className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700">
-                    <span className="font-medium">Comment từ admin:</span> {resolveAdminComment(activeReport)}
+        {/* Edit Panel */}
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Edit3 size={18} className="text-red-600" />
+              Chỉnh sửa báo cáo
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">Chỉnh sửa nội dung và gửi duyệt lại</p>
+          </div>
+
+          <div className="p-6">
+            {!activeReport && (
+              <div className="text-center py-12">
+                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                  <FileText size={24} className="text-red-400" />
+                </div>
+                <p className="text-gray-600">Chọn một báo cáo trong danh sách để chỉnh sửa</p>
+              </div>
+            )}
+
+            {activeReport && (
+              <div className="space-y-5">
+                {/* Report Info */}
+                <div className="bg-white rounded-xl border border-red-100 p-4 space-y-3">
+                  <h4 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+                    <GraduationCap size={16} className="text-red-600" />
+                    Thông tin báo cáo
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Học sinh:</span>
+                      <span className="font-medium text-gray-900">{activeReport.studentName || "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Lớp:</span>
+                      <span className="font-medium text-gray-900">{activeReport.className || "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Giáo viên:</span>
+                      <span className="font-medium text-gray-900">{activeReport.teacherName || "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Trạng thái:</span>
+                      <StatusBadge status={activeReport.status} />
+                    </div>
                   </div>
-                ) : null}
-              </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Nội dung feedback</label>
-                <textarea
-                  value={draftInput}
-                  onChange={(e) => setDraftInput(e.target.value)}
-                  rows={10}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-                />
-              </div>
+                  {/* Admin Comment if rejected */}
+                  {resolveAdminComment(activeReport) && normalizeStatus(activeReport.status) === "REJECTED" && (
+                    <div className="mt-3 p-3 rounded-lg bg-rose-50 border border-rose-200">
+                      <div className="flex items-start gap-2">
+                        <MessageSquare size={14} className="text-rose-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-rose-800 mb-1">Lý do từ chối từ Admin:</p>
+                          <p className="text-sm text-rose-700">{resolveAdminComment(activeReport)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={handleSave}
-                  disabled={saveLoading || submitLoading}
-                  className="rounded bg-red-600 px-3 py-2 text-sm text-white disabled:bg-slate-300"
-                >
-                  {saveLoading ? "Đang lưu..." : "Lưu"}
-                </button>
-                <button
-                  onClick={handleSubmitReview}
-                  disabled={!canSubmit || saveLoading || submitLoading}
-                  className="rounded bg-red-600 px-3 py-2 text-sm text-white disabled:bg-slate-300"
-                >
-                  {submitLoading ? "Đang gửi..." : "Gửi duyệt"}
-                </button>
+                {/* Feedback Editor */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FileText size={14} className="text-red-600" />
+                    Nội dung báo cáo
+                  </label>
+                  <textarea
+                    value={draftInput}
+                    onChange={(e) => setDraftInput(e.target.value)}
+                    rows={10}
+                    className="w-full rounded-xl border border-red-200 p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all resize-none"
+                    placeholder="Nhập nội dung báo cáo chi tiết về buổi học..."
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={handleSave}
+                    disabled={saveLoading || submitLoading}
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-red-200 text-red-700 font-semibold hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {saveLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent"></div>
+                        Đang lưu...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={16} />
+                        Lưu nháp
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleSubmitReview}
+                    disabled={!canSubmit || saveLoading || submitLoading}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-2",
+                      canSubmit && !saveLoading && !submitLoading
+                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-500/25"
+                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    )}
+                  >
+                    {submitLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Đang gửi...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        Gửi duyệt
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {!canSubmit && activeReport && (
+                  <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg text-center">
+                    Chỉ có thể gửi duyệt khi báo cáo ở trạng thái "Nháp" hoặc "Từ chối"
+                  </p>
+                )}
               </div>
-              {!canSubmit && (
-                <p className="text-xs text-gray-500">
-                  Chỉ gửi duyệt được khi report ở trạng thái DRAFT/REJECTED.
-                </p>
-              )}
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

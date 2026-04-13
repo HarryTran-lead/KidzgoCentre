@@ -36,7 +36,7 @@ const PROGRAMS: Program[] = [
     capacity: 60,
     registered: 45,
     fee: 5200000,
-    location: "KidzGo Resort",
+    location: "Rex Resort",
   },
   {
     id: "PR002",
