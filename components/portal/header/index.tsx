@@ -6,12 +6,12 @@ import {
   Bell,
   Search,
   Menu,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import UserMenu from "./userMenu";
 import LanguageToggle from "@/components/ui/button/LanguageToggle";
+import GlobalSearchModal from "./GlobalSearchModal";
 
 import { pickLocaleFromPath, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { ACCESS_MAP, ROLES, ROLE_LABEL, type Role } from "@/lib/role";
@@ -211,10 +211,8 @@ export default function PortalHeader({
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const notificationRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const showSearchFinal = useMemo(() => {
     if (typeof showSearch === "boolean") return showSearch;
@@ -230,11 +228,6 @@ export default function PortalHeader({
     () => i18n.titleFor(currentRole, userName, pageTitle, pathname),
     [i18n, currentRole, userName, pageTitle, pathname]
   );
-
-  useEffect(() => {
-    if (showSearchModal && searchInputRef.current)
-      searchInputRef.current.focus();
-  }, [showSearchModal]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -438,56 +431,13 @@ export default function PortalHeader({
         </div>
       </header>
 
-      {/* Search Modal */}
+      {/* Global Search Modal */}
       {showSearchModal && (
-        <div
-          className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setShowSearchModal(false)}
-        >
-          <div className="min-h-screen px-4 flex items-start justify-center pt-20">
-            <div
-              className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-top-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (searchQuery.trim() && onSearch) {
-                    onSearch(searchQuery);
-                    setShowSearchModal(false);
-                    setSearchQuery("");
-                  }
-                }}
-                className="relative"
-              >
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={i18n.labels.searchBoxPlaceholder}
-                  className="w-full pl-14 pr-12 py-5 text-base border-b border-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSearchModal(false)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                  aria-label="Close"
-                >
-                  <X className="w-5 h-5 text-slate-400" />
-                </button>
-              </form>
-              <div className="p-4 text-sm text-slate-500">
-                {i18n.labels.pressEnter}{" "}
-                <kbd className="px-2 py-1 bg-slate-100 rounded text-xs font-semibold">
-                  Enter
-                </kbd>{" "}
-                {i18n.labels.toSearch}
-              </div>
-            </div>
-          </div>
-        </div>
+        <GlobalSearchModal
+          role={currentRole}
+          locale={locale}
+          onClose={() => setShowSearchModal(false)}
+        />
       )}
     </>
   );

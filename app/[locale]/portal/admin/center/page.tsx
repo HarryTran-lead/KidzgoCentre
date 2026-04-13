@@ -18,7 +18,7 @@ import {
 const BRANCHES = [
   {
     id: 'CN01',
-    name: 'KidzGo Nguyễn Văn Trỗi',
+    name: 'Rex Nguyễn Văn Trỗi',
     address: '120 Nguyễn Văn Trỗi, Q. Phú Nhuận',
     students: 240,
     classes: 14,
@@ -31,7 +31,7 @@ const BRANCHES = [
   },
   {
     id: 'CN02',
-    name: 'KidzGo Phạm Văn Đồng',
+    name: 'Rex Phạm Văn Đồng',
     address: '15 Phạm Văn Đồng, Q. Gò Vấp',
     students: 190,
     classes: 10,
@@ -44,7 +44,7 @@ const BRANCHES = [
   },
   {
     id: 'CN03',
-    name: 'KidzGo Thủ Đức',
+    name: 'Rex Thủ Đức',
     address: '46 Võ Văn Ngân, TP. Thủ Đức',
     students: 120,
     classes: 6,

@@ -65,16 +65,16 @@ const faqsVi: FAQItem[] = [
   {
     id: 1,
     category: "enrollment",
-    question: "KidzGo là gì và trung tâm của tôi dùng để làm gì?",
+    question: "Rex là gì và trung tâm của tôi dùng để làm gì?",
     answer:
-      "KidzGo là nền tảng quản trị học vụ & tài chính cho trung tâm tiếng Anh. Hệ thống giúp chuẩn hóa quy trình tuyển sinh, xếp lớp, điểm danh, bù buổi, thu học phí, báo cáo công nợ và gửi báo cáo học tập cho phụ huynh qua Zalo/Portal.",
+      "Rex là nền tảng quản trị học vụ & tài chính cho trung tâm tiếng Anh. Hệ thống giúp chuẩn hóa quy trình tuyển sinh, xếp lớp, điểm danh, bù buổi, thu học phí, báo cáo công nợ và gửi báo cáo học tập cho phụ huynh qua Zalo/Portal.",
     icon: <HelpCircle className="w-5 h-5 text-sky-500" />,
     // updatedAt: "2025-11-10",
   },
   {
     id: 2,
     category: "enrollment",
-    question: "Trung tâm mất bao lâu để triển khai KidzGo?",
+    question: "Trung tâm mất bao lâu để triển khai Rex?",
     answer:
       "Với trung tâm quy mô 2–5 chi nhánh, thời gian triển khai thường từ 1–2 tuần: 2–3 ngày để thiết lập cấu hình (khóa học, ca học, chính sách bù buổi), 2–3 ngày training cho nhân sự học vụ – kế toán – giáo viên, phần còn lại là chạy thử và tối ưu theo quy trình thực tế.",
     icon: <UserPlus className="w-5 h-5 text-sky-500" />,
@@ -82,9 +82,9 @@ const faqsVi: FAQItem[] = [
   {
     id: 3,
     category: "tuition",
-    question: "KidzGo hỗ trợ thu học phí và công nợ như thế nào?",
+    question: "Rex hỗ trợ thu học phí và công nợ như thế nào?",
     answer:
-      "KidzGo tích hợp thanh toán qua QR PayOS, chuyển khoản và tiền mặt. Hóa đơn học phí được tạo từ chương trình học, gửi link/Zalo cho phụ huynh. Hệ thống tự đối soát giao dịch, cập nhật trạng thái đã thu/chưa thu, nhắc nợ và xuất báo cáo công nợ theo lớp, khóa, chi nhánh.",
+      "Rex tích hợp thanh toán qua QR PayOS, chuyển khoản và tiền mặt. Hóa đơn học phí được tạo từ chương trình học, gửi link/Zalo cho phụ huynh. Hệ thống tự đối soát giao dịch, cập nhật trạng thái đã thu/chưa thu, nhắc nợ và xuất báo cáo công nợ theo lớp, khóa, chi nhánh.",
     icon: <CreditCard className="w-5 h-5 text-sky-500" />,
   },
   {
@@ -92,7 +92,7 @@ const faqsVi: FAQItem[] = [
     category: "schedule",
     question: "Lịch học và xếp lớp được quản lý ra sao?",
     answer:
-      "Trung tâm cấu hình ca học, phòng học, giáo viên và khóa học trên KidzGo. Khi tư vấn xong, nhân viên có thể ghi danh và xếp lớp ngay trên hệ thống. Lịch học tự động hiển thị cho giáo viên và phụ huynh, hạn chế trùng lịch hoặc quên cập nhật.",
+      "Trung tâm cấu hình ca học, phòng học, giáo viên và khóa học trên Rex. Khi tư vấn xong, nhân viên có thể ghi danh và xếp lớp ngay trên hệ thống. Lịch học tự động hiển thị cho giáo viên và phụ huynh, hạn chế trùng lịch hoặc quên cập nhật.",
     icon: <CalendarClock className="w-5 h-5 text-sky-500" />,
   },
   {
@@ -100,14 +100,14 @@ const faqsVi: FAQItem[] = [
     category: "attendance",
     question: "Hệ thống hỗ trợ điểm danh và bù buổi như thế nào?",
     answer:
-      "Giáo viên điểm danh trực tiếp trên KidzGo (web/app). Những buổi học nghỉ có lý do sẽ được đẩy sang danh sách cần bù. Nhân viên vận hành có thể gợi ý slot bù, gửi thông báo cho phụ huynh qua Zalo. Toàn bộ lịch sử vắng – bù được lưu lại để kiểm soát chất lượng.",
+      "Giáo viên điểm danh trực tiếp trên Rex (web/app). Những buổi học nghỉ có lý do sẽ được đẩy sang danh sách cần bù. Nhân viên vận hành có thể gợi ý slot bù, gửi thông báo cho phụ huynh qua Zalo. Toàn bộ lịch sử vắng – bù được lưu lại để kiểm soát chất lượng.",
     icon: <ClipboardCheck className="w-5 h-5 text-sky-500" />,
   },
   {
     id: 6,
     category: "portal",
     question:
-      "Phụ huynh phải tải app không hay chỉ cần dùng Zalo/Portal của KidzGo?",
+      "Phụ huynh phải tải app không hay chỉ cần dùng Zalo/Portal của Rex?",
     answer:
       "Phụ huynh có thể chọn: 1) Nhận thông tin qua Zalo OA của trung tâm (lịch học, điểm danh, học phí, nhắc nợ) hoặc 2) Đăng nhập Parent Portal để xem chi tiết hơn. Không bắt buộc phải cài thêm app mới nên rất phù hợp với phụ huynh bận rộn.",
     icon: <Smartphone className="w-5 h-5 text-sky-500" />,
@@ -116,7 +116,7 @@ const faqsVi: FAQItem[] = [
     id: 7,
     category: "learning",
     question:
-      "Giáo viên có thể giao bài tập và gửi nhận xét học tập trên KidzGo không?",
+      "Giáo viên có thể giao bài tập và gửi nhận xét học tập trên Rex không?",
     answer:
       "Có. Giáo viên có thể chấm điểm, ghi nhận xét sau mỗi buổi, upload bài tập hoặc link tài liệu. Hệ thống tổng hợp thành báo cáo tháng/quý, gửi cho phụ huynh qua Zalo/Portal với ngôn ngữ dễ hiểu, giúp phụ huynh nắm được tiến bộ của con.",
     icon: <BookOpenCheck className="w-5 h-5 text-sky-500" />,
@@ -127,7 +127,7 @@ const faqsVi: FAQItem[] = [
     question:
       "Trung tâm có xuất được báo cáo doanh thu, chi phí và lương giáo viên không?",
     answer:
-      "Có. KidzGo cho phép theo dõi doanh thu theo khóa, lớp, chi nhánh và kênh tư vấn. Phần kế toán có thể ghi nhận chi phí, tạm tính lương giáo viên theo số buổi dạy, hoa hồng tư vấn viên và xuất file Excel/PDF để lưu trữ hoặc nộp cho kế toán tổng.",
+      "Có. Rex cho phép theo dõi doanh thu theo khóa, lớp, chi nhánh và kênh tư vấn. Phần kế toán có thể ghi nhận chi phí, tạm tính lương giáo viên theo số buổi dạy, hoa hồng tư vấn viên và xuất file Excel/PDF để lưu trữ hoặc nộp cho kế toán tổng.",
     icon: <CreditCard className="w-5 h-5 text-sky-500" />,
   },
   {
@@ -141,7 +141,7 @@ const faqsVi: FAQItem[] = [
   {
     id: 10,
     category: "technical",
-    question: "Dữ liệu trên KidzGo có an toàn không?",
+    question: "Dữ liệu trên Rex có an toàn không?",
     answer:
       "Dữ liệu được lưu trữ trên hạ tầng cloud (với sao lưu định kỳ), phân quyền chi tiết theo vai trò: Admin, Học vụ, Kế toán, Giáo viên, Phụ huynh. Tất cả truy cập đều qua HTTPS, mật khẩu được mã hóa và có cơ chế log hành động người dùng để truy vết khi cần.",
     icon: <ShieldCheck className="w-5 h-5 text-sky-500" />,
@@ -158,9 +158,9 @@ const faqsVi: FAQItem[] = [
   {
     id: 12,
     category: "enrollment",
-    question: "KidzGo có gói dùng thử cho trung tâm mới không?",
+    question: "Rex có gói dùng thử cho trung tâm mới không?",
     answer:
-      "Thông thường, trung tâm được dùng thử hệ thống trong 14–30 ngày với đầy đủ tính năng học vụ. Nếu cần, đội ngũ KidzGo sẽ hỗ trợ import dữ liệu lớp/học viên ban đầu để trung tâm trải nghiệm sát với vận hành thật trước khi ký hợp đồng chính thức.",
+      "Thông thường, trung tâm được dùng thử hệ thống trong 14–30 ngày với đầy đủ tính năng học vụ. Nếu cần, đội ngũ Rex sẽ hỗ trợ import dữ liệu lớp/học viên ban đầu để trung tâm trải nghiệm sát với vận hành thật trước khi ký hợp đồng chính thức.",
     icon: <UserPlus className="w-5 h-5 text-sky-500" />,
   },
 ];
@@ -172,15 +172,15 @@ const faqsEn: FAQItem[] = [
   {
     id: 1,
     category: "enrollment",
-    question: "What is KidzGo and what is it used for at my center?",
+    question: "What is Rex and what is it used for at my center?",
     answer:
-      "KidzGo is an academic & finance management platform for English centers. It standardizes enrollment, class assignment, attendance, make-up sessions, tuition collection, A/R reporting, and delivers learning reports to parents via Zalo/Portal.",
+      "Rex is an academic & finance management platform for English centers. It standardizes enrollment, class assignment, attendance, make-up sessions, tuition collection, A/R reporting, and delivers learning reports to parents via Zalo/Portal.",
     icon: <HelpCircle className="w-5 h-5 text-sky-500" />,
   },
   {
     id: 2,
     category: "enrollment",
-    question: "How long does it take to deploy KidzGo?",
+    question: "How long does it take to deploy Rex?",
     answer:
       "For centers with 2–5 branches, typical deployment takes 1–2 weeks: 2–3 days to configure (courses, time slots, make-up policies), 2–3 days to train academic/accounting/teaching staff, and the remainder for pilot run and optimization.",
     icon: <UserPlus className="w-5 h-5 text-sky-500" />,
@@ -188,9 +188,9 @@ const faqsEn: FAQItem[] = [
   {
     id: 3,
     category: "tuition",
-    question: "How does KidzGo support tuition collection and A/R?",
+    question: "How does Rex support tuition collection and A/R?",
     answer:
-      "KidzGo integrates PayOS QR, bank transfer, and cash. Tuition invoices are generated from the learning program and sent via link/Zalo. The system auto-reconciles transactions, tracks paid/unpaid status, sends reminders, and exports A/R reports by class, course, and branch.",
+      "Rex integrates PayOS QR, bank transfer, and cash. Tuition invoices are generated from the learning program and sent via link/Zalo. The system auto-reconciles transactions, tracks paid/unpaid status, sends reminders, and exports A/R reports by class, course, and branch.",
     icon: <CreditCard className="w-5 h-5 text-sky-500" />,
   },
   {
@@ -198,7 +198,7 @@ const faqsEn: FAQItem[] = [
     category: "schedule",
     question: "How are schedules and class assignments managed?",
     answer:
-      "Configure time slots, rooms, teachers, and courses in KidzGo. After advising, staff can enroll and assign classes right away. Schedules are auto-visible for teachers and parents, reducing conflicts and missed updates.",
+      "Configure time slots, rooms, teachers, and courses in Rex. After advising, staff can enroll and assign classes right away. Schedules are auto-visible for teachers and parents, reducing conflicts and missed updates.",
     icon: <CalendarClock className="w-5 h-5 text-sky-500" />,
   },
   {
@@ -206,7 +206,7 @@ const faqsEn: FAQItem[] = [
     category: "attendance",
     question: "How are attendance and make-up sessions handled?",
     answer:
-      "Teachers take attendance directly in KidzGo (web/app). Excused absences appear in a make-up list. Operations can suggest make-up slots and notify parents via Zalo. Full absence/make-up history is retained for quality control.",
+      "Teachers take attendance directly in Rex (web/app). Excused absences appear in a make-up list. Operations can suggest make-up slots and notify parents via Zalo. Full absence/make-up history is retained for quality control.",
     icon: <ClipboardCheck className="w-5 h-5 text-sky-500" />,
   },
   {
@@ -231,7 +231,7 @@ const faqsEn: FAQItem[] = [
     category: "tuition",
     question: "Can we export revenue, costs, and teacher payroll reports?",
     answer:
-      "Yes. KidzGo tracks revenue by course, class, branch, and advising channel. Accounting can log expenses, estimate teacher payroll by taught sessions, advisor commissions, and export Excel/PDF for filing or for the general accounting team.",
+      "Yes. Rex tracks revenue by course, class, branch, and advising channel. Accounting can log expenses, estimate teacher payroll by taught sessions, advisor commissions, and export Excel/PDF for filing or for the general accounting team.",
     icon: <CreditCard className="w-5 h-5 text-sky-500" />,
   },
   {
@@ -245,7 +245,7 @@ const faqsEn: FAQItem[] = [
   {
     id: 10,
     category: "technical",
-    question: "Is data on KidzGo secure?",
+    question: "Is data on Rex secure?",
     answer:
       "Data is hosted in the cloud (with periodic backups) and protected with role-based access: Admin, Academic, Accounting, Teacher, Parent. All access uses HTTPS, passwords are hashed, and user actions are logged for auditability.",
     icon: <ShieldCheck className="w-5 h-5 text-sky-500" />,
@@ -264,7 +264,7 @@ const faqsEn: FAQItem[] = [
     category: "enrollment",
     question: "Is there a trial plan for new centers?",
     answer:
-      "Typically, centers can try the system for 14–30 days with full academic features. If needed, the KidzGo team helps import initial class/student data so the trial mirrors real operations before signing the official contract.",
+      "Typically, centers can try the system for 14–30 days with full academic features. If needed, the Rex team helps import initial class/student data so the trial mirrors real operations before signing the official contract.",
     icon: <UserPlus className="w-5 h-5 text-sky-500" />,
   },
 ];

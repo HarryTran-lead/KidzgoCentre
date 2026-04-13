@@ -3,8 +3,11 @@ import type { ApiResponse } from "../apiResponse";
 export type MissionScope = "Class" | "Student" | "Group";
 export type MissionType =
   | "HomeworkStreak"
+  | "ReadingStreak"
   | "NoUnexcusedAbsence"
+  | "ClassAttendance"
   | "Custom";
+export type MissionProgressMode = "Count" | "Streak";
 
 export type MissionProgressStatus =
   | "Assigned"
@@ -36,6 +39,11 @@ export interface ClassOptionLite {
   name?: string;
 }
 
+export interface GamificationSettingsConfig {
+  checkInRewardStars: number;
+  checkInRewardExp: number;
+}
+
 export interface Mission {
   id: string;
   title: string;
@@ -47,6 +55,7 @@ export interface Mission {
   targetClassTitle?: string | null;
   targetGroup?: string[] | string | null;
   missionType: MissionType;
+  progressMode?: MissionProgressMode | null;
   startAt?: string | null;
   endAt?: string | null;
   rewardStars?: number | null;
@@ -64,15 +73,48 @@ export interface MissionProgress {
   studentName?: string | null;
   status: MissionProgressStatus;
   progressValue?: number | null;
+  totalRequired?: number | null;
   progressPercentage?: number | null;
   completedAt?: string | null;
   verifiedBy?: string | null;
   verifiedByName?: string | null;
 }
 
+export interface MissionProgressSummary {
+  id: string;
+  title: string;
+  missionType?: MissionType;
+  progressMode?: MissionProgressMode | null;
+  totalRequired?: number | null;
+}
+
 export interface MissionProgressResponse {
-  mission?: Pick<Mission, "id" | "title">;
+  mission?: MissionProgressSummary;
   progresses: PaginatedItems<MissionProgress>;
+}
+
+export interface MyMissionProgressItem {
+  id: string;
+  missionId: string;
+  title: string;
+  description?: string | null;
+  missionType: MissionType;
+  progressMode?: MissionProgressMode | null;
+  status: MissionProgressStatus;
+  progressValue?: number | null;
+  totalRequired?: number | null;
+  progressPercentage?: number | null;
+  rewardStars?: number | null;
+  rewardExp?: number | null;
+  startAt?: string | null;
+  endAt?: string | null;
+  createdAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface MyMissionProgressResponse {
+  studentProfileId: string;
+  missions: PaginatedItems<MyMissionProgressItem>;
 }
 
 export interface MissionListParams {
@@ -100,10 +142,9 @@ export interface UpsertMissionRequest {
   targetStudentId?: string;
   targetGroup?: string[];
   missionType: MissionType;
+  progressMode?: MissionProgressMode;
   startAt?: string;
   endAt?: string;
-  rewardStars?: number;
-  rewardExp?: number;
   totalRequired?: number;
 }
 
@@ -207,7 +248,6 @@ export interface RewardStoreItem {
   description?: string | null;
   imageUrl?: string | null;
   costStars: number;
-  quantity: number;
   isActive: boolean;
   createdAt?: string | null;
   isDeleted?: boolean;
@@ -224,7 +264,6 @@ export interface RewardStoreItemRequest {
   description?: string;
   imageUrl?: string;
   costStars: number;
-  quantity: number;
   isActive: boolean;
 }
 
@@ -233,7 +272,6 @@ export interface RewardStoreItemUpdateRequest {
   description?: string;
   imageUrl?: string;
   costStars?: number;
-  quantity?: number;
   isActive?: boolean;
 }
 
@@ -254,6 +292,7 @@ export interface RewardRedemption {
   createdAt?: string | null;
   starsDeducted?: number | null;
   remainingStars?: number | null;
+  cancelReason?: string | null;
   cancellationReason?: string | null;
 }
 

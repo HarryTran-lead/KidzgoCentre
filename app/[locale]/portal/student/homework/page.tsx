@@ -209,11 +209,11 @@ function StatusBadge({
       className: "bg-green-500/30 border border-green-400/40 text-green-300",
     },
     ASSIGNED: {
-      label: "Chưa nộp",
+      label: "Chưa làm",
       className: "bg-amber-500/30 border border-amber-400/40 text-amber-300",
     },
     PENDING: {
-      label: "Chờ chấm",
+      label: "Chưa làm",
       className: "bg-blue-500/30 border border-blue-400/40 text-blue-300",
     },
     LATE: {

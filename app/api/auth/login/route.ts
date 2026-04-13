@@ -30,9 +30,9 @@ export async function POST(req: Request) {
 
     const data: LoginApiResponse = await upstream.json();
 
-    return NextResponse.json(data, {
-      status: upstream.status,
-    });
+    // Always return 200 so the client can read the response body.
+    // The client checks data.success / data.isSuccess to determine outcome.
+    return NextResponse.json(data);
   } catch (error) {
     console.error("[Login API] Error:", error);
     return NextResponse.json(

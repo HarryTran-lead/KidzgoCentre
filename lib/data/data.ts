@@ -128,7 +128,7 @@ export const BLOGS = [
   {
     title: "Cambridge: Starters → Movers → Flyers",
     img: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=1200&auto=format&fit=crop",
-    excerpt: "Cấu trúc đề & cách luyện đều – chắc – vui tại KidzGo.",
+    excerpt: "Cấu trúc đề & cách luyện đều – chắc – vui tại Rex.",
     tag: "Cambridge",
   },
   {

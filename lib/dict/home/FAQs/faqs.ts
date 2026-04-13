@@ -2,7 +2,7 @@
 export const faqsText = {
   vi: {
     header: {
-      badge: "Trung tâm hỗ trợ KidzGo",
+      badge: "Trung tâm hỗ trợ Rex",
       title: { main: "Câu hỏi", accent: "thường gặp" },
       subtitle:
         "Tra cứu nhanh các vấn đề về tuyển sinh, học phí, lịch học, điểm danh và Parent Portal. Giải đáp mọi thắc mắc của phụ huynh 24/7.",
@@ -42,7 +42,7 @@ export const faqsText = {
 
   en: {
     header: {
-      badge: "KidzGo Help Center",
+      badge: "Rex Help Center",
       title: { main: "Frequently", accent: "Asked Questions" },
       subtitle:
         "Quickly look up topics on enrollment, tuition, schedules, attendance, and the Parent Portal. 24/7 answers for parents.",

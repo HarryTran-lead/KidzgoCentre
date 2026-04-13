@@ -57,6 +57,7 @@ import type {
   LevelInfo,
   Mission,
   MissionProgress,
+  MissionProgressMode,
   MissionScope,
   MissionType,
   RewardRedemption,
@@ -75,8 +76,10 @@ import {
   formatDate,
   formatDateTime,
   formatNumber,
+  getMissionProgressPercent,
   getMissionProgressClasses,
   getRedemptionStatusClasses,
+  mapMissionProgressModeLabel,
   mapMissionScopeLabel,
   mapMissionTypeLabel,
   mapProgressStatusLabel,
@@ -100,10 +103,9 @@ type MissionFormState = {
   targetStudentId: string;
   targetGroupIds: string[];
   missionType: MissionType | "";
+  progressMode: MissionProgressMode;
   startAt: string;
   endAt: string;
-  rewardStars: string;
-  rewardExp: string;
   totalRequired: string;
 };
 
@@ -113,7 +115,6 @@ type RewardFormState = {
   description: string;
   imageUrl: string;
   costStars: string;
-  quantity: string;
   isActive: boolean;
 };
 
@@ -126,16 +127,13 @@ type MissionFormErrors = Partial<
     | "targetGroupIds"
     | "startAt"
     | "endAt"
-    | "rewardStars"
-    | "rewardExp"
+    | "progressMode"
     | "totalRequired",
     string
   >
 >;
 
-type RewardFormErrors = Partial<
-  Record<"title" | "costStars" | "quantity", string>
->;
+type RewardFormErrors = Partial<Record<"title" | "costStars", string>>;
 
 type StudentActionState = {
   starAmount: string;
@@ -165,10 +163,9 @@ const missionSeed: MissionFormState = {
   targetStudentId: "",
   targetGroupIds: [],
   missionType: "",
+  progressMode: "Count",
   startAt: "",
   endAt: "",
-  rewardStars: "",
-  rewardExp: "",
   totalRequired: "",
 };
 
@@ -177,7 +174,6 @@ const rewardSeed: RewardFormState = {
   description: "",
   imageUrl: "",
   costStars: "",
-  quantity: "",
   isActive: true,
 };
 
@@ -241,7 +237,7 @@ export function StaffGamificationWorkspace({
   const { toast } = useToast();
   const canManageStore = role !== "Teacher";
   const canDeleteMission = role !== "Teacher";
-  const canViewRedemptions = role !== "Teacher";
+  const canViewRedemptions = true;
   const tabs = [
     { id: "missions" as const, label: "Nhiệm vụ" },
     { id: "students" as const, label: "Sao / XP" },
@@ -424,12 +420,16 @@ export function StaffGamificationWorkspace({
           : "Vui lòng kiểm tra lại ngày kết thúc.";
       }
 
-      if (normalized.includes("sao thưởng") || normalized.includes("rewardstars")) {
-        nextErrors.rewardStars = "Sao thưởng phải lớn hơn 0.";
-      }
-
-      if (normalized.includes("xp thưởng") || normalized.includes("rewardexp")) {
-        nextErrors.rewardExp = "XP thưởng phải lớn hơn 0.";
+      if (
+        normalized.includes("mục tiêu") ||
+        normalized.includes("totalrequired") ||
+        normalized.includes("reward rule") ||
+        normalized.includes("missionrewardrule")
+      ) {
+        nextErrors.totalRequired =
+          normalized.includes("not configured") || normalized.includes("không cấu hình")
+            ? "Chưa có rule phần thưởng phù hợp với loại nhiệm vụ, cách tính và mục tiêu này."
+            : "Mục tiêu hoàn thành phải lớn hơn 0.";
       }
     }
 
@@ -450,9 +450,6 @@ export function StaffGamificationWorkspace({
         nextErrors.costStars = "Số sao đổi phải lớn hơn 0.";
       }
 
-      if (normalized.includes("số lượng") || normalized.includes("quantity")) {
-        nextErrors.quantity = "Số lượng không được âm.";
-      }
     }
 
     return nextErrors;
@@ -462,8 +459,8 @@ export function StaffGamificationWorkspace({
     const nextErrors: MissionFormErrors = {};
     const startDate = missionForm.startAt ? new Date(missionForm.startAt) : null;
     const endDate = missionForm.endAt ? new Date(missionForm.endAt) : null;
-    const rewardStars = parseNumericInput(missionForm.rewardStars);
-    const rewardExp = parseNumericInput(missionForm.rewardExp);
+    const totalRequired = parseNumericInput(missionForm.totalRequired);
+    const currentMinute = getCurrentMinute();
 
     if (!missionForm.title.trim()) {
       nextErrors.title = "Vui lòng nhập tiêu đề nhiệm vụ.";
@@ -471,6 +468,10 @@ export function StaffGamificationWorkspace({
 
     if (!missionForm.missionType) {
       nextErrors.missionType = "Vui lòng chọn loại nhiệm vụ.";
+    }
+
+    if (!missionForm.progressMode) {
+      nextErrors.progressMode = "Vui lòng chọn cách tính tiến độ.";
     }
 
     if (missionForm.scope === "Student" && !missionForm.targetStudentId) {
@@ -488,12 +489,22 @@ export function StaffGamificationWorkspace({
     // startAt is optional - if empty, mission starts immediately
     if (missionForm.startAt && startDate && Number.isNaN(startDate.getTime())) {
       nextErrors.startAt = "Ngày bắt đầu không hợp lệ.";
+    } else if (
+      missionForm.startAt &&
+      startDate &&
+      startDate.getTime() < currentMinute.getTime()
+    ) {
+      nextErrors.startAt = "Ngày bắt đầu không được ở trong quá khứ.";
     }
 
-    if (!missionForm.endAt) {
-      nextErrors.endAt = "Vui lòng chọn ngày kết thúc.";
-    } else if (!endDate || Number.isNaN(endDate.getTime())) {
+    if (missionForm.endAt && (!endDate || Number.isNaN(endDate.getTime()))) {
       nextErrors.endAt = "Ngày kết thúc không hợp lệ.";
+    } else if (
+      missionForm.endAt &&
+      endDate &&
+      endDate.getTime() < currentMinute.getTime()
+    ) {
+      nextErrors.endAt = "Ngày kết thúc không được ở trong quá khứ.";
     }
 
     if (
@@ -506,16 +517,10 @@ export function StaffGamificationWorkspace({
       nextErrors.endAt = "Ngày kết thúc phải sau ngày bắt đầu.";
     }
 
-    if (rewardStars === null) {
-      nextErrors.rewardStars = "Vui lòng nhập sao thưởng.";
-    } else if (Number.isNaN(rewardStars) || rewardStars <= 0) {
-      nextErrors.rewardStars = "Sao thưởng phải lớn hơn 0.";
-    }
-
-    if (rewardExp === null) {
-      nextErrors.rewardExp = "Vui lòng nhập XP thưởng.";
-    } else if (Number.isNaN(rewardExp) || rewardExp <= 0) {
-      nextErrors.rewardExp = "XP thưởng phải lớn hơn 0.";
+    if (totalRequired === null) {
+      nextErrors.totalRequired = "Vui lòng nhập mục tiêu hoàn thành.";
+    } else if (Number.isNaN(totalRequired) || totalRequired <= 0) {
+      nextErrors.totalRequired = "Mục tiêu hoàn thành phải lớn hơn 0.";
     }
 
     return nextErrors;
@@ -524,7 +529,6 @@ export function StaffGamificationWorkspace({
   function validateRewardForm() {
     const nextErrors: RewardFormErrors = {};
     const costStars = parseNumericInput(rewardForm.costStars);
-    const quantity = parseNumericInput(rewardForm.quantity);
 
     if (!rewardForm.title.trim()) {
       nextErrors.title = "Vui lòng nhập tên vật phẩm.";
@@ -534,10 +538,6 @@ export function StaffGamificationWorkspace({
       nextErrors.costStars = "Vui lòng nhập số sao đổi.";
     } else if (Number.isNaN(costStars) || costStars <= 0) {
       nextErrors.costStars = "Số sao đổi phải lớn hơn 0.";
-    }
-
-    if (quantity !== null && (Number.isNaN(quantity) || quantity < 0)) {
-      nextErrors.quantity = "Số lượng không được âm.";
     }
 
     return nextErrors;
@@ -690,10 +690,9 @@ export function StaffGamificationWorkspace({
       targetStudentId: mission.targetStudentId ?? "",
       targetGroupIds: normalizeMissionTargetGroup(mission.targetGroup),
       missionType: mission.missionType,
+      progressMode: mission.progressMode ?? "Count",
       startAt: toDatetimeLocal(mission.startAt),
       endAt: toDatetimeLocal(mission.endAt),
-      rewardStars: mission.rewardStars ? String(mission.rewardStars) : "",
-      rewardExp: mission.rewardExp ? String(mission.rewardExp) : "",
       totalRequired: mission.totalRequired ? String(mission.totalRequired) : "",
     });
     setMissionDialogOpen(true);
@@ -758,11 +757,10 @@ export function StaffGamificationWorkspace({
             ? missionForm.targetGroupIds
             : undefined,
         missionType: missionForm.missionType as MissionType,
+        progressMode: missionForm.progressMode,
         startAt: missionForm.startAt ? toIsoString(missionForm.startAt) : undefined,
-        endAt: toIsoString(missionForm.endAt),
-        rewardStars: Number(missionForm.rewardStars),
-        rewardExp: Number(missionForm.rewardExp),
-        totalRequired: missionForm.totalRequired.trim() ? Number(missionForm.totalRequired) : undefined,
+        endAt: missionForm.endAt ? toIsoString(missionForm.endAt) : undefined,
+        totalRequired: Number(missionForm.totalRequired),
       };
       if (missionForm.id) await updateMission(missionForm.id, payload);
       else await createMission(payload);
@@ -852,7 +850,6 @@ export function StaffGamificationWorkspace({
       description: item.description ?? "",
       imageUrl: item.imageUrl ?? "",
       costStars: String(item.costStars),
-      quantity: String(item.quantity),
       isActive: item.isActive,
     });
     setRewardDialogOpen(true);
@@ -878,7 +875,6 @@ export function StaffGamificationWorkspace({
         description: rewardForm.description.trim() || undefined,
         imageUrl: rewardForm.imageUrl.trim() || undefined,
         costStars: Number(rewardForm.costStars),
-        quantity: rewardForm.quantity.trim() ? Number(rewardForm.quantity) : 0,
         isActive: rewardForm.isActive,
       };
       if (rewardForm.id) await updateRewardStoreItem(rewardForm.id, payload);
@@ -1191,6 +1187,7 @@ export function StaffGamificationWorkspace({
                     <h3 className="text-lg font-bold text-gray-900">{mission.title}</h3>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
                       <StatusPill label={mapMissionTypeLabel(mission.missionType)} className="border-red-200 bg-white text-gray-700" />
+                      <StatusPill label={mapMissionProgressModeLabel(mission.progressMode)} className="border-indigo-200 bg-indigo-50 text-indigo-700" />
                       <StatusPill label={mapMissionScopeLabel(mission.scope)} className="border-amber-200 bg-amber-50 text-amber-700" />
                       {mission.scope === "Class" && (mission.targetClassCode || mission.targetClassTitle) ? (
                         <StatusPill
@@ -1361,7 +1358,7 @@ export function StaffGamificationWorkspace({
         <Panel theme="staff">
           <SectionTitle
             title="Kho quà thưởng"
-            description="Quản lý vật phẩm đổi thưởng, giá sao, số lượng tồn và trạng thái hiển thị."
+            description="Quản lý vật phẩm đổi thưởng, giá sao và trạng thái hiển thị trên cửa hàng learner."
             theme="staff"
             action={
               <button type="button" onClick={openCreateReward} className={primaryButton}>
@@ -1404,7 +1401,6 @@ export function StaffGamificationWorkspace({
                       </div>
                       <div className="mt-4 flex flex-wrap gap-5 text-sm text-gray-500">
                         <span>Giá: {formatNumber(item.costStars)} sao</span>
-                        <span>Tồn kho: {formatNumber(item.quantity)}</span>
                         <span>Tạo lúc: {formatDateTime(item.createdAt)}</span>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -1511,7 +1507,7 @@ export function StaffGamificationWorkspace({
         open={missionDialogOpen}
         onClose={closeMissionDialog}
         title={missionForm.id ? "Cập nhật nhiệm vụ" : "Tạo nhiệm vụ mới"}
-        description="Điền đúng phạm vi và phần thưởng để nhiệm vụ bám theo quy tắc backend."
+        description="Điền đúng phạm vi, cách tính tiến độ và mục tiêu để backend tự resolve phần thưởng theo reward rule."
         theme="staff"
       >
         <p className="mb-4 text-xs font-medium text-rose-600">
@@ -1581,9 +1577,30 @@ export function StaffGamificationWorkspace({
               <option value="">Chọn loại nhiệm vụ</option>
               <option value="Custom">Tùy chỉnh</option>
               <option value="HomeworkStreak">Chuỗi bài tập</option>
+              <option value="ReadingStreak">Chuỗi đọc sách</option>
               <option value="NoUnexcusedAbsence">Chuỗi điểm danh</option>
+              <option value="ClassAttendance">Chuyên cần lớp học</option>
             </select>
             <FieldError message={missionErrors.missionType} />
+          </div>
+
+          <div>
+            <FormLabel label="Cách tính tiến độ" required />
+            <select
+              value={missionForm.progressMode}
+              onChange={(event) => {
+                clearMissionErrors(["progressMode"]);
+                setMissionForm((current) => ({
+                  ...current,
+                  progressMode: event.target.value as MissionProgressMode,
+                }));
+              }}
+              className={getFieldClass(inputClass, Boolean(missionErrors.progressMode))}
+            >
+              <option value="Count">Theo số lần</option>
+              <option value="Streak">Theo chuỗi</option>
+            </select>
+            <FieldError message={missionErrors.progressMode} />
           </div>
 
           {missionForm.scope === "Student" ? (
@@ -1765,7 +1782,7 @@ export function StaffGamificationWorkspace({
           </div>
 
           <div>
-            <FormLabel label="Kết thúc" required />
+            <FormLabel label="Kết thúc" />
             <input
               type="datetime-local"
               value={missionForm.endAt}
@@ -1776,38 +1793,11 @@ export function StaffGamificationWorkspace({
               className={getFieldClass(inputClass, Boolean(missionErrors.endAt))}
             />
             <FieldError message={missionErrors.endAt} />
-          </div>
-
-          <div>
-            <FormLabel label="Sao thưởng" required />
-            <input
-              value={missionForm.rewardStars}
-              onChange={(event) => {
-                clearMissionErrors(["rewardStars"]);
-                setMissionForm((current) => ({ ...current, rewardStars: event.target.value }));
-              }}
-              inputMode="numeric"
-              className={getFieldClass(inputClass, Boolean(missionErrors.rewardStars))}
-            />
-            <FieldError message={missionErrors.rewardStars} />
-          </div>
-
-          <div>
-            <FormLabel label="XP thưởng" required />
-            <input
-              value={missionForm.rewardExp}
-              onChange={(event) => {
-                clearMissionErrors(["rewardExp"]);
-                setMissionForm((current) => ({ ...current, rewardExp: event.target.value }));
-              }}
-              inputMode="numeric"
-              className={getFieldClass(inputClass, Boolean(missionErrors.rewardExp))}
-            />
-            <FieldError message={missionErrors.rewardExp} />
+            <p className="mt-1 text-xs text-gray-400">Có thể để trống nếu mission không giới hạn ngày kết thúc.</p>
           </div>
 
           <div className="md:col-span-2">
-            <FormLabel label="Mục tiêu hoàn thành (totalRequired)" />
+            <FormLabel label="Mục tiêu hoàn thành (totalRequired)" required />
             <input
               value={missionForm.totalRequired}
               onChange={(event) => {
@@ -1819,7 +1809,14 @@ export function StaffGamificationWorkspace({
               placeholder="Ví dụ: 5 (hoàn thành 5 lần bài tập để đạt mục tiêu)"
             />
             <FieldError message={missionErrors.totalRequired} />
-            <p className="mt-1 text-xs text-gray-400">Backend dùng field này để tính tiến độ cho các loại nhiệm vụ streak/số lần. Để trống nếu không cần.</p>
+            <p className="mt-1 text-xs text-gray-400">
+              Backend dùng loại nhiệm vụ + cách tính tiến độ + totalRequired để tự resolve phần thưởng từ reward rule đang active.
+            </p>
+            {missionForm.id && (
+              <p className="mt-1 text-xs text-gray-500">
+                Phần thưởng hiện tại: {formatNumber(missions.find((item) => item.id === missionForm.id)?.rewardStars)} sao • {formatNumber(missions.find((item) => item.id === missionForm.id)?.rewardExp)} XP
+              </p>
+            )}
           </div>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -1842,7 +1839,7 @@ export function StaffGamificationWorkspace({
         open={rewardDialogOpen}
         onClose={closeRewardDialog}
         title={rewardForm.id ? "Cập nhật vật phẩm" : "Tạo vật phẩm mới"}
-        description="Số sao đổi phải lớn hơn 0 và số lượng không được âm."
+        description="Số sao đổi phải lớn hơn 0. Backend hiện không dùng quantity ở API reward store."
         theme="staff"
       >
         <p className="mb-4 text-xs font-medium text-rose-600">
@@ -1950,20 +1947,6 @@ export function StaffGamificationWorkspace({
             <FieldError message={rewardErrors.costStars} />
           </div>
 
-          <div>
-            <FormLabel label="Số lượng" />
-            <input
-              value={rewardForm.quantity}
-              onChange={(event) => {
-                clearRewardErrors(["quantity"]);
-                setRewardForm((current) => ({ ...current, quantity: event.target.value }));
-              }}
-              inputMode="numeric"
-              className={getFieldClass(inputClass, Boolean(rewardErrors.quantity))}
-            />
-            <FieldError message={rewardErrors.quantity} />
-          </div>
-
           <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
             <input
               type="checkbox"
@@ -1999,7 +1982,12 @@ export function StaffGamificationWorkspace({
       <DialogShell open={progressDialog.open} onClose={() => setProgressDialog({ mission: null, items: [], open: false })} title={progressDialog.mission?.title || "Tiến độ nhiệm vụ"} description="Danh sách tiến độ hiện có theo nhiệm vụ được chọn." theme="staff">
         <div className="space-y-3">
           {progressDialog.items.map((item) => {
-            const pct = Math.min(100, Math.max(0, Number(item.progressPercentage ?? 0)));
+            const pct = getMissionProgressPercent({
+              progressValue: item.progressValue,
+              totalRequired:
+                item.totalRequired ?? progressDialog.mission?.totalRequired,
+              fallback: item.progressPercentage,
+            });
             return (
               <div key={item.id} className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2007,7 +1995,7 @@ export function StaffGamificationWorkspace({
                     <p className="font-semibold text-gray-900">{item.studentName || item.studentProfileId}</p>
                     <div className="mt-2">
                       <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                        <span>Tiến độ: {formatNumber(item.progressValue)}{progressDialog.mission?.totalRequired ? ` / ${formatNumber(progressDialog.mission.totalRequired)}` : ""}</span>
+                        <span>Tiến độ: {formatNumber(item.progressValue)}{(item.totalRequired ?? progressDialog.mission?.totalRequired) ? ` / ${formatNumber(item.totalRequired ?? progressDialog.mission?.totalRequired)}` : ""}</span>
                         <span className="font-semibold text-gray-700">{pct}%</span>
                       </div>
                       <div className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">

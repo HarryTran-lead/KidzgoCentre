@@ -25,15 +25,22 @@ import {
   checkInAttendanceStreak,
   confirmRewardRedemptionReceived,
   getMissionProgress,
+  getMyMissionProgress,
   getMyAttendanceStreak,
   getMyLevel,
   getMyRewardRedemptions,
   getMyStarBalance,
   listActiveRewardStoreItems,
-  listMissions,
   requestRewardRedemption,
 } from "@/lib/api/gamificationService";
-import type { Mission, MissionProgress, RewardRedemption, RewardStoreItem } from "@/types/gamification";
+import type {
+  AttendanceStreakInfo,
+  LevelInfo,
+  MissionProgress,
+  MyMissionProgressItem,
+  RewardRedemption,
+  RewardStoreItem,
+} from "@/types/gamification";
 import {
   DialogShell,
   EmptyState,
@@ -45,9 +52,10 @@ import {
   formatDate,
   formatDateTime,
   formatNumber,
+  getMissionProgressPercent,
   getMissionProgressClasses,
   getRedemptionStatusClasses,
-  mapMissionScopeLabel,
+  mapMissionProgressModeLabel,
   mapMissionTypeLabel,
   mapProgressStatusLabel,
   mapRedemptionStatusLabel,
@@ -70,13 +78,13 @@ export function LearnerGamificationWorkspace({
   const [activeTab, setActiveTab] = useState<LearnerTab>(initialTab);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
-  const [missions, setMissions] = useState<Mission[]>([]);
+  const [missions, setMissions] = useState<MyMissionProgressItem[]>([]);
   const [rewards, setRewards] = useState<RewardStoreItem[]>([]);
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
   const [starBalance, setStarBalance] = useState(0);
-  const [levelInfo, setLevelInfo] = useState<{ level: number; xp: number; xpRequiredForNextLevel: number } | null>(null);
-  const [streakInfo, setStreakInfo] = useState<{ currentStreak: number; maxStreak: number; lastAttendanceDate?: string | null; recentStreaks: any[] } | null>(null);
-  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
+  const [levelInfo, setLevelInfo] = useState<LevelInfo | null>(null);
+  const [streakInfo, setStreakInfo] = useState<AttendanceStreakInfo | null>(null);
+  const [selectedMission, setSelectedMission] = useState<MyMissionProgressItem | null>(null);
   const [missionProgress, setMissionProgress] = useState<MissionProgress[]>([]);
   const [redeemItem, setRedeemItem] = useState<RewardStoreItem | null>(null);
   const [redeemQuantity, setRedeemQuantity] = useState(1);
@@ -93,14 +101,14 @@ export function LearnerGamificationWorkspace({
     setLoading(true);
     setPageError(null);
     const [m, r, rd, sb, lv, st] = await Promise.allSettled([
-      listMissions({ pageNumber: 1, pageSize: 50 }),
+      getMyMissionProgress({ pageNumber: 1, pageSize: 50 }),
       listActiveRewardStoreItems({ page: 1, pageSize: 50 }),
       getMyRewardRedemptions({ page: 1, pageSize: 20 }),
       getMyStarBalance(),
       getMyLevel(),
       getMyAttendanceStreak(),
     ]);
-    if (m.status === "fulfilled") setMissions(m.value.items);
+    if (m.status === "fulfilled") setMissions(m.value.missions.items);
     if (r.status === "fulfilled") setRewards(r.value.items);
     if (rd.status === "fulfilled") setRedemptions(rd.value.items);
     if (sb.status === "fulfilled") setStarBalance(sb.value.balance);
@@ -139,14 +147,14 @@ export function LearnerGamificationWorkspace({
     }
   }
 
-  async function openMissionProgress(mission: Mission) {
+  async function openMissionProgress(mission: MyMissionProgressItem) {
     if (!activeStudent?.id) {
       toast({ title: "Thiếu ngữ cảnh học sinh", description: portalLabel === "Phụ huynh" ? "Vui lòng chọn học viên ở thanh bên." : "Vui lòng chọn hồ sơ học viên." });
       return;
     }
     try {
-      setBusyAction(`mission-${mission.id}`);
-      const result = await getMissionProgress(mission.id, { studentProfileId: activeStudent.id, pageNumber: 1, pageSize: 20 });
+      setBusyAction(`mission-${mission.missionId}`);
+      const result = await getMissionProgress(mission.missionId, { studentProfileId: activeStudent.id, pageNumber: 1, pageSize: 20 });
       setSelectedMission(mission);
       setMissionProgress(result.progresses.items);
     } catch (error) {
@@ -186,6 +194,9 @@ export function LearnerGamificationWorkspace({
   }
 
   const pendingRedemptions = redemptions.filter((x) => ["Requested", "Approved", "Delivered"].includes(x.status));
+  const maxRedeemableQuantity = redeemItem
+    ? Math.max(1, Math.floor(starBalance / Math.max(1, redeemItem.costStars)))
+    : 1;
 
   return (
     <div className="relative h-full overflow-y-auto">
@@ -240,7 +251,11 @@ export function LearnerGamificationWorkspace({
             <div className="mt-5 space-y-3">
               {missions.slice(0, 3).map((mission) => (
                 <div key={mission.id} className="flex items-start justify-between gap-3 rounded-2xl border border-purple-500/20 bg-gradient-to-b from-purple-500/10 to-slate-900/90 p-4">
-                  <div><p className="font-semibold text-white">{mission.title}</p><p className="mt-1 text-sm text-purple-300">{mapMissionTypeLabel(mission.missionType)} • {mapMissionScopeLabel(mission.scope)}</p></div>
+                  <div>
+                    <p className="font-semibold text-white">{mission.title}</p>
+                    <p className="mt-1 text-sm text-purple-300">{mapMissionTypeLabel(mission.missionType)} • {mapMissionProgressModeLabel(mission.progressMode)}</p>
+                    <p className="mt-1 text-xs text-purple-400">Tiến độ {formatNumber(mission.progressValue)}{mission.totalRequired ? ` / ${formatNumber(mission.totalRequired)}` : ""} • {mapProgressStatusLabel(mission.status)}</p>
+                  </div>
                   <button type="button" onClick={() => void openMissionProgress(mission)} className="rounded-xl border border-purple-500/30 bg-slate-800/50 px-3 py-2 text-xs font-semibold text-white transition hover:bg-purple-500/20">Xem tiến độ</button>
                 </div>
               ))}
@@ -268,7 +283,19 @@ export function LearnerGamificationWorkspace({
               <SectionTitle title="Danh sách nhiệm vụ" description="Theo dõi mission đang áp dụng và xem chi tiết tiến độ." />
               {missions.length ? missions.map((mission) => (
                 <div key={mission.id} className="mb-4 rounded-3xl border border-purple-500/20 bg-gradient-to-b from-purple-500/10 to-slate-900/90 p-5 last:mb-0">
-                  <div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-bold text-white">{mission.title}</h3><p className="mt-1 text-sm text-purple-300">{mapMissionTypeLabel(mission.missionType)} • {mapMissionScopeLabel(mission.scope)}</p>{mission.description ? <p className="mt-3 text-sm leading-6 text-purple-400">{mission.description}</p> : null}</div><button type="button" onClick={() => void openMissionProgress(mission)} disabled={busyAction === `mission-${mission.id}`} className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/30 bg-slate-800/50 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-500/20 disabled:opacity-60">{busyAction === `mission-${mission.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}Xem tiến độ</button></div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-white">{mission.title}</h3>
+                      <p className="mt-1 text-sm text-purple-300">{mapMissionTypeLabel(mission.missionType)} • {mapMissionProgressModeLabel(mission.progressMode)}</p>
+                      {mission.description ? <p className="mt-3 text-sm leading-6 text-purple-400">{mission.description}</p> : null}
+                      <div className="mt-3 flex flex-wrap gap-4 text-xs font-medium text-purple-300">
+                        <span>Tiến độ: {formatNumber(mission.progressValue)}{mission.totalRequired ? ` / ${formatNumber(mission.totalRequired)}` : ""}</span>
+                        <span>Trạng thái: {mapProgressStatusLabel(mission.status)}</span>
+                        <span>Thưởng: {formatNumber(mission.rewardStars)} sao • {formatNumber(mission.rewardExp)} XP</span>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => void openMissionProgress(mission)} disabled={busyAction === `mission-${mission.missionId}`} className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/30 bg-slate-800/50 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-500/20 disabled:opacity-60">{busyAction === `mission-${mission.missionId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}Xem tiến độ</button>
+                  </div>
                 </div>
               )) : <EmptyState title="Chưa có mission" description="Khi có mission mới được giao, danh sách sẽ hiển thị ở đây." icon={<Target className="h-5 w-5" />} />}
             </>
@@ -344,7 +371,7 @@ export function LearnerGamificationWorkspace({
             {rewards.length ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {rewards.map((item) => {
-                  const disabled = item.quantity <= 0 || starBalance < item.costStars;
+                  const disabled = starBalance < item.costStars;
                   const itemImageUrl = buildFileUrl(item.imageUrl);
                   return (
                     <div key={item.id} className="overflow-hidden rounded-3xl border border-purple-500/30 bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-sm shadow-lg">
@@ -359,7 +386,7 @@ export function LearnerGamificationWorkspace({
                             <h3 className="text-lg font-bold text-white">{item.title}</h3>
                             <p className="mt-1 text-sm text-purple-300">{item.description || "Vật phẩm thưởng đang có trong cửa hàng."}</p>
                           </div>
-                          <span className="rounded-full bg-slate-800/50 border border-purple-500/30 px-3 py-1 text-xs font-semibold text-purple-200">Còn {formatNumber(item.quantity)}</span>
+                          <span className="rounded-full bg-slate-800/50 border border-purple-500/30 px-3 py-1 text-xs font-semibold text-purple-200">Đang mở đổi</span>
                         </div>
                       </div>
                       <div className="space-y-4 p-5">
@@ -374,7 +401,7 @@ export function LearnerGamificationWorkspace({
                           className={disabled ? "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-700/50 px-4 py-3 text-sm font-semibold text-slate-400 cursor-not-allowed" : "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white transition hover:scale-105 shadow-lg shadow-purple-500/30"}
                         >
                           <Gift className="h-4 w-4" />
-                          {item.quantity <= 0 ? "Đã hết quà" : starBalance < item.costStars ? "Không đủ sao" : "Đổi quà ngay"}
+                          {starBalance < item.costStars ? "Không đủ sao" : "Đổi quà ngay"}
                         </button>
                       </div>
                     </div>
@@ -420,7 +447,11 @@ export function LearnerGamificationWorkspace({
       {/* Mission Progress Dialog */}
       <DialogShell open={Boolean(selectedMission)} title={selectedMission?.title ?? "Tiến độ mission"} description="Tiến độ theo hồ sơ học sinh đang được chọn." onClose={() => { setSelectedMission(null); setMissionProgress([]); }}>
         {missionProgress.length ? missionProgress.map((item) => {
-          const pct = Math.min(100, Math.max(0, Number(item.progressPercentage ?? 0)));
+          const pct = getMissionProgressPercent({
+            progressValue: item.progressValue,
+            totalRequired: item.totalRequired ?? selectedMission?.totalRequired,
+            fallback: item.progressPercentage,
+          });
           return (
           <div key={item.id} className="mb-3 rounded-3xl border border-purple-500/20 bg-gradient-to-b from-purple-500/10 to-slate-900/90 p-5 last:mb-0">
             <div className="flex items-start justify-between gap-3">
@@ -428,7 +459,7 @@ export function LearnerGamificationWorkspace({
                 <h4 className="font-semibold text-white">{item.studentName || activeStudent?.displayName || "Học sinh đang chọn"}</h4>
                 <div className="mt-2">
                   <div className="flex items-center justify-between text-xs text-purple-300 mb-1">
-                    <span>Tiến độ: {item.progressValue ?? 0}{selectedMission?.totalRequired ? ` / ${selectedMission.totalRequired}` : ""}</span>
+                    <span>Tiến độ: {item.progressValue ?? 0}{(item.totalRequired ?? selectedMission?.totalRequired) ? ` / ${item.totalRequired ?? selectedMission?.totalRequired}` : ""}</span>
                     <span className="font-semibold text-white">{pct}%</span>
                   </div>
                   <div className="h-2.5 w-full rounded-full bg-purple-900/50 overflow-hidden">
@@ -445,7 +476,7 @@ export function LearnerGamificationWorkspace({
       </DialogShell>
 
       {/* Redeem Dialog */}
-      <DialogShell open={Boolean(redeemItem)} title={`Đổi thưởng: ${redeemItem?.title ?? ""}`} description="Hệ thống sẽ trừ sao và giữ tồn kho ngay khi tạo yêu cầu." onClose={() => { setRedeemItem(null); setRedeemQuantity(1); }} widthClass="max-w-xl">
+      <DialogShell open={Boolean(redeemItem)} title={`Đổi thưởng: ${redeemItem?.title ?? ""}`} description="Hệ thống sẽ trừ sao ngay khi tạo yêu cầu đổi thưởng." onClose={() => { setRedeemItem(null); setRedeemQuantity(1); }} widthClass="max-w-xl">
         {redeemItem ? (
           <div className="space-y-5">
             <div className="rounded-3xl border border-purple-500/20 bg-gradient-to-b from-purple-500/10 to-slate-900/90 p-5">
@@ -457,9 +488,16 @@ export function LearnerGamificationWorkspace({
               <input
                 type="number"
                 min={1}
-                max={Math.max(1, redeemItem.quantity)}
+                max={maxRedeemableQuantity}
                 value={redeemQuantity}
-                onChange={(event) => setRedeemQuantity(Math.max(1, Number(event.target.value || 1)))}
+                onChange={(event) =>
+                  setRedeemQuantity(
+                    Math.min(
+                      maxRedeemableQuantity,
+                      Math.max(1, Number(event.target.value || 1))
+                    )
+                  )
+                }
                 className="w-full rounded-2xl border border-purple-500/30 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 placeholder:text-purple-400/60"
               />
             </div>

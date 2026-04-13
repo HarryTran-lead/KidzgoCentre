@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KidzGo",
+  title: "Rex",
   description: "Learning Through Play",
   };
 

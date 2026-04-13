@@ -602,7 +602,7 @@ export default function ApplicationPage() {
             <p className="text-[11px] text-gray-500 text-center">
               Học sinh có nhu cầu thực hiện các thủ tục, dịch vụ vui lòng liên hệ Trung tâm Dịch vụ Học sinh, 
               điện thoại: <span className="text-cyan-400">028.73005585</span>, 
-              email: <span className="text-cyan-400">support@kidzgo.edu.vn</span>
+              email: <span className="text-cyan-400">support@rex.edu.vn</span>
             </p>
           </div>
         </div>

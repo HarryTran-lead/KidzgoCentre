@@ -1,7 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { MissionScope, MissionType, RedemptionStatus } from "@/types/gamification";
+import type {
+  MissionProgressMode,
+  MissionScope,
+  MissionType,
+  RedemptionStatus,
+} from "@/types/gamification";
 import type { StudentSummary } from "@/types/student/student";
 import type { UserProfile } from "@/types/auth";
 
@@ -173,6 +178,41 @@ function translateProblemMessage(message?: string) {
   }
 
   if (
+    (normalized.includes("totalrequired") || normalized.includes("mục tiêu")) &&
+    (
+      normalized.includes("greater than 0") ||
+      normalized.includes("greater than zero") ||
+      normalized.includes("lớn hơn 0") ||
+      normalized.includes("invalidtotalrequired")
+    )
+  ) {
+    return "Mục tiêu hoàn thành phải lớn hơn 0.";
+  }
+
+  if (
+    normalized.includes("missionrewardrule.notconfigured") ||
+    (normalized.includes("reward rule") && normalized.includes("not configured"))
+  ) {
+    return "Chưa có rule phần thưởng phù hợp với loại nhiệm vụ, cách tính và mục tiêu này.";
+  }
+
+  if (normalized.includes("mission.invalidscope")) {
+    return "Phạm vi nhiệm vụ chưa hợp lệ. Hãy kiểm tra lớp, học sinh hoặc nhóm được áp dụng.";
+  }
+
+  if (normalized.includes("teachercannottargetclass")) {
+    return "Giáo viên chỉ có thể giao nhiệm vụ cho lớp mình đang phụ trách.";
+  }
+
+  if (normalized.includes("teachercannottargetstudent")) {
+    return "Giáo viên chỉ có thể giao nhiệm vụ cho học sinh thuộc lớp mình đang phụ trách.";
+  }
+
+  if (normalized.includes("teachercannottargetsomestudents")) {
+    return "Có học sinh ngoài phạm vi lớp giáo viên đang phụ trách.";
+  }
+
+  if (
     (normalized.includes("cost stars") || normalized.includes("coststars") || normalized.includes("số sao đổi")) &&
     (
       normalized.includes("greater than 0") ||
@@ -265,10 +305,24 @@ export function mapMissionTypeLabel(type: MissionType) {
   switch (type) {
     case "HomeworkStreak":
       return "Chuỗi bài tập";
+    case "ReadingStreak":
+      return "Chuỗi đọc sách";
     case "NoUnexcusedAbsence":
       return "Chuỗi điểm danh";
+    case "ClassAttendance":
+      return "Chuyên cần lớp học";
     default:
       return "Tùy chỉnh";
+  }
+}
+
+export function mapMissionProgressModeLabel(mode?: MissionProgressMode | null) {
+  switch (mode) {
+    case "Streak":
+      return "Theo chuỗi";
+    case "Count":
+    default:
+      return "Theo số lần";
   }
 }
 
@@ -332,6 +386,33 @@ export function getMissionProgressClasses(status: string) {
     default:
       return "bg-amber-500/20 text-amber-300 border-amber-500/30";
   }
+}
+
+export function getMissionProgressPercent({
+  progressValue,
+  totalRequired,
+  fallback,
+}: {
+  progressValue?: number | null;
+  totalRequired?: number | null;
+  fallback?: number | null;
+}) {
+  const parsedProgressValue = Number(progressValue ?? 0);
+  const parsedTotalRequired = Number(totalRequired ?? 0);
+
+  if (Number.isFinite(parsedTotalRequired) && parsedTotalRequired > 0) {
+    return Math.min(
+      100,
+      Math.max(0, Math.round((parsedProgressValue / parsedTotalRequired) * 100))
+    );
+  }
+
+  const parsedFallback = Number(fallback ?? 0);
+  if (Number.isFinite(parsedFallback)) {
+    return Math.min(100, Math.max(0, parsedFallback));
+  }
+
+  return 0;
 }
 
 export type SharedTheme = "learner" | "staff";

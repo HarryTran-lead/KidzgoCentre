@@ -605,7 +605,7 @@ export default function SupportPage() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
-                  Gửi đơn hỗ trợ cho Kidzgo
+                  Gửi đơn hỗ trợ cho Rex
                 </h3>
               </div>
             </div>

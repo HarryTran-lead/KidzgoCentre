@@ -57,6 +57,7 @@ import type { AiGeneratedQuestionDraft } from "@/app/api/admin/question-bank";
 import AiCreatorModal from "@/components/question-bank/AiCreatorModal";
 import { ImportFromBankModal } from "./modal/ImportFromBankModal";
 import { ImportFromExcelModal } from "./modal/ImportFromExcelModal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 type SubmissionStatus = "PENDING" | "SUBMITTED" | "REVIEWED" | "OVERDUE";
 
@@ -70,7 +71,6 @@ type Submission = {
   fileType: string;
   assignmentTitle: string;
   dueDate: string;
-  skills?: string;
   description?: string;
   note?: string;
   score?: number;
@@ -303,18 +303,13 @@ function SubmissionRow({ item, onDelete, onViewDetail, onUpdate }: { item: Submi
         <div className="text-sm text-gray-600">{item.className || "-"}</div>
       </td>
       <td className="py-4 px-6">
-        <div className="text-sm text-gray-900">{item.sessionId || "-"}</div>
+        <div className="text-sm text-gray-900">{item.session || "-"}</div>
       </td>
       <td className="py-4 px-6">
         <div className="text-sm text-gray-700 flex items-center gap-2">
           <Calendar size={14} className="text-gray-400" />
           <span>{item.dueDate}</span>
         </div>
-      </td>
-      <td className="py-4 px-6">
-        <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-medium border border-red-200">
-          {item.skills || "-"}
-        </span>
       </td>
       <td className="py-4 px-6">
         <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${
@@ -388,7 +383,6 @@ function CreateAssignmentModal({
   const [rewardStars, setRewardStars] = useState("0");
   const [book, setBook] = useState("");
   const [pages, setPages] = useState("");
-  const [skills, setSkills] = useState("");
   const [submissionType, setSubmissionType] = useState<"FILE" | "IMAGE" | "TEXT" | "LINK" | "MULTIPLE_CHOICE">("FILE");
   const [instructions, setInstructions] = useState("");
   const [expectedAnswer, setExpectedAnswer] = useState("");
@@ -432,7 +426,15 @@ function CreateAssignmentModal({
         return;
       }
 
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+      
+      // Check if click is from Select dropdown (trigger or content)
+      // SelectContent được render vào document.body nên cần check riêng
+      if (target.closest('[data-state]') || target.closest('[role="option"]')) {
+        return;
+      }
+
+      if (modalRef.current && !modalRef.current.contains(target)) {
         onClose();
       }
     };
@@ -692,7 +694,6 @@ function CreateAssignmentModal({
           dueAt: `${dueDate}T${dueTime}:00+07:00`,
           book: book || undefined,
           pages: pages || undefined,
-          skills: skills || undefined,
           submissionType: submissionType as "FILE" | "IMAGE" | "TEXT" | "LINK" | undefined,
           maxScore: maxScore ? parseInt(maxScore) : undefined,
           rewardStars: rewardStars ? parseInt(rewardStars) : undefined,
@@ -829,45 +830,57 @@ function CreateAssignmentModal({
                     <Users size={16} className="text-red-600" />
                     Lớp học <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={selectedClass}
-                    onChange={(e) => {
-                      setSelectedClass(e.target.value);
-                      setSelectedSession("");
-                    }}
-                    disabled={isLoadingClasses}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">{isLoadingClasses ? "Đang tải..." : "Chọn lớp học..."}</option>
-                    {classes.map((cls) => (
-                      <option key={cls.id} value={cls.id}>{cls.name}</option>
-                    ))}
-                  </select>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      value={selectedClass}
+                      onValueChange={(val) => {
+                        setSelectedClass(val);
+                        setSelectedSession("");
+                      }}
+                      disabled={isLoadingClasses}
+                    >
+                      <SelectTrigger className="w-full border-gray-200 rounded-xl">
+                        <SelectValue placeholder={isLoadingClasses ? "Đang tải..." : "Chọn lớp học..."} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <Calendar size={16} className="text-red-600" />
                     Buổi học
                   </label>
-                  <select
-                    value={selectedSession}
-                    onChange={(e) => setSelectedSession(e.target.value)}
-                    disabled={!selectedClass || isLoadingSessions}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">
-                      {!selectedClass
-                        ? "Chọn lớp trước"
-                        : isLoadingSessions
-                          ? "Đang tải..."
-                          : "Chọn buổi học..."}
-                    </option>
-                    {sessions.map((session) => (
-                      <option key={session.id} value={session.id}>
-                        {session.name} {session.date ? `(${session.date})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      value={selectedSession}
+                      onValueChange={(val) => setSelectedSession(val)}
+                      disabled={!selectedClass || isLoadingSessions}
+                    >
+                      <SelectTrigger className="w-full border-gray-200 rounded-xl">
+                        <SelectValue placeholder={
+                          !selectedClass
+                            ? "Chọn lớp trước"
+                            : isLoadingSessions
+                              ? "Đang tải..."
+                              : "Chọn buổi học..."
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sessions.map((session) => (
+                          <SelectItem key={session.id} value={session.id}>
+                            {session.name} {session.date ? `(${session.date})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -951,6 +964,38 @@ function CreateAssignmentModal({
                 </div>
               </div>
 
+              {activeTab === "UPLOAD" && (
+                <>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <AlignLeft size={16} className="text-red-600" />
+                      Mô tả bài tập
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                      placeholder="Nhập mô tả chi tiết về bài tập..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <BookMarked size={16} className="text-red-600" />
+                      Hướng dẫn
+                    </label>
+                    <textarea
+                      value={instructions}
+                      onChange={(e) => setInstructions(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
+                      placeholder="Hướng dẫn chi tiết cho học viên..."
+                    />
+                  </div>
+                </>
+              )}
+
               {isMultipleChoice && (
                 <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-amber-50 p-4">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -1003,47 +1048,7 @@ function CreateAssignmentModal({
 
               {activeTab === "UPLOAD" ? (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <BookOpen size={16} className="text-red-600" />
-                        Sách bài tập
-                      </label>
-                      <input
-                        type="text"
-                        value={book}
-                        onChange={(e) => setBook(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                        placeholder="Tên sách..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <FileText size={16} className="text-red-600" />
-                        Trang
-                      </label>
-                      <input
-                        type="text"
-                        value={pages}
-                        onChange={(e) => setPages(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                        placeholder="Trang..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Sparkles size={16} className="text-red-600" />
-                        Kỹ năng
-                      </label>
-                      <input
-                        type="text"
-                        value={skills}
-                        onChange={(e) => setSkills(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
-                        placeholder="Kỹ năng..."
-                      />
-                    </div>
-                  </div>
+                  
 
                   <div className="space-y-3">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -1079,34 +1084,6 @@ function CreateAssignmentModal({
                       })}
                     </div>
                     <p className="text-xs text-gray-500">Teacher đang chọn: {submissionTypeLabel}.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <AlignLeft size={16} className="text-red-600" />
-                      Mô tả bài tập
-                    </label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      rows={3}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
-                      placeholder="Nhập mô tả chi tiết về bài tập..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <BookMarked size={16} className="text-red-600" />
-                      Hướng dẫn
-                    </label>
-                    <textarea
-                      value={instructions}
-                      onChange={(e) => setInstructions(e.target.value)}
-                      rows={3}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
-                      placeholder="Hướng dẫn chi tiết cho học viên..."
-                    />
                   </div>
 
                   <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
@@ -1643,7 +1620,6 @@ function UpdateAssignmentModal({
   const [dueTime, setDueTime] = useState(initialDue.time);
   const [book, setBook] = useState("");
   const [pages, setPages] = useState("");
-  const [skills, setSkills] = useState(homework.skills || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -1669,7 +1645,6 @@ function UpdateAssignmentModal({
         dueAt: `${dueDate}T${dueTime}:00+07:00`,
         book: book || undefined,
         pages: pages || undefined,
-        skills: skills || undefined,
       };
 
       const homeworkId = homework.assignmentId || homework.id;
@@ -1780,44 +1755,7 @@ function UpdateAssignmentModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Sách bài tập
-              </label>
-              <input
-                type="text"
-                value={book}
-                onChange={(e) => setBook(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Tên sách..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Trang
-              </label>
-              <input
-                type="text"
-                value={pages}
-                onChange={(e) => setPages(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Trang..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Kỹ năng
-              </label>
-              <input
-                type="text"
-                value={skills}
-                onChange={(e) => setSkills(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                placeholder="Kỹ năng..."
-              />
-            </div>
-          </div>
+          
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-red-100">
             <button
@@ -2127,44 +2065,53 @@ export default function TeacherAssignmentsPage() {
         </div>
       </div>
 
+      {/* Filter Bar */}
       <div
         className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${
           isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-sm text-gray-600 font-medium">
-              Danh sách bài nộp
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[250px]">
             <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm học viên, bài tập..."
-                className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+                className="h-10 w-full rounded-xl border border-red-200 bg-white pl-9 pr-9 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              {searchQuery.trim() !== "" && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
+          </div>
 
-            <div className="relative">
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="h-10 rounded-xl border border-red-200 bg-white px-4 pr-10 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 appearance-none"
-              >
-                <option value="ALL">Tất cả lớp</option>
-                {classes.map((cls, index) => (
-                  <option key={`${cls}-${index}`} value={cls}>
-                    {cls}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
+          {/* Class Filter */}
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="h-10 rounded-xl border border-red-200 bg-white px-4 pr-10 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 appearance-none cursor-pointer"
+            >
+              <option value="ALL">Tất cả lớp</option>
+              {classes.map((cls, index) => (
+                <option key={`${cls}-${index}`} value={cls}>
+                  {cls}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="absolute ml-64 pointer-events-none text-gray-400" />
           </div>
         </div>
       </div>
@@ -2208,9 +2155,6 @@ export default function TeacherAssignmentsPage() {
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                   Hạn nộp
-                </th>
-                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                  Kỹ năng
                 </th>
                 <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                   Loại nộp

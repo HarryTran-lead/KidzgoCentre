@@ -119,7 +119,7 @@ function makeSeed(): NotificationDb {
         kind: "report",
         priority: "high",
         senderRole: "Teacher",
-        senderName: "KidzGo Centre",
+        senderName: "Rex Centre",
         campaignId: null,
       },
       {

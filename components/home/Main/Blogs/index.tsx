@@ -339,7 +339,7 @@ export default function Blogs() {
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
                           <User className="w-3.5 h-3.5" />
-                          <span>{blog.createdByName || "KidzGo"}</span>
+                          <span>{blog.createdByName || "Rex"}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">

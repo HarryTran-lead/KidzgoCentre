@@ -37,6 +37,7 @@ import type {
 } from "@/types/student/homework";
 import { getStudentHomeworkById, submitHomework } from "@/lib/api/studentService";
 import type { SubmitHomeworkPayload } from "@/lib/api/studentService";
+import { buildFileUrl } from "@/constants/apiURL";
 import MultipleChoiceForm from "./components/MultipleChoiceForm";
 import FileSubmissionForm from "./components/FileSubmissionForm";
 import HomeworkAiWorkspace from "./components/HomeworkAiWorkspace";
@@ -368,7 +369,7 @@ export default function AssignmentDetailPage() {
 
   return (
     <>
-      <div className="h-[calc(100vh-120px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] p-8">
+      <div className="h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar p-8">
         <div className="space-y-6">
           {/* Back Button */}
           <button
@@ -578,34 +579,101 @@ export default function AssignmentDetailPage() {
                 <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl p-6 shadow-xl shadow-purple-900/20">
                   <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Paperclip size={20} className="text-purple-400" />
-                    Tài liệu đính kèm
+                    Đính kèm của giáo viên
                   </h2>
-                  <div className="space-y-2">
-                    {assignment.teacherAttachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-purple-500/20 hover:border-purple-400/40 transition"
-                      >
-                        <div className="flex items-center gap-3">
-                          <AttachmentIcon type={attachment.type} />
-                          <div>
-                            <div className="font-medium text-white">{attachment.name}</div>
-                            {attachment.size && (
-                              <div className="text-sm text-slate-500">{attachment.size}</div>
-                            )}
+                  <div className="space-y-4">
+                    {assignment.teacherAttachments.map((attachment) => {
+                      const isImage = attachment.type === "IMAGE" || attachment.type?.includes("image");
+                      const fileUrl = buildFileUrl(attachment.url);
+                      
+                      if (isImage && fileUrl) {
+                        return (
+                          <div key={attachment.id} className="rounded-xl border border-purple-500/20 overflow-hidden hover:border-purple-400/40 transition group">
+                            <div className="relative bg-slate-900/80 flex items-center justify-center min-h-[220px]">
+                              <img
+                                src={fileUrl}
+                                alt={attachment.name}
+                                className="w-full h-auto max-h-96 object-contain p-2"
+                                onError={(e) => {
+                                  const container = e.currentTarget.parentElement;
+                                  if (container) {
+                                    container.innerHTML = `
+                                      <div class="flex flex-col items-center justify-center gap-3 w-full h-full p-6">
+                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-400">
+                                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                          <polyline points="21 15 16 10 5 21"></polyline>
+                                        </svg>
+                                        <p class="text-slate-400">Không thể tải ảnh</p>
+                                      </div>
+                                    `;
+                                  }
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                                <a
+                                  href={fileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-2.5 rounded-lg bg-purple-500/80 hover:bg-purple-600 transition"
+                                  title="Xem"
+                                >
+                                  <Eye size={18} className="text-white" />
+                                </a>
+                                <a
+                                  href={fileUrl}
+                                  download
+                                  className="p-2.5 rounded-lg bg-emerald-500/80 hover:bg-emerald-600 transition"
+                                  title="Tải về"
+                                >
+                                  <Download size={18} className="text-white" />
+                                </a>
+                              </div>
+                            </div>
+                            <div className="p-3 bg-slate-800/50 border-t border-purple-500/20">
+                              <div className="font-medium text-white text-sm truncate">{attachment.name}</div>
+                              {attachment.size && (
+                                <div className="text-xs text-slate-400 mt-1">{attachment.size}</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      // Non-image attachment
+                      return (
+                        <div key={attachment.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-800/40 border border-purple-500/20 hover:border-purple-400/40 transition">
+                          <div className="flex items-center gap-3">
+                            <AttachmentIcon type={attachment.type} />
+                            <div>
+                              <div className="font-medium text-white">{attachment.name}</div>
+                              {attachment.size && (
+                                <div className="text-sm text-slate-500">{attachment.size}</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-2 hover:bg-purple-500/20 rounded-lg transition"
+                              title="Xem"
+                            >
+                              <Eye size={18} className="text-purple-400" />
+                            </a>
+                            <a
+                              href={fileUrl}
+                              download
+                              className="p-2 hover:bg-purple-500/20 rounded-lg transition"
+                              title="Tải về"
+                            >
+                              <Download size={18} className="text-purple-400" />
+                            </a>
                           </div>
                         </div>
-                        <a
-                          href={attachment.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          download
-                          className="p-2 hover:bg-purple-500/20 rounded-lg transition"
-                        >
-                          <Download size={18} className="text-purple-400" />
-                        </a>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -699,14 +767,6 @@ export default function AssignmentDetailPage() {
                   </div>
                 )}
 
-                {assignment.submission.content?.text && (
-                  <div>
-                    <h3 className="font-medium text-white mb-2">Nội dung:</h3>
-                    <div className="p-4 rounded-xl bg-slate-800/40 border border-purple-500/20 text-slate-300">
-                      {assignment.submission.content.text}
-                    </div>
-                  </div>
-                )}
 
                 {assignment.submission.content?.links &&
                   assignment.submission.content.links.length > 0 && (
