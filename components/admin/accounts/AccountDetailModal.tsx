@@ -47,7 +47,6 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-gray-900">{account.name}</h3>
-                <p className="text-sm text-gray-500">ID: {account.id}</p>
               </div>
             </div>
 
