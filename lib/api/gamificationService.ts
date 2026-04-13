@@ -10,6 +10,7 @@ import type {
   BatchDeliverParams,
   BatchDeliverResult,
   ClassOptionLite,
+  GamificationSettingsConfig,
   LevelInfo,
   Mission,
   MissionListParams,
@@ -157,6 +158,24 @@ function normalizeAttendanceStreak(source: unknown): AttendanceStreakInfo {
   };
 }
 
+function normalizeGamificationSettings(
+  source: unknown
+): GamificationSettingsConfig {
+  const payload = unwrapData<AnyRecord>(source);
+  const data =
+    payload?.settings && typeof payload.settings === "object"
+      ? (payload.settings as AnyRecord)
+      : payload;
+
+  const rewardStars = Number(data?.checkInRewardStars ?? 0);
+  const rewardExp = Number(data?.checkInRewardExp ?? 0);
+
+  return {
+    checkInRewardStars: Number.isFinite(rewardStars) ? rewardStars : 0,
+    checkInRewardExp: Number.isFinite(rewardExp) ? rewardExp : 0,
+  };
+}
+
 function normalizeStarTransactions(source: unknown): StarTransactionsResult {
   const payload = unwrapData<AnyRecord>(source);
   return {
@@ -212,6 +231,18 @@ export async function getMissionClassOptions(): Promise<ClassOptionLite[]> {
     console.error("getMissionClassOptions error:", error);
     return [];
   }
+}
+
+export async function getGamificationSettings(): Promise<GamificationSettingsConfig> {
+  const response = await get<any>("/api/gamification/settings");
+  return normalizeGamificationSettings(response);
+}
+
+export async function updateGamificationSettings(
+  payload: GamificationSettingsConfig
+): Promise<GamificationSettingsConfig> {
+  const response = await put<any>("/api/gamification/settings", payload);
+  return normalizeGamificationSettings(response);
 }
 
 export async function listMissions(

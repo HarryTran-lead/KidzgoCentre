@@ -36,6 +36,11 @@ export interface ClassOptionLite {
   name?: string;
 }
 
+export interface GamificationSettingsConfig {
+  checkInRewardStars: number;
+  checkInRewardExp: number;
+}
+
 export interface Mission {
   id: string;
   title: string;
