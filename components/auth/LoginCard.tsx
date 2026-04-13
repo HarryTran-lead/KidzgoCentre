@@ -116,7 +116,21 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
 
       // Use authService instead of RTK Query
       const response = await authService.login({ email, password });
-      
+
+      // Check for login failure from backend (success flag may be in root or nested)
+      const isLoginSuccess = response.isSuccess ?? (response as unknown as { success: boolean })?.success;
+      if (!isLoginSuccess) {
+        const backendMsg = response.message || "Email hoặc mật khẩu không chính xác. Vui lòng thử lại.";
+        setLoginError(backendMsg);
+        toast({
+          title: "Đăng nhập thất bại!",
+          description: backendMsg,
+          duration: 4000,
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Handle both response formats: response.data or response directly
       const loginData = response.data || response;
       setAccessToken(loginData.accessToken);
@@ -174,13 +188,20 @@ export default function LoginCard({ returnTo = "", locale, errorMessage }: Props
       setTimeout(() => {
         window.location.assign(destination);
       }, 500);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; title?: string; detail?: string } }; message?: string };
       const errorMsg = "Email hoặc mật khẩu không chính xác. Vui lòng thử lại.";
-      setLoginError(errorMsg);
+      const backendMsg =
+        axiosError?.response?.data?.message ||
+        axiosError?.response?.data?.detail ||
+        axiosError?.response?.data?.title ||
+        axiosError?.message ||
+        errorMsg;
+      setLoginError(backendMsg);
       
       toast({
         title: "Đăng nhập thất bại!",
-        description: error?.response?.data?.message || error?.message || errorMsg,
+        description: backendMsg,
         duration: 4000,
         variant: 'destructive',
       });
