@@ -35,6 +35,7 @@ type FlatItem = {
   label: string;
   icon: LucideIcon;
   href: string;
+  variant?: "default" | "special";
 };
 type GroupItem = {
   group: string;

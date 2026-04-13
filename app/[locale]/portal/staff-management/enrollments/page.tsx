@@ -21,6 +21,29 @@ import {
 } from "@/components/portal/enrollments";
 import ConfirmModal from "@/components/ConfirmModal";
 
+type EnrollmentErrorPayload = {
+  title?: string;
+  detail?: string;
+  message?: string;
+};
+
+type EnrollmentError = {
+  response?: {
+    data?: EnrollmentErrorPayload;
+  };
+  message?: string;
+};
+
+const getEnrollmentErrorPayload = (error: unknown): EnrollmentErrorPayload | undefined => {
+  if (!error || typeof error !== "object") return undefined;
+  return (error as EnrollmentError).response?.data;
+};
+
+const getEnrollmentErrorMessage = (error: unknown, fallback: string) => {
+  const payload = getEnrollmentErrorPayload(error);
+  return payload?.detail || payload?.message || (error as EnrollmentError).message || fallback;
+};
+
 export default function EnrollmentsPage() {
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
@@ -173,14 +196,10 @@ export default function EnrollmentsPage() {
         });
       }
     } catch (error: unknown) {
-      const err = error as Record<string, unknown>;
+      const payload = getEnrollmentErrorPayload(error);
       const isScheduleConflict =
-        (err?.response as Record<string, unknown>)?.data?.title === "Enrollment.StudentScheduleConflict";
-      const msg =
-        ((err?.response as Record<string, unknown>)?.data?.detail as string) ||
-        ((err?.response as Record<string, unknown>)?.data?.message as string) ||
-        (err?.message as string) ||
-        "Không thể tạo ghi danh";
+        payload?.title === "Enrollment.StudentScheduleConflict";
+      const msg = getEnrollmentErrorMessage(error, "Khong the tao ghi danh");
       toast({
         title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
         description: msg,
@@ -250,14 +269,10 @@ export default function EnrollmentsPage() {
         });
       }
     } catch (error: unknown) {
-      const err = error as Record<string, unknown>;
+      const payload = getEnrollmentErrorPayload(error);
       const isScheduleConflict =
-        (err?.response as Record<string, unknown>)?.data?.title === "Enrollment.StudentScheduleConflict";
-      const msg =
-        ((err?.response as Record<string, unknown>)?.data?.detail as string) ||
-        ((err?.response as Record<string, unknown>)?.data?.message as string) ||
-        (err?.message as string) ||
-        "Đã xảy ra lỗi";
+        payload?.title === "Enrollment.StudentScheduleConflict";
+      const msg = getEnrollmentErrorMessage(error, "Da xay ra loi");
       toast({
         title: isScheduleConflict ? "Trùng lịch học" : "Lỗi",
         description: msg,
@@ -298,8 +313,8 @@ export default function EnrollmentsPage() {
 
   const sortedEnrollments = [...enrollments].sort((a, b) => {
     if (!sortKey) return 0;
-    const aVal = (a as Record<string, unknown>)[sortKey] || "";
-    const bVal = (b as Record<string, unknown>)[sortKey] || "";
+    const aVal = a[sortKey as keyof Enrollment] ?? "";
+    const bVal = b[sortKey as keyof Enrollment] ?? "";
     const cmp = String(aVal).localeCompare(String(bVal), "vi");
     return sortDir === "asc" ? cmp : -cmp;
   });
