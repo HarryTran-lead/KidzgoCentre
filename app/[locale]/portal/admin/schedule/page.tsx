@@ -895,6 +895,8 @@ function ColorPicker({
   const [showPicker, setShowPicker] = useState(false);
   const [customColor, setCustomColor] = useState(normalizeSessionColor(currentColor));
   const pickerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [pickerPos, setPickerPos] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
     setCustomColor(normalizeSessionColor(currentColor));
@@ -916,9 +918,20 @@ function ColorPicker({
     };
   }, [showPicker]);
 
+  useEffect(() => {
+    if (showPicker && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPickerPos({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right
+      });
+    }
+  }, [showPicker]);
+
   return (
-    <div className="relative" ref={pickerRef}>
+    <div ref={pickerRef}>
       <button
+        ref={buttonRef}
         onClick={(e) => {
           e.stopPropagation();
           setShowPicker(!showPicker);
@@ -929,9 +942,12 @@ function ColorPicker({
         <Palette size={12} className="text-gray-800" />
       </button>
       {showPicker && (
-        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-2 z-100 overflow-hidden w-[230px]">
-          <div className="text-[10px] font-semibold text-gray-800 mb-1.5 px-1">Chọn màu</div>
-          <div className="grid grid-cols-4 gap-1.5">
+        <div 
+          className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-2 z-[9999] overflow-hidden w-[200px]"
+          style={{ top: pickerPos.top, right: pickerPos.right }}
+        >
+          <div className="text-[9px] font-semibold text-gray-800 mb-1 px-1">Chọn màu</div>
+          <div className="grid grid-cols-5 gap-1">
             {COLOR_OPTIONS.map((color) => (
               <button
                 key={color.value}
@@ -940,13 +956,13 @@ function ColorPicker({
                   onColorChange(lessonId, normalizeSessionColor(color.value));
                   setShowPicker(false);
                 }}
-                className={`w-6 h-6 rounded-md border-2 ${isSameColor(currentColor, color.value) ? 'border-white ring-1 ring-red-500' : 'border-gray-300'} hover:scale-110 transition-all cursor-pointer`}
+                className={`w-5 h-5 rounded-md border-2 ${isSameColor(currentColor, color.value) ? 'border-white ring-1 ring-red-500' : 'border-gray-300'} hover:scale-110 transition-all cursor-pointer`}
                 style={{ backgroundColor: color.value }}
                 title={color.name}
               />
             ))}
           </div>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-1.5 flex items-center gap-1.5">
             <input
               type="color"
               value={normalizeSessionColor(customColor)}
@@ -955,7 +971,7 @@ function ColorPicker({
                 setCustomColor(picked);
                 onColorChange(lessonId, picked);
               }}
-              className="h-8 w-12 rounded border border-gray-300 bg-white cursor-pointer"
+              className="h-7 w-10 rounded border border-gray-300 bg-white cursor-pointer"
               title="Tự chọn màu"
             />
             <input
@@ -979,8 +995,8 @@ function ColorPicker({
                   onColorChange(lessonId, parsed);
                 }
               }}
-              className="h-8 flex-1 rounded border border-gray-300 px-2 text-[11px]"
-              placeholder="#AABBCC hoặc rgb(1,2,3)"
+              className="h-7 flex-1 rounded border border-gray-300 px-1 text-[10px]"
+              placeholder="#ABC"
             />
           </div>
         </div>
