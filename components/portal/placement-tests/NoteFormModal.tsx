@@ -142,8 +142,8 @@ export default function NoteFormModal({
                 </h2>
                 <p className="mt-0.5 text-sm text-red-100">
                   {isEditMode 
-                    ? "Cập nhật nội dung ghi chú cho placement test" 
-                    : "Nhập nội dung ghi chú cho placement test"}
+                    ? "Cập nhật nội dung ghi chú cho kiểm tra xếp lớp" 
+                    : "Nhập nội dung ghi chú cho kiểm tra xếp lớp"}
                 </p>
               </div>
             </div>
@@ -177,14 +177,14 @@ export default function NoteFormModal({
                 id="note"
                 value={note}
                 onChange={handleNoteChange}
-                placeholder="Nhập ghi chú cho placement test..."
+                placeholder="Nhập ghi chú cho kiểm tra xếp lớp..."
                 rows={5}
                 maxLength={maxLength}
                 disabled={isSubmitting}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-red-400 focus:ring-2 focus:ring-red-200 placeholder:text-gray-400 disabled:bg-gray-50 disabled:text-gray-500 resize-none"
               />
               <p className="text-xs text-gray-500">
-                Ghi chú này sẽ được lưu cùng với placement test để tham khảo sau này.
+                Ghi chú này sẽ được lưu cùng với bài kiểm tra xếp lớp để tham khảo sau này.
               </p>
             </div>
 

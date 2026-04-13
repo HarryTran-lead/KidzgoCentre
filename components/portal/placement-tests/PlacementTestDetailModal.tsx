@@ -52,7 +52,7 @@ export default function PlacementTestDetailModal({
                 <Award size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Chi tiết Placement Test</h2>
+                <h2 className="text-2xl font-bold text-white">Chi tiết bài kiểm tra</h2>
                 <p className="text-sm text-red-100">Thông tin chi tiết về bài kiểm tra đầu vào</p>
               </div>
             </div>

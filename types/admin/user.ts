@@ -78,6 +78,10 @@ export interface User {
   branchContactEmail?: string;
   isActive: boolean;
   isDeleted: boolean;
+  isOnline?: boolean;
+  lastLoginAt?: string;
+  lastSeenAt?: string;
+  offlineDurationSeconds?: number;
   createdAt: string;
   updatedAt?: string;
 

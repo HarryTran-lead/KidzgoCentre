@@ -422,7 +422,7 @@ export default function Page() {
       toast({
         title: "Lỗi",
         description:
-          "Không thể tải danh sách placement test. Vui lòng thử lại.",
+          "Không thể tải danh sách kiểm tra xếp lớp. Vui lòng thử lại.",
         variant: "destructive",
       });
     } finally {
@@ -616,10 +616,10 @@ export default function Page() {
       }
     } catch (err: any) {
       console.error("Error fetching leads:", err);
-      setError(err.response?.data?.message || "Không thể tải danh sách lead");
+      setError(err.response?.data?.message || "Không thể tải danh sách khách tiềm năng");
       toast({
         title: "Lỗi",
-        description: "Không thể tải danh sách lead. Vui lòng thử lại.",
+        description: "Không thể tải danh sách khách tiềm năng. Vui lòng thử lại.",
         variant: "destructive",
       });
     } finally {
@@ -890,7 +890,7 @@ export default function Page() {
       } else {
         toast({
           title: "Thông báo",
-          description: "Lead này đã được phân công",
+          description: "Khách tiềm năng này đã được phân công",
           variant: "destructive",
         });
       }
@@ -910,7 +910,7 @@ export default function Page() {
       await updateLeadStatus(lead.id, { status: newStatus });
       toast({
         title: "Thành công",
-        description: "Đã cập nhật trạng thái lead thành công",
+        description: "Đã cập nhật trạng thái khách tiềm năng thành công",
         variant: "success",
       });
       fetchLeads();
@@ -920,7 +920,7 @@ export default function Page() {
         title: "Lỗi",
         description: getDomainErrorMessage(
           error,
-          "Không thể cập nhật trạng thái lead",
+          "Không thể cập nhật trạng thái khách tiềm năng",
         ),
         variant: "destructive",
       });
@@ -1262,7 +1262,7 @@ export default function Page() {
       let response: any = null;
       if (payload.action === "update") {
         if (!selectedTest) {
-          throw new Error("Không tìm thấy placement test để cập nhật");
+          throw new Error("Không tìm thấy bài kiểm tra xếp lớp để cập nhật");
         }
         response = await updatePlacementTest(selectedTest.id, payload.data);
       }
@@ -1276,17 +1276,17 @@ export default function Page() {
       }
 
       if (response && (response.isSuccess === false || response.success === false)) {
-        throwApiFailure(response, "Không thể lưu placement test");
+        throwApiFailure(response, "Không thể lưu bài kiểm tra xếp lớp");
       }
 
       toast({
         title: "Thành công",
         description:
           payload.action === "update"
-            ? "Đã cập nhật placement test"
+            ? "Đã cập nhật bài kiểm tra xếp lớp"
             : payload.action === "retake"
-              ? "Đã tạo placement test retake"
-              : "Đã tạo placement test mới",
+              ? "Đã tạo bài kiểm tra xếp lớp kiểm tra lại"
+              : "Đã tạo bài kiểm tra xếp lớp mới",
         variant: "success",
       });
     } catch (error) {
@@ -1294,7 +1294,7 @@ export default function Page() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: getPlacementTestErrorMessage(error, "Không thể lưu placement test"),
+        description: getPlacementTestErrorMessage(error, "Không thể lưu bài kiểm tra xếp lớp"),
       });
       throw error; // Re-throw to prevent modal close
     }
@@ -1341,8 +1341,8 @@ export default function Page() {
       toast({
         title: "Thành công",
         description: note
-          ? "Đã lưu kết quả và ghi chú placement test"
-          : "Đã lưu kết quả placement test",
+          ? "Đã lưu kết quả và ghi chú kiểm tra xếp lớp"
+          : "Đã lưu kết quả kiểm tra xếp lớp",
         variant: "success",
       });
 
@@ -1477,13 +1477,13 @@ export default function Page() {
             status: response.status,
             data: errorData,
           },
-          message: errorData?.message || "Không thể thực hiện thao tác placement test",
+          message: errorData?.message || "Không thể thực hiện thao tác kiểm tra xếp lớp",
         };
       }
 
       const responseData = await response.json().catch(() => null);
       if (responseData && (responseData.isSuccess === false || responseData.success === false)) {
-        throwApiFailure(responseData, "Không thể thực hiện thao tác placement test");
+        throwApiFailure(responseData, "Không thể thực hiện thao tác kiểm tra xếp lớp");
       }
 
       toast({
@@ -1502,7 +1502,7 @@ export default function Page() {
         title: "Lỗi",
         description: getPlacementTestErrorMessage(
           error,
-          "Không thể thực hiện thao tác placement test",
+          "Không thể thực hiện thao tác kiểm tra xếp lớp",
         ),
       });
     }
@@ -1675,10 +1675,10 @@ export default function Page() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Quản lý Lead & Placement Test
+              Quản lý Khách tiềm năng & Kiểm tra xếp lớp
             </h1>
             <p className="text-sm text-gray-700 mt-1">
-              Nhận lead, phân công tư vấn, đặt lịch test và chuyển đổi ghi danh
+              Nhận khách tiềm năng, phân công tư vấn, đặt lịch kiểm tra và chuyển đổi ghi danh
               {currentUser?.branchName && (
                 <span className="ml-2 text-red-600 font-medium">
                   • Chi nhánh: {currentUser.branchName}
@@ -1696,7 +1696,7 @@ export default function Page() {
               onClick={handleCreateLead}
               className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
             >
-              <UserPlus size={16} /> Nhập lead mới
+              <UserPlus size={16} /> Nhập khách tiềm năng mới
             </button>
           </div>
         ) : activeTab === "placement_tests" ? (
@@ -1748,7 +1748,7 @@ export default function Page() {
         >
           <div className="flex items-center gap-2">
             <Target size={16} />
-            <span>Lead</span>
+            <span>Khách tiềm năng</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full ${
                 activeTab === "leads"
@@ -1770,7 +1770,7 @@ export default function Page() {
         >
           <div className="flex items-center gap-2">
             <CalendarClock size={16} />
-            <span>Placement Test</span>
+            <span>Kiểm tra xếp lớp</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full ${
                 activeTab === "placement_tests"

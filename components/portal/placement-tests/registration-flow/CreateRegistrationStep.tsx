@@ -1,4 +1,5 @@
-import { Clock3, Loader2, School, Sparkles, CheckCircle2 } from "lucide-react";
+import type { ReactNode } from "react";
+import { Clock3, Loader2, School } from "lucide-react";
 import type { TuitionPlan } from "@/types/admin/tuition_plan";
 import { SelectContent, Select, SelectTrigger, SelectValue, SelectItem } from "@/components/lightswind/select";
 
@@ -19,9 +20,12 @@ type TimeSlotOption = {
   timeRange: string;
 };
 
+type ScheduleMode = "single" | "manual";
+
 interface CreateRegistrationStepProps {
   isBootstrapping: boolean;
   effectiveStudentProfileId: string;
+  studentName: string;
   programId: string;
   setProgramId: (value: string) => void;
   tuitionPlanId: string;
@@ -35,8 +39,13 @@ interface CreateRegistrationStepProps {
   setSecondaryProgramSkillFocus: (value: string) => void;
   expectedStartDate: string;
   setExpectedStartDate: (value: string) => void;
+  scheduleMode: ScheduleMode;
+  onScheduleModeChange: (mode: ScheduleMode) => void;
   sessionsPerWeek: number;
   handleSessionsPerWeekChange: (value: number) => void;
+  manualSessionsInput: string;
+  onManualSessionsInputChange: (value: string) => void;
+  onManualSessionsInputBlur: () => void;
   selectedDays: string[];
   toggleDay: (value: string) => void;
   selectedTimeSlot: string;
@@ -56,14 +65,15 @@ interface CreateRegistrationStepProps {
   programs: ProgramOption[];
   filteredTuitionPlans: TuitionPlan[];
   secondaryPrograms: ProgramOption[];
-  sessionsPerWeekOptions: Array<{ value: number; label: string }>;
   weekDays: WeekDayOption[];
   timeSlots: TimeSlotOption[];
+  suggestedPanel?: ReactNode;
 }
 
 export default function CreateRegistrationStep({
   isBootstrapping,
   effectiveStudentProfileId,
+  studentName,
   programId,
   setProgramId,
   tuitionPlanId,
@@ -77,8 +87,13 @@ export default function CreateRegistrationStep({
   setSecondaryProgramSkillFocus,
   expectedStartDate,
   setExpectedStartDate,
+  scheduleMode,
+  onScheduleModeChange,
   sessionsPerWeek,
   handleSessionsPerWeekChange,
+  manualSessionsInput,
+  onManualSessionsInputChange,
+  onManualSessionsInputBlur,
   selectedDays,
   toggleDay,
   selectedTimeSlot,
@@ -97,14 +112,10 @@ export default function CreateRegistrationStep({
   programs,
   filteredTuitionPlans,
   secondaryPrograms,
-  sessionsPerWeekOptions,
   weekDays,
   timeSlots,
+  suggestedPanel,
 }: CreateRegistrationStepProps) {
-  // Biến selectedSlotMeta hiện tại không dùng tới do đã bỏ bảng Summary, 
-  // nhưng vẫn giữ lại để không ảnh hưởng logic nếu sau này bạn cần dùng.
-  const selectedSlotMeta = timeSlots.find((slot) => slot.value === selectedTimeSlot);
-
   return (
     <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-3 h-full flex flex-col">
       <div className="mb-2 flex items-center gap-2 text-base font-semibold text-gray-900 shrink-0">
@@ -133,9 +144,9 @@ export default function CreateRegistrationStep({
             <div className="space-y-3 rounded-xl border border-red-100 bg-white/80 p-3 h-fit">
               <div className="grid grid-cols-1 gap-2">
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Student Profile ID</label>
+                  <label className="text-sm font-medium text-gray-700">Tên học viên</label>
                   <input
-                    value={effectiveStudentProfileId}
+                    value={studentName}
                     disabled
                     className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-1.5 text-sm"
                   />
@@ -251,21 +262,44 @@ export default function CreateRegistrationStep({
                 <div className="space-y-1.5">
                   <p className="text-sm text-gray-600">Số buổi học mỗi tuần</p>
                   <div className="flex gap-2">
-                    {sessionsPerWeekOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => handleSessionsPerWeekChange(option.value)}
-                        className={`flex-1 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors cursor-pointer ${
-                          sessionsPerWeek === option.value
-                            ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
-                            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+                    <button
+                      type="button"
+                      onClick={() => onScheduleModeChange("single")}
+                      className={`flex-1 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors cursor-pointer ${
+                        scheduleMode === "single"
+                          ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
+                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      1 buổi/tuần
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onScheduleModeChange("manual")}
+                      className={`flex-1 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors cursor-pointer ${
+                        scheduleMode === "manual"
+                          ? "border-red-600 bg-linear-to-r from-red-600 to-red-700 text-white"
+                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      Nhập tay
+                    </button>
                   </div>
+                  {scheduleMode === "manual" && (
+                    <div className="pt-1">
+                      <label className="text-xs font-medium text-gray-500">
+                        Số buổi/tuần (tự chọn)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={manualSessionsInput}
+                        onChange={(e) => onManualSessionsInputChange(e.target.value)}
+                        onBlur={onManualSessionsInputBlur}
+                        className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -350,6 +384,8 @@ export default function CreateRegistrationStep({
                   )}
                 </div>
               </div>
+
+              {suggestedPanel ? <div className="pt-1">{suggestedPanel}</div> : null}
             </div>
 
           </div>

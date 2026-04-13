@@ -1,5 +1,5 @@
-import UserProfileWorkspace from "@/components/portal/shared/UserProfileWorkspace";
+import AccountPage from "@/app/[locale]/portal/parent/account/page";
 
 export default function ParentProfilePage() {
-  return <UserProfileWorkspace />;
+  return <AccountPage />;
 }

@@ -8,12 +8,9 @@ import {
   Save,
   Phone,
   Mail,
-  MapPin,
-  Calendar,
   Lock,
   Eye,
   EyeOff,
-  Heart,
   KeyRound,
   Camera,
   Loader2,
@@ -24,20 +21,22 @@ import {
 import { getParentAccount, updateParentAccount } from "@/lib/api/parentPortalService";
 import {
   verifyParentPin,
+  changePassword,
   changePin,
   requestPinReset,
   requestPinResetZaloOtp,
   verifyPinResetZaloOtp,
   resetPin,
   getUserMe,
-  updateUserMe,
 } from "@/lib/api/authService";
 import { uploadAvatar, isUploadSuccess } from "@/lib/api/fileService";
 import { buildFileUrl } from "@/constants/apiURL";
+import { toast } from "@/hooks/use-toast";
 
 type TabType = "profile" | "password" | "pin";
 
 type PinMode = "idle" | "set" | "change" | "forgot-email" | "forgot-zalo" | "otp-verify" | "reset";
+const PARENT_AVATAR_CACHE_KEY = "parent_profile_avatar_url";
 
 export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<TabType>("profile");
@@ -47,18 +46,17 @@ export default function AccountPage() {
     name: "",
     phone: "",
     email: "",
-    birthDate: "",
-    address: "",
-    childrenCount: 0,
   });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarCacheBuster, setAvatarCacheBuster] = useState<number>(Date.now());
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,38 +69,94 @@ export default function AccountPage() {
   const [pinMsg, setPinMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pinLoading, setPinLoading] = useState(false);
 
+  const toViErrorMessage = (message?: string, fallback = "Có lỗi xảy ra") => {
+    const raw = (message || "").trim();
+    if (!raw) return fallback;
+    const normalized = raw.toLowerCase();
+
+    if (normalized.includes("current password") && normalized.includes("incorrect")) {
+      return "Mật khẩu hiện tại không đúng.";
+    }
+    if (normalized.includes("pin is incorrect") || normalized.includes("incorrect pin")) {
+      return "Mã PIN không đúng.";
+    }
+    if (normalized.includes("otp") && (normalized.includes("invalid") || normalized.includes("expired"))) {
+      return "Mã OTP không hợp lệ hoặc đã hết hạn.";
+    }
+    if (normalized.includes("challenge")) {
+      return "Không nhận được mã xác thực từ hệ thống.";
+    }
+
+    return raw;
+  };
+
   useEffect(() => {
     let alive = true;
 
     async function loadData() {
       try {
-        // Load parent account
-        const accountRes: any = await getParentAccount();
-        if (!alive) return;
-        const raw = accountRes?.data?.data ?? accountRes?.data ?? {};
-        setProfileData({
-          name: raw.name ?? raw.fullName ?? "",
-          phone: raw.phone ?? raw.phoneNumber ?? "",
-          email: raw.email ?? "",
-          birthDate: raw.birthDate ?? raw.dateOfBirth ?? "",
-          address: raw.address ?? "",
-          childrenCount: raw.childrenCount ?? raw.numberOfChildren ?? 0,
-        });
+        const cachedAvatar = typeof window !== "undefined"
+          ? localStorage.getItem(PARENT_AVATAR_CACHE_KEY)
+          : null;
 
-        // Load user info for avatar & pin status
+        if (cachedAvatar) {
+          setAvatarUrl(cachedAvatar);
+          setAvatarCacheBuster(Date.now());
+        }
+
+        // Load user info for avatar, fallback profile data and pin status
         const meRes: any = await getUserMe();
         const meData = meRes?.data?.data ?? meRes?.data ?? meRes ?? {};
-        if (meData.avatarUrl) setAvatarUrl(meData.avatarUrl);
+        if (meData.avatarUrl && !cachedAvatar) {
+          setAvatarUrl(meData.avatarUrl);
+          if (typeof window !== "undefined") {
+            localStorage.setItem(PARENT_AVATAR_CACHE_KEY, meData.avatarUrl);
+          }
+        }
 
-        // Check PIN status from profiles
+        // Check PIN status from parent profile
         const profiles = meData.profiles ?? [];
         const parentProfile = profiles.find((p: any) => p.profileType === "Parent");
         if (parentProfile) {
           setParentProfileId(parentProfile.id);
           setHasPinSetup(!!parentProfile.hasPinSetup);
         }
+
+        // Load parent account data and fallback to /me values when account endpoint is empty
+        let raw: any = {};
+        try {
+          const accountRes: any = await getParentAccount();
+          raw = accountRes?.data?.data ?? accountRes?.data ?? {};
+        } catch {
+          // Keep fallback from /me when account endpoint fails.
+        }
+
+        if (!alive) return;
+        setProfileData({
+          name:
+            raw?.name ??
+            raw?.fullName ??
+            parentProfile?.displayName ??
+            meData?.fullName ??
+            "",
+          phone:
+            raw?.phone ??
+            raw?.phoneNumber ??
+            parentProfile?.phoneNumber ??
+            meData?.phoneNumber ??
+            "",
+          email:
+            raw?.email ??
+            parentProfile?.email ??
+            meData?.email ??
+            "",
+        });
       } catch {
-        // ignore
+        if (!alive) return;
+        toast.destructive({
+          title: "Không thể tải hồ sơ",
+          description: "Vui lòng thử tải lại trang.",
+        });
       } finally {
         if (alive) setLoading(false);
       }
@@ -121,11 +175,18 @@ export default function AccountPage() {
       const result = await uploadAvatar(file);
       if (isUploadSuccess(result)) {
         setAvatarUrl(result.url);
-        // Also update user profile with new avatar
-        await updateUserMe({ avatarUrl: result.url } as any).catch(() => {});
+        setAvatarCacheBuster(Date.now());
+        if (typeof window !== "undefined") {
+          localStorage.setItem(PARENT_AVATAR_CACHE_KEY, result.url);
+        }
+        toast.success({ title: "Thành công", description: "Đã cập nhật ảnh đại diện." });
+      } else {
+        const msg = toViErrorMessage(result?.detail || result?.error || result?.title, "Không thể tải ảnh đại diện.");
+        toast.destructive({ title: "Tải ảnh thất bại", description: msg });
       }
-    } catch {
-      // ignore
+    } catch (err: any) {
+      const msg = toViErrorMessage(err?.response?.data?.detail ?? err?.response?.data?.message, "Không thể tải ảnh đại diện.");
+      toast.destructive({ title: "Tải ảnh thất bại", description: msg });
     } finally {
       setAvatarUploading(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
@@ -148,11 +209,13 @@ export default function AccountPage() {
       await verifyParentPin({ profileId: parentProfileId, pin: pinForm.pin });
       setHasPinSetup(true);
       setPinMode("idle");
-      setPinMsg({ type: "success", text: "Đã thiết lập mã PIN thành công" });
+      setPinMsg({ type: "success", text: "Đã xác thực mã PIN thành công" });
+      toast.success({ title: "Thành công", description: "Đã xác thực mã PIN." });
       setPinForm({ pin: "", currentPin: "", newPin: "", confirmPin: "" });
     } catch (err: any) {
-      const msg = err?.response?.data?.detail ?? err?.response?.data?.message ?? "Có lỗi xảy ra";
+      const msg = toViErrorMessage(err?.response?.data?.detail ?? err?.response?.data?.message, "Có lỗi xảy ra");
       setPinMsg({ type: "error", text: msg });
+      toast.destructive({ title: "Xác thực PIN thất bại", description: msg });
     } finally {
       setPinLoading(false);
     }
@@ -177,10 +240,12 @@ export default function AccountPage() {
       await changePin({ currentPin: pinForm.currentPin, newPin: pinForm.newPin });
       setPinMode("idle");
       setPinMsg({ type: "success", text: "Đã đổi mã PIN thành công" });
+      toast.success({ title: "Thành công", description: "Đã đổi mã PIN." });
       setPinForm({ pin: "", currentPin: "", newPin: "", confirmPin: "" });
     } catch (err: any) {
-      const msg = err?.response?.data?.detail ?? err?.response?.data?.message ?? "Có lỗi xảy ra";
+      const msg = toViErrorMessage(err?.response?.data?.detail ?? err?.response?.data?.message, "Có lỗi xảy ra");
       setPinMsg({ type: "error", text: msg });
+      toast.destructive({ title: "Đổi PIN thất bại", description: msg });
     } finally {
       setPinLoading(false);
     }
@@ -192,10 +257,12 @@ export default function AccountPage() {
     try {
       await requestPinReset({ profileId: parentProfileId });
       setPinMsg({ type: "success", text: "Đã gửi link đặt lại PIN qua email. Vui lòng kiểm tra hộp thư." });
+      toast.success({ title: "Đã gửi yêu cầu", description: "Kiểm tra email để đặt lại PIN." });
       setPinMode("idle");
     } catch (err: any) {
-      const msg = err?.response?.data?.detail ?? err?.response?.data?.message ?? "Có lỗi xảy ra";
+      const msg = toViErrorMessage(err?.response?.data?.detail ?? err?.response?.data?.message, "Có lỗi xảy ra");
       setPinMsg({ type: "error", text: msg });
+      toast.destructive({ title: "Khôi phục PIN thất bại", description: msg });
     } finally {
       setPinLoading(false);
     }
@@ -211,12 +278,15 @@ export default function AccountPage() {
         setOtpForm({ challengeId: data.challengeId, otp: "", resetToken: "" });
         setPinMode("otp-verify");
         setPinMsg({ type: "success", text: "Đã gửi mã OTP qua Zalo. Vui lòng kiểm tra tin nhắn." });
+        toast.success({ title: "Đã gửi OTP", description: "Vui lòng kiểm tra Zalo." });
       } else {
         setPinMsg({ type: "error", text: "Không nhận được challenge từ server" });
+        toast.destructive({ title: "Lỗi", description: "Không nhận được challenge từ server." });
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail ?? err?.response?.data?.message ?? "Có lỗi xảy ra";
+      const msg = toViErrorMessage(err?.response?.data?.detail ?? err?.response?.data?.message, "Có lỗi xảy ra");
       setPinMsg({ type: "error", text: msg });
+      toast.destructive({ title: "Gửi OTP thất bại", description: msg });
     } finally {
       setPinLoading(false);
     }
@@ -239,12 +309,15 @@ export default function AccountPage() {
         setOtpForm((prev) => ({ ...prev, resetToken: data.resetToken }));
         setPinMode("reset");
         setPinMsg({ type: "success", text: "Xác minh OTP thành công. Vui lòng nhập PIN mới." });
+        toast.success({ title: "Xác minh thành công", description: "Vui lòng nhập PIN mới." });
       } else {
         setPinMsg({ type: "error", text: "OTP không hợp lệ hoặc đã hết hạn" });
+        toast.destructive({ title: "OTP không hợp lệ", description: "Vui lòng thử lại." });
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail ?? err?.response?.data?.message ?? "OTP không hợp lệ hoặc đã hết hạn";
+      const msg = toViErrorMessage(err?.response?.data?.detail ?? err?.response?.data?.message, "OTP không hợp lệ hoặc đã hết hạn");
       setPinMsg({ type: "error", text: msg });
+      toast.destructive({ title: "Xác minh OTP thất bại", description: msg });
     } finally {
       setPinLoading(false);
     }
@@ -265,26 +338,79 @@ export default function AccountPage() {
       await resetPin({ token: otpForm.resetToken, newPin: pinForm.newPin });
       setPinMode("idle");
       setPinMsg({ type: "success", text: "Đã đặt lại mã PIN thành công" });
+      toast.success({ title: "Thành công", description: "Đã đặt lại mã PIN." });
       setPinForm({ pin: "", currentPin: "", newPin: "", confirmPin: "" });
       setOtpForm({ challengeId: "", otp: "", resetToken: "" });
     } catch (err: any) {
-      const msg = err?.response?.data?.detail ?? err?.response?.data?.message ?? "Có lỗi xảy ra";
+      const msg = toViErrorMessage(err?.response?.data?.detail ?? err?.response?.data?.message, "Có lỗi xảy ra");
       setPinMsg({ type: "error", text: msg });
+      toast.destructive({ title: "Đặt lại PIN thất bại", description: msg });
     } finally {
       setPinLoading(false);
     }
   };
 
+  const handleSaveProfile = async () => {
+    try {
+      await updateParentAccount(profileData);
+      setIsEditing(false);
+      toast.success({ title: "Thành công", description: "Đã cập nhật thông tin hồ sơ." });
+    } catch (err: any) {
+      const msg = toViErrorMessage(err?.response?.data?.detail ?? err?.response?.data?.message, "Không thể cập nhật thông tin.");
+      toast.destructive({ title: "Lưu thất bại", description: msg });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      toast.warning({ title: "Thiếu thông tin", description: "Vui lòng nhập đầy đủ các trường mật khẩu." });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast.warning({ title: "Mật khẩu chưa hợp lệ", description: "Mật khẩu mới phải có ít nhất 6 ký tự." });
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.warning({ title: "Không khớp", description: "Mật khẩu xác nhận không trùng khớp." });
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+      const response: any = await changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      const explicitFailure = response?.isSuccess === false || response?.success === false;
+      if (explicitFailure) {
+        const msg = toViErrorMessage(response?.message, "Không thể đổi mật khẩu.");
+        toast.destructive({ title: "Đổi mật khẩu thất bại", description: msg });
+        return;
+      }
+
+      toast.success({ title: "Thành công", description: "Đã cập nhật mật khẩu." });
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err: any) {
+      const msg = toViErrorMessage(err?.response?.data?.detail ?? err?.response?.data?.message, "Không thể đổi mật khẩu.");
+      toast.destructive({ title: "Đổi mật khẩu thất bại", description: msg });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-4 md:p-6">
       {/* Header – giống style admin accounts */}
       <div className="mb-6">
         <div className="flex items-center gap-4 mb-4">
-          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+          <div className="p-3 bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <UserRound size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold bg-linear-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
               Tài khoản phụ huynh
             </h1>
             <p className="text-gray-600 mt-1">
@@ -295,7 +421,7 @@ export default function AccountPage() {
       </div>
 
       {/* Main Card – bo góc, gradient giống admin */}
-      <div className="bg-gradient-to-br from-white via-white to-red-50/30 rounded-2xl border border-red-200 overflow-hidden shadow-sm">
+      <div className="bg-linear-to-br from-white via-white to-red-50/30 rounded-2xl border border-red-200 overflow-hidden shadow-sm">
         {/* Tabs */}
         <div className="px-6 pt-6">
           <div className="flex flex-wrap gap-2">
@@ -333,17 +459,17 @@ export default function AccountPage() {
           {activeTab === "profile" && (
             <div className="space-y-8">
               {/* Profile header – copy style từ admin accounts */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-500/10 to-red-700/10 p-6">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/20 to-red-700/20 rounded-full -translate-y-16 translate-x-16" />
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-red-500/20 to-red-700/20 rounded-full translate-y-12 -translate-x-12" />
+              <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-red-500/10 to-red-700/10 p-6">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-red-500/20 to-red-700/20 rounded-full -translate-y-16 translate-x-16" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-linear-to-tr from-red-500/20 to-red-700/20 rounded-full translate-y-12 -translate-x-12" />
 
                 <div className="relative flex flex-col md:flex-row items-start gap-8">
                   {/* Avatar */}
                   <div className="relative">
-                    <div className="relative w-32 h-32 md:w-36 md:h-36 rounded-2xl overflow-hidden border-4 border-white shadow-2xl bg-gradient-to-r from-red-600 to-red-700">
+                    <div className="relative w-32 h-32 md:w-36 md:h-36 rounded-2xl overflow-hidden border-4 border-white shadow-2xl bg-linear-to-r from-red-600 to-red-700">
                       {avatarUrl ? (
                         <img
-                          src={buildFileUrl(avatarUrl)}
+                          src={`${buildFileUrl(avatarUrl)}${buildFileUrl(avatarUrl).includes("?") ? "&" : "?"}v=${avatarCacheBuster}`}
                           alt="Parent"
                           className="w-full h-full object-cover"
                         />
@@ -373,10 +499,6 @@ export default function AccountPage() {
                       className="hidden"
                       onChange={handleAvatarUpload}
                     />
-                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-white shadow-md flex items-center gap-2 text-xs text-red-700 mt-4">
-                      <Heart size={12} />
-                      {profileData.childrenCount} con đang theo học
-                    </div>
                   </div>
 
                   {/* Basic info */}
@@ -386,7 +508,7 @@ export default function AccountPage() {
                         <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
                           {profileData.name}
                         </h2>
-                        <div className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs md:text-sm font-medium rounded-full">
+                        <div className="px-3 py-1.5 bg-linear-to-r from-red-600 to-red-700 text-white text-xs md:text-sm font-medium rounded-full">
                           Phụ huynh Rex
                         </div>
                       </div>
@@ -400,14 +522,6 @@ export default function AccountPage() {
                       <InfoRow icon={<Phone size={16} />} label="Điện thoại" value={profileData.phone} />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <InfoRow
-                        icon={<Calendar size={16} />}
-                        label="Năm sinh"
-                        value={new Date(profileData.birthDate).getFullYear().toString()}
-                      />
-                      <InfoRow icon={<MapPin size={16} />} label="Khu vực" value="TP. Hồ Chí Minh" />
-                    </div>
                   </div>
 
                   {/* Edit buttons – giống style admin */}
@@ -421,10 +535,8 @@ export default function AccountPage() {
                           Huỷ
                         </button>
                         <button
-                          onClick={() => {
-                            updateParentAccount(profileData).then(() => setIsEditing(false)).catch(() => {});
-                          }}
-                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg transition-all shadow-sm flex items-center gap-2 text-sm"
+                          onClick={handleSaveProfile}
+                          className="px-4 py-2.5 rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg transition-all shadow-sm flex items-center gap-2 text-sm"
                         >
                           <Save size={16} />
                           Lưu thay đổi
@@ -433,7 +545,7 @@ export default function AccountPage() {
                     ) : (
                       <button
                         onClick={() => setIsEditing(true)}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all shadow-sm text-sm"
+                        className="px-4 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all shadow-sm text-sm"
                       >
                         Chỉnh sửa thông tin
                       </button>
@@ -443,8 +555,7 @@ export default function AccountPage() {
               </div>
 
               {/* Detail form – tone giống teacher */}
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
+              <div className="space-y-4 max-w-3xl">
                   <LabeledInput
                     label="Họ và tên"
                     value={profileData.name}
@@ -466,32 +577,6 @@ export default function AccountPage() {
                     icon={<Mail size={16} />}
                     onChange={(value) => setProfileData({ ...profileData, email: value })}
                   />
-                </div>
-
-                <div className="space-y-4">
-                  <LabeledInput
-                    label="Ngày sinh"
-                    type="date"
-                    value={profileData.birthDate}
-                    disabled={!isEditing}
-                    icon={<Calendar size={16} />}
-                    onChange={(value) => setProfileData({ ...profileData, birthDate: value })}
-                  />
-                  <LabeledInput
-                    label="Địa chỉ"
-                    value={profileData.address}
-                    disabled={!isEditing}
-                    icon={<MapPin size={16} />}
-                    onChange={(value) => setProfileData({ ...profileData, address: value })}
-                  />
-                  <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4 text-sm text-gray-700">
-                    <div className="font-semibold mb-1">Gợi ý</div>
-                    <p>
-                      Cập nhật đầy đủ thông tin giúp nhà trường liên hệ nhanh hơn khi có thông báo quan
-                      trọng về lớp học của con.
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -499,9 +584,9 @@ export default function AccountPage() {
           {activeTab === "password" && (
             <div className="space-y-8">
               {/* Security card – giống style admin accounts */}
-              <div className="bg-gradient-to-br from-white to-red-50/30 rounded-2xl border border-red-200 p-6">
+              <div className="bg-linear-to-br from-white to-red-50/30 rounded-2xl border border-red-200 p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-lg shadow-lg">
+                  <div className="p-2.5 bg-linear-to-r from-red-600 to-red-700 rounded-lg shadow-lg">
                     <Shield size={20} className="text-white" />
                   </div>
                   <div>
@@ -545,36 +630,14 @@ export default function AccountPage() {
                     </button>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all shadow-sm text-sm"
+                      onClick={handleChangePassword}
+                      disabled={passwordLoading}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all shadow-sm text-sm"
                     >
-                      <Lock size={16} />
-                      Cập nhật mật khẩu
+                      {passwordLoading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                      {passwordLoading ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
                     </button>
                   </div>
-                </div>
-              </div>
-
-              {/* Logout card – style gần giống Stats/Security của teacher */}
-              <div className="bg-gradient-to-br from-white to-amber-50/40 rounded-2xl border border-amber-200 p-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg">
-                      <LogOut size={20} className="text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900">Đăng xuất tài khoản</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Đăng xuất khỏi tài khoản phụ huynh trên thiết bị này. Bạn có thể đăng nhập lại bất
-                        cứ lúc nào.
-                      </p>
-                      <p className="text-xs text-amber-700 mt-2">
-                        Nên đăng xuất sau khi sử dụng trên máy tính công cộng hoặc thiết bị lạ.
-                      </p>
-                    </div>
-                  </div>
-                  <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-500 text-white hover:shadow-lg transition-all text-sm">
-                    Đăng xuất
-                  </button>
                 </div>
               </div>
             </div>
@@ -583,9 +646,9 @@ export default function AccountPage() {
           {activeTab === "pin" && (
             <div className="space-y-6">
               {/* PIN status card */}
-              <div className="bg-gradient-to-br from-white to-red-50/30 rounded-2xl border border-red-200 p-6">
+              <div className="bg-linear-to-br from-white to-red-50/30 rounded-2xl border border-red-200 p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 bg-gradient-to-r from-red-600 to-red-700 rounded-lg shadow-lg">
+                  <div className="p-2.5 bg-linear-to-r from-red-600 to-red-700 rounded-lg shadow-lg">
                     <KeyRound size={20} className="text-white" />
                   </div>
                   <div>
@@ -597,11 +660,11 @@ export default function AccountPage() {
                   <div className="ml-auto">
                     {hasPinSetup ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
-                        <CheckCircle2 size={14} /> Đã thiết lập
+                        <CheckCircle2 size={14} /> Đã xác thực  
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">
-                        <AlertCircle size={14} /> Chưa thiết lập
+                        <AlertCircle size={14} /> Chưa xác thực
                       </span>
                     )}
                   </div>
@@ -655,7 +718,7 @@ export default function AccountPage() {
                             <div className="text-xs text-gray-500">Nhận link đặt lại PIN qua email đã đăng ký</div>
                           </div>
                         </button>
-                        <button
+                        {/* <button
                           onClick={() => { setPinMode("forgot-zalo"); setPinMsg(null); }}
                           className="w-full flex items-center gap-3 p-4 rounded-xl border border-blue-200 hover:bg-blue-50 transition-all text-left"
                         >
@@ -664,7 +727,7 @@ export default function AccountPage() {
                             <div className="font-medium text-gray-900">Quên PIN – Khôi phục qua Zalo OTP</div>
                             <div className="text-xs text-gray-500">Nhận mã OTP qua Zalo để xác minh và đặt lại PIN</div>
                           </div>
-                        </button>
+                        </button> */}
                       </>
                     )}
                   </div>
@@ -673,12 +736,12 @@ export default function AccountPage() {
                 {/* Set PIN (first time) */}
                 {pinMode === "set" && (
                   <div className="space-y-4">
-                    <PinInput label="Nhập mã PIN mới" value={pinForm.pin} onChange={(v) => setPinForm({ ...pinForm, pin: v })} />
+                    <PinInput label="Nhập mã PIN hiện tại" value={pinForm.pin} onChange={(v) => setPinForm({ ...pinForm, pin: v })} />
                     <div className="flex items-center gap-3">
                       <button onClick={() => { setPinMode("idle"); setPinMsg(null); }} className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm">Hủy</button>
-                      <button onClick={handleSetPin} disabled={pinLoading} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
+                      <button onClick={handleSetPin} disabled={pinLoading} className="px-5 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
                         {pinLoading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
-                        Thiết lập PIN
+                        Xác nhận
                       </button>
                     </div>
                   </div>
@@ -692,7 +755,7 @@ export default function AccountPage() {
                     <PinInput label="Nhập lại PIN mới" value={pinForm.confirmPin} onChange={(v) => setPinForm({ ...pinForm, confirmPin: v })} />
                     <div className="flex items-center gap-3">
                       <button onClick={() => { setPinMode("idle"); setPinMsg(null); }} className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm">Hủy</button>
-                      <button onClick={handleChangePin} disabled={pinLoading} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
+                      <button onClick={handleChangePin} disabled={pinLoading} className="px-5 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
                         {pinLoading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
                         Đổi PIN
                       </button>
@@ -708,7 +771,7 @@ export default function AccountPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <button onClick={() => { setPinMode("idle"); setPinMsg(null); }} className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm">Hủy</button>
-                      <button onClick={handleForgotPinEmail} disabled={pinLoading || !profileData.email} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
+                      <button onClick={handleForgotPinEmail} disabled={pinLoading || !profileData.email} className="px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-500 to-orange-500 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
                         {pinLoading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
                         Gửi link khôi phục
                       </button>
@@ -724,7 +787,7 @@ export default function AccountPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <button onClick={() => { setPinMode("idle"); setPinMsg(null); }} className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm">Hủy</button>
-                      <button onClick={handleForgotPinZalo} disabled={pinLoading} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
+                      <button onClick={handleForgotPinZalo} disabled={pinLoading} className="px-5 py-2.5 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
                         {pinLoading ? <Loader2 size={16} className="animate-spin" /> : <Smartphone size={16} />}
                         Gửi OTP qua Zalo
                       </button>
@@ -752,7 +815,7 @@ export default function AccountPage() {
                     </label>
                     <div className="flex items-center gap-3">
                       <button onClick={() => { setPinMode("idle"); setPinMsg(null); }} className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm">Hủy</button>
-                      <button onClick={handleVerifyOtp} disabled={pinLoading || otpForm.otp.length !== 6} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
+                      <button onClick={handleVerifyOtp} disabled={pinLoading || otpForm.otp.length !== 6} className="px-5 py-2.5 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
                         {pinLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                         Xác minh OTP
                       </button>
@@ -767,7 +830,7 @@ export default function AccountPage() {
                     <PinInput label="Nhập lại PIN mới" value={pinForm.confirmPin} onChange={(v) => setPinForm({ ...pinForm, confirmPin: v })} />
                     <div className="flex items-center gap-3">
                       <button onClick={() => { setPinMode("idle"); setPinMsg(null); }} className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm">Hủy</button>
-                      <button onClick={handleResetPin} disabled={pinLoading} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
+                      <button onClick={handleResetPin} disabled={pinLoading} className="px-5 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50">
                         {pinLoading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
                         Đặt lại PIN
                       </button>
@@ -805,7 +868,7 @@ function TabButton({
       onClick={onClick}
       className={`relative px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 group cursor-pointer ${
         active
-          ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm"
+          ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-sm"
           : "bg-white border border-red-200 text-gray-700 hover:bg-red-50"
       }`}
     >
@@ -813,7 +876,7 @@ function TabButton({
       {children}
       {!active && (
         <div
-          className={`absolute inset-0 rounded-xl bg-gradient-to-r ${colorClasses[color]} opacity-0 group-hover:opacity-5 transition-opacity`}
+          className={`absolute inset-0 rounded-xl bg-linear-to-r ${colorClasses[color]} opacity-0 group-hover:opacity-5 transition-opacity`}
         />
       )}
     </button>
@@ -947,3 +1010,4 @@ function PinInput({
     </label>
   );
 }
+

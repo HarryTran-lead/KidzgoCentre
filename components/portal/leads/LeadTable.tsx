@@ -16,9 +16,10 @@ import {
   Eye,
   RefreshCw,
 } from "lucide-react";
+import { getLeadSourceLabel } from "@/types/lead";
 import type { Lead } from "@/types/lead";
-import LeadPagination from "./LeadPagination";
 import StatusSelect from "./StatusSelect";
+import LeadPagination from "./LeadPagination";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
 
@@ -57,6 +58,8 @@ interface LeadTableProps {
 const sourceColorMap: Record<string, string> = {
   Landing: "from-blue-50 to-blue-100 text-blue-700 border-blue-200",
   Zalo: "from-green-50 to-green-100 text-green-700 border-green-200",
+  Referral: "from-amber-50 to-amber-100 text-amber-700 border-amber-200",
+  Offline: "from-slate-50 to-slate-100 text-slate-700 border-slate-200",
   Default: "from-gray-50 to-gray-100 text-gray-700 border-gray-200",
 };
 
@@ -117,8 +120,8 @@ export default function LeadTable({
         <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-red-100 to-red-200 flex items-center justify-center">
           <Sparkles size={24} className="text-red-400" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Không có lead nào</h3>
-        <p className="text-sm text-gray-500">Hãy tạo lead mới hoặc điều chỉnh bộ lọc</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Không có khách tiềm năng nào</h3>
+        <p className="text-sm text-gray-500">Hãy tạo khách tiềm năng mới hoặc điều chỉnh bộ lọc</p>
       </div>
     );
   }
@@ -127,7 +130,7 @@ export default function LeadTable({
     <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
       <div className="bg-linear-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Danh sách Lead</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Danh sách khách hàng tiềm năng</h3>
           {onRefresh && (
             <button
               type="button"
@@ -245,7 +248,7 @@ export default function LeadTable({
                       sourceColorMap[lead.source || "Default"] || sourceColorMap.Default
                     }`}
                   >
-                    {lead.source || "Không rõ"}
+                    {getLeadSourceLabel(lead.source)}
                   </span>
                 </td>
                 
@@ -267,7 +270,7 @@ export default function LeadTable({
                     value={lead.status || "New"}
                     onChange={(newStatus) => onStatusChange?.(lead, newStatus)}
                     disabled={readOnly || !lead.ownerStaffId || lead.ownerStaffId !== currentUserId}
-                    title={readOnly ? "Chế độ chỉ xem" : !lead.ownerStaffId ? "Lead chưa được phân công" : lead.ownerStaffId !== currentUserId ? "Chỉ nhân viên phụ trách mới có thể thay đổi trạng thái" : ""}
+                    title={readOnly ? "Chế độ chỉ xem" : !lead.ownerStaffId ? "Khách tiềm năng chưa được phân công" : lead.ownerStaffId !== currentUserId ? "Chỉ nhân viên phụ trách mới có thể thay đổi trạng thái" : ""}
                   />
                 </td>
                 
@@ -294,7 +297,7 @@ export default function LeadTable({
                           <button
                             onClick={() => onAction(lead, "self-assign")}
                             className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                            title="Nhận lead"
+                            title="Nhận khách tiềm năng"
                           >
                             <UserCheck size={14} />
                           </button>

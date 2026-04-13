@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Mail, User as UserIcon, Lock, Shield, Building, Loader2, Phone } from "lucide-react";
+import { X, Mail, User as UserIcon, Lock, Shield, Loader2, Phone } from "lucide-react";
 import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
 import type { Branch } from "@/types/branch";
+import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
 interface AccountFormModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface AccountFormModalProps {
 export default function AccountFormModal({ isOpen, onClose, onSubmit, account, mode }: AccountFormModalProps) {
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [errors, setErrors] = useState<{ branchId?: string }>({});
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -69,10 +71,17 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
         phoneNumber: '',
       });
     }
+    setErrors({});
   }, [mode, account, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (mode === 'create' && !formData.branchId) {
+      setErrors({ branchId: 'Chi nhánh là bắt buộc' });
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === 'create') {
@@ -245,25 +254,22 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             </select>
           </div>
 
-          {/* Branch (optional) */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <Building size={16} className="text-pink-600" />
-              Chi nhánh (tùy chọn)
-            </label>
-            <select
-              value={formData.branchId}
-              onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-            >
-              <option value="">-- Chọn chi nhánh --</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <AdminBranchSelectField
+            isOpen={isOpen}
+            mode={mode}
+            value={formData.branchId}
+            options={branches.map((branch) => ({ id: branch.id, label: branch.name }))}
+            onValueChange={(value) => {
+              setFormData((prev) => ({ ...prev, branchId: value }));
+              if (errors.branchId) {
+                setErrors({});
+              }
+            }}
+            error={errors.branchId}
+            required={mode === 'create'}
+            placeholder="Vui lòng chọn chi nhánh"
+            dataField="branchId"
+          />
 
           {/* Footer */}
           <div className="flex gap-3 pt-4">
@@ -277,7 +283,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (mode === 'create' && !formData.branchId)}
               className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading && <Loader2 size={16} className="animate-spin" />}

@@ -105,6 +105,9 @@ type Account = User & {
   name: string;
   phone?: string;
   lastLoginAt?: string;
+  lastSeenAt?: string;
+  isOnline?: boolean;
+  offlineDurationSeconds?: number;
   avatarColor: string;
   twoFactor: boolean;
   department?: string;
@@ -152,7 +155,10 @@ const transformUsersToAccounts = (users: User[]): Account[] => {
     ...user,
     name: user.name || user.username || user.email || 'Unknown User',
     phone: user.branchContactPhone || '',
-    lastLoginAt: user.updatedAt,
+    lastLoginAt: user.lastLoginAt || user.updatedAt,
+    lastSeenAt: user.lastSeenAt,
+    isOnline: user.isOnline,
+    offlineDurationSeconds: user.offlineDurationSeconds,
     avatarColor: getAvatarColor(user.id),
     twoFactor: false,
     department: getDepartment(user.role),
@@ -323,6 +329,69 @@ const formatDateTime = (dateString?: string): string => {
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+const formatDurationFromSeconds = (seconds?: number): string | null => {
+  if (typeof seconds !== "number" || Number.isNaN(seconds) || seconds < 0) return null;
+
+  if (seconds < 60) return "vài giây";
+  if (seconds < 3600) {
+    const mins = Math.floor(seconds / 60);
+    return `${mins} phút`;
+  }
+  if (seconds < 86400) {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return mins > 0 ? `${hours} giờ ${mins} phút` : `${hours} giờ`;
+  }
+
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  return hours > 0 ? `${days} ngày ${hours} giờ` : `${days} ngày`;
+};
+
+const formatTimeAgo = (dateString?: string): string | null => {
+  if (!dateString) return null;
+  const time = new Date(dateString).getTime();
+  if (Number.isNaN(time)) return null;
+
+  const diffSec = Math.max(0, Math.floor((Date.now() - time) / 1000));
+  const duration = formatDurationFromSeconds(diffSec);
+  return duration ? `${duration} trước` : null;
+};
+
+const getActivityDisplay = (account: Account) => {
+  if (account.isOnline) {
+    return {
+      badgeClass: "bg-emerald-50 text-emerald-700",
+      badgeText: "Đang hoạt động",
+      detail: "Đang trực tuyến",
+    };
+  }
+
+  const relativeByOffline = formatDurationFromSeconds(account.offlineDurationSeconds);
+  if (relativeByOffline) {
+    return {
+      badgeClass: "bg-amber-50 text-amber-700",
+      badgeText: "Ngoại tuyến",
+      detail: `Lần cuối đăng nhập: ${relativeByOffline} trước`,
+    };
+  }
+
+  const relativeByTime = formatTimeAgo(account.lastSeenAt || account.lastLoginAt);
+  if (relativeByTime) {
+    return {
+      badgeClass: "bg-amber-50 text-amber-700",
+      badgeText: "Ngoại tuyến",
+      detail: `Lần cuối đăng nhập: ${relativeByTime}`,
+    };
+  }
+
+  return {
+    badgeClass: "bg-gray-100 text-gray-600",
+    badgeText: "Chưa đăng nhập",
+    detail: "Đang chờ kích hoạt",
+  };
 };
 
 export default function AccountsPage() {
@@ -695,8 +764,17 @@ export default function AccountsPage() {
       );
     }
 
-    // Newest first by createdAt
+    // Group same email next to each other for easier profile actions
     filtered = [...filtered].sort((a, b) => {
+      const emailA = String(a.userEmail || "").trim().toLowerCase();
+      const emailB = String(b.userEmail || "").trim().toLowerCase();
+
+      if (emailA !== emailB) {
+        if (!emailA) return 1;
+        if (!emailB) return -1;
+        return emailA.localeCompare(emailB, "vi");
+      }
+
       const bt = new Date(b.createdAt || 0).getTime();
       const at = new Date(a.createdAt || 0).getTime();
       return bt - at;
@@ -828,7 +906,9 @@ export default function AccountsPage() {
         description:
           idsToApprove.length > 1
             ? `Đã duyệt ${idsToApprove.length} profile thành công`
-            : `Đã duyệt profile \"${selectedProfileForAction?.name ?? idsToApprove[0]}\"`,
+            : selectedProfileForAction?.name
+              ? `Đã duyệt profile \"${selectedProfileForAction.name}\"`
+              : "Đã duyệt profile thành công",
         variant: "success",
       });
 
@@ -1342,9 +1422,6 @@ export default function AccountsPage() {
                   <SortHeader label="Vai trò" sortKey="role" />
                 </th>
                 <th className="py-3 px-6 text-left">
-                  <SortHeader label="Bảo mật" sortKey="twoFactor" />
-                </th>
-                <th className="py-3 px-6 text-left">
                   <SortHeader label="Hoạt động" sortKey="lastLoginAt" />
                 </th>
                 <th className="py-3 px-6 text-left">
@@ -1367,7 +1444,6 @@ export default function AccountsPage() {
                         <Avatar name={acc.name} color={acc.avatarColor} />
                         <div>
                           <div className="font-medium text-gray-900">{acc.name}</div>
-                          <div className="text-xs text-gray-500">{acc.id}</div>
                           {acc.department && (
                             <div className="text-xs text-gray-400">{acc.department}</div>
                           )}
@@ -1394,38 +1470,18 @@ export default function AccountsPage() {
                       <RoleBadge role={mapRoleToDisplay(acc.role)} />
                     </td>
                     <td className="py-4 px-6">
-                      <div className="space-y-1">
-                        <TwoFactorBadge enabled={acc.twoFactor} />
-                        <div className="text-xs text-gray-500">
-                          {!acc.lastLoginAt ? "Chưa đăng nhập" : `Đăng nhập: ${formatDateTime(acc.lastLoginAt)}`}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="space-y-1">
-                        <div className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${!acc.lastLoginAt
-                          ? 'bg-gray-100 text-gray-600'
-                          : 'bg-blue-50 text-blue-600'
-                          }`}>
-                          {!acc.lastLoginAt ? (
-                            <>
-                              <AlertCircle size={10} />
-                              Chưa kích hoạt
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle size={10} />
-                              Đã đăng nhập
-                            </>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {!acc.lastLoginAt
-                            ? "Đang chờ kích hoạt"
-                            : "Hoạt động gần nhất"
-                          }
-                        </div>
-                      </div>
+                      {(() => {
+                        const activity = getActivityDisplay(acc);
+                        return (
+                          <div className="space-y-1">
+                            <div className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${activity.badgeClass}`}>
+                              {acc.isOnline ? <CheckCircle size={10} /> : <AlertCircle size={10} />}
+                              {activity.badgeText}
+                            </div>
+                            <div className="text-xs text-gray-500">{activity.detail}</div>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="py-4 px-6">
                       <StatusBadge isActive={acc.isActive} />
@@ -1492,7 +1548,7 @@ export default function AccountsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center">
+                  <td colSpan={6} className="py-12 text-center">
                     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
                       <Search size={24} className="text-red-400" />
                     </div>
@@ -1748,7 +1804,6 @@ export default function AccountsPage() {
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">User ID</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Ngày tạo</th>
                         <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Hành động</th>
@@ -1790,11 +1845,6 @@ export default function AccountsPage() {
                           <div className="flex items-center gap-2 text-gray-600 text-sm">
                             <Mail size={14} />
                             {profile.userEmail || 'N/A'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-xs text-gray-500 font-mono">
-                            {profile.userId?.substring(0, 8)}...
                           </div>
                         </td>
                         <td className="px-6 py-4">

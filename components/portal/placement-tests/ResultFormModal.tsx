@@ -324,7 +324,7 @@ export default function ResultFormModal({
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  Nhập kết quả Placement Test
+                  Nhập kết quả bài kiểm tra
                 </h2>
                 <p className="text-sm text-red-100">
                   Nhập thông tin chi tiết về kết quả bài kiểm tra
@@ -630,7 +630,7 @@ export default function ResultFormModal({
                 rows={3}
                 value={formData.note}
                 onChange={(e) => setFormData(prev => ({ ...prev, note: e.target.value }))}
-                placeholder="Nhập ghi chú cho placement test..."
+                placeholder="Nhập ghi chú cho kiểm tra xếp lớp..."
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all resize-none"
               />
             </div>

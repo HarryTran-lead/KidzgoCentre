@@ -282,12 +282,17 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
 
     const { open, setOpen, triggerRef, searchQuery } = context;
     const contentRef = React.useRef<HTMLDivElement | null>(null);
+    const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
 
     const [calculatedStyle, setCalculatedStyle] =
       React.useState<React.CSSProperties>({});
     const [currentSide, setCurrentSide] = React.useState<"top" | "bottom">(
       "bottom"
     );
+
+    React.useEffect(() => {
+      setPortalContainer(document.body);
+    }, []);
 
     React.useEffect(() => {
       if (!open || !triggerRef.current) return;
@@ -462,6 +467,10 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
     // Check if there are any children to render after filtering
     const hasVisibleChildren = React.Children.count(filteredChildren) > 0;
 
+    if (!portalContainer) {
+      return null;
+    }
+
     return createPortal(
       <AnimatePresence>
         {open && (
@@ -500,7 +509,7 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
           </motion.div>
         )}
       </AnimatePresence>,
-      document.body
+      portalContainer
     );
   }
 );

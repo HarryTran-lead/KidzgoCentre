@@ -212,7 +212,6 @@ export default function ChildSelector() {
                     <div className="font-medium text-gray-900 truncate">
                       {child.displayName}
                     </div>
-                    <div className="text-xs text-gray-500 truncate">ID: {child.id}</div>
                   </div>
                 </button>
               ))}
