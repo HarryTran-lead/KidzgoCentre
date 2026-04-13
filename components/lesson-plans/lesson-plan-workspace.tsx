@@ -5,6 +5,7 @@ import {
   BookOpenCheck,
   CalendarDays,
   CheckCircle2,
+  ClipboardPen,
   Clock3,
   Eye,
   FilePlus2,
@@ -49,7 +50,7 @@ import { getTeacherClasses } from "@/lib/api/teacherService";
 type WorkspaceScope = "teacher" | "staff-management" | "admin";
 type ActiveTab = "templates" | "plans";
 type TemplateStatusFilter = "all" | "active" | "inactive" | "withAttachment";
-type PlanStatusFilter = "all" | "editable" | "hasPlan" | "missingPlan" | "withTemplate";
+type PlanStatusFilter = "all" | "editable" | "hasPlan" | "missingPlan" | "withTemplate" | "reported" | "notReported";
 
 type Option = {
   id: string;
@@ -73,6 +74,10 @@ type DetailState =
   | null;
 
 type DetailModalState = Exclude<DetailState, null>;
+
+type TeachingReportModalState =
+  | { session: ClassLessonPlanSyllabusSession; plan: LessonPlan | null; loading: boolean }
+  | null;
 
 const COPY: Record<
   WorkspaceScope,
@@ -255,11 +260,11 @@ function getPlanStats(syllabus: ClassLessonPlanSyllabus | null) {
       color: "from-amber-500 to-orange-500",
     },
     {
-      title: "Có template",
-      value: String(sessions.filter((item) => item.templateId).length),
-      subtitle: "Session map được syllabus chuẩn",
-      icon: BookOpenCheck,
-      color: "from-blue-500 to-indigo-500",
+      title: "Đã báo cáo",
+      value: String(sessions.filter((item) => item.actualContent).length),
+      subtitle: "Giáo viên đã báo cáo nội dung dạy",
+      icon: ClipboardPen,
+      color: "from-violet-500 to-purple-500",
     },
   ];
 }
@@ -285,6 +290,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   const [planModal, setPlanModal] = useState<PlanModalState>(null);
   const [detailState, setDetailState] = useState<DetailState>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [teachingReportModal, setTeachingReportModal] = useState<TeachingReportModalState>(null);
 
   const scopeCopy = COPY[scope];
   const isTeacher = scope === "teacher";
@@ -494,6 +500,14 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
       }
 
       if (planStatusFilter === "withTemplate" && !item.templateId) {
+        return false;
+      }
+
+      if (planStatusFilter === "reported" && !item.actualContent) {
+        return false;
+      }
+
+      if (planStatusFilter === "notReported" && item.actualContent) {
         return false;
       }
 
@@ -734,6 +748,88 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     }
   };
 
+  const openTeachingReport = async (session: ClassLessonPlanSyllabusSession) => {
+    if (!session.lessonPlanId) {
+      // Session chưa có lesson plan -> tạo mới trước, rồi mới mở modal report
+      if (!classSyllabus?.classId) return;
+      setTeachingReportModal({ session, plan: null, loading: true });
+      try {
+        const createResult = await createLessonPlan({
+          classId: classSyllabus.classId,
+          sessionId: session.sessionId,
+          templateId: session.templateId || null,
+          plannedContent: null,
+          actualContent: null,
+          actualHomework: null,
+          teacherNotes: null,
+        });
+        if (!createResult.isSuccess || !createResult.data) {
+          toast({
+            title: "Không thể tạo lesson plan",
+            description: extractMessage(createResult, "Vui lòng thử lại sau."),
+            variant: "destructive",
+          });
+          setTeachingReportModal(null);
+          return;
+        }
+        setTeachingReportModal({ session, plan: createResult.data, loading: false });
+        // Reload syllabus để cập nhật lessonPlanId
+        await loadClassSyllabus(classSyllabus.classId);
+      } catch (err: any) {
+        toast({
+          title: "Lỗi",
+          description: err?.message || "Không thể tạo lesson plan.",
+          variant: "destructive",
+        });
+        setTeachingReportModal(null);
+      }
+      return;
+    }
+
+    // Session đã có lesson plan -> load chi tiết rồi mở modal report
+    setTeachingReportModal({ session, plan: null, loading: true });
+    const response = await getLessonPlanById(session.lessonPlanId);
+    if (!response.isSuccess || !response.data) {
+      toast({
+        title: "Không thể tải lesson plan",
+        description: extractMessage(response, "Vui lòng thử lại sau."),
+        variant: "destructive",
+      });
+      setTeachingReportModal(null);
+      return;
+    }
+    setTeachingReportModal({ session, plan: response.data, loading: false });
+  };
+
+  const handleTeachingReportSubmit = async (payload: {
+    lessonPlanId: string;
+    actualContent: string | null;
+    actualHomework: string | null;
+    teacherNotes: string | null;
+  }) => {
+    const response = await updateLessonPlan(payload.lessonPlanId, {
+      actualContent: payload.actualContent,
+      actualHomework: payload.actualHomework,
+      teacherNotes: payload.teacherNotes,
+    });
+
+    if (!response.isSuccess) {
+      throw new Error(extractMessage(response, "Không thể lưu báo cáo buổi dạy."));
+    }
+
+    toast({
+      title: "Đã lưu báo cáo buổi dạy",
+      description: "Nội dung dạy thực tế, bài tập và ghi chú đã được cập nhật.",
+      variant: "success",
+    });
+
+    setTeachingReportModal(null);
+
+    if (classSyllabus?.classId) {
+      await loadClassSyllabus(classSyllabus.classId);
+    }
+  };
+
   const templateOptions = useMemo(() => {
     if (!classSyllabus?.programId) {
       return templates;
@@ -878,6 +974,8 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
                     <option value="hasPlan">Đã có lesson plan</option>
                     <option value="missingPlan">Chưa có lesson plan</option>
                     <option value="withTemplate">Đã map template</option>
+                    <option value="reported">Đã báo cáo buổi dạy</option>
+                    <option value="notReported">Chưa báo cáo buổi dạy</option>
                   </select>
                   <select
                     value={selectedClassId}
@@ -918,6 +1016,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
             onEdit={openPlanEditor}
             onOpenPlanDetail={(lessonPlanId) => openPlanDetail(lessonPlanId)}
             onOpenTemplateDetail={templatesAvailable ? openTemplateDetail : undefined}
+            onOpenTeachingReport={openTeachingReport}
           />
         )}
       </div>
@@ -963,6 +1062,17 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
           }
           onClose={() => setDetailState(null)}
           onOpenAttachment={openAttachment}
+        />
+      ) : null}
+
+      {teachingReportModal ? (
+        <TeachingReportModal
+          session={teachingReportModal.session}
+          plan={teachingReportModal.plan}
+          loading={teachingReportModal.loading}
+          classSyllabus={classSyllabus}
+          onClose={() => setTeachingReportModal(null)}
+          onSubmit={handleTeachingReportSubmit}
         />
       ) : null}
     </div>
@@ -1058,6 +1168,7 @@ function SyllabusView({
   onEdit,
   onOpenPlanDetail,
   onOpenTemplateDetail,
+  onOpenTeachingReport,
 }: {
   scope: WorkspaceScope;
   syllabus: ClassLessonPlanSyllabus | null;
@@ -1067,6 +1178,7 @@ function SyllabusView({
   onEdit: (session: ClassLessonPlanSyllabusSession) => void;
   onOpenPlanDetail: (lessonPlanId: string) => void;
   onOpenTemplateDetail?: (templateId: string) => void;
+  onOpenTeachingReport: (session: ClassLessonPlanSyllabusSession) => void;
 }) {
   if (!syllabus) {
     return <EmptyState title="Chưa có syllabus" subtitle="Chọn một lớp để tải read model syllabus từ backend." />;
@@ -1105,9 +1217,10 @@ function SyllabusView({
         {items.map((session) => {
           const linkedTemplate = session.templateId ? templateMap.get(session.templateId) : undefined;
           const status = getPlanSummaryStatus(session);
+          const hasReport = Boolean(session.actualContent);
 
           return (
-            <div key={session.sessionId} className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
+            <div key={session.sessionId} className={cn("rounded-2xl border p-5 shadow-sm", hasReport ? "border-emerald-200 bg-emerald-50/30" : "border-red-100 bg-white")}>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -1115,6 +1228,13 @@ function SyllabusView({
                     {session.canEdit ? <StatusBadge kind="success">Có thể sửa</StatusBadge> : <StatusBadge kind="muted">Chỉ xem</StatusBadge>}
                     {session.templateId ? <StatusBadge kind="info">Đã map template</StatusBadge> : <StatusBadge kind="warning">Chưa map template</StatusBadge>}
                     {status === "missingPlan" ? <StatusBadge kind="warning">Chưa có lesson plan</StatusBadge> : <StatusBadge kind="success">Đã có lesson plan</StatusBadge>}
+                    {hasReport ? (
+                      <StatusBadge kind="success">
+                        <span className="flex items-center gap-1"><ClipboardPen size={12} /> Đã báo cáo</span>
+                      </StatusBadge>
+                    ) : session.lessonPlanId ? (
+                      <StatusBadge kind="warning">Chưa báo cáo</StatusBadge>
+                    ) : null}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-600">
                     <span>Planned teacher: {session.plannedTeacherName || "-"}</span>
@@ -1153,6 +1273,22 @@ function SyllabusView({
                       {session.lessonPlanId ? "Sửa lesson plan" : "Tạo lesson plan"}
                     </button>
                   ) : null}
+                  {session.canEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenTeachingReport(session)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-lg cursor-pointer"
+                    >
+                      <ClipboardPen size={15} />
+                      Báo cáo buổi dạy
+                    </button>
+                  ) : null}
+                  {!session.canEdit && (session.actualContent || session.actualHomework || session.teacherNotes) ? (
+                    <span className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+                      <CheckCircle2 size={15} />
+                      Đã báo cáo
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
@@ -1170,10 +1306,10 @@ function SyllabusView({
                   accent="text-red-700"
                 />
                 <ContentPanel
-                  title="Actual content"
-                  subtitle="Nội dung dạy thực tế"
+                  title={hasReport ? "✅ Báo cáo nội dung dạy thực tế" : "Actual content"}
+                  subtitle={hasReport ? `Giáo viên: ${session.actualTeacherName || session.plannedTeacherName || "Chưa xác định"}` : "Nội dung dạy thực tế"}
                   value={session.actualContent}
-                  accent="text-emerald-700"
+                  accent={hasReport ? "text-emerald-700" : "text-emerald-700"}
                 />
                 <ContentPanel
                   title="Homework / Teacher notes"
@@ -2532,6 +2668,181 @@ function PlanFormModal({
           showReset={false}
         />
       </form>
+    </ModalFrame>
+  );
+}
+
+function TeachingReportModal({
+  session,
+  plan,
+  loading,
+  classSyllabus,
+  onClose,
+  onSubmit,
+}: {
+  session: ClassLessonPlanSyllabusSession;
+  plan: LessonPlan | null;
+  loading: boolean;
+  classSyllabus: ClassLessonPlanSyllabus | null;
+  onClose: () => void;
+  onSubmit: (payload: {
+    lessonPlanId: string;
+    actualContent: string | null;
+    actualHomework: string | null;
+    teacherNotes: string | null;
+  }) => Promise<void>;
+}) {
+  const [actualContent, setActualContent] = useState(plan?.actualContent || session.actualContent || "");
+  const [actualHomework, setActualHomework] = useState(plan?.actualHomework || session.actualHomework || "");
+  const [teacherNotes, setTeacherNotes] = useState(plan?.teacherNotes || session.teacherNotes || "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (plan) {
+      setActualContent(plan.actualContent || session.actualContent || "");
+      setActualHomework(plan.actualHomework || session.actualHomework || "");
+      setTeacherNotes(plan.teacherNotes || session.teacherNotes || "");
+    }
+  }, [plan, session]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!plan?.id) return;
+
+    const trimmedContent = actualContent.trim();
+    if (!trimmedContent) {
+      setError("Vui lòng nhập nội dung dạy thực tế hôm nay.");
+      return;
+    }
+
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      await onSubmit({
+        lessonPlanId: plan.id,
+        actualContent: trimmedContent || null,
+        actualHomework: actualHomework.trim() || null,
+        teacherNotes: teacherNotes.trim() || null,
+      });
+    } catch (submitError: any) {
+      setError(submitError?.message || "Không thể lưu báo cáo buổi dạy.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const sessionDateDisplay = normalizeDateValue(session.sessionDate)
+    ? formatDate(session.sessionDate, true)
+    : "Chưa xác định";
+
+  return (
+    <ModalFrame
+      title="Báo cáo buổi dạy"
+      subtitle="Cập nhật nội dung giảng dạy thực tế, bài tập về nhà và ghi chú cho buổi học hôm nay."
+      icon={ClipboardPen}
+      onClose={onClose}
+      widthClass="max-w-3xl"
+    >
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-gray-600">
+          <Loader2 size={20} className="mr-3 animate-spin text-red-600" />
+          Đang chuẩn bị...
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5 p-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <InfoCard
+              icon={Users}
+              label="Lớp"
+              value={classSyllabus?.classTitle || classSyllabus?.classCode || "-"}
+            />
+            <InfoCard
+              icon={CalendarDays}
+              label="Buổi học"
+              value={getSessionDisplay(session)}
+            />
+            <InfoCard
+              icon={Clock3}
+              label="Ngày dạy"
+              value={sessionDateDisplay}
+            />
+          </div>
+
+          {session.templateSyllabusContent ? (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4">
+              <div className="mb-2 text-sm font-semibold text-blue-700">Nội dung syllabus chuẩn (tham khảo)</div>
+              <div className="max-h-40 overflow-y-auto">
+                <StructuredContent value={session.templateSyllabusContent} placeholder="" />
+              </div>
+            </div>
+          ) : null}
+
+          {session.plannedContent ? (
+            <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
+              <div className="mb-2 text-sm font-semibold text-red-700">Giáo án dự kiến (tham khảo)</div>
+              <div className="max-h-32 overflow-y-auto">
+                <StructuredContent value={session.plannedContent} placeholder="" />
+              </div>
+            </div>
+          ) : null}
+
+          <Field label="Nội dung dạy thực tế hôm nay *">
+            <p className="mb-2 text-xs text-gray-500">
+              Mô tả chi tiết nội dung bạn đã dạy trong buổi học. Thông tin này sẽ được Admin/Staff xem xét.
+            </p>
+            <textarea
+              value={actualContent}
+              onChange={(event) => setActualContent(event.target.value)}
+              rows={6}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              placeholder="VD: Hôm nay dạy Unit 3 - Animals, các bé học được tên các con vật, luyện phát âm và chơi game matching..."
+              autoFocus
+            />
+          </Field>
+
+          <Field label="Bài tập về nhà">
+            <textarea
+              value={actualHomework}
+              onChange={(event) => setActualHomework(event.target.value)}
+              rows={3}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
+            />
+          </Field>
+
+          <Field label="Ghi chú thêm">
+            <textarea
+              value={teacherNotes}
+              onChange={(event) => setTeacherNotes(event.target.value)}
+              rows={3}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              placeholder="VD: Bé An vắng mặt, cần gửi bài bù. Lớp tiến bộ tốt, cần tăng tốc Unit 4..."
+            />
+          </Field>
+
+          {error ? <ErrorBox message={error} /> : null}
+
+          <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 cursor-pointer"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg disabled:opacity-60 cursor-pointer"
+            >
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <ClipboardPen size={16} />}
+              {submitting ? "Đang lưu..." : "Lưu báo cáo buổi dạy"}
+            </button>
+          </div>
+        </form>
+      )}
     </ModalFrame>
   );
 }

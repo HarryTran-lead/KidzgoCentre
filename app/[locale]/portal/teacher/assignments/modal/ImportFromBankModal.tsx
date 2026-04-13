@@ -39,10 +39,10 @@ const LEVEL_OPTIONS: Array<{
   value: "ALL" | QuestionBankDifficulty;
   label: string;
 }> = [
-  { value: "ALL", label: "Tat ca" },
-  { value: "Easy", label: "Easy" },
-  { value: "Medium", label: "Medium" },
-  { value: "Hard", label: "Hard" },
+  { value: "ALL", label: "Tất cả" },
+  { value: "Easy", label: "Dễ" },
+  { value: "Medium", label: "Trung bình" },
+  { value: "Hard", label: "Khó" },
 ];
 
 function isMultipleChoiceQuestion(question: QuestionBankItem) {
@@ -118,6 +118,8 @@ export function ImportFromBankModal({
   );
   const [selectedProgramId, setSelectedProgramId] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<"ALL" | QuestionBankDifficulty>("ALL");
+  const [minPoints, setMinPoints] = useState<number | "">(0);
+  const [maxPoints, setMaxPoints] = useState<number | "">(100);
   const [questions, setQuestions] = useState<QuestionBankItem[]>([]);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -162,20 +164,14 @@ export function ImportFromBankModal({
     const loadPrograms = async () => {
       setIsLoadingPrograms(true);
       try {
-        const activePrograms = await getActiveProgramsForDropdown();
-        const response =
-          activePrograms.length > 0
-            ? activePrograms
-            : (await getAllProgramsForDropdown()).filter(
-                (program) => program.isActive !== false
-              );
+        const response = await getAllProgramsForDropdown();
         const mappedPrograms = response.map((program) => ({
           id: program.id,
           name: program.name || program.code || program.id,
         }));
 
         setPrograms(mappedPrograms);
-        setSelectedProgramId((current) => current || mappedPrograms[0]?.id || "");
+        setSelectedProgramId("");
       } catch (loadError) {
         console.error("Error loading programs:", loadError);
         setPrograms([]);
@@ -205,7 +201,7 @@ export function ImportFromBankModal({
         setQuestions(response.data.filter(isMultipleChoiceQuestion));
       } else {
         setQuestions([]);
-        setError(response.error || "Khong tai duoc ngan hang cau hoi.");
+        setError(response.error || "Không tải được ngân hàng câu hỏi.");
       }
 
       setIsLoadingQuestions(false);
@@ -219,6 +215,8 @@ export function ImportFromBankModal({
       setSelectedProgramId("");
       setSelectedQuestionIds([]);
       setSearchTerm("");
+      setMinPoints(0);
+      setMaxPoints(100);
       setQuestions([]);
       setError(null);
     }
@@ -248,23 +246,34 @@ export function ImportFromBankModal({
   }, [programs, questions]);
 
   const filteredQuestions = useMemo(() => {
+    let result = questions;
+
+    // Filter by search term
     const normalizedSearch = searchTerm.trim().toLowerCase();
-    if (!normalizedSearch) {
-      return questions;
+    if (normalizedSearch) {
+      result = result.filter((question) => {
+        const haystacks = [
+          question.questionText,
+          question.level,
+          question.programName,
+          ...question.options,
+        ];
+        return haystacks.some((value) =>
+          String(value || "").toLowerCase().includes(normalizedSearch)
+        );
+      });
     }
 
-    return questions.filter((question) => {
-      const haystacks = [
-        question.questionText,
-        question.level,
-        question.programName,
-        ...question.options,
-      ];
-      return haystacks.some((value) =>
-        String(value || "").toLowerCase().includes(normalizedSearch)
-      );
+    // Filter by points range
+    const min = typeof minPoints === "number" ? minPoints : 0;
+    const max = typeof maxPoints === "number" ? maxPoints : 100;
+    result = result.filter((question) => {
+      const points = question.points || 1;
+      return points >= min && points <= max;
     });
-  }, [questions, searchTerm]);
+
+    return result;
+  }, [questions, searchTerm, minPoints, maxPoints]);
 
   const toggleQuestion = (questionId: string) => {
     setSelectedQuestionIds((current) =>
@@ -304,24 +313,24 @@ export function ImportFromBankModal({
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  Import tu ngan hang cau hoi
+                  Import từ ngân hàng câu hỏi
                 </h2>
                 <p className="text-sm text-red-100">
-                  Lay cau hoi that tu backend va dua vao quiz builder hien tai.
+                  Lấy câu hỏi thật từ backend và đưa vào quiz builder hiện tại.
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
               className="rounded-full p-2 text-white transition hover:bg-white/20"
-              aria-label="Dong modal"
+              aria-label="Đóng modal"
             >
               <X size={24} />
             </button>
           </div>
         </div>
 
-        <div className="grid gap-4 border-b border-gray-200 p-6 md:grid-cols-[1.1fr_0.7fr_1fr]">
+        <div className="grid gap-4 border-b border-gray-200 p-6 md:grid-cols-[1.1fr_0.7fr_1fr_0.8fr_0.8fr]">
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700">Program</label>
             <select
@@ -332,8 +341,8 @@ export function ImportFromBankModal({
             >
               <option value="">
                 {isLoadingPrograms && programOptions.length === 0
-                  ? "Dang tai program..."
-                  : "Tat ca program"}
+                  ? "Đang tải program..."
+                  : "Tất cả program"}
               </option>
               {programOptions.map((program) => (
                 <option key={program.id} value={program.id}>
@@ -344,7 +353,7 @@ export function ImportFromBankModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Do kho</label>
+            <label className="text-sm font-semibold text-gray-700">Độ khó</label>
             <select
               value={selectedLevel}
               onChange={(event) =>
@@ -361,13 +370,13 @@ export function ImportFromBankModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Tim kiem</label>
+            <label className="text-sm font-semibold text-gray-700">Tìm kiếm</label>
             <div className="relative">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Noi dung cau hoi, dap an..."
+                placeholder="Nội dung câu hỏi, đáp án..."
                 className="w-full rounded-xl border border-gray-200 px-4 py-3 pl-10 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
               <Search
@@ -375,6 +384,30 @@ export function ImportFromBankModal({
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Điểm tối thiểu</label>
+            <input
+              type="number"
+              value={minPoints}
+              onChange={(event) => setMinPoints(event.target.value ? Number(event.target.value) : "")}
+              placeholder="0"
+              min="0"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Điểm tối đa</label>
+            <input
+              type="number"
+              value={maxPoints}
+              onChange={(event) => setMaxPoints(event.target.value ? Number(event.target.value) : "")}
+              placeholder="100"
+              min="0"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+            />
           </div>
         </div>
 
@@ -388,7 +421,7 @@ export function ImportFromBankModal({
           {isLoadingQuestions ? (
             <div className="flex min-h-[280px] items-center justify-center gap-3 text-gray-500">
               <Loader2 size={20} className="animate-spin" />
-              <span>Dang tai cau hoi...</span>
+              <span>Đang tải câu hỏi...</span>
             </div>
           ) : filteredQuestions.length > 0 ? (
             <div className="space-y-3">
@@ -421,7 +454,7 @@ export function ImportFromBankModal({
                           </span>
                           {question.level && (
                             <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
-                              {question.level}
+                              {question.level === "Easy" ? "Dễ" : question.level === "Medium" ? "Trung bình" : question.level === "Hard" ? "Khó" : question.level}
                             </span>
                           )}
                           {question.programName && (
@@ -430,7 +463,7 @@ export function ImportFromBankModal({
                             </span>
                           )}
                           <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
-                            {question.points || 1} diem
+                            {question.points || 1} điểm
                           </span>
                         </div>
 
@@ -452,7 +485,7 @@ export function ImportFromBankModal({
                         {question.explanation && (
                           <div className="mt-3 text-xs text-gray-500">
                             <span className="font-semibold text-gray-700">
-                              Giai thich:
+                              Giải thích:
                             </span>{" "}
                             {question.explanation}
                           </div>
@@ -468,9 +501,9 @@ export function ImportFromBankModal({
               <div className="mb-4 rounded-full bg-gray-100 p-4">
                 <Database size={24} className="text-gray-400" />
               </div>
-              <p className="font-medium text-gray-600">Khong tim thay cau hoi nao</p>
+              <p className="font-medium text-gray-600">Không tìm thấy câu hỏi nào</p>
               <p className="mt-1 text-sm text-gray-400">
-                Thu doi program, do kho hoac tu khoa tim kiem.
+                Thử đổi program, độ khó hoặc từ khóa tìm kiếm.
               </p>
             </div>
           )}
@@ -479,18 +512,18 @@ export function ImportFromBankModal({
         <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm text-gray-600">
-              Da chon{" "}
+              Đã chọn{" "}
               <span className="font-semibold text-red-600">
                 {selectedQuestionIds.length}
               </span>{" "}
-              cau hoi
+              câu hỏi
             </p>
             <div className="flex items-center gap-3">
               <button
                 onClick={onClose}
                 className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
               >
-                Huy
+                Hủy
               </button>
               <button
                 onClick={handleImport}
@@ -498,7 +531,7 @@ export function ImportFromBankModal({
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CheckCircle size={16} />
-                Import {selectedQuestionIds.length} cau hoi
+                Import {selectedQuestionIds.length} câu hỏi
               </button>
             </div>
           </div>

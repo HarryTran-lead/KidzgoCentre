@@ -692,51 +692,46 @@ function AddStudentModal({ isOpen, onClose, classId, enrolledStudentIds, classCa
       setIsLoading(true);
       try {
         const token = getAccessToken();
-        const response = await fetch("/api/admin/users?role=Student&pageNumber=1&pageSize=100", {
+        // Fetch all users from admin/users API — students are embedded in Parent profiles
+        const response = await fetch("/api/admin/users?pageNumber=1&pageSize=100", {
           headers: {
             Authorization: token ? `Bearer ${token}` : "",
           },
         });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+
         const data = await response.json();
         console.log("📚 Students API response:", data);
-        
-        if (data.isSuccess && data.data?.items) {
-          const studentList: StudentOption[] = data.data.items
-            .map((item: any) => {
-              const studentProfile = item.profiles?.find((p: any) => p.profileType === "Student");
-              if (!studentProfile?.id) return null;
 
-              const studentName = studentProfile.displayName || item.name || item.email || "Học viên";
+        let studentList: StudentOption[] = [];
 
-              return {
-                id: item.id,
-                name: studentName,
-                code: item.username || "",
-                profileId: studentProfile.id,
-              };
-            })
-            .filter(Boolean) as StudentOption[];
-          setStudents(studentList);
-        } else if (data.data && Array.isArray(data.data)) {
-          const studentList: StudentOption[] = data.data
-            .map((item: any) => {
-              const studentProfile = item.profiles?.find((p: any) => p.profileType === "Student");
-              if (!studentProfile?.id) return null;
-
-              const studentName = studentProfile.displayName || item.name || item.email || "Học viên";
-
-              return {
-                id: item.id,
-                name: studentName,
-                code: item.username || "",
-                profileId: studentProfile.id,
-              };
-            })
-            .filter(Boolean) as StudentOption[];
-          setStudents(studentList);
+        // Students are stored inside the "profiles" array of Parent users
+        // Each Parent may have multiple profiles: Parent profile + Student profile(s)
+        if (data.isSuccess && Array.isArray(data.data?.items)) {
+          for (const user of data.data.items) {
+            if (user.role === "Parent" && Array.isArray(user.profiles)) {
+              for (const profile of user.profiles) {
+                if (profile.profileType === "Student") {
+                  studentList.push({
+                    id: String(profile.id),        // profile ID = student ID
+                    name: String(profile.displayName || "Học viên"),
+                    code: String(user.username || ""),
+                    profileId: String(profile.id),
+                  });
+                }
+              }
+            }
+          }
         }
+
+        console.log("📚 Final student list:", studentList);
+        setStudents(studentList);
       } catch (error) {
-        console.error("Error fetching students:", error);
+        console.error("❌ Error fetching students:", error);
+        setStudents([]);
       } finally {
         setIsLoading(false);
       }
@@ -1302,6 +1297,7 @@ function CreateClassModal({
   const [formData, setFormData] = useState<ClassFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof ClassFormData, string>>>({});
   const modalRef = useRef<HTMLDivElement>(null);
+  const prevBranchIdRef = useRef<string>("");
   const [programOptions, setProgramOptions] = useState<SelectOption[]>([]);
   const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
@@ -1325,10 +1321,10 @@ function CreateClassModal({
     try {
       setLoadingOptions(true);
       const data = await fetchClassFormSelectData();
-      // Không load programs ngay, sẽ load theo branchId sau
-      setProgramOptions([]);
+      // Chỉ update branch options, không reset program/teacher options
+      // (sẽ được load lại khi user chọn branch)
       setBranchOptions(data.branches);
-      setTeacherOptions([]);
+      // Giữ nguyên programOptions và teacherOptions nếu đã có
     } catch (err) {
       console.error("Failed to fetch select data:", err);
     } finally {
@@ -1467,18 +1463,26 @@ function CreateClassModal({
         const filteredRooms = rooms.filter((r) => r.capacity >= currentCapacity).map((r) => ({ id: r.id, name: r.name }));
         setRoomOptions(filteredRooms);
 
-        // Nếu program đang chọn không thuộc chi nhánh mới -> reset
-        const programIds = new Set(programs.map((p) => p.id));
-        const teacherIds = new Set(teachers.map((t) => t.id));
-        const roomIds = new Set(rooms.map((r) => r.id));
+        // Chỉ reset formData nếu branchId thực sự thay đổi (user chọn branch khác)
+        // Không reset khi lần đầu load options từ initialData
+        const branchChanged = prevBranchIdRef.current && prevBranchIdRef.current !== branchId;
         
-        setFormData((prev) => ({
-          ...prev,
-          programId: programIds.has(prev.programId) ? prev.programId : "",
-          mainTeacherId: teacherIds.has(prev.mainTeacherId) ? prev.mainTeacherId : "",
-          assistantTeacherId: teacherIds.has(prev.assistantTeacherId) ? prev.assistantTeacherId : "",
-          roomId: roomIds.has(prev.roomId) ? prev.roomId : "",
-        }));
+        if (branchChanged) {
+          const programIds = new Set(programs.map((p) => p.id));
+          const teacherIds = new Set(teachers.map((t) => t.id));
+          const roomIds = new Set(rooms.map((r) => r.id));
+          
+          setFormData((prev) => ({
+            ...prev,
+            programId: programIds.has(prev.programId) ? prev.programId : "",
+            mainTeacherId: teacherIds.has(prev.mainTeacherId) ? prev.mainTeacherId : "",
+            assistantTeacherId: teacherIds.has(prev.assistantTeacherId) ? prev.assistantTeacherId : "",
+            roomId: roomIds.has(prev.roomId) ? prev.roomId : "",
+          }));
+        }
+        
+        // Cập nhật ref để track branchId
+        prevBranchIdRef.current = branchId;
       } catch (err) {
         if (cancelled) return;
         console.error("Failed to load programs and teachers by branch:", err);
@@ -1976,30 +1980,26 @@ function CreateClassModal({
                   <Tag size={16} className="text-red-600" />
                   Chương trình <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <select
+                <Select
+                  value={formData.programId}
+                  onValueChange={(val) => handleChange("programId", val)}
+                  disabled={loadingOptions}
+                >
+                  <SelectTrigger
                     data-field="programId"
-                    value={formData.programId}
-                    onChange={(e) => handleChange("programId", e.target.value)}
-                    disabled={loadingOptions}
                     className={clsx(
-                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-                      "focus:outline-none focus:ring-2 focus:ring-red-300",
-                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                      "w-full",
                       errors.programId ? "border-red-500" : "border-gray-200"
                     )}
                   >
-                    <option value="">{loadingOptions ? "Đang tải..." : "Chọn chương trình"}</option>
+                    <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn chương trình"} />
+                  </SelectTrigger>
+                  <SelectContent>
                     {programOptions.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}
-                  </select>
-                  {errors.programId && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
+                  </SelectContent>
+                </Select>
                 {errors.programId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.programId}</p>}
               </div>
             </div>

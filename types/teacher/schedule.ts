@@ -45,6 +45,8 @@ export type TimetableApiItem = {
   teacherName?: string | null;
   teacherFullName?: string | null;
   classCode?: string | null;
+  color?: string | null;
+  Color?: string | null;
   track?: string | null;
   program?: string | null;
   programName?: string | null;

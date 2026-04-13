@@ -92,6 +92,7 @@ export async function createAdminSession(
   const data = json?.data ?? json;
   const session: Session = {
     id: String(data?.id ?? data?.sessionId ?? ""),
+    classId: data?.classId ? String(data.classId) : (payload.classId ?? null),
     classTitle: data?.classTitle ?? data?.className ?? null,
     className: data?.className ?? null,
     plannedDatetime: String(data?.plannedDatetime ?? payload.plannedDatetime),
@@ -104,6 +105,7 @@ export async function createAdminSession(
     plannedTeacherName: data?.plannedTeacherName ?? null,
     teacherName: data?.teacherName ?? null,
     participationType: data?.participationType ?? null,
+    color: data?.color ?? data?.Color ?? null,
   };
 
   if (!session.id) {
@@ -116,6 +118,7 @@ export async function createAdminSession(
 function mapApiSession(item: any): Session {
   const session: Session = {
     id: String(item?.id ?? item?.sessionId ?? ""),
+    classId: item?.classId ? String(item.classId) : null,
     classTitle: item?.classTitle ?? item?.className ?? null,
     className: item?.className ?? null,
     plannedDatetime: String(item?.plannedDatetime ?? item?.startTime ?? ""),
@@ -128,6 +131,7 @@ function mapApiSession(item: any): Session {
     plannedTeacherName: item?.plannedTeacherName ?? null,
     teacherName: item?.teacherName ?? null,
     participationType: item?.participationType ?? null,
+    color: item?.color ?? item?.Color ?? null,
   };
 
   if (!session.id) {
@@ -135,6 +139,74 @@ function mapApiSession(item: any): Session {
   }
 
   return session;
+}
+
+/**
+ * Update session color via PUT /api/sessions/{id}
+ * First fetches the full session, then updates with merged color to avoid overwriting other fields
+ */
+export async function updateSessionColor(
+  sessionId: string,
+  color: string
+): Promise<{ isSuccess: boolean; message?: string }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập.");
+  }
+
+  // 1. GET current session to get all fields
+  const getRes = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!getRes.ok) {
+    throw new Error("Không thể lấy thông tin session.");
+  }
+
+  const getJson = await getRes.json();
+  const session = getJson?.data?.session ?? getJson?.data ?? getJson;
+
+  // 2. PUT full session with updated color
+  const updateBody = {
+    ...session,
+    color,
+  };
+  // Remove read-only/computed fields that backend may reject
+  delete updateBody.id;
+  delete updateBody.classTitle;
+  delete updateBody.className;
+  delete updateBody.branchName;
+  delete updateBody.plannedRoomName;
+  delete updateBody.roomName;
+  delete updateBody.plannedTeacherName;
+  delete updateBody.teacherName;
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updateBody),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg = json?.message || json?.error || json?.title || "Không thể cập nhật màu.";
+    console.error("Update session color failed:", res.status, json);
+    throw new Error(msg);
+  }
+
+  return { isSuccess: json?.isSuccess ?? true, message: json?.message };
 }
 
 export async function fetchAdminSessions(

@@ -22,11 +22,13 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 import { getAllSessions } from "@/lib/api/sessionService";
+import { updateSessionColor } from "@/app/api/admin/sessions";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
 
 type Slot = {
   id: string;
+  classId?: string;
   title: string;
   type: SlotType;
   teacher: string;
@@ -39,6 +41,8 @@ type Slot = {
   branch?: string;
 };
 
+const DEFAULT_SESSION_COLOR = "#FEE2E2";
+
 const TYPE_META: Record<
   SlotType,
   { text: string; badge: string; chip: string; bar: string; defaultColor: string }
@@ -48,34 +52,123 @@ const TYPE_META: Record<
     badge: "bg-red-600 text-white",
     chip: "bg-red-50 text-red-700 border border-red-200",
     bar: "border-l-4 border-red-400",
-    defaultColor: "bg-gradient-to-r from-red-600 to-red-700"
+    defaultColor: "#FEE2E2"
   },
   MAKEUP: {
     text: "Buổi bù",
     badge: "bg-gray-700 text-white",
     chip: "bg-gray-100 text-gray-700 border border-gray-200",
     bar: "border-l-4 border-gray-400",
-    defaultColor: "bg-gradient-to-r from-gray-600 to-gray-700"
+    defaultColor: "#E5E7EB"
   },
   EVENT: {
     text: "Sự kiện",
     badge: "bg-black/10 text-gray-800 border border-gray-200",
     chip: "bg-gray-100 text-gray-800 border border-gray-200",
     bar: "border-l-4 border-gray-400",
-    defaultColor: "bg-gradient-to-r from-amber-500 to-orange-500"
+    defaultColor: "#FFE8CC"
   },
 };
 
 const COLOR_OPTIONS = [
-  { name: 'Đỏ đậm', value: 'bg-gradient-to-r from-red-600 to-red-700' },
-  { name: 'Đỏ nhạt', value: 'bg-gradient-to-r from-red-500 to-red-600' },
-  { name: 'Xám đậm', value: 'bg-gradient-to-r from-gray-600 to-gray-700' },
-  { name: 'Xám nhạt', value: 'bg-gradient-to-r from-gray-500 to-gray-600' },
-  { name: 'Đen', value: 'bg-gradient-to-r from-gray-700 to-gray-800' },
-  { name: 'Trắng-xám', value: 'bg-gradient-to-r from-gray-200 to-gray-300' },
-  { name: 'Đỏ xám', value: 'bg-gradient-to-r from-red-600 to-gray-600' },
-  { name: 'Xanh dương', value: 'bg-gradient-to-r from-blue-500 to-sky-500' },
+  { name: 'Đỏ nhạt', value: '#FEE2E2' },
+  { name: 'Xanh nhạt', value: '#DCEBFF' },
+  { name: 'Hồng nhạt', value: '#FDE2FF' },
+  { name: 'Xanh lá nhạt', value: '#EEF7B9' },
+  { name: 'Tím nhạt', value: '#E6D9FF' },
+  { name: 'Tím pastel', value: '#E9D5FF' },
+  { name: 'Cam nhạt', value: '#FFE8CC' },
+  { name: 'Vàng nhạt', value: '#FFF7CC' },
+  { name: 'Xanh mint', value: '#D1FAE5' },
+  { name: 'Xanh cyan', value: '#CFFAFE' },
+  { name: 'Lam pastel', value: '#DBEAFE' },
+  { name: 'Tím oải hương', value: '#EDE9FE' },
+  { name: 'Hồng đào', value: '#FBCFE8' },
+  { name: 'Kem chanh', value: '#ECFCCB' },
+  { name: 'Cam đào', value: '#FED7AA' },
+  { name: 'Xám bạc', value: '#E5E7EB' },
+  { name: 'Be sáng', value: '#FAE8D4' },
+  { name: 'Xanh ngọc nhạt', value: '#CCFBF1' },
+  { name: 'Xanh trời nhạt', value: '#E0F2FE' },
+  { name: 'Hồng phấn', value: '#FCE7F3' },
 ];
+
+const AUTO_CLASS_COLORS = COLOR_OPTIONS.map((item) => item.value);
+
+const LEGACY_COLOR_TO_HEX: Record<string, string> = {
+  "bg-gradient-to-r from-red-600 to-red-700": "#FEE2E2",
+  "bg-gradient-to-r from-red-500 to-red-600": "#FEE2E2",
+  "bg-gradient-to-r from-gray-600 to-gray-700": "#E5E7EB",
+  "bg-gradient-to-r from-gray-500 to-gray-600": "#E5E7EB",
+  "bg-gradient-to-r from-gray-700 to-gray-800": "#D1D5DB",
+  "bg-gradient-to-r from-gray-200 to-gray-300": "#F3F4F6",
+  "bg-gradient-to-r from-red-600 to-gray-600": "#FECACA",
+  "bg-gradient-to-r from-blue-500 to-sky-500": "#DCEBFF",
+  "bg-gradient-to-r from-amber-500 to-orange-500": "#FFE8CC",
+};
+
+function normalizeSessionColor(color?: string | null): string {
+  if (!color) return DEFAULT_SESSION_COLOR;
+  const parsed = parseCustomColorInput(color);
+  return parsed ?? DEFAULT_SESSION_COLOR;
+}
+
+function parseCustomColorInput(input?: string | null): string | null {
+  const raw = (input ?? "").trim();
+  if (!raw) return null;
+
+  const legacy = LEGACY_COLOR_TO_HEX[raw];
+  if (legacy) return legacy;
+
+  const hexMatch = raw.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (hexMatch) {
+    if (hexMatch[1].length === 3) {
+      const [r, g, b] = hexMatch[1].split("");
+      return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+    }
+    return raw.toUpperCase();
+  }
+
+  const rgbMatch = raw.match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i);
+  if (rgbMatch) {
+    const r = Math.max(0, Math.min(255, Number(rgbMatch[1])));
+    const g = Math.max(0, Math.min(255, Number(rgbMatch[2])));
+    const b = Math.max(0, Math.min(255, Number(rgbMatch[3])));
+    const toHex = (n: number) => n.toString(16).padStart(2, "0").toUpperCase();
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  }
+
+  return null;
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getAutoClassColor(classId?: string | null): string {
+  const key = (classId ?? "").trim();
+  if (!key) return DEFAULT_SESSION_COLOR;
+  return AUTO_CLASS_COLORS[hashString(key) % AUTO_CLASS_COLORS.length];
+}
+
+function resolveSlotColor(color: string | null | undefined, classId: string | null | undefined, type: SlotType): string {
+  if (color && color.trim()) {
+    return normalizeSessionColor(color);
+  }
+  if (type === "CLASS") {
+    return getAutoClassColor(classId);
+  }
+  return TYPE_META[type].defaultColor;
+}
+
+function isSameColor(a?: string | null, b?: string | null): boolean {
+  return normalizeSessionColor(a) === normalizeSessionColor(b);
+}
 
 function ColorPicker({ 
   lessonId, 
@@ -87,7 +180,12 @@ function ColorPicker({
   onColorChange: (lessonId: string, color: string) => void;
 }) {
   const [showPicker, setShowPicker] = useState(false);
+  const [customColor, setCustomColor] = useState(normalizeSessionColor(currentColor));
   const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCustomColor(normalizeSessionColor(currentColor));
+  }, [currentColor]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -118,7 +216,7 @@ function ColorPicker({
         <Palette size={12} className="text-gray-800" />
       </button>
       {showPicker && (
-        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-50 overflow-hidden w-[140px]">
+        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-2 z-50 overflow-hidden w-[230px]">
           <div className="text-[10px] font-semibold text-gray-800 mb-1.5 px-1">Chọn màu</div>
           <div className="grid grid-cols-4 gap-1.5">
             {COLOR_OPTIONS.map((color) => (
@@ -126,13 +224,51 @@ function ColorPicker({
                 key={color.value}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onColorChange(lessonId, color.value);
+                  onColorChange(lessonId, normalizeSessionColor(color.value));
                   setShowPicker(false);
                 }}
-                className={`w-6 h-6 rounded-md ${color.value} border-2 ${currentColor === color.value ? 'border-white ring-1 ring-red-500' : 'border-transparent'} hover:scale-110 transition-all cursor-pointer`}
+                className={`w-6 h-6 rounded-md border-2 ${isSameColor(currentColor, color.value) ? 'border-white ring-1 ring-red-500' : 'border-gray-300'} hover:scale-110 transition-all cursor-pointer`}
+                style={{ backgroundColor: color.value }}
                 title={color.name}
               />
             ))}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="color"
+              value={normalizeSessionColor(customColor)}
+              onChange={(e) => {
+                const picked = normalizeSessionColor(e.target.value);
+                setCustomColor(picked);
+                onColorChange(lessonId, picked);
+              }}
+              className="h-8 w-12 rounded border border-gray-300 bg-white cursor-pointer"
+              title="Tự chọn màu"
+            />
+            <input
+              type="text"
+              value={customColor}
+              onChange={(e) => setCustomColor(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const parsed = parseCustomColorInput(customColor);
+                  if (parsed) {
+                    setCustomColor(parsed);
+                    onColorChange(lessonId, parsed);
+                  }
+                }
+              }}
+              onBlur={() => {
+                const parsed = parseCustomColorInput(customColor);
+                if (parsed) {
+                  setCustomColor(parsed);
+                  onColorChange(lessonId, parsed);
+                }
+              }}
+              className="h-8 flex-1 rounded border border-gray-300 px-2 text-[11px]"
+              placeholder="#AABBCC hoặc rgb(1,2,3)"
+            />
           </div>
         </div>
       )}
@@ -231,22 +367,10 @@ function WeekTimetable({
   const rangeText = `${days[0].toLocaleDateString("vi-VN")} – ${days[6].toLocaleDateString("vi-VN")}`;
   const todayKey = keyYMD(new Date());
 
-  const getLightColor = (colorClass: string | undefined) => {
-    const defaultLight = "bg-gradient-to-br from-red-50 to-red-100";
-    if (!colorClass) return defaultLight;
-    
-    return colorClass
-      .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
-      .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
-      .replace('from-gray-600 to-gray-700', 'from-gray-100 to-gray-200')
-      .replace('from-gray-500 to-gray-600', 'from-gray-100 to-gray-200')
-      .replace('from-gray-700 to-gray-800', 'from-gray-200 to-gray-300')
-      .replace('from-gray-200 to-gray-300', 'from-gray-100 to-gray-200')
-      .replace('from-red-600 to-gray-600', 'from-red-50 to-gray-100')
-      .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
-      .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
-      .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
-      .replace('from-indigo-500 to-blue-500', 'from-indigo-100 to-blue-100');
+  const getLightColor = (colorValue: string | undefined) => {
+    if (!colorValue) return "#FEF2F2";
+    if (colorValue.startsWith("#")) return `${colorValue}33`;
+    return "#FEF2F2";
   };
 
   const modeDot = (room: string) =>
@@ -389,22 +513,26 @@ function WeekTimetable({
               >
                 <div className="space-y-2">
                   {evts.map((s) => {
-                    const lightColor = getLightColor(s.color);
+                    const slotColor = resolveSlotColor(s.color, s.classId, s.type);
+                    const lightColor = getLightColor(slotColor);
                     return (
                       <div 
                         key={s.id} 
                         draggable
                         onDragStart={(e) => handleDragStart(e, s)}
                         onDragEnd={handleDragEnd}
-                        className={`rounded-xl p-2.5 text-xs transition-all duration-200 hover:shadow-md cursor-move border border-gray-200 ${lightColor} ${
+                        className={`rounded-xl overflow-hidden text-xs transition-all duration-200 hover:shadow-md cursor-move border border-gray-200 ${
                           s.conflict ? "ring-2 ring-amber-400" : ""
                         }`}
+                        style={{ backgroundColor: lightColor }}
                       >
+                        <div className="h-1.5 w-full" style={{ backgroundColor: slotColor }} />
+                        <div className="p-2.5">
                         <div className="flex items-start gap-2">
                           <GripVertical size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-1">
-                              <span className={`h-2 w-2 rounded-full ${modeDot(s.room)}`} />
+                              <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: slotColor }} />
                               <span className="font-semibold text-gray-900 truncate">{s.title}</span>
                               {s.conflict && (
                                 <AlertCircle size={10} className="text-amber-600 flex-shrink-0" />
@@ -429,11 +557,12 @@ function WeekTimetable({
                             <div onClick={(e) => e.stopPropagation()}>
                               <ColorPicker 
                                 lessonId={s.id} 
-                                currentColor={s.color || TYPE_META[s.type].defaultColor}
+                                currentColor={slotColor}
                                 onColorChange={onColorChange}
                               />
                             </div>
                           )}
+                        </div>
                         </div>
                       </div>
                     );
@@ -486,6 +615,7 @@ export default function Page() {
           }
           return {
             id: s.id ?? "",
+            classId: s.classId ?? s.classCode ?? "",
             title: s.classTitle ?? s.classCode ?? s.title ?? "",
             type: typeMap[typeVal] ?? "CLASS" as SlotType,
             teacher: s.teacherName ?? s.teacher ?? "",
@@ -493,7 +623,11 @@ export default function Page() {
             time,
             date,
             note: s.note ?? "",
-            color: s.color ?? TYPE_META[typeMap[typeVal] ?? "CLASS"]?.defaultColor,
+            color: resolveSlotColor(
+              s.color,
+              (s.classId ?? s.classCode ?? "") as string,
+              (typeMap[typeVal] ?? "CLASS") as SlotType
+            ),
             conflict: s.conflict ?? false,
             branch: s.branchName ?? s.branch ?? "",
           } as Slot;
@@ -540,12 +674,35 @@ export default function Page() {
     }));
   };
 
-  const handleColorChange = (lessonId: string, newColor: string) => {
-    setSlots(prev => prev.map(slot => 
-      slot.id === lessonId 
+  const handleColorChange = async (lessonId: string, newColor: string) => {
+    // Find the classId of the changed slot
+    const targetSlot = slots.find(s => s.id === lessonId);
+    if (!targetSlot) return;
+    const targetClassId = targetSlot.classId;
+
+    // Collect all session IDs with the same classId
+    const sameClassIds: string[] = [];
+    slots.forEach(slot => {
+      if ((slot.classId === targetClassId && targetClassId) || slot.id === lessonId) {
+        if (!sameClassIds.includes(slot.id)) sameClassIds.push(slot.id);
+      }
+    });
+
+    // Update UI immediately for ALL slots with the same classId
+    setSlots(prev => prev.map(slot =>
+      sameClassIds.includes(slot.id)
         ? { ...slot, color: newColor }
         : slot
     ));
+
+    // Persist to backend sequentially
+    for (const sid of sameClassIds) {
+      try {
+        await updateSessionColor(sid, newColor);
+      } catch (err) {
+        console.error("L\u1ed7i l\u01b0u m\u00e0u session:", sid, err);
+      }
+    }
   };
 
   const stats = useMemo(() => {
@@ -559,22 +716,10 @@ export default function Page() {
     return { total, conflicts, byType };
   }, [slots]);
 
-  const getLightColor = (colorClass: string | undefined) => {
-    const defaultLight = "bg-gradient-to-br from-red-50 to-red-100";
-    if (!colorClass) return defaultLight;
-
-    return colorClass
-      .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
-      .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
-      .replace('from-gray-600 to-gray-700', 'from-gray-100 to-gray-200')
-      .replace('from-gray-500 to-gray-600', 'from-gray-100 to-gray-200')
-      .replace('from-gray-700 to-gray-800', 'from-gray-200 to-gray-300')
-      .replace('from-gray-200 to-gray-300', 'from-gray-100 to-gray-200')
-      .replace('from-red-600 to-gray-600', 'from-red-50 to-gray-100')
-      .replace('from-blue-500 to-sky-500', 'from-blue-100 to-sky-100')
-      .replace('from-emerald-500 to-teal-500', 'from-emerald-100 to-teal-100')
-      .replace('from-amber-500 to-orange-500', 'from-amber-100 to-orange-100')
-      .replace('from-indigo-500 to-blue-500', 'from-indigo-100 to-blue-100');
+  const getLightColor = (colorValue: string | undefined) => {
+    if (!colorValue) return "#FEF2F2";
+    if (colorValue.startsWith("#")) return `${colorValue}33`;
+    return "#FEF2F2";
   };
 
   return (
@@ -691,15 +836,19 @@ export default function Page() {
       <div className={`space-y-4 transition-all duration-700 delay-300 ${isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
         <div className="text-lg font-semibold text-gray-900">Chi tiết lịch</div>
         {sortedList.map((slot) => {
-          const lightColor = getLightColor(slot.color);
+          const slotColor = resolveSlotColor(slot.color, slot.classId, slot.type);
+          const lightColor = getLightColor(slotColor);
           
           return (
             <div
               key={slot.id}
-              className={`rounded-2xl border border-gray-200 p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between hover:shadow-md transition-all ${lightColor} ${
+              className={`rounded-2xl border border-gray-200 overflow-hidden flex flex-col gap-4 hover:shadow-md transition-all ${
                 slot.conflict ? "ring-2 ring-amber-400" : ""
               }`}
+              style={{ backgroundColor: lightColor }}
             >
+              <div className="h-2 w-full" style={{ backgroundColor: slotColor }} />
+              <div className="px-5 pb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-3">
                   <TypeBadge type={slot.type} />
@@ -707,7 +856,7 @@ export default function Page() {
                     <span className="text-lg font-semibold text-gray-900">{slot.title}</span>
                     <ColorPicker 
                       lessonId={slot.id} 
-                      currentColor={slot.color || TYPE_META[slot.type].defaultColor}
+                      currentColor={slotColor}
                       onColorChange={handleColorChange}
                     />
                     {slot.conflict && (
@@ -753,6 +902,7 @@ export default function Page() {
                 <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-medium text-white hover:shadow-md transition-colors cursor-pointer">
                   <Send size={16} /> Gửi Zalo
                 </button>
+              </div>
               </div>
             </div>
           );

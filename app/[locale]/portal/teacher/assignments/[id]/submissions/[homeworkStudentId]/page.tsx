@@ -352,11 +352,7 @@ function mergeSubmissionDetail(
 function extractMultipleChoiceAnswers(detail?: SubmissionDetail | null): MultipleChoiceAnswerItem[] {
   if (!detail) return [];
 
-  // 1. Thử parse textAnswer như JSON array (format: [{"QuestionId":..., "SelectedOptionId":...}])
-  const fromTextAnswer = parseTextAnswerAsMC(detail.textAnswer);
-  if (fromTextAnswer.length > 0) return fromTextAnswer;
-
-  // 2. Thử các field array khác
+  // 1. Ưu tiên các field array có grading info (isCorrect, earnedPoints)
   const candidates = [
     detail.review?.answerResults,
     detail.answers,
@@ -367,7 +363,13 @@ function extractMultipleChoiceAnswers(detail?: SubmissionDetail | null): Multipl
   ];
 
   const raw = candidates.find((item) => Array.isArray(item));
-  if (!raw) return [];
+
+  // 2. Nếu không tìm thấy, fallback sang parse textAnswer
+  if (!raw) {
+    const fromTextAnswer = parseTextAnswerAsMC(detail.textAnswer);
+    if (fromTextAnswer.length > 0) return fromTextAnswer;
+    return [];
+  }
 
   return raw.map((item: any) => ({
     questionId: pickFirstDefined(item?.questionId, item?.QuestionId)?.toString(),
@@ -1039,10 +1041,11 @@ export default function TeacherSubmissionDetailPage() {
     const finalScore = isOverdueSubmission ? 0 : (editingScore !== "" ? parseFloat(editingScore) : null);
     const finalFeedback = isOverdueSubmission ? overdueFeedback : editingFeedback;
 
-    // For multiple choice, we only save feedback, not score
+    // For multiple choice, send calculated quiz score so BE doesn't reset to 0
     const payload = isMultipleChoiceSubmission
       ? {
           homeworkStudentId,
+          score: teacherQuizSummary.earnedPoints,
           teacherFeedback: finalFeedback,
         }
       : {
@@ -1070,12 +1073,18 @@ export default function TeacherSubmissionDetailPage() {
 
         return {
           ...merged,
+          // Preserve enriched quiz data from original fetch (grade response is raw/unenriched)
+          questions: prev?.questions ?? merged.questions,
+          review: prev?.review ?? merged.review,
+          answerResults: prev?.answerResults ?? merged.answerResults,
+          multipleChoiceAnswers: prev?.multipleChoiceAnswers ?? merged.multipleChoiceAnswers,
+          textAnswer: prev?.textAnswer ?? merged.textAnswer,
           status: updated?.status ?? merged.status ?? "Graded",
           score:
-            updated?.score !== undefined
-              ? updated.score
-              : isMultipleChoiceSubmission
-                ? merged.score
+            isMultipleChoiceSubmission
+              ? teacherQuizSummary.earnedPoints
+              : updated?.score !== undefined
+                ? updated.score
                 : (finalScore as number | null),
           teacherFeedback:
             updated?.teacherFeedback !== undefined
@@ -1093,7 +1102,7 @@ export default function TeacherSubmissionDetailPage() {
     } finally {
       setIsGrading(false);
     }
-  }, [homeworkStudentId, editingScore, editingFeedback, isMultipleChoiceSubmission, data]);
+  }, [homeworkStudentId, editingScore, editingFeedback, isMultipleChoiceSubmission, data, teacherQuizSummary]);
 
   const handleGenerateAIFeedback = useCallback(async () => {
     if (!homeworkStudentId) return;
@@ -1292,9 +1301,11 @@ export default function TeacherSubmissionDetailPage() {
           <div className="rounded-xl border border-gray-200 p-4">
             <div className="flex items-center gap-2 text-gray-500 mb-1"><FileText size={15} /> Điểm</div>
             <div className="font-bold text-emerald-600 text-lg">
-              {data.score !== null && data.score !== undefined ? data.score : (data.isOverdue ? 0 : "Chưa chấm")}
+              {isMultipleChoiceSubmission && teacherQuizSummary.totalPoints > 0
+                ? teacherQuizSummary.earnedPoints
+                : data.score !== null && data.score !== undefined ? data.score : (data.isOverdue ? 0 : "Chưa chấm")}
             </div>
-            <div className="text-xs text-gray-500">Tối đa: {data.maxScore ?? "-"}</div>
+            <div className="text-xs text-gray-500">Tối đa: {isMultipleChoiceSubmission && teacherQuizSummary.totalPoints > 0 ? teacherQuizSummary.totalPoints : (data.maxScore ?? "-")}</div>
           </div>
         </div>
       </div>
@@ -1406,15 +1417,17 @@ export default function TeacherSubmissionDetailPage() {
                                 item.correctOptionId
                               );
 
+                              const isSelectedAndCorrectFromAnswer = isSelected && item.isCorrect === true;
+
                               let optStyle = "border-gray-200";
                               let bgStyle = "";
                               if (isCorrectOpt || isCorrectAnswer) {
                                 optStyle = "border-emerald-500 bg-emerald-100";
                               }
-                              if (isSelected && !isCorrectOpt) {
+                              if (isSelected && !isCorrectOpt && !isSelectedAndCorrectFromAnswer) {
                                 optStyle = "border-red-500 bg-red-100";
                               }
-                              if (isSelected && (isCorrectOpt || isCorrectAnswer)) {
+                              if (isSelected && (isCorrectOpt || isCorrectAnswer || isSelectedAndCorrectFromAnswer)) {
                                 optStyle = "border-emerald-500 bg-emerald-100 font-semibold";
                               }
 
@@ -1426,7 +1439,7 @@ export default function TeacherSubmissionDetailPage() {
                                   <span className={isCorrectOpt || isCorrectAnswer ? "text-emerald-700" : "text-gray-700"}>
                                     {optionLabel}
                                   </span>
-                                  {isCorrectOpt || isCorrectAnswer ? (
+                                  {isCorrectOpt || isCorrectAnswer || isSelectedAndCorrectFromAnswer ? (
                                     <span className="ml-auto text-xs text-emerald-600 font-medium">Đáp án đúng</span>
                                   ) : isSelected ? (
                                     <span className="ml-auto text-xs text-red-600 font-medium">Đã chọn (sai)</span>

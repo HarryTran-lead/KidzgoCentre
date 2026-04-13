@@ -587,7 +587,7 @@ export default function LeaveRequestCreateModal({
           classId: formState.classId,
         });
 
-        const list = response?.sessions ?? response?.data?.sessions ?? [];
+        const list = response?.sessions ?? (response as any)?.data?.sessions ?? [];
         const filtered = Array.isArray(list)
           ? list.filter((session) => String(session.classId ?? "") === formState.classId)
           : [];

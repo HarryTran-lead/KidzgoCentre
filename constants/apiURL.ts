@@ -60,6 +60,9 @@ export const AUTH_ENDPOINTS = {
   SELECT_STUDENT: '/api/auth/profile/select-student',
   CHANGE_PIN: '/api/auth/change-pin',
   REQUEST_PIN_RESET: '/api/auth/profile/request-pin-reset',
+  REQUEST_PIN_RESET_ZALO_OTP: '/api/auth/profile/request-pin-reset-zalo-otp',
+  VERIFY_PIN_RESET_ZALO_OTP: '/api/auth/profile/verify-pin-reset-zalo-otp',
+  RESET_PIN: '/api/auth/reset-pin',
 
   // User
   ME: '/api/auth/me',
@@ -198,6 +201,9 @@ export const BACKEND_AUTH_ENDPOINTS = {
   SELECT_STUDENT: '/auth/profiles/select-student',
   CHANGE_PIN: '/auth/change-pin',
   REQUEST_PIN_RESET: '/auth/profiles/request-pin-reset',
+  REQUEST_PIN_RESET_ZALO_OTP: '/auth/profiles/request-pin-reset-zalo-otp',
+  VERIFY_PIN_RESET_ZALO_OTP: '/auth/profiles/verify-pin-reset-zalo-otp',
+  RESET_PIN: '/auth/reset-pin',
 
   // User
   ME: '/me',
@@ -637,6 +643,7 @@ export const BACKEND_TICKET_ENDPOINTS = {
 // File Endpoints (Client-side → Next.js API Routes)
 export const FILE_ENDPOINTS = {
   UPLOAD: '/api/files/upload',
+  AVATAR: '/api/files/avatar',
   DELETE: '/api/files',
   TRANSFORM: '/api/files/transform',
 } as const;
@@ -665,6 +672,7 @@ export const TEACHING_MATERIALS_ENDPOINTS = {
 // Backend File Endpoints (Next.js API Routes → Backend API)
 export const BACKEND_FILE_ENDPOINTS = {
   UPLOAD: '/files/upload',
+  AVATAR: '/files/avatar',
   DELETE: '/files',
   TRANSFORM: '/files/transform',
 } as const;
