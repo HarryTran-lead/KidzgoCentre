@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDashboardOverall } from "@/lib/api/dashboardService";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { usePageI18n } from "@/hooks/usePageI18n";
 import type { DashboardOverallResponse } from "@/types/dashboard";
 import { DashboardPage } from "@/components/admin/dashboard";
 import { BarChart3, Sparkles, Calendar, Download, MoreVertical } from "lucide-react";
 
 export default function Page() {
+  const { messages } = usePageI18n();
+  const t = messages.adminPages.dashboard;
   const { selectedBranchId } = useBranchFilter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,11 +58,11 @@ export default function Page() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                Tổng quan vận hành
+                {t.header.title}
               </h1>
               <p className="text-gray-600 mt-1 flex items-center gap-2">
                 <Sparkles size={14} className="text-red-600" />
-                Dữ liệu thời gian thực về lead, học viên, doanh thu và hiệu suất
+                {t.header.subtitle}
               </p>
             </div>
           </div>
@@ -67,14 +70,14 @@ export default function Page() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl">
               <Calendar size={16} className="text-red-600" />
-              <span className="text-sm font-medium text-gray-700">Tháng {new Date().getMonth() + 1}/{new Date().getFullYear()}</span>
+              <span className="text-sm font-medium text-gray-700">{t.header.month} {new Date().getMonth() + 1}/{new Date().getFullYear()}</span>
             </div>
             <button 
               onClick={() => fetchDashboard()}
               className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all cursor-pointer flex items-center gap-2"
             >
               <Download size={16} />
-              Làm mới dữ liệu
+              {t.header.refreshData}
             </button>
             <button className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
               <MoreVertical size={20} className="text-gray-600" />
