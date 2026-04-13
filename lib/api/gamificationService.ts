@@ -14,8 +14,11 @@ import type {
   LevelInfo,
   Mission,
   MissionListParams,
+  MissionProgress,
   MissionProgressParams,
   MissionProgressResponse,
+  MyMissionProgressItem,
+  MyMissionProgressResponse,
   PaginatedItems,
   RedemptionStatus,
   RewardRedemption,
@@ -110,6 +113,42 @@ function normalizeMission(source: unknown): Mission {
   return (payload?.mission ?? payload) as Mission;
 }
 
+function normalizeMissionProgressItem(source: unknown): MissionProgress {
+  const payload = source as AnyRecord;
+  const totalRequired = Number(payload?.totalRequired ?? 0);
+  const progressValue = Number(payload?.progressValue ?? 0);
+  const progressPercentage = Number(payload?.progressPercentage ?? 0);
+
+  return {
+    ...(payload as MissionProgress),
+    progressValue: Number.isFinite(progressValue) ? progressValue : 0,
+    totalRequired: Number.isFinite(totalRequired) ? totalRequired : undefined,
+    progressPercentage: Number.isFinite(progressPercentage)
+      ? progressPercentage
+      : undefined,
+  };
+}
+
+function normalizeMyMissionProgressItem(source: unknown): MyMissionProgressItem {
+  const payload = source as AnyRecord;
+  const totalRequired = Number(payload?.totalRequired ?? 0);
+  const progressValue = Number(payload?.progressValue ?? 0);
+  const progressPercentage = Number(payload?.progressPercentage ?? 0);
+  const rewardStars = Number(payload?.rewardStars ?? 0);
+  const rewardExp = Number(payload?.rewardExp ?? 0);
+
+  return {
+    ...(payload as MyMissionProgressItem),
+    progressValue: Number.isFinite(progressValue) ? progressValue : 0,
+    totalRequired: Number.isFinite(totalRequired) ? totalRequired : undefined,
+    progressPercentage: Number.isFinite(progressPercentage)
+      ? progressPercentage
+      : undefined,
+    rewardStars: Number.isFinite(rewardStars) ? rewardStars : 0,
+    rewardExp: Number.isFinite(rewardExp) ? rewardExp : 0,
+  };
+}
+
 function normalizeRewardStoreItem(source: unknown): RewardStoreItem {
   const payload = unwrapData<AnyRecord>(source);
   return (payload?.item ?? payload) as RewardStoreItem;
@@ -117,7 +156,15 @@ function normalizeRewardStoreItem(source: unknown): RewardStoreItem {
 
 function normalizeRewardRedemption(source: unknown): RewardRedemption {
   const payload = unwrapData<AnyRecord>(source);
-  return (payload?.redemption ?? payload) as RewardRedemption;
+  const data = (payload?.redemption ?? payload) as RewardRedemption & {
+    cancelReason?: string | null;
+  };
+
+  return {
+    ...data,
+    cancellationReason:
+      data.cancellationReason ?? data.cancelReason ?? null,
+  };
 }
 
 function normalizeStarBalance(source: unknown): StarBalance {
@@ -288,10 +335,32 @@ export async function getMissionProgress(
     params: cleanParams(params),
   });
   const payload = unwrapData<AnyRecord>(response);
+  const progresses = normalizePaged<MissionProgress>(payload, ["progresses"]);
 
   return {
     mission: payload?.mission,
-    progresses: normalizePaged(payload, ["progresses"]),
+    progresses: {
+      ...progresses,
+      items: progresses.items.map(normalizeMissionProgressItem),
+    },
+  };
+}
+
+export async function getMyMissionProgress(
+  params: { pageNumber?: number; pageSize?: number } = {}
+): Promise<MyMissionProgressResponse> {
+  const response = await get<any>(MISSION_ENDPOINTS.ME_PROGRESS, {
+    params: cleanParams(params),
+  });
+  const payload = unwrapData<AnyRecord>(response);
+  const missions = normalizePaged<MyMissionProgressItem>(payload, ["missions"]);
+
+  return {
+    studentProfileId: String(payload?.studentProfileId ?? ""),
+    missions: {
+      ...missions,
+      items: missions.items.map(normalizeMyMissionProgressItem),
+    },
   };
 }
 

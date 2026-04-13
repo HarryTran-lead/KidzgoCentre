@@ -99,6 +99,7 @@ export const MISSION_ENDPOINTS = {
   BASE: "/api/missions",
   BY_ID: (id: string) => `/api/missions/${id}`,
   PROGRESS: (id: string) => `/api/missions/${id}/progress`,
+  ME_PROGRESS: "/api/missions/me/progress",
 } as const;
 
 export const GAMIFICATION_ENDPOINTS = {
