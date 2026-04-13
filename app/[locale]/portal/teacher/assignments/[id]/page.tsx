@@ -27,21 +27,38 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-import { fetchHomeworkDetail, fetchHomeworkSubmissions } from "@/lib/api/homeworkService";
+import {
+  fetchHomeworkDetail,
+  fetchHomeworkSubmissions,
+} from "@/lib/api/homeworkService";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import type {
   HomeworkSubmission,
   HomeworkSubmissionItem,
   SubmissionStatusFromApi,
 } from "@/types/teacher/homework";
 
-type SubmissionStatusUi = "ASSIGNED" | "SUBMITTED" | "GRADED" | "LATE" | "MISSING";
+type SubmissionStatusUi =
+  | "ASSIGNED"
+  | "SUBMITTED"
+  | "GRADED"
+  | "LATE"
+  | "MISSING";
 
 function mapApiStatusToUi(
   apiStatus: string,
   dueAt: string,
-  submittedAt: string | null
+  submittedAt: string | null,
 ): SubmissionStatusUi {
-  const normalizedStatus = String(apiStatus || "").trim() as SubmissionStatusFromApi;
+  const normalizedStatus = String(
+    apiStatus || "",
+  ).trim() as SubmissionStatusFromApi;
 
   if (
     normalizedStatus === "Assigned" &&
@@ -67,48 +84,51 @@ function mapApiStatusToUi(
   }
 }
 
-const STATUS_CONFIG: Record<SubmissionStatusUi, {
-  text: string;
-  icon: any;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-}> = {
+const STATUS_CONFIG: Record<
+  SubmissionStatusUi,
+  {
+    text: string;
+    icon: any;
+    color: string;
+    bgColor: string;
+    borderColor: string;
+  }
+> = {
   ASSIGNED: {
     text: "Chờ chấm",
     icon: Clock,
     color: "text-amber-600",
     bgColor: "bg-gradient-to-r from-amber-50 to-orange-50",
-    borderColor: "border-amber-200"
+    borderColor: "border-amber-200",
   },
   SUBMITTED: {
     text: "Đã gửi",
     icon: UploadCloud,
     color: "text-sky-600",
     bgColor: "bg-gradient-to-r from-sky-50 to-blue-50",
-    borderColor: "border-sky-200"
+    borderColor: "border-sky-200",
   },
   GRADED: {
     text: "Đã phản hồi",
     icon: CheckCircle,
     color: "text-emerald-600",
     bgColor: "bg-gradient-to-r from-emerald-50 to-teal-50",
-    borderColor: "border-emerald-200"
+    borderColor: "border-emerald-200",
   },
   LATE: {
     text: "Nộp trễ",
     icon: AlertCircle,
     color: "text-yellow-700",
     bgColor: "bg-gradient-to-r from-yellow-50 to-amber-50",
-    borderColor: "border-yellow-200"
+    borderColor: "border-yellow-200",
   },
   MISSING: {
     text: "Quá hạn",
     icon: AlertCircle,
     color: "text-red-600",
     bgColor: "bg-gradient-to-r from-red-50 to-red-100",
-    borderColor: "border-red-200"
-  }
+    borderColor: "border-red-200",
+  },
 };
 
 STATUS_CONFIG.ASSIGNED.text = "Đã giao";
@@ -123,7 +143,7 @@ function SortableHeader<T extends string>({
   column,
   sortColumn,
   sortDirection,
-  onSort
+  onSort,
 }: {
   label: string;
   column: T;
@@ -158,13 +178,15 @@ function StudentAvatar({ name = "", color }: { name?: string; color: string }) {
   const initials = name
     .split(" ")
     .filter(Boolean)
-    .map(word => word[0])
+    .map((word) => word[0])
     .slice(-2)
     .join("")
     .toUpperCase();
 
   return (
-    <div className={`flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-r ${color} text-white font-bold text-sm`}>
+    <div
+      className={`flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-r ${color} text-white font-bold text-sm`}
+    >
       {initials || "NA"}
     </div>
   );
@@ -176,7 +198,7 @@ function StatusBadge({ status }: { status: SubmissionStatusUi }) {
     bgColor: "bg-gray-100",
     borderColor: "border-gray-200",
     color: "text-gray-600",
-    text: "Unknown"
+    text: "Unknown",
   };
 
   const Icon = config.icon;
@@ -236,8 +258,13 @@ function Pagination({
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Left: Info */}
         <div className="text-sm text-gray-600">
-          Hiển thị <span className="font-semibold text-gray-900">{startIndex + 1}-{Math.min(endIndex, totalItems)}</span> trong tổng số{" "}
-          <span className="font-semibold text-gray-900">{totalItems}</span> bài nộp
+          Hiển thị{" "}
+          <span className="font-semibold text-gray-900">
+            {startIndex + 1}-{Math.min(endIndex, totalItems)}
+          </span>{" "}
+          trong tổng số{" "}
+          <span className="font-semibold text-gray-900">{totalItems}</span> bài
+          nộp
         </div>
 
         {/* Right: Pagination Buttons */}
@@ -261,8 +288,8 @@ function Pagination({
                   page === currentPage
                     ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
                     : page === "..."
-                    ? "cursor-default text-gray-400"
-                    : "border border-red-200 hover:bg-red-50 text-gray-700"
+                      ? "cursor-default text-gray-400"
+                      : "border border-red-200 hover:bg-red-50 text-gray-700"
                 }`}
               >
                 {page}
@@ -296,9 +323,13 @@ export default function HomeworkDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<SubmissionStatusUi | "ALL">("ALL");
+  const [filterStatus, setFilterStatus] = useState<SubmissionStatusUi | "ALL">(
+    "ALL",
+  );
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortColumn, setSortColumn] = useState<"student" | "submittedAt" | "score">("student");
+  const [sortColumn, setSortColumn] = useState<
+    "student" | "submittedAt" | "score"
+  >("student");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const recordsPerPage = 10;
@@ -319,7 +350,7 @@ export default function HomeworkDetailPage() {
 
       if (result.ok && result.data) {
         setHomework(result.data);
-      }else {
+      } else {
         setError(result.error || "Không thể tải thông tin bài tập");
       }
     } catch (err) {
@@ -331,32 +362,36 @@ export default function HomeworkDetailPage() {
   }, [homeworkId]);
 
   // Fetch all submissions for this homework using /api/homework/submissions
-  const loadSubmissions = useCallback(async (classId?: string) => {
-    if (!homeworkId) return;
+  const loadSubmissions = useCallback(
+    async (classId?: string) => {
+      if (!homeworkId) return;
 
-    setIsLoadingSubmissions(true);
+      setIsLoadingSubmissions(true);
 
-    try {
-      // Use the submissions API - filter by homeworkAssignmentId on client side
-      const result = await fetchHomeworkSubmissions({
-        classId,
-        pageNumber: 1,
-        pageSize: 100,
-      });
+      try {
+        // Use the submissions API - filter by homeworkAssignmentId on client side
+        const result = await fetchHomeworkSubmissions({
+          classId,
+          pageNumber: 1,
+          pageSize: 100,
+        });
 
-      if (result.ok && result.data) {
-        // Filter submissions for this specific homework assignment
-        const filtered = result.data.filter(
-          (sub) => sub.homeworkAssignmentId === homeworkId || sub.id === homeworkId
-        );
-        setSubmissions(filtered);
+        if (result.ok && result.data) {
+          // Filter submissions for this specific homework assignment
+          const filtered = result.data.filter(
+            (sub) =>
+              sub.homeworkAssignmentId === homeworkId || sub.id === homeworkId,
+          );
+          setSubmissions(filtered);
+        }
+      } catch (err) {
+        console.error("Error loading submissions:", err);
+      } finally {
+        setIsLoadingSubmissions(false);
       }
-    } catch (err) {
-      console.error("Error loading submissions:", err);
-    } finally {
-      setIsLoadingSubmissions(false);
-    }
-  }, [homeworkId]);
+    },
+    [homeworkId],
+  );
 
   useEffect(() => {
     loadHomeworkDetail();
@@ -383,16 +418,20 @@ export default function HomeworkDetailPage() {
     let result = [...submissions];
 
     if (filterStatus !== "ALL") {
-      result = result.filter(sub => {
-        const uiStatus = mapApiStatusToUi(sub.status, sub.dueAt, sub.submittedAt);
+      result = result.filter((sub) => {
+        const uiStatus = mapApiStatusToUi(
+          sub.status,
+          sub.dueAt,
+          sub.submittedAt,
+        );
         return uiStatus === filterStatus;
       });
     }
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(sub =>
-        sub.studentName?.toLowerCase().includes(query)
+      result = result.filter((sub) =>
+        sub.studentName?.toLowerCase().includes(query),
       );
     }
 
@@ -420,11 +459,21 @@ export default function HomeworkDetailPage() {
 
   const stats = useMemo(() => {
     const total = submissions.length;
-    const assigned = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "ASSIGNED").length;
-    const submitted = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "SUBMITTED").length;
-    const graded = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "GRADED").length;
-    const late = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "LATE").length;
-    const missing = submissions.filter(s => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "MISSING").length;
+    const assigned = submissions.filter(
+      (s) => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "ASSIGNED",
+    ).length;
+    const submitted = submissions.filter(
+      (s) => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "SUBMITTED",
+    ).length;
+    const graded = submissions.filter(
+      (s) => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "GRADED",
+    ).length;
+    const late = submissions.filter(
+      (s) => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "LATE",
+    ).length;
+    const missing = submissions.filter(
+      (s) => mapApiStatusToUi(s.status, s.dueAt, s.submittedAt) === "MISSING",
+    ).length;
 
     return { total, assigned, submitted, graded, late, missing };
   }, [submissions]);
@@ -466,7 +515,10 @@ export default function HomeworkDetailPage() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={48} className="animate-spin mx-auto text-red-600 mb-4" />
+          <Loader2
+            size={48}
+            className="animate-spin mx-auto text-red-600 mb-4"
+          />
           <p className="text-gray-600">Đang tải thông tin bài tập...</p>
         </div>
       </div>
@@ -480,8 +532,12 @@ export default function HomeworkDetailPage() {
           <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
             <AlertCircle size={32} className="text-red-600" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Không thể tải dữ liệu</h2>
-          <p className="text-gray-600 mb-4">{error || "Không tìm thấy bài tập"}</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Không thể tải dữ liệu
+          </h2>
+          <p className="text-gray-600 mb-4">
+            {error || "Không tìm thấy bài tập"}
+          </p>
           <button
             onClick={() => router.push("/vi/portal/teacher/assignments")}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
@@ -505,13 +561,11 @@ export default function HomeworkDetailPage() {
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
               Chi tiết bài tập
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              {homework.title}
-            </p>
+            <p className="text-sm text-gray-600 mt-1">{homework.title}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button 
+          <button
             onClick={() => router.push("/vi/portal/teacher/assignments")}
             className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer"
           >
@@ -535,7 +589,9 @@ export default function HomeworkDetailPage() {
                 <BookOpen size={24} />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{homework.title}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {homework.title}
+                </h1>
                 <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mt-1">
                   <div className="flex items-center gap-1.5">
                     <Users size={16} className="text-red-600" />
@@ -556,28 +612,36 @@ export default function HomeworkDetailPage() {
                 <Calendar size={16} className="text-red-600" />
                 <div>
                   <div className="text-xs text-gray-500">Ngày giao</div>
-                  <div className="font-medium text-gray-900">{formatDateTime(homework.createdAt)}</div>
+                  <div className="font-medium text-gray-900">
+                    {formatDateTime(homework.createdAt)}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-gray-600">
                 <Clock size={16} className="text-red-600" />
                 <div>
                   <div className="text-xs text-gray-500">Hạn nộp</div>
-                  <div className="font-medium text-gray-900">{formatDueAtVn(homework.dueAt)}</div>
+                  <div className="font-medium text-gray-900">
+                    {formatDueAtVn(homework.dueAt)}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-gray-600">
                 <FileText size={16} className="text-red-600" />
                 <div>
                   <div className="text-xs text-gray-500">Điểm tối đa</div>
-                  <div className="font-medium text-gray-900">{homework.maxScore || 10}</div>
+                  <div className="font-medium text-gray-900">
+                    {homework.maxScore || 10}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-gray-600">
                 <Users size={16} className="text-red-600" />
                 <div>
                   <div className="text-xs text-gray-500">Tổng nộp</div>
-                  <div className="font-medium text-gray-900">{submissions.length} bài</div>
+                  <div className="font-medium text-gray-900">
+                    {submissions.length} bài
+                  </div>
                 </div>
               </div>
             </div>
@@ -587,324 +651,430 @@ export default function HomeworkDetailPage() {
         {/* Description & Skills */}
         {(homework.description || homework.skills) && (
           <div className="mt-6 pt-6 border-t border-red-200">
-              {homework.description && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <FileText size={16} />
-                    Mô tả bài tập
-                  </h3>
-                  <p className="text-gray-600 text-sm whitespace-pre-wrap">{homework.description}</p>
-                </div>
-              )}
-              {homework.skills && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Kỹ năng</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {homework.skills.split(",").map((skill, idx) => (
-                      <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-                        {skill.trim()}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-red-500 to-red-700`}></div>
-            <div className="relative flex items-center justify-between gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-red-500 to-red-700 text-white shadow-sm flex-shrink-0">
-                <Users size={20} />
+            {homework.description && (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <FileText size={16} />
+                  Mô tả bài tập
+                </h3>
+                <p className="text-gray-600 text-sm whitespace-pre-wrap">
+                  {homework.description}
+                </p>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-gray-600 truncate">Tổng</div>
-                <div className="text-xl font-bold text-gray-900 leading-tight">{stats.total}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white to-sky-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-sky-500 to-blue-600`}></div>
-            <div className="relative flex items-center justify-between gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-sm flex-shrink-0">
-                <UploadCloud size={20} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-sky-600 truncate">Đã nộp</div>
-                <div className="text-xl font-bold text-sky-600 leading-tight">{stats.submitted}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl border border-amber-100 bg-gradient-to-br from-white to-amber-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-amber-500 to-orange-600`}></div>
-            <div className="relative flex items-center justify-between gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm flex-shrink-0">
-                <Clock size={20} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-amber-600 truncate">Đã giao</div>
-                <div className="text-xl font-bold text-amber-600 leading-tight">{stats.assigned}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-emerald-500 to-teal-600`}></div>
-            <div className="relative flex items-center justify-between gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm flex-shrink-0">
-                <CheckCircle size={20} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-emerald-600 truncate">Đã chấm</div>
-                <div className="text-xl font-bold text-emerald-600 leading-tight">{stats.graded}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-red-500 to-red-700`}></div>
-            <div className="relative flex items-center justify-between gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-red-500 to-red-700 text-white shadow-sm flex-shrink-0">
-                <AlertCircle size={20} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-red-600 truncate">Thiếu bài</div>
-                <div className="text-xl font-bold text-red-600 leading-tight">{stats.missing}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Submissions Table */}
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
-          {/* Table Header */}
-          <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Users size={20} className="text-red-600" />
-                Danh sách nộp bài
-              </h2>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">{filteredSubmissions.length} bài nộp</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Filter Bar */}
-          <div className="px-6 py-4 border-b border-red-200 bg-white">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
-                {[
-                  { k: 'ALL', label: 'Tất cả', count: submissions.length },
-                  { k: 'SUBMITTED', label: 'Đã nộp', count: stats.submitted },
-                  { k: 'ASSIGNED', label: 'Đã giao', count: stats.assigned },
-                  { k: 'GRADED', label: 'Đã chấm', count: stats.graded },
-                  { k: 'LATE', label: 'Nộp trễ', count: stats.late },
-                  { k: 'MISSING', label: 'Thiếu bài', count: stats.missing },
-                ].map((item) => (
-                  <button
-                    key={item.k}
-                    onClick={() => {
-                      setFilterStatus(item.k as SubmissionStatusUi | "ALL");
-                      setCurrentPage(1);
-                    }}
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${
-                      filterStatus === item.k
-                        ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
-                        : 'text-gray-700 hover:bg-red-50'
-                    }`}
-                  >
-                    {item.label}
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      filterStatus === item.k ? 'bg-white/20' : 'bg-gray-100'
-                    }`}>
-                      {item.count}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="relative ml-auto">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
-                  placeholder="Tìm kiếm học viên..."
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
-                <tr>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    <SortableHeader
-                      label="Học viên"
-                      column="student"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={handleSort}
-                    />
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    <SortableHeader
-                      label="Ngày nộp"
-                      column="submittedAt"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={handleSort}
-                    />
-                  </th>
-                  {homework.submissionType !== "MULTIPLE_CHOICE" && (
-                    <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Phản hồi</th>
-                  )}
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    <SortableHeader
-                      label="Điểm"
-                      column="score"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={handleSort}
-                    />
-                  </th>
-                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Thao tác</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-red-100">
-                {isLoadingSubmissions ? (
-                  <tr>
-                    <td colSpan={homework.submissionType === "MULTIPLE_CHOICE" ? 5 : 6} className="py-12 text-center">
-                      <Loader2 size={32} className="animate-spin mx-auto text-red-600 mb-4" />
-                      <p className="text-gray-600">Đang tải danh sách nộp bài...</p>
-                    </td>
-                  </tr>
-                ) : paginatedSubmissions.length > 0 ? (
-                  paginatedSubmissions.map((submission, index) => (
-                    <tr
-                      key={submission.id}
-                      className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
+            )}
+            {homework.skills && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                  Kỹ năng
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {homework.skills.split(",").map((skill, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
                     >
-                      {/* Student Info */}
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <StudentAvatar name={submission.studentName || ""} color={getAvatarColor(index)} />
-                          <div>
-                            <div className="font-medium text-gray-900">{submission.studentName || "Chưa có tên"}</div>
-                            <div className="text-xs text-gray-500">{submission.studentProfileId?.slice(0, 8) || "-"}</div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-4 px-6">
-                        <StatusBadge status={mapApiStatusToUi(submission.status, submission.dueAt, submission.submittedAt)} />
-                      </td>
-
-                      {/* Submitted At */}
-                      <td className="py-4 px-6 text-sm text-gray-900">
-                        {formatDateTime(submission.submittedAt || undefined)}
-                      </td>
-
-                      {/* Attachments - hidden for multiple choice */}
-                      {homework.submissionType !== "MULTIPLE_CHOICE" && (
-                        <td className="py-4 px-6">
-                          {submission.teacherFeedback ? (
-                            <span className="text-sm text-gray-500 italic">Có phản hồi</span>
-                          ) : (
-                            <span className="text-gray-400 text-sm">-</span>
-                          )}
-                        </td>
-                      )}
-
-                      {/* Score */}
-                      <td className="py-4 px-6">
-                        {(() => {
-                          const status = mapApiStatusToUi(submission.status, submission.dueAt, submission.submittedAt);
-                          const isMissingSubmission = status === "MISSING" && submission.submittedAt === null;
-                          const displayScore = isMissingSubmission ? 0 : submission.score;
-                          if (displayScore !== null && displayScore !== undefined) {
-                            return (
-                              <div className="flex items-center gap-1">
-                                <span className={`text-lg font-bold ${isMissingSubmission ? "text-red-500" : "text-emerald-600"}`}>{displayScore}</span>
-                                <span className="text-gray-400 text-sm">/ {homework.maxScore || 10}</span>
-                              </div>
-                            );
-                          }
-                          return <span className="text-gray-400 text-sm">Chưa chấm</span>;
-                        })()}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => router.push(`/${String(params.locale || "vi")}/portal/teacher/assignments/${homeworkId}/submissions/${submission.id}`)}
-                            className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                            title="Xem chi tiết"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            className="p-2 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
-                            title="Tải xuống"
-                          >
-                            <Download size={16} />
-                          </button>
-                          <button
-                            className="p-2 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
-                            title="Gửi phản hồi"
-                          >
-                            <MessageSquare size={16} />
-                          </button>
-                          <button
-                            className="p-2 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
-                            title="Chấm điểm"
-                          >
-                            <Award size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={homework.submissionType === "MULTIPLE_CHOICE" ? 5 : 6} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
-                        <Search size={24} className="text-red-400" />
-                      </div>
-                      <div className="text-gray-600 font-medium">Không tìm thấy bài nộp</div>
-                      <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      {skill.trim()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+        )}
+      </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              totalItems={filteredSubmissions.length}
-              startIndex={(currentPage - 1) * recordsPerPage}
-              endIndex={(currentPage - 1) * recordsPerPage + paginatedSubmissions.length}
-            />
-          )}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+          <div
+            className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-red-500 to-red-700`}
+          ></div>
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-red-500 to-red-700 text-white shadow-sm flex-shrink-0">
+              <Users size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-gray-600 truncate">
+                Tổng
+              </div>
+              <div className="text-xl font-bold text-gray-900 leading-tight">
+                {stats.total}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white to-sky-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+          <div
+            className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-sky-500 to-blue-600`}
+          ></div>
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-sm flex-shrink-0">
+              <UploadCloud size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-sky-600 truncate">
+                Đã nộp
+              </div>
+              <div className="text-xl font-bold text-sky-600 leading-tight">
+                {stats.submitted}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-amber-100 bg-gradient-to-br from-white to-amber-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+          <div
+            className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-amber-500 to-orange-600`}
+          ></div>
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm flex-shrink-0">
+              <Clock size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-amber-600 truncate">
+                Đã giao
+              </div>
+              <div className="text-xl font-bold text-amber-600 leading-tight">
+                {stats.assigned}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+          <div
+            className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-emerald-500 to-teal-600`}
+          ></div>
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm flex-shrink-0">
+              <CheckCircle size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-emerald-600 truncate">
+                Đã chấm
+              </div>
+              <div className="text-xl font-bold text-emerald-600 leading-tight">
+                {stats.graded}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+          <div
+            className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl from-red-500 to-red-700`}
+          ></div>
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-red-500 to-red-700 text-white shadow-sm flex-shrink-0">
+              <AlertCircle size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-red-600 truncate">
+                Thiếu bài
+              </div>
+              <div className="text-xl font-bold text-red-600 leading-tight">
+                {stats.missing}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Filter Bar */}
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[250px]">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-10 w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+              placeholder="Tìm kiếm học viên..."
+            />
+          </div>
+
+          {/* Status Filter Select */}
+          <Select
+            value={filterStatus}
+            onValueChange={(value) => {
+              setFilterStatus(value as SubmissionStatusUi | "ALL");
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-56 border-red-200 focus:ring-red-200">
+              <SelectValue placeholder="Lọc theo trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả ({submissions.length})</SelectItem>
+              <SelectItem value="SUBMITTED">
+                Đã nộp ({stats.submitted})
+              </SelectItem>
+              <SelectItem value="ASSIGNED">
+                Đã giao ({stats.assigned})
+              </SelectItem>
+              <SelectItem value="GRADED">Đã chấm ({stats.graded})</SelectItem>
+              <SelectItem value="LATE">Nộp trễ ({stats.late})</SelectItem>
+              <SelectItem value="MISSING">
+                Thiếu bài ({stats.missing})
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Submissions Table */}
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+        {/* Table Header */}
+        <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Users size={20} className="text-red-600" />
+              Danh sách nộp bài
+            </h2>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="font-medium">
+                {filteredSubmissions.length} bài nộp
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
+              <tr>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  <SortableHeader
+                    label="Học viên"
+                    column="student"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                </th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  Trạng thái
+                </th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  <SortableHeader
+                    label="Ngày nộp"
+                    column="submittedAt"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                </th>
+                {homework.submissionType !== "MULTIPLE_CHOICE" && (
+                  <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                    Phản hồi
+                  </th>
+                )}
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  <SortableHeader
+                    label="Điểm"
+                    column="score"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                </th>
+                <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-red-100">
+              {isLoadingSubmissions ? (
+                <tr>
+                  <td
+                    colSpan={
+                      homework.submissionType === "MULTIPLE_CHOICE" ? 5 : 6
+                    }
+                    className="py-12 text-center"
+                  >
+                    <Loader2
+                      size={32}
+                      className="animate-spin mx-auto text-red-600 mb-4"
+                    />
+                    <p className="text-gray-600">
+                      Đang tải danh sách nộp bài...
+                    </p>
+                  </td>
+                </tr>
+              ) : paginatedSubmissions.length > 0 ? (
+                paginatedSubmissions.map((submission, index) => (
+                  <tr
+                    key={submission.id}
+                    className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
+                  >
+                    {/* Student Info */}
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <StudentAvatar
+                          name={submission.studentName || ""}
+                          color={getAvatarColor(index)}
+                        />
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {submission.studentName || "Chưa có tên"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {submission.studentProfileId?.slice(0, 8) || "-"}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td className="py-4 px-6">
+                      <StatusBadge
+                        status={mapApiStatusToUi(
+                          submission.status,
+                          submission.dueAt,
+                          submission.submittedAt,
+                        )}
+                      />
+                    </td>
+
+                    {/* Submitted At */}
+                    <td className="py-4 px-6 text-sm text-gray-900">
+                      {formatDateTime(submission.submittedAt || undefined)}
+                    </td>
+
+                    {/* Attachments - hidden for multiple choice */}
+                    {homework.submissionType !== "MULTIPLE_CHOICE" && (
+                      <td className="py-4 px-6">
+                        {submission.teacherFeedback ? (
+                          <span className="text-sm text-gray-500 italic">
+                            Có phản hồi
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
+                      </td>
+                    )}
+
+                    {/* Score */}
+                    <td className="py-4 px-6">
+                      {(() => {
+                        const status = mapApiStatusToUi(
+                          submission.status,
+                          submission.dueAt,
+                          submission.submittedAt,
+                        );
+                        const isMissingSubmission =
+                          status === "MISSING" &&
+                          submission.submittedAt === null;
+                        const displayScore = isMissingSubmission
+                          ? 0
+                          : submission.score;
+                        if (
+                          displayScore !== null &&
+                          displayScore !== undefined
+                        ) {
+                          return (
+                            <div className="flex items-center gap-1">
+                              <span
+                                className={`text-lg font-bold ${isMissingSubmission ? "text-red-500" : "text-emerald-600"}`}
+                              >
+                                {displayScore}
+                              </span>
+                              <span className="text-gray-400 text-sm">
+                                / {homework.maxScore || 10}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <span className="text-gray-400 text-sm">
+                            Chưa chấm
+                          </span>
+                        );
+                      })()}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() =>
+                            router.push(
+                              `/${String(params.locale || "vi")}/portal/teacher/assignments/${homeworkId}/submissions/${submission.id}`,
+                            )
+                          }
+                          className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          title="Xem chi tiết"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          className="p-2 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
+                          title="Tải xuống"
+                        >
+                          <Download size={16} />
+                        </button>
+                        <button
+                          className="p-2 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
+                          title="Gửi phản hồi"
+                        >
+                          <MessageSquare size={16} />
+                        </button>
+                        <button
+                          className="p-2 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
+                          title="Chấm điểm"
+                        >
+                          <Award size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={
+                      homework.submissionType === "MULTIPLE_CHOICE" ? 5 : 6
+                    }
+                    className="py-12 text-center"
+                  >
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
+                      <Search size={24} className="text-red-400" />
+                    </div>
+                    <div className="text-gray-600 font-medium">
+                      Không tìm thấy bài nộp
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filteredSubmissions.length}
+            startIndex={(currentPage - 1) * recordsPerPage}
+            endIndex={
+              (currentPage - 1) * recordsPerPage + paginatedSubmissions.length
+            }
+          />
+        )}
+      </div>
+    </div>
   );
 }
