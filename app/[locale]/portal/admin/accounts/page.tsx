@@ -7,6 +7,7 @@ import AccountDetailModal from "@/components/admin/accounts/AccountDetailModal";
 import AccountFormModal from "@/components/admin/accounts/AccountFormModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { toast } from "@/hooks/use-toast";
+import { usePageI18n } from "@/hooks/usePageI18n";
 
 // Import Profile Management Components
 import {  
@@ -170,46 +171,39 @@ const getAccountCounts = (items: Account[]) => ({
 });
 
 
-const ROLE_INFO: Record<Role, {
-  label: string;
+const ROLE_INFO_STATIC: Record<Role, {
   cls: string;
   bg: string;
   icon: React.ReactNode;
 }> = {
   Admin: {
-    label: "Quản trị",
     cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
     bg: "from-red-400 to-red-700",
     icon: <ShieldCheck size={12} />
   },
   Teacher: {
-    label: "Giáo viên",
     cls: "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200",
     bg: "from-blue-400 to-cyan-500",
     icon: <UserIcon size={12} />
   },
   Parent: {
-    label: "Phụ huynh",
     cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
     bg: "from-emerald-400 to-teal-500",
     icon: <Users size={12} />
   },
   ManagementStaff: {
-    label: "Nhân viên quản lý",
     cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
     bg: "from-amber-400 to-orange-500",
     icon: <UserIcon size={12} />
   },
 };
 
-const STATUS_INFO = {
+const STATUS_INFO_STATIC = {
   active: {
-    label: "Đang hoạt động",
     cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
     icon: <CheckCircle size={12} />
   },
   inactive: {
-    label: "Tạm khóa",
     cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
     icon: <XCircle size={12} />
   },
@@ -262,8 +256,8 @@ function Avatar({ name, color }: { name: string; color: string }) {
   );
 }
 
-function RoleBadge({ role }: { role: Role }) {
-  const roleInfo = ROLE_INFO[role];
+function RoleBadge({ role, roleLabel }: { role: Role; roleLabel: string }) {
+  const roleInfo = ROLE_INFO_STATIC[role];
   
   // Safety check: if role is not found, use a default
   if (!roleInfo) {
@@ -275,33 +269,34 @@ function RoleBadge({ role }: { role: Role }) {
     );
   }
   
-  const { label, cls, icon } = roleInfo;
+  const { cls, icon } = roleInfo;
   return (
     <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
       {icon}
-      <span>{label}</span>
+      <span>{roleLabel}</span>
     </div>
   );
 }
 
-function StatusBadge({ isActive }: { isActive: boolean }) {
-  const { label, cls, icon } = isActive ? STATUS_INFO.active : STATUS_INFO.inactive;
+function StatusBadge({ isActive, statusLabel }: { isActive: boolean; statusLabel: string }) {
+  const statusInfo = isActive ? STATUS_INFO_STATIC.active : STATUS_INFO_STATIC.inactive;
+  const { cls, icon } = statusInfo;
   return (
     <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
       {icon}
-      <span>{label}</span>
+      <span>{statusLabel}</span>
     </div>
   );
 }
 
-function TwoFactorBadge({ enabled }: { enabled: boolean }) {
+function TwoFactorBadge({ enabled, enabledLabel, disabledLabel }: { enabled: boolean; enabledLabel: string; disabledLabel: string }) {
   return (
     <div className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium ${enabled
       ? 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200'
       : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200'
       }`}>
       {enabled ? <ShieldCheck size={10} /> : <XCircle size={10} />}
-      <span>{enabled ? 'Bật 2FA' : 'Chưa bật'}</span>
+      <span>{enabled ? enabledLabel : disabledLabel}</span>
     </div>
   );
 }
@@ -326,6 +321,22 @@ const formatDateTime = (dateString?: string): string => {
 };
 
 export default function AccountsPage() {
+  // I18n hook - automatically updates when locale changes
+  const { messages } = usePageI18n();
+  const t = messages.adminPages.accounts;
+  const tProfiles = messages.adminPages.profiles;
+  
+  // Helper function to get role label
+  const getRoleLabel = (role: Role): string => {
+    const roleMap: Record<Role, string> = {
+      Admin: t.roles.admin,
+      Teacher: t.roles.teacher,
+      Parent: t.roles.parent,
+      ManagementStaff: t.roles.managementStaff,
+    };
+    return roleMap[role] || role;
+  };
+  
   // Tab state
   const [activeTab, setActiveTab] = useState<"accounts" | "profiles">("accounts");
   
@@ -527,24 +538,24 @@ export default function AccountsPage() {
       const response = await createUser(data);
       if (response.success || response.isSuccess) {
         toast({
-          title: "Thành công",
-          description: "Tạo tài khoản thành công",
+          title: t.messages.success,
+          description: t.messages.createAccountSuccess,
           variant: "success",
         });
         await refreshAccountsTable();
         setFormModalOpen(false);
       } else {
         toast({
-          title: "Lỗi",
-          description: response.message || 'Không thể tạo tài khoản',
+          title: t.messages.error,
+          description: response.message || t.messages.createAccountError,
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error('Error creating user:', error);
       toast({
-        title: "Lỗi",
-        description: 'Đã xảy ra lỗi khi tạo tài khoản',
+        title: t.messages.error,
+        description: t.messages.createAccountError,
         variant: "destructive",
       });
       throw error;
@@ -557,24 +568,24 @@ export default function AccountsPage() {
       const response = await updateUser(selectedAccount.id, data);
       if (response.success || response.isSuccess) {
         toast({
-          title: "Thành công",
-          description: "Cập nhật tài khoản thành công",
+          title: t.messages.success,
+          description: t.messages.updateAccountSuccess,
           variant: "success",
         });
         await refreshAccountsTable();
         setFormModalOpen(false);
       } else {
         toast({
-          title: "Lỗi",
-          description: response.message || 'Không thể cập nhật tài khoản',
+          title: t.messages.error,
+          description: response.message || t.messages.updateAccountError,
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error('Error updating user:', error);
       toast({
-        title: "Lỗi",
-        description: 'Đã xảy ra lỗi khi cập nhật tài khoản',
+        title: t.messages.error,
+        description: t.messages.updateAccountError,
         variant: "destructive",
       });
       throw error;
@@ -587,16 +598,16 @@ export default function AccountsPage() {
       const response = await deleteUser(selectedAccount.id);
       if (response.success || response.isSuccess) {
         toast({
-          title: "Thành công",
-          description: "Xóa tài khoản thành công",
+          title: t.messages.success,
+          description: t.messages.deleteAccountSuccess,
           variant: "success",
         });
         await refreshAccountsTable();
         setDeleteModalOpen(false);
       } else {
         toast({
-          title: "Lỗi",
-          description: response.message || 'Không thể xóa tài khoản',
+          title: t.messages.error,
+          description: response.message || t.messages.deleteAccountError,
           variant: "destructive",
         });
       }
@@ -974,28 +985,28 @@ export default function AccountsPage() {
 
   const stats = [
     {
-      title: 'Tổng tài khoản',
+      title: t.stats.totalAccounts,
       value: `${fixedCounts.total}`,
       icon: <Users size={20} />,
       color: 'from-red-600 to-red-700',
-      subtitle: 'Toàn hệ thống'
+      subtitle: t.stats.subtitle.total
     },
     {
-      title: 'Đang hoạt động',
+      title: t.stats.active,
       value: `${fixedCounts.active}`,
       icon: <CheckCircle size={20} />,
       color: 'from-emerald-500 to-teal-500',
-      subtitle: 'Truy cập thường xuyên'
+      subtitle: t.stats.subtitle.active
     },
     {
-      title: 'Bật xác thực 2 lớp',
+      title: t.stats.twoFactor,
       value: `${accounts.filter(a => a.twoFactor).length}`,
       icon: <ShieldCheck size={20} />,
       color: 'from-blue-500 to-cyan-500',
-      subtitle: 'Bảo mật cao'
+      subtitle: t.stats.subtitle.twoFactor
     },
     {
-      title: 'Tài khoản mới',
+      title: t.stats.new,
       value: `+${accounts.filter(a => {
         if (!a.createdAt) return false;
         const createdDate = new Date(a.createdAt);
@@ -1005,7 +1016,7 @@ export default function AccountsPage() {
       }).length}`,
       icon: <UserPlus size={20} />,
       color: 'from-amber-500 to-orange-500',
-      subtitle: '30 ngày gần đây'
+      subtitle: t.stats.subtitle.new
     }
   ];
 
@@ -1115,7 +1126,7 @@ export default function AccountsPage() {
       <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-red-600 mx-auto mb-4" />
-          <p className="text-gray-600">Đang tải dữ liệu...</p>
+          <p className="text-gray-600">{t.loading}</p>
         </div>
       </div>
     );
@@ -1129,13 +1140,13 @@ export default function AccountsPage() {
           <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center">
             <AlertCircle className="h-8 w-8 text-red-600" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Không thể tải dữ liệu</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t.error}</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button 
             onClick={() => fetchUsersAndProfiles()}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
           >
-            <RefreshCw size={16} /> Thử lại
+            <RefreshCw size={16} /> {t.retry}
           </button>
         </div>
       </div>
@@ -1152,23 +1163,23 @@ export default function AccountsPage() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-              Quản lý Tài khoản & Profiles
+              {t.title}
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Phân quyền truy cập, quản lý profiles và theo dõi hoạt động người dùng
+              {t.subtitle}
             </p>
           </div>
         </div>
         {activeTab === "accounts" ? (
           <div className="flex flex-wrap gap-2">
             <button className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
-              <Key size={16} /> Đặt lại mật khẩu
+              <Key size={16} /> {t.buttons.resetPassword}
             </button>
             <button 
               onClick={handleOpenCreateModal}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
             >
-              <UserPlus size={16} /> Tạo tài khoản mới
+              <UserPlus size={16} /> {t.buttons.createAccount}
             </button>
           </div>
         ) : (
@@ -1177,13 +1188,13 @@ export default function AccountsPage() {
               onClick={() => setShowCreateParentModal(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
             >
-              <UserPlus size={16} /> Tạo tài khoản Parent
+              <UserPlus size={16} /> {t.buttons.createParent}
             </button>
             <button
               onClick={() => setShowCreateStudentModal(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
             >
-              <UserCircle size={16} /> Tạo profile Student
+              <UserCircle size={16} /> {t.buttons.createStudent}
             </button>
           </div>
         )}
@@ -1201,7 +1212,7 @@ export default function AccountsPage() {
         >
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} />
-            <span>Tài khoản</span>
+            <span>{t.tabs.accounts}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               activeTab === "accounts" ? "bg-white/20" : "bg-gray-100"
             }`}>
@@ -1219,7 +1230,7 @@ export default function AccountsPage() {
         >
           <div className="flex items-center gap-2">
             <UserCircle size={16} />
-            <span>Profiles</span>
+            <span>{t.tabs.profiles}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               activeTab === "profiles" ? "bg-white/20" : "bg-gray-100"
             }`}>
@@ -1246,11 +1257,11 @@ export default function AccountsPage() {
             {/* Role Filter */}
             <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
               {[
-                { k: 'ALL', label: 'Tất cả', count: fixedCounts.total },
-                { k: 'Admin', label: 'Quản trị', count: fixedCounts.admin },
-                { k: 'Teacher', label: 'Giáo viên', count: fixedCounts.teacher },
-                { k: 'Parent', label: 'Phụ huynh', count: fixedCounts.parent },
-                { k: 'ManagementStaff', label: 'Nhân viên', count: fixedCounts.managementStaff },
+                { k: 'ALL', label: t.filters.all, count: fixedCounts.total },
+                { k: 'Admin', label: t.filters.admin, count: fixedCounts.admin },
+                { k: 'Teacher', label: t.filters.teacher, count: fixedCounts.teacher },
+                { k: 'Parent', label: t.filters.parent, count: fixedCounts.parent },
+                { k: 'ManagementStaff', label: t.filters.staff, count: fixedCounts.managementStaff },
               ].map((item) => (
                 <button
                   key={item.k}
@@ -1280,9 +1291,9 @@ export default function AccountsPage() {
                 }}
                 className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
               >
-                <option value="ALL">Tất cả trạng thái ({fixedCounts.total})</option>
-                <option value="ACTIVE">Đang hoạt động ({fixedCounts.active})</option>
-                <option value="INACTIVE">Không hoạt động ({fixedCounts.inactive})</option>
+                <option value="ALL">{t.filters.allStatus} ({fixedCounts.total})</option>
+                <option value="ACTIVE">{t.filters.active} ({fixedCounts.active})</option>
+                <option value="INACTIVE">{t.filters.inactive} ({fixedCounts.inactive})</option>
               </select>
             </div>
           </div>
@@ -1293,7 +1304,7 @@ export default function AccountsPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm kiếm tên, email, số điện thoại..."
+                placeholder={t.filters.search}
                 className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1306,10 +1317,10 @@ export default function AccountsPage() {
               }}
               className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
-              <option value={5}>5 / trang</option>
-              <option value={10}>10 / trang</option>
-              <option value={20}>20 / trang</option>
-              <option value={50}>50 / trang</option>
+              <option value={5}>5 {t.filters.perPage}</option>
+              <option value={10}>10 {t.filters.perPage}</option>
+              <option value={20}>20 {t.filters.perPage}</option>
+              <option value={50}>50 {t.filters.perPage}</option>
             </select>
           </div>
         </div>
@@ -1320,7 +1331,7 @@ export default function AccountsPage() {
         {/* Table Header */}
         <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách tài khoản</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t.table.title}</h2>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-medium">{list.length} tài khoản</span>
             </div>
@@ -1333,13 +1344,13 @@ export default function AccountsPage() {
             <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
               <tr>
                 <th className="py-3 px-6 text-left">
-                  <SortHeader label="Người dùng" sortKey="name" />
+                  <SortHeader label={t.table.user} sortKey="name" />
                 </th>
                 <th className="py-3 px-6 text-left">
-                  <SortHeader label="Thông tin liên hệ" sortKey="email" />
+                  <SortHeader label={t.table.contact} sortKey="email" />
                 </th>
                 <th className="py-3 px-6 text-left">
-                  <SortHeader label="Vai trò" sortKey="role" />
+                  <SortHeader label={t.table.role} sortKey="role" />
                 </th>
                 <th className="py-3 px-6 text-left">
                   <SortHeader label="Bảo mật" sortKey="twoFactor" />
@@ -1348,10 +1359,10 @@ export default function AccountsPage() {
                   <SortHeader label="Hoạt động" sortKey="lastLoginAt" />
                 </th>
                 <th className="py-3 px-6 text-left">
-                  <SortHeader label="Trạng thái" sortKey="isActive" />
+                  <SortHeader label={t.table.status} sortKey="isActive" />
                 </th>
                 <th className="py-3 px-6 text-left">
-                  <span className="text-sm font-semibold text-gray-700">Thao tác</span>
+                  <span className="text-sm font-semibold text-gray-700">{t.table.actions}</span>
                 </th>
               </tr>
             </thead>
@@ -1382,22 +1393,22 @@ export default function AccountsPage() {
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-700">
                           <Phone size={12} className="text-gray-400" />
-                          <span>{acc.phoneNumber || 'Chưa cập nhật'}</span>
+                          <span>{acc.phoneNumber || t.table.notUpdated}</span>
                         </div>
                         <div className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar size={10} />
-                          Tạo ngày: {formatDate(acc.createdAt)}
+                          {t.table.createdDate}: {formatDate(acc.createdAt)}
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <RoleBadge role={mapRoleToDisplay(acc.role)} />
+                      <RoleBadge role={mapRoleToDisplay(acc.role)} roleLabel={getRoleLabel(mapRoleToDisplay(acc.role))} />
                     </td>
                     <td className="py-4 px-6">
                       <div className="space-y-1">
-                        <TwoFactorBadge enabled={acc.twoFactor} />
+                        <TwoFactorBadge enabled={acc.twoFactor} enabledLabel={t.status.enabled2FA} disabledLabel={t.status.disabled2FA} />
                         <div className="text-xs text-gray-500">
-                          {!acc.lastLoginAt ? "Chưa đăng nhập" : `Đăng nhập: ${formatDateTime(acc.lastLoginAt)}`}
+                          {!acc.lastLoginAt ? t.userStatus.notLoggedIn : `${t.userStatus.lastLogin}: ${formatDateTime(acc.lastLoginAt)}`}
                         </div>
                       </div>
                     </td>
@@ -1410,25 +1421,25 @@ export default function AccountsPage() {
                           {!acc.lastLoginAt ? (
                             <>
                               <AlertCircle size={10} />
-                              Chưa kích hoạt
+                              {t.userStatus.notActivated}
                             </>
                           ) : (
                             <>
                               <CheckCircle size={10} />
-                              Đã đăng nhập
+                              {t.userStatus.loggedIn}
                             </>
                           )}
                         </div>
                         <div className="text-xs text-gray-500">
                           {!acc.lastLoginAt
-                            ? "Đang chờ kích hoạt"
-                            : "Hoạt động gần nhất"
+                            ? t.userStatus.awaitingActivation
+                            : t.userStatus.lastActivity
                           }
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <StatusBadge isActive={acc.isActive} />
+                      <StatusBadge isActive={acc.isActive} statusLabel={acc.isActive ? t.status.active : t.status.inactive} />
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-1 transition-opacity duration-200">
@@ -1436,7 +1447,7 @@ export default function AccountsPage() {
                           type="button"
                           onClick={() => handleViewDetail(acc.id)}
                           className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
-                          title="Xem chi tiết"
+                          title={t.actions.viewDetails}
                         >
                           <Eye size={14} />
                         </button>
@@ -1591,44 +1602,44 @@ export default function AccountsPage() {
           {/* Profiles Statistics */}
           <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <StatCard
-              title="Tổng Profiles"
+              title={tProfiles.stats.totalProfiles}
               value={`${profiles.length}`}
               icon={<Users size={20} />}
               color="from-red-600 to-red-700"
-              subtitle="Toàn hệ thống"
+              subtitle={tProfiles.stats.systemWide}
             />
             <StatCard
-              title="Parents"
+              title={tProfiles.stats.parents}
               value={`${profiles.filter(p => p.profileType === "Parent").length}`}
               icon={<Shield size={20} />}
               color="from-emerald-500 to-teal-500"
-              subtitle="Có tài khoản đăng nhập"
+              subtitle={tProfiles.stats.hasAccount}
             />
             <StatCard
-              title="Students"
+              title={tProfiles.stats.students}
               value={`${profiles.filter(p => p.profileType === "Student").length}`}
               icon={<UserCircle size={20} />}
               color="from-blue-500 to-cyan-500"
-              subtitle="Link với Parent"
+              subtitle={tProfiles.stats.linkedWithParent}
             />
             <StatCard
-              title="Profiles Active"
+              title={tProfiles.stats.active}
               value={`${profiles.filter(p => p.isActive).length}`}
               icon={<CheckCircle size={20} />}
               color="from-amber-500 to-orange-500"
-              subtitle="Đang hoạt động"
+              subtitle={tProfiles.stats.activeSubtitle}
             />
           </div>
 
           <div className={`grid gap-4 md:grid-cols-2 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="rounded-2xl border border-amber-200 bg-linear-to-br from-white to-amber-50 p-4">
-              <div className="text-sm text-gray-600">Profile chờ duyệt</div>
+              <div className="text-sm text-gray-600">{tProfiles.stats.pendingApproval}</div>
               <div className="mt-1 text-2xl font-bold text-amber-700">
                 {profiles.filter(p => p.isApproved === false).length}
               </div>
             </div>
             <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-              <div className="text-sm text-gray-600">Profile đang khóa</div>
+              <div className="text-sm text-gray-600">{tProfiles.stats.locked}</div>
               <div className="mt-1 text-2xl font-bold text-red-700">
                 {profiles.filter(p => !p.isActive).length}
               </div>
@@ -1642,9 +1653,9 @@ export default function AccountsPage() {
                 {/* Type Filter */}
                 <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
                   {[
-                    { k: 'all', label: 'Tất cả', count: profiles.length },
-                    { k: 'Parent', label: 'Parents', count: profiles.filter(p => p.profileType === "Parent").length },
-                    { k: 'Student', label: 'Students', count: profiles.filter(p => p.profileType === "Student").length },
+                    { k: 'all', label: tProfiles.filters.all, count: profiles.length },
+                    { k: 'Parent', label: tProfiles.filters.parents, count: profiles.filter(p => p.profileType === "Parent").length },
+                    { k: 'Student', label: tProfiles.filters.students, count: profiles.filter(p => p.profileType === "Student").length },
                   ].map((item) => (
                     <button
                       key={item.k}
@@ -1672,9 +1683,9 @@ export default function AccountsPage() {
                     onChange={(e) => setProfileApprovalFilter(e.target.value as typeof profileApprovalFilter)}
                     className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                   >
-                    <option value="all">Tất cả duyệt</option>
-                    <option value="pending">Chờ duyệt</option>
-                    <option value="approved">Đã duyệt</option>
+                    <option value="all">{tProfiles.filters.allApprovals}</option>
+                    <option value="pending">{tProfiles.filters.pending}</option>
+                    <option value="approved">{tProfiles.filters.approved}</option>
                   </select>
                 </div>
 
@@ -1684,7 +1695,7 @@ export default function AccountsPage() {
                     className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
                   >
                     <ShieldCheck size={16} />
-                    Duyệt đã chọn ({selectedProfileRows.length})
+                    {tProfiles.filters.approveSelected} ({selectedProfileRows.length})
                   </button>
                 )}
               </div>
@@ -1695,7 +1706,7 @@ export default function AccountsPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
                     type="text"
-                    placeholder="Tìm kiếm theo tên, email..."
+                    placeholder={tProfiles.filters.search}
                     value={profileSearchTerm}
                     onChange={(e) => setProfileSearchTerm(e.target.value)}
                     className="w-full rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
@@ -1709,10 +1720,10 @@ export default function AccountsPage() {
                   }}
                   className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 >
-                  <option value={5}>5 / trang</option>
-                  <option value={10}>10 / trang</option>
-                  <option value={20}>20 / trang</option>
-                  <option value={50}>50 / trang</option>
+                  <option value={5}>5 {tProfiles.filters.perPage}</option>
+                  <option value={10}>10 {tProfiles.filters.perPage}</option>
+                  <option value={20}>20 {tProfiles.filters.perPage}</option>
+                  <option value={50}>50 {tProfiles.filters.perPage}</option>
                 </select>
               </div>
             </div>
@@ -1727,8 +1738,8 @@ export default function AccountsPage() {
             ) : filteredProfiles.length === 0 ? (
               <div className="text-center py-16">
                 <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Không có profile nào</p>
-                <p className="text-sm text-gray-400 mt-2">Hãy tạo profile mới để bắt đầu</p>
+                <p className="text-gray-500">{tProfiles.table.noProfiles}</p>
+                <p className="text-sm text-gray-400 mt-2">{tProfiles.table.createNewProfile}</p>
               </div>
             ) : (
               <>
@@ -1742,16 +1753,16 @@ export default function AccountsPage() {
                             checked={isAllCurrentPendingSelected}
                             onChange={toggleSelectAllPendingProfiles}
                             className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                            title="Chọn tất cả profile chờ duyệt trong trang"
+                            title={tProfiles.table.selectAll}
                           />
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên hiển thị</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">User ID</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Ngày tạo</th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Hành động</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.type}</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.displayName}</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.email}</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.userId}</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.status}</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.createdDate}</th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">{tProfiles.table.actions}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-red-100">
@@ -1770,7 +1781,7 @@ export default function AccountsPage() {
                               );
                             }}
                             className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                            title={profile.isApproved === false ? "Chọn profile này" : "Profile đã duyệt"}
+                            title={profile.isApproved === false ? tProfiles.table.selectProfile : tProfiles.table.profileApproved}
                           />
                         </td>
                         <td className="px-6 py-4">
@@ -1802,24 +1813,24 @@ export default function AccountsPage() {
                             {profile.isActive ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
                                 <CheckCircle size={12} />
-                                Đang hoạt động
+                                {tProfiles.table.active}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-red-50 to-red-100 text-red-700 border border-red-200 rounded-full text-xs font-medium">
                                 <XCircle size={12} />
-                                Tạm khóa
+                                {tProfiles.table.locked}
                               </span>
                             )}
 
                             {profile.isApproved === false ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-amber-50 to-yellow-50 text-amber-700 border border-amber-200 rounded-full text-xs font-medium">
                                 <AlertCircle size={12} />
-                                Chờ duyệt
+                                {tProfiles.table.pendingApproval}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
                                 <CheckCircle size={12} />
-                                Đã duyệt
+                                {tProfiles.table.approved}
                               </span>
                             )}
                           </div>
@@ -1835,7 +1846,7 @@ export default function AccountsPage() {
                             <button
                               onClick={() => handleViewProfileDetail(profile.id)}
                               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group cursor-pointer"
-                              title="Xem chi tiết"
+                              title={tProfiles.actions.viewDetails}
                             >
                               <Eye size={18} className="group-hover:scale-110 transition-transform" />
                             </button>
@@ -1843,7 +1854,7 @@ export default function AccountsPage() {
                               <button
                                 onClick={() => handleOpenViewLinkedModal(profile.userId, profile.displayName)}
                                 className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group cursor-pointer"
-                                title="Xem học sinh đã liên kết"
+                                title={tProfiles.actions.viewLinkedStudents}
                               >
                                 <Users size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
@@ -1852,7 +1863,7 @@ export default function AccountsPage() {
                               <button
                                 onClick={() => handleOpenApproveProfileModal(profile)}
                                 className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors group cursor-pointer"
-                                title="Duyệt profile"
+                                title={tProfiles.actions.approveProfile}
                               >
                                 <ShieldCheck size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
@@ -1861,7 +1872,7 @@ export default function AccountsPage() {
                               <button
                                 onClick={() => handleOpenReactivateProfileModal(profile)}
                                 className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors group cursor-pointer"
-                                title="Kích hoạt lại profile"
+                                title={tProfiles.actions.reactivateProfile}
                               >
                                 <RefreshCw size={18} className="group-hover:scale-110 transition-transform" />
                               </button>
@@ -1869,7 +1880,7 @@ export default function AccountsPage() {
                             <button
                               onClick={() => handleOpenDeleteProfileModal(profile.id, profile.displayName)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors group cursor-pointer"
-                              title="Xóa"
+                              title={tProfiles.actions.delete}
                             >
                               <Trash2 size={18} className="group-hover:scale-110 transition-transform" />
                             </button>
@@ -1886,10 +1897,10 @@ export default function AccountsPage() {
                   <div className="border-t border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5 px-6 py-4">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                       <div className="text-sm text-gray-600">
-                        Hiển thị <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span> trong tổng số{" "}
-                        <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> profiles
+                        {tProfiles.pagination.showing} <span className="font-semibold text-gray-900">{profileStartIndex + 1}-{Math.min(profileEndIndex, filteredProfiles.length)}</span> {tProfiles.pagination.of}{" "}
+                        <span className="font-semibold text-gray-900">{filteredProfiles.length}</span> {tProfiles.pagination.profiles}
                         {selectedProfileRows.length > 0 && (
-                          <span className="ml-2 text-emerald-700 font-medium">• Đã chọn {selectedProfileRows.length}</span>
+                          <span className="ml-2 text-emerald-700 font-medium">• {tProfiles.pagination.selected} {selectedProfileRows.length}</span>
                         )}
                       </div>
 
@@ -1996,10 +2007,10 @@ export default function AccountsPage() {
               setSelectedProfileForDelete(null);
             }}
             onConfirm={handleConfirmDeleteProfile}
-            title="Xác nhận khóa profile"
-            message={`Bạn có chắc chắn muốn khóa profile "${selectedProfileForDelete?.name}"?`}
-            confirmText="Khóa"
-            cancelText="Hủy"
+            title={tProfiles.modals.confirmDelete}
+            message={tProfiles.modals.deleteMessage.replace("{name}", selectedProfileForDelete?.name || "")}
+            confirmText={tProfiles.modals.delete}
+            cancelText={tProfiles.modals.cancel}
             variant="danger"
           />
 
@@ -2011,12 +2022,12 @@ export default function AccountsPage() {
               setSelectedProfileForAction(null);
             }}
             onConfirm={handleConfirmApproveProfile}
-            title="Xác nhận duyệt profile"
+            title={tProfiles.modals.confirmApprove}
             message={selectedProfileRows.length > 0
-              ? `Bạn có chắc chắn muốn duyệt ${selectedProfileRows.length} profile đã chọn?`
-              : `Bạn có chắc chắn muốn duyệt profile "${selectedProfileForAction?.name}"?`}
-            confirmText="Duyệt profile"
-            cancelText="Hủy"
+              ? tProfiles.modals.approveMultipleMessage.replace("{count}", selectedProfileRows.length.toString())
+              : tProfiles.modals.approveSingleMessage.replace("{name}", selectedProfileForAction?.name || "")}
+            confirmText={tProfiles.modals.approve}
+            cancelText={tProfiles.modals.cancel}
             variant="success"
             isLoading={isProfileApproveSubmitting}
           />
@@ -2028,10 +2039,10 @@ export default function AccountsPage() {
               setSelectedProfileForAction(null);
             }}
             onConfirm={handleConfirmReactivateProfile}
-            title="Xác nhận kích hoạt lại profile"
-            message={`Bạn có chắc chắn muốn kích hoạt lại profile "${selectedProfileForAction?.name}"?`}
-            confirmText="Kích hoạt lại"
-            cancelText="Hủy"
+            title={tProfiles.modals.confirmReactivate}
+            message={tProfiles.modals.reactivateMessage.replace("{name}", selectedProfileForAction?.name || "")}
+            confirmText={tProfiles.modals.reactivate}
+            cancelText={tProfiles.modals.cancel}
             variant="success"
           />
         </>
@@ -2117,7 +2128,7 @@ export default function AccountsPage() {
           </div>
 
           {/* Role Distribution */}
-          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+          {/* <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
             <h4 className="font-semibold text-gray-900 mb-3">Phân bố vai trò</h4>
             <div className="space-y-3">
               {(['Admin', 'Teacher', 'Parent', 'ManagementStaff'] as Role[]).map(role => {
@@ -2145,7 +2156,7 @@ export default function AccountsPage() {
                 );
               })}
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
         </>

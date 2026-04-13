@@ -10,7 +10,8 @@ import { menuStaffAccounting } from "./menu/menuStaffAccounting";
 import { menuStaffManager } from "./menu/menuStaffManager";
 import { menuTeacher } from "./menu/menuTeacher";
 import { menuStudent } from "./menu/menuStudent";
-import { menuParent } from "./menu/menuParent"; // 👈 THÊM DÒNG NÀY
+import { menuParent } from "./menu/menuParent";
+import { adminPages } from "./menu/adminPages";
 
 import { faqsText } from "./home/FAQs/faqs";
 
@@ -29,7 +30,8 @@ export const dict = {
     menuStaffManager: menuStaffManager.vi,
     menuTeacher: menuTeacher.vi,
     menuStudent: menuStudent.vi,
-     menuParent: menuParent.vi,
+    menuParent: menuParent.vi,
+    adminPages: adminPages.vi,
     faqs: faqsText.vi,
   },
   en: {
@@ -45,6 +47,7 @@ export const dict = {
     menuTeacher: menuTeacher.en,
     menuStudent: menuStudent.en,
     menuParent: menuParent.en,
+    adminPages: adminPages.en,
     faqs: faqsText.en,
   },
 } as const;
