@@ -78,7 +78,7 @@ export default function LeadFilters({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Tìm kiếm tên, SĐT, email, mã lead..."
+              placeholder="Tìm kiếm tên, SĐT, email, mã khách tiềm năng..."
             className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
             />
           </div>
@@ -129,7 +129,7 @@ export default function LeadFilters({
                 className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-200 cursor-pointer"
               />
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                Chỉ lead của tôi
+                Chỉ khách tiềm năng của tôi
               </span>
             </label>
           )}

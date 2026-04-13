@@ -106,17 +106,17 @@ function translateBackendActivityContent(content?: string) {
 
   const leadCreated = text.match(/^Lead created from\s+(.+)$/i);
   if (leadCreated) {
-    return `Lead được tạo từ ${leadCreated[1]}`;
+    return `Khách tiềm năng được tạo từ ${leadCreated[1]}`;
   }
 
   const selfAssigned = text.match(/^Lead self-assigned by\s+(.+)$/i);
   if (selfAssigned) {
-    return `Lead được tự nhận bởi ${selfAssigned[1]}`;
+    return `Khách tiềm năng được tự nhận bởi ${selfAssigned[1]}`;
   }
 
   const childAdded = text.match(/^Child\s+'(.+)'\s+added to lead$/i);
   if (childAdded) {
-    return `Đã thêm bé '${childAdded[1]}' vào lead`;
+    return `Đã thêm bé '${childAdded[1]}' vào khách tiềm năng`;
   }
 
   const childConverted = text.match(/^Child\s+'(.+)'\s+converted to\s+ENROLLED\s+\(via enrollment API\)$/i);
@@ -282,7 +282,7 @@ export default function LeadDetailModal({
 
       toast({
         title: "Thành công",
-        description: "Đã ghi nhận tương tác và cập nhật lead.",
+        description: "Đã ghi nhận tương tác và cập nhật khách tiềm năng.",
         variant: "success",
       });
     } catch (error) {
@@ -322,7 +322,7 @@ export default function LeadDetailModal({
                 <User size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Chi tiết Lead</h2>
+                <h2 className="text-2xl font-bold text-white">Chi tiết khách tiềm năng</h2>
                 <p className="text-sm text-red-100">Thông tin chi tiết về khách hàng tiềm năng</p>
               </div>
             </div>
@@ -346,7 +346,7 @@ export default function LeadDetailModal({
               }`}
             >
               <User size={16} />
-              Thông tin Lead
+              Thông tin khách tiềm năng
             </button>
             <button
               onClick={() => setActiveTab('interactions')}
@@ -454,7 +454,7 @@ export default function LeadDetailModal({
                     <div className="p-1.5 rounded-lg bg-red-100">
                       <Tag size={16} className="text-red-600" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-700">Nguồn lead</h3>
+                    <h3 className="text-sm font-semibold text-gray-700">Nguồn khách tiềm năng</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -649,7 +649,7 @@ export default function LeadDetailModal({
 
                   {!isLoadingInteractions && activities.length === 0 && (
                     <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-                      Chưa có hoạt động nào cho lead này.
+                      Chưa có hoạt động nào cho khách tiềm năng này.
                     </div>
                   )}
 

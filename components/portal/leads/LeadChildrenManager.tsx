@@ -133,6 +133,18 @@ export default function LeadChildrenManager({
     return mapped;
   }, [programs, selectedProgramName]);
 
+  const getChildStatusLabel = (status?: string) => {
+    if (!status) return "";
+    const normalized = status.toLowerCase();
+    if (normalized === "new") return "Mới";
+    if (normalized === "contacted") return "Đang tư vấn";
+    if (normalized === "bookedtest") return "Đã đặt lịch test";
+    if (normalized === "testdone") return "Đã test";
+    if (normalized === "enrolled") return "Đã ghi danh";
+    if (normalized === "lost") return "Đã hủy";
+    return status;
+  };
+
   useEffect(() => {
     if (leadId) {
       fetchChildren();
@@ -372,7 +384,7 @@ export default function LeadChildrenManager({
                     <div className="flex items-center gap-2 text-sm">
                       <Activity size={14} className="text-blue-500" />
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {(child as any).status === 'New' ? 'Mới' : (child as any).status}
+                        {getChildStatusLabel((child as any).status)}
                       </span>
                     </div>
                   )}

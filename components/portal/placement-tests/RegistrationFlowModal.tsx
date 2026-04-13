@@ -773,7 +773,7 @@ export default function RegistrationFlowModal({
     if (!test?.id) {
       toast({
         title: "Thiếu dữ liệu",
-        description: "Không tìm thấy placement test để tạo đăng ký.",
+        description: "Không tìm thấy bài kiểm tra xếp lớp để tạo đăng ký.",
         variant: "destructive",
       });
       return;
@@ -1324,7 +1324,7 @@ export default function RegistrationFlowModal({
                   }}
                 >
                   <SelectTrigger className="w-full rounded-xl border border-gray-200 bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                    <SelectValue placeholder="Để trống để tạo đăng ký mới từ placement test" />
+                    <SelectValue placeholder="Để trống để tạo đăng ký mới từ bài kiểm tra xếp lớp" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__create_new__">

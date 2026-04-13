@@ -46,7 +46,7 @@ export default function LeadStats({ leads, isLoading }: LeadStatsProps) {
   }, [leads]);
 
   const funnel = useMemo(() => [
-    { title: "Lead mới", value: stats.new.toString(), icon: Sparkles, color: "from-red-600 to-red-700", subtitle: "Chưa xử lý" },
+    { title: "Khách tiềm năng mới", value: stats.new.toString(), icon: Sparkles, color: "from-red-600 to-red-700", subtitle: "Chưa xử lý" },
     { title: "Đang tư vấn", value: stats.contacted.toString(), icon: Phone, color: "from-gray-600 to-gray-700", subtitle: "Đang liên hệ" },
     { title: "Đã test", value: stats.testDone.toString(), icon: FileText, color: "from-gray-700 to-gray-800", subtitle: "Đã kiểm tra" },
     { title: "Đã ghi danh", value: stats.enrolled.toString(), icon: CheckCircle2, color: "from-red-500 to-red-600", subtitle: "Thành công" },

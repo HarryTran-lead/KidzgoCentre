@@ -17,11 +17,24 @@ export default function ErrorSuppression() {
       /Caught in: Module.*inst_/,
       /Requiring module.*which threw an exception/,
       /ErrorUtils caught an error/,
+      /\[API Response Error\]/,
+      /\[Public API Error\]/,
+      /\[API Request Error\]/,
     ];
     
     // Override console.error
     console.error = (...args: any[]) => {
-      const message = args[0]?.toString() || '';
+      // Check against all console.error arguments because some logs pass objects in later params.
+      const message = args
+        .map((arg) => {
+          if (typeof arg === "string") return arg;
+          try {
+            return JSON.stringify(arg);
+          } catch {
+            return String(arg);
+          }
+        })
+        .join(" ");
       
       // Check if error matches any suppress pattern
       const shouldSuppress = suppressPatterns.some(pattern => 

@@ -149,13 +149,13 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
               status: (response as any)?.status,
               data: response,
             },
-            message: (response as any)?.message || "Không thể cập nhật lead",
+            message: (response as any)?.message || "Không thể cập nhật khách tiềm năng",
           };
         }
 
         toast({
           title: "Thành công",
-          description: "Đã cập nhật lead thành công",
+          description: "Đã cập nhật khách tiềm năng thành công",
           variant: "success"
         });
       } else {
@@ -174,13 +174,13 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
               status: (response as any)?.status,
               data: response,
             },
-            message: (response as any)?.message || "Không thể tạo lead",
+            message: (response as any)?.message || "Không thể tạo khách tiềm năng",
           };
         }
 
         toast({
           title: "Thành công",
-          description: "Đã tạo lead mới thành công",
+          description: "Đã tạo khách tiềm năng mới thành công",
           variant: "success"
         });
       }
@@ -191,7 +191,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
       console.error("Error saving lead:", error);
       toast({
         title: "Lỗi",
-        description: getDomainErrorMessage(error, "Không thể lưu thông tin lead"),
+        description: getDomainErrorMessage(error, "Không thể lưu thông tin khách tiềm năng"),
         variant: "destructive",
       });
     } finally {
@@ -213,10 +213,10 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  {lead ? "Chỉnh sửa Lead" : "Tạo Lead mới"}
+                  {lead ? "Chỉnh sửa khách tiềm năng" : "Tạo khách tiềm năng mới"}
                 </h2>
                 <p className="text-sm text-red-100">
-                  {lead ? "Chỉnh sửa thông tin lead" : "Nhập thông tin chi tiết về lead mới"}
+                  {lead ? "Chỉnh sửa thông tin khách tiềm năng" : "Nhập thông tin chi tiết về khách tiềm năng mới"}
                 </p>
               </div>
             </div>
@@ -307,7 +307,7 @@ export default function LeadFormModal({ isOpen, lead, onClose, onSuccess }: Lead
                 <div className="p-1.5 rounded-lg bg-red-100">
                   <Tag size={16} className="text-red-600" />
                 </div>
-                <h3 className="text-sm font-semibold text-gray-700">Nguồn lead</h3>
+                <h3 className="text-sm font-semibold text-gray-700">Nguồn khách tiềm năng</h3>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

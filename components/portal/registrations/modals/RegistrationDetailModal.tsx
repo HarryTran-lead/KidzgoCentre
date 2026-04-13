@@ -150,9 +150,6 @@ export default function RegistrationDetailModal({
                 <Info label="Ngày bắt đầu thực tế" value={toDate(item.actualStartDate)} />
                 <Info label="Lịch học mong muốn" value={item.preferredSchedule || "-"} />
               </div>
-              <p className="text-xs text-gray-500">
-                `ExpiryDate` hiện chỉ là field giữ lại ở entity và chưa tham gia business logic registration.
-              </p>
             </div>
 
             <div className="space-y-3 rounded-xl border border-red-200 bg-red-50/40 p-4">
