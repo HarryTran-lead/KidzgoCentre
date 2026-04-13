@@ -16,6 +16,7 @@ import {
   Eye,
   RefreshCw,
 } from "lucide-react";
+import { getLeadSourceLabel } from "@/types/lead";
 import type { Lead } from "@/types/lead";
 import StatusSelect from "./StatusSelect";
 import LeadPagination from "./LeadPagination";
@@ -57,17 +58,9 @@ interface LeadTableProps {
 const sourceColorMap: Record<string, string> = {
   Landing: "from-blue-50 to-blue-100 text-blue-700 border-blue-200",
   Zalo: "from-green-50 to-green-100 text-green-700 border-green-200",
+  Referral: "from-amber-50 to-amber-100 text-amber-700 border-amber-200",
+  Offline: "from-slate-50 to-slate-100 text-slate-700 border-slate-200",
   Default: "from-gray-50 to-gray-100 text-gray-700 border-gray-200",
-};
-
-const sourceLabelMap: Record<string, string> = {
-  Landing: "Landing",
-  Zalo: "Zalo",
-};
-
-const getSourceLabel = (source?: string) => {
-  if (!source) return "Không rõ";
-  return sourceLabelMap[source] || source;
 };
 
 export default function LeadTable({
@@ -255,7 +248,7 @@ export default function LeadTable({
                       sourceColorMap[lead.source || "Default"] || sourceColorMap.Default
                     }`}
                   >
-                    {getSourceLabel(lead.source)}
+                    {getLeadSourceLabel(lead.source)}
                   </span>
                 </td>
                 

@@ -324,7 +324,7 @@ export default function ResultFormModal({
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  Nhập kết quả Placement Test
+                  Nhập kết quả bài kiểm tra
                 </h2>
                 <p className="text-sm text-red-100">
                   Nhập thông tin chi tiết về kết quả bài kiểm tra

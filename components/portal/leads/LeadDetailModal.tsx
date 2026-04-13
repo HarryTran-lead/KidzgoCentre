@@ -17,16 +17,16 @@ import {
   PhoneCall,
   StickyNote,
   Loader2,
-  Trash2,
 } from "lucide-react";
 import type { AddLeadNoteRequest, ActivityItem, Lead } from "@/types/lead";
-import { ActivityType, LeadStatus } from "@/types/lead";
+import { ActivityType, getLeadSourceLabel, LeadStatus } from "@/types/lead";
 import { formatDateTimeVN } from "@/lib/datetime";
 import { useToast } from "@/hooks/use-toast";
 import { addLeadNote, getLeadActivities, getLeadById, getLeadChildren } from "@/lib/api/leadService";
 import LeadChildrenManager from "./LeadChildrenManager";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
+type FollowUpMode = "callback" | "placement_test";
 
 const STATUS_MAPPING: Record<StatusType, string> = {
   New: "Mới",
@@ -151,13 +151,14 @@ export default function LeadDetailModal({
   const [activityType, setActivityType] = useState<ActivityType>(ActivityType.Call);
   const [content, setContent] = useState("");
   const [nextActionAt, setNextActionAt] = useState("");
-  const [clearNextAction, setClearNextAction] = useState(false);
+  const [followUpMode, setFollowUpMode] = useState<FollowUpMode>("placement_test");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setCurrentLead(lead);
     setNextActionAt(toDatetimeLocalVN(lead?.nextActionAt));
+    setFollowUpMode(lead?.nextActionAt ? "callback" : "placement_test");
   }, [lead]);
 
   const refreshChildProgramInterests = useCallback(async () => {
@@ -229,11 +230,6 @@ export default function LeadDetailModal({
   
   if (!isOpen || !currentLead) return null;
 
-  const handleClearNextAction = () => {
-    setNextActionAt("");
-    setClearNextAction(true);
-  };
-
   const handleSubmitInteraction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -244,7 +240,11 @@ export default function LeadDetailModal({
     }
 
     const isoNextActionAt = toISODateTimeVN(nextActionAt);
-    if (!clearNextAction && isoNextActionAt) {
+    if (followUpMode === "callback") {
+      if (!isoNextActionAt) {
+        setFormError("Vui lòng chọn thời gian hẹn liên hệ lại.");
+        return;
+      }
       const selectedTime = new Date(isoNextActionAt).getTime();
       if (!Number.isNaN(selectedTime) && selectedTime <= Date.now()) {
         setFormError("Thời gian hẹn gọi lại phải lớn hơn hiện tại.");
@@ -262,7 +262,7 @@ export default function LeadDetailModal({
         activityType,
       };
 
-      if (clearNextAction) {
+      if (followUpMode === "placement_test") {
         payload.clearNextAction = true;
       } else if (isoNextActionAt) {
         payload.nextActionAt = isoNextActionAt;
@@ -271,7 +271,8 @@ export default function LeadDetailModal({
       await addLeadNote(currentLead.id, payload);
       setContent("");
       setActivityType(ActivityType.Call);
-      setClearNextAction(false);
+      setNextActionAt("");
+      setFollowUpMode("placement_test");
 
       const updatedLead = await refreshLead();
       await refreshActivities();
@@ -460,7 +461,7 @@ export default function LeadDetailModal({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-gray-500">Nguồn</label>
-                      <p className="text-sm font-medium text-gray-900">{currentLead.source || "Không có"}</p>
+                      <p className="text-sm font-medium text-gray-900">{getLeadSourceLabel(currentLead.source)}</p>
                     </div>
                   </div>
                 </div>
@@ -579,19 +580,44 @@ export default function LeadDetailModal({
                           </select>
                         </label>
 
-                        <label className="space-y-1">
+                        <div className="space-y-2">
                           <span className="text-xs font-medium text-gray-500">Follow-up (lịch hẹn)</span>
-                          <input
-                            type="datetime-local"
-                            value={nextActionAt}
-                            onChange={(event) => {
-                              setNextActionAt(event.target.value);
-                              setClearNextAction(false);
-                            }}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                            disabled={isSubmitting}
-                          />
-                        </label>
+                          <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-3">
+                            <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="follow-up-mode"
+                                checked={followUpMode === "callback"}
+                                onChange={() => setFollowUpMode("callback")}
+                                className="mt-0.5 h-4 w-4 border-gray-300 text-red-600 focus:ring-red-200"
+                                disabled={isSubmitting}
+                              />
+                              <span>Phụ huynh đang bận, hẹn liên hệ lại</span>
+                            </label>
+                            <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="follow-up-mode"
+                                checked={followUpMode === "placement_test"}
+                                onChange={() => setFollowUpMode("placement_test")}
+                                className="mt-0.5 h-4 w-4 border-gray-300 text-red-600 focus:ring-red-200"
+                                disabled={isSubmitting}
+                              />
+                              <span>Liên hệ hoàn tất, chuyển sang bước kiểm tra đầu vào</span>
+                            </label>
+                          </div>
+                          {followUpMode === "callback" && (
+                            <input
+                              type="datetime-local"
+                              value={nextActionAt}
+                              onChange={(event) => {
+                                setNextActionAt(event.target.value);
+                              }}
+                              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                              disabled={isSubmitting}
+                            />
+                          )}
+                        </div>
                       </div>
 
                       <label className="space-y-1 block">
@@ -612,17 +638,7 @@ export default function LeadDetailModal({
                         </div>
                       )}
 
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <button
-                          type="button"
-                          onClick={handleClearNextAction}
-                          className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                          disabled={isSubmitting}
-                        >
-                          <Trash2 size={14} />
-                          Bỏ lịch hẹn
-                        </button>
-
+                      <div className="flex flex-wrap items-center justify-end gap-3">
                         <button
                           type="submit"
                           className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-60"

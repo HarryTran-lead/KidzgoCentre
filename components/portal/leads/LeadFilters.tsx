@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/lightswind/select";
+import { getLeadSourceLabel, LeadSource } from "@/types/lead";
 import type { Lead } from "@/types/lead";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
@@ -60,12 +61,15 @@ export default function LeadFilters({
   const statusOptions = ["Tất cả", ...Object.values(STATUS_MAPPING)];
   
   const sourceOptions = useMemo(() => {
-    if (availableSources.length > 0) {
-      return ["Tất cả", ...availableSources];
-    }
-    // Fallback: extract from current leads if not provided
-    const sources = new Set(leads.map(l => l.source).filter(Boolean));
-    return ["Tất cả", ...Array.from(sources)];
+    const beSourceValues = Object.values(LeadSource);
+    const runtimeSources = new Set([
+      ...availableSources,
+      ...leads.map((l) => l.source).filter(Boolean),
+    ]);
+    const extraSources = Array.from(runtimeSources).filter(
+      (source) => !beSourceValues.includes(source as LeadSource)
+    );
+    return ["Tất cả", ...beSourceValues, ...extraSources];
   }, [availableSources, leads]);
 
   return (
@@ -112,7 +116,7 @@ export default function LeadFilters({
               <SelectContent>
                 {sourceOptions.map((source) => (
                   <SelectItem key={source} value={source}>
-                    {source}
+                    {source === "Tất cả" ? source : getLeadSourceLabel(source)}
                   </SelectItem>
                 ))}
               </SelectContent>

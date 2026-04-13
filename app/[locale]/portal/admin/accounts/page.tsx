@@ -764,8 +764,17 @@ export default function AccountsPage() {
       );
     }
 
-    // Newest first by createdAt
+    // Group same email next to each other for easier profile actions
     filtered = [...filtered].sort((a, b) => {
+      const emailA = String(a.userEmail || "").trim().toLowerCase();
+      const emailB = String(b.userEmail || "").trim().toLowerCase();
+
+      if (emailA !== emailB) {
+        if (!emailA) return 1;
+        if (!emailB) return -1;
+        return emailA.localeCompare(emailB, "vi");
+      }
+
       const bt = new Date(b.createdAt || 0).getTime();
       const at = new Date(a.createdAt || 0).getTime();
       return bt - at;
@@ -897,7 +906,9 @@ export default function AccountsPage() {
         description:
           idsToApprove.length > 1
             ? `Đã duyệt ${idsToApprove.length} profile thành công`
-            : `Đã duyệt profile \"${selectedProfileForAction?.name ?? idsToApprove[0]}\"`,
+            : selectedProfileForAction?.name
+              ? `Đã duyệt profile \"${selectedProfileForAction.name}\"`
+              : "Đã duyệt profile thành công",
         variant: "success",
       });
 

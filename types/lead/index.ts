@@ -20,6 +20,31 @@ export enum LeadStatus {
   Lost = 'Lost',
 }
 
+export enum LeadSource {
+  Landing = 'Landing',
+  Zalo = 'Zalo',
+  Referral = 'Referral',
+  Offline = 'Offline',
+}
+
+export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
+  [LeadSource.Landing]: 'Landing',
+  [LeadSource.Zalo]: 'Zalo',
+  [LeadSource.Referral]: 'Giới thiệu',
+  [LeadSource.Offline]: 'Trực tiếp',
+};
+
+export const LEAD_SOURCE_OPTIONS = Object.values(LeadSource).map((value) => ({
+  value,
+  label: LEAD_SOURCE_LABELS[value],
+}));
+
+export function getLeadSourceLabel(source?: string) {
+  if (!source) return 'Không rõ';
+  const sourceKey = source as LeadSource;
+  return LEAD_SOURCE_LABELS[sourceKey] || source;
+}
+
 export interface Lead {
   id: string;
   source: string;
