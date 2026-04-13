@@ -78,15 +78,9 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     href: `${root}/support`,
   };
 
-  const accountItem: MenuItem = {
-    label: t.items.account,
-    icon: Settings,
-    href: `${root}/account`,
-  };
-
   const profileItem: MenuItem = {
     label: t.items.profile,
-    icon: UserCircle,
+    icon: Settings,
     href: `${root}/profile`,
   };
 
@@ -101,7 +95,6 @@ export function parentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     supportItem,
     leaveRequestItem,
     pauseEnrollmentItem,
-    accountItem,
     profileItem,
   ];
 }
