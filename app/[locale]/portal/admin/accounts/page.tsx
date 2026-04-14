@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
 import { getAllUsers, updateUserStatus, createUser, updateUser, deleteUser, getUserById } from "@/lib/api/userService";
 import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
 import AccountDetailModal from "@/components/admin/accounts/AccountDetailModal";
@@ -472,51 +471,18 @@ export default function AccountsPage() {
     isApproved?: boolean;
   } | null>(null);
 
-  const fetchAccountUsers = async (): Promise<User[]> => {
-    if (!isStaffAccountsPage) {
-      const usersResponse = await getAllUsers({
-        pageNumber: 1,
-        pageSize: 1000,
-      });
-
-      const isSuccessful = usersResponse.success || usersResponse.isSuccess;
-      if (!isSuccessful || !usersResponse.data) {
-        throw new Error(usersResponse.message || "Không thể tải danh sách người dùng");
-      }
-
-      return usersResponse.data.items || [];
-    }
-
-    const scopedRoles: UserRole[] = ["Parent", "Teacher"];
-    const scopedResponses = await Promise.all(
-      scopedRoles.map((role) =>
-        getAllUsers({
-          pageNumber: 1,
-          pageSize: 1000,
-          role,
-        })
-      )
-    );
-
-    const usersById = new Map<string, User>();
-
-    for (const response of scopedResponses) {
-      const isSuccessful = response.success || response.isSuccess;
-      if (!isSuccessful || !response.data) {
-        throw new Error(response.message || "Không thể tải danh sách người dùng");
-      }
-
-      (response.data.items || []).forEach((user) => {
-        usersById.set(user.id, user);
-      });
-    }
-
-    return Array.from(usersById.values());
-  };
-
   const refreshAccountsTable = async () => {
-    const fetchedUsers = await fetchAccountUsers();
-    const transformedAccounts = transformUsersToAccounts(fetchedUsers);
+    const usersResponse = await getAllUsers({
+      pageNumber: 1,
+      pageSize: 1000,
+    });
+
+    const isSuccessful = usersResponse.success || usersResponse.isSuccess;
+    if (!isSuccessful || !usersResponse.data) {
+      throw new Error(usersResponse.message || 'Không thể tải danh sách người dùng');
+    }
+
+    const transformedAccounts = transformUsersToAccounts(usersResponse.data.items);
     setAccounts(transformedAccounts);
     setTotalCount(transformedAccounts.length);
     setFixedCounts(getAccountCounts(transformedAccounts));
@@ -529,17 +495,26 @@ export default function AccountsPage() {
       setError(null);
 
       // Fetch both accounts and profiles in parallel
-      const [fetchedUsers, profilesResponse] = await Promise.all([
-        fetchAccountUsers(),
+      const [usersResponse, profilesResponse] = await Promise.all([
+        getAllUsers({
+          pageNumber: 1,
+          pageSize: 1000,
+        }),
         getAllStudents({
           pageSize: 100,
         })
       ]);
 
-      const transformedAccounts = transformUsersToAccounts(fetchedUsers);
-      setAccounts(transformedAccounts);
-      setTotalCount(transformedAccounts.length);
-      setFixedCounts(getAccountCounts(transformedAccounts));
+      const isSuccessful = usersResponse.success || usersResponse.isSuccess;
+
+      if (isSuccessful && usersResponse.data) {
+        const transformedAccounts = transformUsersToAccounts(usersResponse.data.items);
+        setAccounts(transformedAccounts);
+        setTotalCount(transformedAccounts.length);
+        setFixedCounts(getAccountCounts(transformedAccounts));
+      } else {
+        setError(usersResponse.message || 'Không thể tải danh sách người dùng');
+      }
 
       if (profilesResponse.data?.items) {
         setProfiles(profilesResponse.data.items);
@@ -559,12 +534,6 @@ export default function AccountsPage() {
   useEffect(() => {
     fetchUsersAndProfiles();
   }, []); // Only fetch once on mount
-
-  useEffect(() => {
-    if (role !== "ALL" && !allowedRoles.includes(role)) {
-      setRole("ALL");
-    }
-  }, [allowedRoles, role]);
 
   // Debounce search
   useEffect(() => {
@@ -789,12 +758,10 @@ export default function AccountsPage() {
     }
 
     // Filter by approval status
-    if (canApproveProfiles) {
-      if (profileApprovalFilter === "pending") {
-        filtered = filtered.filter((p) => p.isApproved === false);
-      } else if (profileApprovalFilter === "approved") {
-        filtered = filtered.filter((p) => p.isApproved !== false);
-      }
+    if (profileApprovalFilter === "pending") {
+      filtered = filtered.filter((p) => p.isApproved === false);
+    } else if (profileApprovalFilter === "approved") {
+      filtered = filtered.filter((p) => p.isApproved !== false);
     }
 
     // Filter by search term
@@ -824,7 +791,7 @@ export default function AccountsPage() {
     setFilteredProfiles(filtered);
     setSelectedProfileRows([]);
     setProfileCurrentPage(1); // Reset to page 1 when filters change
-  }, [profiles, profileFilterType, profileApprovalFilter, profileSearchTerm, canApproveProfiles]);
+  }, [profiles, profileFilterType, profileApprovalFilter, profileSearchTerm]);
 
   // Handle create parent profile
   const handleCreateParent = async (profileData: CreateParentProfileRequest) => {
@@ -904,7 +871,6 @@ export default function AccountsPage() {
   };
 
   const handleOpenApproveProfileModal = (profile: any) => {
-    if (!canApproveProfiles) return;
     setSelectedProfileRows([]);
     setSelectedProfileForAction({
       id: profile.id,
@@ -916,14 +882,12 @@ export default function AccountsPage() {
   };
 
   const handleOpenBulkApproveModal = () => {
-    if (!canApproveProfiles) return;
     if (selectedProfileRows.length === 0) return;
     setSelectedProfileForAction(null);
     setShowProfileApproveModal(true);
   };
 
   const handleConfirmApproveProfile = async () => {
-    if (!canApproveProfiles) return;
     const idsToApprove = selectedProfileRows.length > 0
       ? selectedProfileRows
       : selectedProfileForAction
@@ -1163,20 +1127,6 @@ export default function AccountsPage() {
     return result;
   }, [accounts, role, status, debouncedSearch, sort.key, sort.direction]);
 
-  const roleFilterItems: Array<{ k: Role | "ALL"; label: string; count: number }> = isStaffAccountsPage
-    ? [
-        { k: "ALL", label: "Tất cả", count: fixedCounts.total },
-        { k: "Teacher", label: "Giáo viên", count: fixedCounts.teacher },
-        { k: "Parent", label: "Phụ huynh", count: fixedCounts.parent },
-      ]
-    : [
-        { k: "ALL", label: "Tất cả", count: fixedCounts.total },
-        { k: "Admin", label: "Quản trị", count: fixedCounts.admin },
-        { k: "Teacher", label: "Giáo viên", count: fixedCounts.teacher },
-        { k: "Parent", label: "Phụ huynh", count: fixedCounts.parent },
-        { k: "ManagementStaff", label: "Nhân viên", count: fixedCounts.managementStaff },
-      ];
-
   // Client-side pagination
   const totalPages = Math.ceil(list.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -1187,9 +1137,7 @@ export default function AccountsPage() {
   const profileStartIndex = (profileCurrentPage - 1) * profileItemsPerPage;
   const profileEndIndex = profileStartIndex + profileItemsPerPage;
   const currentProfiles = filteredProfiles.slice(profileStartIndex, profileEndIndex);
-  const currentPendingProfiles = canApproveProfiles
-    ? currentProfiles.filter((p) => p.isApproved === false)
-    : [];
+  const currentPendingProfiles = currentProfiles.filter((p) => p.isApproved === false);
 
   const isAllCurrentPendingSelected =
     currentPendingProfiles.length > 0 &&
@@ -1869,17 +1817,17 @@ export default function AccountsPage() {
                               </span>
                             )}
 
-                            {canApproveProfiles && profile.isApproved === false ? (
+                            {profile.isApproved === false ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-amber-50 to-yellow-50 text-amber-700 border border-amber-200 rounded-full text-xs font-medium">
                                 <AlertCircle size={12} />
                                 {tProfiles.table.pendingApproval}
                               </span>
-                            ) : canApproveProfiles ? (
+                            ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-linear-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
                                 <CheckCircle size={12} />
                                 {tProfiles.table.approved}
                               </span>
-                            ) : null}
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -1906,7 +1854,7 @@ export default function AccountsPage() {
                                 <Users size={14} />
                               </button>
                             )}
-                            {canApproveProfiles && profile.isApproved === false && (
+                            {profile.isApproved === false && (
                               <button
                                 onClick={() => handleOpenApproveProfileModal(profile)}
                                 className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"

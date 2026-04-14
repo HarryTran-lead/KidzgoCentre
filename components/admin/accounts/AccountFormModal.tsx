@@ -24,11 +24,6 @@ interface AccountFormModalProps {
 }
 
 export default function AccountFormModal({ isOpen, onClose, onSubmit, account, mode }: AccountFormModalProps) {
-  const pathname = usePathname() || "";
-  const isStaffAccountsPage = pathname.includes("/portal/staff-management/accounts");
-  const { user: currentUser } = useCurrentUser();
-  const fixedStaffBranchId = isStaffAccountsPage ? (currentUser?.branchId || "") : "";
-
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [errors, setErrors] = useState<{ branchId?: string; email?: string; username?: string; name?: string; password?: string }>({});
@@ -42,23 +37,6 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     branchId: '',
     phoneNumber: '',
   });
-
-  const roleOptions: Array<{ value: UserRole; label: string }> = isStaffAccountsPage
-    ? [
-        { value: "Teacher", label: "Giáo viên" },
-        { value: "Parent", label: "Phụ huynh" },
-      ]
-    : [
-        { value: "Admin", label: "Quản trị" },
-        { value: "ManagementStaff", label: "Nhân viên quản lý" },
-        { value: "Teacher", label: "Giáo viên" },
-        { value: "Parent", label: "Phụ huynh" },
-      ];
-
-  const branchOptions =
-    isStaffAccountsPage && fixedStaffBranchId
-      ? branches.filter((branch) => branch.id === fixedStaffBranchId)
-      : branches;
 
   // Fetch branches on component mount
   useEffect(() => {
@@ -117,7 +95,7 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
         username: '',
         password: '',
         role: 'Parent',
-        branchId: isStaffAccountsPage ? fixedStaffBranchId : '',
+        branchId: '',
         phoneNumber: '',
       });
     }
