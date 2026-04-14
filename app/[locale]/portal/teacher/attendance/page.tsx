@@ -190,6 +190,17 @@ function getSessionReportTimestamp(report: SessionReportItem | any): number {
 
   return 0;
 }
+
+function translateSessionReportError(message?: string): string | null {
+  if (!message) return null;
+  const m = message.toLowerCase();
+  if (m.includes("published")) return "Không thể chỉnh sửa nhận xét đã được xuất bản.";
+  if (m.includes("review")) return "Nhận xét đang trong trạng thái chờ duyệt, không thể gửi lại.";
+  if (m.includes("not found")) return "Không tìm thấy báo cáo buổi học.";
+  if (m.includes("unauthorized") || m.includes("forbidden")) return "Bạn không có quyền thực hiện thao tác này.";
+  return null;
+}
+
 function pickSessionReportFromStudent(student: any, sessionId: string): SessionReportState {
   const directNote = String(
     student?.note ??
@@ -489,6 +500,7 @@ export default function TeacherAttendancePage() {
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
   const [isEnhancingNote, setIsEnhancingNote] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [isSavingAndSubmitting, setIsSavingAndSubmitting] = useState(false);
   const [expandedStatusRows, setExpandedStatusRows] = useState<Set<string>>(new Set());
 
   // Teaching report modal state
@@ -893,7 +905,8 @@ export default function TeacherAttendancePage() {
       handleCloseNoteModal();
     } catch (err: any) {
       console.error("Submit note error:", err);
-      setNoteModalError(err.message || "Không thể lưu nhận xét.");
+      const msg = translateSessionReportError(err?.message) || "Không thể lưu nhận xét.";
+      toast.destructive({ title: "Lỗi lưu nhận xét", description: msg, duration: 5000 });
     } finally {
       setIsSubmittingNote(false);
     }
@@ -930,7 +943,7 @@ export default function TeacherAttendancePage() {
     );
     const existingReportId = String(sessionReports[reportKey]?.reportId ?? "").trim();
     if (!existingReportId) {
-      setNoteModalError("Vui lòng lưu nhận xét trước khi gửi duyệt.");
+      toast.warning({ title: "Chưa lưu nhận xét", description: "Vui lòng lưu nhận xét trước khi gửi duyệt.", duration: 4000 });
       return;
     }
 
@@ -952,9 +965,70 @@ export default function TeacherAttendancePage() {
       toast.success({ title: "Gửi duyệt thành công", description: "Nhận xét đã được gửi để duyệt.", duration: 3000 });
       handleCloseNoteModal();
     } catch (err: any) {
-      setNoteModalError(err?.message || "Không thể gửi nhận xét để duyệt.");
+      const msg = translateSessionReportError(err?.message) || "Không thể gửi nhận xét để duyệt.";
+      toast.destructive({ title: "Lỗi gửi duyệt", description: msg, duration: 5000 });
     } finally {
       setIsSubmittingReview(false);
+    }
+  };
+
+  const handleSaveAndSubmitForReview = async (feedback: string) => {
+    if (!selectedSessionId || !selectedStudentForNote) return;
+
+    const normalizedFeedback = feedback.trim();
+    if (!normalizedFeedback) return;
+
+    const reportKey = buildSessionReportKey(
+      selectedSessionId,
+      selectedStudentForNote.studentId,
+      selectedStudentForNote.rowKey,
+    );
+    const existingReport = sessionReports[reportKey];
+    const existingReportId = String(existingReport?.reportId ?? "").trim();
+    const studentProfileId = String(selectedStudentForNote.studentId ?? "").trim();
+    const canSyncWithApi = GUID_REGEX.test(studentProfileId);
+
+    try {
+      setIsSavingAndSubmitting(true);
+
+      let reportId = existingReportId;
+      if (canSyncWithApi) {
+        const saved = existingReportId
+          ? await updateSessionReport(existingReportId, { feedback: normalizedFeedback })
+          : await createSessionReport({
+              sessionId: selectedSessionId,
+              studentProfileId,
+              reportDate: todayDateOnly(),
+              feedback: normalizedFeedback,
+            });
+        reportId = String(saved?.id ?? existingReportId ?? "").trim();
+      }
+
+      if (!reportId) {
+        toast.warning({ title: "Chưa lưu được nhận xét", description: "Vui lòng thử lại.", duration: 4000 });
+        return;
+      }
+
+      const updated = await submitSessionReport(reportId);
+      const nextStatus = String(updated?.status ?? "").trim() || "REVIEW";
+
+      setSessionReports((prev) => ({
+        ...prev,
+        [reportKey]: { reportId, feedback: normalizedFeedback, status: nextStatus },
+      }));
+      setAttendanceList((prev) =>
+        prev.map((r) =>
+          r.rowKey === selectedStudentForNote.rowKey ? { ...r, note: normalizedFeedback } : r,
+        ),
+      );
+
+      toast.success({ title: "Lưu và gửi duyệt thành công", description: "Nhận xét đã được lưu và gửi để duyệt.", duration: 3000 });
+      handleCloseNoteModal();
+    } catch (err: any) {
+      const msg = translateSessionReportError(err?.message) || "Không thể lưu và gửi nhận xét.";
+      toast.destructive({ title: "Lỗi lưu và gửi duyệt", description: msg, duration: 5000 });
+    } finally {
+      setIsSavingAndSubmitting(false);
     }
   };
 
@@ -1864,11 +1938,6 @@ export default function TeacherAttendancePage() {
                                       Makeup
                                     </span>
                                   ) : null}
-                                  {record.registrationId ? (
-                                    <span className="truncate" title={record.registrationId}>
-                                      Reg: {record.registrationId}
-                                    </span>
-                                  ) : null}
                                 </div>
                               </div>
                             </div>
@@ -2042,11 +2111,13 @@ export default function TeacherAttendancePage() {
               ).toUpperCase() !== "REVIEW",
             )}
             isSubmittingForReview={isSubmittingReview}
+            isSavingAndSubmitting={isSavingAndSubmitting}
             error={noteModalError}
             onClose={handleCloseNoteModal}
             onSubmit={handleSubmitStudentNote}
             onEnhance={handleEnhanceStudentNote}
             onSubmitForReview={handleSubmitStudentNoteForReview}
+            onSaveAndSubmit={handleSaveAndSubmitForReview}
           />
 
           {/* Teaching Report Modal */}

@@ -28,6 +28,7 @@ type Notification = {
   time: string;
   read: boolean;
   type: "info" | "warning" | "success";
+  link?: string;
 };
 
 type Props = {
@@ -203,6 +204,7 @@ export default function PortalHeader({
               : item.kind === "report" || item.kind === "feedback"
               ? "success"
               : "info",
+          link: item.link,
         }));
   const liveUnreadCount =
     notifications.length > 0 ? unreadCount : notificationCenter.unreadCount;
@@ -371,7 +373,7 @@ export default function PortalHeader({
                                 onNotificationClick(n.id);
                                 return;
                               }
-                              router.push(notificationCenter.notificationsRoute);
+                              router.push(n.link ?? notificationCenter.notificationsRoute);
                             }}
                             className={`w-full p-4 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 ${
                               !n.read ? "bg-blue-50/50" : ""
