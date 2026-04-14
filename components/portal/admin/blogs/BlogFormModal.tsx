@@ -5,6 +5,7 @@ import { X, Save, Loader2, Upload, ImageIcon, Trash2 } from "lucide-react";
 import type { Blog, CreateBlogRequest, UpdateBlogRequest } from "@/types/admin/blog";
 import { createBlog, updateBlog } from "@/lib/api/blogService";
 import { uploadFile, isUploadSuccess } from "@/lib/api/fileService";
+import { buildFileUrl } from "@/constants/apiURL";
 import { useToast } from "@/hooks/use-toast";
 
 interface BlogFormModalProps {
@@ -216,7 +217,7 @@ export default function BlogFormModal({
                 /* Preview area when image is set */
                 <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                   <img
-                    src={formData.featuredImageUrl}
+                    src={buildFileUrl(formData.featuredImageUrl)}
                     alt="Preview ảnh đại diện"
                     className="w-full h-52 object-cover"
                     onError={(e) => {

@@ -11,6 +11,7 @@ import { pickLocaleFromPath, DEFAULT_LOCALE, localizePath } from "@/lib/i18n";
 import { EndPoint } from "@/lib/routes";
 import type { Blog } from "@/types/admin/blog";
 import { getPublishedBlogs } from "@/lib/api/blogService";
+import { buildFileUrl } from "@/constants/apiURL";
 import BlogDetailModal from "./BlogDetailModal";
 
 export default function Blogs() {
@@ -293,7 +294,7 @@ export default function Blogs() {
                   <div className="relative h-48 sm:h-56 overflow-hidden bg-linear-to-br from-pink-100 to-rose-100">
                     {blog.featuredImageUrl ? (
                       <Image
-                        src={blog.featuredImageUrl}
+                        src={buildFileUrl(blog.featuredImageUrl)}
                         alt={blog.title}
                         fill
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
