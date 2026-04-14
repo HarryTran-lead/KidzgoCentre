@@ -49,7 +49,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
   ];
   const system: RawItem[] = [
     [t.groups.system.accounts, Settings, "/accounts"],
-    [t.groups.system.teachers, Users, "/teachers"],
     [t.groups.system.branches, Building2, "/branches"],
     [t.groups.system.blogs, FileText, "/blogs"],
     [t.groups.system.questionBank, HelpCircle, "/question-bank"],
