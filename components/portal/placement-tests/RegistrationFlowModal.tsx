@@ -1389,12 +1389,6 @@ export default function RegistrationFlowModal({
                     toggleDay={toggleDay}
                     selectedTimeSlot={selectedTimeSlot}
                     setSelectedTimeSlot={setSelectedTimeSlot}
-                    useCustomTime={useCustomTime}
-                    setUseCustomTime={setUseCustomTime}
-                    startTime={startTime}
-                    setStartTime={setStartTime}
-                    endTime={endTime}
-                    setEndTime={setEndTime}
                     note={note}
                     setNote={setNote}
                     handleCreateRegistration={handleCreateRegistration}
