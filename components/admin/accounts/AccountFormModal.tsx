@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
-import { X, Mail, User as UserIcon, Lock, Shield, Loader2, Phone } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Mail, User as UserIcon, Lock, Shield, Loader2, Phone, AlertCircle, Building2 } from "lucide-react";
 import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
 import { getAllBranchesPublic } from "@/lib/api/branchService";
 import type { Branch } from "@/types/branch";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/lightswind/select";
+import clsx from "clsx";
 
 interface AccountFormModalProps {
   isOpen: boolean;
@@ -25,7 +31,8 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
 
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [errors, setErrors] = useState<{ branchId?: string }>({});
+  const [errors, setErrors] = useState<{ branchId?: string; email?: string; username?: string; name?: string; password?: string }>({});
+  const modalRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -69,6 +76,25 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     fetchBranches();
   }, []);
 
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     // Only load data when modal opens
     if (!isOpen) return;
@@ -96,26 +122,43 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
       });
     }
     setErrors({});
-  }, [mode, account, isOpen, isStaffAccountsPage, fixedStaffBranchId]);
+  }, [mode, account, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || mode !== "create" || !isStaffAccountsPage || !fixedStaffBranchId) {
-      return;
+  const validateForm = (): boolean => {
+    const newErrors: typeof errors = {};
+    
+    if (!formData.email.trim()) {
+      newErrors.email = "Email là bắt buộc";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Email không hợp lệ";
     }
-
-    setFormData((prev) => ({
-      ...prev,
-      branchId: fixedStaffBranchId,
-      role: prev.role === "Admin" || prev.role === "ManagementStaff" ? "Parent" : prev.role,
-    }));
-    setErrors({});
-  }, [fixedStaffBranchId, isOpen, isStaffAccountsPage, mode]);
+    
+    if (!formData.username.trim()) {
+      newErrors.username = "Tên hiển thị là bắt buộc";
+    }
+    
+    if (!formData.name.trim()) {
+      newErrors.name = "Họ tên đầy đủ là bắt buộc";
+    }
+    
+    if (mode === 'create' && !formData.password.trim()) {
+      newErrors.password = "Mật khẩu là bắt buộc";
+    } else if (mode === 'create' && formData.password.length < 6) {
+      newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự";
+    }
+    
+    if (mode === 'create' && !formData.branchId) {
+      newErrors.branchId = "Chi nhánh là bắt buộc";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (mode === 'create' && !formData.branchId) {
-      setErrors({ branchId: isStaffAccountsPage ? 'Không xác định được chi nhánh của tài khoản staff' : 'Chi nhánh là bắt buộc' });
+    
+    if (!validateForm()) {
       return;
     }
 
@@ -138,7 +181,6 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
           role: formData.role,
           branchId: formData.branchId || undefined,
         };
-        console.log("update", updateData);
         await onSubmit(updateData);
       }
       onClose();
@@ -149,187 +191,241 @@ export default function AccountFormModal({ isOpen, onClose, onSubmit, account, m
     }
   };
 
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
   if (!isOpen) return null;
  
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl max-h-[100vh] overflow-y-auto bg-white rounded-2xl shadow-2xl m-4">
-        {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">
-            {mode === 'create' ? 'Tạo tài khoản mới' : 'Cập nhật tài khoản'}
-          </h2>
-          <button
-            onClick={onClose}
-            disabled={loading}
-            className="p-1 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-50"
-          >
-            <X size={24} className="text-white" />
-          </button>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div 
+        ref={modalRef}
+        className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+      >
+        {/* Modal Header - Giống style modal class */}
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                <UserIcon size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  {mode === 'create' ? 'Tạo tài khoản mới' : 'Cập nhật tài khoản'}
+                </h2>
+                <p className="text-sm text-red-100">
+                  {mode === 'create' 
+                    ? 'Nhập thông tin chi tiết về tài khoản mới' 
+                    : 'Chỉnh sửa thông tin tài khoản'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer disabled:opacity-50"
+              aria-label="Đóng"
+            >
+              <X size={24} className="text-white" />
+            </button>
+          </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Email */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <Mail size={16} className="text-pink-600" />
-              Email <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              placeholder="example@gmail.com"
-            />
-          </div>
+        {/* Form Body - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Mail size={16} className="text-red-600" />
+                Email <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  className={clsx(
+                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    errors.email ? "border-red-500" : "border-gray-200"
+                  )}
+                  placeholder="example@gmail.com"
+                />
+                {errors.email && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-red-500" />
+                  </div>
+                )}
+              </div>
+              {errors.email && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.email}</p>}
+            </div>
 
-          {/* Phone Number */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <Phone size={16} className="text-pink-600" />
-              Số điện thoại
-            </label>
-            <input
-              type="tel"
-              value={formData.phoneNumber}
-              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              placeholder="0123456789"
-              pattern="[0-9]*"
-            />
-          </div>
+            {/* Số điện thoại */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Phone size={16} className="text-red-600" />
+                Số điện thoại
+              </label>
+              <input
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={(e) => handleChange("phoneNumber", e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
+                placeholder="0123456789"
+              />
+            </div>
 
-          {/* Name */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <UserIcon size={16} className="text-pink-600" />
-              Tên hiển thị <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              placeholder="Nguyễn Văn A"
-            />
-          </div>
+            {/* Tên hiển thị */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <UserIcon size={16} className="text-red-600" />
+                Tên hiển thị <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => handleChange("username", e.target.value)}
+                  className={clsx(
+                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    errors.username ? "border-red-500" : "border-gray-200"
+                  )}
+                  placeholder="Nguyễn Văn A"
+                />
+                {errors.username && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-red-500" />
+                  </div>
+                )}
+              </div>
+              {errors.username && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.username}</p>}
+            </div>
 
-          {/* Username */}
-          {mode === 'create' && (
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <UserIcon size={16} className="text-pink-600" />
+            {/* Họ tên đầy đủ */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <UserIcon size={16} className="text-red-600" />
                 Họ tên đầy đủ <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                placeholder="Nguyễn Văn A"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  className={clsx(
+                    "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                    "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                    errors.name ? "border-red-500" : "border-gray-200"
+                  )}
+                  placeholder="Nguyễn Văn A"
+                />
+                {errors.name && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-red-500" />
+                  </div>
+                )}
+              </div>
+              {errors.name && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.name}</p>}
             </div>
-          )}
 
-          {/* Username (edit mode only) */}
-          {mode === 'edit' && (
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <UserIcon size={16} className="text-pink-600" />
-                Họ tên đầy đủ <span className="text-red-500">*</span>
+            {/* Mật khẩu (chỉ hiển thị khi tạo mới) */}
+            {mode === 'create' && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Lock size={16} className="text-red-600" />
+                  Mật khẩu <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    className={clsx(
+                      "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+                      "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+                      errors.password ? "border-red-500" : "border-gray-200"
+                    )}
+                    placeholder="Tối thiểu 6 ký tự"
+                  />
+                  {errors.password && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <AlertCircle size={18} className="text-red-500" />
+                    </div>
+                  )}
+                </div>
+                {errors.password && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.password}</p>}
+              </div>
+            )}
+
+            {/* Vai trò */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Shield size={16} className="text-red-600" />
+                Vai trò <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                placeholder="Nguyễn Văn A"
-              />
+              <Select
+                value={formData.role}
+                onValueChange={(value) => handleChange("role", value as UserRole)}
+              >
+                <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
+                  <SelectValue placeholder="Chọn vai trò" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Quản trị</SelectItem>
+                  <SelectItem value="ManagementStaff">Nhân viên quản lý</SelectItem>
+                  <SelectItem value="Teacher">Giáo viên</SelectItem>
+                  <SelectItem value="Parent">Phụ huynh</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
 
-          {/* Password (create mode only) */}
-          {mode === 'create' && (
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Lock size={16} className="text-pink-600" />
-                Mật khẩu <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                placeholder="Tối thiểu 6 ký tự"
-                minLength={6}
+            {/* Chi nhánh */}
+            <div className="space-y-2">
+
+              <AdminBranchSelectField
+                isOpen={isOpen}
+                mode={mode}
+                value={formData.branchId}
+                options={branches.map((branch) => ({ id: branch.id, label: branch.name }))}
+                onValueChange={(value) => handleChange("branchId", value)}
+                error={errors.branchId}
+                required={mode === 'create'}
+                placeholder={branches.length === 0 ? "Đang tải chi nhánh..." : "Vui lòng chọn chi nhánh"}
+                dataField="branchId"
               />
+              {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
             </div>
-          )}
+          </form>
+        </div>
 
-          {/* Role */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <Shield size={16} className="text-pink-600" />
-              Vai trò <span className="text-red-500">*</span>
-            </label>
-            <select
-              required
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-              className="w-full px-4 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-200"
-            >
-              {roleOptions.map((roleOption) => (
-                <option key={roleOption.value} value={roleOption.value}>
-                  {roleOption.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <AdminBranchSelectField
-            isOpen={isOpen}
-            mode={mode}
-            value={formData.branchId}
-            options={branchOptions.map((branch) => ({ id: branch.id, label: branch.name }))}
-            onValueChange={(value) => {
-              setFormData((prev) => ({ ...prev, branchId: value }));
-              if (errors.branchId) {
-                setErrors({});
-              }
-            }}
-            error={errors.branchId}
-            required={mode === 'create'}
-            disabled={isStaffAccountsPage && mode === "create"}
-            placeholder="Vui lòng chọn chi nhánh"
-            dataField="branchId"
-          />
-
-          {/* Footer */}
-          <div className="flex gap-3 pt-4">
+        {/* Modal Footer - Giống style modal class */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+          <div className="flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
             >
-              Hủy
+              Hủy bỏ
             </button>
             <button
               type="submit"
-              disabled={loading || (mode === 'create' && !formData.branchId)}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={loading}
+              onClick={handleSubmit}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[140px]"
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
-              {mode === 'create' ? 'Tạo tài khoản' : 'Cập nhật'}
+              {mode === 'create' ? 'Tạo tài khoản' : 'Lưu thay đổi'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

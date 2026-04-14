@@ -17,6 +17,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { getRegistrationById, getRegistrations } from "@/lib/api/registrationService";
@@ -289,25 +290,25 @@ export default function AdminRegistrationsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
           <div className="text-sm text-gray-500">Tổng đăng ký</div>
           <div className="mt-1 text-2xl font-bold text-gray-900">{rows.length}</div>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
           <div className="text-sm text-gray-500">Đã xếp lớp</div>
           <div className="mt-1 text-2xl font-bold text-gray-900">{rows.filter((x) => x.className !== "Chưa xếp lớp").length}</div>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+        <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
           <div className="text-sm text-gray-500">Chưa xếp lớp</div>
           <div className="mt-1 text-2xl font-bold text-gray-900">{rows.filter((x) => x.className === "Chưa xếp lớp").length}</div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               value={query}
               onChange={(e) => {
@@ -315,25 +316,26 @@ export default function AdminRegistrationsPage() {
                 setPage(1);
               }}
               placeholder="Tìm theo học viên, chương trình, gói học, lớp hoặc trạng thái"
-              className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300"
+              className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
             />
           </div>
 
-          <div className="w-full md:w-60">
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as "ALL" | RegistrationStatus);
-                setPage(1);
-              }}
-              className="w-full py-2.5 px-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300"
-            >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {statusLabel(status as "ALL" | RegistrationStatus)}
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
+            <Select value={statusFilter} onValueChange={(value) => {
+              setStatusFilter(value as "ALL" | RegistrationStatus);
+              setPage(1);
+            }}>
+              <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {statusLabel(status as "ALL" | RegistrationStatus)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>

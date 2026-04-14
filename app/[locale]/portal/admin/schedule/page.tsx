@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getAccessToken } from "@/lib/store/authToken";
 import { getAllBranches } from "@/lib/api/branchService";
-import { createAdminSession, fetchAdminSessions, updateSessionColor } from "@/app/api/admin/sessions";
+import { createAdminSession, fetchAdminSessions, updateSessionColor, updateClassColor } from "@/app/api/admin/sessions";
 import { fetchAdminUsersByIds, fetchAdminClasses } from "@/app/api/admin/classes";
 import type { CreateSessionRequest, ParticipationType, Session } from "@/types/admin/sessions";
 import {
@@ -34,6 +34,7 @@ import {
   BookOpen
 } from "lucide-react";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { useToast } from "@/hooks/use-toast";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
 type SlotType = "CLASS" | "MAKEUP" | "EVENT";
@@ -873,17 +874,31 @@ function ColorPicker({
 }) {
   const [showPicker, setShowPicker] = useState(false);
   const [customColor, setCustomColor] = useState(normalizeSessionColor(currentColor));
+  const [previewColor, setPreviewColor] = useState(normalizeSessionColor(currentColor));
   const pickerRef = useRef<HTMLDivElement>(null);
+  const committedRef = useRef(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [pickerPos, setPickerPos] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
     setCustomColor(normalizeSessionColor(currentColor));
+    setPreviewColor(normalizeSessionColor(currentColor));
   }, [currentColor]);
+
+  const commitColor = (color: string) => {
+    const normalized = normalizeSessionColor(color);
+    if (normalized !== normalizeSessionColor(currentColor)) {
+      onColorChange(lessonId, normalized);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        // Commit the preview color when closing by clicking outside
+        if (previewColor !== normalizeSessionColor(currentColor)) {
+          commitColor(previewColor);
+        }
         setShowPicker(false);
       }
     };
@@ -895,7 +910,7 @@ function ColorPicker({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showPicker]);
+  }, [showPicker, previewColor, currentColor]);
 
   useEffect(() => {
     if (showPicker && buttonRef.current) {
@@ -932,6 +947,7 @@ function ColorPicker({
                 key={color.value}
                 onClick={(e) => {
                   e.stopPropagation();
+                  committedRef.current = true;
                   onColorChange(lessonId, normalizeSessionColor(color.value));
                   setShowPicker(false);
                 }}
@@ -944,11 +960,16 @@ function ColorPicker({
           <div className="mt-1.5 flex items-center gap-1.5">
             <input
               type="color"
-              value={normalizeSessionColor(customColor)}
+              value={normalizeSessionColor(previewColor)}
               onChange={(e) => {
+                // Only update local preview while dragging — no API call
                 const picked = normalizeSessionColor(e.target.value);
+                setPreviewColor(picked);
                 setCustomColor(picked);
-                onColorChange(lessonId, picked);
+              }}
+              onBlur={() => {
+                // Commit when the native color picker closes
+                commitColor(previewColor);
               }}
               className="h-7 w-10 rounded border border-gray-300 bg-white cursor-pointer"
               title="Tự chọn màu"
@@ -963,7 +984,8 @@ function ColorPicker({
                   const parsed = parseCustomColorInput(customColor);
                   if (parsed) {
                     setCustomColor(parsed);
-                    onColorChange(lessonId, parsed);
+                    setPreviewColor(parsed);
+                    commitColor(parsed);
                   }
                 }
               }}
@@ -971,7 +993,8 @@ function ColorPicker({
                 const parsed = parseCustomColorInput(customColor);
                 if (parsed) {
                   setCustomColor(parsed);
-                  onColorChange(lessonId, parsed);
+                  setPreviewColor(parsed);
+                  commitColor(parsed);
                 }
               }}
               className="h-7 flex-1 rounded border border-gray-300 px-1 text-[10px]"
@@ -1264,14 +1287,14 @@ function WeekTimetable({
                     return (
                       <div
                         key={s.id}
-                        className="rounded-xl overflow-hidden text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-gray-200"
+                        className="rounded-xl text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-gray-200 relative"
                         style={{ backgroundColor: lightColor }}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onSlotClick) onSlotClick(s.id);
                         }}
                       >
-                        <div className="h-1.5 w-full" style={{ backgroundColor: slotColor }} />
+                        <div className="h-1.5 w-full rounded-t-xl overflow-hidden" style={{ backgroundColor: slotColor }} />
                         <div className="p-2.5">
                         <div className="flex items-start gap-2">
                           <div className="flex-1 min-w-0">
@@ -1342,6 +1365,7 @@ export default function AdminSchedulePage() {
 
   // Branch filter hook
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+  const { toast } = useToast();
 
   const [filter, setFilter] = useState<SlotType | "ALL">("ALL");
   const [classFilter, setClassFilter] = useState<string>("ALL");
@@ -1351,6 +1375,13 @@ export default function AdminSchedulePage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period | null>(null);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [pendingColorChange, setPendingColorChange] = useState<{
+    lessonId: string;
+    classTitle: string;
+    classId: string;
+    newColor: string;
+    sessionCount: number;
+  } | null>(null);
 
   const list = useMemo(() => {
     let result = slots;
@@ -1425,34 +1456,57 @@ export default function AdminSchedulePage() {
     });
   }, [list]);
 
-  const handleColorChange = async (lessonId: string, newColor: string) => {
-    // Find the classId of the changed slot
+  // Called when user picks a color — show confirm modal instead of applying immediately
+  const handleColorChange = (lessonId: string, newColor: string) => {
     const targetSlot = slots.find(s => s.id === lessonId);
     if (!targetSlot) return;
     const targetClassId = targetSlot.classId;
-
-    // Collect all session IDs with the same classId
-    const sameClassIds: string[] = [];
-    slots.forEach(slot => {
-      if ((slot.classId === targetClassId && targetClassId) || slot.id === lessonId) {
-        if (!sameClassIds.includes(slot.id)) sameClassIds.push(slot.id);
-      }
+    const sessionCount = slots.filter(s => s.classId === targetClassId && targetClassId).length;
+    setPendingColorChange({
+      lessonId,
+      classTitle: targetSlot.title,
+      classId: targetClassId,
+      newColor,
+      sessionCount,
     });
+  };
 
-    // Update UI immediately for ALL slots with the same classId
+  // Called when user confirms the modal
+  const applyColorChange = async () => {
+    if (!pendingColorChange) return;
+    const { classId, newColor } = pendingColorChange;
+    setPendingColorChange(null);
+
+    const sameClassIds = slots
+      .filter(s => s.classId === classId && !!classId)
+      .map(s => s.id)
+      .filter((id, i, arr) => arr.indexOf(id) === i);
+
+    const originalColors = new Map<string, string | undefined>(slots.map(s => [s.id, s.color]));
+
+    // Update UI immediately
     setSlots(prev => prev.map(slot =>
-      sameClassIds.includes(slot.id)
-        ? { ...slot, color: newColor }
-        : slot
+      slot.classId === classId ? { ...slot, color: newColor } : slot
     ));
 
-    // Persist to backend sequentially to avoid overloading
-    for (const sid of sameClassIds) {
-      try {
-        await updateSessionColor(sid, newColor);
-      } catch (err) {
-        console.error("Lỗi lưu màu session:", sid, err);
-      }
+    // Single API call updates ALL sessions of this class in DB (past + future)
+    try {
+      await updateClassColor(classId, newColor);
+      toast.success({
+        title: "Đã lưu màu",
+        description: "Màu đã được đồng bộ cho toàn bộ lịch của lớp.",
+      });
+    } catch (err) {
+      // Revert UI
+      setSlots(prev => prev.map(slot =>
+        sameClassIds.includes(slot.id)
+          ? { ...slot, color: originalColors.get(slot.id) }
+          : slot
+      ));
+      toast.destructive({
+        title: "Lưu màu thất bại",
+        description: "Không thể cập nhật màu lên máy chủ. Vui lòng thử lại.",
+      });
     }
   };
 
@@ -1555,11 +1609,14 @@ export default function AdminSchedulePage() {
         const weekEnd = new Date(weekCursor);
         weekEnd.setDate(weekEnd.getDate() + 6);
 
-        const fromDate = weekStart.toISOString().split('T')[0];
-        const toDate = weekEnd.toISOString().split('T')[0];
-
-        console.log("📅 Fetching schedule for branch:", branchId || "All branches", "class:", classFilter !== "ALL" ? classFilter : "All");
-        console.log("📅 Date range:", fromDate, "to", toDate);
+        // Dùng local date để tránh lệch múi giờ UTC+7
+        const toLocalDateStr = (d: Date) => {
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          return `${d.getFullYear()}-${mm}-${dd}`;
+        };
+        const fromDate = toLocalDateStr(weekStart);
+        const toDate = toLocalDateStr(weekEnd);
 
         const sessions = await fetchAdminSessions({
           branchId,
@@ -1569,8 +1626,6 @@ export default function AdminSchedulePage() {
           pageNumber: 1,
           pageSize: 200,
         });
-
-        console.log("✅ Loaded", sessions.length, "sessions for week", fromDate, "-", toDate);
 
         // Collect ALL teacher IDs (both with and without names) to ensure we get all teacher names
         const teacherIdsToFetch = new Set<string>();
@@ -1610,11 +1665,6 @@ export default function AdminSchedulePage() {
             }
           }
 
-          // Debug log for missing teacher names
-          if (!teacherName && teacherId) {
-            console.warn(`Missing teacher name for session ${s.id}, teacherId: ${teacherId}`);
-          }
-
           return {
             id: s.id,
             classId: String(s.classId ?? ""),
@@ -1629,11 +1679,7 @@ export default function AdminSchedulePage() {
           };
         }).filter((slot) => slot.id);
 
-        if (mappedSlots.length) {
-          setSlots(mappedSlots);
-        } else {
-          setSlots([]);
-        }
+        setSlots(mappedSlots);
       } catch (err) {
         console.error("Không thể tải lịch từ API:", err);
       }
@@ -1789,6 +1835,38 @@ export default function AdminSchedulePage() {
             : undefined
         }
       />
+
+      {/* Color Change Confirmation Modal */}
+      {pendingColorChange && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setPendingColorChange(null)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-5 w-[320px]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg flex-shrink-0 border border-gray-200" style={{ backgroundColor: pendingColorChange.newColor }} />
+              <div>
+                <div className="font-semibold text-gray-900 text-sm">Đổi màu lớp học</div>
+                <div className="text-xs text-gray-500 mt-0.5">{pendingColorChange.classTitle}</div>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Màu sẽ được áp dụng cho <span className="font-semibold text-gray-900">{pendingColorChange.sessionCount} buổi học</span> hiển thị trong tuần này của lớp này.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPendingColorChange(null)}
+                className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={applyColorChange}
+                className="flex-1 px-3 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-semibold hover:shadow-md transition-all cursor-pointer"
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

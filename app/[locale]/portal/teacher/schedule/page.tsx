@@ -281,15 +281,22 @@ function TimelineLesson({ lesson, compact = false, hasConflict = false, layoutIn
     width = `calc(${itemWidthPercent}% - ${(totalGaps / layoutInfo.totalInGroup) + (baseLeft * 2 / layoutInfo.totalInGroup)}px)`;
   }
 
-  const lightColor = lesson.color
-    .replace('bg-gradient-to-r', 'bg-gradient-to-br')
-    .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
-    .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
-    .replace('from-gray-600 to-gray-700', 'from-gray-100 to-gray-200')
-    .replace('from-gray-500 to-gray-600', 'from-gray-100 to-gray-200')
-    .replace('from-gray-700 to-gray-800', 'from-gray-200 to-gray-300')
-    .replace('from-gray-200 to-gray-300', 'from-gray-100 to-gray-200')
-    .replace('from-red-600 to-gray-600', 'from-red-50 to-gray-100');
+  const isHexColor = lesson.color.startsWith('#') || lesson.color.startsWith('rgb');
+
+  const lightColor = isHexColor
+    ? ''
+    : lesson.color
+      .replace('bg-gradient-to-r', 'bg-gradient-to-br')
+      .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
+      .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
+      .replace('from-gray-600 to-gray-700', 'from-gray-100 to-gray-200')
+      .replace('from-gray-500 to-gray-600', 'from-gray-100 to-gray-200')
+      .replace('from-gray-700 to-gray-800', 'from-gray-200 to-gray-300')
+      .replace('from-gray-200 to-gray-300', 'from-gray-100 to-gray-200')
+      .replace('from-red-600 to-gray-600', 'from-red-50 to-gray-100');
+
+  const lightBgStyle = isHexColor ? { backgroundColor: `${lesson.color}33` } : undefined;
+  const accentStyle = isHexColor ? { backgroundColor: lesson.color } : undefined;
 
   return (
     <div
@@ -299,12 +306,13 @@ function TimelineLesson({ lesson, compact = false, hasConflict = false, layoutIn
         top: `${startPosition}px`,
         width: width,
         height: `${lesson.duration}px`,
+        ...lightBgStyle,
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       title={hasConflict ? '⚠️ Cảnh báo: Buổi học này trùng giờ với buổi học khác trong ngày' : ''}
     >
-      <div className={`h-1.5 w-full ${lesson.color}`} />
+      <div className={`h-1.5 w-full ${isHexColor ? '' : lesson.color}`} style={accentStyle} />
       <div className="h-full flex flex-col justify-between p-4">
         <div>
           <div className="font-bold text-sm">{lesson.course}</div>
@@ -641,7 +649,8 @@ function WeekCalendarView({
                     </div>
                   ) : (
                     lessons.map((lesson) => {
-                      const lightColor = lesson.color
+                      const isHex = lesson.color.startsWith('#') || lesson.color.startsWith('rgb');
+                      const lightColor = isHex ? '' : lesson.color
                         .replace('bg-gradient-to-r', 'bg-gradient-to-br')
                         .replace('from-red-600 to-red-700', 'from-red-50 to-red-100')
                         .replace('from-red-500 to-red-600', 'from-red-50 to-red-100')
@@ -651,19 +660,22 @@ function WeekCalendarView({
                         .replace('from-gray-200 to-gray-300', 'from-gray-100 to-gray-200')
                         .replace('from-red-600 to-gray-600', 'from-red-50 to-gray-100')
                         .replace('from-red-500 to-gray-600', 'from-red-50 to-gray-100');
+                      const lightBgStyle = isHex ? { backgroundColor: `${lesson.color}33` } : undefined;
+                      const accentStyle = isHex ? { backgroundColor: lesson.color } : undefined;
 
                       return (
                         <div key={lesson.id} className="relative group">
                           <div
                             onClick={() => router.push(`/${locale}/portal/teacher/attendance?sessionId=${lesson.id}&date=${day.date}`)}
                             className={`rounded-xl overflow-hidden text-xs transition-all duration-200 hover:shadow-md cursor-pointer border border-gray-200 ${lightColor}`}
+                            style={lightBgStyle}
                           >
-                            <div className={`h-1.5 w-full ${lesson.color}`} />
+                            <div className={`h-1.5 w-full ${isHex ? '' : lesson.color}`} style={accentStyle} />
                             <div className="p-2.5">
                             <div className="flex items-start gap-2">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 mb-1">
-                                  <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${lesson.color}`} />
+                                  <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${isHex ? '' : lesson.color}`} style={accentStyle} />
                                   <span className="font-semibold text-gray-900 truncate">{lesson.course}</span>
                                 </div>
                                 <div className="text-[11px] text-gray-700 mb-1">{lesson.time}</div>

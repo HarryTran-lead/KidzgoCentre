@@ -38,6 +38,7 @@ import { getAllBranches } from "@/lib/api/branchService";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import { usePageI18n } from "@/hooks/usePageI18n";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
@@ -144,6 +145,7 @@ interface CreateCourseModalProps {
   onSubmit: (data: CourseFormData) => Promise<boolean> | boolean;
   mode?: "create" | "edit";
   initialData?: CourseFormData | null;
+  t: ReturnType<typeof usePageI18n>["messages"]["adminPages"]["courses"];
 }
 
 interface CourseFormData {
@@ -166,7 +168,7 @@ const initialFormData: CourseFormData = {
   maxLeavesPerMonth: null,
 };
 
-function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initialData }: CreateCourseModalProps) {
+function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initialData, t }: CreateCourseModalProps) {
   const [formData, setFormData] = useState<CourseFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof CourseFormData, string>>>({});
   const [branchOptions, setBranchOptions] = useState<Array<{ id: string; name: string }>>([]);
@@ -227,10 +229,10 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof CourseFormData, string>> = {};
 
-    if (!formData.name.trim()) newErrors.name = "Ten khoa hoc la bat buoc";
-    if (!formData.branchId) newErrors.branchId = "Chi nhanh la bat buoc";
+    if (!formData.name.trim()) newErrors.name = t.validation.nameRequired;
+    if (!formData.branchId) newErrors.branchId = t.validation.selectBranch;
     if (formData.isMakeup && formData.isSupplementary) {
-      newErrors.isSupplementary = "Chuong trinh khong the vua la bu vua la phu tro";
+      newErrors.isSupplementary = t.validation.cannotBothTypes;
     }
 
     setErrors(newErrors);
@@ -279,10 +281,10 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  {mode === "edit" ? "Cập nhật chương trình" : "Tạo khóa học mới"}
+                  {mode === "edit" ? t.modal.updateTitle : t.modal.createTitle}
                 </h2>
                 <p className="text-sm text-red-100">
-                  {mode === "edit" ? "Chỉnh sửa thông tin chương trình học" : "Nhập thông tin chi tiết về khóa học mới"}
+                  {mode === "edit" ? t.modal.updateSubtitle : t.modal.createSubtitle}
                 </p>
               </div>
             </div>
@@ -290,7 +292,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               onClick={onClose}
               disabled={submitting}
               className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Đóng"
+              aria-label={t.buttons.close}
             >
               <X size={24} className="text-white" />
             </button>
@@ -301,23 +303,46 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
         <div className="p-6 max-h-[75vh] overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Row 0: Chi nhánh */}
-            <AdminBranchSelectField
-              isOpen={isOpen}
-              mode={mode}
-              value={formData.branchId}
-              options={branchOptions.map((branch) => ({ id: branch.id, label: branch.name }))}
-              onValueChange={(value) => handleChange("branchId", value)}
-              error={errors.branchId}
-              disabled={loadingBranches}
-              placeholder={loadingBranches ? "Đang tải chi nhánh..." : "Vui lòng chọn chi nhánh"}
-              dataField="branchId"
-            />
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Building2 size={16} className="text-red-600" />
+                {t.modal.branchRequired}
+              </label>
+              <div className="relative">
+                <Select 
+                  value={formData.branchId} 
+                  onValueChange={(val) => handleChange("branchId", val)}
+                  disabled={loadingBranches}
+                >
+                  <SelectTrigger className={cn(
+                    "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200",
+                    errors.branchId ? "border-red-500" : "border-gray-200",
+                    loadingBranches ? "opacity-50 cursor-not-allowed" : ""
+                  )}>
+                    <SelectValue placeholder={t.modal.selectBranchPlaceholder} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branchOptions.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.branchId && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <AlertCircle size={18} className="text-red-500" />
+                  </div>
+                )}
+              </div>
+              {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
+            </div>
 
             {/* Row 1: Tên khóa */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <BookOpen size={16} className="text-red-600" />
-                Tên khóa học *
+                {t.modal.courseNameRequired}
               </label>
               <div className="relative">
                 <input
@@ -329,7 +354,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
                     errors.name ? "border-red-500" : "border-gray-200"
                   )}
-                  placeholder="VD: Tiếng Anh giao tiếp cơ bản"
+                  placeholder={t.modal.courseNamePlaceholder}
                 />
                 {errors.name && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -343,9 +368,9 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <div className="text-sm font-semibold text-gray-800">Loại chương trình</div>
+                  <div className="text-sm font-semibold text-gray-800">{t.modal.programTypeLabel}</div>
                   <p className="text-sm text-gray-600">
-                    Chương trình chính là mặc định. Có thể đánh dấu phụ trợ hoặc bù, nhưng không được bật đồng thời cả hai.
+                    {t.modal.programTypeDesc}
                   </p>
                 </div>
 
@@ -357,7 +382,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     onChange={(e) => handleChange("isSupplementary", e.target.checked)}
                     className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-300"
                   />
-                  <span>{formData.isSupplementary ? "Chương trình phụ trợ" : "Đánh dấu chương trình phụ trợ"}</span>
+                  <span>{formData.isSupplementary ? t.modal.supplementaryLabel : t.modal.supplementary}</span>
                 </label>
 
                 <label className="inline-flex items-center gap-3 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800">
@@ -367,22 +392,22 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                     onChange={(e) => handleChange("isMakeup", e.target.checked)}
                     className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-300"
                   />
-                  <span>{formData.isMakeup ? "Chương trình bù" : "Đánh dấu chương trình bù"}</span>
+                  <span>{formData.isMakeup ? t.modal.makeupLabel : t.modal.makeup}</span>
                 </label>
                 </div>
 
                 <div className="rounded-xl border border-dashed border-blue-200 bg-white/70 px-3 py-2 text-sm text-gray-700">
-                  Bên trái là chương trình phụ trợ, bên phải là chương trình bù. Nếu không chọn ô nào, hệ thống sẽ tạo chương trình chính.
+                  {t.modal.programTypeInfo}
                 </div>
 
                 <div className="text-sm text-gray-700">
-                  Loại đang chọn:{" "}
+                  {t.modal.programTypeSelected}{" "}
                   <span className="font-semibold text-gray-900">
                     {formData.isMakeup
-                      ? "Chương trình bù"
+                      ? t.modal.makeupLabel
                       : formData.isSupplementary
-                        ? "Chương trình phụ trợ"
-                        : "Chương trình chính"}
+                        ? t.modal.supplementaryLabel
+                        : t.modal.programMain}
                   </span>
                 </div>
 
@@ -399,9 +424,9 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               <div className="flex items-start gap-3">
                 <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600" />
                 <div>
-                  <div className="text-sm font-semibold text-amber-900">Giới hạn nghỉ ngắn ngày theo tháng</div>
+                  <div className="text-sm font-semibold text-amber-900">{t.modal.leaveLimitTitle}</div>
                   <p className="text-xs text-amber-700 mt-0.5">
-                    Số buổi nghỉ tối đa mỗi tháng cho các lớp thuộc chương trình này. Có thể để trống và cấu hình sau.
+                    {t.modal.leaveLimitDesc}
                   </p>
                 </div>
               </div>
@@ -414,7 +439,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                   const v = e.target.value.trim();
                   handleChange("maxLeavesPerMonth", v === "" ? null : Math.max(1, parseInt(v, 10) || 1));
                 }}
-                placeholder="VD: 3 (để trống nếu chưa cấu hình)"
+                placeholder={t.modal.leaveLimitPlaceholder}
                 className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
             </div>
@@ -432,7 +457,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
               disabled={submitting}
               className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Hủy bỏ
+              {t.buttons.cancel}
             </button>
             <div className="flex items-center gap-3">
               <button
@@ -448,7 +473,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 disabled={submitting}
                 className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {mode === "edit" ? "Khôi phục" : "Đặt lại"}
+                {mode === "edit" ? t.buttons.restore : t.buttons.reset}
               </button>
               <button
                 type="button"
@@ -456,7 +481,7 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
                 disabled={submitting}
                 className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {submitting ? "Đang lưu..." : mode === "edit" ? "Lưu thay đổi" : "Tạo khóa học"}
+                {submitting ? "Đang lưu..." : mode === "edit" ? t.buttons.save : t.buttons.create}
               </button>
             </div>
           </div>
@@ -470,6 +495,8 @@ function CreateCourseModal({ isOpen, onClose, onSubmit, mode = "create", initial
 export default function Page() {
   const { toast } = useToast();
   const { selectedBranchId, isLoaded, getBranchQueryParam } = useBranchFilter();
+  const { messages } = usePageI18n();
+  const t = messages.adminPages.courses;
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [q, setQ] = useState("");
   const [courses, setCourses] = useState<CourseRow[]>([]);
@@ -613,8 +640,8 @@ export default function Page() {
     try {
       if (!data.branchId) {
         toast({
-          title: "Thieu thong tin",
-          description: "Vui long chon chi nhanh",
+          title: t.validation.missingInfo,
+          description: t.validation.selectBranch,
           type: "warning",
         });
         return false;
@@ -622,8 +649,8 @@ export default function Page() {
 
       if (data.isMakeup && data.isSupplementary) {
         toast({
-          title: "Loi",
-          description: "Chuong trinh khong the vua la bu vua la phu tro",
+          title: t.messages.error,
+          description: t.validation.cannotBothTypes,
           type: "warning",
         });
         return false;
@@ -662,11 +689,11 @@ export default function Page() {
       }
 
       toast({
-        title: warnings.length > 0 ? "Da tao chuong trinh" : "Thanh cong",
+        title: warnings.length > 0 ? t.messages.courseCreated : t.messages.success,
         description:
           warnings.length > 0
-            ? `Da tao chuong trinh ${data.name}, nhung ${warnings.join("; ")}.`
-            : `Da tao chuong trinh ${data.name} thanh cong!`,
+            ? `${t.messages.courseCreated} ${data.name}, nhung ${warnings.join("; ")}.`
+            : `${t.messages.success}!`,
         type: warnings.length > 0 ? "warning" : "success",
       });
 
@@ -674,8 +701,8 @@ export default function Page() {
     } catch (err: any) {
       console.error("Failed to create program:", err);
       toast({
-        title: "Loi",
-        description: err?.message || "Khong the tao chuong trinh. Vui long thu lai.",
+        title: t.messages.error,
+        description: err?.message || t.messages.createFailed,
         type: "destructive",
       });
       return false;
@@ -688,8 +715,8 @@ export default function Page() {
     try {
       if (!data.branchId) {
         toast({
-          title: "Thieu thong tin",
-          description: "Vui long chon chi nhanh",
+          title: t.validation.missingInfo,
+          description: t.validation.selectBranch,
           type: "warning",
         });
         return false;
@@ -697,8 +724,8 @@ export default function Page() {
 
       if (data.isMakeup && data.isSupplementary) {
         toast({
-          title: "Loi",
-          description: "Chuong trinh khong the vua la bu vua la phu tro",
+          title: t.messages.error,
+          description: t.validation.cannotBothTypes,
           type: "warning",
         });
         return false;
@@ -746,11 +773,11 @@ export default function Page() {
       }
 
       toast({
-        title: warnings.length > 0 ? "Da cap nhat chuong trinh" : "Thanh cong",
+        title: warnings.length > 0 ? t.messages.courseUpdated : t.messages.success,
         description:
           warnings.length > 0
-            ? `Da cap nhat chuong trinh ${data.name}, nhung ${warnings.join("; ")}.`
-            : `Da cap nhat chuong trinh ${data.name} thanh cong!`,
+            ? `${t.messages.courseUpdated} ${data.name}, nhung ${warnings.join("; ")}.`
+            : `${t.messages.courseUpdated} ${data.name} thanh cong!`,
         type: warnings.length > 0 ? "warning" : "success",
       });
 
@@ -758,8 +785,8 @@ export default function Page() {
     } catch (err: any) {
       console.error("Failed to update program:", err);
       toast({
-        title: "Loi",
-        description: err?.message || "Khong the cap nhat chuong trinh. Vui long thu lai.",
+        title: t.messages.error,
+        description: err?.message || t.messages.updateFailed,
         type: "destructive",
       });
       return false;
@@ -802,8 +829,8 @@ export default function Page() {
     } catch (err: any) {
       console.error("Failed to load program detail for edit:", err);
       toast({
-        title: "Khong the mo form chinh sua",
-        description: err?.message || "Khong the tai du thong tin chuong trinh de chinh sua.",
+        title: t.modal.updateTitle,
+        description: err?.message || t.messages.notFoundDetail,
         type: "destructive",
       });
     }
@@ -822,8 +849,8 @@ export default function Page() {
     } catch (err: any) {
       console.error("Failed to load program detail:", err);
       toast({
-        title: "Lỗi",
-        description: err?.message || "Không thể tải thông tin chi tiết khóa học.",
+        title: t.messages.error,
+        description: err?.message || t.messages.notFoundDetail,
         type: "destructive",
       });
       closeDetailModal();
@@ -838,8 +865,8 @@ export default function Page() {
     const maxLeavesPerMonth = Number(leaveLimitDraft);
     if (!Number.isInteger(maxLeavesPerMonth) || maxLeavesPerMonth <= 0) {
       toast({
-        title: "Giá trị chưa hợp lệ",
-        description: "Số buổi nghỉ tối đa trong tháng phải lớn hơn 0.",
+        title: t.validation.invalidLeaveLimit,
+        description: t.validation.invalidLeaveValue,
         type: "warning",
       });
       return;
@@ -878,9 +905,8 @@ export default function Page() {
       setLeaveLimitDraft(String(nextLimit));
 
       toast({
-        title: "Đã cập nhật giới hạn nghỉ",
-        description:
-          "Chỉ các lớp được tạo mới sau thay đổi này mới nhận giới hạn nghỉ mới.",
+        title: t.messages.leaveLimitUpdated,
+        description: t.messages.leaveLimitUpdateNote,
         type: "success",
       });
     } catch (err: any) {
@@ -915,7 +941,7 @@ export default function Page() {
       setCourses(mapped);
 
       toast({
-        title: "Thành công",
+        title: t.messages.success,
         description: `Đã ${actionText} khóa học "${selectedCourse.name}" thành công!`,
         type: "success",
       });
@@ -925,8 +951,8 @@ export default function Page() {
     } catch (err: any) {
       console.error("Failed to toggle program status:", err);
       toast({
-        title: "Lỗi",
-        description: err?.message || "Không thể thay đổi trạng thái khóa học. Vui lòng thử lại.",
+        title: t.messages.error,
+        description: err?.message || t.messages.toggleFailed,
         type: "destructive",
       });
     } finally {
@@ -945,9 +971,9 @@ export default function Page() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-                Quản lý chương trình học
+                {t.header.title}
               </h1>
-              <p className="text-sm text-gray-600">Quản lý chương trình học và khóa học</p>
+              <p className="text-sm text-gray-600">{t.header.subtitle}</p>
             </div>
           </div>
           <button
@@ -955,7 +981,7 @@ export default function Page() {
             type="button"
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"
           >
-            <Plus size={18} /> Tạo khóa học mới
+            <Plus size={18} /> {t.buttons.create}
           </button>
         </div>
 
@@ -967,7 +993,7 @@ export default function Page() {
                 <BookOpen className="text-red-600" size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Tổng khóa học</div>
+                <div className="text-sm text-gray-600">{t.stats.totalCourses}</div>
                 <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
               </div>
             </div>
@@ -979,7 +1005,7 @@ export default function Page() {
                 <GraduationCap className="text-red-600" size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Đang hoạt động</div>
+                <div className="text-sm text-gray-600">{t.stats.active}</div>
                 <div className="text-2xl font-extrabold text-gray-900">{stats.active}</div>
               </div>
             </div>
@@ -991,7 +1017,7 @@ export default function Page() {
                 <Users className="text-gray-600" size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Tổng học viên</div>
+                <div className="text-sm text-gray-600">{t.stats.totalStudents}</div>
                 <div className="text-2xl font-extrabold text-gray-900">{stats.students}</div>
               </div>
             </div>
@@ -1003,7 +1029,7 @@ export default function Page() {
                 <DollarSign className="text-gray-800" size={18} />
               </span>
               <div>
-                <div className="text-sm text-gray-600">Doanh thu/tháng</div>
+                <div className="text-sm text-gray-600">{t.stats.monthlyRevenue}</div>
                 <div className="text-2xl font-extrabold text-gray-900">{stats.revenue}</div>
               </div>
             </div>
@@ -1015,36 +1041,36 @@ export default function Page() {
           <div className={`flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl transition-all duration-700 delay-150 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <Building2 size={16} className="text-red-600" />
             <span className="text-sm text-red-700 font-medium">
-              Đang lọc theo chi nhánh đã chọn
+              {t.filters.branchFiltered}
             </span>
           </div>
         )}
 
         {/* Search & Filters */}
         <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-3xl min-w-[280px]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input
                 value={q}
                 onChange={(e) => { setQ(e.target.value); setPage(1); }}
-                placeholder="Tìm kiếm khóa học..."
+                placeholder={t.filters.search}
                 className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
               <Select 
                 value={statusFilter} 
                 onValueChange={(val) => { setStatusFilter(val as typeof statusFilter); setPage(1); }}
               >
                 <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-                  <SelectValue placeholder="Chọn trạng thái" />
+                  <SelectValue placeholder={t.filters.statusLabel} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="Đang hoạt động">Đang hoạt động</SelectItem>
-                  <SelectItem value="Tạm dừng">Tạm dừng</SelectItem>
+                  <SelectItem value="ALL">{t.filters.allStatus}</SelectItem>
+                  <SelectItem value="Đang hoạt động">{t.filters.active}</SelectItem>
+                  <SelectItem value="Tạm dừng">{t.filters.paused}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1057,10 +1083,10 @@ export default function Page() {
           <div className="bg-gradient-to-r from-red-500/10 to-red-700/10 border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">Danh sách khóa học</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t.table.title}</h2>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">{rows.length} khóa học</span>
+                <span className="font-medium">{rows.length} {t.table.count}</span>
               </div>
             </div>
           </div>
@@ -1070,12 +1096,12 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                 <tr>
-                  <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>Tên khóa học</SortableHeader>
-                  <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>Thời lượng</SortableHeader>
-                  <SortableHeader field="fee" currentField={sortField} direction={sortDirection} onSort={handleSort}>Học phí</SortableHeader>
-                  <SortableHeader field="branch" currentField={sortField} direction={sortDirection} onSort={handleSort}>Chi nhánh</SortableHeader>
-                  <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Trạng thái</SortableHeader>
-                  <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">Thao tác</th>
+                  <SortableHeader field="name" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.courseName}</SortableHeader>
+                  <SortableHeader field="duration" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.duration}</SortableHeader>
+                  <SortableHeader field="fee" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.fee}</SortableHeader>
+                  <SortableHeader field="branch" currentField={sortField} direction={sortDirection} onSort={handleSort}>{t.table.branch}</SortableHeader>
+                  <SortableHeader field="status" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">{t.table.status}</SortableHeader>
+                  <th className="py-3 px-6 text-right text-xs font-medium tracking-wide text-gray-700 whitespace-nowrap">{t.table.actions}</th>
                 </tr>
               </thead>
 
@@ -1113,7 +1139,7 @@ export default function Page() {
                       <td className="py-3 px-6 whitespace-nowrap">
                         <div className="inline-flex items-center gap-2 text-gray-900 text-sm">
                           <Building2 size={16} className="text-gray-400" />
-                          <span className="truncate">{c.branch || "Chưa có"}</span>
+                          <span className="truncate">{c.branch || t.details.noBranch}</span>
                         </div>
                       </td>
 
@@ -1126,14 +1152,14 @@ export default function Page() {
                           <button
                             onClick={() => handleViewDetail(c)}
                             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
-                            title="Xem chi tiết"
+                            title={t.buttons.view}
                           >
                             <Eye size={14} />
                           </button>
                           <button
                             onClick={() => handleOpenEditCourse(c)}
                             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-800 cursor-pointer"
-                            title="Sửa"
+                            title={t.buttons.edit}
                           >
                             <Pencil size={14} />
                           </button>
@@ -1145,7 +1171,7 @@ export default function Page() {
                                 ? "hover:bg-gray-100 text-gray-400 hover:text-gray-800"
                                 : "hover:bg-red-50 text-gray-400 hover:text-red-600"
                             )}
-                            title={c.status === "Đang hoạt động" ? "Tạm dừng" : "Kích hoạt"}
+                            title={c.status === "Đang hoạt động" ? t.messages.pauseConfirm : t.messages.activateConfirm}
                           >
                             {c.status === "Đang hoạt động" ? <PowerOff size={14} /> : <Power size={14} />}
                           </button>
@@ -1159,8 +1185,8 @@ export default function Page() {
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
                         <Search size={24} className="text-gray-400" />
                       </div>
-                      <div className="text-gray-600 font-medium">Không tìm thấy khóa học</div>
-                      <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo khóa học mới</div>
+                      <div className="text-gray-600 font-medium">{t.table.notFound}</div>
+                      <div className="text-sm text-gray-500 mt-1">{t.table.tryFilter}</div>
                     </td>
                   </tr>
                 )}
@@ -1173,8 +1199,8 @@ export default function Page() {
             <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 px-6 py-4">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-gray-600">
-                  Hiển thị <span className="font-semibold text-gray-900">{(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, rows.length)}</span>
-                  {' '}trong tổng số <span className="font-semibold text-gray-900">{rows.length}</span> khóa học
+                  {t.table.showing} <span className="font-semibold text-gray-900">{(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, rows.length)}</span>
+                  {' '}{t.table.outOf} <span className="font-semibold text-gray-900">{rows.length}</span> {t.table.count}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -1253,6 +1279,7 @@ export default function Page() {
         onSubmit={handleCreateCourse}
         mode="create"
         initialData={null}
+        t={t}
       />
       {/* Edit Course Modal */}
       <CreateCourseModal
@@ -1263,8 +1290,9 @@ export default function Page() {
           setEditingInitialData(null);
           setOriginalStatus(null);
         }}
-        onSubmit={handleUpdateCourse}
         mode="edit"
+        t={t}
+        onSubmit={handleUpdateCourse}
         initialData={editingInitialData}
       />
 
@@ -1276,14 +1304,14 @@ export default function Page() {
           setSelectedCourse(null);
         }}
         onConfirm={confirmToggleStatus}
-        title={selectedCourse?.status === "Đang hoạt động" ? "Xác nhận tạm dừng khóa học" : "Xác nhận kích hoạt khóa học"}
+        title={selectedCourse?.status === "Đang hoạt động" ? t.messages.pauseConfirm : t.messages.activateConfirm}
         message={
           selectedCourse?.status === "Đang hoạt động"
-            ? `Bạn có chắc chắn muốn tạm dừng khóa học "${selectedCourse?.name}"? Khóa học sẽ không còn hoạt động sau khi tạm dừng.`
-            : `Bạn có chắc chắn muốn kích hoạt khóa học "${selectedCourse?.name}"? Khóa học sẽ được kích hoạt và có thể sử dụng ngay.`
+            ? `${t.messages.pauseConfirmMsg}`.replace("{name}", selectedCourse?.name || "")
+            : `${t.messages.activateConfirmMsg}`.replace("{name}", selectedCourse?.name || "")
         }
-        confirmText={selectedCourse?.status === "Đang hoạt động" ? "Tạm dừng" : "Kích hoạt"}
-        cancelText="Hủy"
+        confirmText={selectedCourse?.status === "Đang hoạt động" ? t.messages.pauseConfirm : t.messages.activateConfirm}
+        cancelText={t.buttons.cancel}
         variant={selectedCourse?.status === "Đang hoạt động" ? "warning" : "success"}
         isLoading={isTogglingStatus}
       />
@@ -1300,8 +1328,8 @@ export default function Page() {
                     <BookOpen size={24} className="text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Chi tiết khóa học</h2>
-                    <p className="text-sm text-red-100">Thông tin chi tiết về khóa học</p>
+                    <h2 className="text-2xl font-bold text-white">{t.details.title}</h2>
+                    <p className="text-sm text-red-100">{t.details.subtitle}</p>
                   </div>
                 </div>
                 <button
@@ -1309,7 +1337,7 @@ export default function Page() {
                     closeDetailModal();
                   }}
                   className="p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
-                  aria-label="Đóng"
+                  aria-label={t.buttons.close}
                 >
                   <X size={24} className="text-white" />
                 </button>
@@ -1328,10 +1356,10 @@ export default function Page() {
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       <BookOpen size={16} className="text-red-600" />
-                      Tên khóa học
+                      {t.details.nameLabel}
                     </label>
                     <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                      {selectedCourseDetail.name || "Chưa có thông tin"}
+                      {selectedCourseDetail.name || t.details.noInfo}
                     </div>
                   </div>
 
@@ -1339,10 +1367,10 @@ export default function Page() {
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       <FileText size={16} className="text-red-600" />
-                      Mô tả khóa học
+                      {t.details.descLabel}
                     </label>
                     <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 min-h-[80px]">
-                      {selectedCourseDetail.description || "Chưa có mô tả"}
+                      {selectedCourseDetail.description || t.details.noDescription}
                     </div>
                   </div>
 
@@ -1352,10 +1380,10 @@ export default function Page() {
                       <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
                       <div className="space-y-1">
                         <h3 className="text-sm font-semibold text-amber-900">
-                          Giới hạn nghỉ ngắn ngày theo tháng
+                          {t.modal.leaveLimitTitle}
                         </h3>
                         <p className="text-sm text-amber-800">
-                          Cấu hình này dùng cho leave request theo chương trình. Khi bạn đổi số buổi nghỉ, chỉ các lớp tạo mới từ chương trình này mới áp dụng, còn các lớp đã tạo trước đó sẽ giữ giới hạn cũ.
+                          {t.modal.leaveLimitDesc}
                         </p>
                       </div>
                     </div>
@@ -1363,16 +1391,16 @@ export default function Page() {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                       <div className="space-y-2">
                         <label className="text-sm font-semibold text-gray-700">
-                          Giới hạn hiện tại
+                          {t.modal.leaveCurrentLimit}
                         </label>
                         <div className="px-4 py-3 rounded-xl border border-amber-200 bg-white text-gray-900">
-                          {currentLeaveLimit !== null ? `${currentLeaveLimit} buổi / tháng` : "Chưa cấu hình"}
+                          {currentLeaveLimit !== null ? `${currentLeaveLimit} buổi / tháng` : t.modal.leaveCurrentLimit}
                         </div>
                       </div>
 
                       <div className="space-y-2">
                         <label className="text-sm font-semibold text-gray-700">
-                          Số buổi nghỉ tối đa / tháng
+                          {t.modal.leaveLimitLabel}
                         </label>
                         <input
                           type="number"
@@ -1380,7 +1408,7 @@ export default function Page() {
                           step="1"
                           value={leaveLimitDraft}
                           onChange={(e) => setLeaveLimitDraft(e.target.value)}
-                          placeholder="VD: 3"
+                          placeholder={t.modal.leaveLimitPlaceholder}
                           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-200"
                         />
                       </div>
@@ -1397,7 +1425,7 @@ export default function Page() {
                               : "bg-gray-100 text-gray-400 cursor-not-allowed"
                           )}
                         >
-                          {isSavingLeaveLimit ? "Đang lưu..." : "Lưu giới hạn"}
+                          {isSavingLeaveLimit ? t.messages.saving : t.modal.saveLeaveLimit}
                         </button>
                       </div>
                     </div>
@@ -1407,22 +1435,22 @@ export default function Page() {
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <Clock size={16} className="text-red-600" />
-                        Số buổi học
+                        {t.details.sessionsLabel}
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {selectedCourseDetail.totalSessions ? `${selectedCourseDetail.totalSessions} buổi` : "Chưa có thông tin"}
+                        {selectedCourseDetail.totalSessions ? `${selectedCourseDetail.totalSessions} ${t.table.count}` : t.details.noInfo}
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <DollarSign size={16} className="text-red-600" />
-                        Học phí mặc định
+                        {t.details.tuitionLabel}
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         {selectedCourseDetail.defaultTuitionAmount
                           ? `${selectedCourseDetail.defaultTuitionAmount.toLocaleString("vi-VN")} VND`
-                          : "Chưa có thông tin"}
+                          : t.details.noInfo}
                       </div>
                     </div>
                   </div>
@@ -1432,29 +1460,29 @@ export default function Page() {
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <DollarSign size={16} className="text-red-600" />
-                        Giá mỗi buổi
+                        {t.details.unitPriceLabel}
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         {selectedCourseDetail.unitPriceSession
                           ? `${selectedCourseDetail.unitPriceSession.toLocaleString("vi-VN")} VND`
-                          : "Chưa có thông tin"}
+                          : t.details.noInfo}
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <Building2 size={16} className="text-red-600" />
-                        Chi nhánh
+                        {t.details.branchLabel}
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
-                        {selectedCourseDetail.branchName || selectedCourseDetail.branch?.name || "Chưa có chi nhánh"}
+                        {selectedCourseDetail.branchName || selectedCourseDetail.branch?.name || t.details.noBranch}
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <GraduationCap size={16} className="text-red-600" />
-                        Loại chương trình
+                        {t.details.typeLabel}
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900">
                         {getProgramTypeDetailLabel(selectedCourseDetail)}
@@ -1464,17 +1492,17 @@ export default function Page() {
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <BookOpen size={16} className="text-red-600" />
-                        Trạng thái
+                        {t.details.statusLabel}
                       </label>
                       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-white">
-                        <StatusBadge value={normalizeIsActive(selectedCourseDetail?.isActive ?? selectedCourseDetail?.status) === true ? "Đang hoạt động" : "Tạm dừng"} />
+                        <StatusBadge value={normalizeIsActive(selectedCourseDetail?.isActive ?? selectedCourseDetail?.status) === true ? t.status.active : t.status.paused} />
                       </div>
                     </div>
                   </div>
 
                   {selectedCourseDetail.defaultMakeupClassId ? (
                     <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                      <div className="font-semibold">Default makeup class</div>
+                      <div className="font-semibold">{t.details.defaultMakeupClass}</div>
                       <p className="mt-1 break-all">
                         {selectedCourseDetail.defaultMakeupClassId}
                       </p>
@@ -1485,7 +1513,7 @@ export default function Page() {
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-500">
-                  Không có dữ liệu để hiển thị
+                  {t.table.notFound}
                 </div>
               )}
             </div>
@@ -1499,7 +1527,7 @@ export default function Page() {
                   }}
                   className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all cursor-pointer"
                 >
-                  Đóng
+                  {t.buttons.close}
                 </button>
               </div>
             </div>

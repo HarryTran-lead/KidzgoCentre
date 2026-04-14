@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import {
   createAdminQuestion,
   generateAiQuestionDrafts,
@@ -376,49 +377,47 @@ export default function AiCreatorModal({
     <div className="fixed inset-0 z-[9999] bg-black/50 px-4 py-8 backdrop-blur-sm">
       <div
         ref={modalRef}
-        className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-red-200 bg-white shadow-2xl"
+        className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-red-200 bg-white shadow-2xl"
       >
-        <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 text-white">
+        <div className="flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 px-5 py-4 text-white">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white/15 p-2.5">
-              <Brain size={20} />
+          <div className="rounded-2xl bg-white/15 p-2">
+              <Brain size={18} />
             </div>
             <div>
-              <div className="text-lg font-semibold">Tạo câu hỏi bằng AI</div>
-              <div className="text-sm text-white/80">{headerDescription}</div>
+              <div className="text-base font-semibold">Tạo câu hỏi bằng AI</div>
+              <div className="text-xs text-white/80">{headerDescription}</div>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Đóng"
-            className="rounded-full p-2 transition hover:bg-white/10"
+            className="rounded-full p-1.5 transition hover:bg-white/10"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <div className="grid flex-1 gap-0 overflow-hidden lg:grid-cols-[360px,1fr]">
-          <div className="overflow-y-auto border-r border-red-100 bg-red-50/30 p-6">
-            <div className="space-y-4">
+        <div className="grid flex-1 gap-0 overflow-hidden lg:grid-cols-[340px,1fr]">
+          <div className="overflow-y-auto border-r border-red-100 bg-red-50/30 p-5">
+            <div className="space-y-3">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-xs font-medium text-gray-700">
                   Khóa học
                 </label>
-                <select
-                  value={form.programId}
-                  onChange={(event) => handleChange("programId", event.target.value)}
-                  className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
-                >
-                  <option value="">
-                    {loadingCourses ? "Đang tải..." : "Chọn khóa học"}
-                  </option>
-                  {courseOptions.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.name}
-                    </option>
-                  ))}
-                </select>
+                <Select value={form.programId} onValueChange={(value) => handleChange("programId", value)}>
+                  <SelectTrigger className="w-full rounded-lg h-9">
+                    <SelectValue placeholder={loadingCourses ? "Đang tải..." : "Chọn khóa học"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courseOptions.map((course) => (
+                      <SelectItem key={course.id} value={course.id}>
+                        {course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.programId ? (
                   <p className="mt-1 text-xs text-red-600">{errors.programId}</p>
                 ) : null}
@@ -439,45 +438,43 @@ export default function AiCreatorModal({
                 ) : null}
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-xs font-medium text-gray-700">
                     Loại câu hỏi
                   </label>
-                  <select
+                  <Select
                     value={form.questionType}
-                    onChange={(event) =>
-                      handleChange(
-                        "questionType",
-                        event.target.value as FormState["questionType"]
-                      )
-                    }
+                    onValueChange={(value) => handleChange("questionType", value as FormState["questionType"])}
                     disabled={availableQuestionTypes.length === 1}
-                    className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300 disabled:cursor-not-allowed disabled:bg-gray-50"
                   >
-                    {availableQuestionTypes.map((questionType) => (
-                      <option key={questionType} value={questionType}>
-                        {QUESTION_TYPE_LABELS[questionType]}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full rounded-lg h-9 disabled:opacity-50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableQuestionTypes.map((questionType) => (
+                        <SelectItem key={questionType} value={questionType}>
+                          {QUESTION_TYPE_LABELS[questionType]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-xs font-medium text-gray-700">
                     Độ khó
                   </label>
-                  <select
-                    value={form.level}
-                    onChange={(event) =>
-                      handleChange("level", event.target.value as FormState["level"])
-                    }
-                    className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
-                  >
-                    <option value="Easy">{LEVEL_LABELS.Easy}</option>
-                    <option value="Medium">{LEVEL_LABELS.Medium}</option>
-                    <option value="Hard">{LEVEL_LABELS.Hard}</option>
-                  </select>
+                  <Select value={form.level} onValueChange={(value) => handleChange("level", value as FormState["level"])}>
+                    <SelectTrigger className="w-full rounded-lg h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Easy">{LEVEL_LABELS.Easy}</SelectItem>
+                      <SelectItem value="Medium">{LEVEL_LABELS.Medium}</SelectItem>
+                      <SelectItem value="Hard">{LEVEL_LABELS.Hard}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -536,40 +533,35 @@ export default function AiCreatorModal({
                 />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-xs font-medium text-gray-700">
                     Kiểu bài tập
                   </label>
-                  <select
-                    value={form.taskStyle}
-                    onChange={(event) =>
-                      handleChange(
-                        "taskStyle",
-                        event.target.value as FormState["taskStyle"]
-                      )
-                    }
-                    className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
-                  >
-                    <option value="standard">{TASK_STYLE_LABELS.standard}</option>
-                    <option value="translation">
-                      {TASK_STYLE_LABELS.translation}
-                    </option>
-                  </select>
+                  <Select value={form.taskStyle} onValueChange={(value) => handleChange("taskStyle", value as FormState["taskStyle"])}>
+                    <SelectTrigger className="w-full rounded-lg h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">{TASK_STYLE_LABELS.standard}</SelectItem>
+                      <SelectItem value="translation">{TASK_STYLE_LABELS.translation}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-xs font-medium text-gray-700">
                     Ngôn ngữ
                   </label>
-                  <select
-                    value={form.language}
-                    onChange={(event) => handleChange("language", event.target.value)}
-                    className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300"
-                  >
-                    <option value="vi">{LANGUAGE_LABELS.vi}</option>
-                    <option value="en">{LANGUAGE_LABELS.en}</option>
-                  </select>
+                  <Select value={form.language} onValueChange={(value) => handleChange("language", value)}>
+                    <SelectTrigger className="w-full rounded-lg h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vi">{LANGUAGE_LABELS.vi}</SelectItem>
+                      <SelectItem value="en">{LANGUAGE_LABELS.en}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -763,13 +755,13 @@ export default function AiCreatorModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-red-100 bg-white px-6 py-4">
-          <div className="text-sm text-gray-500">{footerDescription}</div>
-          <div className="flex flex-wrap gap-3">
+        <div className="flex items-center justify-between border-t border-red-100 bg-white px-5 py-3">
+          <div className="text-xs text-gray-500">{footerDescription}</div>
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
             >
               Đóng
             </button>
@@ -777,12 +769,12 @@ export default function AiCreatorModal({
               type="button"
               onClick={isAssignmentMode ? handleUseDrafts : handleSaveAll}
               disabled={!canSubmitDrafts || submitting}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (
-                <Loader2 size={15} className="animate-spin" />
+                <Loader2 size={14} className="animate-spin" />
               ) : (
-                <PlusCircle size={15} />
+                <PlusCircle size={14} />
               )}
               {primaryActionLabel}
             </button>

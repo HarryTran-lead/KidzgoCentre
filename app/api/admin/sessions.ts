@@ -148,48 +148,19 @@ function mapApiSession(item: any): Session {
 export async function updateSessionColor(
   sessionId: string,
   color: string
-): Promise<{ isSuccess: boolean; message?: string }> {
+): Promise<{ isSuccess: boolean; message?: string; localOnly?: boolean }> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("Bạn chưa đăng nhập.");
   }
 
-  // 1. GET current session to get all fields
-  const getRes = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!getRes.ok) {
-    throw new Error("Không thể lấy thông tin session.");
-  }
-
-  const getJson = await getRes.json();
-  const session = getJson?.data?.session ?? getJson?.data ?? getJson;
-
-  // 2. PUT full session with updated color
-  const updateBody = {
-    ...session,
-    color,
-  };
-  // Remove read-only/computed fields that backend may reject
-  delete updateBody.id;
-  delete updateBody.classTitle;
-  delete updateBody.className;
-  delete updateBody.branchName;
-  delete updateBody.plannedRoomName;
-  delete updateBody.roomName;
-  delete updateBody.plannedTeacherName;
-  delete updateBody.teacherName;
-
-  const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
-    method: "PUT",
+  const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}/color`, {
+    method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(updateBody),
+    body: JSON.stringify({ color }),
   });
 
   const text = await res.text();
@@ -203,6 +174,41 @@ export async function updateSessionColor(
   if (!res.ok) {
     const msg = json?.message || json?.error || json?.title || "Không thể cập nhật màu.";
     console.error("Update session color failed:", res.status, json);
+    throw new Error(msg);
+  }
+
+  return { isSuccess: json?.isSuccess ?? true, message: json?.message };
+}
+
+export async function updateClassColor(
+  classId: string,
+  color: string
+): Promise<{ isSuccess: boolean; message?: string }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.CLASSES_COLOR(classId)}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ color }),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg = json?.message || json?.error || json?.title || "Không thể cập nhật màu lớp."
+    console.error("Update class color failed:", res.status, json);
     throw new Error(msg);
   }
 
@@ -277,5 +283,51 @@ export async function fetchAdminSessions(
   }
 
   return items.map(mapApiSession).filter((s: Session) => s.id);
+}
+
+/**
+ * Update session fields (room, teacher, assistant, datetime, etc.)
+ * via PUT /api/sessions/{id}
+ */
+export async function updateAdminSession(
+  sessionId: string,
+  payload: {
+    plannedRoomId?: string;
+    plannedTeacherId?: string;
+    plannedAssistantId?: string;
+    plannedDatetime?: string;
+    durationMinutes?: number;
+    classId?: string;
+    participationType?: string;
+  }
+): Promise<{ isSuccess: boolean; data?: any; message?: string }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Bạn chưa đăng nhập.");
+  }
+
+  const res = await fetch(`${ADMIN_ENDPOINTS.SESSIONS}/${sessionId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg = json?.message || json?.error || json?.title || "Không thể cập nhật session.";
+    throw new Error(msg);
+  }
+
+  return { isSuccess: json?.isSuccess ?? true, data: json?.data ?? json, message: json?.message };
 }
 

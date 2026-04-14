@@ -25,6 +25,7 @@ import type {
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import ConfirmModal from "@/components/ConfirmModal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 /* ───────────── helpers ───────────── */
 function cn(...a: Array<string | false | null | undefined>) {
@@ -330,26 +331,18 @@ function CreateRequestModal({
           {/* Class selector */}
           <div className="space-y-1">
             <label className="text-sm font-semibold text-gray-700">Lớp học *</label>
-            <div className="relative">
-              <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-              <select
-                value={selectedClass?.id ?? ""}
-                onChange={(e) => handleSelectClass(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 appearance-none"
-              >
-                <option value="">— Chọn lớp học —</option>
-                {loadingClasses ? (
-                  <option disabled>Đang tải danh sách lớp…</option>
-                ) : (
-                  classList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.code ? `[${c.code}] ` : ""}{c.title}{c.mainTeacherName ? ` · GV: ${c.mainTeacherName}` : ""}
-                    </option>
-                  ))
-                )}
-              </select>
-              {loadingClasses && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin pointer-events-none" size={16} />}
-            </div>
+            <Select value={selectedClass?.id ?? ""} onValueChange={handleSelectClass} disabled={loadingClasses}>
+              <SelectTrigger className="w-full rounded-xl border border-pink-200 bg-white text-sm transition-all hover:border-pink-300 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 data-[state=open]:border-pink-400 data-[state=open]:ring-2 data-[state=open]:ring-pink-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                <SelectValue placeholder={loadingClasses ? "Đang tải danh sách lớp…" : "— Chọn lớp học —"} />
+              </SelectTrigger>
+              <SelectContent>
+                {classList.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.code ? `[${c.code}] ` : ""}{c.title}{c.mainTeacherName ? ` · GV: ${c.mainTeacherName}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Teacher (auto-filled, read-only) */}
@@ -376,26 +369,16 @@ function CreateRequestModal({
             {!selectedClass ? (
               <div className="px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-400">Chọn lớp trước để xem danh sách học sinh</div>
             ) : (
-              <div className="relative">
-                <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                <select
-                  value={selectedStudent?.profileId ?? ""}
-                  onChange={(e) => {
-                    const found = studentList.find((s) => s.profileId === e.target.value);
-                    setSelectedStudent(found ?? null);
-                  }}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 appearance-none"
-                >
-                  <option value="">— Tất cả học sinh lớp này —</option>
-                  {loadingStudents ? (
-                    <option disabled>Đang tải danh sách học sinh…</option>
-                  ) : (
-                    studentList.map((s) => (
-                      <option key={s.profileId} value={s.profileId}>{s.name}</option>
-                    ))
-                  )}
-                </select>
-              </div>
+              <Select value={selectedStudent?.profileId ?? ""} onValueChange={(val) => { const found = studentList.find((s) => s.profileId === val); setSelectedStudent(found ?? null); }} disabled={loadingStudents}>
+                <SelectTrigger className="w-full rounded-xl border border-pink-200 bg-white text-sm transition-all hover:border-pink-300 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 data-[state=open]:border-pink-400 data-[state=open]:ring-2 data-[state=open]:ring-pink-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                  <SelectValue placeholder={loadingStudents ? "Đang tải danh sách học sinh…" : "— Tất cả học sinh lớp này —"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {studentList.map((s) => (
+                    <SelectItem key={s.profileId} value={s.profileId}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
 
@@ -406,27 +389,16 @@ function CreateRequestModal({
               {!selectedClass ? (
                 <div className="px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-400">Chọn lớp trước để xem danh sách buổi học</div>
               ) : (
-                <div className="relative">
-                  <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                  <select
-                    value={selectedSession?.id ?? ""}
-                    onChange={(e) => {
-                      const found = sessionList.find((s) => s.id === e.target.value);
-                      setSelectedSession(found ?? null);
-                    }}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pink-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 appearance-none"
-                  >
-                    <option value="">— Chọn buổi học —</option>
-                    {loadingSessions ? (
-                      <option disabled>Đang tải danh sách buổi học…</option>
-                    ) : (
-                      sessionList.map((s) => (
-                        <option key={s.id} value={s.id}>{s.label}</option>
-                      ))
-                    )}
-                  </select>
-                  {loadingSessions && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin pointer-events-none" size={16} />}
-                </div>
+                <Select value={selectedSession?.id ?? ""} onValueChange={(val) => { const found = sessionList.find((s) => s.id === val); setSelectedSession(found ?? null); }} disabled={loadingSessions}>
+                  <SelectTrigger className="w-full rounded-xl border border-pink-200 bg-white text-sm transition-all hover:border-pink-300 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 data-[state=open]:border-pink-400 data-[state=open]:ring-2 data-[state=open]:ring-pink-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                    <SelectValue placeholder={loadingSessions ? "Đang tải danh sách buổi học…" : "— Chọn buổi học —"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sessionList.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             </div>
           )}
@@ -436,11 +408,16 @@ function CreateRequestModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-gray-700">Tháng *</label>
-                <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-200">
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                    <option key={m} value={m}>Tháng {m}</option>
-                  ))}
-                </select>
+                <Select value={String(month)} onValueChange={(val) => setMonth(Number(val))}>
+                  <SelectTrigger className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm transition-all hover:border-pink-300 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 data-[state=open]:border-pink-400 data-[state=open]:ring-2 data-[state=open]:ring-pink-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <SelectItem key={m} value={String(m)}>Tháng {m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-gray-700">Năm *</label>
@@ -776,25 +753,37 @@ export default function ReportRequestsWorkspace({ isAdmin = false }: { isAdmin?:
 
         {/* Filters */}
         <div className={cn("rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[240px]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo tên GV, học sinh, lớp..." className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300" />
             </div>
-            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as ReportRequestStatus | "ALL"); setPage(1); }} className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="Requested">Chờ xử lý</option>
-              <option value="InProgress">Đang xử lý</option>
-              <option value="Submitted">Đã gửi</option>
-              <option value="Approved">Đã duyệt</option>
-              <option value="Rejected">Từ chối</option>
-              <option value="Cancelled">Đã hủy</option>
-            </select>
-            <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value as ReportRequestType | "ALL"); setPage(1); }} className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-              <option value="ALL">Tất cả loại</option>
-              <option value="Monthly">Báo cáo tháng</option>
-              <option value="Session">Báo cáo buổi</option>
-            </select>
+            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
+              <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as ReportRequestStatus | "ALL"); setPage(1); }}>
+                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="Requested">Chờ xử lý</SelectItem>
+                  <SelectItem value="InProgress">Đang xử lý</SelectItem>
+                  <SelectItem value="Submitted">Đã gửi</SelectItem>
+                  <SelectItem value="Approved">Đã duyệt</SelectItem>
+                  <SelectItem value="Rejected">Từ chối</SelectItem>
+                  <SelectItem value="Cancelled">Đã hủy</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={(value) => { setTypeFilter(value as ReportRequestType | "ALL"); setPage(1); }}>
+                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tất cả loại</SelectItem>
+                  <SelectItem value="Monthly">Báo cáo tháng</SelectItem>
+                  <SelectItem value="Session">Báo cáo buổi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 

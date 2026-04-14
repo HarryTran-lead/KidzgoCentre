@@ -315,12 +315,16 @@ export default function StudentSchedulePage() {
                       ) : (
                         daySessions.map((session) => {
                           const attendanceLabel = getAttendanceLabel(session);
+                          const hexColor = session.color && (session.color.startsWith('#') || session.color.startsWith('rgb')) ? session.color : null;
 
                           return (
                             <article
                               key={session.id}
-                              className="rounded-2xl border border-red-100 bg-white p-4 shadow-sm"
+                              className="rounded-2xl border border-red-100 bg-white shadow-sm overflow-hidden"
+                              style={hexColor ? { backgroundColor: `${hexColor}33`, borderColor: `${hexColor}66` } : undefined}
                             >
+                              {hexColor && <div className="h-1.5 w-full" style={{ backgroundColor: hexColor }} />}
+                              <div className="p-4">
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                   <div className="text-sm font-semibold text-gray-900">
@@ -370,6 +374,7 @@ export default function StudentSchedulePage() {
                                   {attendanceLabel}
                                 </div>
                               ) : null}
+                              </div>
                             </article>
                           );
                         })

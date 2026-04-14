@@ -270,6 +270,10 @@ export default function SchedulePage() {
   };
 
   const getLightColor = (type: string, event?: ClassEvent) => {
+    // If backend color is hex/rgb, return empty — handled via inline style
+    if (event?.color && (event.color.startsWith('#') || event.color.startsWith('rgb'))) {
+      return '';
+    }
     const key = event?.programName ?? event?.title ?? "";
     if (key && programColorMap.has(key)) {
       return PROGRAM_COLOR_PALETTE[programColorMap.get(key)!].light;
@@ -534,14 +538,20 @@ export default function SchedulePage() {
                       <div className="space-y-2">
                         {filteredEvents.map((event) => {
                           const lightColor = getLightColor(event.type, event);
+                          const isHexColor = event.color && (event.color.startsWith('#') || event.color.startsWith('rgb'));
+                          const hexBgStyle = isHexColor ? { backgroundColor: `${event.color}33` } : undefined;
+                          const hexAccentStyle = isHexColor ? { backgroundColor: event.color ?? undefined } : undefined;
                           const childColor = event.studentProfileId ? childColorMap.get(event.studentProfileId) : null;
                           const showChildLabel = children.length >= 1 && selectedChild === "all" && event.studentDisplayName;
                           return (
                             <button
                               key={event.id}
                               onClick={() => setSelectedClass(event)}
-                              className={`w-full text-left rounded-xl p-2.5 text-xs transition-all duration-200 hover:shadow-md cursor-pointer border ${childColor && showChildLabel ? childColor.border : "border-red-200"} ${lightColor}`}
+                              className={`w-full text-left rounded-xl overflow-hidden text-xs transition-all duration-200 hover:shadow-md cursor-pointer border ${childColor && showChildLabel ? childColor.border : isHexColor ? '' : 'border-red-200'} ${lightColor}`}
+                              style={isHexColor ? { ...hexBgStyle, borderColor: `${event.color}66` } : undefined}
                             >
+                              {isHexColor && <div className="h-1.5 w-full" style={hexAccentStyle} />}
+                              <div className="p-2.5">
                               <div className="flex items-start gap-2">
                                 <div className="flex-1 min-w-0">
                                   {showChildLabel && (
@@ -588,6 +598,7 @@ export default function SchedulePage() {
                                   )}
                                 </div>
                               </div>
+                              </div>
                             </button>
                           );
                         })}
@@ -619,7 +630,10 @@ export default function SchedulePage() {
           >
             <div className="sticky top-0 bg-gradient-to-r from-red-100 to-red-100 border-b border-red-200 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${getEventColor(selectedClass.type, selectedClass)} text-white shadow-md`}>
+                <div
+                  className={`p-2 rounded-xl ${getEventColor(selectedClass.type, selectedClass)} text-white shadow-md`}
+                  style={selectedClass.color && (selectedClass.color.startsWith('#') || selectedClass.color.startsWith('rgb')) ? { backgroundColor: selectedClass.color } : undefined}
+                >
                   <CalendarDays size={18} />
                 </div>
                 <div>
