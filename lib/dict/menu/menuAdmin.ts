@@ -41,7 +41,6 @@ export const menuAdmin = {
       system: {
         title: "Hệ thống",
         accounts: "Quản lý tài khoản",
-        teachers: "Quản lý giáo viên",
         branches: "Quản lý chi nhánh",
         blogs: "Quản lý bản tin",
         reports: "Báo cáo sự cố",
@@ -94,7 +93,6 @@ export const menuAdmin = {
       system: {
         title: "System",
         accounts: "Accounts",
-        teachers: "Teachers",
         branches: "Branches",
         blogs: "Blogs",
         reports: "Incident Reports",

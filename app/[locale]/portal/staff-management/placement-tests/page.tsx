@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Search,
@@ -52,6 +53,11 @@ import type {
 } from "@/types/placement-test";
 
 export default function PlacementTestsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const deepLinkHandledRef = useRef(false);
+
   const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
   const [tests, setTests] = useState<PlacementTest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,6 +108,7 @@ export default function PlacementTestsPage() {
   const [retakePrograms, setRetakePrograms] = useState<Array<{ id: string; name: string; branchId?: string }>>([]);
   const [retakeTuitionPlans, setRetakeTuitionPlans] = useState<Array<{ id: string; name: string; programId: string; branchId?: string }>>([]);
   const [isLoadingDropdownData, setIsLoadingDropdownData] = useState(false);
+  const deepLinkedPlacementTestId = searchParams.get("placementTestId");
 
   const resolveCurrentUserBranchId = (user: any): string => {
     return String(
@@ -156,6 +163,65 @@ export default function PlacementTestsPage() {
     if (isCurrentUserLoading) return;
     fetchLeads();
   }, [isCurrentUserLoading, currentUserBranchId]);
+
+  useEffect(() => {
+    if (!deepLinkedPlacementTestId || deepLinkHandledRef.current) return;
+    if (isLoading) return;
+
+    const clearDeepLinkQuery = () => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("placementTestId");
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    };
+
+    const openPlacementTestFromQuery = async () => {
+      const fromCurrentList = tests.find((test) => test.id === deepLinkedPlacementTestId);
+      if (fromCurrentList) {
+        setSelectedTest(fromCurrentList);
+        setIsDetailModalOpen(true);
+        deepLinkHandledRef.current = true;
+        clearDeepLinkQuery();
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          PLACEMENT_TEST_ENDPOINTS.GET_BY_ID(deepLinkedPlacementTestId),
+          {
+            headers: {
+              Authorization: `Bearer ${getAccessToken()}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Không tìm thấy bài kiểm tra đầu vào");
+        }
+
+        const data = await response.json();
+        const targetTest = data?.data?.placementTest || data?.data || null;
+
+        if (targetTest) {
+          setSelectedTest(targetTest);
+          setIsDetailModalOpen(true);
+        }
+
+        deepLinkHandledRef.current = true;
+        clearDeepLinkQuery();
+      } catch {
+        deepLinkHandledRef.current = true;
+        clearDeepLinkQuery();
+        toast({
+          variant: "destructive",
+          title: "Không tìm thấy bài kiểm tra",
+          description: "Không thể mở chi tiết bài kiểm tra đầu vào từ ghi chú này.",
+        });
+      }
+    };
+
+    void openPlacementTestFromQuery();
+  }, [deepLinkedPlacementTestId, isLoading, pathname, router, searchParams, tests, toast]);
 
   const fetchPlacementTests = async () => {
     setIsLoading(true);

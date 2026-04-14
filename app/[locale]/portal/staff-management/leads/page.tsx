@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef, type Dispatch, type SetStateAction } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Target,
   UserPlus,
@@ -128,6 +129,11 @@ function throwApiFailure(response: any, fallbackMessage: string): never {
 }
 
 export default function Page() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const deepLinkHandledRef = useRef(false);
+
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
   const {
@@ -215,6 +221,8 @@ export default function Page() {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [isRegistrationFlowOpen, setIsRegistrationFlowOpen] = useState(false);
+  const deepLinkedTab = searchParams.get("tab");
+  const deepLinkedPlacementTestId = searchParams.get("placementTestId");
 
   // Enrollment state
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -280,6 +288,105 @@ export default function Page() {
       fetchInitialRegistrationData();
     }
   }, [currentUser, isLoadingUser]);
+
+  useEffect(() => {
+    if (deepLinkedTab === "leads") {
+      setActiveTab("leads");
+      return;
+    }
+
+    if (deepLinkedTab === "placement_tests") {
+      setActiveTab("placement_tests");
+      return;
+    }
+
+    if (deepLinkedTab === "registrations") {
+      setActiveTab("registrations");
+      return;
+    }
+
+    if (deepLinkedTab === "enrollments") {
+      setActiveTab("enrollments");
+    }
+  }, [deepLinkedTab]);
+
+  useEffect(() => {
+    if (!deepLinkedPlacementTestId || deepLinkHandledRef.current) return;
+
+    const clearPlacementTestQuery = () => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("placementTestId");
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    };
+
+    const openPlacementTestDetailFromQuery = async () => {
+      setActiveTab("placement_tests");
+
+      const scopedPlacementTests =
+        branchLeadIds !== null
+          ? allPlacementTests.filter((test) => branchLeadIds.has(test.leadId))
+          : allPlacementTests;
+
+      const matchedTest =
+        scopedPlacementTests.find((test) => test.id === deepLinkedPlacementTestId) ||
+        allPlacementTests.find((test) => test.id === deepLinkedPlacementTestId);
+
+      if (matchedTest) {
+        setSelectedTest(matchedTest);
+        setIsTestDetailModalOpen(true);
+        deepLinkHandledRef.current = true;
+        clearPlacementTestQuery();
+        return;
+      }
+
+      if (isLoadingTests) {
+        return;
+      }
+
+      try {
+        const response = await fetch(PLACEMENT_TEST_ENDPOINTS.GET_BY_ID(deepLinkedPlacementTestId), {
+          headers: {
+            Authorization: `Bearer ${getAccessToken()}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Không tìm thấy bài kiểm tra đầu vào");
+        }
+
+        const data = await response.json();
+        const placementTest = data?.data?.placementTest || data?.data || null;
+
+        if (placementTest) {
+          setSelectedTest(placementTest);
+          setIsTestDetailModalOpen(true);
+        }
+
+        deepLinkHandledRef.current = true;
+        clearPlacementTestQuery();
+      } catch {
+        deepLinkHandledRef.current = true;
+        clearPlacementTestQuery();
+        toast({
+          variant: "destructive",
+          title: "Không tìm thấy bài kiểm tra",
+          description: "Không thể mở chi tiết bài kiểm tra đầu vào từ ghi chú này.",
+        });
+      }
+    };
+
+    void openPlacementTestDetailFromQuery();
+  }, [
+    allPlacementTests,
+    branchLeadIds,
+    deepLinkedPlacementTestId,
+    isLoadingTests,
+    pathname,
+    router,
+    searchParams,
+    toast,
+  ]);
 
   // Debounce search query (2 seconds)
   useEffect(() => {
