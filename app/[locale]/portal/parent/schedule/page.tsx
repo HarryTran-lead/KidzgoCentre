@@ -540,7 +540,7 @@ export default function SchedulePage() {
                           const lightColor = getLightColor(event.type, event);
                           const isHexColor = event.color && (event.color.startsWith('#') || event.color.startsWith('rgb'));
                           const hexBgStyle = isHexColor ? { backgroundColor: `${event.color}33` } : undefined;
-                          const hexAccentStyle = isHexColor ? { backgroundColor: event.color } : undefined;
+                          const hexAccentStyle = isHexColor ? { backgroundColor: event.color ?? undefined } : undefined;
                           const childColor = event.studentProfileId ? childColorMap.get(event.studentProfileId) : null;
                           const showChildLabel = children.length >= 1 && selectedChild === "all" && event.studentDisplayName;
                           return (
