@@ -8,6 +8,7 @@ import AccountFormModal from "@/components/admin/accounts/AccountFormModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { toast } from "@/hooks/use-toast";
 import { usePageI18n } from "@/hooks/usePageI18n";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 // Import Profile Management Components
 import {  
@@ -156,10 +157,6 @@ const transformUsersToAccounts = (users: User[]): Account[] => {
     ...user,
     name: user.name || user.username || user.email || 'Unknown User',
     phone: user.branchContactPhone || '',
-    lastLoginAt: user.lastLoginAt || user.updatedAt,
-    lastSeenAt: user.lastSeenAt,
-    isOnline: user.isOnline,
-    offlineDurationSeconds: user.offlineDurationSeconds,
     avatarColor: getAvatarColor(user.id),
     twoFactor: false,
     department: getDepartment(user.role),
@@ -1266,13 +1263,13 @@ export default function AccountsPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setShowCreateParentModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-pink-100 border border-red-500 px-4 py-2.5 text-sm font-semibold text-red-700 hover:shadow-lg transition-all cursor-pointer"
             >
               <UserPlus size={16} /> {t.buttons.createParent}
             </button>
             <button
               onClick={() => setShowCreateStudentModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 hover:shadow-lg transition-all cursor-pointer"
             >
               <UserCircle size={16} /> {t.buttons.createStudent}
             </button>
@@ -1332,76 +1329,51 @@ export default function AccountsPage() {
 
       {/* Filter Bar */}
       <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Role Filter */}
-            <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
-              {[
-                { k: 'ALL', label: t.filters.all, count: fixedCounts.total },
-                { k: 'Admin', label: t.filters.admin, count: fixedCounts.admin },
-                { k: 'Teacher', label: t.filters.teacher, count: fixedCounts.teacher },
-                { k: 'Parent', label: t.filters.parent, count: fixedCounts.parent },
-                { k: 'ManagementStaff', label: t.filters.staff, count: fixedCounts.managementStaff },
-              ].map((item) => (
-                <button
-                  key={item.k}
-                  onClick={() => setRole(item.k as typeof role)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${role === item.k
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
-                    : 'text-gray-700 hover:bg-red-50'
-                    }`}
-                >
-                  {item.label}
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${role === item.k ? 'bg-white/20' : 'bg-gray-100'
-                    }`}>
-                    {item.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Status Filter */}
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-500" />
-              <select
-                value={status === null ? 'ALL' : status ? 'ACTIVE' : 'INACTIVE'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setStatus(val === 'ALL' ? null : val === 'ACTIVE');
-                }}
-                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-              >
-                <option value="ALL">{t.filters.allStatus} ({fixedCounts.total})</option>
-                <option value="ACTIVE">{t.filters.active} ({fixedCounts.active})</option>
-                <option value="INACTIVE">{t.filters.inactive} ({fixedCounts.inactive})</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Search and Items Per Page */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
+        <div className="space-y-4">
+          {/* Search and Filters Row */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            {/* Search Box - Full Width */}
+            <div className="relative flex-1">
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t.filters.search}
-                className="h-10 w-72 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+                className="w-full h-10 rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             </div>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-            >
-              <option value={5}>5 {t.filters.perPage}</option>
-              <option value={10}>10 {t.filters.perPage}</option>
-              <option value={20}>20 {t.filters.perPage}</option>
-              <option value={50}>50 {t.filters.perPage}</option>
-            </select>
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+              {/* Role Filter Select */}
+              <Select value={role} onValueChange={(value) => setRole(value as typeof role)}>
+                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">{t.filters.all} ({fixedCounts.total})</SelectItem>
+                  <SelectItem value="Admin">{t.filters.admin} ({fixedCounts.admin})</SelectItem>
+                  <SelectItem value="Teacher">{t.filters.teacher} ({fixedCounts.teacher})</SelectItem>
+                  <SelectItem value="Parent">{t.filters.parent} ({fixedCounts.parent})</SelectItem>
+                  <SelectItem value="ManagementStaff">{t.filters.staff} ({fixedCounts.managementStaff})</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Filter size={16} className="text-gray-500" />
+              {/* Status Filter */}
+              <Select value={status === null ? 'ALL' : status ? 'ACTIVE' : 'INACTIVE'} onValueChange={(val) => {
+                setStatus(val === 'ALL' ? null : val === 'ACTIVE');
+              }}>
+                <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">{t.filters.allStatus} ({fixedCounts.total})</SelectItem>
+                  <SelectItem value="ACTIVE">{t.filters.active} ({fixedCounts.active})</SelectItem>
+                  <SelectItem value="INACTIVE">{t.filters.inactive} ({fixedCounts.inactive})</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
@@ -1485,32 +1457,6 @@ export default function AccountsPage() {
                         <TwoFactorBadge enabled={acc.twoFactor} enabledLabel={t.status.enabled2FA} disabledLabel={t.status.disabled2FA} />
                         <div className="text-xs text-gray-500">
                           {!acc.lastLoginAt ? t.userStatus.notLoggedIn : `${t.userStatus.lastLogin}: ${formatDateTime(acc.lastLoginAt)}`}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="space-y-1">
-                        <div className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${!acc.lastLoginAt
-                          ? 'bg-gray-100 text-gray-600'
-                          : 'bg-blue-50 text-blue-600'
-                          }`}>
-                          {!acc.lastLoginAt ? (
-                            <>
-                              <AlertCircle size={10} />
-                              {t.userStatus.notActivated}
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle size={10} />
-                              {t.userStatus.loggedIn}
-                            </>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {!acc.lastLoginAt
-                            ? t.userStatus.awaitingActivation
-                            : t.userStatus.lastActivity
-                          }
                         </div>
                       </div>
                     </td>
@@ -1724,47 +1670,9 @@ export default function AccountsPage() {
 
           {/* Filter Bar */}
           <div className={`rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-4">
+              {/* Bulk Approval Row */}
               <div className="flex flex-wrap items-center gap-3">
-                {/* Type Filter */}
-                <div className="inline-flex rounded-xl border border-red-200 bg-white p-1">
-                  {[
-                    { k: 'all', label: tProfiles.filters.all, count: profiles.length },
-                    { k: 'Parent', label: tProfiles.filters.parents, count: profiles.filter(p => p.profileType === "Parent").length },
-                    { k: 'Student', label: tProfiles.filters.students, count: profiles.filter(p => p.profileType === "Student").length },
-                  ].map((item) => (
-                    <button
-                      key={item.k}
-                      onClick={() => setProfileFilterType(item.k as typeof profileFilterType)}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer ${
-                        profileFilterType === item.k
-                          ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-sm'
-                          : 'text-gray-700 hover:bg-red-50'
-                      }`}
-                    >
-                      {item.label}
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                        profileFilterType === item.k ? 'bg-white/20' : 'bg-gray-100'
-                      }`}>
-                        {item.count}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Filter size={16} className="text-gray-500" />
-                  <select
-                    value={profileApprovalFilter}
-                    onChange={(e) => setProfileApprovalFilter(e.target.value as typeof profileApprovalFilter)}
-                    className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                  >
-                    <option value="all">{tProfiles.filters.allApprovals}</option>
-                    <option value="pending">{tProfiles.filters.pending}</option>
-                    <option value="approved">{tProfiles.filters.approved}</option>
-                  </select>
-                </div>
-
                 {selectedProfileRows.length > 0 && (
                   <button
                     onClick={handleOpenBulkApproveModal}
@@ -1776,8 +1684,9 @@ export default function AccountsPage() {
                 )}
               </div>
 
-              {/* Search and Items Per Page */}
-              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+              {/* Search and Filters Row */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                {/* Search Box - Full Width */}
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
@@ -1785,22 +1694,37 @@ export default function AccountsPage() {
                     placeholder={tProfiles.filters.search}
                     value={profileSearchTerm}
                     onChange={(e) => setProfileSearchTerm(e.target.value)}
-                    className="w-full rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
+                    className="w-full h-10 rounded-xl border border-red-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-200"
                   />
                 </div>
-                <select
-                  value={profileItemsPerPage}
-                  onChange={(e) => {
-                    setProfileItemsPerPage(Number(e.target.value));
-                    setProfileCurrentPage(1);
-                  }}
-                  className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                >
-                  <option value={5}>5 {tProfiles.filters.perPage}</option>
-                  <option value={10}>10 {tProfiles.filters.perPage}</option>
-                  <option value={20}>20 {tProfiles.filters.perPage}</option>
-                  <option value={50}>50 {tProfiles.filters.perPage}</option>
-                </select>
+
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                  {/* Type Filter Select */}
+                  <Select value={profileFilterType} onValueChange={(value) => setProfileFilterType(value as typeof profileFilterType)}>
+                    <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{tProfiles.filters.all} ({profiles.length})</SelectItem>
+                      <SelectItem value="Parent">{tProfiles.filters.parents} ({profiles.filter(p => p.profileType === "Parent").length})</SelectItem>
+                      <SelectItem value="Student">{tProfiles.filters.students} ({profiles.filter(p => p.profileType === "Student").length})</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Filter size={16} className="text-gray-500" />
+                  {/* Approval Filter */}
+                  <Select value={profileApprovalFilter} onValueChange={(value) => setProfileApprovalFilter(value as typeof profileApprovalFilter)}>
+                    <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{tProfiles.filters.allApprovals}</SelectItem>
+                      <SelectItem value="pending">{tProfiles.filters.pending}</SelectItem>
+                      <SelectItem value="approved">{tProfiles.filters.approved}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>
@@ -1821,8 +1745,8 @@ export default function AccountsPage() {
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-linear-to-r from-red-100 to-red-200">
-                      <tr className="border-b border-red-200">
+                    <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
+                      <tr>
                         <th className="px-4 py-4 text-left">
                           <input
                             type="checkbox"
@@ -1843,7 +1767,7 @@ export default function AccountsPage() {
                     </thead>
                     <tbody className="divide-y divide-red-100">
                       {currentProfiles.map((profile: any) => (
-                      <tr key={profile.id} className="hover:bg-linear-to-r hover:from-red-50/50 hover:to-transparent transition-all duration-200">
+                      <tr key={profile.id} className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
                         <td className="px-4 py-4">
                           <input
                             type="checkbox"
@@ -1912,48 +1836,48 @@ export default function AccountsPage() {
                             {new Date(profile.createdAt).toLocaleDateString('vi-VN')}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-2">
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-1 transition-opacity duration-200">
                             <button
                               onClick={() => handleViewProfileDetail(profile.id)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group cursor-pointer"
+                              className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
                               title={tProfiles.actions.viewDetails}
                             >
-                              <Eye size={18} className="group-hover:scale-110 transition-transform" />
+                              <Eye size={14} />
                             </button>
                             {profile.profileType === "Parent" && (
                               <button
                                 onClick={() => handleOpenViewLinkedModal(profile.userId, profile.displayName)}
-                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors group cursor-pointer"
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
                                 title={tProfiles.actions.viewLinkedStudents}
                               >
-                                <Users size={18} className="group-hover:scale-110 transition-transform" />
+                                <Users size={14} />
                               </button>
                             )}
                             {profile.isApproved === false && (
                               <button
                                 onClick={() => handleOpenApproveProfileModal(profile)}
-                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors group cursor-pointer"
+                                className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
                                 title={tProfiles.actions.approveProfile}
                               >
-                                <ShieldCheck size={18} className="group-hover:scale-110 transition-transform" />
+                                <ShieldCheck size={14} />
                               </button>
                             )}
                             {!profile.isActive && (
                               <button
                                 onClick={() => handleOpenReactivateProfileModal(profile)}
-                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors group cursor-pointer"
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
                                 title={tProfiles.actions.reactivateProfile}
                               >
-                                <RefreshCw size={18} className="group-hover:scale-110 transition-transform" />
+                                <RefreshCw size={14} />
                               </button>
                             )}
                             <button
                               onClick={() => handleOpenDeleteProfileModal(profile.id, profile.displayName)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors group cursor-pointer"
+                              className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
                               title={tProfiles.actions.delete}
                             >
-                              <Trash2 size={18} className="group-hover:scale-110 transition-transform" />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>

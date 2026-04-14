@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 import {
   fetchAdminQuestions, createAdminQuestion, updateAdminQuestion,
   toggleQuestionStatus, deleteAdminQuestion, fetchAdminQuestionDetail,
@@ -184,14 +185,14 @@ function QuestionModal({ isOpen, onClose, onSubmit, mode = "create", initialData
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div ref={modalRef} className="relative w-full max-w-5xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div ref={modalRef} className="relative w-full max-w-4xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 p-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-white/20"><HelpCircle size={24} className="text-white" /></div>
+              <div className="p-2 rounded-xl bg-white/20"><HelpCircle size={20} className="text-white" /></div>
               <div>
-                <h2 className="text-2xl font-bold text-white">{mode === "edit" ? "Cập nhật câu hỏi" : "Tạo câu hỏi mới"}</h2>
+                <h2 className="text-xl font-bold text-white">{mode === "edit" ? "Cập nhật câu hỏi" : "Tạo câu hỏi mới"}</h2>
                 <p className="text-sm text-red-100">{mode === "edit" ? "Chỉnh sửa thông tin câu hỏi" : "Nhập thông tin chi tiết về câu hỏi mới"}</p>
               </div>
             </div>
@@ -199,44 +200,53 @@ function QuestionModal({ isOpen, onClose, onSubmit, mode = "create", initialData
           </div>
         </div>
 
-        <div className="p-6 max-h-[75vh] overflow-y-auto">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="p-5 max-h-[70vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BookOpen size={16} className="text-red-600" />Khóa học *</label>
-              <div className="relative">
-                {loadingCourses ? (
-                  <div className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 flex items-center gap-2 text-gray-500"><Loader2 size={16} className="animate-spin" />Đang tải khóa học...</div>
-                ) : (
-                  <select value={formData.programId} onChange={(e) => handleChange("programId", e.target.value)}
-                    className={cn("w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300", errors.programId ? "border-red-500" : "border-gray-200")}>
-                    <option value="">Chọn khóa học</option>
-                    {courseOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                )}
-                {errors.programId && <div className="absolute right-3 top-1/2 -translate-y-1/2"><AlertCircle size={18} className="text-red-500" /></div>}
-              </div>
+              {loadingCourses ? (
+                <div className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 flex items-center gap-2 text-gray-500"><Loader2 size={16} className="animate-spin" />Đang tải khóa học...</div>
+              ) : (
+                <Select value={formData.programId} onValueChange={(value) => handleChange("programId", value)}>
+                  <SelectTrigger className={cn("w-full rounded-xl", errors.programId && "border-red-500")}>
+                    <SelectValue placeholder="Chọn khóa học" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courseOptions.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+              {errors.programId && <p className="text-sm text-red-600 flex items-center gap-1 mt-1"><AlertCircle size={14} />{errors.programId}</p>}
               {errors.programId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} />{errors.programId}</p>}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><HelpCircle size={16} className="text-red-600" />Loại câu hỏi</label>
-                <select value={formData.questionType} onChange={(e) => handleChange("questionType", e.target.value as QuestionType)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300">
-                  <option value="MultipleChoice">Trắc nghiệm</option>
-                  <option value="TrueFalse">Đúng/Sai</option>
-                  <option value="Essay">Tự luận</option>
-                  <option value="FillInBlank">Điền trống</option>
-                </select>
+                <Select value={formData.questionType} onValueChange={(value) => handleChange("questionType", value as QuestionType)}>
+                  <SelectTrigger className="w-full rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MultipleChoice">Trắc nghiệm</SelectItem>
+                    <SelectItem value="TrueFalse">Đúng/Sai</SelectItem>
+                    <SelectItem value="Essay">Tự luận</SelectItem>
+                    <SelectItem value="FillInBlank">Điền trống</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BarChart3 size={16} className="text-red-600" />Độ khó</label>
-                <select value={formData.level} onChange={(e) => handleChange("level", e.target.value as DifficultyLevel)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300">
-                  <option value="Easy">Dễ</option>
-                  <option value="Medium">Trung bình</option>
-                  <option value="Hard">Khó</option>
-                </select>
+                <Select value={formData.level} onValueChange={(value) => handleChange("level", value as DifficultyLevel)}>
+                  <SelectTrigger className="w-full rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Easy">Dễ</SelectItem>
+                    <SelectItem value="Medium">Trung bình</SelectItem>
+                    <SelectItem value="Hard">Khó</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><Star size={16} className="text-red-600" />Điểm</label>
@@ -306,16 +316,16 @@ function QuestionModal({ isOpen, onClose, onSubmit, mode = "create", initialData
           </form>
         </div>
 
-        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
+        <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-5">
           <div className="flex items-center justify-between">
-            <button type="button" onClick={onClose} disabled={submitting} className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 disabled:opacity-60 cursor-pointer">Hủy bỏ</button>
-            <div className="flex items-center gap-3">
+            <button type="button" onClick={onClose} disabled={submitting} className="px-5 py-2 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 disabled:opacity-60 cursor-pointer text-sm">Hủy bỏ</button>
+            <div className="flex items-center gap-2">
               <button type="button" onClick={() => { setFormData(mode === "edit" && initialData ? initialData : initialFormData); setErrors({}); }}
-                disabled={submitting} className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 disabled:opacity-60 cursor-pointer">
+                disabled={submitting} className="px-5 py-2 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 disabled:opacity-60 cursor-pointer text-sm">
                 {mode === "edit" ? "Khôi phục" : "Đặt lại"}
               </button>
               <button type="button" onClick={handleSubmit} disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 disabled:opacity-70 cursor-pointer">
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/25 disabled:opacity-70 cursor-pointer text-sm">
                 {submitting ? "Đang lưu..." : mode === "edit" ? "Lưu thay đổi" : "Tạo câu hỏi"}
               </button>
             </div>
@@ -652,11 +662,11 @@ ${rows}
       <div className="space-y-6 bg-gray-50 p-4 md:p-6 rounded-3xl">
         <div className={cn("flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4")}>
           <div className="flex items-center gap-3">
-            <button onClick={() => { setShowAiCreatorModal(true); if (courseOptions.length === 0) loadCourses(); }} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"><Sparkles size={18} />Tạo câu hỏi bằng AI</button>
             <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg"><HelpCircle className="text-white" size={24} /></div>
             <div><h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Quản lý ngân hàng câu hỏi</h1><p className="text-sm text-gray-600">Quản lý câu hỏi, phân loại và độ khó</p></div>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={() => { setShowAiCreatorModal(true); if (courseOptions.length === 0) loadCourses(); }} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"><Sparkles size={18} />Tạo câu hỏi bằng AI</button>
             <button onClick={() => { setShowImportModal(true); if (courseOptions.length === 0) loadCourses(); }} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-white border border-red-200 hover:bg-red-50 text-red-700 font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"><Upload size={18} />Import</button>
             <button onClick={openCreateModal} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:shadow-lg text-white font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95"><Plus size={18} />Tạo câu hỏi mới</button>
           </div>
@@ -674,16 +684,46 @@ ${rows}
         </div>
 
         <div className={cn("rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100", isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-3xl min-w-[280px]">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="relative flex-1 min-w-[250px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Tìm kiếm câu hỏi..."
                 className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300" />
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)} className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"><option value="ALL">Tất cả loại</option><option value="MultipleChoice">Trắc nghiệm</option><option value="TrueFalse">Đúng/Sai</option><option value="Essay">Tự luận</option><option value="FillInBlank">Điền trống</option></select>
-              <select value={difficultyFilter} onChange={(e) => setDifficultyFilter(e.target.value as typeof difficultyFilter)} className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"><option value="ALL">Tất cả độ khó</option><option value="Easy">Dễ</option><option value="Medium">Trung bình</option><option value="Hard">Khó</option></select>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"><option value="ALL">Tất cả trạng thái</option><option value="Đang hoạt động">Đang hoạt động</option><option value="Tạm dừng">Tạm dừng</option></select>
+            <div className="flex flex-wrap items-end gap-3">
+              <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
+                <SelectTrigger className="w-auto min-w-max rounded-xl h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tất cả loại</SelectItem>
+                  <SelectItem value="MultipleChoice">Trắc nghiệm</SelectItem>
+                  <SelectItem value="TrueFalse">Đúng/Sai</SelectItem>
+                  <SelectItem value="Essay">Tự luận</SelectItem>
+                  <SelectItem value="FillInBlank">Điền trống</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={difficultyFilter} onValueChange={(v) => setDifficultyFilter(v as typeof difficultyFilter)}>
+                <SelectTrigger className="w-auto min-w-max rounded-xl h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tất cả độ khó</SelectItem>
+                  <SelectItem value="Easy">Dễ</SelectItem>
+                  <SelectItem value="Medium">Trung bình</SelectItem>
+                  <SelectItem value="Hard">Khó</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+                <SelectTrigger className="w-auto min-w-max rounded-xl h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="Đang hoạt động">Đang hoạt động</SelectItem>
+                  <SelectItem value="Tạm dừng">Tạm dừng</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -706,7 +746,6 @@ ${rows}
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-gray-200">
                   <tr>
-                    <th className="py-3 px-4 text-center"><input type="checkbox" checked={pagedRows.length > 0 && selectedQuestions.length === pagedRows.length} onChange={handleSelectAll} className="w-5 h-5 text-red-600 border-red-300 rounded cursor-pointer" /></th>
                     <SortableHeader field="content" currentField={sortField} direction={sortDirection} onSort={handleSort}>Nội dung</SortableHeader>
                     <SortableHeader field="type" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Loại</SortableHeader>
                     <SortableHeader field="difficulty" currentField={sortField} direction={sortDirection} onSort={handleSort} align="center">Độ khó</SortableHeader>
@@ -719,7 +758,6 @@ ${rows}
                 <tbody className="divide-y divide-gray-100">
                   {pagedRows.length > 0 ? pagedRows.map((c) => (
                     <tr key={c.id} className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all">
-                      <td className="py-3 px-4 text-center"><input type="checkbox" checked={selectedQuestions.includes(c.id)} onChange={() => handleSelectQuestion(c.id)} className="w-5 h-5 text-red-600 border-red-300 rounded cursor-pointer" /></td>
                       <td className="py-3 px-6 max-w-xs"><div className="text-sm text-gray-900 line-clamp-2">{c.content}</div></td>
                       <td className="py-3 px-6 text-center"><QuestionTypeBadge type={c.type} /></td>
                       <td className="py-3 px-6 text-center"><DifficultyBadge level={c.difficulty} /></td>
@@ -735,7 +773,7 @@ ${rows}
                       </div></td>
                     </tr>
                   )) : (
-                    <tr><td colSpan={9} className="py-12 text-center">
+                    <tr><td colSpan={8} className="py-12 text-center">
                       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center"><Search size={24} className="text-gray-400" /></div>
                       <div className="text-gray-600 font-medium">Không tìm thấy câu hỏi</div>
                       <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc tạo câu hỏi mới</div>
@@ -827,67 +865,55 @@ ${rows}
       )}
 
       {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white/20"><Upload size={24} className="text-white" /></div>
+                  <div className="p-2 rounded-lg bg-white/20"><Upload size={24} className="text-white" /></div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Import câu hỏi</h2>
-                    <p className="text-sm text-red-100">Nhập câu hỏi từ file CSV/Excel/Word/PDF</p>
+                    <h2 className="text-xl font-bold text-white">Import Câu Hỏi</h2>
+                    <p className="text-sm text-red-100">Nhập câu hỏi từ tập tin</p>
                   </div>
                 </div>
-                <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportProgramId(""); }} disabled={isImporting} className="p-2 rounded-full hover:bg-white/20 disabled:opacity-60 cursor-pointer"><X size={24} className="text-white" /></button>
+                <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportProgramId(""); }} disabled={isImporting} className="p-2 rounded-full hover:bg-white/20 disabled:opacity-60 cursor-pointer"><X size={20} className="text-white" /></button>
               </div>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><BookOpen size={16} className="text-red-600" />Khóa học *</label>
                 {loadingCourses ? (
-                  <div className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 flex items-center gap-2 text-gray-500"><Loader2 size={16} className="animate-spin" />Đang tải khóa học...</div>
+                  <div className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 flex items-center gap-2 text-gray-500 text-sm"><Loader2 size={16} className="animate-spin" />Đang tải...</div>
                 ) : (
-                  <select value={importProgramId} onChange={(e) => setImportProgramId(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300">
-                    <option value="">Chọn khóa học</option>
-                    {courseOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <Select value={importProgramId} onValueChange={setImportProgramId}>
+                    <SelectTrigger className="w-full rounded-lg">
+                      <SelectValue placeholder="Chọn khóa học" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courseOptions.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
 
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><FileText size={16} className="text-red-600" />File *</label>
-                <div className={cn("border-2 border-dashed rounded-xl p-6 text-center transition-colors", importFile ? "border-green-400 bg-green-50" : "border-gray-300 hover:border-red-400")}>
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><FileText size={16} className="text-red-600" />Tập tin *</label>
+                <div className={cn("border-2 border-dashed rounded-lg p-4 text-center transition-colors", importFile ? "border-green-400 bg-green-50" : "border-gray-300 hover:border-red-400")}>
                   {importFile ? (
                     <div className="flex flex-col items-center gap-2">
-                      <CheckCircle2 size={32} className="text-green-500" />
-                      <div className="text-sm font-medium text-gray-900">{importFile.name}</div>
-                      <div className="text-xs text-gray-500">{(importFile.size / 1024).toFixed(1)} KB</div>
-                      <button onClick={() => setImportFile(null)} className="text-xs text-red-600 hover:text-red-700 font-medium cursor-pointer mt-1">Xóa file</button>
+                      <CheckCircle2 size={24} className="text-green-500" />
+                      <div className="text-sm font-medium text-gray-900 truncate max-w-full">{importFile.name}</div>
+                      <div className="text-sm text-gray-500">{(importFile.size / 1024).toFixed(1)} KB</div>
+                      <button onClick={() => setImportFile(null)} className="text-sm text-red-600 hover:text-red-700 font-medium cursor-pointer mt-1">Xóa</button>
                     </div>
                   ) : (
                     <label className="cursor-pointer">
                       <input type="file" accept=".csv,.xlsx,.xls,.docx,.pdf" onChange={(e) => setImportFile(e.target.files?.[0] || null)} className="hidden" />
-                      <Upload size={32} className="mx-auto text-gray-400 mb-2" />
-                      <div className="text-sm text-gray-600">Kéo thả file hoặc <span className="text-red-600 font-semibold">chọn file</span></div>
-                      <div className="text-xs text-gray-400 mt-1">CSV, Excel (.xlsx, .xls), Word (.docx), PDF</div>
+                      <Upload size={24} className="mx-auto text-gray-400 mb-2" />
+                      <div className="text-sm text-gray-600 font-medium">Chọn tập tin hoặc kéo thả</div>
+                      <div className="text-sm text-gray-400 mt-1">CSV, Excel, Word, PDF</div>
                     </label>
                   )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">Định dạng hỗ trợ</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {importFormats.map((f) => (
-                    <div key={f.ext} className="flex items-start gap-2 p-3 rounded-xl border border-gray-200 bg-gray-50">
-                      <span className="text-red-600 mt-0.5">{f.icon}</span>
-                      <div>
-                        <div className="text-xs font-semibold text-gray-800">{f.ext}</div>
-                        <div className="text-xs text-gray-500">{f.desc}</div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
 
@@ -895,35 +921,34 @@ ${rows}
                 <label className="text-sm font-semibold text-gray-700">Cột bắt buộc</label>
                 <div className="flex flex-wrap gap-2">
                   {["QuestionText", "Options", "CorrectAnswer", "Level"].map((col) => (
-                    <span key={col} className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">{col}</span>
+                    <span key={col} className="px-3 py-1 rounded-full text-sm font-medium bg-red-50 text-red-700 border border-red-200">{col}</span>
                   ))}
-                  <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">Points (mặc định: 1)</span>
-                  <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">Explanation (tùy chọn)</span>
                 </div>
-                <p className="text-xs text-gray-500">Options phân cách bằng <code className="bg-gray-100 px-1 rounded">|</code> (VD: <code className="bg-gray-100 px-1 rounded">A|B|C|D</code>)</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button onClick={() => handleDownloadTemplate("csv")} className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 cursor-pointer">
-                    <Download size={13} />CSV
+                <p className="text-sm text-gray-600">Options: <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">A|B|C|D</code></p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">Tải mẫu</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button onClick={() => handleDownloadTemplate("csv")} className="px-3 py-2.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-semibold cursor-pointer flex items-center justify-center gap-1.5">
+                    <Download size={16} />CSV
                   </button>
-                  <button onClick={() => handleDownloadTemplate("excel")} className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 cursor-pointer">
-                    <Download size={13} />Excel
+                  <button onClick={() => handleDownloadTemplate("excel")} className="px-3 py-2.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 text-sm font-semibold cursor-pointer flex items-center justify-center gap-1.5">
+                    <Download size={16} />Excel
                   </button>
-                  <button onClick={() => handleDownloadTemplate("word")} className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 cursor-pointer">
-                    <Download size={13} />Word
-                  </button>
-                  <button onClick={() => handleDownloadTemplate("pdf")} className="inline-flex items-center gap-1.5 text-xs font-medium text-red-800 hover:text-red-900 cursor-pointer">
-                    <Download size={13} />PDF/TXT
+                  <button onClick={() => handleDownloadTemplate("word")} className="px-3 py-2.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-sm font-semibold cursor-pointer flex items-center justify-center gap-1.5">
+                    <Download size={16} />Word
                   </button>
                 </div>
               </div>
             </div>
             <div className="border-t border-gray-200 bg-gradient-to-r from-red-500/5 to-red-700/5 p-6">
               <div className="flex items-center justify-end gap-3">
-                <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportProgramId(""); }} disabled={isImporting} className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 disabled:opacity-60 cursor-pointer">Hủy bỏ</button>
+                <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportProgramId(""); }} disabled={isImporting} className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-600 font-semibold text-sm hover:bg-gray-50 disabled:opacity-60 cursor-pointer">Hủy</button>
                 <button onClick={handleImport} disabled={isImporting || !importFile || !importProgramId}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg disabled:opacity-60 cursor-pointer flex items-center gap-2">
+                  className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold text-sm hover:shadow-lg disabled:opacity-60 cursor-pointer flex items-center gap-2">
                   {isImporting && <Loader2 size={16} className="animate-spin" />}
-                  {isImporting ? "Đang import..." : "Import câu hỏi"}
+                  {isImporting ? "Đang nhập..." : "Nhập"}
                 </button>
               </div>
             </div>
