@@ -91,15 +91,6 @@ const ADMIN_NAV: NavItemDef[] = [
     descEn: "Student profile management",
   },
   {
-    labelVi: "Giáo viên",
-    labelEn: "Teachers",
-    keywords: ["giáo viên", "giao vien", "teacher", "thay", "co"],
-    path: "/teachers",
-    icon: <Users className="w-4 h-4" />,
-    descVi: "Quản lý giáo viên",
-    descEn: "Teacher management",
-  },
-  {
     labelVi: "Lớp học",
     labelEn: "Classes",
     keywords: ["lớp học", "lop hoc", "class", "lop"],

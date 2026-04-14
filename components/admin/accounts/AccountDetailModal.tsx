@@ -61,6 +61,22 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
     }
   };
 
+  const formatOfflineDuration = (seconds?: number) => {
+    if (typeof seconds !== "number" || Number.isNaN(seconds) || seconds < 0) return "Chưa cập nhật";
+
+    if (seconds < 60) return "vài giây";
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} phút`;
+    if (seconds < 86400) {
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      return mins > 0 ? `${hours} giờ ${mins} phút` : `${hours} giờ`;
+    }
+
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    return hours > 0 ? `${days} ngày ${hours} giờ` : `${days} ngày`;
+  };
+
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div 
@@ -223,6 +239,34 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
               Thông tin hệ thống
             </h4>
             <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 bg-white md:col-span-2">
+                <div className="p-2 rounded-lg bg-red-100">
+                  <Clock size={18} className="text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Trạng thái hoạt động</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span
+                      className={clsx(
+                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border",
+                        account.isOnline
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      )}
+                    >
+                      {account.isOnline ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
+                      {account.isOnline ? "Đang online" : "Đang offline"}
+                    </span>
+                    <span className="text-xs text-gray-500">isOnline: {account.isOnline ? "true" : "false"}</span>
+                  </div>
+                  <div className="mt-2 space-y-1 text-xs text-gray-600">
+                    <p>lastLoginAt: {account.lastLoginAt ? formatDate(account.lastLoginAt) : "Chưa đăng nhập"}</p>
+                    <p>lastSeenAt: {account.lastSeenAt ? formatDate(account.lastSeenAt) : "Chưa cập nhật"}</p>
+                    <p>offlineDurationSeconds: {formatOfflineDuration(account.offlineDurationSeconds)}</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Created At */}
               <div className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 bg-gray-50/50">
                 <div className="p-2 rounded-lg bg-gray-100">
