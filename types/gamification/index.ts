@@ -318,6 +318,28 @@ export interface BatchDeliverParams {
   month?: number;
 }
 
+export type MissionRewardRuleProgressMode = "Count" | "Streak";
+
+export interface MissionRewardRule {
+  id: string;
+  missionType: string;
+  progressMode: MissionRewardRuleProgressMode;
+  totalRequired: number;
+  rewardStars: number;
+  rewardExp: number;
+  isActive: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface MissionRewardRuleRequest {
+  missionType: string;
+  progressMode: MissionRewardRuleProgressMode;
+  totalRequired: number;
+  rewardStars: number;
+  rewardExp: number;
+}
+
 export interface BatchDeliverResult {
   deliveredCount: number;
   deliveredRedemptionIds: string[];

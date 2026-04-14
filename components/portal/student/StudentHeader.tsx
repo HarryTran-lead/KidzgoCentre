@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getMyStarBalance, getMyLevel, getMyAttendanceStreak } from "@/lib/api/gamificationService";
 
 type StudentHeaderProps = {
@@ -21,6 +22,7 @@ export default function StudentHeader({
   avatarUrl,
 }: StudentHeaderProps) {
   const { unreadCount, notificationsRoute } = useNotifications("Student");
+  const { user: currentUser } = useCurrentUser();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [starBalance, setStarBalance] = useState<number | null>(null);
@@ -278,7 +280,7 @@ export default function StudentHeader({
                             {userName ?? "Nguyễn Văn An"}
                           </p>
                           <p className="text-xs text-white/80 truncate mb-2">
-                            {userName?.toLowerCase().replace(/\s+/g, '.')}@example.com
+                            {currentUser?.email ?? ""}
                           </p>
                           <motion.span
                             initial={{ scale: 0, x: -20 }}

@@ -132,6 +132,9 @@ export const GAMIFICATION_ENDPOINTS = {
   REWARD_REDEMPTION_CONFIRM_RECEIVED: (id: string) =>
     `/api/gamification/reward-redemptions/${id}/confirm-received`,
   REWARD_REDEMPTION_BATCH_DELIVER: "/api/gamification/reward-redemptions/batch-deliver",
+  MISSION_REWARD_RULES: "/api/gamification/mission-reward-rules",
+  MISSION_REWARD_RULE_BY_ID: (id: string) => `/api/gamification/mission-reward-rules/${id}`,
+  MISSION_REWARD_RULE_TOGGLE_STATUS: (id: string) => `/api/gamification/mission-reward-rules/${id}/toggle-status`,
 } as const;
 
 export const BACKEND_STUDENT_ENDPOINTS = {

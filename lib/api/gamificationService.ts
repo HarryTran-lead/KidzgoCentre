@@ -17,6 +17,8 @@ import type {
   MissionProgress,
   MissionProgressParams,
   MissionProgressResponse,
+  MissionRewardRule,
+  MissionRewardRuleRequest,
   MyMissionProgressItem,
   MyMissionProgressResponse,
   PaginatedItems,
@@ -580,4 +582,57 @@ export async function batchDeliverRewardRedemptions(
     }
   );
   return unwrapData<BatchDeliverResult>(response);
+}
+
+// ── Mission Reward Rules ────────────────────────────────────────────────────
+
+function normalizeMissionRewardRule(source: unknown): MissionRewardRule {
+  const payload = unwrapData<AnyRecord>(source);
+  const data = (payload?.rule ?? payload) as AnyRecord;
+  return {
+    id: String(data.id ?? ""),
+    missionType: String(data.missionType ?? ""),
+    progressMode: (data.progressMode as MissionRewardRule["progressMode"]) ?? "Count",
+    totalRequired: Number(data.totalRequired ?? 0),
+    rewardStars: Number(data.rewardStars ?? 0),
+    rewardExp: Number(data.rewardExp ?? 0),
+    isActive: Boolean(data.isActive ?? false),
+    createdAt: (data.createdAt as string | null | undefined) ?? null,
+    updatedAt: (data.updatedAt as string | null | undefined) ?? null,
+  };
+}
+
+export async function listMissionRewardRules(): Promise<MissionRewardRule[]> {
+  const response = await get<any>(GAMIFICATION_ENDPOINTS.MISSION_REWARD_RULES);
+  const payload = unwrapData<AnyRecord>(response);
+  const items = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload?.rules)
+      ? payload.rules
+      : Array.isArray(payload)
+        ? payload
+        : [];
+  return (items as unknown[]).map(normalizeMissionRewardRule);
+}
+
+export async function createMissionRewardRule(
+  payload: MissionRewardRuleRequest
+): Promise<MissionRewardRule> {
+  const response = await post<any>(GAMIFICATION_ENDPOINTS.MISSION_REWARD_RULES, payload);
+  return normalizeMissionRewardRule(response);
+}
+
+export async function updateMissionRewardRule(
+  id: string,
+  payload: MissionRewardRuleRequest
+): Promise<MissionRewardRule> {
+  const response = await put<any>(GAMIFICATION_ENDPOINTS.MISSION_REWARD_RULE_BY_ID(id), payload);
+  return normalizeMissionRewardRule(response);
+}
+
+export async function toggleMissionRewardRuleStatus(
+  id: string
+): Promise<MissionRewardRule> {
+  const response = await patch<any>(GAMIFICATION_ENDPOINTS.MISSION_REWARD_RULE_TOGGLE_STATUS(id));
+  return normalizeMissionRewardRule(response);
 }
