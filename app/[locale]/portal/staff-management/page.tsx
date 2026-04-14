@@ -217,7 +217,7 @@ export default function Page() {
               </h1>
               <p className="text-gray-600 mt-1 flex items-center gap-2">
                 <Sparkles size={14} className="text-red-600" />
-                Tổng quan lead, xếp lớp, học bù, báo cáo tháng và ticket hỗ trợ
+                Tổng quan khách tiềm năng, xếp lớp, học bù, báo cáo tháng và ticket hỗ trợ
               </p>
             </div>
           </div>
@@ -241,7 +241,7 @@ export default function Page() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard
             icon={<Users size={20} />}
-            label="Lead mới (tháng)"
+            label="Khách tiềm năng mới (tháng)"
             value={String(newLeads)}
             hint={leadsTrend || "—"}
             trend="up"
@@ -250,7 +250,7 @@ export default function Page() {
           />
           <StatCard
             icon={<Target size={20} />}
-            label="Qualified Lead"
+            label="Khách tiềm năng đạt chuẩn"
             value={String(qualifiedLeads)}
             hint={qualifiedTrend || "—"}
             trend="stable"
@@ -287,7 +287,7 @@ export default function Page() {
         {(
           [
             { key: "overview", label: "Tổng quan" },
-            { key: "leads", label: "Lead" },
+            { key: "leads", label: "Khách tiềm năng" },
             { key: "schedule", label: "Lịch học" },
             { key: "reports", label: "Báo cáo" },
           ] as const
@@ -316,7 +316,7 @@ export default function Page() {
                 <div>
                   <h3 className="font-bold text-gray-900 flex items-center gap-2">
                     <TrendingUp size={20} className="text-red-600" />
-                    Tăng trưởng Lead
+                    Tăng trưởng khách tiềm năng
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">6 tháng gần nhất</p>
                 </div>
@@ -330,8 +330,8 @@ export default function Page() {
                     <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Area type="monotone" dataKey="leads" name="Lead" stroke="#dc2626" fill="url(#leadFill)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="qualified" name="Qualified" stroke="#404040" fill="url(#qualifiedFill)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="leads" name="Khách tiềm năng" stroke="#dc2626" fill="url(#leadFill)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="qualified" name="Đạt chuẩn" stroke="#404040" fill="url(#qualifiedFill)" strokeWidth={2} />
                     <defs>
                       <linearGradient id="leadFill" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
@@ -450,9 +450,9 @@ export default function Page() {
                 <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
                   <TrendingUp size={20} className="text-white" />
                 </div>
-                Lead & Qualified 6 tháng
+                Khách tiềm năng & đạt chuẩn 6 tháng
               </h3>
-              <Badge color="red">Tổng lead: {dashboard?.totalLeads ?? "—"}</Badge>
+              <Badge color="red">Tổng khách tiềm năng: {dashboard?.totalLeads ?? "—"}</Badge>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -462,8 +462,8 @@ export default function Page() {
                   <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={{ stroke: "#e5e7eb" }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Area type="monotone" dataKey="leads" name="Lead" stroke="#dc2626" fill="url(#leadFill2)" strokeWidth={3} />
-                  <Area type="monotone" dataKey="qualified" name="Qualified" stroke="#404040" fill="url(#qualifiedFill2)" strokeWidth={3} />
+                  <Area type="monotone" dataKey="leads" name="Khách tiềm năng" stroke="#dc2626" fill="url(#leadFill2)" strokeWidth={3} />
+                  <Area type="monotone" dataKey="qualified" name="Đạt chuẩn" stroke="#404040" fill="url(#qualifiedFill2)" strokeWidth={3} />
                   <defs>
                     <linearGradient id="leadFill2" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />

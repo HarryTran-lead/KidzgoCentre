@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, BookOpen, Building2, Clock, DollarSign, Wallet, X } from "lucide-react";
+import { AlertCircle, BookOpen, Clock, DollarSign, Wallet, X } from "lucide-react";
 import { getAllBranches } from "@/lib/api/branchService";
 import { getProgramsForBranch, type ProgramOption } from "@/lib/api/tuitionPlanService";
+import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
 function cn(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -198,32 +199,22 @@ export default function TuitionPlanModal({
         <div className="p-6 max-h-[80vh] overflow-y-auto">
           <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Building2 size={16} className="text-red-600" />
-                Chi nhánh *
-              </label>
-              <select
+              <AdminBranchSelectField
+                isOpen={isOpen}
+                mode={mode}
                 value={formData.branchId}
-                onChange={(e) => {
-                  const value = e.target.value;
-                    setFormData((prev: TuitionPlanFormData) => ({ ...prev, branchId: value, programId: "" }));
-                  if (errors.branchId) setErrors((prev) => ({ ...prev, branchId: undefined }));
+                options={branches.map((branch) => ({ id: branch.id, label: branch.name }))}
+                onValueChange={(value) => {
+                  setFormData((prev: TuitionPlanFormData) => ({ ...prev, branchId: value, programId: "" }));
+                  if (errors.branchId) {
+                    setErrors((prev) => ({ ...prev, branchId: undefined }));
+                  }
                 }}
+                error={errors.branchId}
                 disabled={loadingBranches}
-                className={cn(
-                  "w-full px-4 py-3 rounded-xl border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-                  errors.branchId ? "border-red-500" : "border-gray-200",
-                  loadingBranches ? "opacity-50 cursor-not-allowed" : ""
-                )}
-              >
-                <option value="">Chọn chi nhánh</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-                {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
-              </div>
+                placeholder={loadingBranches ? "Đang tải chi nhánh..." : "Vui lòng chọn chi nhánh"}
+                dataField="branchId"
+              />
 
               <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">

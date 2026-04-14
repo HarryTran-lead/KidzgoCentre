@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/lightswind/select";
+import { getLeadSourceLabel, LeadSource } from "@/types/lead";
 import type { Lead } from "@/types/lead";
 
 type StatusType = 'New' | 'Contacted' | 'BookedTest' | 'TestDone' | 'Enrolled' | 'Lost';
@@ -60,12 +61,15 @@ export default function LeadFilters({
   const statusOptions = ["Tất cả", ...Object.values(STATUS_MAPPING)];
   
   const sourceOptions = useMemo(() => {
-    if (availableSources.length > 0) {
-      return ["Tất cả", ...availableSources];
-    }
-    // Fallback: extract from current leads if not provided
-    const sources = new Set(leads.map(l => l.source).filter(Boolean));
-    return ["Tất cả", ...Array.from(sources)];
+    const beSourceValues = Object.values(LeadSource);
+    const runtimeSources = new Set([
+      ...availableSources,
+      ...leads.map((l) => l.source).filter(Boolean),
+    ]);
+    const extraSources = Array.from(runtimeSources).filter(
+      (source) => !beSourceValues.includes(source as LeadSource)
+    );
+    return ["Tất cả", ...beSourceValues, ...extraSources];
   }, [availableSources, leads]);
 
   return (
@@ -78,7 +82,7 @@ export default function LeadFilters({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Tìm kiếm tên, SĐT, email, mã lead..."
+              placeholder="Tìm kiếm tên, SĐT, email, mã khách tiềm năng..."
             className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
             />
           </div>
@@ -112,7 +116,7 @@ export default function LeadFilters({
               <SelectContent>
                 {sourceOptions.map((source) => (
                   <SelectItem key={source} value={source}>
-                    {source}
+                    {source === "Tất cả" ? source : getLeadSourceLabel(source)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -129,7 +133,7 @@ export default function LeadFilters({
                 className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-200 cursor-pointer"
               />
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                Chỉ lead của tôi
+                Chỉ khách tiềm năng của tôi
               </span>
             </label>
           )}

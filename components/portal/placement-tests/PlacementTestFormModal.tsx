@@ -281,7 +281,7 @@ export default function PlacementTestFormModal({
 
     if (!isEditMode && mode === "create") {
       if (!formData.leadId || !formData.leadChildId) {
-        setFormError("Vui lòng chọn lead và tên bé");
+        setFormError("Vui lòng chọn khách tiềm năng và tên bé");
         return;
       }
 
@@ -293,7 +293,7 @@ export default function PlacementTestFormModal({
 
     if (!isEditMode && mode === "retake") {
       if (!formData.originalPlacementTestId) {
-        setFormError("Vui lòng chọn Retake từ thao tác của placement test đã hoàn thành");
+        setFormError("Vui lòng chọn Kiểm tra lại từ thao tác của bài kiểm tra xếp lớp đã hoàn thành");
         return;
       }
       if (!formData.retakeStudentProfileId) {
@@ -361,7 +361,7 @@ export default function PlacementTestFormModal({
       onClose();
     } catch (error) {
       console.error("Error submitting form:", error);
-      setFormError(getPlacementTestErrorMessage(error, "Không thể lưu placement test"));
+      setFormError(getPlacementTestErrorMessage(error, "Không thể lưu bài kiểm tra xếp lớp"));
     } finally {
       setIsSubmitting(false);
     }
@@ -381,10 +381,10 @@ export default function PlacementTestFormModal({
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  {test ? "Chỉnh sửa Placement Test" : mode === "create" ? "Tạo Placement Test mới" : "Tạo Placement Test Retake"}
+                  {test ? "Chỉnh sửa kiểm tra xếp lớp" : mode === "create" ? "Tạo kiểm tra xếp lớp mới" : "Tạo kiểm tra lại xếp lớp"}
                 </h2>
                 <p className="text-sm text-red-100">
-                  {test ? "Chỉnh sửa thông tin placement test" : mode === "create" ? "Nhập thông tin chi tiết về placement test mới" : "Tạo retake từ placement test đã hoàn thành"}
+                  {test ? "Chỉnh sửa thông tin kiểm tra xếp lớp" : mode === "create" ? "Nhập thông tin chi tiết về bài kiểm tra xếp lớp mới" : "Tạo kiểm tra lại từ bài kiểm tra xếp lớp đã hoàn thành"}
                 </p>
               </div>
             </div>
@@ -424,7 +424,7 @@ export default function PlacementTestFormModal({
                     type="button"
                     onClick={() => {
                       if (!retakeSourceTestId) {
-                        setFormError("Vui lòng chọn Retake từ thao tác của placement test đã hoàn thành");
+                        setFormError("Vui lòng chọn Kiểm tra lại từ thao tác của bài kiểm tra xếp lớp đã hoàn thành");
                         return;
                       }
                       setMode("retake");
@@ -453,24 +453,24 @@ export default function PlacementTestFormModal({
                   <div className="p-1.5 rounded-lg bg-red-100">
                     <User size={16} className="text-red-600" />
                   </div>
-                  <h3 className="text-sm font-semibold text-gray-700">Thông tin Lead</h3>
+                  <h3 className="text-sm font-semibold text-gray-700">Thông tin khách tiềm năng</h3>
                 </div>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       <User size={16} className="text-gray-400" />
-                      Lead
+                      Khách tiềm năng
                     </label>
                     <Select value={formData.leadId} onValueChange={handleLeadChange}>
                       <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all">
-                        <SelectValue placeholder="Chọn lead" />
+                        <SelectValue placeholder="Chọn khách tiềm năng" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Chọn lead</SelectItem>
+                        <SelectItem value="">Chọn khách tiềm năng</SelectItem>
                         {leads.length === 0 ? (
                           <SelectItem value="__no_lead__" disabled>
-                            Không có lead nào
+                            Không có khách tiềm năng nào
                           </SelectItem>
                         ) : (
                           leads.map((lead) => (
@@ -497,16 +497,16 @@ export default function PlacementTestFormModal({
                         <SelectValue
                           placeholder={
                             !selectedLead
-                              ? "Vui lòng chọn lead trước"
+                              ? "Vui lòng chọn khách tiềm năng trước"
                               : children.length === 0
-                                ? "Lead này chưa có thông tin bé"
+                                ? "Khách tiềm năng này chưa có thông tin bé"
                                 : "Chọn bé"
                           }
                         />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">
-                          {!selectedLead ? "Vui lòng chọn lead trước" : children.length === 0 ? "Lead này chưa có thông tin bé" : "Chọn bé"}
+                          {!selectedLead ? "Vui lòng chọn khách tiềm năng trước" : children.length === 0 ? "Khách tiềm năng này chưa có thông tin bé" : "Chọn bé"}
                         </SelectItem>
                         {children.map((child) => (
                           <SelectItem key={child.id} value={child.id}>

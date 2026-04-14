@@ -83,7 +83,7 @@ export default function AssignStaffModal({
     }
 
     if (!lead) {
-      setError("Không tìm thấy thông tin lead");
+      setError("Không tìm thấy thông tin khách tiềm năng");
       return;
     }
 

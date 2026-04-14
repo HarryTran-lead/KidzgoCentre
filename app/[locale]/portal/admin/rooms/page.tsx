@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
+import AdminBranchSelectField from "@/components/admin/common/AdminBranchSelectField";
 
 type SortDirection = "asc" | "desc";
 
@@ -344,40 +345,17 @@ function CreateRoomModal({ isOpen, onClose, onSubmit, mode = "create", initialDa
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Row 1: Chi nhánh & Tên phòng */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Building2 size={16} className="text-red-600" />
-                  Chi nhánh *
-                </label>
-                <div className="relative">
-                  <Select 
-                    value={formData.branchId} 
-                    onValueChange={(val) => handleChange("branchId", val)}
-                    disabled={loadingOptions}
-                  >
-                    <SelectTrigger className={cn(
-                      "w-full rounded-xl border bg-white text-sm text-gray-900 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200",
-                      errors.branchId ? "border-red-500" : "border-gray-200",
-                      loadingOptions ? "opacity-50 cursor-not-allowed" : ""
-                    )}>
-                      <SelectValue placeholder={loadingOptions ? "Đang tải..." : "Chọn chi nhánh"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branchOptions.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.branchId && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <AlertCircle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {errors.branchId && <p className="text-sm text-red-600 flex items-center gap-1"><AlertCircle size={14} /> {errors.branchId}</p>}
-              </div>
+              <AdminBranchSelectField
+                isOpen={isOpen}
+                mode={mode}
+                value={formData.branchId}
+                options={branchOptions.map((branch) => ({ id: branch.id, label: branch.name }))}
+                onValueChange={(value) => handleChange("branchId", value)}
+                error={errors.branchId}
+                disabled={loadingOptions}
+                placeholder={loadingOptions ? "Đang tải chi nhánh..." : "Vui lòng chọn chi nhánh"}
+                dataField="branchId"
+              />
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">

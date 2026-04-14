@@ -28,13 +28,13 @@ export default function SelfAssignModal({
 
   const handleSelfAssign = async () => {
     if (!lead) {
-      setError("Không tìm thấy thông tin lead");
+      setError("Không tìm thấy thông tin khách tiềm năng");
       return;
     }
 
     // Check if lead already has an owner
     if (lead.ownerStaffId) {
-      setError("Lead này đã được phân công cho nhân viên khác");
+      setError("Khách tiềm năng này đã được phân công cho nhân viên khác");
       return;
     }
 
@@ -47,17 +47,17 @@ export default function SelfAssignModal({
       if (response.isSuccess) {
         toast({
           title: "Thành công",
-          description: "Bạn đã nhận lead này thành công",
+          description: "Bạn đã nhận khách tiềm năng này thành công",
           variant: "success",
         });
         onAssigned(); // Reload table data
         onClose(); // Close modal
       } else {
-        setError(response.message || "Không thể nhận lead");
+        setError(response.message || "Không thể nhận khách tiềm năng");
       }
     } catch (err: any) {
       console.error("Error self-assigning lead:", err);
-      const errorMessage = getDomainErrorMessage(err, "Không thể nhận lead");
+      const errorMessage = getDomainErrorMessage(err, "Không thể nhận khách tiềm năng");
       setError(errorMessage);
       toast({
         title: "Lỗi",
@@ -83,10 +83,10 @@ export default function SelfAssignModal({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">
-                  Nhận lead
+                  Nhận khách tiềm năng
                 </h2>
                 <p className="text-sm text-white/80 mt-1">
-                  Xác nhận nhận lead này
+                  Xác nhận nhận khách tiềm năng này
                 </p>
               </div>
             </div>
@@ -105,7 +105,7 @@ export default function SelfAssignModal({
           {/* Lead Info */}
           <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4">
             <p className="text-sm font-medium text-gray-700 mb-3">
-              Thông tin lead:
+              Thông tin khách tiềm năng:
             </p>
             <div className="space-y-2">
               <div className="flex items-center gap-3">

@@ -94,10 +94,10 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-gradient-to-r ${color}`} />
+    <div className="relative overflow-hidden rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r ${color}`} />
       <div className="relative flex items-center justify-between gap-3">
-        <div className={`p-2 rounded-xl bg-gradient-to-r ${color} text-white shadow-sm flex-shrink-0`}>
+        <div className={`p-2 rounded-xl bg-linear-to-r ${color} text-white shadow-sm shrink-0`}>
           <Icon size={20} />
         </div>
         <div className="min-w-0 flex-1">
@@ -268,7 +268,7 @@ function TicketDetailView({
                   <div key={c.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="h-7 w-7 rounded-full bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center text-white text-xs font-bold">
+                        <div className="h-7 w-7 rounded-full bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white text-xs font-bold">
                           {(c.commenterProfileName || c.commenterUserName || "?").charAt(0).toUpperCase()}
                         </div>
                         <span className="text-sm font-medium text-gray-900">
@@ -301,7 +301,7 @@ function TicketDetailView({
               <button
                 onClick={handleAddComment}
                 disabled={isSending || !newComment.trim()}
-                className="self-end inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-medium hover:from-red-700 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                className="self-end inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-linear-to-r from-red-600 to-red-700 text-white text-sm font-medium hover:from-red-700 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
                 <Send size={14} /> {isSending ? "Đang gửi..." : "Gửi"}
               </button>
@@ -359,7 +359,6 @@ export default function Page() {
   const [statusFilter, setStatusFilter] = useState("Tất cả");
   const [categoryFilter, setCategoryFilter] = useState("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [sortKey, setSortKey] = useState<"subject" | "requester" | "category" | "status" | "updatedAt" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -460,25 +459,6 @@ export default function Page() {
     return copy;
   }, [filtered, sortKey, sortDir]);
 
-  const visibleIds = useMemo(() => sorted.map((t) => t.id), [sorted]);
-  const selCount = useMemo(() => visibleIds.filter((id) => selectedIds[id]).length, [visibleIds, selectedIds]);
-  const allSel = visibleIds.length > 0 && selCount === visibleIds.length;
-
-  const toggleAll = () => {
-    setSelectedIds((p) => {
-      const n = { ...p };
-      if (allSel) visibleIds.forEach((id) => delete n[id]);
-      else visibleIds.forEach((id) => (n[id] = true));
-      return n;
-    });
-  };
-  const toggleOne = (id: string) => {
-    setSelectedIds((p) => {
-      const n = { ...p };
-      if (n[id]) delete n[id]; else n[id] = true;
-      return n;
-    });
-  };
   const toggleSort = (k: NonNullable<typeof sortKey>) => {
     setSortKey((p) => { if (p !== k) { setSortDir("asc"); return k; } setSortDir((d) => d === "asc" ? "desc" : "asc"); return p; });
   };
@@ -486,7 +466,7 @@ export default function Page() {
   /* ---- Detail view ---- */
   if (viewMode === "detail" && selectedTicket) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6">
+      <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6">
         <TicketDetailView ticket={selectedTicket} onBack={() => { setViewMode("list"); setSelectedTicket(null); }} onRefresh={refreshDetail} />
       </div>
     );
@@ -494,11 +474,11 @@ export default function Page() {
 
   /* ---- List view ---- */
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
+    <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+          <div className="p-3 bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
             <LifeBuoy size={28} className="text-white" />
           </div>
           <div>
@@ -507,7 +487,7 @@ export default function Page() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
+          <button className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-linear-to-r from-white to-red-50 px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer">
             <Download size={16} /> Xuất DS
           </button>
           {/* <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all cursor-pointer">
@@ -525,19 +505,46 @@ export default function Page() {
       </div>
 
       {/* Filter */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4">
+      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <Filter size={16} className="text-gray-500" />
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-red-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer">
-                {statusOpts.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <div className="flex flex-wrap gap-2">
+                {statusOpts.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatusFilter(s)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
+                      statusFilter === s
+                        ? "border-red-300 bg-red-600 text-white"
+                        : "border-red-200 bg-white text-gray-700 hover:bg-red-50"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="rounded-xl border border-red-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-pointer">
-                {catOpts.map((c) => <option key={c} value={c}>{c === "Tất cả" ? c : CATEGORY_LABELS[c] || c}</option>)}
-              </select>
+            <div className="flex flex-wrap gap-2">
+              {catOpts.map((c) => {
+                const label = c === "Tất cả" ? c : CATEGORY_LABELS[c] || c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setCategoryFilter(c)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
+                      categoryFilter === c
+                        ? "border-red-300 bg-red-600 text-white"
+                        : "border-red-200 bg-white text-gray-700 hover:bg-red-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="relative">
@@ -548,8 +555,8 @@ export default function Page() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
-        <div className="bg-gradient-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
+      <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
+        <div className="bg-linear-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Danh sách ticket</h2>
             <div className="text-sm text-gray-600 font-medium">{sorted.length} ticket</div>
@@ -566,11 +573,8 @@ export default function Page() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
+              <thead className="bg-linear-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr>
-                  <th className="py-3 px-4 text-left w-12">
-                    <input type="checkbox" checked={allSel} onChange={toggleAll} className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer" aria-label="Chọn tất cả" />
-                  </th>
                   {([
                     ["subject", "Ticket"],
                     ["requester", "Người gửi"],
@@ -590,19 +594,13 @@ export default function Page() {
               </thead>
               <tbody className="divide-y divide-red-100">
                 {sorted.length > 0 ? sorted.map((t) => (
-                  <tr key={t.id} className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
-                    <td className="py-4 px-4 align-top">
-                      <input type="checkbox" checked={!!selectedIds[t.id]} onChange={() => toggleOne(t.id)} className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer" aria-label={`Chọn ${t.subject}`} />
-                    </td>
+                  <tr key={t.id} className="group hover:bg-linear-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
                     <td className="py-4 px-6">
-                      <div className="space-y-1">
-                        <div className="font-medium text-gray-900">{t.subject}</div>
-                        <div className="text-xs text-gray-500 font-mono">{t.id.slice(0, 8)}</div>
-                      </div>
+                      <div className="font-medium text-gray-900">{t.subject}</div>
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
-                        <div className="h-7 w-7 rounded-lg bg-gradient-to-r from-red-600 to-red-700 flex items-center justify-center text-white text-xs font-bold"><User size={14} /></div>
+                        <div className="h-7 w-7 rounded-lg bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white text-xs font-bold"><User size={14} /></div>
                         <div className="text-sm font-medium text-gray-900">{t.openedByProfileName || t.openedByUserName}</div>
                       </div>
                     </td>
@@ -610,15 +608,15 @@ export default function Page() {
                     <td className="py-4 px-6"><StatusBadge status={t.status} /></td>
                     <td className="py-4 px-6"><div className="text-sm text-gray-700">{fmtDate(t.updatedAt)}</div></td>
                     <td className="py-4 px-6">
-                      <button onClick={() => openDetail(t.id)} disabled={isLoadingDetail} className="p-1.5 rounded-lg border border-red-300 bg-gradient-to-r from-white to-red-50 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50" title="Xem chi tiết">
+                      <button onClick={() => openDetail(t.id)} disabled={isLoadingDetail} className="p-1.5 rounded-lg border border-red-300 bg-linear-to-r from-white to-red-50 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50" title="Xem chi tiết">
                         <Eye size={14} />
                       </button>
                     </td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-red-100 to-red-200 flex items-center justify-center"><Search size={24} className="text-red-400" /></div>
+                    <td colSpan={6} className="py-12 text-center">
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-red-100 to-red-200 flex items-center justify-center"><Search size={24} className="text-red-400" /></div>
                       <div className="text-gray-600 font-medium">Không có ticket phù hợp</div>
                       <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa</div>
                     </td>

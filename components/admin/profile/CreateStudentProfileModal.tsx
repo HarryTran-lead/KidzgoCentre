@@ -131,7 +131,7 @@ export default function CreateStudentProfileModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
             <p className="text-sm text-yellow-800">
-              <strong>Lưu ý:</strong> Student profile được tạo dựa trên User ID của Parent. 
+              <strong>Lưu ý:</strong> Student profile được tạo dựa trên tài khoản Parent đã chọn. 
               Student không cần mã PIN để đăng nhập.
             </p>
           </div>
@@ -234,7 +234,7 @@ export default function CreateStudentProfileModal({
 
           <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
             <p className="text-sm text-blue-800">
-              💡 Student profile sẽ được tạo với cùng User ID như Parent để quản lý.
+              💡 Student profile sẽ được tạo và quản lý theo cùng tài khoản Parent.
             </p>
           </div>
 

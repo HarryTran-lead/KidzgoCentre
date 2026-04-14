@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { usePageI18n } from "@/hooks/usePageI18n";
 import {
   Users,
   GraduationCap,
@@ -125,10 +126,12 @@ function formatMoney(value: number | undefined): string {
   });
 }
 
-function EmptyBlock({ text = "Không có dữ liệu" }: { text?: string }) {
+function EmptyBlock({ text }: { text?: string }) {
+  const { messages } = usePageI18n();
+  const t = messages.adminPages.dashboard;
   return (
     <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-400">
-      {text}
+      {text || t.empty}
     </div>
   );
 }
@@ -152,6 +155,8 @@ function Legend({ data }: { data: LineChartDatum[] }) {
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
+  const { messages } = usePageI18n();
+  const t = messages.adminPages.dashboard;
   return (
     <div className="flex items-end justify-between gap-3">
       <div>
@@ -159,7 +164,7 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle?: string })
         {subtitle ? <p className="mt-1 text-sm text-gray-500">{subtitle}</p> : null}
       </div>
       <span className="inline-flex items-center gap-1 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
-        <Sparkles size={12} /> Live view
+        <Sparkles size={12} /> {t.liveView}
       </span>
     </div>
   );
@@ -200,6 +205,8 @@ function TabButton({
 }
 
 export default function DashboardPage({ data, loading = false, error, onRefresh }: DashboardPageProps) {
+  const { messages } = usePageI18n();
+  const t = messages.adminPages.dashboard;
   const [selectedRange, setSelectedRange] = useState("30d");
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
 
@@ -276,7 +283,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
             onClick={onRefresh}
             className="mt-3 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 cursor-pointer"
           >
-            Tải lại
+            {t.reload}
           </button>
         ) : null}
       </div>
@@ -293,27 +300,27 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       <div className="rounded-3xl border border-gray-200/80 bg-linear-to-br from-white via-white to-red-50 p-5 shadow-[0_10px_40px_-24px_rgba(15,23,42,0.5)] md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 md:text-2xl">Bảng điều khiển quản trị</h1>
-            <p className="mt-1 text-sm text-gray-500">Tổng hợp dữ liệu vận hành theo thời gian thực, tối ưu cho theo dõi nhanh.</p>
+            <h1 className="text-xl font-bold text-gray-900 md:text-2xl">{t.controlPanel.title}</h1>
+            <p className="mt-1 text-sm text-gray-500">{t.controlPanel.subtitle}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
-              <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">Học viên: {formatNumber(studentsTotal)}</span>
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">Lead: {formatNumber(totalLeads)}</span>
-              <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">Điểm danh: {formatPercent(attendanceRate)}</span>
+              <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">{t.kpis.totalStudents}: {formatNumber(studentsTotal)}</span>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">{t.kpis.totalLeads}: {formatNumber(totalLeads)}</span>
+              <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">{t.kpis.attendanceRate}: {formatPercent(attendanceRate)}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600">
               <CalendarDays size={16} />
-              <span>Khoảng thời gian</span>
+              <span>{t.controlPanel.dateRange}</span>
               <select
                 value={selectedRange}
                 onChange={(e) => setSelectedRange(e.target.value)}
                 className="border-none bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer"
               >
-                <option value="7d">7 ngày gần nhất</option>
-                <option value="30d">30 ngày gần nhất</option>
-                <option value="90d">90 ngày gần nhất</option>
+                <option value="7d">{t.controlPanel.last7Days}</option>
+                <option value="30d">{t.controlPanel.last30Days}</option>
+                <option value="90d">{t.controlPanel.last90Days}</option>
               </select>
             </div>
             {onRefresh ? (
@@ -322,7 +329,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
                 onClick={onRefresh}
                 className="rounded-xl bg-linear-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 cursor-pointer"
               >
-                Làm mới
+                {t.controlPanel.refresh}
               </button>
             ) : null}
           </div>
@@ -331,25 +338,25 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
 
       {/* Tab buttons with red gradient */}
       <div className="sticky top-2 z-10 flex w-full flex-wrap gap-2 rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-sm backdrop-blur">
-        <TabButton active={activeTab === "overview"} label="Overview" onClick={() => setActiveTab("overview")} />
-        <TabButton active={activeTab === "leads"} label="Leads" onClick={() => setActiveTab("leads")} />
-        <TabButton active={activeTab === "academic"} label="Academic" onClick={() => setActiveTab("academic")} />
-        <TabButton active={activeTab === "hr"} label="HR" onClick={() => setActiveTab("hr")} />
+        <TabButton active={activeTab === "overview"} label={t.tabs.overview} onClick={() => setActiveTab("overview")} />
+        <TabButton active={activeTab === "leads"} label={t.tabs.leads} onClick={() => setActiveTab("leads")} />
+        <TabButton active={activeTab === "academic"} label={t.tabs.academic} onClick={() => setActiveTab("academic")} />
+        <TabButton active={activeTab === "hr"} label={t.tabs.hr} onClick={() => setActiveTab("hr")} />
       </div>
 
       {activeTab === "overview" ? (
         <div className="space-y-6">
           <section>
-            <SectionTitle title="Tổng quan KPI" subtitle="Các chỉ số trọng tâm toàn hệ thống" />
+            <SectionTitle title={t.sections.kpiOverview} subtitle={t.sections.kpiSubtitle} />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <KpiCard title="Tổng học viên" value={formatNumber(studentsTotal)} icon={<Users size={18} />} />
-              <KpiCard title="Ghi danh đang hoạt động" value={formatNumber(activeEnrollments)} icon={<GraduationCap size={18} />} />
-              <KpiCard title="Tổng lead" value={formatNumber(totalLeads)} icon={<UserPlus size={18} />} />
-              <KpiCard title="Tỷ lệ điểm danh" value={formatPercent(attendanceRate)} icon={<CircleCheckBig size={18} />} />
+              <KpiCard title={t.kpis.totalStudents} value={formatNumber(studentsTotal)} icon={<Users size={18} />} />
+              <KpiCard title={t.kpis.activeEnrollments} value={formatNumber(activeEnrollments)} icon={<GraduationCap size={18} />} />
+              <KpiCard title={t.kpis.totalLeads} value={formatNumber(totalLeads)} icon={<UserPlus size={18} />} />
+              <KpiCard title={t.kpis.attendanceRate} value={formatPercent(attendanceRate)} icon={<CircleCheckBig size={18} />} />
               <KpiCard
-                title="Tỷ lệ chuyển đổi"
+                title={t.kpis.conversionRate}
                 value={formatPercent(conversionRate)}
-                subValue={conversionRate >= 20 ? "Mức tốt" : "Cần cải thiện"}
+                subValue={conversionRate >= 20 ? t.kpis.good : t.kpis.needsImprovement}
                 trend={conversionRate >= 20 ? "up" : "down"}
                 icon={<TrendingUp size={18} />}
               />
@@ -357,27 +364,27 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <ChartCard title="Lead theo trạng thái" rightContent={`Chuyển đổi: ${formatPercent(leads?.conversionRate)}`}>
+            <ChartCard title={t.charts.leadsByStatus} rightContent={`${t.charts.conversion}: ${formatPercent(leads?.conversionRate)}`}>
               <FunnelChart data={leadsBreakdown} />
             </ChartCard> 
-            <ChartCard title="Trạng thái điểm danh  " rightContent={`Tỷ lệ: ${formatPercent(attendance?.attendanceRate)}`}>
+            <ChartCard title={t.charts.attendanceStatus} rightContent={`${t.charts.rate}: ${formatPercent(attendance?.attendanceRate)}`}>
               <DashboardLineChart data={attendanceLine} height={220} strokeColor="#dc2626" />
               <Legend data={attendanceLine} />
             </ChartCard>
 
-            <ChartCard title="Trạng thái ghi danh  " rightContent={`Đang hoạt động: ${formatNumber(activeEnrollments)}`}>
+            <ChartCard title={t.charts.enrollmentStatus} rightContent={`${t.charts.active}: ${formatNumber(activeEnrollments)}`}>
               <DashboardLineChart data={enrollmentLine} height={220} strokeColor="#dc2626" />
               <Legend data={enrollmentLine} />
             </ChartCard>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <ChartCard title="Placement test theo trạng thái  ">
+            <ChartCard title={t.charts.placementTests}>
               <DashboardLineChart data={placementLine} height={240} strokeColor="#dc2626" />
               <Legend data={placementLine} />
             </ChartCard>
 
-            <ChartCard title="Leads theo trạng thái  ">
+            <ChartCard title={t.charts.leadsStatus}>
               <DashboardLineChart data={leadsLine} height={240} strokeColor="#dc2626" />
               <Legend data={leadsLine} />
             </ChartCard>
@@ -388,26 +395,26 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       {activeTab === "leads" ? (
         <div className="space-y-6">
           <section>
-            <SectionTitle title="Leads & Placement Test" subtitle="Theo dõi hiệu quả tuyển sinh và xếp lớp" />
+            <SectionTitle title={t.sections.leadsAndPlacement} subtitle={t.sections.leadsSubtitle} />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard title="Tổng lead" value={formatNumber(num(leads?.total, leads?.totalLeads))} icon={<UserPlus size={18} />} />
-              <KpiCard title="Lead mới" value={formatNumber(num(leads?.new, leads?.newLeads))} icon={<Activity size={18} />} />
-              <KpiCard title="Lead đã ghi danh" value={formatNumber(num(leads?.enrolled, leads?.enrolledLeads))} icon={<GraduationCap size={18} />} />
-              <KpiCard title="Tỷ lệ chuyển đổi" value={formatPercent(leads?.conversionRate)} icon={<TrendingUp size={18} />} />
+              <KpiCard title={t.kpis.totalLeads} value={formatNumber(num(leads?.total, leads?.totalLeads))} icon={<UserPlus size={18} />} />
+              <KpiCard title={t.kpis.newLeads} value={formatNumber(num(leads?.new, leads?.newLeads))} icon={<Activity size={18} />} />
+              <KpiCard title={t.kpis.enrolledLeads} value={formatNumber(num(leads?.enrolled, leads?.enrolledLeads))} icon={<GraduationCap size={18} />} />
+              <KpiCard title={t.kpis.conversionRate} value={formatPercent(leads?.conversionRate)} icon={<TrendingUp size={18} />} />
             </div>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <ChartCard title="Lead theo trạng thái">
+            <ChartCard title={t.charts.leadsByStatus}>
               <FunnelChart data={leadsBreakdown} />
             </ChartCard>
 
-            <ChartCard title="Trạng thái lead  ">
+            <ChartCard title={t.charts.leadsStatus}>
               <DashboardLineChart data={leadsLine} height={220} strokeColor="#dc2626" />
               <Legend data={leadsLine} />
             </ChartCard>
 
-            <ChartCard title="Placement test theo trạng thái  ">
+            <ChartCard title={t.charts.placementTests}>
               <DashboardLineChart data={placementLine} height={220} strokeColor="#dc2626" />
               <Legend data={placementLine} />
             </ChartCard>
@@ -418,41 +425,41 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       {activeTab === "academic" ? (
         <div className="space-y-6">
           <section>
-            <SectionTitle title="Học vụ" subtitle="Điểm danh, bài tập, nghỉ phép, tín chỉ bù" />
+            <SectionTitle title={t.sections.academic} subtitle={t.sections.academicSubtitle} />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard title="Tỷ lệ điểm danh" value={formatPercent(attendance?.attendanceRate)} icon={<ClipboardCheck size={18} />} />
-              <KpiCard title="Tỷ lệ nộp bài" value={formatPercent(homework?.submissionRate)} icon={<BookOpen size={18} />} />
-              <KpiCard title="Tỷ lệ chấm bài" value={formatPercent(homework?.gradedRate)} icon={<Activity size={18} />} />
-              <KpiCard title="Đơn nghỉ phép" value={formatNumber(num(leave?.total, leave?.totalRequests))} icon={<CalendarDays size={18} />} />
+              <KpiCard title={t.kpis.attendanceRate} value={formatPercent(attendance?.attendanceRate)} icon={<ClipboardCheck size={18} />} />
+              <KpiCard title={t.kpis.submissionRate} value={formatPercent(homework?.submissionRate)} icon={<BookOpen size={18} />} />
+              <KpiCard title={t.kpis.gradedRate} value={formatPercent(homework?.gradedRate)} icon={<Activity size={18} />} />
+              <KpiCard title={t.kpis.leaveRequests} value={formatNumber(num(leave?.total, leave?.totalRequests))} icon={<CalendarDays size={18} />} />
             </div>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <ChartCard title="Điểm danh  ">
+            <ChartCard title={t.charts.attendanceDetails}>
               <DashboardLineChart data={attendanceLine} height={220} strokeColor="#dc2626" />
               <Legend data={attendanceLine} />
             </ChartCard>
 
-            <ChartCard title="Bài tập theo tiến độ (Bar)">
+            <ChartCard title={t.charts.homeworkProgress}>
               <DashboardBarChart data={homeworkBars} height={220} />
             </ChartCard>
 
-            <ChartCard title="Nghỉ phép theo trạng thái  ">
+            <ChartCard title={t.charts.leaveByStatus}>
               <DashboardLineChart data={leaveLine} height={220} strokeColor="#dc2626" />
               <Legend data={leaveLine} />
             </ChartCard>
 
-            <ChartCard title="Tín chỉ bù theo trạng thái  ">
+            <ChartCard title={t.charts.makeupCredits}>
               <DashboardLineChart data={makeupLine} height={220} strokeColor="#dc2626" />
               <Legend data={makeupLine} />
             </ChartCard>
 
-            <ChartCard title="Placement test hoàn thành">
+            <ChartCard title={t.charts.placementCompletion}>
               <div className="grid grid-cols-2 gap-3">
-                <KpiCard title="Tổng bài test" value={formatNumber(num(placementTests?.total, placementTests?.totalTests))} icon={<ClipboardCheck size={16} />} />
-                <KpiCard title="Hoàn thành" value={formatNumber(num(placementTests?.completed, placementTests?.completedTests))} icon={<GraduationCap size={16} />} />
-                <KpiCard title="Không tham dự" value={formatNumber(num(placementTests?.noShow, placementTests?.noShowTests))} icon={<Users size={16} />} />
-                <KpiCard title="Tỷ lệ hoàn thành" value={formatPercent(placementTests?.completionRate)} icon={<TrendingUp size={16} />} />
+                <KpiCard title={t.kpis.totalTests} value={formatNumber(num(placementTests?.total, placementTests?.totalTests))} icon={<ClipboardCheck size={16} />} />
+                <KpiCard title={t.kpis.completed} value={formatNumber(num(placementTests?.completed, placementTests?.completedTests))} icon={<GraduationCap size={16} />} />
+                <KpiCard title={t.kpis.noShow} value={formatNumber(num(placementTests?.noShow, placementTests?.noShowTests))} icon={<Users size={16} />} />
+                <KpiCard title={t.kpis.completionRate} value={formatPercent(placementTests?.completionRate)} icon={<TrendingUp size={16} />} />
               </div>
             </ChartCard>
           </section>
@@ -462,27 +469,27 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
       {activeTab === "hr" ? (
         <div className="space-y-6">
           <section>
-            <SectionTitle title="Nhân sự (HR)" subtitle="Cơ cấu nhân sự và bảng lương" />
+            <SectionTitle title={t.sections.hr} subtitle={t.sections.hrSubtitle} />
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <KpiCard title="Tổng nhân sự" value={formatNumber(humanResources?.totalStaff)} icon={<Briefcase size={18} />} />
-              <KpiCard title="Giáo viên" value={formatNumber(humanResources?.teacherCount)} icon={<Users size={18} />} />
-              <KpiCard title="Quản lý" value={formatNumber(humanResources?.managementStaffCount)} icon={<UserCog size={18} />} />
-              <KpiCard title="Quản trị" value={formatNumber(humanResources?.adminCount)} icon={<UserCog size={18} />} />
-              <KpiCard title="Tổng lương" value={formatMoney(humanResources?.totalPayroll)} icon={<Wallet size={18} />} />
+              <KpiCard title={t.kpis.totalStaff} value={formatNumber(humanResources?.totalStaff)} icon={<Briefcase size={18} />} />
+              <KpiCard title={t.kpis.teachers} value={formatNumber(humanResources?.teacherCount)} icon={<Users size={18} />} />
+              <KpiCard title={t.kpis.management} value={formatNumber(humanResources?.managementStaffCount)} icon={<UserCog size={18} />} />
+              <KpiCard title={t.kpis.admin} value={formatNumber(humanResources?.adminCount)} icon={<UserCog size={18} />} />
+              <KpiCard title={t.kpis.totalPayroll} value={formatMoney(humanResources?.totalPayroll)} icon={<Wallet size={18} />} />
             </div>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <ChartCard title="Cơ cấu nhân sự (Bar)">
+            <ChartCard title={t.charts.staffStructure}>
               <DashboardBarChart data={hrRoleBars} layout="vertical" height={240} />
             </ChartCard>
 
-            <ChartCard title="Trạng thái payroll run  ">
+            <ChartCard title={t.charts.payrollStatus}>
               <DashboardLineChart data={payrollLine} height={220} strokeColor="#06b6d4" />
               <Legend data={payrollLine} />
             </ChartCard>
 
-            <ChartCard title="Xu hướng vận hành HR  ">
+            <ChartCard title={t.charts.hrTrend}>
               <DashboardLineChart data={hrTrendLine} height={220} strokeColor="#0f766e" />
               <Legend data={hrTrendLine} />
             </ChartCard>
@@ -492,7 +499,7 @@ export default function DashboardPage({ data, loading = false, error, onRefresh 
 
       {loading ? (
         <div className="rounded-2xl border border-red-100 bg-red-50 p-3 text-center text-sm text-red-700">
-          Đang làm mới dữ liệu...
+          {t.loading}
         </div>
       ) : null}
     </div>

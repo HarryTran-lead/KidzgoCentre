@@ -42,6 +42,20 @@ function initialAvatar(name: string) {
   return name?.trim()?.charAt(0)?.toUpperCase() || "?";
 }
 
+function toViErrorMessage(message?: string, fallback = "Có lỗi xảy ra") {
+  const raw = (message || "").trim();
+  if (!raw) return fallback;
+
+  const normalized = raw.toLowerCase();
+  if (normalized.includes("pin is incorrect") || normalized.includes("incorrect pin")) {
+    return "Mã PIN không đúng.";
+  }
+  if (normalized.includes("current password") && normalized.includes("incorrect")) {
+    return "Mật khẩu hiện tại không đúng.";
+  }
+  return raw;
+}
+
 /* ================= COMPONENT ================= */
 
 export default function AccountChooser({ locale }: Props) {
@@ -53,8 +67,12 @@ export default function AccountChooser({ locale }: Props) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [selectedParent, setSelectedParent] = useState<Profile | null>(null);
 
+  // Logic States mới được thêm vào
   const [pinError, setPinError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pinFailedAttempts, setPinFailedAttempts] = useState(0);
+  const [pinResetMessage, setPinResetMessage] = useState<string | null>(null);
+  const [isResettingPin, setIsResettingPin] = useState(false);
 
   const pinRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -84,7 +102,7 @@ export default function AccountChooser({ locale }: Props) {
         const isSuccess = response.isSuccess ?? false;
 
         if (!isSuccess) {
-          setErrorMessage(response.message ?? DEFAULT_ERROR_MESSAGE);
+          setErrorMessage(toViErrorMessage(response.message, DEFAULT_ERROR_MESSAGE));
           console.log("Failed payload:", response);
           return;
         }
@@ -104,7 +122,7 @@ export default function AccountChooser({ locale }: Props) {
           setErrorMessage("Phiên đăng nhập đã hết hạn.");
         } else {
           setErrorMessage(
-            error?.response?.data?.message || DEFAULT_ERROR_MESSAGE,
+            toViErrorMessage(error?.response?.data?.message, DEFAULT_ERROR_MESSAGE),
           );
         }
       } finally {
@@ -165,7 +183,7 @@ export default function AccountChooser({ locale }: Props) {
         console.error("Select student failed:", response);
         return;
       }
- if (response.data?.accessToken) {
+      if (response.data?.accessToken) {
         setAccessToken(response.data.accessToken);
       }
 
@@ -190,6 +208,8 @@ export default function AccountChooser({ locale }: Props) {
   const handleParentClick = (profile: Profile) => {
     setSelectedParent(profile);
     setPinError(null);
+    setPinFailedAttempts(0);
+    setPinResetMessage(null);
 
     setIsAnimating(true);
     setTimeout(() => {
@@ -211,6 +231,7 @@ export default function AccountChooser({ locale }: Props) {
   const handleParentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setPinError(null);
+    setPinResetMessage(null);
 
     if (!selectedParent) return;
 
@@ -230,9 +251,12 @@ export default function AccountChooser({ locale }: Props) {
       const isSuccess = response.isSuccess ?? response.success ?? false;
 
       if (!isSuccess) {
-        setPinError(response.message ?? "Mã PIN không đúng");
+        setPinError(toViErrorMessage(response.message, "Mã PIN không đúng"));
+        setPinFailedAttempts((prev) => prev + 1);
         return;
       }
+
+      setPinFailedAttempts(0);
 
       // Update server-side role cookie to allow portal access
       await setServerSession({
@@ -242,9 +266,36 @@ export default function AccountChooser({ locale }: Props) {
       });
       router.push(parentPath);
     } catch (error: any) {
-      setPinError(error?.response?.data?.message || "Mã PIN không đúng");
+      setPinError(toViErrorMessage(error?.response?.data?.message, "Mã PIN không đúng"));
+      setPinFailedAttempts((prev) => prev + 1);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResetParentPin = async () => {
+    if (!selectedParent?.id) return;
+
+    setIsResettingPin(true);
+    setPinError(null);
+    setPinResetMessage(null);
+
+    try {
+      const response = await authService.requestPinReset({
+        profileId: selectedParent.id,
+      });
+
+      const isSuccess = response.isSuccess ?? response.success ?? false;
+      if (!isSuccess) {
+        setPinError(toViErrorMessage(response.message, "Không thể gửi yêu cầu đặt lại PIN."));
+        return;
+      }
+
+      setPinResetMessage("Đã gửi hướng dẫn đặt lại PIN qua email đã đăng ký.");
+    } catch (error: any) {
+      setPinError(toViErrorMessage(error?.response?.data?.message, "Không thể gửi yêu cầu đặt lại PIN."));
+    } finally {
+      setIsResettingPin(false);
     }
   };
 
@@ -421,7 +472,7 @@ export default function AccountChooser({ locale }: Props) {
           )}
         </div>
 
-        {/* PIN Form - Show after animation */}
+        {/* PIN Form - GIỮ NGUYÊN GIAO DIỆN CŨ, THÊM LOGIC MỚI */}
         {showPinForm && selectedParent && (
           <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <Card className="w-[400px] max-w-[90vw] relative">
@@ -432,6 +483,8 @@ export default function AccountChooser({ locale }: Props) {
                   setShowPinForm(false);
                   setSelectedParent(null);
                   setPinError(null);
+                  setPinFailedAttempts(0);
+                  setPinResetMessage(null);
                 }}
                 className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-50 transition-colors cursor-pointer"
               >
@@ -470,6 +523,25 @@ export default function AccountChooser({ locale }: Props) {
                     <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
                       {pinError}
                     </p>
+                  )}
+
+                  {pinResetMessage && (
+                    <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                      {pinResetMessage}
+                    </p>
+                  )}
+
+                  {pinFailedAttempts >= 3 && (
+                    <div className="pt-1 text-center">
+                      <button
+                        type="button"
+                        onClick={handleResetParentPin}
+                        disabled={isResettingPin}
+                        className="text-sm font-medium text-red-600 hover:text-red-700 underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isResettingPin ? "Đang gửi yêu cầu reset PIN..." : "Quên mã PIN? Reset mã PIN"}
+                      </button>
+                    </div>
                   )}
 
                   {isSubmitting && (
