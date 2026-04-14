@@ -393,8 +393,8 @@ export default function TuitionPlansPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
                 <Wallet className="text-red-600" size={18} />
@@ -406,7 +406,7 @@ export default function TuitionPlansPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md transition">
+          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-red-100 grid place-items-center">
                 <BookOpen className="text-red-600" size={18} />
@@ -427,8 +427,8 @@ export default function TuitionPlansPage() {
         )}
 
         <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-3xl min-w-70">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input
                 value={q}
@@ -441,22 +441,24 @@ export default function TuitionPlansPage() {
               />
             </div>
 
-            <Select 
-              value={statusFilter} 
-              onValueChange={(val) => {
-                setStatusFilter(val as typeof statusFilter);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-                <SelectValue placeholder="Chọn trạng thái" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                <SelectItem value="Đang hoạt động">Đang hoạt động</SelectItem>
-                <SelectItem value="Tạm dừng">Tạm dừng</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
+              <Select 
+                value={statusFilter} 
+                onValueChange={(val) => {
+                  setStatusFilter(val as typeof statusFilter);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
+                  <SelectValue placeholder="Chọn trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="Đang hoạt động">Đang hoạt động</SelectItem>
+                  <SelectItem value="Tạm dừng">Tạm dừng</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 

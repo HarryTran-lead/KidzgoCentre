@@ -3,6 +3,13 @@
 import { useEffect } from "react";
 import { AlertCircle, Building2 } from "lucide-react";
 import { useBranchFilter } from "@/hooks/useBranchFilter";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/lightswind/select";
 
 type BranchOption = {
   id: string;
@@ -61,27 +68,32 @@ export default function AdminBranchSelectField({
         Chi nhánh {required && <span className="text-red-500">*</span>}
       </label>
       <div className="relative">
-        <select
-          data-field={dataField}
+        <Select
           value={value}
-          onChange={(e) => onValueChange(e.target.value)}
+          onValueChange={onValueChange}
           disabled={disabled}
-          className={cn(
-            "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
-            "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
-            error ? "border-red-500" : "border-gray-200",
-            disabled ? "opacity-50 cursor-not-allowed" : ""
-          )}
         >
-          <option value="">{placeholder}</option>
-          {options.map((branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            data-field={dataField}
+            className={cn(
+              "w-full px-4 py-3 rounded-xl border bg-white text-gray-900",
+              "focus:outline-none focus:ring-2 focus:ring-red-300 transition-all",
+              error ? "border-red-500" : "border-gray-200",
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            )}
+          >
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((branch) => (
+              <SelectItem key={branch.id} value={branch.id}>
+                {branch.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {error && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
             <AlertCircle size={18} className="text-red-500" />
           </div>
         )}
