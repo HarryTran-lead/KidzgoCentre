@@ -349,3 +349,96 @@ export async function generateAiQuestionDrafts(
         items,
     };
 }
+
+export interface AiGenerateFromFilePayload {
+    programId: string;
+    file?: File | null;
+    topic?: string;
+    questionType?: "MultipleChoice" | "TextInput";
+    questionCount?: number;
+    level?: DifficultyLevel;
+    skill?: string;
+    taskStyle?: "standard" | "translation";
+    grammarTags?: string[];
+    vocabularyTags?: string[];
+    instructions?: string;
+    language?: string;
+    pointsPerQuestion?: number;
+}
+
+export async function generateAiQuestionDraftsFromFile(
+    payload: AiGenerateFromFilePayload
+): Promise<AiGenerateQuestionResult> {
+    const token = getAccessToken();
+    if (!token) throw new Error("Bạn chưa đăng nhập.");
+
+    const fd = new FormData();
+    fd.append("programId", payload.programId);
+    if (payload.file) fd.append("file", payload.file);
+    if (payload.topic) fd.append("topic", payload.topic);
+    if (payload.questionType) fd.append("questionType", payload.questionType);
+    if (payload.questionCount != null) fd.append("questionCount", String(payload.questionCount));
+    if (payload.level) fd.append("level", payload.level);
+    if (payload.skill) fd.append("skill", payload.skill);
+    if (payload.taskStyle) fd.append("taskStyle", payload.taskStyle);
+    if (payload.grammarTags && payload.grammarTags.length > 0) {
+        for (const tag of payload.grammarTags) fd.append("grammarTags", tag);
+    }
+    if (payload.vocabularyTags && payload.vocabularyTags.length > 0) {
+        for (const tag of payload.vocabularyTags) fd.append("vocabularyTags", tag);
+    }
+    if (payload.instructions) fd.append("instructions", payload.instructions);
+    if (payload.language) fd.append("language", payload.language);
+    if (payload.pointsPerQuestion != null) fd.append("pointsPerQuestion", String(payload.pointsPerQuestion));
+
+    const res = await fetch(QUESTION_BANK_ENDPOINTS.AI_GENERATE_FROM_FILE, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+    });
+
+    const text = await res.text();
+    const json = text ? JSON.parse(text) : null;
+
+    if (!res.ok) {
+        throw new Error(json?.message ?? json?.detail ?? json?.error ?? "Không thể tạo draft câu hỏi từ file.");
+    }
+
+    const data = json?.data ?? json ?? {};
+    const items = Array.isArray(data?.items)
+        ? data.items.map((item: any) => ({
+            questionText: String(item?.questionText ?? item?.content ?? ""),
+            questionType:
+                item?.questionType === "TextInput" || item?.questionType === "TEXT_INPUT"
+                    ? "TextInput"
+                    : "MultipleChoice",
+            options: Array.isArray(item?.options)
+                ? item.options.map((option: any) => String(option ?? "").trim()).filter(Boolean)
+                : [],
+            correctAnswer: String(item?.correctAnswer ?? ""),
+            points: Number(item?.points ?? payload.pointsPerQuestion ?? 1),
+            explanation: item?.explanation ?? null,
+            topic: item?.topic ?? null,
+            skill: item?.skill ?? null,
+            grammarTags: Array.isArray(item?.grammarTags)
+                ? item.grammarTags.map((tag: any) => String(tag ?? "").trim()).filter(Boolean)
+                : [],
+            vocabularyTags: Array.isArray(item?.vocabularyTags)
+                ? item.vocabularyTags.map((tag: any) => String(tag ?? "").trim()).filter(Boolean)
+                : [],
+            level:
+                item?.level === "Easy" || item?.level === "Medium" || item?.level === "Hard"
+                    ? item.level
+                    : (payload.level ?? "Medium"),
+        }))
+        : [];
+
+    return {
+        aiUsed: Boolean(data?.aiUsed),
+        summary: data?.summary,
+        warnings: Array.isArray(data?.warnings)
+            ? data.warnings.map((warning: any) => String(warning ?? "").trim()).filter(Boolean)
+            : [],
+        items,
+    };
+}
