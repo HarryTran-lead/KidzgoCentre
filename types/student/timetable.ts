@@ -18,6 +18,7 @@ export type StudentTimetableSession = {
   plannedTeacherName?: string | null;
   actualTeacherName?: string | null;
   lessonPlanLink?: string | null;
+  color?: string | null;
 };
 
 export type StudentTimetableResponse = {

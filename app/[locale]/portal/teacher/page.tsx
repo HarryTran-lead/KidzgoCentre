@@ -704,8 +704,8 @@ export default function Page() {
     return () => { alive = false; };
   }, []);
 
-  const todayClasses = upcomingClasses.filter(cls => cls.day.includes("Hôm nay"));
-  const upcomingFutureClasses = upcomingClasses.filter(cls => !cls.day.includes("Hôm nay"));
+  const todayClasses = upcomingClasses.filter(cls => cls.day?.includes("Hôm nay"));
+  const upcomingFutureClasses = upcomingClasses.filter(cls => !cls.day?.includes("Hôm nay"));
 
   useEffect(() => {
     setIsPageLoaded(true);

@@ -355,6 +355,7 @@ export const MONTHLY_REPORT_ENDPOINTS = {
 export const ADMIN_ENDPOINTS = {
   CLASSES: '/api/classes',
   CLASSES_STATUS: (id: string) => `/api/classes/${id}/status`,
+  CLASSES_COLOR: (id: string) => `/api/classes/${id}/color`,
   PROGRAMS: '/api/programs',
   PROGRAMS_ACTIVE: '/api/programs/active',
   PROGRAMS_MONTHLY_LEAVE_LIMIT: (id: string) => `/api/programs/${id}/monthly-leave-limit`,
