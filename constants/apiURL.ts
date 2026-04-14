@@ -645,6 +645,26 @@ export const BACKEND_TICKET_ENDPOINTS = {
   GET_SLA: (id: string) => `/tickets/${id}/sla`,
 } as const;
 
+// Incident Report Endpoints (Client-side → Next.js API Routes)
+export const INCIDENT_REPORT_ENDPOINTS = {
+  BASE: '/api/incident-reports',
+  BY_ID: (id: string) => `/api/incident-reports/${id}`,
+  COMMENTS: (id: string) => `/api/incident-reports/${id}/comments`,
+  ASSIGN: (id: string) => `/api/incident-reports/${id}/assign`,
+  STATUS: (id: string) => `/api/incident-reports/${id}/status`,
+  STATISTICS: '/api/incident-reports/statistics',
+} as const;
+
+// Backend Incident Report Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_INCIDENT_REPORT_ENDPOINTS = {
+  BASE: '/incident-reports',
+  BY_ID: (id: string) => `/incident-reports/${id}`,
+  COMMENTS: (id: string) => `/incident-reports/${id}/comments`,
+  ASSIGN: (id: string) => `/incident-reports/${id}/assign`,
+  STATUS: (id: string) => `/incident-reports/${id}/status`,
+  STATISTICS: '/incident-reports/statistics',
+} as const;
+
 // File Endpoints (Client-side → Next.js API Routes)
 export const FILE_ENDPOINTS = {
   UPLOAD: '/api/files/upload',

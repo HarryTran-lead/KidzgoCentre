@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   BookOpen,
   BookOpenCheck,
   CalendarRange,
@@ -44,6 +45,7 @@ export function staffManagerMenu(root: string, locale: Locale = "vi"): MenuItem[
       ],
     },
     [t.tickets, MessageSquare, "/tickets"],
+    [t.incidentReports, AlertTriangle, "/incident-reports"],
     [t.notifications, Megaphone, "/notifications"],
     [t.media, Image, "/media"],
     [t.studentProfiles, NotebookText, "/students"],

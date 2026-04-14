@@ -500,6 +500,16 @@ export default function AiCreatorModal({
                   Hỗ trợ: .txt, .md, .csv, .json, .xml, .html, .docx, .pdf, .xlsx
                 </p>
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">
+                    Loại câu hỏi
+                  </label>
+                  <Select
+                    value={form.questionType}
+                    onValueChange={(value) => handleChange("questionType", value as QuestionType)}
+                    disabled={availableQuestionTypes.length <= 1}
                   >
                     <SelectTrigger className="w-full rounded-lg h-9 disabled:opacity-50">
                       <SelectValue />

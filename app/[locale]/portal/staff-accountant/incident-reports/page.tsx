@@ -2,7 +2,6 @@
 
 import IncidentReportWorkspace from "@/components/portal/shared/IncidentReportWorkspace";
 
-export default function AdminReportsPage() {
-  return <IncidentReportWorkspace isAdmin />;
+export default function StaffAccountantIncidentReportsPage() {
+  return <IncidentReportWorkspace />;
 }
-

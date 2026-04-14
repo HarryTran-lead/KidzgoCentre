@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Bell,
   CalendarClock,
   CheckSquare,
@@ -44,6 +45,7 @@ export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
       ] as RawItem[],
     },
     [t.reportRequests, Send, "/report-requests"],
+    [t.incidentReports, AlertTriangle, "/incident-reports"],
     [t.timesheet, Clock4, "/timesheet"],
     [t.notifications, Bell, "/notifications"],
   ];

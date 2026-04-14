@@ -1,5 +1,6 @@
 // components/portal/menu/staffAccounting.ts
 import {
+  AlertTriangle,
   LayoutDashboard,
   FileText,
   QrCode,
@@ -29,6 +30,7 @@ export function staffAccountingMenu(
     [t.adjustments, Undo2, "/adjustments"],
     [t.financeReports, BarChart3, "/reports"],
     [t.auditLog, ClipboardList, "/audit-log"],
+    [t.incidentReports, AlertTriangle, "/incident-reports"],
     [t.notifications, Bell, "/notifications"],
     [t.profile, UserCircle, "/profile"],
   ];
