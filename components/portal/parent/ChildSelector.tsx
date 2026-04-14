@@ -19,6 +19,9 @@ export default function ChildSelector() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { selectedProfile, setSelectedProfile } = useSelectedStudentProfile();
   const lastSyncedProfileId = useRef<string | null>(null);
+  const selectedProfileRef = useRef(selectedProfile);
+  selectedProfileRef.current = selectedProfile;
+
   const selectedChild = useMemo(
     () =>
       profiles.find((profile) => profile.id === selectedProfile?.id) ??
@@ -61,12 +64,15 @@ export default function ChildSelector() {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchProfiles = async () => {
       setLoading(true);
       setErrorMessage(null);
 
       try {
         const response = await getProfiles({ profileType: "Student" });
+        if (cancelled) return;
         const isSuccess = response.isSuccess ?? response.success ?? false;
 
         if (!isSuccess) {
@@ -85,7 +91,7 @@ export default function ChildSelector() {
         setProfiles(students);
 
         if (students.length > 0) {
-          const storedSelected = selectedProfile;
+          const storedSelected = selectedProfileRef.current;
           const hasSelected = storedSelected
             ? students.some((profile) => profile.id === storedSelected.id)
             : false;
@@ -95,19 +101,25 @@ export default function ChildSelector() {
             if (!hasSelected) {
               setSelectedProfile(targetProfile);
             }
-            await syncSelectedProfile(targetProfile);
+            if (!cancelled) {
+              await syncSelectedProfile(targetProfile);
+            }
           }
         }
       } catch (error) {
         console.error("Fetch student profiles error:", error);
-        setErrorMessage("Không thể tải danh sách học viên.");
+        if (!cancelled) {
+          setErrorMessage("Không thể tải danh sách học viên.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchProfiles();
-  }, [selectedProfile, setSelectedProfile, syncSelectedProfile]);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setSelectedProfile, syncSelectedProfile]);
 
   const handleSelectChild = async (child: Child) => {
     try {
