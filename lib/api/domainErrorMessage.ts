@@ -216,6 +216,14 @@ function translateBackendMessageToVietnamese(message?: string): string | undefin
       vi: "Học viên đã được ghi danh.",
     },
     {
+      test: /cannot\s+perform\s+action\s+'assign-class'.*cannot\s+change\s+track\s+'primary'\s+back\s+to\s+'wait'/i,
+      vi: "Không thể xếp lớp vì đăng ký này đã tạo ghi danh và không thể chuyển chương trình chính về trạng thái chờ.",
+    },
+    {
+      test: /cannot\s+perform\s+action\s+'assign-class'/i,
+      vi: "Không thể xếp lớp cho đăng ký ở trạng thái hiện tại.",
+    },
+    {
       test: /not\s+authorized|forbidden|permission/i,
       vi: "Bạn không có quyền thao tác này.",
     },

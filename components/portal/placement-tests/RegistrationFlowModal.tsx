@@ -197,6 +197,8 @@ export default function RegistrationFlowModal({
       secondaryProgramName?: string;
       tuitionPlanId: string;
       tuitionPlanName: string;
+      className?: string;
+      secondaryClassName?: string;
       totalSessions: number;
       usedSessions: number;
       remainingSessions: number;
@@ -673,21 +675,30 @@ export default function RegistrationFlowModal({
             },
           );
 
-          const options = sortedRegistrations.map((r) => ({
-            id: r.id,
-            studentProfileId: String(r.studentProfileId || ""),
-            preferredSchedule: String(r.preferredSchedule || ""),
-            programId: String(r.programId || ""),
-            programName: String(r.programName || ""),
-            secondaryProgramId: String(r.secondaryProgramId || ""),
-            secondaryProgramName: String(r.secondaryProgramName || ""),
-            tuitionPlanId: String(r.tuitionPlanId || ""),
-            tuitionPlanName: String(r.tuitionPlanName || ""),
-            totalSessions: Number(r.totalSessions ?? 0),
-            usedSessions: Number(r.usedSessions ?? 0),
-            remainingSessions: Number(r.remainingSessions ?? 0),
-            label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)} • ${r.programName}${r.secondaryProgramName ? ` • ${r.secondaryProgramName}` : ''}`,
-          }));
+          const options = sortedRegistrations.map((r) => {
+            const classNames = [
+              String(r.className || "").trim(),
+              String(r.secondaryClassName || "").trim(),
+            ].filter(Boolean);
+
+            return {
+              id: r.id,
+              studentProfileId: String(r.studentProfileId || ""),
+              preferredSchedule: String(r.preferredSchedule || ""),
+              programId: String(r.programId || ""),
+              programName: String(r.programName || ""),
+              secondaryProgramId: String(r.secondaryProgramId || ""),
+              secondaryProgramName: String(r.secondaryProgramName || ""),
+              tuitionPlanId: String(r.tuitionPlanId || ""),
+              tuitionPlanName: String(r.tuitionPlanName || ""),
+              className: String(r.className || ""),
+              secondaryClassName: String(r.secondaryClassName || ""),
+              totalSessions: Number(r.totalSessions ?? 0),
+              usedSessions: Number(r.usedSessions ?? 0),
+              remainingSessions: Number(r.remainingSessions ?? 0),
+              label: `${r.studentName} • ${toVietnameseStatus(r.status)} • ${toDisplayDate(r.createdAt)} • ${r.programName}${r.secondaryProgramName ? ` • ${r.secondaryProgramName}` : ""}${classNames.length > 0 ? ` • Lớp: ${classNames.join(" + ")}` : ""}`,
+            };
+          });
           setRegistrationOptions(options);
 
           const placementLinked = test?.id
@@ -1040,7 +1051,7 @@ export default function RegistrationFlowModal({
       toast({
         title: "Thành công",
         description: payload.secondaryClassId
-          ? "Đã xếp lớp gợi ý cho cả Primary và Secondary."
+          ? "Đã xếp lớp gợi ý cho cả chương trình chính và chương trình song song."
           : "Đã xếp lớp gợi ý cho đăng ký.",
         variant: "success",
       });
@@ -1152,7 +1163,7 @@ export default function RegistrationFlowModal({
         toast({
           title: "Thành công",
           description: hasSecondaryTrack
-            ? `Đã tải ${primaryFilteredCount} lớp Primary và ${secondaryFilteredCount} lớp Secondary để xếp lớp thủ công.`
+            ? `Đã tải ${primaryFilteredCount} lớp cho chương trình chính và ${secondaryFilteredCount} lớp cho chương trình song song để xếp lớp thủ công.`
             : `Đã tải ${primaryFilteredCount} lớp để xếp lớp thủ công.`,
           variant: "success",
         });
@@ -1181,7 +1192,7 @@ export default function RegistrationFlowModal({
       if (!manualSecondaryClassId) {
         toast({
           title: "Thiếu dữ liệu",
-          description: "Vui lòng chọn lớp cho chương trình secondary.",
+          description: "Vui lòng chọn lớp cho chương trình song song.",
           variant: "destructive",
         });
         return;
@@ -1190,7 +1201,8 @@ export default function RegistrationFlowModal({
       if (manualSecondaryClassId === manualPrimaryClassId) {
         toast({
           title: "Không hợp lệ",
-          description: "Lớp Primary và Secondary phải khác nhau.",
+          description:
+            "Lớp của chương trình chính và chương trình song song phải khác nhau.",
           variant: "destructive",
         });
         return;
@@ -1200,7 +1212,7 @@ export default function RegistrationFlowModal({
     if (!manualPrimarySessionPattern) {
       toast({
         title: "Thiếu lịch học",
-        description: "Vui lòng chọn ngày/giờ học cho lớp Primary.",
+        description: "Vui lòng chọn ngày/giờ học cho lớp chương trình chính.",
         variant: "destructive",
       });
       return;
@@ -1209,7 +1221,8 @@ export default function RegistrationFlowModal({
     if (hasSecondaryTrack && !manualSecondarySessionPattern) {
       toast({
         title: "Thiếu lịch học",
-        description: "Vui lòng chọn ngày/giờ học cho lớp Secondary.",
+        description:
+          "Vui lòng chọn ngày/giờ học cho lớp chương trình song song.",
         variant: "destructive",
       });
       return;
@@ -1237,8 +1250,8 @@ export default function RegistrationFlowModal({
       toast({
         title: "Thành công",
         description: hasSecondaryTrack
-          ? "Đã xếp lớp thủ công cho cả Primary và Secondary."
-          : "Đã xếp lớp thủ công cho chương trình Primary.",
+          ? "Đã xếp lớp thủ công cho cả chương trình chính và chương trình song song."
+          : "Đã xếp lớp thủ công cho chương trình chính.",
         variant: "success",
       });
       onSuccess?.();

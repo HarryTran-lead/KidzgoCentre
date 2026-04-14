@@ -109,6 +109,12 @@ function parsePreferredScheduleDays(schedule?: string | null): string[] {
   return Array.from(result).sort((a, b) => order.indexOf(a) - order.indexOf(b));
 }
 
+function toTrackLabel(track?: RegistrationTrackType | string | null): string {
+  return String(track || "").toLowerCase() === "secondary"
+    ? "chương trình song song"
+    : "chương trình chính";
+}
+
 interface SuggestAssignStepProps {
   mode?: "full" | "suggested-only" | "manual-wait-only";
   registrationId: string;
@@ -373,9 +379,7 @@ export default function SuggestAssignStep({
         ? [primaryScheduleMeta.availableDays[0]]
         : [];
     });
-    setManualPrimaryTime(
-      (prev) => prev || primaryScheduleMeta.defaultTime || "",
-    );
+    setManualPrimaryTime(primaryScheduleMeta.defaultTime || "");
   }, [
     assignViewMode,
     primaryScheduleMeta.availableDays,
@@ -393,9 +397,7 @@ export default function SuggestAssignStep({
         ? [secondaryScheduleMeta.availableDays[0]]
         : [];
     });
-    setManualSecondaryTime(
-      (prev) => prev || secondaryScheduleMeta.defaultTime || "",
-    );
+    setManualSecondaryTime(secondaryScheduleMeta.defaultTime || "");
   }, [
     assignViewMode,
     secondaryScheduleMeta.availableDays,
@@ -465,7 +467,7 @@ export default function SuggestAssignStep({
         : [];
     });
     setSuggestedPrimaryTime(
-      (prev) => prev || selectedPrimarySuggestedScheduleMeta.defaultTime || "",
+      selectedPrimarySuggestedScheduleMeta.defaultTime || "",
     );
   }, [
     assignViewMode,
@@ -486,7 +488,7 @@ export default function SuggestAssignStep({
         : [];
     });
     setSuggestedSecondaryTime(
-      (prev) => prev || selectedSecondarySuggestedScheduleMeta.defaultTime || "",
+      selectedSecondarySuggestedScheduleMeta.defaultTime || "",
     );
   }, [
     assignViewMode,
@@ -509,7 +511,7 @@ export default function SuggestAssignStep({
           : [];
       });
       setSuggestedSecondaryTime(
-        (prev) => prev || selectedSuggestedScheduleMeta.defaultTime || "",
+        selectedSuggestedScheduleMeta.defaultTime || "",
       );
       return;
     }
@@ -524,7 +526,7 @@ export default function SuggestAssignStep({
         : [];
     });
     setSuggestedPrimaryTime(
-      (prev) => prev || selectedSuggestedScheduleMeta.defaultTime || "",
+      selectedSuggestedScheduleMeta.defaultTime || "",
     );
   }, [
     assignViewMode,
@@ -727,7 +729,9 @@ export default function SuggestAssignStep({
           {showSuggestedActions && (
             <button
             type="button"
-            onClick={handleSuggestClasses}
+            onClick={() => {
+              void handleSuggestClasses();
+            }}
             disabled={!registrationId || isSuggesting}
             className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed cursor-pointer disabled:opacity-60 ${
               isSuggestedMode
@@ -794,7 +798,7 @@ export default function SuggestAssignStep({
                     {/* CỘT 1: LỚP GỢI Ý PRIMARY */}
                     <div className="flex-1 w-full space-y-3">
                       <label className="text-xs font-semibold text-gray-700">
-                        Lớp gợi ý cho chương trình Primary
+                        Lớp gợi ý cho chương trình chính
                       </label>
                       {suggestedClasses.suggestedClasses?.length ? (
                         <div className="grid grid-cols-1 gap-2">
@@ -835,12 +839,12 @@ export default function SuggestAssignStep({
                         </div>
                       ) : (
                         <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-5 text-sm text-gray-500">
-                          Chưa có lớp gợi ý cho track primary.
+                          Chưa có lớp gợi ý cho chương trình chính.
                         </div>
                       )}
 
                       {renderTrackSessionSelector({
-                        title: "Primary - chọn ngày/giờ học",
+                        title: "Chương trình chính - chọn ngày/giờ học",
                         selectedClassId: selectedPrimarySuggestedClassId,
                         selectedDays: suggestedPrimaryDays,
                         setSelectedDays: setSuggestedPrimaryDays,
@@ -857,7 +861,7 @@ export default function SuggestAssignStep({
                     {/* CỘT 2: LỚP GỢI Ý SECONDARY */}
                     <div className="flex-1 w-full space-y-3">
                       <label className="text-xs font-semibold text-gray-700">
-                        Lớp gợi ý cho chương trình Secondary
+                        Lớp gợi ý cho chương trình song song
                       </label>
                       {suggestedClasses.secondarySuggestedClasses?.length ? (
                         <div className="grid grid-cols-1 gap-2">
@@ -898,12 +902,12 @@ export default function SuggestAssignStep({
                         </div>
                       ) : (
                         <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-5 text-sm text-gray-500">
-                          Chưa có lớp gợi ý cho track secondary.
+                          Chưa có lớp gợi ý cho chương trình song song.
                         </div>
                       )}
 
                       {renderTrackSessionSelector({
-                        title: "Secondary - chọn ngày/giờ học",
+                        title: "Chương trình song song - chọn ngày/giờ học",
                         selectedClassId: selectedSecondarySuggestedClassId,
                         selectedDays: suggestedSecondaryDays,
                         setSelectedDays: setSuggestedSecondaryDays,
@@ -962,7 +966,7 @@ export default function SuggestAssignStep({
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-5 text-sm text-gray-500">
-                  Chưa có lớp gợi ý cho track {selectedTrack}.
+                  Chưa có lớp gợi ý cho {toTrackLabel(selectedTrack)}.
                 </div>
               )}
 
@@ -972,8 +976,8 @@ export default function SuggestAssignStep({
                     Lớp thay thế
                   </div>
                   <div className="mt-2 text-xs text-amber-800">
-                    Có {activeAlternativeClasses.length} lớp thay thế cho track{" "}
-                    {selectedTrack}.
+                    Có {activeAlternativeClasses.length} lớp thay thế cho{" "}
+                    {toTrackLabel(selectedTrack)}.
                   </div>
                 </div>
               )}
@@ -982,8 +986,8 @@ export default function SuggestAssignStep({
                 ? renderTrackSessionSelector({
                     title:
                       selectedTrack === "secondary"
-                        ? "Secondary - chọn ngày/giờ học"
-                        : "Primary - chọn ngày/giờ học",
+                        ? "Chương trình song song - chọn ngày/giờ học"
+                        : "Chương trình chính - chọn ngày/giờ học",
                     selectedClassId,
                     selectedDays:
                       selectedTrack === "secondary"
@@ -1026,7 +1030,7 @@ export default function SuggestAssignStep({
                 {isAssigning
                   ? "Đang xếp lớp..."
                   : hasSecondaryTrack
-                    ? "Xếp lớp gợi ý (Primary + Secondary)"
+                    ? "Xếp lớp gợi ý (Chính + Song song)"
                     : "Xếp vào lớp đã chọn"}
               </button>
             </div>
@@ -1057,14 +1061,14 @@ export default function SuggestAssignStep({
                   {/* CỘT 1: PRIMARY */}
                   <div className="flex-1 space-y-2 w-full">
                     <label className="text-xs font-semibold text-gray-700">
-                      Lớp cho chương trình Primary
+                      Lớp cho chương trình chính
                     </label>
                     <select
                       value={manualPrimaryClassId}
                       onChange={(e) => setManualPrimaryClassId(e.target.value)}
                       className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                     >
-                      <option value="">Chọn lớp Primary</option>
+                      <option value="">Chọn lớp chương trình chính</option>
                       {primaryManualClassOptions.map((option) => (
                         <option
                           key={`manual-primary-${option.id}`}
@@ -1077,7 +1081,7 @@ export default function SuggestAssignStep({
                     </select>
 
                     {renderTrackSessionSelector({
-                      title: "Primary - chọn ngày/giờ học",
+                      title: "Chương trình chính - chọn ngày/giờ học",
                       selectedClassId: manualPrimaryClassId,
                       selectedDays: manualPrimaryDays,
                       setSelectedDays: setManualPrimaryDays,
@@ -1097,7 +1101,7 @@ export default function SuggestAssignStep({
                   {hasSecondaryTrack && (
                     <div className="flex-1 space-y-2 w-full">
                       <label className="text-xs font-semibold text-gray-700">
-                        Lớp cho chương trình Secondary
+                        Lớp cho chương trình song song
                       </label>
                       <select
                         value={manualSecondaryClassId}
@@ -1106,7 +1110,7 @@ export default function SuggestAssignStep({
                         }
                         className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                       >
-                        <option value="">Chọn lớp Secondary</option>
+                        <option value="">Chọn lớp chương trình song song</option>
                         {secondaryManualClassOptions.map((option) => (
                           <option
                             key={`manual-secondary-${option.id}`}
@@ -1119,7 +1123,7 @@ export default function SuggestAssignStep({
                       </select>
 
                       {renderTrackSessionSelector({
-                        title: "Secondary - chọn ngày/giờ học",
+                        title: "Chương trình song song - chọn ngày/giờ học",
                         selectedClassId: manualSecondaryClassId,
                         selectedDays: manualSecondaryDays,
                         setSelectedDays: setManualSecondaryDays,
@@ -1149,8 +1153,8 @@ export default function SuggestAssignStep({
                 {isAssigning
                   ? "Đang xếp lớp..."
                   : hasSecondaryTrack
-                    ? "Xếp lớp thủ công (Primary + Secondary)"
-                    : "Xếp lớp thủ công (Primary)"}
+                    ? "Xếp lớp thủ công (Chính + Song song)"
+                    : "Xếp lớp thủ công (Chương trình chính)"}
               </button>
             </div>
           )}

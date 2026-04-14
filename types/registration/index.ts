@@ -10,6 +10,20 @@ export type RegistrationStatus =
 export type EntryType = "Immediate" | "Wait" | "Makeup" | "Retake";
 export type RegistrationTrackType = "primary" | "secondary";
 
+export interface RegistrationStudySchedule {
+  track?: RegistrationTrackType | null;
+  classId?: string | null;
+  className?: string | null;
+  programId?: string | null;
+  programName?: string | null;
+  usesClassDefaultSchedule?: boolean | null;
+  classSchedulePattern?: string | null;
+  effectiveSchedulePattern?: string | null;
+  studyDayCodes?: string[];
+  studyDays?: string[];
+  studyDaysSummary?: string | null;
+}
+
 export interface RegistrationRequest {
   studentProfileId: string;
   branchId: string;
@@ -66,6 +80,7 @@ export interface Registration {
   totalSessions: number;
   usedSessions: number;
   remainingSessions: number;
+  actualStudySchedules?: RegistrationStudySchedule[];
   expiryDate: string | null;
   createdAt: string;
   updatedAt: string;
