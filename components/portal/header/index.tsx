@@ -136,7 +136,6 @@ function useHeaderI18n(locale: Locale) {
           "/schedule": { vi: "Lịch học & Điểm danh", en: "Schedule & Attendance" },
           "/feedback": { vi: "Quản lý feedback", en: "Feedback Management" },
           "/leads": { vi: "Quản lý tuyển sinh", en: "Lead Management" },
-          "/center": { vi: "Tổng quan trung tâm", en: "Center Overview" },
           "/reports": { vi: "Báo cáo & Thống kê", en: "Reports & Analytics" },
           "/settings": { vi: "Cài đặt & Chính sách", en: "Settings & Policies" },
           "/extracurricular": { vi: "Hoạt động ngoại khóa", en: "Extracurricular Activities" },

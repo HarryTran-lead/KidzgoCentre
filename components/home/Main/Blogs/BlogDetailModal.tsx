@@ -4,6 +4,7 @@ import { X, Calendar, User, Tag, Clock } from "lucide-react";
 import type { Blog } from "@/types/admin/blog";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { buildFileUrl } from "@/constants/apiURL";
 
 interface BlogDetailModalProps {
   isOpen: boolean;
@@ -56,7 +57,7 @@ export default function BlogDetailModal({
               <div className="relative h-64 sm:h-80 overflow-hidden bg-linear-to-br from-pink-100 to-rose-100">
                 {blog.featuredImageUrl ? (
                   <Image
-                    src={blog.featuredImageUrl}
+                    src={buildFileUrl(blog.featuredImageUrl)}
                     alt={blog.title}
                     fill
                     className="object-cover"

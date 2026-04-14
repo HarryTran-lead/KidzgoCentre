@@ -2,7 +2,6 @@ import {
   BarChart3,
   Bell,
   BookOpen,
-  Building,
   Building2,
   CalendarClock,
   CalendarRange,
@@ -30,7 +29,6 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
 
   const quick: RawItem[] = [
     [t.quick.businessOverview, LayoutDashboard, ""],
-    [t.quick.centerOverview, Building, "/center"],
   ];
   const leads: RawItem[] = [[t.groups.leads.manageLeads, Inbox, "/leads"]];
   const learning: RawItem[] = [
