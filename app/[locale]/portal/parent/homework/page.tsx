@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Clock, CheckCircle2, AlertCircle, Calendar, Upload, FileText, BookOpen, TrendingUp, CheckSquare, XCircle, Filter, Search, ChevronRight, MoreVertical, Eye, Download, Sparkles, Users, Target } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Clock, CheckCircle2, AlertCircle, Calendar, FileText, BookOpen, TrendingUp, CheckSquare, XCircle, Filter, Search, ChevronRight, MoreVertical, Eye, Download, Sparkles, Users, Target } from "lucide-react";
 import { getParentHomework } from "@/lib/api/parentPortalService";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 
@@ -48,6 +49,8 @@ export default function HomeworkPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const { selectedProfile } = useSelectedStudentProfile();
+  const params = useParams();
+  const locale = params.locale as string || "vi";
 
   useEffect(() => {
     let alive = true;
@@ -171,10 +174,10 @@ export default function HomeworkPage() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Bài tập & Nộp bài
+              Bài tập
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Theo dõi các bài tập được giao và tiến độ nộp bài
+              Theo dõi các bài tập được giao và tiến độ học tập
             </p>
           </div>
         </div>
@@ -411,15 +414,11 @@ export default function HomeworkPage() {
 
                   {/* Actions */}
                   <div className="mt-6 flex flex-wrap gap-3">
-                    {assignment.status === "PENDING" && (
-                      <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-md transition-all cursor-pointer">
-                        <Upload className="w-4 h-4" />
-                        Nộp bài ngay
-                      </button>
-                    )}
-                    
-                    <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
-                      <Eye className="w-4 h-4 text-gray-600" />
+                    <button
+                      onClick={() => window.location.href = `/${locale}/portal/parent/homework/${assignment.id}`}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-md transition-all cursor-pointer"
+                    >
+                      <Eye className="w-4 h-4" />
                       Xem chi tiết
                     </button>
                     

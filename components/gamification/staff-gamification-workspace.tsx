@@ -46,6 +46,10 @@ import {
   listMissions,
   listRewardRedemptions,
   listRewardStoreItems,
+  listMissionRewardRules,
+  createMissionRewardRule,
+  updateMissionRewardRule,
+  toggleMissionRewardRuleStatus,
   markRewardRedemptionDelivered,
   toggleRewardStoreItemStatus,
   updateMission,
@@ -58,6 +62,8 @@ import type {
   Mission,
   MissionProgress,
   MissionProgressMode,
+  MissionRewardRule,
+  MissionRewardRuleRequest,
   MissionScope,
   MissionType,
   RewardRedemption,
@@ -92,7 +98,7 @@ import {
 } from "./shared";
 
 type StaffRole = "Admin" | "ManagementStaff" | "Teacher";
-type StaffTab = "missions" | "students" | "rewardStore" | "redemptions";
+type StaffTab = "missions" | "students" | "rewardStore" | "redemptions" | "rewardRules";
 
 type MissionFormState = {
   id?: string;
@@ -237,10 +243,12 @@ export function StaffGamificationWorkspace({
   const { toast } = useToast();
   const canManageStore = role !== "Teacher";
   const canDeleteMission = role !== "Teacher";
-  const canViewRedemptions = true;
+  const canViewRedemptions = role !== "Teacher";
+  const canManageRules = role !== "Teacher";
   const tabs = [
     { id: "missions" as const, label: "Nhiệm vụ" },
     { id: "students" as const, label: "Sao / XP" },
+    ...(canManageRules ? ([{ id: "rewardRules" as const, label: "Quy tắc thưởng" }] as const) : []),
     ...(canManageStore ? ([{ id: "rewardStore" as const, label: "Kho quà" }] as const) : []),
     ...(canViewRedemptions ? ([{ id: "redemptions" as const, label: "Đổi thưởng" }] as const) : []),
   ];
@@ -278,6 +286,9 @@ export function StaffGamificationWorkspace({
   const [batchMonth, setBatchMonth] = useState("");
   const [redemptionPage, setRedemptionPage] = useState(1);
   const [redemptionTotalPages, setRedemptionTotalPages] = useState(1);
+  const [rewardRules, setRewardRules] = useState<MissionRewardRule[]>([]);
+  const [ruleForm, setRuleForm] = useState<MissionRewardRuleRequest & { id?: string }>({ missionType: "", progressMode: "Count", totalRequired: 0, rewardStars: 0, rewardExp: 0 });
+  const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const rewardImageInputRef = useRef<HTMLInputElement>(null);
   const rewardImagePreviewUrl = buildFileUrl(rewardForm.imageUrl);
@@ -591,6 +602,8 @@ export function StaffGamificationWorkspace({
             for (const s of items) {
               const id = String(s.studentProfileId ?? s.id ?? s.profileId ?? "").trim();
               if (!id) continue;
+              const enrollmentStatus = String(s.enrollmentStatus ?? s.status ?? "");
+              if (enrollmentStatus && enrollmentStatus !== "Active") continue;
               const compositeKey = `${id}::${cls.id}`;
               if (seenKeys.has(compositeKey)) continue;
               seenKeys.add(compositeKey);
@@ -612,9 +625,12 @@ export function StaffGamificationWorkspace({
         ? listRewardStoreItems({ page: 1, pageSize: 50 })
         : Promise.resolve({ items: [], pageNumber: 1, totalPages: 1, totalCount: 0 }),
       listRewardRedemptions({ page: redemptionPage, pageSize: 10 }),
+      canManageRules
+        ? listMissionRewardRules()
+        : Promise.resolve([] as MissionRewardRule[]),
     ]);
 
-    const [missionResult, classResult, studentResult, rewardResult, redemptionResult] = results;
+    const [missionResult, classResult, studentResult, rewardResult, redemptionResult, ruleResult] = results;
     if (missionResult.status === "fulfilled") setMissions(missionResult.value.items);
     if (classResult.status === "fulfilled") setClassOptions(classResult.value as ClassOptionLite[]);
     if (studentResult.status === "fulfilled") {
@@ -627,6 +643,7 @@ export function StaffGamificationWorkspace({
       setRedemptions(redemptionResult.value.items);
       setRedemptionTotalPages(redemptionResult.value.totalPages);
     }
+    if (ruleResult.status === "fulfilled") setRewardRules(ruleResult.value as MissionRewardRule[]);
     if (results.every((result) => result.status === "rejected")) {
       setPageError("Không thể tải dữ liệu gamification trong thời điểm này.");
     }
@@ -1079,6 +1096,54 @@ export function StaffGamificationWorkspace({
     }
   }
 
+  function openCreateRule() {
+    setRuleForm({ missionType: "", progressMode: "Count", totalRequired: 0, rewardStars: 0, rewardExp: 0 });
+    setRuleDialogOpen(true);
+  }
+
+  function openEditRule(rule: MissionRewardRule) {
+    setRuleForm({ id: rule.id, missionType: rule.missionType, progressMode: rule.progressMode, totalRequired: rule.totalRequired, rewardStars: rule.rewardStars, rewardExp: rule.rewardExp });
+    setRuleDialogOpen(true);
+  }
+
+  async function submitRule() {
+    const payload: MissionRewardRuleRequest = {
+      missionType: ruleForm.missionType,
+      progressMode: ruleForm.progressMode,
+      totalRequired: Number(ruleForm.totalRequired),
+      rewardStars: Number(ruleForm.rewardStars),
+      rewardExp: Number(ruleForm.rewardExp),
+    };
+    try {
+      setBusyAction("submit-rule");
+      if (ruleForm.id) {
+        const updated = await updateMissionRewardRule(ruleForm.id, payload);
+        setRewardRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      } else {
+        const created = await createMissionRewardRule(payload);
+        setRewardRules((prev) => [...prev, created]);
+      }
+      toast.success({ title: ruleForm.id ? "Đã cập nhật quy tắc thưởng" : "Đã tạo quy tắc thưởng" });
+      setRuleDialogOpen(false);
+    } catch (error) {
+      toast({ title: "Lỗi khi lưu quy tắc thưởng", description: normalizeProblemMessage(error), variant: "destructive" });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleToggleRule(id: string) {
+    try {
+      setBusyAction(`toggle-rule-${id}`);
+      const updated = await toggleMissionRewardRuleStatus(id);
+      setRewardRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    } catch (error) {
+      toast({ title: "Không thể đổi trạng thái", description: normalizeProblemMessage(error), variant: "destructive" });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function handleRewardImageChange(
     event: React.ChangeEvent<HTMLInputElement>
   ) {
@@ -1151,13 +1216,13 @@ export function StaffGamificationWorkspace({
           <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
             Gamification cho {title.toLowerCase()}
           </h1>
-          <p className="text-sm text-gray-600">Mission, sao, XP và đổi thưởng trong một workspace</p>
+          <p className="text-sm text-gray-600">Nhiệm vụ, sao, XP và đổi thưởng trong một không gian quản lý</p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <MetricCard icon={<Target className="h-5 w-5" />} label="Mission hiện có" value={formatNumber(missions.length)} accent="from-red-600 to-red-700" theme="staff" />
+        <MetricCard icon={<Target className="h-5 w-5" />} label="Nhiệm vụ hiện có" value={formatNumber(missions.length)} accent="from-red-600 to-red-700" theme="staff" />
         <MetricCard icon={<Gift className="h-5 w-5" />} label="Đơn đổi quà mở" value={formatNumber(redemptions.filter((item) => item.status !== "Received" && item.status !== "Cancelled").length)} accent="from-violet-500 via-fuchsia-500 to-pink-500" theme="staff" />
       </div>
 
@@ -1350,6 +1415,53 @@ export function StaffGamificationWorkspace({
               ) : null}
               {!studentLoading && !selectedStudentId ? <EmptyState title="Chưa chọn học sinh" description="Chọn một học sinh ở cột bên trái để thao tác sao, XP và streak." icon={<UserRound className="h-5 w-5" />} theme="staff" /> : null}
             </div>
+          </div>
+        </Panel>
+      ) : null}
+
+      {!loading && !pageError && canManageRules && activeTab === "rewardRules" ? (
+        <Panel theme="staff">
+          <SectionTitle
+            title="Quy tắc thưởng tự động"
+            description="Cấu hình phần thưởng sao và XP khi học sinh hoàn thành nhiệm vụ theo loại và cách tính tiến độ."
+            theme="staff"
+            action={
+              <button type="button" onClick={openCreateRule} className={primaryButton}>
+                <Plus className="h-4 w-4" />
+                Tạo quy tắc
+              </button>
+            }
+          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            {rewardRules.map((rule) => (
+              <div key={rule.id} className="rounded-3xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-bold text-gray-900">{mapMissionTypeLabel(rule.missionType as MissionType)}</h3>
+                      <StatusPill
+                        label={rule.isActive ? "Đang bật" : "Đã tắt"}
+                        className={rule.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-gray-200 bg-white text-gray-500"}
+                      />
+                    </div>
+                    <p className="mt-1 text-sm text-gray-500">Cách tính: {mapMissionProgressModeLabel(rule.progressMode)} • Mục tiêu: {formatNumber(rule.totalRequired)} lần</p>
+                    <p className="mt-1 text-sm text-gray-500">Phần thưởng: {formatNumber(rule.rewardStars)} sao • {formatNumber(rule.rewardExp)} XP</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => openEditRule(rule)} className={ghostButton}>
+                    <Pencil className="h-4 w-4" />
+                    Sửa
+                  </button>
+                  <button type="button" onClick={() => void handleToggleRule(rule.id)} disabled={busyAction === `toggle-rule-${rule.id}`} className={ghostButton}>
+                    {rule.isActive ? "Tắt quy tắc" : "Bật quy tắc"}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {rewardRules.length === 0 ? (
+              <EmptyState title="Chưa có quy tắc thưởng" description="Tạo quy tắc đầu tiên để backend tự động tính phần thưởng khi học sinh hoàn thành nhiệm vụ." icon={<Trophy className="h-5 w-5" />} theme="staff" />
+            ) : null}
           </div>
         </Panel>
       ) : null}
@@ -1575,11 +1687,10 @@ export function StaffGamificationWorkspace({
               className={getFieldClass(inputClass, Boolean(missionErrors.missionType))}
             >
               <option value="">Chọn loại nhiệm vụ</option>
-              <option value="Custom">Tùy chỉnh</option>
               <option value="HomeworkStreak">Chuỗi bài tập</option>
-              <option value="ReadingStreak">Chuỗi đọc sách</option>
               <option value="NoUnexcusedAbsence">Chuỗi điểm danh</option>
               <option value="ClassAttendance">Chuyên cần lớp học</option>
+              <option value="Custom">Tùy chỉnh</option>
             </select>
             <FieldError message={missionErrors.missionType} />
           </div>
@@ -1809,9 +1920,6 @@ export function StaffGamificationWorkspace({
               placeholder="Ví dụ: 5 (hoàn thành 5 lần bài tập để đạt mục tiêu)"
             />
             <FieldError message={missionErrors.totalRequired} />
-            <p className="mt-1 text-xs text-gray-400">
-              Backend dùng loại nhiệm vụ + cách tính tiến độ + totalRequired để tự resolve phần thưởng từ reward rule đang active.
-            </p>
             {missionForm.id && (
               <p className="mt-1 text-xs text-gray-500">
                 Phần thưởng hiện tại: {formatNumber(missions.find((item) => item.id === missionForm.id)?.rewardStars)} sao • {formatNumber(missions.find((item) => item.id === missionForm.id)?.rewardExp)} XP
@@ -2087,6 +2195,88 @@ export function StaffGamificationWorkspace({
             >
               {busyAction === `cancel-${cancelRedemptionId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Xác nhận hủy
+            </button>
+          </div>
+        </div>
+      </DialogShell>
+
+      {/* Reward Rule Dialog */}
+      <DialogShell
+        open={ruleDialogOpen}
+        onClose={() => setRuleDialogOpen(false)}
+        title={ruleForm.id ? "Sửa quy tắc thưởng" : "Tạo quy tắc thưởng"}
+        description="Cấu hình loại nhiệm vụ, cách tính và mục tiêu để backend tự động trao thưởng."
+        theme="staff"
+        widthClass="max-w-lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <FormLabel label="Loại nhiệm vụ" required />
+            <select
+              value={ruleForm.missionType}
+              onChange={(e) => setRuleForm((prev) => ({ ...prev, missionType: e.target.value }))}
+              className={inputClass}
+            >
+              <option value="">Chọn loại nhiệm vụ</option>
+              <option value="HomeworkStreak">Chuỗi bài tập</option>
+              <option value="NoUnexcusedAbsence">Chuỗi điểm danh</option>
+              <option value="ClassAttendance">Chuyên cần lớp học</option>
+              <option value="Custom">Tùy chỉnh</option>
+            </select>
+          </div>
+          <div>
+            <FormLabel label="Cách tính tiến độ" required />
+            <select
+              value={ruleForm.progressMode}
+              onChange={(e) => setRuleForm((prev) => ({ ...prev, progressMode: e.target.value as MissionRewardRuleRequest["progressMode"] }))}
+              className={inputClass}
+            >
+              <option value="Count">Theo số lần</option>
+              <option value="Streak">Theo chuỗi</option>
+            </select>
+          </div>
+          <div>
+            <FormLabel label="Mục tiêu hoàn thành" required />
+            <input
+              value={ruleForm.totalRequired}
+              onChange={(e) => setRuleForm((prev) => ({ ...prev, totalRequired: Number(e.target.value) }))}
+              inputMode="numeric"
+              className={inputClass}
+              placeholder="Ví dụ: 5"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FormLabel label="Sao thưởng" required />
+              <input
+                value={ruleForm.rewardStars}
+                onChange={(e) => setRuleForm((prev) => ({ ...prev, rewardStars: Number(e.target.value) }))}
+                inputMode="numeric"
+                className={inputClass}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <FormLabel label="XP thưởng" required />
+              <input
+                value={ruleForm.rewardExp}
+                onChange={(e) => setRuleForm((prev) => ({ ...prev, rewardExp: Number(e.target.value) }))}
+                inputMode="numeric"
+                className={inputClass}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <button type="button" onClick={() => setRuleDialogOpen(false)} className={ghostButton}>Đóng</button>
+            <button
+              type="button"
+              onClick={() => void submitRule()}
+              disabled={busyAction === "submit-rule"}
+              className={primaryButton}
+            >
+              {busyAction === "submit-rule" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {ruleForm.id ? "Cập nhật" : "Tạo mới"}
             </button>
           </div>
         </div>

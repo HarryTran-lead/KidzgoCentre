@@ -1,8 +1,8 @@
 "use client";
 
-import ManagementFeedbackWorkspace from "@/components/reports/management-feedback-workspace";
+import IncidentReportWorkspace from "@/components/portal/shared/IncidentReportWorkspace";
 
 export default function AdminReportsPage() {
-  return <ManagementFeedbackWorkspace />;
+  return <IncidentReportWorkspace isAdmin />;
 }
 

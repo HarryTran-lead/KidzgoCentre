@@ -14,6 +14,8 @@ interface SelectContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   selectedOptionLabel: React.ReactNode;
+  searchPlaceholder: string;
+  emptyText: string;
 }
 
 const SelectContext = React.createContext<SelectContextType | undefined>(
@@ -29,6 +31,8 @@ interface SelectProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   disabled?: boolean;
+  searchPlaceholder?: string;
+  emptyText?: string;
 }
 
 const findSelectedOptionLabel = (
@@ -73,6 +77,8 @@ const Select: React.FC<SelectProps> = ({
   open,
   onOpenChange,
   disabled = false,
+  searchPlaceholder = "Search...",
+  emptyText = "No results found.",
 }) => {
   const [selectedValue, setSelectedValue] = React.useState(
     value || defaultValue
@@ -137,6 +143,8 @@ const Select: React.FC<SelectProps> = ({
         searchQuery,
         setSearchQuery,
         selectedOptionLabel,
+        searchPlaceholder,
+        emptyText,
       }}
     >
       {children}
@@ -193,7 +201,14 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
       throw new Error("SelectTrigger must be used within a Select");
     }
 
-    const { open, setOpen, triggerRef, searchQuery, setSearchQuery } = context;
+    const {
+      open,
+      setOpen,
+      triggerRef,
+      searchQuery,
+      setSearchQuery,
+      searchPlaceholder,
+    } = context;
     const searchInputRef = React.useRef<HTMLInputElement>(null);
 
     React.useEffect(() => {
@@ -224,7 +239,7 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onClick={(e) => e.stopPropagation()}
-            placeholder="Search..."
+                placeholder={searchPlaceholder}
             className="w-full bg-transparent p-0 text-sm 
     border-none outline-none ring-0 focus:outline-none focus:ring-0 
     active:outline-none active:ring-0"
@@ -280,7 +295,7 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
       throw new Error("SelectContent must be used within a Select");
     }
 
-    const { open, setOpen, triggerRef, searchQuery } = context;
+    const { open, setOpen, triggerRef, searchQuery, emptyText } = context;
     const contentRef = React.useRef<HTMLDivElement | null>(null);
     const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
 
@@ -501,7 +516,7 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
                 filteredChildren
               ) : (
                 <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                  No results found.
+                  {emptyText}
                 </div>
               )}
             </div>

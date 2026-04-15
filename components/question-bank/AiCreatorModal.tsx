@@ -7,6 +7,7 @@ import {
   Loader2,
   PlusCircle,
   Sparkles,
+  Upload,
   Wand2,
   X,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   createAdminQuestion,
   generateAiQuestionDrafts,
+  generateAiQuestionDraftsFromFile,
   type AiGenerateQuestionResult,
   type AiGeneratedQuestionDraft,
 } from "@/app/api/admin/question-bank";
@@ -56,6 +58,8 @@ type FormState = {
   language: string;
   pointsPerQuestion: string;
 };
+
+const ACCEPTED_SOURCE_FILE_TYPES = ".txt,.md,.csv,.json,.xml,.html,.htm,.docx,.pdf,.xlsx,.xls";
 
 const DEFAULT_FORM_STATE: Omit<FormState, "questionType"> = {
   programId: "",
@@ -155,6 +159,8 @@ export default function AiCreatorModal({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<AiGenerateQuestionResult | null>(null);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -185,6 +191,8 @@ export default function AiCreatorModal({
     setResult(null);
     setLoading(false);
     setSubmitting(false);
+    setSourceFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }, [defaultQuestionType, isOpen]);
 
   const canSubmitDrafts = useMemo(
@@ -203,18 +211,18 @@ export default function AiCreatorModal({
       nextErrors.programId = "Vui lòng chọn khóa học.";
     }
 
-    if (!form.topic.trim()) {
-      nextErrors.topic = "Vui lòng nhập chủ đề.";
+    if (!form.topic.trim() && !sourceFile) {
+      nextErrors.topic = "Vui lòng nhập chủ đề hoặc tải lên file nguồn.";
     }
 
     const questionCount = Number(form.questionCount);
     if (
       !Number.isFinite(questionCount) ||
       questionCount < 1 ||
-      questionCount > 10
+      questionCount > 50
     ) {
       nextErrors.questionCount =
-        "Số lượng câu hỏi phải trong khoảng từ 1 đến 10.";
+        "Số lượng câu hỏi phải trong khoảng từ 1 đến 50.";
     }
 
     const pointsPerQuestion = Number(form.pointsPerQuestion);
@@ -252,9 +260,9 @@ export default function AiCreatorModal({
 
     setLoading(true);
     try {
-      const response = await generateAiQuestionDrafts({
+      const commonParams = {
         programId: form.programId,
-        topic: form.topic.trim(),
+        topic: form.topic.trim() || undefined,
         questionType: form.questionType,
         questionCount: Number(form.questionCount),
         level: form.level,
@@ -265,7 +273,11 @@ export default function AiCreatorModal({
         instructions: form.instructions.trim() || undefined,
         language: form.language,
         pointsPerQuestion: Number(form.pointsPerQuestion),
-      });
+      };
+
+      const response = sourceFile
+        ? await generateAiQuestionDraftsFromFile({ ...commonParams, file: sourceFile })
+        : await generateAiQuestionDrafts({ ...commonParams, topic: form.topic.trim() });
 
       setResult(response);
 
@@ -438,15 +450,66 @@ export default function AiCreatorModal({
                 ) : null}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  File nguồn (tuỳ chọn)
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm text-gray-700 hover:bg-red-50"
+                  >
+                    <Upload size={14} />
+                    {sourceFile ? "Đổi file" : "Tải lên"}
+                  </button>
+                  {sourceFile ? (
+                    <span className="flex-1 truncate text-xs text-gray-600">
+                      {sourceFile.name}
+                    </span>
+                  ) : (
+                    <span className="flex-1 text-xs text-gray-400">
+                      AI sẽ đọc nội dung file để sinh câu hỏi.
+                    </span>
+                  )}
+                  {sourceFile ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSourceFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      className="rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                      aria-label="Xóa file"
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : null}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_SOURCE_FILE_TYPES}
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    setSourceFile(file);
+                  }}
+                />
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Hỗ trợ: .txt, .md, .csv, .json, .xml, .html, .docx, .pdf, .xlsx
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-700">
                     Loại câu hỏi
                   </label>
                   <Select
                     value={form.questionType}
-                    onValueChange={(value) => handleChange("questionType", value as FormState["questionType"])}
-                    disabled={availableQuestionTypes.length === 1}
+                    onValueChange={(value) => handleChange("questionType", value as QuestionType)}
+                    disabled={availableQuestionTypes.length <= 1}
                   >
                     <SelectTrigger className="w-full rounded-lg h-9 disabled:opacity-50">
                       <SelectValue />
@@ -486,7 +549,7 @@ export default function AiCreatorModal({
                   <input
                     type="number"
                     min={1}
-                    max={10}
+                    max={50}
                     value={form.questionCount}
                     onChange={(event) =>
                       handleChange("questionCount", event.target.value)

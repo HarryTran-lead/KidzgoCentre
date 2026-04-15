@@ -14,11 +14,13 @@ type SessionNoteModalProps = {
   isEnhancing?: boolean;
   canSubmitForReview?: boolean;
   isSubmittingForReview?: boolean;
+  isSavingAndSubmitting?: boolean;
   error?: string | null;
   onClose: () => void;
   onSubmit: (feedback: string) => Promise<void> | void;
   onEnhance?: (draft: string) => Promise<string | null> | string | null;
   onSubmitForReview?: () => Promise<void> | void;
+  onSaveAndSubmit?: (feedback: string) => Promise<void> | void;
 };
 
 export default function SessionNoteModal({
@@ -31,11 +33,13 @@ export default function SessionNoteModal({
   isEnhancing = false,
   canSubmitForReview = false,
   isSubmittingForReview = false,
+  isSavingAndSubmitting = false,
   error,
   onClose,
   onSubmit,
   onEnhance,
   onSubmitForReview,
+  onSaveAndSubmit,
 }: SessionNoteModalProps) {
   const [feedback, setFeedback] = useState(initialFeedback);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
@@ -59,7 +63,7 @@ export default function SessionNoteModal({
   const hasUnsavedChanges = feedback.trim() !== (savedFeedbackRef.current ?? "").trim() && feedback.trim() !== "";
 
   const handleSafeClose = () => {
-    if (isSubmitting || isSubmittingForReview) return;
+    if (isSubmitting || isSubmittingForReview || isSavingAndSubmitting) return;
     if (hasUnsavedChanges) {
       setShowConfirmClose(true);
       return;
@@ -76,7 +80,7 @@ export default function SessionNoteModal({
     if (!open) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isSubmitting && !isSubmittingForReview) {
+      if (event.key === "Escape" && !isSubmitting && !isSubmittingForReview && !isSavingAndSubmitting) {
         handleSafeClose();
       }
     };
@@ -115,7 +119,7 @@ export default function SessionNoteModal({
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       role="presentation"
       onClick={() => {
-        if (!isSubmitting && !isSubmittingForReview) {
+        if (!isSubmitting && !isSubmittingForReview && !isSavingAndSubmitting) {
           handleSafeClose();
         }
       }}
@@ -139,7 +143,7 @@ export default function SessionNoteModal({
           <button
             type="button"
             onClick={handleSafeClose}
-            disabled={isSubmitting || isSubmittingForReview}
+            disabled={isSubmitting || isSubmittingForReview || isSavingAndSubmitting}
             className="cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
             aria-label="Đóng"
           >
@@ -186,12 +190,23 @@ export default function SessionNoteModal({
           <button
             type="button"
             onClick={() => onSubmit(feedback.trim())}
-            disabled={isSubmitting || isSubmittingForReview || !feedback.trim()}
+            disabled={isSubmitting || isSubmittingForReview || isSavingAndSubmitting || !feedback.trim()}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 text-sm text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : null}
             {actionLabel}
           </button>
+          {onSaveAndSubmit ? (
+            <button
+              type="button"
+              onClick={() => onSaveAndSubmit(feedback.trim())}
+              disabled={isSavingAndSubmitting || isSubmitting || isSubmittingForReview || !feedback.trim()}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2 text-sm text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSavingAndSubmitting ? <Loader2 size={14} className="animate-spin" /> : null}
+              Lưu và gửi duyệt
+            </button>
+          ) : null}
           {onSubmitForReview ? (
             <button
               type="button"

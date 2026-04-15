@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 export const avatarColors = [
   "bg-slate-500",
@@ -68,6 +68,10 @@ const AvatarUserImage: React.FC<AvatarUserImageProps> = ({
   status = "none",
 }) => {
   const [imgFailed, setImgFailed] = useState(false);
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [avatarUrl]);
 
   const { isNumberSize, pixelSize, fontSize } = useMemo(() => {
     const isNumberSize = typeof size === "number";

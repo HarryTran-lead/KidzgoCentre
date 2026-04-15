@@ -7,6 +7,7 @@ import type {
   RegistrationFilterParams,
   RegistrationPaginatedResponse,
   RegistrationRequest,
+  RegistrationStudySchedule,
   RegistrationStatus,
   SuggestedClass,
   SuggestedClassBucket,
@@ -97,6 +98,57 @@ function pickDetail(payload: any): any {
 }
 
 function mapToRegistration(item: any): Registration {
+  const toTrack = (value: unknown): "primary" | "secondary" | null => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "primary" || normalized === "secondary") {
+      return normalized;
+    }
+    return null;
+  };
+
+  const actualStudySchedulesRaw = Array.isArray(item?.actualStudySchedules)
+    ? item.actualStudySchedules
+    : Array.isArray(item?.ActualStudySchedules)
+      ? item.ActualStudySchedules
+      : [];
+
+  const actualStudySchedules: RegistrationStudySchedule[] = actualStudySchedulesRaw
+    .map((schedule: any) => ({
+      track: toTrack(schedule?.track),
+      classId: schedule?.classId ? String(schedule.classId) : null,
+      className:
+        typeof schedule?.className === "string" ? schedule.className : null,
+      programId: schedule?.programId ? String(schedule.programId) : null,
+      programName:
+        typeof schedule?.programName === "string" ? schedule.programName : null,
+      usesClassDefaultSchedule:
+        typeof schedule?.usesClassDefaultSchedule === "boolean"
+          ? schedule.usesClassDefaultSchedule
+          : null,
+      classSchedulePattern:
+        typeof schedule?.classSchedulePattern === "string"
+          ? schedule.classSchedulePattern
+          : null,
+      effectiveSchedulePattern:
+        typeof schedule?.effectiveSchedulePattern === "string"
+          ? schedule.effectiveSchedulePattern
+          : null,
+      studyDayCodes: Array.isArray(schedule?.studyDayCodes)
+        ? schedule.studyDayCodes.map((code: any) => String(code))
+        : [],
+      studyDays: Array.isArray(schedule?.studyDays)
+        ? schedule.studyDays.map((day: any) => String(day))
+        : [],
+      studyDaysSummary:
+        typeof schedule?.studyDaysSummary === "string"
+          ? schedule.studyDaysSummary
+          : null,
+    }))
+    .filter(
+      (schedule: RegistrationStudySchedule) =>
+        Boolean(schedule.track || schedule.classId || schedule.className),
+    );
+
   return {
     id: String(item?.id ?? ""),
     studentProfileId: String(item?.studentProfileId ?? ""),
@@ -130,6 +182,7 @@ function mapToRegistration(item: any): Registration {
     totalSessions: Number(item?.totalSessions ?? 0),
     usedSessions: Number(item?.usedSessions ?? 0),
     remainingSessions: Number(item?.remainingSessions ?? 0),
+    actualStudySchedules,
     expiryDate: item?.expiryDate ?? null,
     createdAt: String(item?.createdAt ?? ""),
     updatedAt: String(item?.updatedAt ?? ""),

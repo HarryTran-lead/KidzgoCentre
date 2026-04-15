@@ -16,6 +16,7 @@ import GlobalSearchModal from "./GlobalSearchModal";
 import { pickLocaleFromPath, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { ACCESS_MAP, ROLES, ROLE_LABEL, type Role } from "@/lib/role";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 
 /* ================= Types ================= */
@@ -28,6 +29,7 @@ type Notification = {
   time: string;
   read: boolean;
   type: "info" | "warning" | "success";
+  link?: string;
 };
 
 type Props = {
@@ -127,7 +129,6 @@ function useHeaderI18n(locale: Locale) {
         const pathMap: Record<string, { vi: string; en: string }> = {
           "/blogs": { vi: "Quản lý bản tin", en: "Blog Management" },
           "/accounts": { vi: "Quản lý tài khoản", en: "Account Management" },
-          "/teachers": { vi: "Quản lý giáo viên", en: "Teacher Management" },
           "/students": { vi: "Quản lý học viên", en: "Student Management" },
           "/branches": { vi: "Quản lý chi nhánh", en: "Branch Management" },
           "/courses": { vi: "Quản lý khóa học", en: "Course Management" },
@@ -166,6 +167,7 @@ function useHeaderI18n(locale: Locale) {
 export default function PortalHeader({
   role,
   userName,
+  avatarUrl,
   unreadCount = 0,
   notifications = [],
   onMenuToggle,
@@ -176,6 +178,7 @@ export default function PortalHeader({
 }: Props) {
   const router = useRouter();
   const pathname = usePathname() || "/";
+  const { user: currentUser } = useCurrentUser();
   const locale = useMemo<Locale>(
     () => pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE,
     [pathname]
@@ -183,6 +186,11 @@ export default function PortalHeader({
 
   const i18n = useHeaderI18n(locale);
   const currentRole = useRoleFromPath(role);
+  const headerUserName = currentUser?.fullName ?? userName;
+  const headerAvatarUrl = useMemo(
+    () => currentUser?.avatarUrl ?? avatarUrl,
+    [currentUser?.avatarUrl, avatarUrl]
+  );
   const notificationCenter = useNotifications(currentRole);
   const liveNotifications =
     notifications.length > 0
@@ -204,6 +212,7 @@ export default function PortalHeader({
               : item.kind === "report" || item.kind === "feedback"
               ? "success"
               : "info",
+          link: item.link,
         }));
   const liveUnreadCount =
     notifications.length > 0 ? unreadCount : notificationCenter.unreadCount;
@@ -224,8 +233,8 @@ export default function PortalHeader({
   }, [currentRole, showSearch]);
 
   const title = useMemo(
-    () => i18n.titleFor(currentRole, userName, pageTitle, pathname),
-    [i18n, currentRole, userName, pageTitle, pathname]
+    () => i18n.titleFor(currentRole, headerUserName, pageTitle, pathname),
+    [i18n, currentRole, headerUserName, pageTitle, pathname]
   );
 
   useEffect(() => {
@@ -372,7 +381,7 @@ export default function PortalHeader({
                                 onNotificationClick(n.id);
                                 return;
                               }
-                              router.push(notificationCenter.notificationsRoute);
+                              router.push(n.link ?? notificationCenter.notificationsRoute);
                             }}
                             className={`w-full p-4 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 ${
                               !n.read ? "bg-blue-50/50" : ""
@@ -425,7 +434,18 @@ export default function PortalHeader({
               )}
             </div>
 
-            <UserMenu mockUser={userName ? { fullname: userName, email: "", role: role as Role } : undefined} />
+            <UserMenu
+              mockUser={
+                headerUserName
+                  ? {
+                      fullname: headerUserName,
+                      email: currentUser?.email ?? "",
+                      role: currentRole,
+                      avatarUrl: headerAvatarUrl,
+                    }
+                  : undefined
+              }
+            />
           </div>
         </div>
       </header>

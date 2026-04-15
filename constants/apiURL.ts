@@ -132,6 +132,9 @@ export const GAMIFICATION_ENDPOINTS = {
   REWARD_REDEMPTION_CONFIRM_RECEIVED: (id: string) =>
     `/api/gamification/reward-redemptions/${id}/confirm-received`,
   REWARD_REDEMPTION_BATCH_DELIVER: "/api/gamification/reward-redemptions/batch-deliver",
+  MISSION_REWARD_RULES: "/api/gamification/mission-reward-rules",
+  MISSION_REWARD_RULE_BY_ID: (id: string) => `/api/gamification/mission-reward-rules/${id}`,
+  MISSION_REWARD_RULE_TOGGLE_STATUS: (id: string) => `/api/gamification/mission-reward-rules/${id}/toggle-status`,
 } as const;
 
 export const BACKEND_STUDENT_ENDPOINTS = {
@@ -642,6 +645,26 @@ export const BACKEND_TICKET_ENDPOINTS = {
   GET_SLA: (id: string) => `/tickets/${id}/sla`,
 } as const;
 
+// Incident Report Endpoints (Client-side → Next.js API Routes)
+export const INCIDENT_REPORT_ENDPOINTS = {
+  BASE: '/api/incident-reports',
+  BY_ID: (id: string) => `/api/incident-reports/${id}`,
+  COMMENTS: (id: string) => `/api/incident-reports/${id}/comments`,
+  ASSIGN: (id: string) => `/api/incident-reports/${id}/assign`,
+  STATUS: (id: string) => `/api/incident-reports/${id}/status`,
+  STATISTICS: '/api/incident-reports/statistics',
+} as const;
+
+// Backend Incident Report Endpoints (Next.js API Routes → Backend API)
+export const BACKEND_INCIDENT_REPORT_ENDPOINTS = {
+  BASE: '/incident-reports',
+  BY_ID: (id: string) => `/incident-reports/${id}`,
+  COMMENTS: (id: string) => `/incident-reports/${id}/comments`,
+  ASSIGN: (id: string) => `/incident-reports/${id}/assign`,
+  STATUS: (id: string) => `/incident-reports/${id}/status`,
+  STATISTICS: '/incident-reports/statistics',
+} as const;
+
 // File Endpoints (Client-side → Next.js API Routes)
 export const FILE_ENDPOINTS = {
   UPLOAD: '/api/files/upload',
@@ -737,6 +760,7 @@ export const PARENT_ENDPOINTS = {
   INVOICES: "/api/parent/invoices",
   PAYMENTS: "/api/parent/payments",
   HOMEWORK: "/api/parent/homework",
+  HOMEWORK_BY_ID: (id: string) => `/api/parent/homework/${id}`,
   PROGRESS: "/api/parent/progress",
   MEDIA: "/api/parent/media",
   APPROVALS: "/api/parent/approvals",
@@ -752,6 +776,7 @@ export const BACKEND_PARENT_ENDPOINTS = {
   INVOICES: "/parent/invoices",
   PAYMENTS: "/parent/payments",
   HOMEWORK: "/parent/homework",
+  HOMEWORK_BY_ID: (id: string) => `/parent/homework/${id}`,
   PROGRESS: "/parent/progress",
   MEDIA: "/parent/media",
   APPROVALS: "/parent/approvals",
@@ -838,6 +863,7 @@ export const QUESTION_BANK_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/api/question-bank/${id}`,
   CREATE: '/api/question-bank',
   AI_GENERATE: '/api/question-bank/ai-generate',
+  AI_GENERATE_FROM_FILE: '/api/question-bank/ai-generate/from-file',
   UPDATE: (id: string) => `/api/question-bank/${id}`,
   DELETE: (id: string) => `/api/question-bank/${id}`,
   TOGGLE_STATUS: (id: string) => `/api/question-bank/${id}/toggle-status`,
@@ -850,6 +876,7 @@ export const BACKEND_QUESTION_BANK_ENDPOINTS = {
   GET_BY_ID: (id: string) => `/question-bank/${id}`,
   CREATE: '/question-bank',
   AI_GENERATE: '/question-bank/ai-generate',
+  AI_GENERATE_FROM_FILE: '/question-bank/ai-generate/from-file',
   UPDATE: (id: string) => `/question-bank/${id}`,
   DELETE: (id: string) => `/question-bank/${id}`,
   TOGGLE_STATUS: (id: string) => `/question-bank/${id}/toggle-status`,

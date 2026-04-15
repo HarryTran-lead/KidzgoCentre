@@ -422,9 +422,13 @@ export function LearnerGamificationWorkspace({
                   </div>
                   <StatusPill label={mapRedemptionStatusLabel(item.status)} className={getRedemptionStatusClasses(item.status)} />
                 </div>
-                {item.status === "Cancelled" && item.cancellationReason ? (
+                {item.status === "Cancelled" && (item.cancellationReason || item.cancelReason) ? (
                   <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-2">
-                    <p className="text-xs font-medium text-rose-400">Lý do hủy: {item.cancellationReason}</p>
+                    <p className="text-xs font-medium text-rose-400">Lý do hủy: {item.cancellationReason || item.cancelReason}</p>
+                  </div>
+                ) : item.status === "Cancelled" ? (
+                  <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-2">
+                    <p className="text-xs font-medium text-rose-400">Đã hủy bởi trung tâm</p>
                   </div>
                 ) : null}
                 {item.status === "Delivered" ? (

@@ -20,6 +20,10 @@ export async function getParentHomework(params?: ParentPortalQuery): Promise<any
   return get<any>(`${PARENT_ENDPOINTS.HOMEWORK}${buildQueryString(params)}`);
 }
 
+export async function getParentHomeworkById(id: string): Promise<any> {
+  return get<any>(PARENT_ENDPOINTS.HOMEWORK_BY_ID(id));
+}
+
 export async function getParentProgress(params?: ParentPortalQuery): Promise<any> {
   return get<any>(`${PARENT_ENDPOINTS.PROGRESS}${buildQueryString(params)}`);
 }

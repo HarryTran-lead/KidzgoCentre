@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { getAllUsers, updateUserStatus, createUser, updateUser, deleteUser, getUserById } from "@/lib/api/userService";
 import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from "@/types/admin/user";
 import AccountDetailModal from "@/components/admin/accounts/AccountDetailModal";
@@ -8,6 +9,7 @@ import AccountFormModal from "@/components/admin/accounts/AccountFormModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { toast } from "@/hooks/use-toast";
 import { usePageI18n } from "@/hooks/usePageI18n";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 // Import Profile Management Components
@@ -386,11 +388,38 @@ const getActivityDisplay = (account: Account) => {
   };
 };
 
+function ActivityCell({
+  account,
+}: {
+  account: Account;
+}) {
+  const activity = getActivityDisplay(account);
+
+  return (
+    <div className="space-y-1">
+      <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border ${activity.badgeClass} border-current/15`}>
+        <span className={`inline-flex h-2 w-2 rounded-full ${account.isOnline ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden />
+        <span>{activity.badgeText}</span>
+      </div>
+      <div className="text-xs text-gray-500">
+        {activity.detail}
+      </div>
+    </div>
+  );
+}
+
 export default function AccountsPage() {
+  const pathname = usePathname();
+  const { user: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
+
   // I18n hook - automatically updates when locale changes
   const { messages } = usePageI18n();
   const t = messages.adminPages.accounts;
   const tProfiles = messages.adminPages.profiles;
+
+  const isStaffManagementAccountsPage = pathname.includes("/portal/staff-management/accounts");
+  const canApproveProfiles = !isStaffManagementAccountsPage;
+  const staffBranchId = isStaffManagementAccountsPage ? currentUser?.branchId : undefined;
   
   // Helper function to get role label
   const getRoleLabel = (role: Role): string => {
@@ -472,9 +501,25 @@ export default function AccountsPage() {
   } | null>(null);
 
   const refreshAccountsTable = async () => {
+    if (isStaffManagementAccountsPage && !staffBranchId) {
+      setAccounts([]);
+      setTotalCount(0);
+      setFixedCounts({
+        total: 0,
+        admin: 0,
+        teacher: 0,
+        parent: 0,
+        managementStaff: 0,
+        active: 0,
+        inactive: 0,
+      });
+      return;
+    }
+
     const usersResponse = await getAllUsers({
       pageNumber: 1,
       pageSize: 1000,
+      branchId: isStaffManagementAccountsPage ? staffBranchId : undefined,
     });
 
     const isSuccessful = usersResponse.success || usersResponse.isSuccess;
@@ -496,27 +541,42 @@ export default function AccountsPage() {
 
       // Fetch both accounts and profiles in parallel
       const [usersResponse, profilesResponse] = await Promise.all([
-        getAllUsers({
-          pageNumber: 1,
-          pageSize: 1000,
-        }),
+        isStaffManagementAccountsPage && !staffBranchId
+          ? Promise.resolve(null)
+          : getAllUsers({
+              pageNumber: 1,
+              pageSize: 1000,
+              branchId: isStaffManagementAccountsPage ? staffBranchId : undefined,
+            }),
         getAllStudents({
           pageSize: 100,
         })
       ]);
 
-      const isSuccessful = usersResponse.success || usersResponse.isSuccess;
+      const isSuccessful = usersResponse && (usersResponse.success || usersResponse.isSuccess);
 
-      if (isSuccessful && usersResponse.data) {
+      if (isSuccessful && usersResponse?.data) {
         const transformedAccounts = transformUsersToAccounts(usersResponse.data.items);
         setAccounts(transformedAccounts);
         setTotalCount(transformedAccounts.length);
         setFixedCounts(getAccountCounts(transformedAccounts));
+      } else if (isStaffManagementAccountsPage && !staffBranchId) {
+        setAccounts([]);
+        setTotalCount(0);
+        setFixedCounts({
+          total: 0,
+          admin: 0,
+          teacher: 0,
+          parent: 0,
+          managementStaff: 0,
+          active: 0,
+          inactive: 0,
+        });
       } else {
-        setError(usersResponse.message || 'Không thể tải danh sách người dùng');
+        setError(usersResponse?.message || 'Không thể tải danh sách người dùng');
       }
 
-      if (profilesResponse.data?.items) {
+      if (profilesResponse?.data?.items) {
         setProfiles(profilesResponse.data.items);
         setFilteredProfiles(profilesResponse.data.items);
       }
@@ -532,8 +592,12 @@ export default function AccountsPage() {
 
   // Fetch users and profiles from API once (no server-side filtering for smooth UX)
   useEffect(() => {
+    if (isStaffManagementAccountsPage && isCurrentUserLoading) {
+      return;
+    }
+
     fetchUsersAndProfiles();
-  }, []); // Only fetch once on mount
+  }, [isStaffManagementAccountsPage, isCurrentUserLoading, staffBranchId]);
 
   // Debounce search
   useEffect(() => {
@@ -1100,6 +1164,11 @@ export default function AccountsPage() {
   const list = useMemo(() => {
     let result = accounts;
 
+    if (isStaffManagementAccountsPage) {
+      if (!staffBranchId) return [];
+      result = result.filter((acc) => acc.branchId === staffBranchId);
+    }
+
     // Client-side filtering
     if (role !== "ALL") {
       result = result.filter(acc => mapRoleToDisplay(acc.role) === role);
@@ -1125,7 +1194,7 @@ export default function AccountsPage() {
     }
 
     return result;
-  }, [accounts, role, status, debouncedSearch, sort.key, sort.direction]);
+  }, [accounts, role, status, debouncedSearch, sort.key, sort.direction, isStaffManagementAccountsPage, staffBranchId]);
 
   // Client-side pagination
   const totalPages = Math.ceil(list.length / itemsPerPage);
@@ -1453,12 +1522,7 @@ export default function AccountsPage() {
                       <RoleBadge role={mapRoleToDisplay(acc.role)} roleLabel={getRoleLabel(mapRoleToDisplay(acc.role))} />
                     </td>
                     <td className="py-4 px-6">
-                      <div className="space-y-1">
-                        <TwoFactorBadge enabled={acc.twoFactor} enabledLabel={t.status.enabled2FA} disabledLabel={t.status.disabled2FA} />
-                        <div className="text-xs text-gray-500">
-                          {!acc.lastLoginAt ? t.userStatus.notLoggedIn : `${t.userStatus.lastLogin}: ${formatDateTime(acc.lastLoginAt)}`}
-                        </div>
-                      </div>
+                      <ActivityCell account={acc} />
                     </td>
                     <td className="py-4 px-6">
                       <StatusBadge isActive={acc.isActive} statusLabel={acc.isActive ? t.status.active : t.status.inactive} />
@@ -1653,13 +1717,15 @@ export default function AccountsPage() {
             />
           </div>
 
-          <div className={`grid gap-4 md:grid-cols-2 transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="rounded-2xl border border-amber-200 bg-linear-to-br from-white to-amber-50 p-4">
-              <div className="text-sm text-gray-600">{tProfiles.stats.pendingApproval}</div>
-              <div className="mt-1 text-2xl font-bold text-amber-700">
-                {profiles.filter(p => p.isApproved === false).length}
+          <div className={`grid gap-4 ${canApproveProfiles ? 'md:grid-cols-2' : 'md:grid-cols-1'} transition-all duration-700 delay-100 ${isPageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            {canApproveProfiles && (
+              <div className="rounded-2xl border border-amber-200 bg-linear-to-br from-white to-amber-50 p-4">
+                <div className="text-sm text-gray-600">{tProfiles.stats.pendingApproval}</div>
+                <div className="mt-1 text-2xl font-bold text-amber-700">
+                  {profiles.filter(p => p.isApproved === false).length}
+                </div>
               </div>
-            </div>
+            )}
             <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
               <div className="text-sm text-gray-600">{tProfiles.stats.locked}</div>
               <div className="mt-1 text-2xl font-bold text-red-700">
@@ -1673,7 +1739,7 @@ export default function AccountsPage() {
             <div className="space-y-4">
               {/* Bulk Approval Row */}
               <div className="flex flex-wrap items-center gap-3">
-                {selectedProfileRows.length > 0 && (
+                {canApproveProfiles && selectedProfileRows.length > 0 && (
                   <button
                     onClick={handleOpenBulkApproveModal}
                     className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
@@ -1712,18 +1778,22 @@ export default function AccountsPage() {
                     </SelectContent>
                   </Select>
 
-                  <Filter size={16} className="text-gray-500" />
-                  {/* Approval Filter */}
-                  <Select value={profileApprovalFilter} onValueChange={(value) => setProfileApprovalFilter(value as typeof profileApprovalFilter)}>
-                    <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{tProfiles.filters.allApprovals}</SelectItem>
-                      <SelectItem value="pending">{tProfiles.filters.pending}</SelectItem>
-                      <SelectItem value="approved">{tProfiles.filters.approved}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {canApproveProfiles && (
+                    <>
+                      <Filter size={16} className="text-gray-500" />
+                      {/* Approval Filter */}
+                      <Select value={profileApprovalFilter} onValueChange={(value) => setProfileApprovalFilter(value as typeof profileApprovalFilter)}>
+                        <SelectTrigger className="w-full sm:w-auto h-10 px-3 py-2 rounded-xl border border-red-200 bg-white text-sm text-gray-700 transition-all hover:border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 data-[state=open]:border-red-400 data-[state=open]:ring-2 data-[state=open]:ring-red-200 [&>span]:text-gray-500 [&>span]:line-clamp-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{tProfiles.filters.allApprovals}</SelectItem>
+                          <SelectItem value="pending">{tProfiles.filters.pending}</SelectItem>
+                          <SelectItem value="approved">{tProfiles.filters.approved}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1747,15 +1817,17 @@ export default function AccountsPage() {
                   <table className="w-full">
                     <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                       <tr>
-                        <th className="px-4 py-4 text-left">
-                          <input
-                            type="checkbox"
-                            checked={isAllCurrentPendingSelected}
-                            onChange={toggleSelectAllPendingProfiles}
-                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
-                            title={tProfiles.table.selectAll}
-                          />
-                        </th>
+                        {canApproveProfiles && (
+                          <th className="px-4 py-4 text-left">
+                            <input
+                              type="checkbox"
+                              checked={isAllCurrentPendingSelected}
+                              onChange={toggleSelectAllPendingProfiles}
+                              className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer"
+                              title={tProfiles.table.selectAll}
+                            />
+                          </th>
+                        )}
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.type}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.displayName}</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">{tProfiles.table.email}</th>
@@ -1768,22 +1840,24 @@ export default function AccountsPage() {
                     <tbody className="divide-y divide-red-100">
                       {currentProfiles.map((profile: any) => (
                       <tr key={profile.id} className="group hover:bg-gradient-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
-                        <td className="px-4 py-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedProfileRows.includes(profile.id)}
-                            disabled={profile.isApproved !== false}
-                            onChange={() => {
-                              setSelectedProfileRows(prev =>
-                                prev.includes(profile.id)
-                                  ? prev.filter(id => id !== profile.id)
-                                  : [...prev, profile.id]
-                              );
-                            }}
-                            className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                            title={profile.isApproved === false ? tProfiles.table.selectProfile : tProfiles.table.profileApproved}
-                          />
-                        </td>
+                        {canApproveProfiles && (
+                          <td className="px-4 py-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedProfileRows.includes(profile.id)}
+                              disabled={profile.isApproved !== false}
+                              onChange={() => {
+                                setSelectedProfileRows(prev =>
+                                  prev.includes(profile.id)
+                                    ? prev.filter(id => id !== profile.id)
+                                    : [...prev, profile.id]
+                                );
+                              }}
+                              className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                              title={profile.isApproved === false ? tProfiles.table.selectProfile : tProfiles.table.profileApproved}
+                            />
+                          </td>
+                        )}
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
                             profile.profileType === "Parent"
@@ -1854,7 +1928,7 @@ export default function AccountsPage() {
                                 <Users size={14} />
                               </button>
                             )}
-                            {profile.isApproved === false && (
+                            {canApproveProfiles && profile.isApproved === false && (
                               <button
                                 onClick={() => handleOpenApproveProfileModal(profile)}
                                 className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
@@ -2009,23 +2083,25 @@ export default function AccountsPage() {
             variant="danger"
           />
 
-          <ConfirmModal
-            isOpen={showProfileApproveModal}
-            onClose={() => {
-              if (isProfileApproveSubmitting) return;
-              setShowProfileApproveModal(false);
-              setSelectedProfileForAction(null);
-            }}
-            onConfirm={handleConfirmApproveProfile}
-            title={tProfiles.modals.confirmApprove}
-            message={selectedProfileRows.length > 0
-              ? tProfiles.modals.approveMultipleMessage.replace("{count}", selectedProfileRows.length.toString())
-              : tProfiles.modals.approveSingleMessage.replace("{name}", selectedProfileForAction?.name || "")}
-            confirmText={tProfiles.modals.approve}
-            cancelText={tProfiles.modals.cancel}
-            variant="success"
-            isLoading={isProfileApproveSubmitting}
-          />
+          {canApproveProfiles && (
+            <ConfirmModal
+              isOpen={showProfileApproveModal}
+              onClose={() => {
+                if (isProfileApproveSubmitting) return;
+                setShowProfileApproveModal(false);
+                setSelectedProfileForAction(null);
+              }}
+              onConfirm={handleConfirmApproveProfile}
+              title={tProfiles.modals.confirmApprove}
+              message={selectedProfileRows.length > 0
+                ? tProfiles.modals.approveMultipleMessage.replace("{count}", selectedProfileRows.length.toString())
+                : tProfiles.modals.approveSingleMessage.replace("{name}", selectedProfileForAction?.name || "")}
+              confirmText={tProfiles.modals.approve}
+              cancelText={tProfiles.modals.cancel}
+              variant="success"
+              isLoading={isProfileApproveSubmitting}
+            />
+          )}
 
           <ConfirmModal
             isOpen={showProfileReactivateModal}
