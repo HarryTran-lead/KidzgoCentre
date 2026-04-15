@@ -108,8 +108,8 @@ export function studentMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     t.groups.media,
     Image,
     [
-      [t.items.classMedia, Image, "/media/class"],
-      [t.items.personalMedia, User, "/media/personal"],
+      [t.items.classMedia, Image, "/media?tab=class"],
+      [t.items.personalMedia, User, "/media?tab=personal"],
     ],
     false
   );

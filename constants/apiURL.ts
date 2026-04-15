@@ -318,6 +318,7 @@ export const TEACHER_ENDPOINTS = {
   PROFILE: "/api/teacher/profile",
   TIMESHEET: "/api/teacher/timesheet",
   CLASSES: '/api/teacher/classes',
+  CLASS_STUDENTS: (classId: string) => `/api/teacher/classes/${classId}/students`,
   TIMETABLE: '/api/teacher/timetable',
   ENROLLMENTS: '/api/enrollments',
   ATTENDANCE: '/api/attendance',
@@ -673,6 +674,14 @@ export const FILE_ENDPOINTS = {
   TRANSFORM: '/api/files/transform',
 } as const;
 
+export const MEDIA_ENDPOINTS = {
+  BASE: '/api/media',
+  BY_ID: (id: string) => `/api/media/${id}`,
+  APPROVE: (id: string) => `/api/media/${id}/approve`,
+  REJECT: (id: string) => `/api/media/${id}/reject`,
+  PUBLISH: (id: string) => `/api/media/${id}/publish`,
+} as const;
+
 export const TEACHING_MATERIALS_ENDPOINTS = {
   BASE: "/api/teaching-materials",
   BY_ID: (id: string) => `/api/teaching-materials/${id}`,
@@ -700,6 +709,14 @@ export const BACKEND_FILE_ENDPOINTS = {
   AVATAR: '/files/avatar',
   DELETE: '/files',
   TRANSFORM: '/files/transform',
+} as const;
+
+export const BACKEND_MEDIA_ENDPOINTS = {
+  BASE: '/media',
+  BY_ID: (id: string) => `/media/${id}`,
+  APPROVE: (id: string) => `/media/${id}/approve`,
+  REJECT: (id: string) => `/media/${id}/reject`,
+  PUBLISH: (id: string) => `/media/${id}/publish`,
 } as const;
 
 export const BACKEND_TEACHING_MATERIALS_ENDPOINTS = {
@@ -855,6 +872,7 @@ export const STAFF_MANAGEMENT_PORTAL_ENDPOINTS = {
   MEDIA: "/api/staff-management/media",
   MEDIA_APPROVE: (id: string) => `/api/staff-management/media/${id}/approve`,
   MEDIA_REJECT: (id: string) => `/api/staff-management/media/${id}/reject`,
+  MEDIA_PUBLISH: (id: string) => `/api/staff-management/media/${id}/publish`,
 } as const;
 
 // Question Bank Endpoints (Client-side → Next.js API Routes → Backend)
