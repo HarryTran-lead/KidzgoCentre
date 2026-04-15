@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpenCheck,
   CalendarDays,
@@ -23,6 +23,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { BASE_URL } from "@/constants/apiURL";
 import { toast } from "@/hooks/use-toast";
@@ -56,6 +57,17 @@ type Option = {
   id: string;
   label: string;
   hint?: string;
+};
+
+type ClassOptionSource = {
+  id?: string | number | null;
+  title?: string | null;
+  name?: string | null;
+  classTitle?: string | null;
+  code?: string | null;
+  classCode?: string | null;
+  programName?: string | null;
+  level?: string | null;
 };
 
 type TemplateModalState =
@@ -151,7 +163,7 @@ function resolveAttachmentUrl(url?: string | null) {
   return `${BACKEND_ROOT_URL}/${url}`;
 }
 
-function buildClassOption(item: any): Option {
+function buildClassOption(item: ClassOptionSource): Option {
   const label =
     item?.title || item?.name || item?.classTitle || item?.code || item?.classCode || "Lớp học";
   const hint = [item?.code || item?.classCode, item?.programName, item?.level]
@@ -167,12 +179,6 @@ function buildClassOption(item: any): Option {
 
 function getTemplateStatus(item: LessonPlanTemplate) {
   return item.isActive === false ? "inactive" : "active";
-}
-
-function getPlanSummaryStatus(session: ClassLessonPlanSyllabusSession): PlanStatusFilter | "readonly" {
-  if (!session.lessonPlanId) return "missingPlan";
-  if (session.canEdit) return "editable";
-  return "readonly";
 }
 
 function extractMessage(result: { message?: string; detail?: string; title?: string } | null | undefined, fallback: string) {
@@ -194,6 +200,13 @@ function asObject(value: unknown): Record<string, unknown> | null {
     return value as Record<string, unknown>;
   }
   return null;
+}
+
+function toErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
 }
 
 function getSuggestedNextSessionIndex(
@@ -441,7 +454,10 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   }, [templates]);
 
   useEffect(() => {
-    setActiveTab(scope === "teacher" ? "plans" : "templates");
+    const timer = setTimeout(() => {
+      setActiveTab(scope === "teacher" ? "plans" : "templates");
+    }, 0);
+    return () => clearTimeout(timer);
   }, [scope]);
 
   const loadPrograms = async () => {
@@ -465,10 +481,11 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   const loadClasses = async () => {
     if (isTeacher) {
       const response = await getTeacherClasses({ pageNumber: 1, pageSize: 100 });
+      const responseData = response?.data as { classes?: { items?: ClassOptionSource[] } | ClassOptionSource[] } | undefined;
       const source = Array.isArray(response?.data?.classes?.items)
         ? response.data.classes.items
-: Array.isArray((response as any)?.data?.classes)
-          ? (response as any).data.classes
+        : Array.isArray(responseData?.classes)
+          ? responseData.classes
           : [];
 
       const options = source.map(buildClassOption).filter((item: Option) => item.id);
@@ -546,8 +563,17 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     setIsLoaded(true);
   };
 
+  const refreshWorkspaceRef = useRef(refreshWorkspace);
+
   useEffect(() => {
-    refreshWorkspace();
+    refreshWorkspaceRef.current = refreshWorkspace;
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void refreshWorkspaceRef.current();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [scope]);
 
   useEffect(() => {
@@ -557,27 +583,39 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
     const exists = classOptions.some((item) => item.id === selectedClassId);
     if (!selectedClassId || !exists) {
-      setSelectedClassId(classOptions[0].id);
+      const timer = setTimeout(() => {
+        setSelectedClassId(classOptions[0].id);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [classOptions, selectedClassId]);
 
   useEffect(() => {
     if ((isTeacher || activeTab === "plans") && selectedClassId) {
-      setLoading(true);
-      loadClassSyllabus(selectedClassId)
-        .catch((error) => {
-          setClassSyllabus(null);
-          toast({
-            title: "Không thể tải syllabus",
-description: error?.message || "Vui lòng thử lại sau.",
-            variant: "destructive",
+      const loadingTimer = setTimeout(() => {
+        setLoading(true);
+      }, 0);
+      const requestTimer = setTimeout(() => {
+        void loadClassSyllabus(selectedClassId)
+          .catch((error: unknown) => {
+            setClassSyllabus(null);
+            toast({
+              title: "Không thể tải syllabus",
+              description: toErrorMessage(error, "Vui lòng thử lại sau."),
+              variant: "destructive",
+            });
+          })
+          .finally(() => {
+            setLoading(false);
+            setRefreshing(false);
+            setIsLoaded(true);
           });
-        })
-        .finally(() => {
-          setLoading(false);
-          setRefreshing(false);
-          setIsLoaded(true);
-        });
+      }, 0);
+
+      return () => {
+        clearTimeout(loadingTimer);
+        clearTimeout(requestTimer);
+      };
     }
   }, [activeTab, isTeacher, selectedClassId]);
 
@@ -894,7 +932,7 @@ plannedContent: isTeacher ? (planModal.plan.plannedContent ?? null) : (payload.p
     }
 
     return templates.filter((item) => item.programId === classSyllabus.programId);
-  }, [classSyllabus?.programId, templates]);
+  }, [classSyllabus, templates]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/40 to-white p-6 space-y-6">
@@ -1866,8 +1904,8 @@ if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivi
         },
         selectedFile
       );
-    } catch (submitError: any) {
-setError(submitError?.message || "Không thể lưu template.");
+    } catch (submitError: unknown) {
+      setError(toErrorMessage(submitError, "Không thể lưu template."));
     } finally {
       setSubmitting(false);
     }
@@ -2274,8 +2312,8 @@ function ImportTemplateModal({
         level: level.trim() || undefined,
         overwriteExisting,
       });
-    } catch (submitError: any) {
-      setError(submitError?.message || "Không thể import syllabus.");
+    } catch (submitError: unknown) {
+      setError(toErrorMessage(submitError, "Không thể import syllabus."));
     } finally {
       setSubmitting(false);
     }
@@ -2357,6 +2395,29 @@ className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm t
   );
 }
 
+type StarterActivity = Record<string, unknown> & {
+  classwork?: string;
+  requiredMaterials?: string;
+  homeworkRequiredMaterials?: string;
+};
+
+type StarterSheet = Record<string, unknown> & {
+  activities: StarterActivity[];
+};
+
+function parseStarterActivities(refContent: string | null | undefined): StarterSheet | null {
+  if (!refContent?.trim()) return null;
+  const parsed = parseJsonContent(refContent);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const obj = parsed as Record<string, unknown>;
+  if (!Array.isArray(obj.activities) || obj.activities.length === 0) return null;
+  const activities = obj.activities
+    .map((item) => asObject(item))
+    .filter((item): item is StarterActivity => Boolean(item));
+  if (!activities.length) return null;
+  return { ...obj, activities };
+}
+
 function PlanFormModal({
   scope,
   classSyllabus,
@@ -2392,11 +2453,55 @@ function PlanFormModal({
   const isEdit = Boolean(initialValue);
 const isTeacher = scope === "teacher";
 
+  const refContent = session.templateSyllabusContent || session.plannedContent || initialValue?.plannedContent;
+
+  // Parse starter activities for structured editing (teacher only)
+  const starterData = useMemo(() => {
+    if (!isTeacher) return null;
+    // If editing an existing plan, try to parse actualContent first (teacher may have saved structured data before)
+    const existingActual = initialValue?.actualContent || session.actualContent;
+    const existingParsed = parseStarterActivities(existingActual);
+    if (existingParsed) return existingParsed;
+    return parseStarterActivities(refContent);
+  }, [isTeacher, refContent, initialValue?.actualContent, session.actualContent]);
+
+  const [editableActivities, setEditableActivities] = useState<Array<{ classwork: string; requiredMaterials: string; homeworkRequiredMaterials: string }>>(() => {
+    if (!starterData) return [];
+    // If teacher previously saved structured actual content, use that
+    const existingActual = initialValue?.actualContent || session.actualContent;
+    const existingParsed = parseStarterActivities(existingActual);
+    const source = existingParsed?.activities || starterData.activities;
+    return source.map((a) => ({
+      classwork: typeof a.classwork === "string" ? a.classwork : "",
+      requiredMaterials: typeof a.requiredMaterials === "string" ? a.requiredMaterials : "",
+      homeworkRequiredMaterials: typeof a.homeworkRequiredMaterials === "string" ? a.homeworkRequiredMaterials : "",
+    }));
+  });
+
+  const hasStructuredStarter = isTeacher && starterData !== null;
+
+  const updateEditableActivity = (index: number, field: "classwork" | "requiredMaterials" | "homeworkRequiredMaterials", value: string) => {
+    setEditableActivities((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
+  };
+
+  const buildStructuredActualContent = (): string => {
+    if (!starterData) return actualContent;
+    const newActivities = starterData.activities.map((a, i) => ({
+      ...a,
+      classwork: editableActivities[i]?.classwork ?? a.classwork ?? "",
+      requiredMaterials: editableActivities[i]?.requiredMaterials ?? a.requiredMaterials ?? "",
+      homeworkRequiredMaterials: editableActivities[i]?.homeworkRequiredMaterials ?? a.homeworkRequiredMaterials ?? "",
+    }));
+    return JSON.stringify({ ...starterData, activities: newActivities }, null, 2);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
 
-    if (isTeacher && !actualContent.trim()) {
+    const finalActualContent = hasStructuredStarter ? buildStructuredActualContent() : actualContent.trim();
+
+    if (isTeacher && !finalActualContent) {
       setError("Vui lòng nhập nội dung dạy thực tế.");
       return;
     }
@@ -2408,18 +2513,16 @@ const isTeacher = scope === "teacher";
         session,
         templateId: isTeacher ? session.templateId || null : templateId || null,
         plannedContent: isTeacher ? undefined : plannedContent.trim() || null,
-        actualContent: actualContent.trim() || null,
+        actualContent: finalActualContent || null,
         actualHomework: actualHomework.trim() || null,
         teacherNotes: teacherNotes.trim() || null,
       });
-    } catch (submitError: any) {
-      setError(submitError?.message || "Không thể lưu lesson plan.");
+    } catch (submitError: unknown) {
+      setError(toErrorMessage(submitError, "Không thể lưu lesson plan."));
     } finally {
       setSubmitting(false);
     }
   };
-
-  const refContent = session.templateSyllabusContent || session.plannedContent || initialValue?.plannedContent;
 
   return (
     <ModalFrame
@@ -2427,7 +2530,7 @@ const isTeacher = scope === "teacher";
       subtitle={isTeacher ? "Xem nội dung giáo án chuẩn (chỉ đọc) và điền nội dung dạy thực tế, bài tập, ghi chú." : "Session đã được khóa sẵn theo read model syllabus. Có thể để plannedContent trống để backend tự copy từ template."}
       icon={isTeacher ? ClipboardPen : FilePlus2}
       onClose={onClose}
-      widthClass="max-w-4xl"
+      widthClass={hasStructuredStarter ? "max-w-6xl" : "max-w-4xl"}
     >
       <form onSubmit={handleSubmit} className="space-y-5 p-6">
         <div className="grid gap-4 md:grid-cols-2">
@@ -2441,54 +2544,220 @@ const isTeacher = scope === "teacher";
 
         {isTeacher ? (
           <>
-            {refContent ? (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
-                <div className="mb-1 flex items-center gap-2">
-                  <BookOpenCheck size={15} className="text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-700">Nội dung giáo án Admin đã soạn</span>
-                  <span className="ml-auto rounded-full border border-blue-200 bg-white px-2.5 py-0.5 text-xs text-blue-600">Chỉ đọc</span>
+            {hasStructuredStarter ? (
+              /* ── Structured activity editor: show full content, only classwork/requiredMaterials/homeworkRequiredMaterials editable ── */
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
+                  <div className="flex items-center gap-2">
+                    <BookOpenCheck size={15} className="text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-700">Giáo án chuẩn — chỉ sửa được Classwork, Required Materials, Homework Materials</span>
+                  </div>
                 </div>
-                <div className="mt-3 max-h-56 overflow-y-auto">
-                  <StructuredContent value={refContent} placeholder="Chưa có nội dung chuẩn." />
+
+                {/* Summary badges */}
+                {(() => {
+                  const summaryKeys = ["sessionIndex", "title", "dateLabel", "teacherName"] as const;
+                  const hasSummary = summaryKeys.some((k) => starterData![k] !== undefined && starterData![k] !== null && starterData![k] !== "");
+                  if (!hasSummary) return null;
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {summaryKeys.map((k) =>
+                        starterData![k] ? (
+                          <StatusBadge key={k} kind="muted">{k}: {String(starterData![k])}</StatusBadge>
+                        ) : null
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Activities table with editable cells */}
+                <div className="overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm">
+                  <div className="border-b border-gray-300 bg-amber-50 px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-900">
+                    Activities
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[980px] border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-red-50 text-gray-700">
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Time</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Book</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Skills</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold min-w-[200px]">
+                            <span className="inline-flex items-center gap-1">Classwork <Pencil size={11} className="text-emerald-600" /></span>
+                          </th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold min-w-[180px]">
+                            <span className="inline-flex items-center gap-1">Required Materials <Pencil size={11} className="text-emerald-600" /></span>
+                          </th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold min-w-[180px]">
+                            <span className="inline-flex items-center gap-1">Homework Materials <Pencil size={11} className="text-emerald-600" /></span>
+                          </th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Extra</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {starterData!.activities.map((activity, index) => (
+                          <tr key={index} className="align-top">
+                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
+                              <SheetCellValue value={activity.time} />
+                            </td>
+                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
+                              <SheetCellValue value={activity.book} />
+                            </td>
+                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
+                              <SheetCellValue value={activity.skills} />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={editableActivities[index]?.classwork ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "classwork", e.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Nhập classwork..."
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={editableActivities[index]?.requiredMaterials ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "requiredMaterials", e.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Nhập required materials..."
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={editableActivities[index]?.homeworkRequiredMaterials ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "homeworkRequiredMaterials", e.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Nhập homework materials..."
+                              />
+                            </td>
+                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
+                              <SheetCellValue value={activity.extra} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Homework block (read-only) */}
+                  {(starterData!.homeworkLabel || linesFromUnknown(starterData!.homeworkMaterials).length || linesFromUnknown(starterData!.homeworkNotes).length) ? (
+                    <div className="border-t border-gray-300 bg-amber-50/40 p-4">
+                      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Homework block (chỉ đọc)</div>
+                      <div className="grid gap-3 lg:grid-cols-3">
+                        <div className="rounded-xl border border-gray-300 bg-white p-3">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Label</div>
+                          <SheetCellValue value={starterData!.homeworkLabel} />
+                        </div>
+                        <div className="rounded-xl border border-gray-300 bg-white p-3">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Required materials</div>
+                          <SheetCellValue value={starterData!.homeworkMaterials} />
+                        </div>
+                        <div className="rounded-xl border border-gray-300 bg-white p-3">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</div>
+                          <SheetCellValue value={starterData!.homeworkNotes} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Notes (read-only) */}
+                  {Array.isArray(starterData!.notes) && starterData!.notes.length > 0 ? (
+                    <div className="border-t border-gray-300 bg-white px-4 py-3">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Notes (chỉ đọc)</div>
+                      <SpreadsheetList value={starterData!.notes} />
+                    </div>
+                  ) : null}
                 </div>
               </div>
+            ) : refContent ? (
+              /* ── Fallback: show read-only content + freeform text fields ── */
+              <>
+                <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
+                  <div className="mb-1 flex items-center gap-2">
+                    <BookOpenCheck size={15} className="text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-700">Nội dung giáo án Admin đã soạn</span>
+                    <span className="ml-auto rounded-full border border-blue-200 bg-white px-2.5 py-0.5 text-xs text-blue-600">Chỉ đọc</span>
+                  </div>
+                  <div className="mt-3 max-h-56 overflow-y-auto">
+                    <StructuredContent value={refContent} placeholder="Chưa có nội dung chuẩn." />
+                  </div>
+                </div>
+
+                <Field label="Nội dung dạy thực tế *">
+                  <p className="mb-2 text-xs text-gray-500">Mô tả chi tiết nội dung bạn đã dạy trong buổi học hôm nay.</p>
+                  <textarea
+                    value={actualContent}
+                    onChange={(event) => setActualContent(event.target.value)}
+                    rows={6}
+                    autoFocus
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Hôm nay dạy Unit 3 - Animals, các bé học được tên các con vật, luyện phát âm..."
+                  />
+                </Field>
+
+                <Field label="Bài tập về nhà">
+                  <textarea
+                    value={actualHomework}
+                    onChange={(event) => setActualHomework(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
+                  />
+                </Field>
+
+                <Field label="Ghi chú thêm">
+                  <textarea
+                    value={teacherNotes}
+                    onChange={(event) => setTeacherNotes(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Bé An vắng mặt, cần gửi bài bù..."
+                  />
+                </Field>
+              </>
             ) : (
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                Admin chưa soạn giáo án chuẩn cho buổi này.
-              </div>
+              /* ── No starter at all: freeform entry ── */
+              <>
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                  Admin chưa soạn giáo án chuẩn cho buổi này.
+                </div>
+
+                <Field label="Nội dung dạy thực tế *">
+                  <p className="mb-2 text-xs text-gray-500">Mô tả chi tiết nội dung bạn đã dạy trong buổi học hôm nay.</p>
+                  <textarea
+                    value={actualContent}
+                    onChange={(event) => setActualContent(event.target.value)}
+                    rows={6}
+                    autoFocus
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Hôm nay dạy Unit 3 - Animals, các bé học được tên các con vật, luyện phát âm..."
+                  />
+                </Field>
+
+                <Field label="Bài tập về nhà">
+                  <textarea
+                    value={actualHomework}
+                    onChange={(event) => setActualHomework(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
+                  />
+                </Field>
+
+                <Field label="Ghi chú thêm">
+                  <textarea
+                    value={teacherNotes}
+                    onChange={(event) => setTeacherNotes(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Bé An vắng mặt, cần gửi bài bù..."
+                  />
+                </Field>
+              </>
             )}
-
-            <Field label="Nội dung dạy thực tế *">
-<p className="mb-2 text-xs text-gray-500">Mô tả chi tiết nội dung bạn đã dạy trong buổi học hôm nay.</p>
-              <textarea
-                value={actualContent}
-                onChange={(event) => setActualContent(event.target.value)}
-                rows={6}
-                autoFocus
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                placeholder="VD: Hôm nay dạy Unit 3 - Animals, các bé học được tên các con vật, luyện phát âm..."
-              />
-            </Field>
-
-            <Field label="Bài tập về nhà">
-              <textarea
-                value={actualHomework}
-                onChange={(event) => setActualHomework(event.target.value)}
-                rows={3}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
-              />
-            </Field>
-
-            <Field label="Ghi chú thêm">
-              <textarea
-                value={teacherNotes}
-                onChange={(event) => setTeacherNotes(event.target.value)}
-                rows={3}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                placeholder="VD: Bé An vắng mặt, cần gửi bài bù..."
-              />
-            </Field>
           </>
         ) : (
           <>
@@ -2849,7 +3118,7 @@ function StatCard({
   title: string;
   value: string;
   subtitle: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
 }) {
   return (
@@ -2878,7 +3147,7 @@ function ModalFrame({
 }: {
   title: string;
   subtitle: string;
-  icon: any;
+  icon: LucideIcon;
   onClose: () => void;
   children: React.ReactNode;
   widthClass?: string;
@@ -2929,7 +3198,7 @@ function InfoCard({
   label,
   value,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: string;
 }) {
@@ -3005,13 +3274,13 @@ function SheetCellValue({ value, empty = "-" }: { value: unknown; empty?: string
   return <div className="whitespace-pre-wrap text-sm text-gray-700">{text}</div>;
 }
 
-function isMetadataSheetObject(objectValue: Record<string, any>) {
+function isMetadataSheetObject(objectValue: Record<string, unknown>) {
   return ["day", "days", "scheduleDays", "duration", "generalInformation", "generalInfo", "teachingMaterials", "note"].some(
     (key) => objectValue[key] !== undefined && objectValue[key] !== null
   );
 }
 
-function isSessionSheetObject(objectValue: Record<string, any>) {
+function isSessionSheetObject(objectValue: Record<string, unknown>) {
   return (
     Array.isArray(objectValue.activities) ||
     ["sessionIndex", "title", "dateLabel", "teacherName", "homeworkLabel", "homeworkMaterials", "homeworkNotes"].some(
@@ -3020,7 +3289,7 @@ function isSessionSheetObject(objectValue: Record<string, any>) {
   );
 }
 
-function MetadataSheetView({ objectValue }: { objectValue: Record<string, any> }) {
+function MetadataSheetView({ objectValue }: { objectValue: Record<string, unknown> }) {
   const sheetTitle = pickStringValue(objectValue, ["title", "sheetTitle"]) || "SYLLABUS";
   const day = pickStringValue(objectValue, ["day", "days", "scheduleDays"]);
   const duration = pickStringValue(objectValue, ["duration"]);
@@ -3088,8 +3357,10 @@ const note = objectValue.note;
   );
 }
 
-function SessionSheetView({ objectValue }: { objectValue: Record<string, any> }) {
-  const activities = Array.isArray(objectValue.activities) ? objectValue.activities : [];
+function SessionSheetView({ objectValue }: { objectValue: Record<string, unknown> }) {
+  const activities = Array.isArray(objectValue.activities)
+    ? objectValue.activities.filter((item): item is Record<string, unknown> => asObject(item) !== null)
+    : [];
   const notes = Array.isArray(objectValue.notes) ? objectValue.notes : [];
 const extraEntries = Object.entries(objectValue).filter(
     ([key]) =>
@@ -3130,7 +3401,7 @@ const extraEntries = Object.entries(objectValue).filter(
           </thead>
           <tbody>
             {activities.length ? (
-              activities.map((activity: Record<string, any>, index: number) => (
+              activities.map((activity: Record<string, unknown>, index: number) => (
                 <tr key={`activity-${index}`} className="align-top">
                   <td className="border border-gray-300 px-3 py-2">{index === 0 ? <SheetCellValue value={objectValue.sessionIndex} /> : null}</td>
                   <td className="border border-gray-300 px-3 py-2">{index === 0 ? <SheetCellValue value={objectValue.dateLabel} /> : null}</td>
@@ -3198,21 +3469,6 @@ const extraEntries = Object.entries(objectValue).filter(
   );
 }
 
-function SyllabusSheetPreview({
-  metadataObject,
-  contentObject,
-}: {
-  metadataObject: Record<string, any>;
-  contentObject: Record<string, any>;
-}) {
-  return (
-    <div className="space-y-4">
-<MetadataSheetView objectValue={metadataObject} />
-      <SessionSheetView objectValue={contentObject} />
-    </div>
-  );
-}
-
 function StructuredContent({
   value,
   placeholder,
@@ -3238,7 +3494,7 @@ function StructuredContent({
     );
   }
 
-  const objectValue = parsed as Record<string, any>;
+  const objectValue = parsed as Record<string, unknown>;
   if (isSessionSheetObject(objectValue)) {
     return <SessionSheetView objectValue={objectValue} />;
   }
@@ -3247,17 +3503,19 @@ function StructuredContent({
     return <MetadataSheetView objectValue={objectValue} />;
   }
 
-  const activities = Array.isArray(objectValue.activities) ? objectValue.activities : [];
+  const activities = Array.isArray(objectValue.activities)
+    ? objectValue.activities.filter((item): item is Record<string, unknown> => asObject(item) !== null)
+    : [];
   const notes = Array.isArray(objectValue.notes) ? objectValue.notes : [];
   const summaryKeys = ["sessionIndex", "title", "dateLabel", "teacherName"];
   const extraEntries = Object.entries(objectValue).filter(
     ([key]) => !summaryKeys.includes(key) && key !== "activities" && key !== "notes"
   );
-  const renderStructuredValue = (entry: any) => {
+  const renderStructuredValue = (entry: unknown) => {
     if (Array.isArray(entry)) {
       return (
         <div className="space-y-1">
-          {entry.map((item, index) => (
+          {entry.map((item: unknown, index: number) => (
             <div key={`${String(item)}-${index}`} className="whitespace-pre-wrap text-sm text-gray-700">
               {String(item)}
             </div>
@@ -3293,7 +3551,7 @@ function StructuredContent({
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</div>
           <div className="flex flex-wrap gap-2">
-            {notes.map((note: any, index: number) => (
+            {notes.map((note: unknown, index: number) => (
               <StatusBadge key={`${String(note)}-${index}`} kind="warning">
                 {String(note)}
               </StatusBadge>
@@ -3305,7 +3563,7 @@ function StructuredContent({
       {activities.length ? (
         <div className="space-y-3">
 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Activities</div>
-          {activities.map((activity: any, index: number) => (
+          {activities.map((activity: Record<string, unknown>, index: number) => (
             <div key={index} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
               <div className="grid gap-2 md:grid-cols-2">
                 {Object.entries(activity || {}).map(([key, activityValue]) => (

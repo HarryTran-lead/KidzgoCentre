@@ -777,7 +777,7 @@ export const PARENT_ENDPOINTS = {
   INVOICES: "/api/parent/invoices",
   PAYMENTS: "/api/parent/payments",
   HOMEWORK: "/api/parent/homework",
-  HOMEWORK_BY_ID: (id: string) => `/api/parent/homework/${id}`,
+  HOMEWORK_BY_ID: (id: string) => `/api/students/homework/${id}`,
   PROGRESS: "/api/parent/progress",
   MEDIA: "/api/parent/media",
   APPROVALS: "/api/parent/approvals",
