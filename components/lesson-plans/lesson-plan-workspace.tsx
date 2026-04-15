@@ -190,6 +190,150 @@ function parseJsonContent(value?: string | null) {
   }
 }
 
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function getSuggestedNextSessionIndex(
+  templates: LessonPlanTemplate[],
+  programId: string,
+  excludeId?: string
+): number {
+  const indices = templates
+    .filter((t) => t.programId === programId && t.id !== excludeId && t.sessionIndex != null)
+    .map((t) => t.sessionIndex!);
+  if (indices.length === 0) return 1;
+  return Math.max(...indices) + 1;
+}
+
+function pickStringValue(
+  obj: Record<string, unknown> | null,
+  keys: string[]
+): string {
+  if (!obj) return "";
+  for (const key of keys) {
+    const v = obj[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+function linesToTextarea(value: unknown): string {
+  if (Array.isArray(value)) return value.filter((v) => typeof v === "string").join("\n");
+  if (typeof value === "string") return value;
+  return "";
+}
+
+function textareaToLines(value: string): string[] {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function removeEmptyDeep(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === null || value === undefined || value === "") continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    if (typeof value === "object" && !Array.isArray(value)) {
+      const cleaned = removeEmptyDeep(value as Record<string, unknown>);
+      if (Object.keys(cleaned).length > 0) result[key] = cleaned;
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+interface TemplateActivityDraft {
+  time: string;
+  book: string;
+  skills: string;
+  classwork: string;
+  requiredMaterials: string;
+  homeworkRequiredMaterials: string;
+  extra: string;
+}
+
+function createEmptyTemplateActivity(): TemplateActivityDraft {
+  return {
+    time: "",
+    book: "",
+    skills: "",
+    classwork: "",
+    requiredMaterials: "",
+    homeworkRequiredMaterials: "",
+    extra: "",
+  };
+}
+
+function isActivityDraftEmpty(draft: TemplateActivityDraft): boolean {
+  return Object.values(draft).every((v) => !v.trim());
+}
+
+type TemplateActivityPresetKey = "warmup" | "reading" | "speaking" | "writing" | "listening" | "review";
+
+const TEMPLATE_ACTIVITY_PRESETS: { key: TemplateActivityPresetKey; label: string }[] = [
+  { key: "warmup", label: "Warm Up" },
+  { key: "reading", label: "Reading" },
+  { key: "speaking", label: "Speaking" },
+  { key: "writing", label: "Writing" },
+  { key: "listening", label: "Listening" },
+  { key: "review", label: "Review" },
+];
+
+function createPresetTemplateActivity(preset: TemplateActivityPresetKey): TemplateActivityDraft {
+  const base = createEmptyTemplateActivity();
+  switch (preset) {
+    case "warmup":
+      return { ...base, time: "5 mins", skills: "Warm Up", classwork: "WARM UP\nHomework Correction" };
+    case "reading":
+      return { ...base, time: "15 mins", skills: "Reading" };
+    case "speaking":
+      return { ...base, time: "15 mins", skills: "Speaking" };
+    case "writing":
+      return { ...base, time: "15 mins", skills: "Writing" };
+    case "listening":
+      return { ...base, time: "15 mins", skills: "Listening" };
+    case "review":
+      return { ...base, time: "10 mins", skills: "Review" };
+    default:
+      return base;
+  }
+}
+
+function activityDraftsFromUnknown(value: unknown): TemplateActivityDraft[] {
+  if (!Array.isArray(value) || value.length === 0) return [createEmptyTemplateActivity()];
+  return value.map((item) => {
+    if (typeof item !== "object" || !item) return createEmptyTemplateActivity();
+    const obj = item as Record<string, unknown>;
+    return {
+      time: typeof obj.time === "string" ? obj.time : "",
+      book: typeof obj.book === "string" ? obj.book : "",
+      skills: typeof obj.skills === "string" ? obj.skills : "",
+      classwork: typeof obj.classwork === "string" ? obj.classwork : "",
+      requiredMaterials: typeof obj.requiredMaterials === "string" ? obj.requiredMaterials : "",
+      homeworkRequiredMaterials: typeof obj.homeworkRequiredMaterials === "string" ? obj.homeworkRequiredMaterials : "",
+      extra: typeof obj.extra === "string" ? obj.extra : "",
+    };
+  });
+}
+
+function stringifyPrettyJson(value: unknown): string {
+  if (!value || (typeof value === "object" && Object.keys(value as object).length === 0)) return "";
+  return JSON.stringify(value, null, 2);
+}
+
+function linesFromUnknown(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((v) => typeof v === "string" && v.trim()).map(String);
+  if (typeof value === "string" && value.trim()) return value.split("\n").filter(Boolean);
+  return [];
+}
+
 function getSessionDisplay(session: Pick<ClassLessonPlanSyllabusSession, "sessionIndex" | "sessionDate">) {
   return `Buổi ${session.sessionIndex}${normalizeDateValue(session.sessionDate) ? ` • ${formatDate(session.sessionDate, true)}` : ""}`;
 }
@@ -1296,7 +1440,7 @@ function SyllabusView({
                     </button>
                   )}
                   
-                  {hasPlan && (
+                  {hasPlan ? (
                     <button
                       type="button"
                       onClick={() => onOpenPlanDetail(session.lessonPlanId!)}
@@ -1336,8 +1480,8 @@ function SyllabusView({
                     <span className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
                       <CheckCircle2 size={15} />
                       Đã báo cáo
-                    </div>
-                  )}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
@@ -1570,18 +1714,18 @@ function TemplateFormModal({
   const [generalInformation, setGeneralInformation] = useState(
     pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"])
   );
-  const [teachingMaterialsText, setTeachingMaterialsText] = useState(linesToTextarea(metadataSeed.teachingMaterials));
+  const [teachingMaterialsText, setTeachingMaterialsText] = useState(linesToTextarea(metadataSeed?.teachingMaterials));
   const [sheetNote, setSheetNote] = useState(
-    pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed.note)
+    pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note)
   );
 
   // Content fields
   const [teacherName, setTeacherName] = useState(pickStringValue(contentSeed, ["teacherName"]));
   const [homeworkLabel, setHomeworkLabel] = useState(pickStringValue(contentSeed, ["homeworkLabel"]) || "HOMEWORK");
-  const [homeworkMaterialsText, setHomeworkMaterialsText] = useState(linesToTextarea(contentSeed.homeworkMaterials));
-  const [homeworkNotesText, setHomeworkNotesText] = useState(linesToTextarea(contentSeed.homeworkNotes));
+  const [homeworkMaterialsText, setHomeworkMaterialsText] = useState(linesToTextarea(contentSeed?.homeworkMaterials));
+  const [homeworkNotesText, setHomeworkNotesText] = useState(linesToTextarea(contentSeed?.homeworkNotes));
   const [activities, setActivities] = useState<TemplateActivityDraft[]>(
-    activityDraftsFromUnknown(contentSeed.activities)
+    activityDraftsFromUnknown(contentSeed?.activities)
   );
 
   // File/meta
@@ -1682,13 +1826,13 @@ function TemplateFormModal({
     setDayLabel(pickStringValue(metadataSeed, ["day", "days", "scheduleDays"]));
     setDurationLabel(pickStringValue(metadataSeed, ["duration"]));
     setGeneralInformation(pickStringValue(metadataSeed, ["generalInformation", "generalInfo", "description"]));
-    setTeachingMaterialsText(linesToTextarea(metadataSeed.teachingMaterials));
-    setSheetNote(pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed.note));
+    setTeachingMaterialsText(linesToTextarea(metadataSeed?.teachingMaterials));
+    setSheetNote(pickStringValue(metadataSeed, ["note"]) || linesToTextarea(metadataSeed?.note));
     setTeacherName(pickStringValue(contentSeed, ["teacherName"]));
     setHomeworkLabel(pickStringValue(contentSeed, ["homeworkLabel"]) || "HOMEWORK");
-    setHomeworkMaterialsText(linesToTextarea(contentSeed.homeworkMaterials));
-    setHomeworkNotesText(linesToTextarea(contentSeed.homeworkNotes));
-    setActivities(activityDraftsFromUnknown(contentSeed.activities));
+    setHomeworkMaterialsText(linesToTextarea(contentSeed?.homeworkMaterials));
+    setHomeworkNotesText(linesToTextarea(contentSeed?.homeworkNotes));
+    setActivities(activityDraftsFromUnknown(contentSeed?.activities));
     setSourceFileName(initialValue?.sourceFileName || "");
     setAttachment(initialValue?.attachment || "");
     setIsActive(initialValue?.isActive ?? true);

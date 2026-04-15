@@ -14,6 +14,14 @@
   --font-sans: var(--font-sans);
 }
 html,body{ font-family: var(--font-sans); }
+
+.portal-zoom {
+  zoom: 0.75;
+  height: calc(100dvh / 0.75);
+  width: 100%;
+  overflow: hidden;
+}
+
 .sidebar-container {
   transition: width .35s ease;
 }
