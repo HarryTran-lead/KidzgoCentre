@@ -33,12 +33,10 @@ interface LeadFiltersProps {
   selectedSource: string;
   myLeadsOnly?: boolean;
   currentUserName?: string;
-  pageSize?: number;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onSourceChange: (value: string) => void;
   onMyLeadsOnlyChange?: (value: boolean) => void;
-  onPageSizeChange?: (size: number) => void;
 }
 
 export default function LeadFilters({
@@ -51,12 +49,10 @@ export default function LeadFilters({
   selectedSource,
   myLeadsOnly = false,
   currentUserName,
-  pageSize = 10,
   onSearchChange,
   onStatusChange,
   onSourceChange,
   onMyLeadsOnlyChange,
-  onPageSizeChange,
 }: LeadFiltersProps) {
   const statusOptions = ["Tất cả", ...Object.values(STATUS_MAPPING)];
   
@@ -73,55 +69,61 @@ export default function LeadFilters({
   }, [availableSources, leads]);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex items-center gap-2 flex-1">
-          <div className="flex-1 relative">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Tìm kiếm tên, SĐT, email, mã khách tiềm năng..."
+    <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50 p-4 transition-all duration-700 delay-100 ">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+        <div className="relative md:flex-1">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Tìm kiếm tên, SĐT, email, mã khách tiềm năng..."
             className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
-            />
-          </div>
-          {onPageSizeChange && (
-            <Select
-              value={String(pageSize)}
-              onValueChange={(value) => onPageSizeChange(Number(value))}
-            >
-              <SelectTrigger className="h-10 w-35 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200">
-                <SelectValue placeholder="Số dòng" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5 / trang</SelectItem>
-                <SelectItem value="10">10 / trang</SelectItem>
-                <SelectItem value="20">20 / trang</SelectItem>
-                <SelectItem value="50">50 / trang</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
+          />
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Select
-              value={selectedSource}
-              onValueChange={onSourceChange}
-            >
-              <SelectTrigger className="h-10 w-35 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 cursor-pointer">
-                <SelectValue placeholder="Nguồn" />
-              </SelectTrigger>
-              <SelectContent>
-                {sourceOptions.map((source) => (
-                  <SelectItem key={source} value={source}>
-                    {source === "Tất cả" ? source : getLeadSourceLabel(source)}
+          <Select
+            value={selectedStatus}
+            onValueChange={onStatusChange}
+          >
+            <SelectTrigger className="h-10 w-40 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 cursor-pointer">
+              <SelectValue placeholder="Trạng thái">
+                {selectedStatus === "Tất cả" ? "Tất cả trạng thái" : selectedStatus || "Trạng thái"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((statusLabel) => {
+                // Keep "Tất cả" stable from full-scope totals, not current filtered rows.
+                const count = statusLabel === "Tất cả" 
+                  ? (statusCounts["Tất cả"] ?? totalCount)
+                  : statusCounts[statusLabel] ?? 0;
+                return (
+                  <SelectItem key={statusLabel} value={statusLabel}>
+                    {statusLabel === "Tất cả" ? "Tất cả trạng thái" : statusLabel} ({count})
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={selectedSource}
+            onValueChange={onSourceChange}
+          >
+            <SelectTrigger className="h-10 w-35 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-100 cursor-pointer">
+              <SelectValue placeholder="Nguồn">
+                {selectedSource === "Tất cả" ? "Tất cả nguồn" : selectedSource || "Nguồn"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {sourceOptions.map((source) => (
+                <SelectItem key={source} value={source}>
+                  {source === "Tất cả" ? source : getLeadSourceLabel(source)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           
           {/* Filter chỉ lead của tôi */}
           {onMyLeadsOnlyChange && currentUserName && (
@@ -137,38 +139,6 @@ export default function LeadFilters({
               </span>
             </label>
           )}
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 overflow-x-auto">
-          {statusOptions.map((statusLabel) => {
-            // Keep "Tất cả" stable from full-scope totals, not current filtered rows.
-            const count = statusLabel === "Tất cả" 
-              ? (statusCounts["Tất cả"] ?? totalCount)
-              : statusCounts[statusLabel] ?? 0;
-            
-            return (
-              <button
-                key={statusLabel}
-                onClick={() => onStatusChange(statusLabel)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                  selectedStatus === statusLabel
-                    ? "bg-linear-to-r from-red-600 to-red-700 text-white shadow-sm"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                {statusLabel}
-                <span
-                  className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    selectedStatus === statusLabel ? "bg-white/20" : "bg-gray-100"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
         </div>
       </div>
     </div>
