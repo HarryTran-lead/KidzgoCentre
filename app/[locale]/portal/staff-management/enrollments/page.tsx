@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { BookOpen, Plus, RefreshCw } from "lucide-react";
+import { BookOpen, Plus, RefreshCw, Search, Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
 import {
   getAllEnrollments,
   createEnrollment,
@@ -14,7 +21,6 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Enrollment, CreateEnrollmentRequest } from "@/types/enrollment";
 import {
   EnrollmentStats,
-  EnrollmentFilters,
   EnrollmentTable,
   EnrollmentFormModal,
   EnrollmentDetailModal,
@@ -55,7 +61,7 @@ export default function EnrollmentsPage() {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
@@ -63,7 +69,6 @@ export default function EnrollmentsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
   // Sort state
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -121,15 +126,6 @@ export default function EnrollmentsPage() {
       if (response.isSuccess && response.data) {
         const allData = Array.isArray(response.data.items) ? response.data.items : [];
         setAllEnrollments(allData);
-
-        // Calculate status counts
-        const counts: Record<string, number> = {
-          "Tất cả": allData.length,
-          Active: allData.filter((e) => e.status === "Active").length,
-          Paused: allData.filter((e) => e.status === "Paused").length,
-          Dropped: allData.filter((e) => e.status === "Dropped").length,
-        };
-        setStatusCounts(counts);
       }
     } catch (error) {
       console.error("Error fetching initial data:", error);
@@ -304,11 +300,6 @@ export default function EnrollmentsPage() {
     setCurrentPage(1);
   };
 
-  const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
-  };
-
   // ========== Sorting ==========
 
   const sortedEnrollments = [...enrollments].sort((a, b) => {
@@ -328,27 +319,29 @@ export default function EnrollmentsPage() {
       <div className="space-y-6 px-6">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <BookOpen className="text-pink-500" size={28} />
-              Quản lý ghi danh
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">Quản lý ghi danh học viên vào các lớp học</p>
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
+              <BookOpen size={28} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Quản lý ghi danh</h1>
+              <p className="text-sm text-gray-600 mt-1">Quản lý ghi danh học viên vào các lớp học</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => {
                 fetchEnrollments();
                 fetchInitialData();
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-gray-700 hover:bg-red-50 transition-colors text-sm"
+              className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-linear-to-r from-white to-red-50 px-4 py-2.5 text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer"
             >
               <RefreshCw size={16} />
               Làm mới
             </button>
             <button
               onClick={() => setIsFormModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-linear-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm font-medium"
+              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all cursor-pointer"
             >
               <Plus size={16} />
               Tạo ghi danh
@@ -360,16 +353,34 @@ export default function EnrollmentsPage() {
         <EnrollmentStats enrollments={allEnrollments} isLoading={isLoading && allEnrollments.length === 0} />
 
         {/* Filters */}
-        <EnrollmentFilters
-          searchQuery={searchQuery}
-          selectedStatus={selectedStatus}
-          pageSize={pageSize}
-          totalCount={totalCount}
-          statusCounts={statusCounts}
-          onSearchChange={setSearchQuery}
-          onStatusChange={handleStatusChange}
-          onPageSizeChange={handlePageSizeChange}
-        />
+        <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+            <div className="relative flex-1 lg:flex-1">
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm theo mã ghi danh, tên học viên, lớp học..."
+                className="w-full h-10 rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
+              />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Filter size={16} className="text-gray-500 shrink-0" />
+              <Select value={selectedStatus} onValueChange={handleStatusChange}>
+                <SelectTrigger className="w-auto min-w-[140px] rounded-xl h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Tất cả">Tất cả</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Paused">Paused</SelectItem>
+                  <SelectItem value="Dropped">Dropped</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
 
         {/* Table */}
         <EnrollmentTable

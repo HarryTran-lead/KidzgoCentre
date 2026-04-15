@@ -5,7 +5,6 @@ import {
   PauseCircle,
   XCircle,
   ArrowUpDown,
-  MoreVertical,
   Eye,
   Pause,
   Play,
@@ -15,7 +14,6 @@ import {
   BookOpen,
   RefreshCw,
 } from "lucide-react";
-import { useState } from "react";
 import type { Enrollment } from "@/types/enrollment";
 
 type StatusType = "Active" | "Paused" | "Dropped";
@@ -64,7 +62,6 @@ export default function EnrollmentTable({
   onRefresh,
 }: EnrollmentTableProps) {
   const enrollmentsArray = Array.isArray(enrollments) ? enrollments : [];
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const getStatusBadge = (status: string) => {
     const statusText = STATUS_MAPPING[status as StatusType] || status;
@@ -222,80 +219,42 @@ export default function EnrollmentTable({
                   {getStatusBadge(enrollment.status)}
                 </td>
                 <td className="px-4 py-3 text-center">
-                  {!readOnly ? (
-                    <div className="relative inline-block">
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === enrollment.id ? null : enrollment.id)}
-                        className="p-1.5 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
-                      >
-                        <MoreVertical size={16} className="text-gray-500" />
-                      </button>
-                      {openMenuId === enrollment.id && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-9998"
-                            onClick={() => setOpenMenuId(null)}
-                          />
-                          <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-9999 min-w-44">
-                            <button
-                              onClick={() => {
-                                onView(enrollment);
-                                setOpenMenuId(null);
-                              }}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                            >
-                              <Eye size={14} />
-                              Xem chi tiết
-                            </button>
-                            {enrollment.status === "Active" && (
-                              <button
-                                onClick={() => {
-                                  onPause?.(enrollment);
-                                  setOpenMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-amber-600 hover:bg-amber-50"
-                              >
-                                <Pause size={14} />
-                                Tạm nghỉ
-                              </button>
-                            )}
-                            {enrollment.status === "Active" && (
-                              <button
-                                onClick={() => {
-                                  onDrop?.(enrollment);
-                                  setOpenMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50"
-                              >
-                                <Trash2 size={14} />
-                                Cho nghỉ
-                              </button>
-                            )}
-                            {(enrollment.status === "Paused" || enrollment.status === "Dropped") && (
-                              <button
-                                onClick={() => {
-                                  onReactivate?.(enrollment);
-                                  setOpenMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50"
-                              >
-                                <Play size={14} />
-                                Kích hoạt lại
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ) : (
+                  <div className="flex items-center justify-center gap-1.5">
                     <button
                       onClick={() => onView(enrollment)}
-                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-600 cursor-pointer"
                       title="Xem chi tiết"
                     >
-                      <Eye size={14} />
+                      <Eye size={16} />
                     </button>
-                  )}
+                    {!readOnly && enrollment.status === "Active" && (
+                      <>
+                        <button
+                          onClick={() => onPause?.(enrollment)}
+                          className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors text-gray-400 hover:text-amber-600 cursor-pointer"
+                          title="Tạm nghỉ"
+                        >
+                          <Pause size={16} />
+                        </button>
+                        <button
+                          onClick={() => onDrop?.(enrollment)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600 cursor-pointer"
+                          title="Cho nghỉ"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </>
+                    )}
+                    {!readOnly && (enrollment.status === "Paused" || enrollment.status === "Dropped") && (
+                      <button
+                        onClick={() => onReactivate?.(enrollment)}
+                        className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors text-gray-400 hover:text-emerald-600 cursor-pointer"
+                        title="Kích hoạt lại"
+                      >
+                        <Play size={16} />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

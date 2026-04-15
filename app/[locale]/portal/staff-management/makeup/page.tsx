@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   CalendarDays,
-  Search,
   ShieldCheck,
   XCircle,
   Plus,
@@ -12,7 +11,11 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
+  Search,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/lightswind/select";
 
 import {
   approveLeaveRequest,
@@ -418,6 +421,32 @@ function Banner({ kind, text }: { kind: "error" | "success"; text: string }) {
   );
 }
 
+function SortableHeader({
+  label,
+  columnKey,
+  currentSort,
+  onSort,
+}: {
+  label: string;
+  columnKey: string;
+  currentSort: { column: string; direction: "asc" | "desc" };
+  onSort: (column: string) => void;
+}) {
+  const isActive = currentSort.column === columnKey;
+  const Icon = isActive && currentSort.direction === "desc" ? ChevronDown : ChevronUp;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(columnKey)}
+      className="inline-flex items-center gap-1.5 cursor-pointer hover:text-gray-900 transition-colors"
+    >
+      <span>{label}</span>
+      <Icon size={14} className={isActive ? "text-gray-700" : "text-gray-400"} />
+    </button>
+  );
+}
+
 function StatCard({
   title,
   value,
@@ -518,6 +547,7 @@ export default function Page() {
 
   const [selectedLeaveIds, setSelectedLeaveIds] = useState<string[]>([]);
   const [openLeaveModal, setOpenLeaveModal] = useState(false);
+  const [leaveSort, setLeaveSort] = useState<{ column: string; direction: "asc" | "desc" }>({ column: "student", direction: "asc" });
 
   const [confirmAction, setConfirmAction] = useState<{
     type: "approve" | "reject";
@@ -534,6 +564,7 @@ export default function Page() {
   const [makeupCredits, setMakeupCredits] = useState<UsedMakeupCredit[]>([]);
   const [loadingMakeupCredits, setLoadingMakeupCredits] = useState(false);
   const [makeupError, setMakeupError] = useState<string | null>(null);
+  const [makeupSort, setMakeupSort] = useState<{ column: string; direction: "asc" | "desc" }>({ column: "student", direction: "asc" });
   const usedCredits = makeupCredits;
   const setUsedCredits = setMakeupCredits;
   const loadingUsedCredits = loadingMakeupCredits;
@@ -689,7 +720,7 @@ export default function Page() {
   const filteredLeave = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
-    return requestItems.filter((r) => {
+    let filtered = requestItems.filter((r) => {
       const matchesStatus = statusFilter === "Tất cả" || r.status === statusFilter;
 
       const matchesSearch =
@@ -701,7 +732,45 @@ export default function Page() {
 
       return matchesStatus && matchesSearch;
     });
-  }, [requestItems, searchQuery, statusFilter]);
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (leaveSort.column) {
+        case "student":
+          aVal = a.student.toLowerCase();
+          bVal = b.student.toLowerCase();
+          break;
+        case "parentName":
+          aVal = a.parentName.toLowerCase();
+          bVal = b.parentName.toLowerCase();
+          break;
+        case "className":
+          aVal = (a.className ?? "").toLowerCase();
+          bVal = (b.className ?? "").toLowerCase();
+          break;
+        case "status":
+          aVal = a.status.toLowerCase();
+          bVal = b.status.toLowerCase();
+          break;
+        case "requestTime":
+          aVal = new Date(a.requestTime).getTime();
+          bVal = new Date(b.requestTime).getTime();
+          break;
+        default:
+          aVal = a.student.toLowerCase();
+          bVal = b.student.toLowerCase();
+      }
+
+      if (aVal < bVal) return leaveSort.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return leaveSort.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [requestItems, searchQuery, statusFilter, leaveSort]);
 
   const pendingVisibleIds = useMemo(
     () => filteredLeave.filter((item) => item.status === statusMap.PENDING).map((item) => item.id),
@@ -710,6 +779,39 @@ export default function Page() {
 
   const allPendingVisibleSelected =
     pendingVisibleIds.length > 0 && pendingVisibleIds.every((id) => selectedLeaveIds.includes(id));
+
+  const sortedMakeupCredits = useMemo(() => {
+    const sorted = [...makeupCredits];
+    
+    sorted.sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (makeupSort.column) {
+        case "student":
+          aVal = a.student.toLowerCase();
+          bVal = b.student.toLowerCase();
+          break;
+        case "status":
+          aVal = a.status.toLowerCase();
+          bVal = b.status.toLowerCase();
+          break;
+        case "createdAt":
+          aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        default:
+          aVal = a.student.toLowerCase();
+          bVal = b.student.toLowerCase();
+      }
+
+      if (aVal < bVal) return makeupSort.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return makeupSort.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  }, [makeupCredits, makeupSort]);
 
   useEffect(() => {
     setSelectedLeaveIds((prev) =>
@@ -731,6 +833,22 @@ export default function Page() {
 
       return Array.from(new Set([...prev, ...pendingVisibleIds]));
     });
+  };
+
+  const handleLeaveSort = (column: string) => {
+    if (leaveSort.column === column) {
+      setLeaveSort({ column, direction: leaveSort.direction === "asc" ? "desc" : "asc" });
+    } else {
+      setLeaveSort({ column, direction: "asc" });
+    }
+  };
+
+  const handleMakeupSort = (column: string) => {
+    if (makeupSort.column === column) {
+      setMakeupSort({ column, direction: makeupSort.direction === "asc" ? "desc" : "asc" });
+    } else {
+      setMakeupSort({ column, direction: "asc" });
+    }
   };
 
   const handleConfirmAction = async () => {
@@ -835,86 +953,75 @@ export default function Page() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/30 to-white p-6 space-y-6">
       {/* Header */}
-      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-5 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
+            <CalendarDays size={24} className="text-white" />
+          </div>
           <div>
-            <div className="text-xl font-bold text-gray-900">Staff Management • Leave & Makeup</div>
-            <div className="mt-1 text-sm text-gray-600">
-              Quản lý đơn xin nghỉ và makeup credit theo đúng luồng role hiện tại.
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => {
-                setActiveTab("leave");
-                setOpenLeaveModal(true);
-              }}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:from-red-700 hover:to-red-800 hover:shadow-lg transition-all cursor-pointer"
-            >
-              <Plus size={16} />
-              Tạo đơn xin nghỉ
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("makeup");
-                setActionMessage("Theo tài liệu hiện tại, staff không trực tiếp dùng makeup credit.");
-              }}
-              className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
-            >
-              <Plus size={16} />
-              Xem quy tắc makeup
-            </button>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Staff Management</h1>
+            <p className="text-sm text-gray-600">Quản lý đơn xin nghỉ và makeup credit</p>
           </div>
         </div>
-
-        {/* Tabs - Updated with red theme */}
-        <div className="mt-4 flex items-center gap-2 bg-white rounded-xl border border-red-200 p-1 inline-flex">
+        <div className="flex items-center gap-2">
           <button
-            type="button"
-            onClick={() => setActiveTab("leave")}
-            className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+            onClick={() => {
+              setActiveTab("leave");
+              setOpenLeaveModal(true);
+            }}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer"
+          >
+            <Plus size={18} />
+            Tạo đơn xin nghỉ
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 bg-white rounded-xl border border-red-200 p-1 inline-flex">
+        <button
+          type="button"
+          onClick={() => setActiveTab("leave")}
+          className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+            activeTab === "leave"
+              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+              : "text-gray-600 hover:bg-red-50"
+          }`}
+        >
+          <CalendarDays size={16} />
+          Đơn xin nghỉ
+          <span
+            className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold ${
               activeTab === "leave"
-                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                : "text-gray-600 hover:bg-red-50"
+                ? "bg-white/20 text-white"
+                : "bg-red-50 text-red-700 border border-red-200"
             }`}
           >
-            <CalendarDays size={16} />
-            Đơn xin nghỉ
-            <span
-              className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold ${
-                activeTab === "leave"
-                  ? "bg-white/20 text-white"
-                  : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-            >
-              {requestItems.length}
-            </span>
-          </button>
+            {requestItems.length}
+          </span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("makeup")}
-            className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+        <button
+          type="button"
+          onClick={() => setActiveTab("makeup")}
+          className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+            activeTab === "makeup"
+              ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
+              : "text-gray-600 hover:bg-red-50"
+          }`}
+        >
+          <Clock3 size={16} />
+          Makeup credit
+          <span
+            className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold ${
               activeTab === "makeup"
-                ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                : "text-gray-600 hover:bg-red-50"
+                ? "bg-white/20 text-white"
+                : "bg-red-50 text-red-700 border border-red-200"
             }`}
           >
-            <Clock3 size={16} />
-            Makeup credit
-            <span
-              className={`ml-1 rounded-lg px-2 py-0.5 text-xs font-bold ${
-                activeTab === "makeup"
-                  ? "bg-white/20 text-white"
-                  : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-            >
-              {usedCredits.length}
-            </span>
-          </button>
-        </div>
+            {usedCredits.length}
+          </span>
+        </button>
       </div>
 
       {/* Messages */}
@@ -960,46 +1067,40 @@ export default function Page() {
 
           {/* Filters */}
           <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 p-4 shadow-sm">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="relative w-full md:max-w-md">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={16}
-                />
+            <div className="flex flex-col md:flex-row gap-3 md:items-center">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm theo học viên / phụ huynh / lớp / mã đơn..."
-                  className="h-11 w-full rounded-xl border border-red-300 bg-white pl-10 pr-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 cursor-text"
+                  placeholder="Tìm kiếm..."
+                  className="h-10 w-full rounded-xl border border-red-200 bg-white pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="h-11 rounded-xl border border-red-300 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-200 cursor-pointer"
-                >
-                  {statusOptions.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+              {/* Filters */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+                  <SelectTrigger className="w-auto min-w-max rounded-xl h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-                <button
-                  onClick={() => fetchLeaveRequests()}
-                  className="h-11 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
-                >
-                  Reload
-                </button>
                 <button
                   type="button"
                   onClick={() => setShowBulkApproveConfirm(true)}
                   disabled={selectedLeaveIds.length === 0}
-                  className="h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-sm font-semibold text-white hover:shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-10 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-sm font-semibold text-white hover:shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Duyệt hàng loạt ({selectedLeaveIds.length})
+                  Duyệt ({selectedLeaveIds.length})
                 </button>
               </div>
             </div>
@@ -1030,19 +1131,19 @@ export default function Page() {
                       />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      Học viên
+                      <SortableHeader label="Học viên" columnKey="student" currentSort={leaveSort} onSort={handleLeaveSort} />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      Phụ huynh
+                      <SortableHeader label="Phụ huynh" columnKey="parentName" currentSort={leaveSort} onSort={handleLeaveSort} />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      Lớp
+                      <SortableHeader label="Lớp" columnKey="className" currentSort={leaveSort} onSort={handleLeaveSort} />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      Thời gian
+                      <SortableHeader label="Thời gian" columnKey="requestTime" currentSort={leaveSort} onSort={handleLeaveSort} />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                      Trạng thái
+                      <SortableHeader label="Trạng thái" columnKey="status" currentSort={leaveSort} onSort={handleLeaveSort} />
                     </th>
                     <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                       Ghi chú
@@ -1140,19 +1241,9 @@ export default function Page() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Danh sách makeup credit</h2>
-                <div className="text-sm text-gray-600 mt-1">
-                  Hiển thị toàn bộ credit, trạng thái hiện tại và buổi nghỉ hoặc buổi bù liên quan.
-                </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    void fetchUsedCredits();
-                  }}
-                  className="h-11 rounded-xl border border-red-300 bg-gradient-to-r from-white to-red-50 px-4 text-sm font-semibold text-gray-700 hover:bg-red-50 transition-all cursor-pointer"
-                >
-                  Reload
-                </button>
+                
                 <div className="text-sm text-gray-600 font-medium">{usedCredits.length} credit</div>
               </div>
             </div>
@@ -1172,7 +1263,7 @@ export default function Page() {
               <thead className="bg-gradient-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Học viên
+                    <SortableHeader label="Học viên" columnKey="student" currentSort={makeupSort} onSort={handleMakeupSort} />
                   </th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
                     Buổi nghỉ
@@ -1181,10 +1272,10 @@ export default function Page() {
                     Buổi bù
                   </th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Trạng thái
+                    <SortableHeader label="Trạng thái" columnKey="status" currentSort={makeupSort} onSort={handleMakeupSort} />
                   </th>
                   <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">
-                    Tạo lúc
+                    <SortableHeader label="Tạo lúc" columnKey="createdAt" currentSort={makeupSort} onSort={handleMakeupSort} />
                   </th>
                   <th className="py-3 px-6 text-right text-sm font-semibold text-gray-700">
                     Thao tác
@@ -1194,7 +1285,7 @@ export default function Page() {
 
               <tbody className="divide-y divide-red-100">
                 {usedCredits.length > 0 ? (
-                  usedCredits.map((credit) => {
+                  sortedMakeupCredits.map((credit) => {
                     const sourceTime = credit.sourceSession?.plannedDatetime
                       ? formatDateTimeVN(credit.sourceSession.plannedDatetime)
                       : "Chưa có thời gian";

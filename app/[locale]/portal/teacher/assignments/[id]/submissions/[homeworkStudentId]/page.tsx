@@ -1715,25 +1715,6 @@ export default function TeacherSubmissionDetailPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-end">
-                    <button
-                      onClick={handleGenerateAIFeedback}
-                      disabled={aiLoading}
-                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {aiLoading ? (
-                        <>
-                          <Loader2 size={14} className="animate-spin" />
-                          Đang tạo phản hồi AI...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles size={14} />
-                          Tạo phản hồi bằng AI
-                        </>
-                      )}
-                    </button>
-                  </div>
                 </div>
               )}
 
@@ -1785,14 +1766,14 @@ export default function TeacherSubmissionDetailPage() {
                       setEditingFeedback(data.teacherFeedback || formattedAiFeedback || "");
                     }
                   }}
-                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all cursor-pointer"
                 >
                   <X size={14} /> Hủy
                 </button>
                 <button
                   onClick={handleSaveGrade}
                   disabled={isGrading}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {isGrading ? (
                     <>

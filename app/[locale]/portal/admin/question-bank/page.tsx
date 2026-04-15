@@ -424,8 +424,17 @@ export default function Page() {
 
   const rows = useMemo(() => {
     const kw = q.trim().toLowerCase();
-    let filtered = !kw ? questions : questions.filter(c =>
-      [c.id, c.content, c.course, c.branch].some(x => x?.toLowerCase().includes(kw)));
+    let filtered = questions.filter(c => {
+      // Áp dụng bộ lọc loại
+      if (typeFilter !== "ALL" && c.type !== typeFilter) return false;
+      // Áp dụng bộ lọc độ khó
+      if (difficultyFilter !== "ALL" && c.difficulty !== difficultyFilter) return false;
+      // Áp dụng bộ lọc trạng thái
+      if (statusFilter !== "ALL" && c.status !== statusFilter) return false;
+      // Áp dụng bộ lọc tìm kiếm
+      if (kw && ![c.id, c.content, c.course, c.branch].some(x => x?.toLowerCase().includes(kw))) return false;
+      return true;
+    });
     if (sortField && sortDirection) {
       filtered = [...filtered].sort((a, b) => {
         const getVal = (c: QuestionRow) => {
@@ -440,7 +449,7 @@ export default function Page() {
       });
     }
     return filtered;
-  }, [q, sortField, sortDirection, questions]);
+  }, [q, sortField, sortDirection, questions, typeFilter, difficultyFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
