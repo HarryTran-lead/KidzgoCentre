@@ -481,14 +481,18 @@ export default function StudentSchedulePage() {
                                     {event.type === "makeup" ? "Makeup" : "Regular"}
                                   </span>
                                 </div>
-                                {event.attendanceStatus && (
-                                  <div className="mt-0.5">
+                                {(event.attendanceStatus || event.attendanceStatus === "NotMarked") && (
+                                  <div className="mt-0.5 flex flex-wrap gap-0.5">
                                     <span
                                       className={`text-[9px] px-1 py-px rounded font-medium ${
                                         event.attendanceStatus === "Present"
                                           ? "bg-green-100 text-green-700"
                                           : event.attendanceStatus === "Absent"
                                           ? "bg-red-100 text-red-700"
+                                          : event.attendanceStatus === "Makeup"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : event.attendanceStatus === "NotMarked"
+                                          ? "bg-orange-100 text-orange-700"
                                           : "bg-gray-100 text-gray-600"
                                       }`}
                                     >
@@ -496,8 +500,21 @@ export default function StudentSchedulePage() {
                                         ? "Có mặt"
                                         : event.attendanceStatus === "Absent"
                                         ? "Vắng"
+                                        : event.attendanceStatus === "Makeup"
+                                        ? "Học bù"
+                                        : event.attendanceStatus === "NotMarked"
+                                        ? "Chưa điểm danh"
                                         : event.attendanceStatus}
                                     </span>
+                                    {event.absenceType && (
+                                      <span className="text-[9px] px-1 py-px rounded bg-gray-100 text-gray-500 font-medium">
+                                        {event.absenceType === "WithNotice24H" ? "Báo trước 24h"
+                                          : event.absenceType === "Under24H" ? "Báo dưới 24h"
+                                          : event.absenceType === "NoNotice" ? "Không báo"
+                                          : event.absenceType === "LongTerm" ? "Nghỉ dài hạn"
+                                          : event.absenceType}
+                                      </span>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -602,21 +619,40 @@ export default function StudentSchedulePage() {
 
                   {selectedClass.attendanceStatus && (
                     <div className="mt-2 p-3 rounded-xl bg-white/60 border border-red-100">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          selectedClass.attendanceStatus === "Present"
-                            ? "bg-green-100 text-green-700"
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            selectedClass.attendanceStatus === "Present"
+                              ? "bg-green-100 text-green-700"
+                              : selectedClass.attendanceStatus === "Absent"
+                              ? "bg-red-100 text-red-700"
+                              : selectedClass.attendanceStatus === "Makeup"
+                              ? "bg-blue-100 text-blue-700"
+                              : selectedClass.attendanceStatus === "NotMarked"
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {selectedClass.attendanceStatus === "Present"
+                            ? "Có mặt"
                             : selectedClass.attendanceStatus === "Absent"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {selectedClass.attendanceStatus === "Present"
-                          ? "Có mặt"
-                          : selectedClass.attendanceStatus === "Absent"
-                          ? "Vắng"
-                          : selectedClass.attendanceStatus}
-                      </span>
+                            ? "Vắng"
+                            : selectedClass.attendanceStatus === "Makeup"
+                            ? "Học bù"
+                            : selectedClass.attendanceStatus === "NotMarked"
+                            ? "Chưa điểm danh"
+                            : selectedClass.attendanceStatus}
+                        </span>
+                        {selectedClass.absenceType && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500 font-medium">
+                            {selectedClass.absenceType === "WithNotice24H" ? "Báo trước 24h"
+                              : selectedClass.absenceType === "Under24H" ? "Báo dưới 24h"
+                              : selectedClass.absenceType === "NoNotice" ? "Không báo"
+                              : selectedClass.absenceType === "LongTerm" ? "Nghỉ dài hạn"
+                              : selectedClass.absenceType}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
