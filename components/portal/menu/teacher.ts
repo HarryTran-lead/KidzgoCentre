@@ -15,6 +15,7 @@ import {
   User,
   BookOpenText,
   CalendarRange,
+  Image,
 } from "lucide-react";
 import { makeMenu, type RawItem, type MixedRawItem } from "./utils";
 import type { MenuItem } from "./types";
@@ -31,6 +32,7 @@ export function teacherMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.schedule, CalendarClock, "/schedule"],
     [t.subjects, BookOpenText, "/subjects"],
     [t.materials, Folder, "/materials"],
+    [t.media, Image, "/media"],
     [t.assignments, ClipboardCheck, "/assignments"],
     [t.gamification, Sparkles, "/gamification"],
     [t.attendance, CheckSquare, "/attendance"],

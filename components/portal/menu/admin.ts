@@ -10,6 +10,7 @@ import {
   Folder,
   GraduationCap,
   HelpCircle,
+  Image,
   Inbox,
   LayoutDashboard,
   Send,
@@ -45,6 +46,7 @@ export function adminMenu(root: string, locale: Locale = "vi"): MenuItem[] {
     [t.groups.ops.extracurricular, CalendarClock, "/extracurricular"],
     [t.groups.ops.documents, FileText, "/documents"],
     [t.groups.ops.teachingMaterials, Folder, "/materials"],
+    [t.groups.ops.media, Image, "/media"],
     [t.groups.ops.reportRequests, Send, "/report-requests"],
   ];
   const system: RawItem[] = [

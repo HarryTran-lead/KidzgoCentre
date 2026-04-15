@@ -1,467 +1,412 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Image as ImageIcon, Video, FileText, Download, Eye, Play, Folder, Grid3x3, List, Filter, Calendar, File, Image, Film, Search, ChevronRight, MoreVertical, Share2, Sparkles, TrendingUp, AlertCircle, Users } from "lucide-react";
-import { getParentMedia } from "@/lib/api/parentPortalService";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Image as ImageIcon,
+  Play,
+  User,
+  Users,
+  X,
+} from "lucide-react";
+import Image from "next/image";
+import { buildFileUrl } from "@/constants/apiURL";
 import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
+import { getParentMedia } from "@/lib/api/parentPortalService";
 
-type TabType = "photos" | "videos" | "documents";
+type AlbumTab = "all" | "class" | "personal";
+type MediaKind = "image" | "video";
 
-// Badge Component
-function Badge({
-  color = "gray",
-  children
-}: {
-  color?: "gray" | "red" | "black";
-  children: React.ReactNode;
-}) {
-  const colorClasses = {
-    gray: "bg-gray-100 text-gray-700 border border-gray-200",
-    red: "bg-red-50 text-red-700 border border-red-200",
-    black: "bg-gray-900 text-white border border-gray-800"
-  };
+type ParentMediaItem = {
+  id: string;
+  albumId: string;
+  title: string;
+  type: MediaKind;
+  url: string;
+  coverUrl: string;
+  date: string;
+};
 
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colorClasses[color]}`}>
-      {children}
-    </span>
-  );
+type ParentAlbum = {
+  id: string;
+  title: string;
+  date: string;
+  category: "class" | "personal";
+  coverUrl: string;
+  media: ParentMediaItem[];
+};
+
+function normalizeMediaUrl(value?: string) {
+  const url = String(value ?? "").trim();
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/api/files/serve")) return url;
+  return buildFileUrl(url);
 }
 
-export default function MediaPage() {
-  const [activeTab, setActiveTab] = useState<TabType>("photos");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [media, setMedia] = useState<{ photos: any[]; videos: any[]; documents: any[] }>({ photos: [], videos: [], documents: [] });
-  const [loading, setLoading] = useState(true);
+function isVideoAssetUrl(url?: string) {
+  if (!url) return false;
+  return /\.(mp4|mov|webm|avi|m4v|mkv)(\?|$)/i.test(url);
+}
+
+function normalizeDate(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("vi-VN");
+}
+
+function normalizeParentAlbums(payload: any): ParentAlbum[] {
+  const layer = payload?.data?.data ?? payload?.data ?? payload ?? {};
+  const source = layer?.media ?? layer;
+  const albums = Array.isArray(source?.albums)
+    ? source.albums
+    : Array.isArray(layer?.albums)
+      ? layer.albums
+      : [];
+  const items = Array.isArray(source?.items)
+    ? source.items
+    : Array.isArray(layer?.items)
+      ? layer.items
+      : [];
+
+  const mediaByAlbum = items.reduce((acc: Record<string, ParentMediaItem[]>, item: any, index: number) => {
+    const albumId = String(item.albumId ?? item.monthTag ?? item.month ?? "general");
+    const rawType = String(item.type ?? item.mediaType ?? item.contentType ?? "").toLowerCase();
+    const isVideo = rawType.includes("video") || rawType.includes("film");
+    const mediaUrl = normalizeMediaUrl(String(item.url ?? item.fileUrl ?? item.coverUrl ?? item.thumbnail ?? ""));
+    const coverUrl = normalizeMediaUrl(String(item.coverUrl ?? item.thumbnail ?? item.url ?? item.fileUrl ?? ""));
+
+    const mapped: ParentMediaItem = {
+      id: String(item.id ?? `${albumId}-${index}`),
+      albumId,
+      title: String(item.title ?? item.caption ?? "Media"),
+      type: isVideo ? "video" : "image",
+      url: mediaUrl,
+      coverUrl: coverUrl || mediaUrl,
+      date: normalizeDate(item.date ?? item.createdAt),
+    };
+
+    if (!acc[albumId]) acc[albumId] = [];
+    acc[albumId].push(mapped);
+    return acc;
+  }, {});
+
+  const mappedAlbums = albums.map((album: any) => {
+    const id = String(album.albumId ?? album.id ?? album.monthTag ?? album.month ?? "general");
+    const media = Array.isArray(album.media)
+      ? album.media.map((item: any, index: number) => ({
+          id: String(item.id ?? `${id}-${index}`),
+          albumId: id,
+          title: String(item.title ?? item.caption ?? album.title ?? "Media"),
+          type: String(item.type ?? item.mediaType ?? "").toLowerCase().includes("video") ? "video" : "image",
+          url: normalizeMediaUrl(String(item.url ?? item.fileUrl ?? item.coverUrl ?? item.thumbnail ?? "")),
+          coverUrl: normalizeMediaUrl(String(item.coverUrl ?? item.thumbnail ?? item.url ?? item.fileUrl ?? "")) || normalizeMediaUrl(String(item.url ?? item.fileUrl ?? "")),
+          date: normalizeDate(item.date ?? item.createdAt ?? album.date),
+        }))
+      : Array.isArray(album.items)
+        ? album.items.map((item: any, index: number) => ({
+            id: String(item.id ?? `${id}-${index}`),
+            albumId: id,
+            title: String(item.title ?? item.caption ?? album.title ?? "Media"),
+            type: String(item.type ?? item.mediaType ?? "").toLowerCase().includes("video") ? "video" : "image",
+            url: normalizeMediaUrl(String(item.url ?? item.fileUrl ?? item.coverUrl ?? item.thumbnail ?? "")),
+            coverUrl: normalizeMediaUrl(String(item.coverUrl ?? item.thumbnail ?? item.url ?? item.fileUrl ?? "")) || normalizeMediaUrl(String(item.url ?? item.fileUrl ?? "")),
+            date: normalizeDate(item.date ?? item.createdAt ?? album.date),
+          }))
+        : mediaByAlbum[id] ?? [];
+    const albumTypeRaw = String(album.type ?? album.albumType ?? "").toLowerCase();
+    const category: "class" | "personal" = albumTypeRaw.includes("personal") ? "personal" : "class";
+
+    return {
+      id,
+      title: String(album.title ?? "Album"),
+      date: normalizeDate(album.date),
+      category,
+      coverUrl: normalizeMediaUrl(String(album.coverUrl ?? album.coverImage ?? media[0]?.coverUrl ?? media[0]?.url ?? "")),
+      media,
+    };
+  });
+
+  const fallbackAlbums = Object.entries(mediaByAlbum).map(([id, media]) => {
+    const typedMedia = media as ParentMediaItem[];
+    return {
+      id,
+      title: id === "general" ? "Album" : id,
+      date: typedMedia[0]?.date ?? "-",
+      category: "class" as const,
+      coverUrl: typedMedia[0]?.coverUrl ?? typedMedia[0]?.url ?? "",
+      media: typedMedia,
+    };
+  });
+
+  const sourceAlbums = mappedAlbums.length > 0 ? mappedAlbums : fallbackAlbums;
+  const grouped = new Map<string, ParentAlbum>();
+
+  sourceAlbums.forEach((album: ParentAlbum) => {
+    const key = String(album.id || album.title || "general");
+    const existing = grouped.get(key);
+    if (!existing) {
+      grouped.set(key, {
+        ...album,
+        media: [...album.media],
+      });
+      return;
+    }
+
+    const mediaMap = new Map<string, ParentMediaItem>();
+    [...existing.media, ...album.media].forEach((item) => {
+      const mediaKey = String(item.id || item.url || item.coverUrl);
+      if (!mediaMap.has(mediaKey)) {
+        mediaMap.set(mediaKey, item);
+      }
+    });
+
+    const mergedMedia = Array.from(mediaMap.values());
+    grouped.set(key, {
+      ...existing,
+      title: existing.title || album.title,
+      date: existing.date !== "-" ? existing.date : album.date,
+      coverUrl: existing.coverUrl || album.coverUrl || mergedMedia[0]?.coverUrl || mergedMedia[0]?.url || "",
+      media: mergedMedia,
+    });
+  });
+
+  return Array.from(grouped.values());
+}
+
+export default function ParentMediaPage() {
   const { selectedProfile } = useSelectedStudentProfile();
+
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<AlbumTab>("all");
+  const [albums, setAlbums] = useState<ParentAlbum[]>([]);
+
+  const [activeAlbum, setActiveAlbum] = useState<ParentAlbum | null>(null);
+  const [viewerItems, setViewerItems] = useState<ParentMediaItem[]>([]);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+
+  const closeViewer = () => {
+    setViewerIndex(null);
+    setActiveAlbum(null);
+    setViewerItems([]);
+  };
+
+  useEffect(() => {
+    if (viewerIndex === null) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [viewerIndex]);
+
+  const goNext = () => {
+    setViewerIndex((prev) => {
+      if (typeof prev !== "number") return prev;
+      return prev >= viewerItems.length - 1 ? 0 : prev + 1;
+    });
+  };
+
+  const goPrev = () => {
+    setViewerIndex((prev) => {
+      if (typeof prev !== "number") return prev;
+      return prev <= 0 ? viewerItems.length - 1 : prev - 1;
+    });
+  };
 
   useEffect(() => {
     let alive = true;
     const studentProfileId = selectedProfile?.studentId ?? selectedProfile?.id;
+
+    setLoading(true);
     getParentMedia(studentProfileId ? { studentProfileId } : undefined)
-      .then((res: any) => {
+      .then((res) => {
         if (!alive) return;
-        const raw = res?.data?.data ?? res?.data ?? {};
-        setMedia({
-          photos: Array.isArray(raw.photos) ? raw.photos : [],
-          videos: Array.isArray(raw.videos) ? raw.videos : [],
-          documents: Array.isArray(raw.documents) ? raw.documents : [],
-        });
+        setAlbums(normalizeParentAlbums(res));
       })
-      .catch(() => {})
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [selectedProfile?.id]);
+      .catch(() => {
+        if (!alive) return;
+        setAlbums([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
 
-  const getFileIcon = (type: string) => {
-    if (type === "PDF") return <FileText className="w-5 h-5 text-red-600" />;
-    if (type === "DOCX") return <File className="w-5 h-5 text-gray-700" />;
-    return <FileText className="w-5 h-5 text-gray-600" />;
-  };
+    return () => {
+      alive = false;
+    };
+  }, [selectedProfile?.id, selectedProfile?.studentId]);
 
-  const formatFileSize = (size: string) => {
-    return size.replace("MB", " MB");
-  };
+  const filteredAlbums = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return albums.filter((album) => {
+      const matchTab = tab === "all" || album.category === tab;
+      const matchSearch =
+        !normalizedSearch ||
+        album.title.toLowerCase().includes(normalizedSearch) ||
+        album.media.some((item) => item.title.toLowerCase().includes(normalizedSearch));
+      return matchTab && matchSearch;
+    });
+  }, [albums, search, tab]);
 
-  const totalPhotos = media.photos.reduce((sum: number, album: any) => sum + (album.count ?? 0), 0);
-  const totalVideos = media.videos.length;
-  const totalDocuments = media.documents.length;
-  const totalDuration = media.videos.reduce((sum: number, video: any) => sum + parseInt(video.duration || "0"), 0);
+  const currentMedia = viewerItems;
+  const currentItem = viewerIndex !== null ? currentMedia[viewerIndex] : null;
+
+  useEffect(() => {
+    if (!currentItem) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeViewer();
+      if (event.key === "ArrowLeft") {
+        goPrev();
+      }
+      if (event.key === "ArrowRight") {
+        goNext();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [currentItem, currentMedia.length]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg">
-            <Folder className="text-white" size={28} />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Kho tài liệu
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Album ảnh, video và tài liệu học tập của con
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer text-gray-700">
-            <Filter size={16} className="text-gray-600" /> Lọc
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <section className="rounded-2xl border border-red-100 bg-white p-5">
+        <h1 className="text-2xl font-bold text-gray-900">Thư viện media phụ huynh</h1>
+        <p className="mt-1 text-sm text-gray-600">Xem album ảnh/video đã được duyệt và công khai cho học viên.</p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "all" ? "bg-red-600 text-white" : "border border-gray-200 text-gray-700"}`}
+            onClick={() => setTab("all")}
+          >
+            Tất cả ({albums.length})
           </button>
+          <button
+            type="button"
+            className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "class" ? "bg-red-600 text-white" : "border border-gray-200 text-gray-700"}`}
+            onClick={() => setTab("class")}
+          >
+            <span className="inline-flex items-center gap-1"><Users size={14} /> Lớp học</span>
+          </button>
+          <button
+            type="button"
+            className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "personal" ? "bg-red-600 text-white" : "border border-gray-200 text-gray-700"}`}
+            onClick={() => setTab("personal")}
+          >
+            <span className="inline-flex items-center gap-1"><User size={14} /> Cá nhân</span>
+          </button>
+          <input
+            className="ml-auto h-10 min-w-65 rounded-xl border border-gray-200 px-3 text-sm"
+            placeholder="Tìm theo tên album hoặc ảnh/video"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
         </div>
-      </div>
+      </section>
 
-      {/* Stats Cards - Redesigned with Red-Black-White theme */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Album ảnh</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{media.photos.length}</div>
-            </div>
-            <div className="p-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
-              <Image size={20} />
-            </div>
+      <section className="mt-5 rounded-2xl border border-red-100 bg-white p-5">
+        {loading ? (
+          <p className="py-10 text-center text-sm text-gray-500">Đang tải media...</p>
+        ) : filteredAlbums.length === 0 ? (
+          <p className="py-10 text-center text-sm text-gray-500">Không có album phù hợp.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredAlbums.map((album) => (
+              <article key={album.id} className="overflow-hidden rounded-2xl border border-gray-200">
+                <div className="relative h-44 bg-gray-100">
+                  {album.coverUrl ? (
+                    isVideoAssetUrl(album.coverUrl) ? (
+                      <video src={album.coverUrl} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                    ) : (
+                      <Image src={album.coverUrl} alt={album.title} fill className="object-cover" />
+                    )
+                  ) : (
+                    <div className="flex h-full items-center justify-center"><ImageIcon className="text-gray-400" size={36} /></div>
+                  )}
+                  <div className="absolute left-3 top-3 rounded-full bg-black/60 px-2 py-1 text-xs text-white">
+                    {album.media.length} mục
+                  </div>
+                </div>
+                <div className="space-y-3 p-4">
+                  <h3 className="line-clamp-1 text-base font-semibold text-gray-900">{album.title}</h3>
+                  <p className="inline-flex items-center gap-1 text-xs text-gray-500"><Calendar size={12} /> {album.date}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!album.media.length) return;
+                      setActiveAlbum(album);
+                      setViewerItems(album.media);
+                      setViewerIndex(0);
+                    }}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white"
+                  >
+                    <Eye size={14} /> Xem album
+                  </button>
+                </div>
+              </article>
+            ))}
           </div>
-          <div className="mt-4 text-xs text-gray-600 flex items-center gap-1">
-            <Users size={12} className="text-red-600" />
-            {totalPhotos} ảnh
-          </div>
-        </div>
+        )}
+      </section>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Video</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{totalVideos}</div>
-            </div>
-            <div className="p-3 rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 text-white shadow-lg">
-              <Film size={20} />
-            </div>
-          </div>
-          <div className="mt-4 text-xs text-gray-600 flex items-center gap-1">
-            <Play size={12} className="text-gray-700" />
-            {totalDuration} phút
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all cursor-pointer">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Tài liệu</div>
-              <div className="text-2xl font-bold mt-2 text-gray-900">{totalDocuments}</div>
-            </div>
-            <div className="p-3 rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 text-white shadow-lg">
-              <FileText size={20} />
-            </div>
-          </div>
-          <div className="mt-4 text-xs text-gray-600 flex items-center gap-1">
-            <TrendingUp size={12} className="text-gray-700" />
-            {totalDocuments} tệp
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Controls */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm tài liệu, album hoặc video..."
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-transparent text-gray-900"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* View Toggle */}
-          <div className="flex items-center gap-2">
-            <div className="flex bg-gray-100 rounded-xl p-1 border border-gray-200">
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  viewMode === "grid" 
-                    ? "bg-white text-red-600 shadow-sm border border-gray-200" 
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                <Grid3x3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  viewMode === "list" 
-                    ? "bg-white text-red-600 shadow-sm border border-gray-200" 
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {[
-            { key: "photos" as TabType, label: "Ảnh", icon: ImageIcon, count: media.photos.length },
-            { key: "videos" as TabType, label: "Video", icon: Video, count: media.videos.length },
-            { key: "documents" as TabType, label: "Tài liệu", icon: FileText, count: media.documents.length },
-          ].map((tab) => (
+      {currentItem && viewerIndex !== null && typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-3000 flex items-center justify-center bg-black/95 p-4" onClick={closeViewer}>
             <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === tab.key
-                  ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-              }`}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                closeViewer();
+              }}
+              className="absolute right-6 top-6 rounded-full border border-white/30 bg-black/70 p-2 text-white"
             >
-              <tab.icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                activeTab === tab.key ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
-              }`}>
-                {tab.count}
-              </span>
+              <X size={18} />
             </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Content */}
-      <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-4"}>
-        {activeTab === "photos" && (
-          <>
-            {media.photos.map((album: any) => (
-              <div
-                key={album.id}
-                className={`group relative bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300 ${
-                  viewMode === "grid" ? "h-full" : ""
-                }`}
+            <div
+              className="relative w-full max-w-4xl overflow-hidden rounded-2xl border border-white/20 bg-black/40"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={goPrev}
+                className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/30 bg-black/70 p-2 text-white"
               >
-                {/* Featured badge */}
-                {album.featured && (
-                  <div className="absolute top-3 left-3 z-10">
-                    <Badge color="red">Nổi bật</Badge>
-                  </div>
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                type="button"
+                onClick={goNext}
+                className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/30 bg-black/70 p-2 text-white"
+              >
+                <ChevronRight size={20} />
+              </button>
+
+              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
+                <div>
+                  <div className="text-sm font-semibold">{currentItem.title}</div>
+                  <div className="text-xs text-white/70">{activeAlbum?.title} • {viewerIndex + 1}/{currentMedia.length}</div>
+                </div>
+              </div>
+              <div className="flex h-[70vh] items-center justify-center bg-black/70 p-8">
+                {currentItem.type === "video" ? (
+                  <video src={currentItem.url} controls autoPlay className="max-h-full w-auto max-w-full rounded-lg object-contain" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={currentItem.url || currentItem.coverUrl} alt={currentItem.title} className="max-h-full w-auto max-w-full rounded-lg object-contain" />
                 )}
-
-                {/* Thumbnail */}
-                <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="p-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200">
-                      <ImageIcon className="w-12 h-12 text-gray-400" />
-                    </div>
-                  </div>
-                  <div className="absolute bottom-3 right-3">
-                    <span className="px-2.5 py-1 rounded-full bg-gray-900/80 text-white text-xs font-medium backdrop-blur-sm border border-gray-700">
-                      {album.count} ảnh
-                    </span>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-
-                {/* Content */}
-                <div className="p-5">
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-2">{album.title}</h3>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Calendar className="w-4 h-4 text-gray-500" />
-                        {album.date}
-                      </div>
-                      <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
-                        <MoreVertical className="w-4 h-4 text-gray-600" />
-                      </button>
-                    </div>
-
-                    {/* Tags */}
-                    {album.tags && (
-                      <div className="flex flex-wrap gap-2">
-                        {album.tags.map((tag: string, index: number) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 rounded-lg bg-gray-100 text-xs text-gray-600 border border-gray-200"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-2">
-                      <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-md transition-all cursor-pointer">
-                        <Eye className="w-4 h-4" />
-                        Xem album
-                      </button>
-                      <button className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors cursor-pointer">
-                        <Share2 className="w-4 h-4 text-gray-600" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
-            ))}
-          </>
-        )}
-
-        {activeTab === "videos" && (
-          <>
-            {media.videos.map((video: any) => (
-              <div
-                key={video.id}
-                className="group relative bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300"
-              >
-                {/* Video Thumbnail */}
-                <div className="aspect-video bg-gradient-to-br from-gray-200 to-gray-300 relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="p-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 group-hover:scale-110 transition-transform">
-                      <Play className="w-12 h-12 text-gray-500" />
-                    </div>
-                  </div>
-                  <div className="absolute bottom-3 right-3">
-                    <span className="px-2.5 py-1 rounded-full bg-gray-900/80 text-white text-xs font-medium backdrop-blur-sm border border-gray-700">
-                      {video.duration}
-                    </span>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                </div>
-
-                {/* Content */}
-                <div className="p-5">
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-2">{video.title}</h3>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Calendar className="w-4 h-4 text-gray-500" />
-                        {video.date}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Eye className="w-4 h-4 text-gray-500" />
-                        {video.views} lượt xem
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-2">
-                      <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gray-600 to-gray-700 px-4 py-2.5 text-sm font-semibold text-white hover:shadow-md transition-all cursor-pointer">
-                        <Play className="w-4 h-4" />
-                        Xem video
-                      </button>
-                      <button className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors cursor-pointer">
-                        <Download className="w-4 h-4 text-gray-600" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {activeTab === "documents" && (
-          <>
-            {media.documents.map((doc: any) => (
-              <div
-                key={doc.id}
-                className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md transition-all"
-              >
-                <div className="flex items-start gap-4">
-                  {/* File Icon */}
-                  <div className="flex-shrink-0">
-                    <div className="p-3 bg-gray-100 rounded-xl border border-gray-200">
-                      {getFileIcon(doc.type)}
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-1">{doc.title}</h3>
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-3">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4 text-gray-500" />
-                            {doc.date}
-                          </span>
-                          <span className="px-2 py-1 rounded-lg bg-gray-100 border border-gray-200">
-                            {doc.subject}
-                          </span>
-                        </div>
-                      </div>
-                      <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer self-start">
-                        <MoreVertical className="w-4 h-4 text-gray-600" />
-                      </button>
-                    </div>
-
-                    {/* File Info */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-gray-700 font-medium">{doc.type}</span>
-                        <span className="text-gray-500">{formatFileSize(doc.size)}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
-                          <Eye className="w-4 h-4 text-gray-600" />
-                          Xem
-                        </button>
-                        <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-semibold text-white hover:shadow-md transition-all cursor-pointer">
-                          <Download className="w-4 h-4" />
-                          Tải xuống
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-      </div>
-
-      {/* Empty State */}
-      {searchQuery && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
-            <Search className="w-8 h-8 text-gray-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Không tìm thấy kết quả</h3>
-          <p className="text-gray-600 max-w-md mx-auto">
-            Không có tài liệu nào phù hợp với "{searchQuery}"
-          </p>
-        </div>
-      )}
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-red-300 transition-all">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="font-semibold text-gray-900 mb-1">Lưu ý quan trọng</div>
-            <div className="text-sm text-gray-600">Tài liệu sẽ được lưu trữ trong 6 tháng kể từ ngày tải lên</div>
-          </div>
-          <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
-            <Download className="w-4 h-4 text-gray-600" />
-            Tải tất cả
-            <ChevronRight className="w-4 h-4 text-gray-600" />
-          </button>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="pt-6 border-t border-gray-200">
-        <div className="flex items-center justify-between gap-4 text-sm text-gray-600">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-red-600" />
-            <span>Cập nhật thời gian thực • Dữ liệu được cập nhật lúc 09:30</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-600"></div>
-              <span>Nổi bật</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-gray-600"></div>
-              <span>Mới cập nhật</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-gray-900"></div>
-              <span>Đã lưu trữ</span>
-            </div>
-          </div>
-        </div>
-      </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
