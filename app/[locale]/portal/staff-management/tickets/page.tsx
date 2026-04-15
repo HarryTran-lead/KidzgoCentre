@@ -10,7 +10,6 @@ import {
   Filter,
   LifeBuoy,
   MessageCircle,
-  PlusCircle,
   Search,
   Send,
   ShieldCheck,
@@ -20,11 +19,17 @@ import {
   Eye,
 } from "lucide-react";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/lightswind/select";
+import {
   getTickets,
   getTicketById,
   updateTicketStatus,
   addTicketComment,
-  type GetTicketsParams,
 } from "@/lib/api/ticketService";
 import type {
   Ticket,
@@ -95,15 +100,25 @@ function StatCard({
 }) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-      <div className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r ${color}`} />
+      <div
+        className={`absolute right-0 top-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full opacity-10 blur-xl bg-linear-to-r ${color}`}
+      />
       <div className="relative flex items-center justify-between gap-3">
-        <div className={`p-2 rounded-xl bg-linear-to-r ${color} text-white shadow-sm shrink-0`}>
+        <div
+          className={`p-2 rounded-xl bg-linear-to-r ${color} text-white shadow-sm shrink-0`}
+        >
           <Icon size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-600 truncate">{title}</div>
-          <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
-          {subtitle && <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>}
+          <div className="text-xs font-medium text-gray-600 truncate">
+            {title}
+          </div>
+          <div className="text-xl font-bold text-gray-900 leading-tight">
+            {value}
+          </div>
+          {subtitle && (
+            <div className="text-[11px] text-gray-500 truncate">{subtitle}</div>
+          )}
         </div>
       </div>
     </div>
@@ -113,15 +128,29 @@ function StatCard({
 function StatusBadge({ status }: { status: string }) {
   const display = mapStatus(status);
   const cfg: Record<DisplayStatus, { cls: string; icon: any }> = {
-    "Mới": { cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200", icon: AlertCircle },
-    "Đang xử lý": { cls: "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200", icon: Clock },
-    "Đã phản hồi": { cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200", icon: CheckCircle2 },
-    "Đã đóng": { cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200", icon: ShieldCheck },
+    Mới: {
+      cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
+      icon: AlertCircle,
+    },
+    "Đang xử lý": {
+      cls: "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200",
+      icon: Clock,
+    },
+    "Đã phản hồi": {
+      cls: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200",
+      icon: CheckCircle2,
+    },
+    "Đã đóng": {
+      cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
+      icon: ShieldCheck,
+    },
   };
   const c = cfg[display];
   const Icon = c.icon;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${c.cls}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${c.cls}`}
+    >
       <Icon size={12} />
       <span>{display}</span>
     </span>
@@ -130,14 +159,31 @@ function StatusBadge({ status }: { status: string }) {
 
 function CategoryBadge({ category }: { category: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    Homework: { label: "Bài tập", cls: "bg-gradient-to-r from-purple-50 to-violet-50 text-purple-700 border border-purple-200" },
-    Finance: { label: "Học phí", cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200" },
-    Schedule: { label: "Lịch học", cls: "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200" },
-    Tech: { label: "Kỹ thuật", cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200" },
+    Homework: {
+      label: "Bài tập",
+      cls: "bg-gradient-to-r from-purple-50 to-violet-50 text-purple-700 border border-purple-200",
+    },
+    Finance: {
+      label: "Học phí",
+      cls: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200",
+    },
+    Schedule: {
+      label: "Lịch học",
+      cls: "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200",
+    },
+    Tech: {
+      label: "Kỹ thuật",
+      cls: "bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200",
+    },
   };
-  const c = map[category] ?? { label: category, cls: "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200" };
+  const c = map[category] ?? {
+    label: category,
+    cls: "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200",
+  };
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${c.cls}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${c.cls}`}
+    >
       <Tag size={12} />
       <span>{c.label}</span>
     </span>
@@ -163,13 +209,18 @@ function TicketDetailView({
     if (!newComment.trim()) return;
     try {
       setIsSending(true);
-      const res = await addTicketComment(ticket.id, { message: newComment.trim() });
+      const res = await addTicketComment(ticket.id, {
+        message: newComment.trim(),
+      });
       if (res.isSuccess) {
         toast.success({ title: "Đã gửi phản hồi" });
         setNewComment("");
         onRefresh();
       } else {
-        toast.destructive({ title: "Lỗi", description: res.message || "Không thể gửi phản hồi" });
+        toast.destructive({
+          title: "Lỗi",
+          description: res.message || "Không thể gửi phản hồi",
+        });
       }
     } catch {
       toast.destructive({ title: "Lỗi", description: "Đã xảy ra lỗi" });
@@ -183,10 +234,16 @@ function TicketDetailView({
       setIsUpdating(true);
       const res = await updateTicketStatus(ticket.id, { status: newStatus });
       if (res.isSuccess) {
-        toast.success({ title: "Đã cập nhật trạng thái", description: `→ ${STATUS_MAP[newStatus]}` });
+        toast.success({
+          title: "Đã cập nhật trạng thái",
+          description: `→ ${STATUS_MAP[newStatus]}`,
+        });
         onRefresh();
       } else {
-        toast.destructive({ title: "Lỗi", description: res.message || "Không thể cập nhật" });
+        toast.destructive({
+          title: "Lỗi",
+          description: res.message || "Không thể cập nhật",
+        });
       }
     } catch {
       toast.destructive({ title: "Lỗi", description: "Đã xảy ra lỗi" });
@@ -211,9 +268,14 @@ function TicketDetailView({
           <div className="rounded-2xl border border-red-200 bg-white p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-bold text-gray-900 mb-1">{ticket.subject}</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">
+                  {ticket.subject}
+                </h2>
                 <div className="flex items-center gap-3 text-sm text-gray-500">
-                  <span>Mã: <span className="font-mono">{ticket.id.slice(0, 8)}</span></span>
+                  <span>
+                    Mã:{" "}
+                    <span className="font-mono">{ticket.id.slice(0, 8)}</span>
+                  </span>
                   <span>•</span>
                   <span>{fmtFull(ticket.createdAt)}</span>
                 </div>
@@ -242,7 +304,9 @@ function TicketDetailView({
             <div className="mt-4 flex items-center gap-3 text-sm text-gray-500">
               <div className="flex items-center gap-1.5">
                 <User size={14} />
-                <span>{ticket.openedByProfileName || ticket.openedByUserName}</span>
+                <span>
+                  {ticket.openedByProfileName || ticket.openedByUserName}
+                </span>
               </div>
               {ticket.assignedToUserName && (
                 <>
@@ -259,27 +323,46 @@ function TicketDetailView({
           {/* Comments */}
           <div className="rounded-2xl border border-red-200 bg-white p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <MessageCircle size={18} /> Phản hồi ({ticket.comments?.length || 0})
+              <MessageCircle size={18} /> Phản hồi (
+              {ticket.comments?.length || 0})
             </h3>
 
             {ticket.comments && ticket.comments.length > 0 ? (
               <div className="space-y-4 mb-6">
                 {ticket.comments.map((c: TicketComment) => (
-                  <div key={c.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <div
+                    key={c.id}
+                    className="bg-gray-50 rounded-xl p-4 border border-gray-100"
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="h-7 w-7 rounded-full bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white text-xs font-bold">
-                          {(c.commenterProfileName || c.commenterUserName || "?").charAt(0).toUpperCase()}
+                          {(
+                            c.commenterProfileName ||
+                            c.commenterUserName ||
+                            "?"
+                          )
+                            .charAt(0)
+                            .toUpperCase()}
                         </div>
                         <span className="text-sm font-medium text-gray-900">
                           {c.commenterProfileName || c.commenterUserName}
                         </span>
                       </div>
-                      <span className="text-xs text-gray-400">{fmtFull(c.createdAt)}</span>
+                      <span className="text-xs text-gray-400">
+                        {fmtFull(c.createdAt)}
+                      </span>
                     </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.message}</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {c.message}
+                    </p>
                     {c.attachmentUrl && (
-                      <a href={c.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                      <a
+                        href={c.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                      >
                         📎 Tệp đính kèm
                       </a>
                     )}
@@ -313,9 +396,13 @@ function TicketDetailView({
         <div className="space-y-4">
           {/* Status update */}
           <div className="rounded-2xl border border-red-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Cập nhật trạng thái</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+              Cập nhật trạng thái
+            </h3>
             <div className="grid grid-cols-1 gap-2">
-              {(["Open", "InProgress", "Resolved", "Closed"] as TicketStatus[]).map((s) => (
+              {(
+                ["Open", "InProgress", "Resolved", "Closed"] as TicketStatus[]
+              ).map((s) => (
                 <button
                   key={s}
                   onClick={() => handleStatusChange(s)}
@@ -334,15 +421,46 @@ function TicketDetailView({
 
           {/* Info */}
           <div className="rounded-2xl border border-red-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Thông tin đơn</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+              Thông tin đơn
+            </h3>
             <dl className="space-y-2.5 text-sm">
-              <div className="flex justify-between"><dt className="text-gray-500">Người gửi</dt><dd className="text-gray-900 font-medium text-right">{ticket.openedByProfileName || ticket.openedByUserName}</dd></div>
-              <div className="flex justify-between"><dt className="text-gray-500">Danh mục</dt><dd className="text-gray-900">{CATEGORY_LABELS[ticket.category] || ticket.category}</dd></div>
-              <div className="flex justify-between"><dt className="text-gray-500">Chi nhánh</dt><dd className="text-gray-900">{ticket.branchName || "—"}</dd></div>
-              <div className="flex justify-between"><dt className="text-gray-500">Lớp</dt><dd className="text-gray-900">{ticket.classTitle || ticket.classCode || "—"}</dd></div>
-              <div className="flex justify-between"><dt className="text-gray-500">Phụ trách</dt><dd className="text-gray-900">{ticket.assignedToUserName || "Chưa phân"}</dd></div>
-              <div className="flex justify-between"><dt className="text-gray-500">Tạo lúc</dt><dd className="text-gray-900">{fmtFull(ticket.createdAt)}</dd></div>
-              <div className="flex justify-between"><dt className="text-gray-500">Cập nhật</dt><dd className="text-gray-900">{fmtFull(ticket.updatedAt)}</dd></div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Người gửi</dt>
+                <dd className="text-gray-900 font-medium text-right">
+                  {ticket.openedByProfileName || ticket.openedByUserName}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Danh mục</dt>
+                <dd className="text-gray-900">
+                  {CATEGORY_LABELS[ticket.category] || ticket.category}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Chi nhánh</dt>
+                <dd className="text-gray-900">{ticket.branchName || "—"}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Lớp</dt>
+                <dd className="text-gray-900">
+                  {ticket.classTitle || ticket.classCode || "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Phụ trách</dt>
+                <dd className="text-gray-900">
+                  {ticket.assignedToUserName || "Chưa phân"}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Tạo lúc</dt>
+                <dd className="text-gray-900">{fmtFull(ticket.createdAt)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Cập nhật</dt>
+                <dd className="text-gray-900">{fmtFull(ticket.updatedAt)}</dd>
+              </div>
             </dl>
           </div>
         </div>
@@ -356,14 +474,18 @@ function TicketDetailView({
 export default function Page() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("Tất cả");
-  const [categoryFilter, setCategoryFilter] = useState("Tất cả");
+  const [statusFilter, setStatusFilter] = useState("Tất cả trạng thái");
+  const [categoryFilter, setCategoryFilter] = useState("Tất cả danh mục");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortKey, setSortKey] = useState<"subject" | "requester" | "category" | "status" | "updatedAt" | null>(null);
+  const [sortKey, setSortKey] = useState<
+    "subject" | "requester" | "category" | "status" | "updatedAt" | null
+  >(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [selectedTicket, setSelectedTicket] = useState<TicketDetail | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<TicketDetail | null>(
+    null,
+  );
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
   /* ---- Fetch list ---- */
@@ -379,13 +501,18 @@ export default function Page() {
       }
     } catch (err) {
       console.error("Error fetching tickets:", err);
-      toast.destructive({ title: "Lỗi", description: "Không thể tải danh sách ticket" });
+      toast.destructive({
+        title: "Lỗi",
+        description: "Không thể tải danh sách ticket",
+      });
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchTickets(); }, [fetchTickets]);
+  useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
 
   /* ---- Fetch detail ---- */
   const openDetail = async (id: string) => {
@@ -397,10 +524,16 @@ export default function Page() {
         setSelectedTicket(detail);
         setViewMode("detail");
       } else {
-        toast.destructive({ title: "Lỗi", description: "Không thể tải thông tin ticket" });
+        toast.destructive({
+          title: "Lỗi",
+          description: "Không thể tải thông tin ticket",
+        });
       }
     } catch {
-      toast.destructive({ title: "Lỗi", description: "Đã xảy ra lỗi khi tải ticket" });
+      toast.destructive({
+        title: "Lỗi",
+        description: "Đã xảy ra lỗi khi tải ticket",
+      });
     } finally {
       setIsLoadingDetail(false);
     }
@@ -421,20 +554,28 @@ export default function Page() {
     const total = tickets.length;
     const fresh = tickets.filter((t) => t.status === "Open").length;
     const inProg = tickets.filter((t) => t.status === "InProgress").length;
-    const done = tickets.filter((t) => t.status === "Resolved" || t.status === "Closed").length;
+    const done = tickets.filter(
+      (t) => t.status === "Resolved" || t.status === "Closed",
+    ).length;
     return { total, fresh, inProg, done };
   }, [tickets]);
 
   /* ---- Filter & sort ---- */
-  const statusOpts = ["Tất cả", "Mới", "Đang xử lý", "Đã phản hồi", "Đã đóng"];
-  const catOpts = ["Tất cả", "Homework", "Finance", "Schedule", "Tech"];
+  const statusOpts = ["Tất cả trạng thái", "Mới", "Đang xử lý", "Đã phản hồi", "Đã đóng"];
+  const catOpts = ["Tất cả danh mục", "Homework", "Finance", "Schedule", "Tech"];
 
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
-      const mS = statusFilter === "Tất cả" || mapStatus(t.status) === statusFilter;
-      const mC = categoryFilter === "Tất cả" || t.category === categoryFilter;
+      const mS =
+        statusFilter === "Tất cả trạng thái" || mapStatus(t.status) === statusFilter;
+      const mC = categoryFilter === "Tất cả danh mục" || t.category === categoryFilter;
       const q = searchQuery.trim().toLowerCase();
-      const mQ = !q || t.subject.toLowerCase().includes(q) || t.openedByUserName.toLowerCase().includes(q) || (t.openedByProfileName || "").toLowerCase().includes(q) || t.id.toLowerCase().includes(q);
+      const mQ =
+        !q ||
+        t.subject.toLowerCase().includes(q) ||
+        t.openedByUserName.toLowerCase().includes(q) ||
+        (t.openedByProfileName || "").toLowerCase().includes(q) ||
+        t.id.toLowerCase().includes(q);
       return mS && mC && mQ;
     });
   }, [tickets, statusFilter, categoryFilter, searchQuery]);
@@ -444,30 +585,53 @@ export default function Page() {
     if (!sortKey) return copy;
     const gv = (t: Ticket) => {
       switch (sortKey) {
-        case "subject": return t.subject;
-        case "requester": return t.openedByProfileName || t.openedByUserName;
-        case "category": return t.category;
-        case "status": return t.status;
-        case "updatedAt": return t.updatedAt;
-        default: return "";
+        case "subject":
+          return t.subject;
+        case "requester":
+          return t.openedByProfileName || t.openedByUserName;
+        case "category":
+          return t.category;
+        case "status":
+          return t.status;
+        case "updatedAt":
+          return t.updatedAt;
+        default:
+          return "";
       }
     };
     copy.sort((a, b) => {
-      const r = String(gv(a)).localeCompare(String(gv(b)), "vi", { numeric: true, sensitivity: "base" });
+      const r = String(gv(a)).localeCompare(String(gv(b)), "vi", {
+        numeric: true,
+        sensitivity: "base",
+      });
       return sortDir === "asc" ? r : -r;
     });
     return copy;
   }, [filtered, sortKey, sortDir]);
 
   const toggleSort = (k: NonNullable<typeof sortKey>) => {
-    setSortKey((p) => { if (p !== k) { setSortDir("asc"); return k; } setSortDir((d) => d === "asc" ? "desc" : "asc"); return p; });
+    setSortKey((p) => {
+      if (p !== k) {
+        setSortDir("asc");
+        return k;
+      }
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      return p;
+    });
   };
 
   /* ---- Detail view ---- */
   if (viewMode === "detail" && selectedTicket) {
     return (
       <div className="min-h-screen bg-linear-to-b from-red-50/30 to-white p-6">
-        <TicketDetailView ticket={selectedTicket} onBack={() => { setViewMode("list"); setSelectedTicket(null); }} onRefresh={refreshDetail} />
+        <TicketDetailView
+          ticket={selectedTicket}
+          onBack={() => {
+            setViewMode("list");
+            setSelectedTicket(null);
+          }}
+          onRefresh={refreshDetail}
+        />
       </div>
     );
   }
@@ -482,8 +646,13 @@ export default function Page() {
             <LifeBuoy size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Ticket hỗ trợ</h1>
-            <p className="text-sm text-gray-600 mt-1">Quản lý phản hồi phụ huynh/học viên, phân tuyến cho giáo viên và staff</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              Ticket hỗ trợ
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Quản lý phản hồi phụ huynh/học viên, phân tuyến cho giáo viên và
+              staff
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -498,59 +667,83 @@ export default function Page() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Tổng ticket" value={String(stats.total)} subtitle="Trong danh sách" icon={LifeBuoy} color="from-red-600 to-red-700" />
-        <StatCard title="Ticket mới" value={String(stats.fresh)} subtitle="Cần tiếp nhận" icon={AlertCircle} color="from-amber-500 to-orange-500" />
-        <StatCard title="Đang xử lý" value={String(stats.inProg)} subtitle="Đang theo dõi" icon={Clock} color="from-blue-500 to-cyan-500" />
-        <StatCard title="Đã phản hồi" value={String(stats.done)} subtitle="Hoàn tất phản hồi" icon={CheckCircle2} color="from-emerald-500 to-teal-500" />
+        <StatCard
+          title="Tổng ticket"
+          value={String(stats.total)}
+          subtitle="Trong danh sách"
+          icon={LifeBuoy}
+          color="from-red-600 to-red-700"
+        />
+        <StatCard
+          title="Ticket mới"
+          value={String(stats.fresh)}
+          subtitle="Cần tiếp nhận"
+          icon={AlertCircle}
+          color="from-amber-500 to-orange-500"
+        />
+        <StatCard
+          title="Đang xử lý"
+          value={String(stats.inProg)}
+          subtitle="Đang theo dõi"
+          icon={Clock}
+          color="from-blue-500 to-cyan-500"
+        />
+        <StatCard
+          title="Đã phản hồi"
+          value={String(stats.done)}
+          subtitle="Hoàn tất phản hồi"
+          icon={CheckCircle2}
+          color="from-emerald-500 to-teal-500"
+        />
       </div>
 
       {/* Filter */}
       <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-500" />
-              <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          <div className="relative flex-1 lg:flex-1">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm theo mã, tiêu đề, người gửi..."
+              className="w-full h-10 rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text"
+            />
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter size={16} className="text-gray-500 shrink-0" />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-auto min-w-[140px] rounded-xl h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
                 {statusOpts.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setStatusFilter(s)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
-                      statusFilter === s
-                        ? "border-red-300 bg-red-600 text-white"
-                        : "border-red-200 bg-white text-gray-700 hover:bg-red-50"
-                    }`}
-                  >
+                  <SelectItem key={s} value={s}>
                     {s}
-                  </button>
+                  </SelectItem>
                 ))}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-auto min-w-[140px] rounded-xl h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
               {catOpts.map((c) => {
                 const label = c === "Tất cả" ? c : CATEGORY_LABELS[c] || c;
                 return (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setCategoryFilter(c)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${
-                      categoryFilter === c
-                        ? "border-red-300 bg-red-600 text-white"
-                        : "border-red-200 bg-white text-gray-700 hover:bg-red-50"
-                    }`}
-                  >
+                  <SelectItem key={c} value={c}>
                     {label}
-                  </button>
+                  </SelectItem>
                 );
               })}
-            </div>
-          </div>
-          <div className="relative">
-            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Tìm theo mã, tiêu đề, người gửi..." className="h-10 w-72 rounded-xl border border-red-300 bg-white pl-10 pr-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 cursor-text" />
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          </div>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -558,8 +751,12 @@ export default function Page() {
       <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
         <div className="bg-linear-to-r from-red-50 to-red-100/30 border-b border-red-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách ticket</h2>
-            <div className="text-sm text-gray-600 font-medium">{sorted.length} ticket</div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Danh sách ticket
+            </h2>
+            <div className="text-sm text-gray-600 font-medium">
+              {sorted.length} ticket
+            </div>
           </div>
         </div>
 
@@ -575,50 +772,95 @@ export default function Page() {
             <table className="w-full">
               <thead className="bg-linear-to-r from-red-500/5 to-red-700/5 border-b border-red-200">
                 <tr>
-                  {([
-                    ["subject", "Ticket"],
-                    ["requester", "Người gửi"],
-                    ["category", "Nhóm xử lý"],
-                    ["status", "Trạng thái"],
-                    ["updatedAt", "Cập nhật"],
-                  ] as const).map(([key, label]) => (
+                  {(
+                    [
+                      ["subject", "Ticket"],
+                      ["requester", "Người gửi"],
+                      ["category", "Nhóm xử lý"],
+                      ["status", "Trạng thái"],
+                      ["updatedAt", "Cập nhật"],
+                    ] as const
+                  ).map(([key, label]) => (
                     <th key={key} className="py-3 px-6 text-left">
-                      <button type="button" onClick={() => toggleSort(key)} className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer">
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(key)}
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-700 cursor-pointer"
+                      >
                         {label}
-                        <ArrowUpDown size={14} className={sortKey === key ? "text-red-600" : "text-gray-400"} />
+                        <ArrowUpDown
+                          size={14}
+                          className={
+                            sortKey === key ? "text-red-600" : "text-gray-400"
+                          }
+                        />
                       </button>
                     </th>
                   ))}
-                  <th className="py-3 px-6 text-left"><span className="text-sm font-semibold text-gray-700">Thao tác</span></th>
+                  <th className="py-3 px-6 text-left">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Thao tác
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-100">
-                {sorted.length > 0 ? sorted.map((t) => (
-                  <tr key={t.id} className="group hover:bg-linear-to-r hover:from-red-50/50 hover:to-white transition-all duration-200">
-                    <td className="py-4 px-6">
-                      <div className="font-medium text-gray-900">{t.subject}</div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        <div className="h-7 w-7 rounded-lg bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white text-xs font-bold"><User size={14} /></div>
-                        <div className="text-sm font-medium text-gray-900">{t.openedByProfileName || t.openedByUserName}</div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6"><CategoryBadge category={t.category} /></td>
-                    <td className="py-4 px-6"><StatusBadge status={t.status} /></td>
-                    <td className="py-4 px-6"><div className="text-sm text-gray-700">{fmtDate(t.updatedAt)}</div></td>
-                    <td className="py-4 px-6">
-                      <button onClick={() => openDetail(t.id)} disabled={isLoadingDetail} className="p-1.5 rounded-lg border border-red-300 bg-linear-to-r from-white to-red-50 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50" title="Xem chi tiết">
-                        <Eye size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                )) : (
+                {sorted.length > 0 ? (
+                  sorted.map((t) => (
+                    <tr
+                      key={t.id}
+                      className="group hover:bg-linear-to-r hover:from-red-50/50 hover:to-white transition-all duration-200"
+                    >
+                      <td className="py-4 px-6">
+                        <div className="font-medium text-gray-900">
+                          {t.subject}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-lg bg-linear-to-r from-red-600 to-red-700 flex items-center justify-center text-white text-xs font-bold">
+                            <User size={14} />
+                          </div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {t.openedByProfileName || t.openedByUserName}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <CategoryBadge category={t.category} />
+                      </td>
+                      <td className="py-4 px-6">
+                        <StatusBadge status={t.status} />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="text-sm text-gray-700">
+                          {fmtDate(t.updatedAt)}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <button
+                          onClick={() => openDetail(t.id)}
+                          disabled={isLoadingDetail}
+                          className="p-1.5 rounded-lg border border-red-300 bg-linear-to-r from-white to-red-50 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50"
+                          title="Xem chi tiết"
+                        >
+                          <Eye size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
                     <td colSpan={6} className="py-12 text-center">
-                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-red-100 to-red-200 flex items-center justify-center"><Search size={24} className="text-red-400" /></div>
-                      <div className="text-gray-600 font-medium">Không có ticket phù hợp</div>
-                      <div className="text-sm text-gray-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa</div>
+                      <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-linear-to-r from-red-100 to-red-200 flex items-center justify-center">
+                        <Search size={24} className="text-red-400" />
+                      </div>
+                      <div className="text-gray-600 font-medium">
+                        Không có ticket phù hợp
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        Thử thay đổi bộ lọc hoặc từ khóa
+                      </div>
                     </td>
                   </tr>
                 )}

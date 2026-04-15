@@ -180,7 +180,7 @@ export default function EnrollmentFormModal({
   const selectedStudentDisplay = selectedStudent ? selectedStudent.fullName : "";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
         {/* Header - Gradient đỏ như modal mẫu */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">

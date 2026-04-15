@@ -1516,11 +1516,7 @@ export default function PauseEnrollmentWorkspace({ context }: Props) {
         ) : null}
       </div>
 
-      {!selectedRequest && filteredRequests.length ? (
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-white to-red-50/30 px-6 py-5 text-sm text-gray-500 shadow-sm transition-all duration-700 delay-200">
-          Bấm <span className="font-semibold text-gray-900">Chi tiết</span> để mở popup xem hồ sơ bảo lưu và xử lý outcome ngay trong modal.
-        </div>
-      ) : null}
+     
 
       <RequestDetailModal
         request={selectedRequest}
