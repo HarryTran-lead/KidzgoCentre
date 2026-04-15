@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { usePathname } from "next/navigation";
 import {
   UserRound,
   Mail,
@@ -13,6 +14,7 @@ import {
   Building2,
   CheckCircle,
   XCircle,
+  AlertCircle,
   Sparkles,
   KeyRound,
   User,
@@ -27,11 +29,23 @@ import {
   Award,
   Users,
 } from "lucide-react";
-import { getUserMe, updateUserMe, changePassword, uploadAvatar } from "@/lib/api/authService";
-import type { UserMeResponse } from "@/types/auth";
+import {
+  getUserMe,
+  updateUserMe,
+  changePassword,
+  verifyParentPin,
+  changePin,
+  requestPinReset,
+} from "@/lib/api/authService";
+import { uploadAvatar, isUploadSuccess } from "@/lib/api/fileService";
+import { buildFileUrl } from "@/constants/apiURL";
+import type { UserMeResponse, UserProfile } from "@/types/auth";
 import { toast } from "@/hooks/use-toast";
+import { emitCurrentUserUpdated } from "@/hooks/useCurrentUser";
+import { normalizeRole } from "@/lib/role";
 
-type Tab = "info" | "password" | "preferences";
+type Tab = "info" | "password" | "preferences" | "pin";
+type PinMode = "idle" | "set" | "change" | "forgot-email";
 
 const ROLE_LABEL: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   Admin: { label: "Quản trị viên", color: "bg-purple-100 text-purple-700 border-purple-200", icon: <ShieldCheck size={12} /> },
@@ -42,11 +56,89 @@ const ROLE_LABEL: Record<string, { label: string; color: string; icon: React.Rea
   Parent: { label: "Phụ huynh", color: "bg-rose-100 text-rose-700 border-rose-200", icon: <Users size={12} /> },
 };
 
+const hasExplicitFailure = (response: any): boolean => {
+  return Boolean(response && (response.success === false || response.isSuccess === false));
+};
+
+const unwrapApiData = <T,>(response: any): T | null => {
+  if (!response || hasExplicitFailure(response)) return null;
+  const level1 = response?.data ?? response;
+  const level2 = level1?.data ?? level1;
+  return (level2 ?? null) as T | null;
+};
+
+const toViErrorMessage = (message?: string, fallback = "Có lỗi xảy ra") => {
+  const raw = (message || "").trim();
+  if (!raw) return fallback;
+  const normalized = raw.toLowerCase();
+
+  if (normalized.includes("current password") && normalized.includes("incorrect")) {
+    return "Mật khẩu hiện tại không đúng.";
+  }
+  if (normalized.includes("pin is incorrect") || normalized.includes("incorrect pin")) {
+    return "Mã PIN không đúng.";
+  }
+  if (normalized.includes("users.invalidcurrentpassword")) {
+    return "Mật khẩu hiện tại không đúng.";
+  }
+  if (normalized.includes("request failed with status code")) {
+    return fallback;
+  }
+
+  return raw;
+};
+
+const findParentProfile = (profiles?: UserProfile[]): UserProfile | undefined => {
+  return profiles?.find((profile) => profile.profileType === "Parent");
+};
+
+const getEffectiveRole = (rawRole?: string): string | null => {
+  const value = (rawRole || "").trim();
+  if (!value) return null;
+  try {
+    return normalizeRole(value);
+  } catch {
+    return value;
+  }
+};
+
+const getPortalRoleFromPathname = (pathname?: string): string | null => {
+  const path = (pathname || "").replace(/^\/(vi|en)(?=\/|$)/, "");
+  if (path.startsWith("/portal/admin")) return "Admin";
+  if (path.startsWith("/portal/staff-management")) return "Staff_Manager";
+  if (path.startsWith("/portal/staff-accountant")) return "Staff_Accountant";
+  if (path.startsWith("/portal/teacher")) return "Teacher";
+  if (path.startsWith("/portal/student")) return "Student";
+  if (path.startsWith("/portal/parent")) return "Parent";
+  return null;
+};
+
+const getApiErrorMessage = (error: any, fallback = "Có lỗi xảy ra") => {
+  const payload = error?.response?.data;
+  return toViErrorMessage(
+    payload?.detail ?? payload?.message ?? payload?.data?.message ?? payload?.title ?? error?.message,
+    fallback
+  );
+};
+
 export default function UserProfileWorkspace() {
+  const pathname = usePathname();
+  const portalRole = useMemo(() => getPortalRoleFromPathname(pathname), [pathname]);
+
   const [tab, setTab] = useState<Tab>("info");
   const [user, setUser] = useState<UserMeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [avatarVersion, setAvatarVersion] = useState<number>(Date.now());
+  const [isParentRole, setIsParentRole] = useState(false);
+
+  // Parent PIN state
+  const [pinMode, setPinMode] = useState<PinMode>("idle");
+  const [hasPinSetup, setHasPinSetup] = useState(false);
+  const [parentProfileId, setParentProfileId] = useState("");
+  const [pinForm, setPinForm] = useState({ pin: "", currentPin: "", newPin: "", confirmPin: "" });
+  const [pinMsg, setPinMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [pinLoading, setPinLoading] = useState(false);
 
   // Edit info state
   const [fullName, setFullName] = useState("");
@@ -76,26 +168,83 @@ export default function UserProfileWorkspace() {
     sms: false,
   });
 
+  const applyUserState = (nextUser: UserMeResponse) => {
+    const normalizedRole = getEffectiveRole(nextUser.role);
+    const resolvedRole = portalRole ?? normalizedRole;
+    const normalizedUser = {
+      ...nextUser,
+      fullName: (nextUser as any).fullName ?? (nextUser as any).name ?? "",
+      avatarUrl: (nextUser as any).avatarUrl ?? (nextUser as any).avatar ?? undefined,
+    } as UserMeResponse;
+
+    const selectedStudentProfile =
+      normalizedUser.selectedProfile?.profileType === "Student"
+        ? normalizedUser.selectedProfile
+        : normalizedUser.profiles?.find((profile) => profile.profileType === "Student");
+    const preferredFullName =
+      resolvedRole === "Student" && selectedStudentProfile?.displayName
+        ? selectedStudentProfile.displayName
+        : normalizedUser.fullName ?? "";
+
+    setUser(normalizedUser);
+    setFullName(preferredFullName);
+    setEmail(normalizedUser.email ?? "");
+    setPhoneNumber(normalizedUser.phoneNumber ?? "");
+
+    const parentProfile = findParentProfile(normalizedUser.profiles);
+    const parentDetected = resolvedRole === "Parent";
+
+    setIsParentRole(parentDetected);
+
+    if (parentDetected && parentProfile?.id) {
+      setParentProfileId(parentProfile.id);
+      setHasPinSetup(Boolean(parentProfile.hasPinSetup));
+    } else {
+      setParentProfileId("");
+      setHasPinSetup(false);
+      setPinMode("idle");
+      setPinMsg(null);
+    }
+
+    setTab((prev) => {
+      if (parentDetected && prev === "preferences") return "info";
+      if (!parentDetected && prev === "pin") return "info";
+      return prev;
+    });
+  };
+
   useEffect(() => {
+    let alive = true;
+
     const fetchUser = async () => {
       try {
-        const res = await getUserMe();
-        if ((res.success || res.isSuccess) && res.data) {
-          setUser(res.data);
-          setFullName(res.data.fullName ?? "");
-          setEmail(res.data.email ?? "");
-          setPhoneNumber(res.data.phoneNumber ?? "");
-        } else {
-          toast({ title: "Lỗi", description: res.message || "Không thể tải thông tin", variant: "destructive" });
+        const response = await getUserMe();
+        if (hasExplicitFailure(response)) {
+          throw new Error(toViErrorMessage(response?.message, "Không thể tải thông tin"));
         }
-      } catch {
-        toast({ title: "Lỗi", description: "Có lỗi xảy ra khi tải thông tin", variant: "destructive" });
+
+        const meData = unwrapApiData<UserMeResponse>(response);
+        if (!meData) {
+          throw new Error("Không thể tải thông tin người dùng");
+        }
+
+        if (!alive) return;
+        applyUserState(meData);
+      } catch (error: any) {
+        if (!alive) return;
+        toast({ title: "Lỗi", description: getApiErrorMessage(error, "Có lỗi xảy ra khi tải thông tin"), variant: "destructive" });
       } finally {
+        if (!alive) return;
         setIsLoading(false);
         setIsPageLoaded(true);
       }
     };
+
     fetchUser();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const handleSaveInfo = async () => {
@@ -105,20 +254,33 @@ export default function UserProfileWorkspace() {
     }
     try {
       setIsSavingInfo(true);
-      const res = await updateUserMe({ 
-        fullName: fullName.trim(), 
-        email: email.trim(), 
+      const response = await updateUserMe({
+        fullName: fullName.trim(),
+        email: email.trim(),
         phoneNumber: phoneNumber.trim(),
-
       });
-      if (res.success || res.isSuccess) {
-        if (res.data) setUser(res.data);
-        toast({ title: "Thành công", description: "Đã cập nhật thông tin cá nhân", variant: "success" });
-      } else {
-        toast({ title: "Lỗi", description: res.message || "Không thể cập nhật thông tin", variant: "destructive" });
+
+      if (hasExplicitFailure(response)) {
+        toast({
+          title: "Lỗi",
+          description: toViErrorMessage(response?.message, "Không thể cập nhật thông tin"),
+          variant: "destructive",
+        });
+        return;
       }
-    } catch {
-      toast({ title: "Lỗi", description: "Có lỗi xảy ra khi cập nhật", variant: "destructive" });
+
+      const updatedUser = unwrapApiData<UserMeResponse>(response);
+      if (updatedUser && typeof updatedUser === "object") {
+        applyUserState(updatedUser);
+      } else {
+        const meResponse = await getUserMe();
+        const latestUser = unwrapApiData<UserMeResponse>(meResponse);
+        if (latestUser) applyUserState(latestUser);
+      }
+
+      toast({ title: "Thành công", description: "Đã cập nhật thông tin cá nhân", variant: "success" });
+    } catch (error: any) {
+      toast({ title: "Lỗi", description: getApiErrorMessage(error, "Có lỗi xảy ra khi cập nhật"), variant: "destructive" });
     } finally {
       setIsSavingInfo(false);
     }
@@ -139,17 +301,23 @@ export default function UserProfileWorkspace() {
     }
     try {
       setIsSavingPassword(true);
-      const res = await changePassword({ currentPassword, newPassword });
-      if (res.success || res.isSuccess) {
-        toast({ title: "Thành công", description: "Đã đổi mật khẩu thành công", variant: "success" });
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      } else {
-        toast({ title: "Lỗi", description: res.message || "Không thể đổi mật khẩu", variant: "destructive" });
+      const response = await changePassword({ currentPassword, newPassword });
+
+      if (hasExplicitFailure(response)) {
+        toast({
+          title: "Lỗi",
+          description: toViErrorMessage(response?.message, "Không thể đổi mật khẩu"),
+          variant: "destructive",
+        });
+        return;
       }
-    } catch {
-      toast({ title: "Lỗi", description: "Có lỗi xảy ra khi đổi mật khẩu", variant: "destructive" });
+
+      toast({ title: "Thành công", description: "Đã đổi mật khẩu thành công", variant: "success" });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast({ title: "Lỗi", description: getApiErrorMessage(error, "Không thể đổi mật khẩu"), variant: "destructive" });
     } finally {
       setIsSavingPassword(false);
     }
@@ -177,23 +345,155 @@ export default function UserProfileWorkspace() {
 
     try {
       setIsUploadingAvatar(true);
-      const res = await uploadAvatar(file);
-      if (res.success || res.isSuccess) {
+      const response = await uploadAvatar(file);
+      if (isUploadSuccess(response)) {
+        emitCurrentUserUpdated({ avatarUrl: response.url });
         toast({ title: "Thành công", description: "Đã cập nhật ảnh đại diện", variant: "success" });
-        const userRes = await getUserMe();
-        if ((userRes.success || userRes.isSuccess) && userRes.data) {
-          setUser(userRes.data);
+
+        setAvatarVersion(Date.now());
+
+        const meResponse = await getUserMe();
+        if (!hasExplicitFailure(meResponse)) {
+          const latestUser = unwrapApiData<UserMeResponse>(meResponse);
+          if (latestUser) {
+            applyUserState(latestUser);
+            emitCurrentUserUpdated({
+              avatarUrl: (latestUser as any)?.avatarUrl ?? (latestUser as any)?.avatar ?? response.url,
+              fullName: latestUser.fullName,
+            });
+          }
         }
+
+        setAvatarPreview(null);
       } else {
-        toast({ title: "Lỗi", description: res.message || "Không thể cập nhật ảnh đại diện", variant: "destructive" });
+        const message = toViErrorMessage(
+          response?.detail || response?.error || response?.title,
+          "Không thể cập nhật ảnh đại diện"
+        );
+        toast({ title: "Lỗi", description: message, variant: "destructive" });
         setAvatarPreview(null);
       }
-    } catch {
-      toast({ title: "Lỗi", description: "Có lỗi xảy ra khi cập nhật ảnh đại diện", variant: "destructive" });
+    } catch (error: any) {
+      const message = getApiErrorMessage(error, "Có lỗi xảy ra khi cập nhật ảnh đại diện");
+      toast({ title: "Lỗi", description: message, variant: "destructive" });
       setAvatarPreview(null);
     } finally {
       setIsUploadingAvatar(false);
       if (e.target) e.target.value = "";
+    }
+  };
+
+  const handleSetPin = async () => {
+    if (!parentProfileId) {
+      setPinMsg({ type: "error", text: "Không tìm thấy hồ sơ phụ huynh để xác thực PIN" });
+      return;
+    }
+    if (!pinForm.pin || pinForm.pin.length < 4) {
+      setPinMsg({ type: "error", text: "PIN phải có ít nhất 4 chữ số" });
+      return;
+    }
+    if (!/^\d+$/.test(pinForm.pin)) {
+      setPinMsg({ type: "error", text: "PIN chỉ được chứa số" });
+      return;
+    }
+
+    setPinLoading(true);
+    setPinMsg(null);
+
+    try {
+      const response = await verifyParentPin({ profileId: parentProfileId, pin: pinForm.pin });
+
+      if (hasExplicitFailure(response)) {
+        const message = toViErrorMessage(response?.message, "Xác thực PIN thất bại");
+        setPinMsg({ type: "error", text: message });
+        toast({ title: "Lỗi", description: message, variant: "destructive" });
+        return;
+      }
+
+      setHasPinSetup(true);
+      setPinMode("idle");
+      setPinForm({ pin: "", currentPin: "", newPin: "", confirmPin: "" });
+      setPinMsg({ type: "success", text: "Đã xác thực mã PIN thành công" });
+      toast({ title: "Thành công", description: "Đã xác thực mã PIN", variant: "success" });
+    } catch (error: any) {
+      const message = toViErrorMessage(error?.response?.data?.detail ?? error?.response?.data?.message, "Xác thực PIN thất bại");
+      setPinMsg({ type: "error", text: message });
+      toast({ title: "Lỗi", description: message, variant: "destructive" });
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handleChangePin = async () => {
+    if (!pinForm.currentPin || !pinForm.newPin || !pinForm.confirmPin) {
+      setPinMsg({ type: "error", text: "Vui lòng nhập đầy đủ thông tin PIN" });
+      return;
+    }
+
+    if (pinForm.newPin !== pinForm.confirmPin) {
+      setPinMsg({ type: "error", text: "PIN xác nhận không khớp" });
+      return;
+    }
+
+    if (!/^\d+$/.test(pinForm.newPin)) {
+      setPinMsg({ type: "error", text: "PIN chỉ được chứa số" });
+      return;
+    }
+
+    setPinLoading(true);
+    setPinMsg(null);
+
+    try {
+      const response = await changePin({ currentPin: pinForm.currentPin, newPin: pinForm.newPin });
+
+      if (hasExplicitFailure(response)) {
+        const message = toViErrorMessage(response?.message, "Đổi PIN thất bại");
+        setPinMsg({ type: "error", text: message });
+        toast({ title: "Lỗi", description: message, variant: "destructive" });
+        return;
+      }
+
+      setPinMode("idle");
+      setPinForm({ pin: "", currentPin: "", newPin: "", confirmPin: "" });
+      setPinMsg({ type: "success", text: "Đã đổi mã PIN thành công" });
+      toast({ title: "Thành công", description: "Đã đổi mã PIN", variant: "success" });
+    } catch (error: any) {
+      const message = toViErrorMessage(error?.response?.data?.detail ?? error?.response?.data?.message, "Đổi PIN thất bại");
+      setPinMsg({ type: "error", text: message });
+      toast({ title: "Lỗi", description: message, variant: "destructive" });
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handleForgotPinEmail = async () => {
+    if (!parentProfileId) {
+      setPinMsg({ type: "error", text: "Không tìm thấy hồ sơ phụ huynh để khôi phục PIN" });
+      return;
+    }
+
+    setPinLoading(true);
+    setPinMsg(null);
+
+    try {
+      const response = await requestPinReset({ profileId: parentProfileId });
+
+      if (hasExplicitFailure(response)) {
+        const message = toViErrorMessage(response?.message, "Khôi phục PIN thất bại");
+        setPinMsg({ type: "error", text: message });
+        toast({ title: "Lỗi", description: message, variant: "destructive" });
+        return;
+      }
+
+      setPinMode("idle");
+      setPinMsg({ type: "success", text: "Đã gửi link đặt lại PIN qua email. Vui lòng kiểm tra hộp thư." });
+      toast({ title: "Thành công", description: "Đã gửi link khôi phục PIN qua email", variant: "success" });
+    } catch (error: any) {
+      const message = toViErrorMessage(error?.response?.data?.detail ?? error?.response?.data?.message, "Khôi phục PIN thất bại");
+      setPinMsg({ type: "error", text: message });
+      toast({ title: "Lỗi", description: message, variant: "destructive" });
+    } finally {
+      setPinLoading(false);
     }
   };
 
@@ -211,8 +511,14 @@ export default function UserProfileWorkspace() {
     );
   }
 
-  const avatarLetter = (user?.fullName ?? user?.userName ?? "?")[0]?.toUpperCase() ?? "?";
-  const roleInfo = ROLE_LABEL[user?.role ?? ""] ?? { label: user?.role ?? "", color: "bg-gray-100 text-gray-700 border-gray-200", icon: null };
+  const avatarLetter = (fullName ?? user?.fullName ?? user?.userName ?? "?")[0]?.toUpperCase() ?? "?";
+  const effectiveRole = portalRole ?? getEffectiveRole(user?.role);
+  const roleInfo = ROLE_LABEL[effectiveRole ?? ""] ?? {
+    label: user?.role ?? "",
+    color: "bg-gray-100 text-gray-700 border-gray-200",
+    icon: null,
+  };
+  const avatarSrc = user?.avatarUrl ? buildFileUrl(user.avatarUrl) : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-4 md:p-8">
@@ -241,11 +547,6 @@ export default function UserProfileWorkspace() {
                   <Sparkles size={14} className="text-red-500" />
                   Quản lý thông tin cá nhân và bảo mật tài khoản
                 </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200">
-                <span className="text-xs text-gray-500">Đã kết nối</span>
               </div>
             </div>
           </div>
@@ -280,8 +581,12 @@ export default function UserProfileWorkspace() {
                     >
                       {avatarPreview ? (
                         <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
-                      ) : user?.avatarUrl ? (
-                        <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : avatarSrc ? (
+                        <img
+                          src={`${avatarSrc}${avatarSrc.includes("?") ? "&" : "?"}v=${avatarVersion}`}
+                          alt="Avatar"
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         avatarLetter
                       )}
@@ -302,7 +607,7 @@ export default function UserProfileWorkspace() {
 
                 <div className="text-center">
                   <h2 className="text-xl font-bold text-gray-900">
-                    {user?.fullName || user?.userName}
+                    {fullName || user?.fullName || user?.userName}
                   </h2>
                   <p className="text-sm text-gray-500 mt-0.5">{user?.email}</p>
                 </div>
@@ -330,21 +635,6 @@ export default function UserProfileWorkspace() {
                     }
                   </span>
                 </div>
-
-                {/* Stats */}
-                <div className="mt-6 pt-4 border-t border-gray-100">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-900">1</p>
-                      <p className="text-xs text-gray-500">Khóa học</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-900">0</p>
-                      <p className="text-xs text-gray-500">Chứng chỉ</p>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Account meta */}
                 {user?.userName && (
                   <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
@@ -401,12 +691,25 @@ export default function UserProfileWorkspace() {
                 icon={<KeyRound size={16} />}
                 label="Đổi mật khẩu"
               />
-              <TabButton
-                active={tab === "preferences"}
-                onClick={() => setTab("preferences")}
-                icon={<Bell size={16} />}
-                label="Cài đặt"
-              />
+              {isParentRole ? (
+                <TabButton
+                  active={tab === "pin"}
+                  onClick={() => {
+                    setTab("pin");
+                    setPinMode("idle");
+                    setPinMsg(null);
+                  }}
+                  icon={<KeyRound size={16} />}
+                  label="Mã PIN"
+                />
+              ) : (
+                <TabButton
+                  active={tab === "preferences"}
+                  onClick={() => setTab("preferences")}
+                  icon={<Bell size={16} />}
+                  label="Cài đặt"
+                />
+              )}
             </div>
 
             {/* Tab panels */}
@@ -567,7 +870,189 @@ export default function UserProfileWorkspace() {
               </div>
             )}
 
-            {tab === "preferences" && (
+            {isParentRole && tab === "pin" && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-xl p-6 md:p-8 space-y-6 transition-all duration-300 hover:shadow-2xl">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+                  <div className="p-2.5 bg-gradient-to-br from-red-50 to-red-100 rounded-xl">
+                    <KeyRound size={18} className="text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Quản lý mã PIN</h3>
+                    <p className="text-sm text-gray-500">PIN chỉ áp dụng cho tài khoản phụ huynh</p>
+                  </div>
+                  <div className="ml-auto">
+                    {hasPinSetup ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
+                        <CheckCircle size={12} /> Đã xác thực
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">
+                        <AlertCircle size={12} /> Chưa xác thực
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {pinMsg && (
+                  <div className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
+                    pinMsg.type === "success"
+                      ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                      : "bg-rose-50 border border-rose-200 text-rose-700"
+                  }`}>
+                    {pinMsg.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                    {pinMsg.text}
+                  </div>
+                )}
+
+                {pinMode === "idle" && (
+                  <div className="space-y-3">
+                    {!hasPinSetup ? (
+                      <button
+                        onClick={() => {
+                          setPinMode("set");
+                          setPinMsg(null);
+                        }}
+                        className="w-full flex items-center gap-3 p-4 rounded-xl border border-red-200 hover:bg-red-50 transition-all text-left"
+                      >
+                        <div className="p-2 bg-red-100 rounded-lg text-red-600"><KeyRound size={18} /></div>
+                        <div>
+                          <div className="font-medium text-gray-900">Thiết lập mã PIN</div>
+                          <div className="text-xs text-gray-500">Xác thực PIN để bảo mật thao tác của phụ huynh</div>
+                        </div>
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setPinMode("change");
+                            setPinMsg(null);
+                          }}
+                          className="w-full flex items-center gap-3 p-4 rounded-xl border border-red-200 hover:bg-red-50 transition-all text-left"
+                        >
+                          <div className="p-2 bg-red-100 rounded-lg text-red-600"><Lock size={18} /></div>
+                          <div>
+                            <div className="font-medium text-gray-900">Đổi mã PIN</div>
+                            <div className="text-xs text-gray-500">Đổi PIN hiện tại sang PIN mới</div>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setPinMode("forgot-email");
+                            setPinMsg(null);
+                          }}
+                          className="w-full flex items-center gap-3 p-4 rounded-xl border border-amber-200 hover:bg-amber-50 transition-all text-left"
+                        >
+                          <div className="p-2 bg-amber-100 rounded-lg text-amber-600"><Mail size={18} /></div>
+                          <div>
+                            <div className="font-medium text-gray-900">Quên PIN - Khôi phục qua Email</div>
+                            <div className="text-xs text-gray-500">Nhận link đặt lại PIN qua email đã đăng ký</div>
+                          </div>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {pinMode === "set" && (
+                  <div className="space-y-4">
+                    <PinField
+                      label="Nhập mã PIN hiện tại"
+                      value={pinForm.pin}
+                      onChange={(value) => setPinForm((prev) => ({ ...prev, pin: value }))}
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          setPinMode("idle");
+                          setPinMsg(null);
+                        }}
+                        className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        onClick={handleSetPin}
+                        disabled={pinLoading}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {pinLoading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+                        Xác nhận
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {pinMode === "change" && (
+                  <div className="space-y-4">
+                    <PinField
+                      label="PIN hiện tại"
+                      value={pinForm.currentPin}
+                      onChange={(value) => setPinForm((prev) => ({ ...prev, currentPin: value }))}
+                    />
+                    <PinField
+                      label="PIN mới"
+                      value={pinForm.newPin}
+                      onChange={(value) => setPinForm((prev) => ({ ...prev, newPin: value }))}
+                    />
+                    <PinField
+                      label="Nhập lại PIN mới"
+                      value={pinForm.confirmPin}
+                      onChange={(value) => setPinForm((prev) => ({ ...prev, confirmPin: value }))}
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          setPinMode("idle");
+                          setPinMsg(null);
+                        }}
+                        className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        onClick={handleChangePin}
+                        disabled={pinLoading}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {pinLoading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                        Đổi PIN
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {pinMode === "forgot-email" && (
+                  <div className="space-y-4">
+                    <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+                      <p>
+                        Link khôi phục PIN sẽ được gửi đến email <strong>{email || "(chưa cập nhật)"}</strong>.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          setPinMode("idle");
+                          setPinMsg(null);
+                        }}
+                        className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-gray-700 hover:bg-red-50 transition-all text-sm"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        onClick={handleForgotPinEmail}
+                        disabled={pinLoading || !email}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-lg transition-all text-sm flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {pinLoading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                        Gửi link khôi phục
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!isParentRole && tab === "preferences" && (
               <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-xl p-6 md:p-8 space-y-6 transition-all duration-300 hover:shadow-2xl">
                 <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
                   <div className="p-2.5 bg-gradient-to-br from-red-50 to-red-100 rounded-xl">
@@ -764,6 +1249,45 @@ function PasswordField({
         </button>
       </div>
     </div>
+  );
+}
+
+function PinField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [show, setShow] = useState(false);
+
+  return (
+    <label className="block">
+      <div className="mb-2 text-sm font-medium text-gray-700">{label}</div>
+      <div className="relative max-w-xs">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+          <KeyRound size={16} />
+        </div>
+        <input
+          type={show ? "text" : "password"}
+          inputMode="numeric"
+          maxLength={9}
+          value={value}
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 9))}
+          placeholder="••••"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-10 pr-10 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all tracking-widest"
+        />
+        <button
+          type="button"
+          onClick={() => setShow((prev) => !prev)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600 transition-colors"
+        >
+          {show ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
+    </label>
   );
 }
 

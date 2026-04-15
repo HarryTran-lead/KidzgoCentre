@@ -16,6 +16,7 @@ import GlobalSearchModal from "./GlobalSearchModal";
 import { pickLocaleFromPath, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { ACCESS_MAP, ROLES, ROLE_LABEL, type Role } from "@/lib/role";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 
 /* ================= Types ================= */
@@ -166,6 +167,7 @@ function useHeaderI18n(locale: Locale) {
 export default function PortalHeader({
   role,
   userName,
+  avatarUrl,
   unreadCount = 0,
   notifications = [],
   onMenuToggle,
@@ -176,6 +178,7 @@ export default function PortalHeader({
 }: Props) {
   const router = useRouter();
   const pathname = usePathname() || "/";
+  const { user: currentUser } = useCurrentUser();
   const locale = useMemo<Locale>(
     () => pickLocaleFromPath(pathname) ?? DEFAULT_LOCALE,
     [pathname]
@@ -183,6 +186,11 @@ export default function PortalHeader({
 
   const i18n = useHeaderI18n(locale);
   const currentRole = useRoleFromPath(role);
+  const headerUserName = currentUser?.fullName ?? userName;
+  const headerAvatarUrl = useMemo(
+    () => currentUser?.avatarUrl ?? avatarUrl,
+    [currentUser?.avatarUrl, avatarUrl]
+  );
   const notificationCenter = useNotifications(currentRole);
   const liveNotifications =
     notifications.length > 0
@@ -225,8 +233,8 @@ export default function PortalHeader({
   }, [currentRole, showSearch]);
 
   const title = useMemo(
-    () => i18n.titleFor(currentRole, userName, pageTitle, pathname),
-    [i18n, currentRole, userName, pageTitle, pathname]
+    () => i18n.titleFor(currentRole, headerUserName, pageTitle, pathname),
+    [i18n, currentRole, headerUserName, pageTitle, pathname]
   );
 
   useEffect(() => {
@@ -426,7 +434,18 @@ export default function PortalHeader({
               )}
             </div>
 
-            <UserMenu mockUser={userName ? { fullname: userName, email: "", role: role as Role } : undefined} />
+            <UserMenu
+              mockUser={
+                headerUserName
+                  ? {
+                      fullname: headerUserName,
+                      email: currentUser?.email ?? "",
+                      role: currentRole,
+                      avatarUrl: headerAvatarUrl,
+                    }
+                  : undefined
+              }
+            />
           </div>
         </div>
       </header>

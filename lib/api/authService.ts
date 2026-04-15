@@ -136,7 +136,13 @@ export async function resetPin(data: ResetPinRequest): Promise<ResetPinApiRespon
  * Get current user information (token auto-injected)
  */
 export async function getUserMe(): Promise<UserMeApiResponse> {
-  return get<UserMeApiResponse>(AUTH_ENDPOINTS.ME);
+  return get<UserMeApiResponse>(AUTH_ENDPOINTS.ME, {
+    params: { _t: Date.now() },
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
 }
 
 /**
