@@ -33,7 +33,7 @@ export default async function StudentLayout({ children, params }: Props) {
   const session = await getSession();
 
   if (!session || !session.role) {
-    return <div className="min-h-full bg-slate-50">{children}</div>;
+    return <div className="min-h-dvh bg-slate-50">{children}</div>;
   }
 
   const role: Role = normalizeRole(session.role);
@@ -42,7 +42,7 @@ export default async function StudentLayout({ children, params }: Props) {
 
   return (
     <StudentStreakWrapper>
-      <div className="h-full w-full overflow-hidden flex flex-col">
+      <div className="h-dvh w-full overflow-hidden flex flex-col">
         {/* Modern background layer */}
         <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
           {/* Dynamic gradient background */}

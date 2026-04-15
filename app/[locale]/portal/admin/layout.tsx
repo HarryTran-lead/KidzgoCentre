@@ -18,7 +18,7 @@ export default async function PortalLayout({ children, params }: Props) {
   const session = await getSession();
 
   if (!session || !session.role) {
-    return <div className="min-h-full bg-slate-50">{children}</div>;
+    return <div className="min-h-dvh bg-slate-50">{children}</div>;
   }
 
   // ✅ Từ đây trở xuống, chắc chắn đã có session + role → safe cho TypeScript
@@ -63,7 +63,7 @@ export default async function PortalLayout({ children, params }: Props) {
   }
   
   return (
-    <div className="h-full w-full">
+    <div className="h-dvh w-full">
       <div className="flex h-full">
         {/* Sidebar: desktop chiếm chỗ thật, mobile overlay ở trong chính component */}
         <Sidebar role={role} branches={branches} />

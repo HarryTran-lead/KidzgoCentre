@@ -719,7 +719,7 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`bg-white h-full shrink-0 flex flex-col shadow-xl transition-all duration-500 ease-out border-r border-slate-200 ${
+        className={`bg-white h-screen shrink-0 flex flex-col shadow-xl transition-all duration-500 ease-out border-r border-slate-200 ${
           collapsed ? "w-[72px]" : "w-[280px]"
         } fixed top-0 left-0 z-80 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"

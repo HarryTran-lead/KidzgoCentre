@@ -8,8 +8,10 @@ type Props = {
 
 export default async function PortalLayout({ children, params }: Props) {
   return (
-    <div className="portal-zoom">
-      {children}
+    <div className="h-dvh w-full">
+      <div className="grow bg-slate-50 min-w-0 overflow-y-auto">
+        {children}
+      </div>
     </div>
   );
 }
