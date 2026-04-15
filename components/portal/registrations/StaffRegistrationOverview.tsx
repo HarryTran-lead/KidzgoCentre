@@ -501,7 +501,7 @@ export default function StaffRegistrationOverview({
       <button
         type="button"
         onClick={() => handleSort(keyName)}
-        className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wide font-semibold text-gray-600 hover:text-red-700 cursor-pointer"
+        className="inline-flex items-center gap-1.5 text-sm tracking-wide font-semibold text-gray-600 hover:text-red-700 cursor-pointer"
       >
         {label}
         <ArrowUpDown
@@ -1073,14 +1073,14 @@ export default function StaffRegistrationOverview({
       <RegistrationFilters
         searchQuery={query}
         selectedStatus={status}
-        pageSize={pageSize}
+        // pageSize={pageSize}
         statusCounts={registrationStatusCounts}
         onSearchChange={setQuery}
         onStatusChange={setStatus}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setCurrentPage(1);
-        }}
+        // onPageSizeChange={(size) => {
+        //   setPageSize(size);
+        //   setCurrentPage(1);
+        // }}
       />
 
       <div className="rounded-2xl border border-red-200 bg-linear-to-br from-white to-red-50/30 shadow-sm overflow-hidden">
@@ -1104,7 +1104,7 @@ export default function StaffRegistrationOverview({
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-220">
-            <thead className="bg-linear-to-r from-red-500/5 to-red-700/5 border-b border-red-200 text-left text-xs uppercase tracking-wide text-gray-600">
+            <thead className="bg-linear-to-r from-red-500/5 to-red-700/5 border-b border-red-200 text-left text-xs  tracking-wide text-gray-600">
               <tr>
                 <SortHeader label="Học viên" keyName="studentName" />
                 <SortHeader label="Chương trình" keyName="programName" />

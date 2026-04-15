@@ -62,6 +62,8 @@ export interface Lead {
   status?: LeadStatus;
   ownerStaffId?: string;
   ownerStaffName?: string;
+  ownerStaffAvatar?: string;
+  contactAvatar?: string;
   firstResponseAt?: string;
   touchCount?: number;
   nextActionAt?: string;
