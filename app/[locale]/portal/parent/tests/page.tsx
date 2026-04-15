@@ -11,7 +11,6 @@ import {
   Users, 
   BookOpen,
   Target,
-  Calendar,
   CheckCircle2,
   AlertCircle,
   Sparkles,
@@ -30,7 +29,7 @@ import { useSelectedStudentProfile } from "@/hooks/useSelectedStudentProfile";
 import { getParentTests } from "@/lib/api/parentPortalService";
 import type { UserProfile } from "@/types/auth";
 
-type TabType = "placement" | "periodic" | "monthly" | "session" | "history";
+type TabType = "periodic" | "monthly" | "session" | "history";
 type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "Published" | string;
 
 type MonthlyReport = {
@@ -1078,10 +1077,6 @@ export default function TestsPage() {
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
-        <TabButton active={activeTab === "placement"} onClick={() => setActiveTab("placement")}>
-          <FileCheck className="w-4 h-4" />
-          Placement Test
-        </TabButton>
         <TabButton active={activeTab === "periodic"} onClick={() => setActiveTab("periodic")}>
           <BarChart3 className="w-4 h-4" />
           Kiểm tra định kỳ
@@ -1115,24 +1110,6 @@ export default function TestsPage() {
       )}
 
       {/* Content - Grid 3 columns */}
-      {activeTab === "placement" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card className="border-gray-200 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
-                <FileCheck className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Chưa có Placement Test</h3>
-              <p className="text-sm text-gray-600 mb-4">Liên hệ giáo viên để được hỗ trợ</p>
-              <Button className="bg-gradient-to-r from-red-600 to-red-700 text-white">
-                <Calendar className="w-4 h-4 mr-2" />
-                Đặt lịch kiểm tra
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       {activeTab === "periodic" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {testResults.map((test) => (

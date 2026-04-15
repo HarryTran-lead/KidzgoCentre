@@ -2359,6 +2359,15 @@ function ImportTemplateModal({
   );
 }
 
+function parseStarterActivities(refContent: string | null | undefined): Record<string, any> | null {
+  if (!refContent?.trim()) return null;
+  const parsed = parseJsonContent(refContent);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const obj = parsed as Record<string, any>;
+  if (!Array.isArray(obj.activities) || obj.activities.length === 0) return null;
+  return obj;
+}
+
 function PlanFormModal({
   scope,
   classSyllabus,
@@ -2394,11 +2403,55 @@ function PlanFormModal({
   const isEdit = Boolean(initialValue);
   const isTeacher = scope === "teacher";
 
+  const refContent = session.templateSyllabusContent || session.plannedContent || initialValue?.plannedContent;
+
+  // Parse starter activities for structured editing (teacher only)
+  const starterData = useMemo(() => {
+    if (!isTeacher) return null;
+    // If editing an existing plan, try to parse actualContent first (teacher may have saved structured data before)
+    const existingActual = initialValue?.actualContent || session.actualContent;
+    const existingParsed = parseStarterActivities(existingActual);
+    if (existingParsed) return existingParsed;
+    return parseStarterActivities(refContent);
+  }, [isTeacher, refContent, initialValue?.actualContent, session.actualContent]);
+
+  const [editableActivities, setEditableActivities] = useState<Array<{ classwork: string; requiredMaterials: string; homeworkRequiredMaterials: string }>>(() => {
+    if (!starterData) return [];
+    // If teacher previously saved structured actual content, use that
+    const existingActual = initialValue?.actualContent || session.actualContent;
+    const existingParsed = parseStarterActivities(existingActual);
+    const source = existingParsed?.activities || starterData.activities;
+    return (source as Record<string, any>[]).map((a) => ({
+      classwork: typeof a.classwork === "string" ? a.classwork : "",
+      requiredMaterials: typeof a.requiredMaterials === "string" ? a.requiredMaterials : "",
+      homeworkRequiredMaterials: typeof a.homeworkRequiredMaterials === "string" ? a.homeworkRequiredMaterials : "",
+    }));
+  });
+
+  const hasStructuredStarter = isTeacher && starterData !== null;
+
+  const updateEditableActivity = (index: number, field: "classwork" | "requiredMaterials" | "homeworkRequiredMaterials", value: string) => {
+    setEditableActivities((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
+  };
+
+  const buildStructuredActualContent = (): string => {
+    if (!starterData) return actualContent;
+    const newActivities = (starterData.activities as Record<string, any>[]).map((a, i) => ({
+      ...a,
+      classwork: editableActivities[i]?.classwork ?? a.classwork ?? "",
+      requiredMaterials: editableActivities[i]?.requiredMaterials ?? a.requiredMaterials ?? "",
+      homeworkRequiredMaterials: editableActivities[i]?.homeworkRequiredMaterials ?? a.homeworkRequiredMaterials ?? "",
+    }));
+    return JSON.stringify({ ...starterData, activities: newActivities }, null, 2);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
 
-    if (isTeacher && !actualContent.trim()) {
+    const finalActualContent = hasStructuredStarter ? buildStructuredActualContent() : actualContent.trim();
+
+    if (isTeacher && !finalActualContent) {
       setError("Vui lòng nhập nội dung dạy thực tế.");
       return;
     }
@@ -2410,7 +2463,7 @@ function PlanFormModal({
         session,
         templateId: isTeacher ? session.templateId || null : templateId || null,
         plannedContent: isTeacher ? undefined : plannedContent.trim() || null,
-        actualContent: actualContent.trim() || null,
+        actualContent: finalActualContent || null,
         actualHomework: actualHomework.trim() || null,
         teacherNotes: teacherNotes.trim() || null,
       });
@@ -2421,15 +2474,13 @@ function PlanFormModal({
     }
   };
 
-  const refContent = session.templateSyllabusContent || session.plannedContent || initialValue?.plannedContent;
-
   return (
     <ModalFrame
       title={isTeacher ? (isEdit ? "Cập nhật giáo án" : "Điền giáo án buổi dạy") : (isEdit ? "Cập nhật lesson plan" : "Tạo lesson plan")}
       subtitle={isTeacher ? "Xem nội dung giáo án chuẩn (chỉ đọc) và điền nội dung dạy thực tế, bài tập, ghi chú." : "Session đã được khóa sẵn theo read model syllabus. Có thể để plannedContent trống để backend tự copy từ template."}
       icon={isTeacher ? ClipboardPen : FilePlus2}
       onClose={onClose}
-      widthClass="max-w-4xl"
+      widthClass={hasStructuredStarter ? "max-w-6xl" : "max-w-4xl"}
     >
       <form onSubmit={handleSubmit} className="space-y-5 p-6">
         <div className="grid gap-4 md:grid-cols-2">
@@ -2443,54 +2494,220 @@ function PlanFormModal({
 
         {isTeacher ? (
           <>
-            {refContent ? (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
-                <div className="mb-1 flex items-center gap-2">
-                  <BookOpenCheck size={15} className="text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-700">Nội dung giáo án Admin đã soạn</span>
-                  <span className="ml-auto rounded-full border border-blue-200 bg-white px-2.5 py-0.5 text-xs text-blue-600">Chỉ đọc</span>
+            {hasStructuredStarter ? (
+              /* ── Structured activity editor: show full content, only classwork/requiredMaterials/homeworkRequiredMaterials editable ── */
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
+                  <div className="flex items-center gap-2">
+                    <BookOpenCheck size={15} className="text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-700">Giáo án chuẩn — chỉ sửa được Classwork, Required Materials, Homework Materials</span>
+                  </div>
                 </div>
-                <div className="mt-3 max-h-56 overflow-y-auto">
-                  <StructuredContent value={refContent} placeholder="Chưa có nội dung chuẩn." />
+
+                {/* Summary badges */}
+                {(() => {
+                  const summaryKeys = ["sessionIndex", "title", "dateLabel", "teacherName"] as const;
+                  const hasSummary = summaryKeys.some((k) => starterData![k] !== undefined && starterData![k] !== null && starterData![k] !== "");
+                  if (!hasSummary) return null;
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {summaryKeys.map((k) =>
+                        starterData![k] ? (
+                          <StatusBadge key={k} kind="muted">{k}: {String(starterData![k])}</StatusBadge>
+                        ) : null
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Activities table with editable cells */}
+                <div className="overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm">
+                  <div className="border-b border-gray-300 bg-amber-50 px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-900">
+                    Activities
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[980px] border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-red-50 text-gray-700">
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Time</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Book</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Skills</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold min-w-[200px]">
+                            <span className="inline-flex items-center gap-1">Classwork <Pencil size={11} className="text-emerald-600" /></span>
+                          </th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold min-w-[180px]">
+                            <span className="inline-flex items-center gap-1">Required Materials <Pencil size={11} className="text-emerald-600" /></span>
+                          </th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold min-w-[180px]">
+                            <span className="inline-flex items-center gap-1">Homework Materials <Pencil size={11} className="text-emerald-600" /></span>
+                          </th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Extra</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(starterData!.activities as Record<string, any>[]).map((activity, index) => (
+                          <tr key={index} className="align-top">
+                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
+                              <SheetCellValue value={activity.time} />
+                            </td>
+                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
+                              <SheetCellValue value={activity.book} />
+                            </td>
+                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
+                              <SheetCellValue value={activity.skills} />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={editableActivities[index]?.classwork ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "classwork", e.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Nhập classwork..."
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={editableActivities[index]?.requiredMaterials ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "requiredMaterials", e.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Nhập required materials..."
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1.5">
+                              <textarea
+                                value={editableActivities[index]?.homeworkRequiredMaterials ?? ""}
+                                onChange={(e) => updateEditableActivity(index, "homeworkRequiredMaterials", e.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                placeholder="Nhập homework materials..."
+                              />
+                            </td>
+                            <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
+                              <SheetCellValue value={activity.extra} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Homework block (read-only) */}
+                  {(starterData!.homeworkLabel || linesFromUnknown(starterData!.homeworkMaterials).length || linesFromUnknown(starterData!.homeworkNotes).length) ? (
+                    <div className="border-t border-gray-300 bg-amber-50/40 p-4">
+                      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Homework block (chỉ đọc)</div>
+                      <div className="grid gap-3 lg:grid-cols-3">
+                        <div className="rounded-xl border border-gray-300 bg-white p-3">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Label</div>
+                          <SheetCellValue value={starterData!.homeworkLabel} />
+                        </div>
+                        <div className="rounded-xl border border-gray-300 bg-white p-3">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Required materials</div>
+                          <SheetCellValue value={starterData!.homeworkMaterials} />
+                        </div>
+                        <div className="rounded-xl border border-gray-300 bg-white p-3">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</div>
+                          <SheetCellValue value={starterData!.homeworkNotes} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Notes (read-only) */}
+                  {Array.isArray(starterData!.notes) && starterData!.notes.length > 0 ? (
+                    <div className="border-t border-gray-300 bg-white px-4 py-3">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Notes (chỉ đọc)</div>
+                      <SpreadsheetList value={starterData!.notes} />
+                    </div>
+                  ) : null}
                 </div>
               </div>
+            ) : refContent ? (
+              /* ── Fallback: show read-only content + freeform text fields ── */
+              <>
+                <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
+                  <div className="mb-1 flex items-center gap-2">
+                    <BookOpenCheck size={15} className="text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-700">Nội dung giáo án Admin đã soạn</span>
+                    <span className="ml-auto rounded-full border border-blue-200 bg-white px-2.5 py-0.5 text-xs text-blue-600">Chỉ đọc</span>
+                  </div>
+                  <div className="mt-3 max-h-56 overflow-y-auto">
+                    <StructuredContent value={refContent} placeholder="Chưa có nội dung chuẩn." />
+                  </div>
+                </div>
+
+                <Field label="Nội dung dạy thực tế *">
+                  <p className="mb-2 text-xs text-gray-500">Mô tả chi tiết nội dung bạn đã dạy trong buổi học hôm nay.</p>
+                  <textarea
+                    value={actualContent}
+                    onChange={(event) => setActualContent(event.target.value)}
+                    rows={6}
+                    autoFocus
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Hôm nay dạy Unit 3 - Animals, các bé học được tên các con vật, luyện phát âm..."
+                  />
+                </Field>
+
+                <Field label="Bài tập về nhà">
+                  <textarea
+                    value={actualHomework}
+                    onChange={(event) => setActualHomework(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
+                  />
+                </Field>
+
+                <Field label="Ghi chú thêm">
+                  <textarea
+                    value={teacherNotes}
+                    onChange={(event) => setTeacherNotes(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Bé An vắng mặt, cần gửi bài bù..."
+                  />
+                </Field>
+              </>
             ) : (
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                Admin chưa soạn giáo án chuẩn cho buổi này.
-              </div>
+              /* ── No starter at all: freeform entry ── */
+              <>
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                  Admin chưa soạn giáo án chuẩn cho buổi này.
+                </div>
+
+                <Field label="Nội dung dạy thực tế *">
+                  <p className="mb-2 text-xs text-gray-500">Mô tả chi tiết nội dung bạn đã dạy trong buổi học hôm nay.</p>
+                  <textarea
+                    value={actualContent}
+                    onChange={(event) => setActualContent(event.target.value)}
+                    rows={6}
+                    autoFocus
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Hôm nay dạy Unit 3 - Animals, các bé học được tên các con vật, luyện phát âm..."
+                  />
+                </Field>
+
+                <Field label="Bài tập về nhà">
+                  <textarea
+                    value={actualHomework}
+                    onChange={(event) => setActualHomework(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
+                  />
+                </Field>
+
+                <Field label="Ghi chú thêm">
+                  <textarea
+                    value={teacherNotes}
+                    onChange={(event) => setTeacherNotes(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    placeholder="VD: Bé An vắng mặt, cần gửi bài bù..."
+                  />
+                </Field>
+              </>
             )}
-
-            <Field label="Nội dung dạy thực tế *">
-              <p className="mb-2 text-xs text-gray-500">Mô tả chi tiết nội dung bạn đã dạy trong buổi học hôm nay.</p>
-              <textarea
-                value={actualContent}
-                onChange={(event) => setActualContent(event.target.value)}
-                rows={6}
-                autoFocus
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                placeholder="VD: Hôm nay dạy Unit 3 - Animals, các bé học được tên các con vật, luyện phát âm..."
-              />
-            </Field>
-
-            <Field label="Bài tập về nhà">
-              <textarea
-                value={actualHomework}
-                onChange={(event) => setActualHomework(event.target.value)}
-                rows={3}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                placeholder="VD: Workbook trang 15-16, học thuộc từ vựng Unit 3..."
-              />
-            </Field>
-
-            <Field label="Ghi chú thêm">
-              <textarea
-                value={teacherNotes}
-                onChange={(event) => setTeacherNotes(event.target.value)}
-                rows={3}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                placeholder="VD: Bé An vắng mặt, cần gửi bài bù..."
-              />
-            </Field>
           </>
         ) : (
           <>
