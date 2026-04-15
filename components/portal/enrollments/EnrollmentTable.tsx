@@ -131,7 +131,7 @@ export default function EnrollmentTable({
 
   const SortHeader = ({ label, sortKeyName }: { label: string; sortKeyName: string }) => (
     <th
-      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-red-50/50 transition-colors"
+      className="px-4 py-3 text-left text-sm font-semibold text-gray-600  cursor-pointer hover:bg-red-50/50 transition-colors"
       onClick={() => onSort?.(sortKeyName)}
     >
       <div className="flex items-center gap-1">
@@ -185,13 +185,12 @@ export default function EnrollmentTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-red-200 bg-linear-to-r from-red-500/5 to-red-700/5">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">STT</th>
               <SortHeader label="Học viên" sortKeyName="studentName" />
               <SortHeader label="Lớp" sortKeyName="classTitle" />
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Mã lớp</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 ">Mã lớp</th>
               <SortHeader label="Ngày GD" sortKeyName="enrollDate" />
               <SortHeader label="Trạng thái" sortKeyName="status" />
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Thao tác</th>
+              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 ">Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -200,9 +199,6 @@ export default function EnrollmentTable({
                 key={enrollment.id}
                 className="border-b border-red-100 hover:bg-red-50/30 transition-colors"
               >
-                <td className="px-4 py-3 text-gray-500">
-                  {(currentPage - 1) * pageSize + index + 1}
-                </td>
                 <td className="px-4 py-3">
                   <div className="font-medium text-gray-900">{enrollment.studentName || "N/A"}</div>
                 </td>

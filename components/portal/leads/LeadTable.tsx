@@ -16,6 +16,7 @@ import {
   Eye,
   RefreshCw,
 } from "lucide-react";
+import Image from "next/image";
 import { getLeadSourceLabel } from "@/types/lead";
 import type { Lead } from "@/types/lead";
 import StatusSelect from "./StatusSelect";
@@ -96,7 +97,7 @@ export default function LeadTable({
 
     return (
       <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-linear-to-r ${config.bg}${config.text} border ${config.border}`}>
-        <Icon size={12} />
+        <Icon size={14} />
         <span>{statusText}</span>
       </div>
     );

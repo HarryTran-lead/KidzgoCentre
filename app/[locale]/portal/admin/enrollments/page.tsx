@@ -291,12 +291,12 @@ export default function AdminEnrollmentsPage() {
         <EnrollmentFilters
           searchQuery={searchQuery}
           selectedStatus={selectedStatus}
-          pageSize={pageSize}
+          // pageSize={pageSize}
           totalCount={branchClassIds !== null ? allEnrollments.filter(e => branchClassIds.has(e.classId)).length : allEnrollments.length}
           statusCounts={displayStatusCounts}
           onSearchChange={setSearchQuery}
           onStatusChange={setSelectedStatus}
-          onPageSizeChange={setPageSize}
+          // onPageSizeChange={setPageSize}
         />
       </div>
 

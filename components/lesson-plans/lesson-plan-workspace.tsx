@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpenCheck,
   CalendarDays,
@@ -23,6 +23,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { BASE_URL } from "@/constants/apiURL";
 import { toast } from "@/hooks/use-toast";
@@ -56,6 +57,17 @@ type Option = {
   id: string;
   label: string;
   hint?: string;
+};
+
+type ClassOptionSource = {
+  id?: string | number | null;
+  title?: string | null;
+  name?: string | null;
+  classTitle?: string | null;
+  code?: string | null;
+  classCode?: string | null;
+  programName?: string | null;
+  level?: string | null;
 };
 
 type TemplateModalState =
@@ -107,7 +119,6 @@ const BACKEND_ROOT_URL = BASE_URL.replace(/\/api\/?$/, "");
 function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
-
 function normalizeDateValue(value?: string | null) {
   if (!value) return undefined;
 
@@ -152,7 +163,7 @@ function resolveAttachmentUrl(url?: string | null) {
   return `${BACKEND_ROOT_URL}/${url}`;
 }
 
-function buildClassOption(item: any): Option {
+function buildClassOption(item: ClassOptionSource): Option {
   const label =
     item?.title || item?.name || item?.classTitle || item?.code || item?.classCode || "Lớp học";
   const hint = [item?.code || item?.classCode, item?.programName, item?.level]
@@ -168,12 +179,6 @@ function buildClassOption(item: any): Option {
 
 function getTemplateStatus(item: LessonPlanTemplate) {
   return item.isActive === false ? "inactive" : "active";
-}
-
-function getPlanSummaryStatus(session: ClassLessonPlanSyllabusSession): PlanStatusFilter | "readonly" {
-  if (!session.lessonPlanId) return "missingPlan";
-  if (session.canEdit) return "editable";
-  return "readonly";
 }
 
 function extractMessage(result: { message?: string; detail?: string; title?: string } | null | undefined, fallback: string) {
@@ -197,6 +202,13 @@ function asObject(value: unknown): Record<string, unknown> | null {
   return null;
 }
 
+function toErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
+
 function getSuggestedNextSessionIndex(
   templates: LessonPlanTemplate[],
   programId: string,
@@ -215,7 +227,7 @@ function pickStringValue(
 ): string {
   if (!obj) return "";
   for (const key of keys) {
-    const v = obj[key];
+const v = obj[key];
     if (typeof v === "string" && v.trim()) return v.trim();
   }
   return "";
@@ -309,7 +321,7 @@ function createPresetTemplateActivity(preset: TemplateActivityPresetKey): Templa
 function activityDraftsFromUnknown(value: unknown): TemplateActivityDraft[] {
   if (!Array.isArray(value) || value.length === 0) return [createEmptyTemplateActivity()];
   return value.map((item) => {
-    if (typeof item !== "object" || !item) return createEmptyTemplateActivity();
+if (typeof item !== "object" || !item) return createEmptyTemplateActivity();
     const obj = item as Record<string, unknown>;
     return {
       time: typeof obj.time === "string" ? obj.time : "",
@@ -389,7 +401,7 @@ function getPlanStats(syllabus: ClassLessonPlanSyllabus | null) {
     },
     {
       title: "Đã có lesson plan",
-      value: String(sessions.filter((item) => item.lessonPlanId).length),
+value: String(sessions.filter((item) => item.lessonPlanId).length),
       subtitle: "Session đã được tạo bản ghi",
       icon: FileText,
       color: "from-emerald-500 to-teal-500",
@@ -442,7 +454,10 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   }, [templates]);
 
   useEffect(() => {
-    setActiveTab(scope === "teacher" ? "plans" : "templates");
+    const timer = setTimeout(() => {
+      setActiveTab(scope === "teacher" ? "plans" : "templates");
+    }, 0);
+    return () => clearTimeout(timer);
   }, [scope]);
 
   const loadPrograms = async () => {
@@ -466,10 +481,11 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   const loadClasses = async () => {
     if (isTeacher) {
       const response = await getTeacherClasses({ pageNumber: 1, pageSize: 100 });
+      const responseData = response?.data as { classes?: { items?: ClassOptionSource[] } | ClassOptionSource[] } | undefined;
       const source = Array.isArray(response?.data?.classes?.items)
         ? response.data.classes.items
-        : Array.isArray((response as any)?.data?.classes)
-          ? (response as any).data.classes
+        : Array.isArray(responseData?.classes)
+          ? responseData.classes
           : [];
 
       const options = source.map(buildClassOption).filter((item: Option) => item.id);
@@ -547,8 +563,17 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     setIsLoaded(true);
   };
 
+  const refreshWorkspaceRef = useRef(refreshWorkspace);
+
   useEffect(() => {
-    refreshWorkspace();
+    refreshWorkspaceRef.current = refreshWorkspace;
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void refreshWorkspaceRef.current();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [scope]);
 
   useEffect(() => {
@@ -558,27 +583,39 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
 
     const exists = classOptions.some((item) => item.id === selectedClassId);
     if (!selectedClassId || !exists) {
-      setSelectedClassId(classOptions[0].id);
+      const timer = setTimeout(() => {
+        setSelectedClassId(classOptions[0].id);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [classOptions, selectedClassId]);
 
   useEffect(() => {
     if ((isTeacher || activeTab === "plans") && selectedClassId) {
-      setLoading(true);
-      loadClassSyllabus(selectedClassId)
-        .catch((error) => {
-          setClassSyllabus(null);
-          toast({
-            title: "Không thể tải syllabus",
-            description: error?.message || "Vui lòng thử lại sau.",
-            variant: "destructive",
+      const loadingTimer = setTimeout(() => {
+        setLoading(true);
+      }, 0);
+      const requestTimer = setTimeout(() => {
+        void loadClassSyllabus(selectedClassId)
+          .catch((error: unknown) => {
+            setClassSyllabus(null);
+            toast({
+              title: "Không thể tải syllabus",
+              description: toErrorMessage(error, "Vui lòng thử lại sau."),
+              variant: "destructive",
+            });
+          })
+          .finally(() => {
+            setLoading(false);
+            setRefreshing(false);
+            setIsLoaded(true);
           });
-        })
-        .finally(() => {
-          setLoading(false);
-          setRefreshing(false);
-          setIsLoaded(true);
-        });
+      }, 0);
+
+      return () => {
+        clearTimeout(loadingTimer);
+        clearTimeout(requestTimer);
+      };
     }
   }, [activeTab, isTeacher, selectedClassId]);
 
@@ -672,7 +709,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
   }, [classSyllabus, planStatusFilter, searchQuery]);
 
   const stats = useMemo(() => {
-    return activeTab === "templates" && templatesAvailable
+return activeTab === "templates" && templatesAvailable
       ? getTemplateStats(templates)
       : getPlanStats(classSyllabus);
   }, [activeTab, classSyllabus, templates, templatesAvailable]);
@@ -767,7 +804,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     let attachment = payload.attachment || null;
 
     if (file) {
-      const uploaded = await uploadLessonPlanFile("template", file);
+const uploaded = await uploadLessonPlanFile("template", file);
       attachment = uploaded.url;
     }
 
@@ -856,7 +893,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
       planModal?.mode === "edit"
         ? await updateLessonPlan(planModal.plan.id, {
             templateId: isTeacher ? (planModal.plan.templateId ?? null) : (payload.templateId ?? null),
-            plannedContent: isTeacher ? (planModal.plan.plannedContent ?? null) : (payload.plannedContent ?? null),
+plannedContent: isTeacher ? (planModal.plan.plannedContent ?? null) : (payload.plannedContent ?? null),
             actualContent: payload.actualContent ?? null,
             actualHomework: payload.actualHomework ?? null,
             teacherNotes: payload.teacherNotes ?? null,
@@ -895,7 +932,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
     }
 
     return templates.filter((item) => item.programId === classSyllabus.programId);
-  }, [classSyllabus?.programId, templates]);
+  }, [classSyllabus, templates]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/40 to-white p-6 space-y-6">
@@ -925,7 +962,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
               <>
                 <button
                   type="button"
-                  onClick={() => setShowImportModal(true)}
+onClick={() => setShowImportModal(true)}
                   className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
                 >
                   <Upload size={16} />
@@ -974,8 +1011,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
           <TabButton active={activeTab === "plans"} label="Syllabus lớp" onClick={() => setActiveTab("plans")} />
         </div>
       ) : null}
-
-      <div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3")}>
+<div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-500", isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3")}>
         {stats.map((item) => (
           <StatCard key={item.title} {...item} />
         ))}
@@ -1049,7 +1085,7 @@ export function LessonPlanWorkspace({ scope }: { scope: WorkspaceScope }) {
           scope={scope}
           classSyllabus={classSyllabus}
           session={planModal.session}
-          initialValue={planModal.mode === "edit" ? planModal.plan : null}
+initialValue={planModal.mode === "edit" ? planModal.plan : null}
           templateOptions={templateOptions}
           onClose={() => setPlanModal(null)}
           onSubmit={handlePlanSubmit}
@@ -1127,7 +1163,7 @@ function FilterBar({
                   <SelectItem value="all">Tất cả trạng thái</SelectItem>
                   <SelectItem value="active">Đang hoạt động</SelectItem>
                   <SelectItem value="inactive">Tạm ẩn</SelectItem>
-                  <SelectItem value="withAttachment">Có attachment</SelectItem>
+<SelectItem value="withAttachment">Có attachment</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1203,7 +1239,7 @@ function TemplateTable({
         <h3 className="text-sm font-semibold text-gray-700">Danh sách {items.length} template</h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full">
+<table className="w-full">
           <thead className="border-b border-red-200 bg-gradient-to-r from-red-50 to-red-50/50">
             <tr>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Template</th>
@@ -1250,7 +1286,7 @@ function TemplateTable({
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end items-center gap-2">
-                    <IconButton label="Xem chi tiết" onClick={() => onOpenDetail(item)}>
+<IconButton label="Xem chi tiết" onClick={() => onOpenDetail(item)}>
                       <Eye size={15} />
                     </IconButton>
                     <IconButton label="Chỉnh sửa" variant="warning" onClick={() => onEdit(item)}>
@@ -1325,7 +1361,7 @@ function SyllabusView({
                   {syllabus.programName}
                 </span>
               )}
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+<span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
                 <CalendarDays size={12} />
                 {items.length} buổi học
               </span>
@@ -1385,7 +1421,7 @@ function SyllabusView({
                   
                   <div>
                     <h4 className="text-lg font-semibold text-gray-900">
-                      Buổi {session.sessionIndex}
+Buổi {session.sessionIndex}
                     </h4>
                     {normalizeDateValue(session.sessionDate) && (
                       <p className="text-sm text-gray-500">
@@ -1444,7 +1480,7 @@ function SyllabusView({
                     <button
                       type="button"
                       onClick={() => onOpenPlanDetail(session.lessonPlanId!)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                     >
                       <Eye size="16" />
                       Chi tiết
@@ -1495,7 +1531,7 @@ function SyllabusView({
                     <span className="text-gray-600">Giáo viên dự kiến:</span>
                     <span className="font-medium text-gray-900">{session.plannedTeacherName || "-"}</span>
                   </div>
-                  {session.actualTeacherName && (
+{session.actualTeacherName && (
                     <div className="flex items-center gap-2">
                       <div className="rounded-lg bg-emerald-100 p-1">
                         <Users size="14" className="text-emerald-600" />
@@ -1558,7 +1594,7 @@ function SyllabusView({
 
                   {(session.actualHomework || session.teacherNotes) && (
                     <ContentCard
-                      title="Bài tập & Ghi chú"
+title="Bài tập & Ghi chú"
                       subtitle="Sau buổi học"
                       icon={<Paperclip size="16" />}
                       gradient="from-amber-50 to-white"
@@ -1645,7 +1681,7 @@ function ContentCard({
             {icon}
           </div>
           <div>
-            <h5 className="font-semibold text-gray-900">{title}</h5>
+<h5 className="font-semibold text-gray-900">{title}</h5>
             {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
           </div>
         </div>
@@ -1723,7 +1759,7 @@ function TemplateFormModal({
   const [teacherName, setTeacherName] = useState(pickStringValue(contentSeed, ["teacherName"]));
   const [homeworkLabel, setHomeworkLabel] = useState(pickStringValue(contentSeed, ["homeworkLabel"]) || "HOMEWORK");
   const [homeworkMaterialsText, setHomeworkMaterialsText] = useState(linesToTextarea(contentSeed?.homeworkMaterials));
-  const [homeworkNotesText, setHomeworkNotesText] = useState(linesToTextarea(contentSeed?.homeworkNotes));
+const [homeworkNotesText, setHomeworkNotesText] = useState(linesToTextarea(contentSeed?.homeworkNotes));
   const [activities, setActivities] = useState<TemplateActivityDraft[]>(
     activityDraftsFromUnknown(contentSeed?.activities)
   );
@@ -1793,7 +1829,7 @@ function TemplateFormModal({
   const addPresetActivity = (preset: TemplateActivityPresetKey) => {
     setActivities((current) => {
       const nextActivity = createPresetTemplateActivity(preset);
-      if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivity];
+if (current.length === 1 && isActivityDraftEmpty(current[0])) return [nextActivity];
       return [...current, nextActivity];
     });
   };
@@ -1868,8 +1904,8 @@ function TemplateFormModal({
         },
         selectedFile
       );
-    } catch (submitError: any) {
-      setError(submitError?.message || "Không thể lưu template.");
+    } catch (submitError: unknown) {
+      setError(toErrorMessage(submitError, "Không thể lưu template."));
     } finally {
       setSubmitting(false);
     }
@@ -1938,7 +1974,7 @@ function TemplateFormModal({
                 >
                   Dùng gợi ý
                 </button>
-              </div>
+</div>
             ) : null}
           </Field>
         </div>
@@ -2003,7 +2039,7 @@ function TemplateFormModal({
         </div>
 
         {/* Nội dung session */}
-        <div className="rounded-2xl border border-gray-200 bg-blue-50/30 p-5 space-y-4">
+<div className="rounded-2xl border border-gray-200 bg-blue-50/30 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-blue-700">Nội dung session</div>
             <StatusBadge kind="info">syllabusContent</StatusBadge>
@@ -2060,7 +2096,7 @@ function TemplateFormModal({
                   <button
                     key={preset.key}
                     type="button"
-                    onClick={() => addPresetActivity(preset.key)}
+onClick={() => addPresetActivity(preset.key)}
                     className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100 cursor-pointer"
                   >
                     + {preset.label}
@@ -2107,7 +2143,7 @@ function TemplateFormModal({
                       <td className="border border-gray-300 p-1.5">
                         <input
                           value={activity.book}
-                          onChange={(event) => updateActivity(index, "book", event.target.value)}
+onChange={(event) => updateActivity(index, "book", event.target.value)}
                           className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
                           placeholder="B1 DESTINATION"
                         />
@@ -2151,7 +2187,7 @@ function TemplateFormModal({
                         <textarea
                           value={activity.extra}
                           onChange={(event) => updateActivity(index, "extra", event.target.value)}
-                          rows={2}
+rows={2}
                           className="w-full rounded-lg border border-transparent bg-white px-2 py-2 text-sm focus:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-100"
                           placeholder="Handbook 88,89"
                         />
@@ -2215,7 +2251,7 @@ function TemplateFormModal({
         </Field>
 
         {isEdit ? (
-          <Field label="Trạng thái">
+<Field label="Trạng thái">
             <div className="grid grid-cols-2 gap-3">
               <ToggleButton active={isActive} onClick={() => setIsActive(true)} label="Đang hoạt động" />
               <ToggleButton active={!isActive} onClick={() => setIsActive(false)} label="Tạm ẩn" />
@@ -2276,8 +2312,8 @@ function ImportTemplateModal({
         level: level.trim() || undefined,
         overwriteExisting,
       });
-    } catch (submitError: any) {
-      setError(submitError?.message || "Không thể import syllabus.");
+    } catch (submitError: unknown) {
+      setError(toErrorMessage(submitError, "Không thể import syllabus."));
     } finally {
       setSubmitting(false);
     }
@@ -2310,7 +2346,7 @@ function ImportTemplateModal({
             <select
               value={programId}
               onChange={(event) => setProgramId(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
             >
               <option value="">Để backend tự map</option>
               {programOptions.map((item) => (
@@ -2359,13 +2395,27 @@ function ImportTemplateModal({
   );
 }
 
-function parseStarterActivities(refContent: string | null | undefined): Record<string, any> | null {
+type StarterActivity = Record<string, unknown> & {
+  classwork?: string;
+  requiredMaterials?: string;
+  homeworkRequiredMaterials?: string;
+};
+
+type StarterSheet = Record<string, unknown> & {
+  activities: StarterActivity[];
+};
+
+function parseStarterActivities(refContent: string | null | undefined): StarterSheet | null {
   if (!refContent?.trim()) return null;
   const parsed = parseJsonContent(refContent);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-  const obj = parsed as Record<string, any>;
+  const obj = parsed as Record<string, unknown>;
   if (!Array.isArray(obj.activities) || obj.activities.length === 0) return null;
-  return obj;
+  const activities = obj.activities
+    .map((item) => asObject(item))
+    .filter((item): item is StarterActivity => Boolean(item));
+  if (!activities.length) return null;
+  return { ...obj, activities };
 }
 
 function PlanFormModal({
@@ -2401,7 +2451,7 @@ function PlanFormModal({
   const [error, setError] = useState<string | null>(null);
 
   const isEdit = Boolean(initialValue);
-  const isTeacher = scope === "teacher";
+const isTeacher = scope === "teacher";
 
   const refContent = session.templateSyllabusContent || session.plannedContent || initialValue?.plannedContent;
 
@@ -2421,7 +2471,7 @@ function PlanFormModal({
     const existingActual = initialValue?.actualContent || session.actualContent;
     const existingParsed = parseStarterActivities(existingActual);
     const source = existingParsed?.activities || starterData.activities;
-    return (source as Record<string, any>[]).map((a) => ({
+    return source.map((a) => ({
       classwork: typeof a.classwork === "string" ? a.classwork : "",
       requiredMaterials: typeof a.requiredMaterials === "string" ? a.requiredMaterials : "",
       homeworkRequiredMaterials: typeof a.homeworkRequiredMaterials === "string" ? a.homeworkRequiredMaterials : "",
@@ -2436,7 +2486,7 @@ function PlanFormModal({
 
   const buildStructuredActualContent = (): string => {
     if (!starterData) return actualContent;
-    const newActivities = (starterData.activities as Record<string, any>[]).map((a, i) => ({
+    const newActivities = starterData.activities.map((a, i) => ({
       ...a,
       classwork: editableActivities[i]?.classwork ?? a.classwork ?? "",
       requiredMaterials: editableActivities[i]?.requiredMaterials ?? a.requiredMaterials ?? "",
@@ -2467,8 +2517,8 @@ function PlanFormModal({
         actualHomework: actualHomework.trim() || null,
         teacherNotes: teacherNotes.trim() || null,
       });
-    } catch (submitError: any) {
-      setError(submitError?.message || "Không thể lưu lesson plan.");
+    } catch (submitError: unknown) {
+      setError(toErrorMessage(submitError, "Không thể lưu lesson plan."));
     } finally {
       setSubmitting(false);
     }
@@ -2545,7 +2595,7 @@ function PlanFormModal({
                         </tr>
                       </thead>
                       <tbody>
-                        {(starterData!.activities as Record<string, any>[]).map((activity, index) => (
+                        {starterData!.activities.map((activity, index) => (
                           <tr key={index} className="align-top">
                             <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700">
                               <SheetCellValue value={activity.time} />
@@ -2737,7 +2787,7 @@ function PlanFormModal({
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200"
                 placeholder='{"sessionIndex":1,"activities":[]}'
               />
-            </Field>
+</Field>
 
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="actualContent">
@@ -2817,7 +2867,7 @@ function DetailModal({
     return (
       <ModalFrame title={title} subtitle={subtitle} icon={state.type === "template" ? FolderOpen : FileText} onClose={onClose} widthClass="max-w-5xl">
         <div className="p-6">
-          <ErrorBox message={state.error} />
+<ErrorBox message={state.error} />
         </div>
       </ModalFrame>
     );
@@ -2865,8 +2915,7 @@ function DetailModal({
               <InfoCard icon={ShieldCheck} label="Người cập nhật" value={state.item.submittedByName || "-"} />
               <InfoCard icon={Clock3} label="Thời gian" value={formatDate(state.item.updatedAt || state.item.createdAt || state.item.submittedAt, true)} />
             </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
+<div className="grid gap-4 xl:grid-cols-2">
               <ContentPanel title="plannedContent" value={state.item.plannedContent} accent="text-red-700" />
               <ContentPanel title="actualContent" value={state.item.actualContent} accent="text-emerald-700" />
               <ContentPanel title="actualHomework" value={state.item.actualHomework} accent="text-amber-700" />
@@ -2943,7 +2992,7 @@ function ModalActions({
         {showReset && onReset && (
           <button
             type="button"
-            onClick={onReset}
+onClick={onReset}
             disabled={submitting}
             className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
@@ -3056,8 +3105,7 @@ function StatusBadge({
         : kind === "info"
           ? "border-blue-200 bg-blue-50 text-blue-700"
           : "border-gray-200 bg-gray-50 text-gray-700";
-
-  return <span className={cn("inline-flex rounded-full border px-3 py-1 text-xs font-medium", classes)}>{children}</span>;
+return <span className={cn("inline-flex rounded-full border px-3 py-1 text-xs font-medium", classes)}>{children}</span>;
 }
 
 function StatCard({
@@ -3070,7 +3118,7 @@ function StatCard({
   title: string;
   value: string;
   subtitle: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
 }) {
   return (
@@ -3099,7 +3147,7 @@ function ModalFrame({
 }: {
   title: string;
   subtitle: string;
-  icon: any;
+  icon: LucideIcon;
   onClose: () => void;
   children: React.ReactNode;
   widthClass?: string;
@@ -3150,13 +3198,13 @@ function InfoCard({
   label,
   value,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: string;
 }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-red-50/60 p-4">
-      <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-red-600">
+<div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-red-600">
         <Icon size={14} />
         {label}
       </div>
@@ -3226,13 +3274,13 @@ function SheetCellValue({ value, empty = "-" }: { value: unknown; empty?: string
   return <div className="whitespace-pre-wrap text-sm text-gray-700">{text}</div>;
 }
 
-function isMetadataSheetObject(objectValue: Record<string, any>) {
+function isMetadataSheetObject(objectValue: Record<string, unknown>) {
   return ["day", "days", "scheduleDays", "duration", "generalInformation", "generalInfo", "teachingMaterials", "note"].some(
     (key) => objectValue[key] !== undefined && objectValue[key] !== null
   );
 }
 
-function isSessionSheetObject(objectValue: Record<string, any>) {
+function isSessionSheetObject(objectValue: Record<string, unknown>) {
   return (
     Array.isArray(objectValue.activities) ||
     ["sessionIndex", "title", "dateLabel", "teacherName", "homeworkLabel", "homeworkMaterials", "homeworkNotes"].some(
@@ -3241,13 +3289,13 @@ function isSessionSheetObject(objectValue: Record<string, any>) {
   );
 }
 
-function MetadataSheetView({ objectValue }: { objectValue: Record<string, any> }) {
+function MetadataSheetView({ objectValue }: { objectValue: Record<string, unknown> }) {
   const sheetTitle = pickStringValue(objectValue, ["title", "sheetTitle"]) || "SYLLABUS";
   const day = pickStringValue(objectValue, ["day", "days", "scheduleDays"]);
   const duration = pickStringValue(objectValue, ["duration"]);
   const generalInformation = pickStringValue(objectValue, ["generalInformation", "generalInfo", "description"]);
   const teachingMaterials = objectValue.teachingMaterials;
-  const note = objectValue.note;
+const note = objectValue.note;
   const extraEntries = Object.entries(objectValue).filter(
     ([key]) =>
       !["title", "sheetTitle", "day", "days", "scheduleDays", "duration", "generalInformation", "generalInfo", "description", "teachingMaterials", "note"].includes(
@@ -3309,10 +3357,12 @@ function MetadataSheetView({ objectValue }: { objectValue: Record<string, any> }
   );
 }
 
-function SessionSheetView({ objectValue }: { objectValue: Record<string, any> }) {
-  const activities = Array.isArray(objectValue.activities) ? objectValue.activities : [];
+function SessionSheetView({ objectValue }: { objectValue: Record<string, unknown> }) {
+  const activities = Array.isArray(objectValue.activities)
+    ? objectValue.activities.filter((item): item is Record<string, unknown> => asObject(item) !== null)
+    : [];
   const notes = Array.isArray(objectValue.notes) ? objectValue.notes : [];
-  const extraEntries = Object.entries(objectValue).filter(
+const extraEntries = Object.entries(objectValue).filter(
     ([key]) =>
       ![
         "sessionIndex",
@@ -3351,7 +3401,7 @@ function SessionSheetView({ objectValue }: { objectValue: Record<string, any> })
           </thead>
           <tbody>
             {activities.length ? (
-              activities.map((activity: Record<string, any>, index: number) => (
+              activities.map((activity: Record<string, unknown>, index: number) => (
                 <tr key={`activity-${index}`} className="align-top">
                   <td className="border border-gray-300 px-3 py-2">{index === 0 ? <SheetCellValue value={objectValue.sessionIndex} /> : null}</td>
                   <td className="border border-gray-300 px-3 py-2">{index === 0 ? <SheetCellValue value={objectValue.dateLabel} /> : null}</td>
@@ -3360,7 +3410,7 @@ function SessionSheetView({ objectValue }: { objectValue: Record<string, any> })
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.book} /></td>
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.skills} /></td>
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.classwork} /></td>
-                  <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.requiredMaterials} /></td>
+<td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.requiredMaterials} /></td>
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.homeworkRequiredMaterials} /></td>
                   <td className="border border-gray-300 px-3 py-2"><SheetCellValue value={activity.extra} /></td>
                 </tr>
@@ -3419,21 +3469,6 @@ function SessionSheetView({ objectValue }: { objectValue: Record<string, any> })
   );
 }
 
-function SyllabusSheetPreview({
-  metadataObject,
-  contentObject,
-}: {
-  metadataObject: Record<string, any>;
-  contentObject: Record<string, any>;
-}) {
-  return (
-    <div className="space-y-4">
-      <MetadataSheetView objectValue={metadataObject} />
-      <SessionSheetView objectValue={contentObject} />
-    </div>
-  );
-}
-
 function StructuredContent({
   value,
   placeholder,
@@ -3459,7 +3494,7 @@ function StructuredContent({
     );
   }
 
-  const objectValue = parsed as Record<string, any>;
+  const objectValue = parsed as Record<string, unknown>;
   if (isSessionSheetObject(objectValue)) {
     return <SessionSheetView objectValue={objectValue} />;
   }
@@ -3468,17 +3503,19 @@ function StructuredContent({
     return <MetadataSheetView objectValue={objectValue} />;
   }
 
-  const activities = Array.isArray(objectValue.activities) ? objectValue.activities : [];
+  const activities = Array.isArray(objectValue.activities)
+    ? objectValue.activities.filter((item): item is Record<string, unknown> => asObject(item) !== null)
+    : [];
   const notes = Array.isArray(objectValue.notes) ? objectValue.notes : [];
   const summaryKeys = ["sessionIndex", "title", "dateLabel", "teacherName"];
   const extraEntries = Object.entries(objectValue).filter(
     ([key]) => !summaryKeys.includes(key) && key !== "activities" && key !== "notes"
   );
-  const renderStructuredValue = (entry: any) => {
+  const renderStructuredValue = (entry: unknown) => {
     if (Array.isArray(entry)) {
       return (
         <div className="space-y-1">
-          {entry.map((item, index) => (
+          {entry.map((item: unknown, index: number) => (
             <div key={`${String(item)}-${index}`} className="whitespace-pre-wrap text-sm text-gray-700">
               {String(item)}
             </div>
@@ -3514,7 +3551,7 @@ function StructuredContent({
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</div>
           <div className="flex flex-wrap gap-2">
-            {notes.map((note: any, index: number) => (
+            {notes.map((note: unknown, index: number) => (
               <StatusBadge key={`${String(note)}-${index}`} kind="warning">
                 {String(note)}
               </StatusBadge>
@@ -3525,8 +3562,8 @@ function StructuredContent({
 
       {activities.length ? (
         <div className="space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Activities</div>
-          {activities.map((activity: any, index: number) => (
+<div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Activities</div>
+          {activities.map((activity: Record<string, unknown>, index: number) => (
             <div key={index} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
               <div className="grid gap-2 md:grid-cols-2">
                 {Object.entries(activity || {}).map(([key, activityValue]) => (
