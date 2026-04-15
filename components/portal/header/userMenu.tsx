@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import AvatarUserImage from "@/components/ui/Avatar_User_Image";
 import type { Role } from "@/lib/role";
 import { ROLE_LABEL, ROLES } from "@/lib/role";
+import { buildFileUrl } from "@/constants/apiURL";
 
 type Placement = "down" | "up";
 
@@ -156,6 +157,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
     ...(mockUser ?? {}),
     role: (mockUser?.role ?? role) as Role,
   };
+  const resolvedAvatarUrl = user.avatarUrl ? buildFileUrl(user.avatarUrl) : undefined;
 
   const [open, setOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -248,6 +250,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
           <div className="relative">
             <AvatarUserImage
               name={user.fullname}
+              avatarUrl={resolvedAvatarUrl}
               size={36}
               ringClassName="ring-2 ring-white"
             />
